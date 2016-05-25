@@ -9,6 +9,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+static const size_t kPaddedVarInt32Size = 5;
+static const size_t kMaxVarInt32Size = 5;
+
 class LEBHelper {
  public:
   // Write a 32-bit unsigned LEB to {dest}, updating {dest} to point after

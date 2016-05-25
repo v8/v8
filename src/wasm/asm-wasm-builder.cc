@@ -1759,12 +1759,14 @@ AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-WasmModuleIndex* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
+ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
   AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
   impl.Compile();
   *foreign_args = impl.GetForeignArgs();
+  ZoneBuffer* buffer = new (zone_) ZoneBuffer(zone_);
   WasmModuleWriter* writer = impl.builder_->Build(zone_);
-  return writer->WriteTo(zone_);
+  writer->WriteTo(*buffer);
+  return buffer;
 }
 }  // namespace wasm
 }  // namespace internal

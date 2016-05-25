@@ -30,70 +30,25 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-/*TODO: add error cases for adding too many locals, too many functions and bad
-  indices in body */
-
-namespace {
-void EmitUint8(byte** b, uint8_t x) {
-  Memory::uint8_at(*b) = x;
-  *b += 1;
-}
-
-void EmitUint16(byte** b, uint16_t x) {
-  WriteUnalignedUInt16(*b, x);
-  *b += 2;
-}
-
-void EmitUint32(byte** b, uint32_t x) {
-  WriteUnalignedUInt32(*b, x);
-  *b += 4;
-}
-
-void EmitVarInt(byte** b, size_t val) {
-  LEBHelper::write_u32v(b, static_cast<uint32_t>(val));
-}
-
-// Sections all start with a size, but it's unknown at the start.
-// We generate a large varint which we then fixup later when the size is known.
-//
-// TODO(jfb) Not strictly necessary since sizes are calculated ahead of time.
-const size_t kPaddedVarintSize = 5;
-
-void FixupSection(byte* start, byte* end) {
-  // Same as LEBHelper::write_u32v, but fixed-width with zeroes in the MSBs.
-  size_t val = end - start - kPaddedVarintSize;
-  TRACE("  fixup %u\n", (unsigned)val);
-  for (size_t pos = 0; pos != kPaddedVarintSize; ++pos) {
-    size_t next = val >> 7;
-    byte out = static_cast<byte>(val & 0x7f);
-    if (pos != kPaddedVarintSize - 1) {
-      *(start++) = 0x80 | out;
-      val = next;
-    } else {
-      *(start++) = out;
-      // TODO(jfb) check that the pre-allocated fixup size isn't overflowed.
-    }
-  }
-}
-
-// Returns the start of the section, where the section VarInt size is.
-byte* EmitSection(WasmSection::Code code, byte** b) {
+// Emit a section name and the size as a padded varint that can be patched
+// later.
+size_t EmitSection(WasmSection::Code code, ZoneBuffer& buffer) {
   // Emit the section name.
   const char* name = WasmSection::getName(code);
   TRACE("emit section: %s\n", name);
   size_t length = WasmSection::getNameLength(code);
-  EmitVarInt(b, length);  // Section name string size.
-  for (size_t i = 0; i != length; ++i) EmitUint8(b, name[i]);
+  buffer.write_size(length);  // Section name string size.
+  buffer.write(reinterpret_cast<const byte*>(name), length);
 
   // Emit a placeholder for the length.
-  byte* start = *b;
-  for (size_t padding = 0; padding != kPaddedVarintSize; ++padding) {
-    EmitUint8(b, 0xff);  // Will get fixed up later.
-  }
-
-  return start;
+  return buffer.reserve_u32v();
 }
-}  // namespace
+
+// Patch the size of a section after it's finished.
+void FixupSection(ZoneBuffer& buffer, size_t start) {
+  buffer.patch_u32v(start, static_cast<uint32_t>(buffer.offset() - start -
+                                                 kPaddedVarInt32Size));
+}
 
 WasmFunctionBuilder::WasmFunctionBuilder(Zone* zone)
     : locals_(zone), exported_(0), body_(zone), name_(zone) {}
@@ -189,45 +144,30 @@ WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals,
                                          bool exported)
     : locals_(locals), exported_(exported), body_(zone), name_(zone) {}
 
-uint32_t WasmFunctionEncoder::HeaderSize() const {
-  uint32_t size = 3;
-  size += 2;
-  if (HasName()) {
-    uint32_t name_size = NameSize();
-    size +=
-        static_cast<uint32_t>(LEBHelper::sizeof_u32v(name_size)) + name_size;
-  }
-  return size;
+void WasmFunctionEncoder::WriteSignature(ZoneBuffer& buffer) const {
+  buffer.write_u32v(signature_index_);
 }
 
-uint32_t WasmFunctionEncoder::BodySize(void) const {
-  return static_cast<uint32_t>(body_.size() + locals_.Size());
-}
-
-uint32_t WasmFunctionEncoder::NameSize() const {
-  return HasName() ? static_cast<uint32_t>(name_.size()) : 0;
-}
-
-void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
-                                    byte** body) const {
-  uint8_t decl_bits = (exported_ ? kDeclFunctionExport : 0) |
-                      (HasName() ? kDeclFunctionName : 0);
-
-  EmitUint8(header, decl_bits);
-  EmitUint16(header, signature_index_);
-
-  if (HasName()) {
-    EmitVarInt(header, NameSize());
-    for (size_t i = 0; i < name_.size(); ++i) {
-      EmitUint8(header, name_[i]);
+void WasmFunctionEncoder::WriteExport(ZoneBuffer& buffer,
+                                      uint32_t func_index) const {
+  if (exported_) {
+    buffer.write_u32v(func_index);
+    buffer.write_size(name_.size());
+    if (name_.size() > 0) {
+      buffer.write(reinterpret_cast<const byte*>(&name_[0]), name_.size());
     }
   }
+}
 
-  EmitUint16(header, static_cast<uint16_t>(body_.size() + locals_.Size()));
-  (*header) += locals_.Emit(*header);
+void WasmFunctionEncoder::WriteBody(ZoneBuffer& buffer) const {
+  size_t locals_size = locals_.Size();
+  buffer.write_size(locals_size + body_.size());
+  buffer.EnsureSpace(locals_size);
+  byte** ptr = buffer.pos_ptr();
+  locals_.Emit(*ptr);
+  (*ptr) += locals_size;  // UGLY: manual bump of position pointer
   if (body_.size() > 0) {
-    std::memcpy(*header, &body_[0], body_.size());
-    (*header) += body_.size();
+    buffer.write(&body_[0], body_.size());
   }
 }
 
@@ -239,22 +179,10 @@ WasmDataSegmentEncoder::WasmDataSegmentEncoder(Zone* zone, const byte* data,
   }
 }
 
-uint32_t WasmDataSegmentEncoder::HeaderSize() const {
-  static const int kDataSegmentSize = 13;
-  return kDataSegmentSize;
-}
-
-uint32_t WasmDataSegmentEncoder::BodySize() const {
-  return static_cast<uint32_t>(data_.size());
-}
-
-void WasmDataSegmentEncoder::Serialize(byte* buffer, byte** header,
-                                       byte** body) const {
-  EmitVarInt(header, dest_);
-  EmitVarInt(header, static_cast<uint32_t>(data_.size()));
-
-  std::memcpy(*header, &data_[0], data_.size());
-  (*header) += data_.size();
+void WasmDataSegmentEncoder::Write(ZoneBuffer& buffer) const {
+  buffer.write_u32v(dest_);
+  buffer.write_u32v(static_cast<uint32_t>(data_.size()));
+  buffer.write(&data_[0], data_.size());
 }
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
@@ -365,223 +293,130 @@ WasmModuleWriter::WasmModuleWriter(Zone* zone)
       indirect_functions_(zone),
       globals_(zone) {}
 
-struct Sizes {
-  size_t header_size;
-  size_t body_size;
+void WasmModuleWriter::WriteTo(ZoneBuffer& buffer) const {
+  uint32_t exports = 0;
 
-  size_t total() { return header_size + body_size; }
-
-  void Add(size_t header, size_t body) {
-    header_size += header;
-    body_size += body;
-  }
-
-  void AddSection(WasmSection::Code code, size_t other_size) {
-    Add(kPaddedVarintSize +
-            LEBHelper::sizeof_u32v(WasmSection::getNameLength(code)) +
-            WasmSection::getNameLength(code),
-        0);
-    if (other_size) Add(LEBHelper::sizeof_u32v(other_size), 0);
-  }
-};
-
-WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
-  Sizes sizes = {0, 0};
-
-  sizes.Add(2 * sizeof(uint32_t), 0);  // header
-
-  if (globals_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::Globals, globals_.size());
-    /* These globals never have names, so are always 3 bytes. */
-    sizes.Add(3 * globals_.size(), 0);
-    TRACE("Size after globals: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (signatures_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::Signatures, signatures_.size());
-    for (auto sig : signatures_) {
-      sizes.Add(1 + LEBHelper::sizeof_u32v(sig->parameter_count()) +
-                    sig->parameter_count() +
-                    LEBHelper::sizeof_u32v(sig->return_count()) +
-                    sig->return_count(),
-                0);
-    }
-    TRACE("Size after signatures: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (functions_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::OldFunctions, functions_.size());
-    for (auto function : functions_) {
-      sizes.Add(function->HeaderSize() + function->BodySize(),
-                function->NameSize());
-    }
-    TRACE("Size after functions: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (imports_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::ImportTable, imports_.size());
-    for (auto import : imports_) {
-      sizes.Add(LEBHelper::sizeof_u32v(import.sig_index), 0);
-      sizes.Add(LEBHelper::sizeof_u32v(import.name_length), 0);
-      sizes.Add(import.name_length, 0);
-      sizes.Add(1, 0);
-    }
-    TRACE("Size after imports: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (indirect_functions_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::FunctionTable,
-                     indirect_functions_.size());
-    for (auto function_index : indirect_functions_) {
-      sizes.Add(LEBHelper::sizeof_u32v(function_index), 0);
-    }
-    TRACE("Size after indirect functions: %u, %u\n",
-          (unsigned)sizes.header_size, (unsigned)sizes.body_size);
-  }
-
-  sizes.AddSection(WasmSection::Code::Memory, 0);
-  sizes.Add(kDeclMemorySize, 0);
-  TRACE("Size after memory: %u, %u\n", (unsigned)sizes.header_size,
-        (unsigned)sizes.body_size);
-
-  if (start_function_index_ >= 0) {
-    sizes.AddSection(WasmSection::Code::StartFunction, 0);
-    sizes.Add(LEBHelper::sizeof_u32v(start_function_index_), 0);
-    TRACE("Size after start: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (data_segments_.size() > 0) {
-    sizes.AddSection(WasmSection::Code::DataSegments, data_segments_.size());
-    for (auto segment : data_segments_) {
-      sizes.Add(segment->HeaderSize(), segment->BodySize());
-    }
-    TRACE("Size after data segments: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  if (sizes.body_size > 0) {
-    sizes.AddSection(WasmSection::Code::End, 0);
-    TRACE("Size after end: %u, %u\n", (unsigned)sizes.header_size,
-          (unsigned)sizes.body_size);
-  }
-
-  ZoneVector<uint8_t> buffer_vector(sizes.total(), zone);
-  byte* buffer = &buffer_vector[0];
-  byte* header = buffer;
-  byte* body = buffer + sizes.header_size;
-
-  // -- emit magic -------------------------------------------------------------
+  // == Emit magic =============================================================
   TRACE("emit magic\n");
-  EmitUint32(&header, kWasmMagic);
-  EmitUint32(&header, kWasmVersion);
+  buffer.write_u32(kWasmMagic);
+  buffer.write_u32(kWasmVersion);
 
-  // -- emit globals -----------------------------------------------------------
-  if (globals_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::Globals, &header);
-    EmitVarInt(&header, globals_.size());
-
-    for (auto global : globals_) {
-      EmitVarInt(&header, 0);  // Length of the global name.
-      EmitUint8(&header, WasmOpcodes::MemTypeCodeFor(global.first));
-      EmitUint8(&header, global.second);
-    }
-    FixupSection(section, header);
-  }
-
-  // -- emit signatures --------------------------------------------------------
+  // == Emit signatures ========================================================
   if (signatures_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::Signatures, &header);
-    EmitVarInt(&header, signatures_.size());
+    size_t start = EmitSection(WasmSection::Code::Signatures, buffer);
+    buffer.write_size(signatures_.size());
 
     for (FunctionSig* sig : signatures_) {
-      EmitUint8(&header, kWasmFunctionTypeForm);
-      EmitVarInt(&header, sig->parameter_count());
+      buffer.write_u8(kWasmFunctionTypeForm);
+      buffer.write_size(sig->parameter_count());
       for (size_t j = 0; j < sig->parameter_count(); j++) {
-        EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetParam(j)));
+        buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(sig->GetParam(j)));
       }
-      EmitVarInt(&header, sig->return_count());
+      buffer.write_size(sig->return_count());
       for (size_t j = 0; j < sig->return_count(); j++) {
-        EmitUint8(&header, WasmOpcodes::LocalTypeCodeFor(sig->GetReturn(j)));
+        buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(sig->GetReturn(j)));
       }
     }
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
 
-  // -- emit imports -----------------------------------------------------------
+  // == Emit globals ===========================================================
+  if (globals_.size() > 0) {
+    size_t start = EmitSection(WasmSection::Code::Globals, buffer);
+    buffer.write_size(globals_.size());
+
+    for (auto global : globals_) {
+      buffer.write_u32v(0);  // Length of the global name.
+      buffer.write_u8(WasmOpcodes::MemTypeCodeFor(global.first));
+      buffer.write_u8(global.second);
+    }
+    FixupSection(buffer, start);
+  }
+
+  // == Emit imports ===========================================================
   if (imports_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::ImportTable, &header);
-    EmitVarInt(&header, imports_.size());
+    size_t start = EmitSection(WasmSection::Code::ImportTable, buffer);
+    buffer.write_size(imports_.size());
     for (auto import : imports_) {
-      EmitVarInt(&header, import.sig_index);
-      EmitVarInt(&header, import.name_length);
-      std::memcpy(header, import.name, import.name_length);
-      header += import.name_length;
-      EmitVarInt(&header, 0);
+      buffer.write_u32v(import.sig_index);
+      buffer.write_u32v(import.name_length);
+      buffer.write(reinterpret_cast<const byte*>(import.name),
+                   import.name_length);
+      buffer.write_u32v(0);
     }
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
 
-  // -- emit functions ---------------------------------------------------------
+  // == Emit function signatures ===============================================
   if (functions_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::OldFunctions, &header);
-    EmitVarInt(&header, functions_.size());
-
-    for (auto func : functions_) {
-      func->Serialize(buffer, &header, &body);
+    size_t start = EmitSection(WasmSection::Code::FunctionSignatures, buffer);
+    buffer.write_size(functions_.size());
+    for (auto function : functions_) {
+      function->WriteSignature(buffer);
+      if (function->exported()) exports++;
     }
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
 
-  // -- emit function table ----------------------------------------------------
+  // == emit function table ====================================================
   if (indirect_functions_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::FunctionTable, &header);
-    EmitVarInt(&header, indirect_functions_.size());
+    size_t start = EmitSection(WasmSection::Code::FunctionTable, buffer);
+    buffer.write_size(indirect_functions_.size());
 
     for (auto index : indirect_functions_) {
-      EmitVarInt(&header, index);
+      buffer.write_u32v(index);
     }
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
 
-  // -- emit memory declaration ------------------------------------------------
+  // == emit memory declaration ================================================
   {
-    byte* section = EmitSection(WasmSection::Code::Memory, &header);
-    EmitVarInt(&header, 16);  // min memory size
-    EmitVarInt(&header, 16);  // max memory size
-    EmitUint8(&header, 0);    // memory export
+    size_t start = EmitSection(WasmSection::Code::Memory, buffer);
+    buffer.write_u32v(16);  // min memory size
+    buffer.write_u32v(16);  // max memory size
+    buffer.write_u8(0);     // memory export
     static_assert(kDeclMemorySize == 3, "memory size must match emit above");
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
 
-  // -- emit start function index ----------------------------------------------
+  // == emit exports ===========================================================
+  if (exports > 0) {
+    size_t start = EmitSection(WasmSection::Code::ExportTable, buffer);
+    buffer.write_u32v(exports);
+    uint32_t index = 0;
+    for (auto function : functions_) {
+      function->WriteExport(buffer, index++);
+    }
+    FixupSection(buffer, start);
+  }
+
+  // == emit start function index ==============================================
   if (start_function_index_ >= 0) {
-    byte* section = EmitSection(WasmSection::Code::StartFunction, &header);
-    EmitVarInt(&header, start_function_index_);
-    FixupSection(section, header);
+    size_t start = EmitSection(WasmSection::Code::StartFunction, buffer);
+    buffer.write_u32v(start_function_index_);
+    FixupSection(buffer, start);
   }
 
-  // -- emit data segments -----------------------------------------------------
+  // == emit code ==============================================================
+  if (functions_.size() > 0) {
+    size_t start = EmitSection(WasmSection::Code::FunctionBodies, buffer);
+    buffer.write_size(functions_.size());
+    for (auto function : functions_) {
+      function->WriteBody(buffer);
+    }
+    FixupSection(buffer, start);
+  }
+
+  // == emit data segments =====================================================
   if (data_segments_.size() > 0) {
-    byte* section = EmitSection(WasmSection::Code::DataSegments, &header);
-    EmitVarInt(&header, data_segments_.size());
+    size_t start = EmitSection(WasmSection::Code::DataSegments, buffer);
+    buffer.write_size(data_segments_.size());
 
     for (auto segment : data_segments_) {
-      segment->Serialize(buffer, &header, &body);
+      segment->Write(buffer);
     }
-    FixupSection(section, header);
+    FixupSection(buffer, start);
   }
-
-  if (sizes.body_size > 0) {
-    byte* section = EmitSection(WasmSection::Code::End, &header);
-    FixupSection(section, header);
-  }
-
-  return new (zone) WasmModuleIndex(buffer, buffer + sizes.total());
 }
 }  // namespace wasm
 }  // namespace internal

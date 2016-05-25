@@ -22,7 +22,7 @@ class AsmWasmBuilder {
  public:
   explicit AsmWasmBuilder(Isolate* isolate, Zone* zone, FunctionLiteral* root,
                           AsmTyper* typer);
-  WasmModuleIndex* Run(Handle<FixedArray>* foreign_args);
+  ZoneBuffer* Run(Handle<FixedArray>* foreign_args);
 
  private:
   Isolate* isolate_;

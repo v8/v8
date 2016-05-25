@@ -10,6 +10,7 @@
 
 #include "src/base/smart-pointers.h"
 
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -19,14 +20,104 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+class ZoneBuffer : public ZoneObject {
+ public:
+  static const uint32_t kInitialSize = 4096;
+  explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
+      : zone_(zone), buffer_(reinterpret_cast<byte*>(zone->New(initial))) {
+    pos_ = buffer_;
+    end_ = buffer_ + initial;
+  }
+
+  void write_u8(uint8_t x) {
+    EnsureSpace(1);
+    *(pos_++) = x;
+  }
+
+  void write_u16(uint16_t x) {
+    EnsureSpace(2);
+    WriteUnalignedUInt16(pos_, x);
+    pos_ += 2;
+  }
+
+  void write_u32(uint32_t x) {
+    EnsureSpace(4);
+    WriteUnalignedUInt32(pos_, x);
+    pos_ += 4;
+  }
+
+  void write_u32v(uint32_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    LEBHelper::write_u32v(&pos_, val);
+  }
+
+  void write_size(size_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    DCHECK_EQ(val, static_cast<uint32_t>(val));
+    LEBHelper::write_u32v(&pos_, static_cast<uint32_t>(val));
+  }
+
+  void write(const byte* data, size_t size) {
+    EnsureSpace(size);
+    memcpy(pos_, data, size);
+    pos_ += size;
+  }
+
+  size_t reserve_u32v() {
+    size_t off = offset();
+    EnsureSpace(kMaxVarInt32Size);
+    pos_ += kMaxVarInt32Size;
+    return off;
+  }
+
+  // Patch a (padded) u32v at the given offset to be the given value.
+  void patch_u32v(size_t offset, uint32_t val) {
+    byte* ptr = buffer_ + offset;
+    for (size_t pos = 0; pos != kPaddedVarInt32Size; ++pos) {
+      uint32_t next = val >> 7;
+      byte out = static_cast<byte>(val & 0x7f);
+      if (pos != kPaddedVarInt32Size - 1) {
+        *(ptr++) = 0x80 | out;
+        val = next;
+      } else {
+        *(ptr++) = out;
+      }
+    }
+  }
+
+  size_t offset() { return static_cast<size_t>(pos_ - buffer_); }
+  size_t size() { return static_cast<size_t>(pos_ - buffer_); }
+  const byte* begin() { return buffer_; }
+  const byte* end() { return pos_; }
+
+  void EnsureSpace(size_t size) {
+    if ((pos_ + size) > end_) {
+      size_t new_size = 4096 + (end_ - buffer_) * 3;
+      byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
+      memcpy(new_buffer, buffer_, (pos_ - buffer_));
+      pos_ = new_buffer + (pos_ - buffer_);
+      buffer_ = new_buffer;
+      end_ = new_buffer + new_size;
+    }
+  }
+
+  byte** pos_ptr() { return &pos_; }
+
+ private:
+  Zone* zone_;
+  byte* buffer_;
+  byte* pos_;
+  byte* end_;
+};
+
 class WasmModuleBuilder;
 
 class WasmFunctionEncoder : public ZoneObject {
  public:
-  uint32_t HeaderSize() const;
-  uint32_t BodySize() const;
-  uint32_t NameSize() const;
-  void Serialize(byte* buffer, byte** header, byte** body) const;
+  void WriteSignature(ZoneBuffer& buffer) const;
+  void WriteExport(ZoneBuffer& buffer, uint32_t func_index) const;
+  void WriteBody(ZoneBuffer& buffer) const;
+  bool exported() const { return exported_; }
 
  private:
   WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals, bool exported);
@@ -71,26 +162,11 @@ class WasmDataSegmentEncoder : public ZoneObject {
  public:
   WasmDataSegmentEncoder(Zone* zone, const byte* data, uint32_t size,
                          uint32_t dest);
-  uint32_t HeaderSize() const;
-  uint32_t BodySize() const;
-  void Serialize(byte* buffer, byte** header, byte** body) const;
+  void Write(ZoneBuffer& buffer) const;
 
  private:
   ZoneVector<byte> data_;
   uint32_t dest_;
-};
-
-class WasmModuleIndex : public ZoneObject {
- public:
-  const byte* Begin() const { return begin_; }
-  const byte* End() const { return end_; }
-
- private:
-  friend class WasmModuleWriter;
-  WasmModuleIndex(const byte* begin, const byte* end)
-      : begin_(begin), end_(end) {}
-  const byte* begin_;
-  const byte* end_;
 };
 
 struct WasmFunctionImport {
@@ -101,7 +177,7 @@ struct WasmFunctionImport {
 
 class WasmModuleWriter : public ZoneObject {
  public:
-  WasmModuleIndex* WriteTo(Zone* zone) const;
+  void WriteTo(ZoneBuffer& buffer) const;
 
  private:
   friend class WasmModuleBuilder;

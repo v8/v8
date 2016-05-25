@@ -20,12 +20,17 @@ using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
 namespace {
-void TestModule(WasmModuleIndex* module, int32_t expected_result) {
+void TestModule(Zone* zone, WasmModuleBuilder* builder,
+                int32_t expected_result) {
+  ZoneBuffer buffer(zone);
+  WasmModuleWriter* writer = builder->Build(zone);
+  writer->WriteTo(buffer);
+
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
   int32_t result =
-      CompileAndRunWasmModule(isolate, module->Begin(), module->End());
+      CompileAndRunWasmModule(isolate, buffer.begin(), buffer.end());
   CHECK_EQ(expected_result, result);
 }
 }  // namespace
@@ -43,8 +48,7 @@ TEST(Run_WasmModule_Return114) {
   f->Exported(1);
   byte code[] = {WASM_I8(kReturnValue)};
   f->EmitCode(code, sizeof(code));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), kReturnValue);
+  TestModule(&zone, builder, kReturnValue);
 }
 
 TEST(Run_WasmModule_CallAdd) {
@@ -69,8 +73,7 @@ TEST(Run_WasmModule_CallAdd) {
   f->Exported(1);
   byte code2[] = {WASM_CALL_FUNCTION2(f1_index, WASM_I8(77), WASM_I8(22))};
   f->EmitCode(code2, sizeof(code2));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), 99);
+  TestModule(&zone, builder, 99);
 }
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
@@ -91,8 +94,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
   byte data[] = {0xaa, 0xbb, 0xcc, 0xdd};
   builder->AddDataSegment(new (&zone) WasmDataSegmentEncoder(
       &zone, data, sizeof(data), kDataSegmentDest0));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), 0xddccbbaa);
+  TestModule(&zone, builder, 0xddccbbaa);
 }
 
 TEST(Run_WasmModule_CheckMemoryIsZero) {
@@ -117,8 +119,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
               WASM_BRV(2, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
       WASM_I8(11))};
   f->EmitCode(code, sizeof(code));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), 11);
+  TestModule(&zone, builder, 11);
 }
 
 TEST(Run_WasmModule_CallMain_recursive) {
@@ -142,8 +143,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
                               WASM_BRV(1, WASM_CALL_FUNCTION0(0))),
                    WASM_BRV(0, WASM_I8(55))))};
   f->EmitCode(code, sizeof(code));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), 55);
+  TestModule(&zone, builder, 55);
 }
 
 TEST(Run_WasmModule_Global) {
@@ -168,6 +168,5 @@ TEST(Run_WasmModule_Global) {
                   WASM_STORE_GLOBAL(global2, WASM_I32V_1(41)),
                   WASM_RETURN1(WASM_CALL_FUNCTION0(f1_index))};
   f->EmitCode(code2, sizeof(code2));
-  WasmModuleWriter* writer = builder->Build(&zone);
-  TestModule(writer->WriteTo(&zone), 97);
+  TestModule(&zone, builder, 97);
 }

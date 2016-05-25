@@ -42,15 +42,12 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
   F(FunctionBodies, 8, "code")         \
   F(DataSegments, 9, "data")           \
   F(Names, 10, "name")                 \
-  F(OldFunctions, 0, "old_function")   \
   F(Globals, 0, "global")              \
   F(End, 0, "end")
 
 // Contants for the above section types: {LEB128 length, characters...}.
 #define WASM_SECTION_MEMORY 6, 'm', 'e', 'm', 'o', 'r', 'y'
 #define WASM_SECTION_SIGNATURES 4, 't', 'y', 'p', 'e'
-#define WASM_SECTION_OLD_FUNCTIONS \
-  12, 'o', 'l', 'd', '_', 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
 #define WASM_SECTION_GLOBALS 6, 'g', 'l', 'o', 'b', 'a', 'l'
 #define WASM_SECTION_DATA_SEGMENTS 4, 'd', 'a', 't', 'a'
 #define WASM_SECTION_FUNCTION_TABLE 5, 't', 'a', 'b', 'l', 'e'
@@ -66,7 +63,6 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
 // Constants for the above section headers' size (LEB128 + characters).
 #define WASM_SECTION_MEMORY_SIZE ((size_t)7)
 #define WASM_SECTION_SIGNATURES_SIZE ((size_t)5)
-#define WASM_SECTION_OLD_FUNCTIONS_SIZE ((size_t)13)
 #define WASM_SECTION_GLOBALS_SIZE ((size_t)7)
 #define WASM_SECTION_DATA_SEGMENTS_SIZE ((size_t)5)
 #define WASM_SECTION_FUNCTION_TABLE_SIZE ((size_t)6)
@@ -114,7 +110,6 @@ struct WasmFunction {
   uint32_t name_length;  // length in bytes of the name.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
   uint32_t code_end_offset;      // offset in the module bytes of code end.
-  bool exported;                 // true if this function is exported.
 };
 
 // Static representation of an imported WASM function.

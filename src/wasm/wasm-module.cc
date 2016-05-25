@@ -577,8 +577,6 @@ bool FinishCompilation(Isolate* isolate, const WasmModule* module,
     DCHECK_EQ(i, func.func_index);
     WasmName str = module->GetName(func.name_offset, func.name_length);
     Handle<Code> code = Handle<Code>::null();
-    Handle<JSFunction> function = Handle<JSFunction>::null();
-    Handle<String> function_name = Handle<String>::null();
     if (FLAG_wasm_num_compilation_tasks != 0) {
       code = results[i];
     } else {
@@ -591,27 +589,11 @@ bool FinishCompilation(Isolate* isolate, const WasmModule* module,
                     str.start());
       return false;
     }
-    if (func.exported) {
-      function_name = factory->InternalizeUtf8String(str);
-      function = compiler::CompileJSToWasmWrapper(
-          isolate, &module_env, function_name, code, instance.js_object, i);
-      code_stats.Record(function->code());
-    }
     if (!code.is_null()) {
       // Install the code into the linker table.
       module_env.linker->Finish(i, code);
       code_table->set(i, *code);
       code_stats.Record(*code);
-    }
-    if (func.exported) {
-      // Exported functions are installed as read-only properties on the
-      // module.
-      desc.set_value(function);
-      Maybe<bool> status = JSReceiver::DefineOwnProperty(
-          isolate, instance.js_object, function_name, &desc,
-          Object::THROW_ON_ERROR);
-      if (!status.IsJust())
-        thrower.Error("export of %.*s failed.", str.length(), str.start());
     }
   }
   return true;
@@ -786,14 +768,19 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
     // Create and populate the exports object.
     //-------------------------------------------------------------------------
     if (export_table.size() > 0 || mem_export) {
-      // Create the "exports" object.
-      Handle<JSFunction> object_function = Handle<JSFunction>(
-          isolate->native_context()->object_function(), isolate);
-      Handle<JSObject> exports_object =
-          factory->NewJSObject(object_function, TENURED);
-      Handle<String> exports_name = factory->InternalizeUtf8String("exports");
-      JSObject::AddProperty(instance.js_object, exports_name, exports_object,
-                            READ_ONLY);
+      Handle<JSObject> exports_object;
+      if (origin == kWasmOrigin) {
+        // Create the "exports" object.
+        Handle<JSFunction> object_function = Handle<JSFunction>(
+            isolate->native_context()->object_function(), isolate);
+        exports_object = factory->NewJSObject(object_function, TENURED);
+        Handle<String> exports_name = factory->InternalizeUtf8String("exports");
+        JSObject::AddProperty(instance.js_object, exports_name, exports_object,
+                              READ_ONLY);
+      } else {
+        // Just export the functions directly on the object returned.
+        exports_object = instance.js_object;
+      }
 
       // Compile wrappers and add them to the exports object.
       for (const WasmExport& exp : export_table) {
@@ -808,8 +795,10 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
         desc.set_value(function);
         Maybe<bool> status = JSReceiver::DefineOwnProperty(
             isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
-        if (!status.IsJust())
+        if (!status.IsJust()) {
           thrower.Error("export of %.*s failed.", str.length(), str.start());
+          break;
+        }
       }
 
       if (mem_export) {
@@ -879,8 +868,9 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   Zone zone(isolate->allocator());
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,
-                                         module_end, false, kWasmOrigin);
+  ModuleResult result =
+      DecodeWasmModule(isolate, &zone, module_start, module_end, false,
+                       asm_js ? kAsmJsOrigin : kWasmOrigin);
   if (result.failed()) {
     if (result.val) {
       delete result.val;
@@ -924,34 +914,25 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
   module_env.linker = &linker;
   module_env.origin = module->origin;
 
-  // Compile all functions.
-  Handle<Code> main_code = Handle<Code>::null();  // record last code.
-  uint32_t index = 0;
-  int main_index = 0;
-  for (const WasmFunction& func : module->functions) {
-    DCHECK_EQ(index, func.func_index);
-    // Compile the function and install it in the code table.
-    Handle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
-        &thrower, isolate, &module_env, &func);
-    if (!code.is_null()) {
-      if (func.exported) {
-        main_code = code;
-        main_index = index;
-      }
-      linker.Finish(index, code);
-    }
-    if (thrower.error()) return -1;
-    index++;
+  if (module->export_table.size() == 0) {
+    thrower.Error("WASM.compileRun() failed: no exported functions");
+    return -2;
   }
 
-  if (main_code.is_null()) {
-    thrower.Error("WASM.compileRun() failed: no main code found");
-    return -1;
+  // Compile all functions.
+  for (const WasmFunction& func : module->functions) {
+    // Compile the function and install it in the linker.
+    Handle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
+        &thrower, isolate, &module_env, &func);
+    if (!code.is_null()) linker.Finish(func.func_index, code);
+    if (thrower.error()) return -1;
   }
 
   linker.Link(instance.function_table, instance.module->function_table);
 
   // Wrap the main code so it can be called as a JS function.
+  uint32_t main_index = module->export_table.back().func_index;
+  Handle<Code> main_code = linker.GetFunctionCode(main_index);
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
   Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
   Handle<JSFunction> jsfunc = compiler::CompileJSToWasmWrapper(

@@ -1169,14 +1169,13 @@ class TestModuleEnv : public ModuleEnv {
     return static_cast<byte>(mod.signatures.size() - 1);
   }
   byte AddFunction(FunctionSig* sig) {
-    mod.functions.push_back({sig,      // sig
-                             0,        // func_index
-                             0,        // sig_index
-                             0,        // name_offset
-                             0,        // name_length
-                             0,        // code_start_offset
-                             0,        // code_end_offset
-                             false});  // exported
+    mod.functions.push_back({sig,  // sig
+                             0,    // func_index
+                             0,    // sig_index
+                             0,    // name_offset
+                             0,    // name_length
+                             0,    // code_start_offset
+                             0});  // code_end_offset
     CHECK(mod.functions.size() <= 127);
     return static_cast<byte>(mod.functions.size() - 1);
   }

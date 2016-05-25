@@ -179,7 +179,7 @@ class TestingModule : public ModuleEnv {
       module_.functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
+    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0});
     instance->function_code.push_back(code);
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();

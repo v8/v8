@@ -121,7 +121,7 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (result.val) delete result.val;
 }
 
-v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
+v8::internal::wasm::ZoneBuffer* TranslateAsmModule(
     i::ParseInfo* info, ErrorThrower* thrower,
     i::Handle<i::FixedArray>* foreign_args) {
   info->set_global();
@@ -154,9 +154,7 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
   v8::internal::wasm::AsmWasmBuilder builder(info->isolate(), info->zone(),
                                              info->literal(), &typer);
 
-  auto module = builder.Run(foreign_args);
-
-  return module;
+  return builder.Run(foreign_args);
 }
 
 i::MaybeHandle<i::JSObject> InstantiateModuleCommon(
@@ -231,7 +229,7 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::MaybeHandle<i::Object> maybe_module_object =
-      InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower,
+      InstantiateModuleCommon(args, module->begin(), module->end(), &thrower,
                               internal::wasm::kAsmJsOrigin);
   if (maybe_module_object.is_null()) {
     return;
