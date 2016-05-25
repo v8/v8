@@ -88,8 +88,13 @@ namespace interpreter {
   V(LdaFalse, AccumulatorUse::kWrite)                                         \
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                   \
                                                                               \
+  /* Loading registers */                                                     \
+  V(LdrUndefined, AccumulatorUse::kNone, OperandType::kRegOut)                \
+                                                                              \
   /* Globals */                                                               \
   V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)  \
+  V(LdrGlobal, AccumulatorUse::kNone, OperandType::kIdx, OperandType::kIdx,   \
+    OperandType::kRegOut)                                                     \
   V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,         \
     OperandType::kIdx)                                                        \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                \
@@ -102,6 +107,8 @@ namespace interpreter {
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                     \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                \
     OperandType::kIdx)                                                        \
+  V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                 \
+    OperandType::kIdx, OperandType::kRegOut)                                  \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                 \
     OperandType::kIdx)                                                        \
                                                                               \
@@ -121,8 +128,12 @@ namespace interpreter {
   /* LoadIC operations */                                                     \
   V(LoadIC, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx,     \
     OperandType::kIdx)                                                        \
+  V(LdrNamedProperty, AccumulatorUse::kNone, OperandType::kReg,               \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)               \
   V(KeyedLoadIC, AccumulatorUse::kReadWrite, OperandType::kReg,               \
     OperandType::kIdx)                                                        \
+  V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,               \
+    OperandType::kIdx, OperandType::kRegOut)                                  \
                                                                               \
   /* StoreIC operations */                                                    \
   V(StoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,                  \
@@ -442,7 +453,10 @@ class Bytecodes {
   static const char* OperandSizeToString(OperandSize operand_size);
 
   // Returns byte value of bytecode.
-  static uint8_t ToByte(Bytecode bytecode);
+  static uint8_t ToByte(Bytecode bytecode) {
+    DCHECK_LE(bytecode, Bytecode::kLast);
+    return static_cast<uint8_t>(bytecode);
+  }
 
   // Returns bytecode for |value|.
   static Bytecode FromByte(uint8_t value);

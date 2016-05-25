@@ -47,7 +47,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLiteral(factory->NewStringFromStaticChars("A constant"))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
-      .StoreAccumulatorInRegister(reg)
+      .Debugger()  // Prevent peephole optimization LdaNull, Star -> LdrNull.
       .LoadNull()
       .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
@@ -348,6 +348,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Insert entry for nop bytecode as this often gets optimized out.
   scorecard[Bytecodes::ToByte(Bytecode::kNop)] = 1;
+
+  // Insert entries for bytecodes only emiited by peephole optimizer.
+  scorecard[Bytecodes::ToByte(Bytecode::kLdrNamedProperty)] = 1;
+  scorecard[Bytecodes::ToByte(Bytecode::kLdrKeyedProperty)] = 1;
+  scorecard[Bytecodes::ToByte(Bytecode::kLdrGlobal)] = 1;
+  scorecard[Bytecodes::ToByte(Bytecode::kLdrContextSlot)] = 1;
+  scorecard[Bytecodes::ToByte(Bytecode::kLdrUndefined)] = 1;
 
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);

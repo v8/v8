@@ -112,11 +112,12 @@ class BytecodeGraphBuilder {
 
   void BuildCreateLiteral(const Operator* op);
   void BuildCreateArguments(CreateArgumentsType type);
-  void BuildLoadGlobal(TypeofMode typeof_mode);
+  Node* BuildLoadContextSlot();
+  Node* BuildLoadGlobal(TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  void BuildNamedLoad();
-  void BuildKeyedLoad();
+  Node* BuildNamedLoad();
   void BuildNamedStore(LanguageMode language_mode);
+  Node* BuildKeyedLoad();
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);

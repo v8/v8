@@ -89,12 +89,8 @@ void BytecodeNode::set_bytecode(Bytecode bytecode, uint32_t operand0,
   operand_scale_ = operand_scale;
 }
 
-size_t BytecodeNode::Size() const {
-  size_t size = Bytecodes::Size(bytecode_, operand_scale_);
-  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale_)) {
-    size += 1;
-  }
-  return size;
+void BytecodeNode::Clone(const BytecodeNode* const other) {
+  memcpy(this, other, sizeof(*other));
 }
 
 void BytecodeNode::Print(std::ostream& os) const {
@@ -123,8 +119,31 @@ void BytecodeNode::Print(std::ostream& os) const {
 #endif  // DEBUG
 }
 
-void BytecodeNode::Clone(const BytecodeNode* const other) {
-  memcpy(this, other, sizeof(*other));
+size_t BytecodeNode::Size() const {
+  size_t size = Bytecodes::Size(bytecode_, operand_scale_);
+  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale_)) {
+    size += 1;
+  }
+  return size;
+}
+
+void BytecodeNode::Transform(Bytecode new_bytecode, uint32_t extra_operand,
+                             OperandScale extra_operand_scale) {
+  DCHECK_EQ(Bytecodes::NumberOfOperands(new_bytecode),
+            Bytecodes::NumberOfOperands(bytecode()) + 1);
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 1 ||
+         Bytecodes::GetOperandType(new_bytecode, 0) ==
+             Bytecodes::GetOperandType(bytecode(), 0));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 2 ||
+         Bytecodes::GetOperandType(new_bytecode, 1) ==
+             Bytecodes::GetOperandType(bytecode(), 1));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 3 ||
+         Bytecodes::GetOperandType(new_bytecode, 2) ==
+             Bytecodes::GetOperandType(bytecode(), 2));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 4);
+  operand_scale_ = std::max(extra_operand_scale, operand_scale());
+  operands_[operand_count()] = extra_operand;
+  bytecode_ = new_bytecode;
 }
 
 bool BytecodeNode::operator==(const BytecodeNode& other) const {

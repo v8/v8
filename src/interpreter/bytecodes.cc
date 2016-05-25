@@ -100,14 +100,6 @@ const char* Bytecodes::OperandSizeToString(OperandSize operand_size) {
   return "";
 }
 
-
-// static
-uint8_t Bytecodes::ToByte(Bytecode bytecode) {
-  DCHECK(bytecode <= Bytecode::kLast);
-  return static_cast<uint8_t>(bytecode);
-}
-
-
 // static
 Bytecode Bytecodes::FromByte(uint8_t value) {
   Bytecode bytecode = static_cast<Bytecode>(value);

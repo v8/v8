@@ -289,18 +289,14 @@ void Interpreter::DoLdaSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoLoadConstant(InterpreterAssembler* assembler) {
-  Node* index = __ BytecodeOperandIdx(0);
-  Node* constant = __ LoadConstantPoolEntry(index);
-  __ SetAccumulator(constant);
-  __ Dispatch();
-}
-
 // LdaConstant <idx>
 //
 // Load constant literal at |idx| in the constant pool into the accumulator.
 void Interpreter::DoLdaConstant(InterpreterAssembler* assembler) {
-  DoLoadConstant(assembler);
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  __ SetAccumulator(constant);
+  __ Dispatch();
 }
 
 // LdaUndefined
@@ -310,6 +306,17 @@ void Interpreter::DoLdaUndefined(InterpreterAssembler* assembler) {
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
   __ SetAccumulator(undefined_value);
+  __ Dispatch();
+}
+
+// LdrUndefined <reg>
+//
+// Loads undefined into the accumulator and |reg|.
+void Interpreter::DoLdrUndefined(InterpreterAssembler* assembler) {
+  Node* undefined_value =
+      __ HeapConstant(isolate_->factory()->undefined_value());
+  Node* destination = __ BytecodeOperandReg(0);
+  __ StoreRegister(undefined_value, destination);
   __ Dispatch();
 }
 
@@ -380,7 +387,8 @@ void Interpreter::DoMov(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoLoadGlobal(Callable ic, InterpreterAssembler* assembler) {
+Node* Interpreter::BuildLoadGlobal(Callable ic,
+                                   InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
   Node* native_context =
@@ -394,10 +402,8 @@ void Interpreter::DoLoadGlobal(Callable ic, InterpreterAssembler* assembler) {
   Node* raw_slot = __ BytecodeOperandIdx(1);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Node* result = __ CallStub(ic.descriptor(), code_target, context, global,
-                             name, smi_slot, type_feedback_vector);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  return __ CallStub(ic.descriptor(), code_target, context, global, name,
+                     smi_slot, type_feedback_vector);
 }
 
 // LdaGlobal <name_index> <slot>
@@ -407,7 +413,22 @@ void Interpreter::DoLoadGlobal(Callable ic, InterpreterAssembler* assembler) {
 void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
                                                    UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
+  Node* result = BuildLoadGlobal(ic, assembler);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// LdrGlobal <name_index> <slot> <reg>
+//
+// Load the global with name in constant pool entry <name_index> into
+// register <reg> using FeedBackVector slot <slot> outside of a typeof.
+void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   UNINITIALIZED);
+  Node* result = BuildLoadGlobal(ic, assembler);
+  Node* destination = __ BytecodeOperandReg(2);
+  __ StoreRegister(result, destination);
+  __ Dispatch();
 }
 
 // LdaGlobalInsideTypeof <name_index> <slot>
@@ -417,10 +438,12 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
 void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
                                                    UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
+  Node* result = BuildLoadGlobal(ic, assembler);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
-void Interpreter::DoStoreGlobal(Callable ic, InterpreterAssembler* assembler) {
+void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
   Node* native_context =
@@ -447,7 +470,7 @@ void Interpreter::DoStoreGlobal(Callable ic, InterpreterAssembler* assembler) {
 void Interpreter::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
-  DoStoreGlobal(ic, assembler);
+  DoStaGlobal(ic, assembler);
 }
 
 // StaGlobalStrict <name_index> <slot>
@@ -457,18 +480,33 @@ void Interpreter::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
 void Interpreter::DoStaGlobalStrict(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
-  DoStoreGlobal(ic, assembler);
+  DoStaGlobal(ic, assembler);
+}
+
+compiler::Node* Interpreter::BuildLoadContextSlot(
+    InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(0);
+  Node* context = __ LoadRegister(reg_index);
+  Node* slot_index = __ BytecodeOperandIdx(1);
+  return __ LoadContextSlot(context, slot_index);
 }
 
 // LdaContextSlot <context> <slot_index>
 //
 // Load the object in |slot_index| of |context| into the accumulator.
 void Interpreter::DoLdaContextSlot(InterpreterAssembler* assembler) {
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* context = __ LoadRegister(reg_index);
-  Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* result = __ LoadContextSlot(context, slot_index);
+  Node* result = BuildLoadContextSlot(assembler);
   __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// LdrContextSlot <context> <slot_index> <reg>
+//
+// Load the object in <slot_index> of <context> into register <reg>.
+void Interpreter::DoLdrContextSlot(InterpreterAssembler* assembler) {
+  Node* result = BuildLoadContextSlot(assembler);
+  Node* destination = __ BytecodeOperandReg(2);
+  __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
@@ -484,8 +522,8 @@ void Interpreter::DoStaContextSlot(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoLoadLookupSlot(Runtime::FunctionId function_id,
-                                   InterpreterAssembler* assembler) {
+void Interpreter::DoLdaLookupSlot(Runtime::FunctionId function_id,
+                                  InterpreterAssembler* assembler) {
   Node* index = __ BytecodeOperandIdx(0);
   Node* name = __ LoadConstantPoolEntry(index);
   Node* context = __ GetContext();
@@ -499,7 +537,7 @@ void Interpreter::DoLoadLookupSlot(Runtime::FunctionId function_id,
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
 void Interpreter::DoLdaLookupSlot(InterpreterAssembler* assembler) {
-  DoLoadLookupSlot(Runtime::kLoadLookupSlot, assembler);
+  DoLdaLookupSlot(Runtime::kLoadLookupSlot, assembler);
 }
 
 // LdaLookupSlotInsideTypeof <name_index>
@@ -507,11 +545,11 @@ void Interpreter::DoLdaLookupSlot(InterpreterAssembler* assembler) {
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically without causing a NoReferenceError.
 void Interpreter::DoLdaLookupSlotInsideTypeof(InterpreterAssembler* assembler) {
-  DoLoadLookupSlot(Runtime::kLoadLookupSlotInsideTypeof, assembler);
+  DoLdaLookupSlot(Runtime::kLoadLookupSlotInsideTypeof, assembler);
 }
 
-void Interpreter::DoStoreLookupSlot(LanguageMode language_mode,
-                                    InterpreterAssembler* assembler) {
+void Interpreter::DoStaLookupSlot(LanguageMode language_mode,
+                                  InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
   Node* name = __ LoadConstantPoolEntry(index);
@@ -529,7 +567,7 @@ void Interpreter::DoStoreLookupSlot(LanguageMode language_mode,
 // Store the object in accumulator to the object with the name in constant
 // pool entry |name_index| in sloppy mode.
 void Interpreter::DoStaLookupSlotSloppy(InterpreterAssembler* assembler) {
-  DoStoreLookupSlot(LanguageMode::SLOPPY, assembler);
+  DoStaLookupSlot(LanguageMode::SLOPPY, assembler);
 }
 
 // StaLookupSlotStrict <name_index>
@@ -537,10 +575,11 @@ void Interpreter::DoStaLookupSlotSloppy(InterpreterAssembler* assembler) {
 // Store the object in accumulator to the object with the name in constant
 // pool entry |name_index| in strict mode.
 void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
-  DoStoreLookupSlot(LanguageMode::STRICT, assembler);
+  DoStaLookupSlot(LanguageMode::STRICT, assembler);
 }
 
-void Interpreter::DoLoadIC(Callable ic, InterpreterAssembler* assembler) {
+Node* Interpreter::BuildLoadNamedProperty(Callable ic,
+                                          InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
   Node* register_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(register_index);
@@ -550,10 +589,8 @@ void Interpreter::DoLoadIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
-                             name, smi_slot, type_feedback_vector);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  return __ CallStub(ic.descriptor(), code_target, context, object, name,
+                     smi_slot, type_feedback_vector);
 }
 
 // LoadIC <object> <name_index> <slot>
@@ -563,10 +600,26 @@ void Interpreter::DoLoadIC(Callable ic, InterpreterAssembler* assembler) {
 void Interpreter::DoLoadIC(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
                                                    UNINITIALIZED);
-  DoLoadIC(ic, assembler);
+  Node* result = BuildLoadNamedProperty(ic, assembler);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
-void Interpreter::DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler) {
+// LdrNamedProperty <object> <name_index> <slot> <reg>
+//
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
+// constant pool entry <name_index> and puts the result into register <reg>.
+void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
+                                                   UNINITIALIZED);
+  Node* result = BuildLoadNamedProperty(ic, assembler);
+  Node* destination = __ BytecodeOperandReg(3);
+  __ StoreRegister(result, destination);
+  __ Dispatch();
+}
+
+Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
+                                          InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
   Node* reg_index = __ BytecodeOperandReg(0);
   Node* object = __ LoadRegister(reg_index);
@@ -575,10 +628,8 @@ void Interpreter::DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler) {
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
-                             name, smi_slot, type_feedback_vector);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  return __ CallStub(ic.descriptor(), code_target, context, object, name,
+                     smi_slot, type_feedback_vector);
 }
 
 // KeyedLoadIC <object> <slot>
@@ -588,7 +639,22 @@ void Interpreter::DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler) {
 void Interpreter::DoKeyedLoadIC(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
-  DoKeyedLoadIC(ic, assembler);
+  Node* result = BuildLoadKeyedProperty(ic, assembler);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// LdrKeyedProperty <object> <slot> <reg>
+//
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator and puts the result in register <reg>.
+void Interpreter::DoLdrKeyedProperty(InterpreterAssembler* assembler) {
+  Callable ic =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
+  Node* result = BuildLoadKeyedProperty(ic, assembler);
+  Node* destination = __ BytecodeOperandReg(2);
+  __ StoreRegister(result, destination);
+  __ Dispatch();
 }
 
 void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
@@ -655,7 +721,7 @@ void Interpreter::DoKeyedStoreICSloppy(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
-// KeyedStoreICStore <object> <key> <slot>
+// KeyedStoreICStrict <object> <key> <slot>
 //
 // Calls the strict mode KeyStoreIC at FeedBackVector slot <slot> for <object>
 // and the key <key> with the value in the accumulator.

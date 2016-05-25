@@ -15,13 +15,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
-  /*   24 E> */ B(LoadIC), R(1), U8(0), U8(3),
-                B(Star), R(0),
+  /*   24 E> */ B(LdrNamedProperty), R(1), U8(0), U8(3), R(0),
   /*   25 E> */ B(Call), R(0), R(1), U8(1), U8(1),
   /*   33 S> */ B(Return),
 ]
@@ -38,13 +37,12 @@ snippet: "
 "
 frame size: 4
 parameter count: 4
-bytecode array length: 25
+bytecode array length: 24
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
-  /*   30 E> */ B(LoadIC), R(1), U8(0), U8(3),
-                B(Star), R(0),
+  /*   30 E> */ B(LdrNamedProperty), R(1), U8(0), U8(3), R(0),
   /*   36 E> */ B(Ldar), R(arg1),
                 B(Star), R(2),
   /*   39 E> */ B(Ldar), R(arg2),
@@ -65,13 +63,12 @@ snippet: "
 "
 frame size: 4
 parameter count: 3
-bytecode array length: 31
+bytecode array length: 30
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
-  /*   27 E> */ B(LoadIC), R(1), U8(0), U8(3),
-                B(Star), R(0),
+  /*   27 E> */ B(LdrNamedProperty), R(1), U8(0), U8(3), R(0),
   /*   33 E> */ B(Ldar), R(arg1),
                 B(Star), R(3),
   /*   37 E> */ B(Ldar), R(arg1),
@@ -613,8 +610,7 @@ bytecodes: [
   /* 1161 E> */ B(LoadIC), R(0), U8(0), U8(255),
   /* 1169 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
-  /* 1177 E> */ B(Wide), B(LoadIC), R16(1), U16(0), U16(259),
-                B(Star), R(0),
+  /* 1177 E> */ B(Wide), B(LdrNamedProperty), R16(1), U16(0), U16(259), R16(0),
   /* 1178 E> */ B(Wide), B(Call), R16(0), R16(1), U16(1), U16(257),
   /* 1186 S> */ B(Return),
 ]

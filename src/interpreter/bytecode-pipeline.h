@@ -101,6 +101,11 @@ class BytecodeNode final : ZoneObject {
   // Return the size when this node is serialized to a bytecode array.
   size_t Size() const;
 
+  // Transform to a node representing |new_bytecode| which has one
+  // operand more than the current bytecode.
+  void Transform(Bytecode new_bytecode, uint32_t extra_operand,
+                 OperandScale extra_operand_scale);
+
   Bytecode bytecode() const { return bytecode_; }
 
   uint32_t operand(int i) const {

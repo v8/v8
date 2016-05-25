@@ -86,7 +86,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 35
+bytecode array length: 34
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
@@ -100,8 +100,7 @@ bytecodes: [
   /*   29 S> */ B(Ldar), R(1),
                 B(Star), R(3),
   /*   44 E> */ B(LdaZero),
-                B(KeyedLoadIC), R(3), U8(1),
-                B(Star), R(4),
+                B(LdrKeyedProperty), R(3), U8(1), R(4),
   /*   50 E> */ B(Ldar), R(0),
                 B(Star), R(3),
   /*   59 E> */ B(LdaZero),

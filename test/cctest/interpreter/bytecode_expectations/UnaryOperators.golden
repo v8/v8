@@ -106,7 +106,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
@@ -117,8 +117,8 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaSmi), U8(1),
                 B(Sub), R(3),
-                B(LdaUndefined),
-                B(Star), R(1),
+  /*   56 E> */ B(LdrUndefined), R(1),
+                B(Ldar), R(1),
   /*   74 S> */ B(Nop),
   /*   84 S> */ B(Return),
 ]

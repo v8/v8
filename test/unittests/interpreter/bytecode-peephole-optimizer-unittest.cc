@@ -380,6 +380,145 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   CHECK_EQ(last_written(), second);
 }
 
+// Tests covering BytecodePeepholeOptimizer::UpdateLastAndCurrentBytecodes().
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLoadICStar) {
+  const uint32_t operands[] = {
+      static_cast<uint32_t>(Register(31).ToOperand()), 32, 33,
+      static_cast<uint32_t>(Register(256).ToOperand())};
+  const int expected_operand_count = static_cast<int>(arraysize(operands));
+
+  BytecodeNode first(Bytecode::kLoadIC, operands[0], operands[1], operands[2],
+                     OperandScale::kSingle);
+  BytecodeNode second(Bytecode::kStar, operands[3], OperandScale::kDouble);
+  BytecodeNode third(Bytecode::kReturn);
+  optimizer()->Write(&first);
+  optimizer()->Write(&second);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrNamedProperty);
+  CHECK_EQ(last_written().operand_count(), expected_operand_count);
+  for (int i = 0; i < expected_operand_count; ++i) {
+    CHECK_EQ(last_written().operand(i), operands[i]);
+  }
+  CHECK_EQ(last_written().operand_scale(),
+           std::max(first.operand_scale(), second.operand_scale()));
+  optimizer()->Write(&third);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
+  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
+  optimizer()->FlushBasicBlock();
+  CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeKeyedLoadICStar) {
+  const uint32_t operands[] = {static_cast<uint32_t>(Register(31).ToOperand()),
+                               9999997,
+                               static_cast<uint32_t>(Register(1).ToOperand())};
+  const int expected_operand_count = static_cast<int>(arraysize(operands));
+
+  BytecodeNode first(Bytecode::kKeyedLoadIC, operands[0], operands[1],
+                     OperandScale::kQuadruple);
+  BytecodeNode second(Bytecode::kStar, operands[2], OperandScale::kSingle);
+  BytecodeNode third(Bytecode::kReturn);
+  optimizer()->Write(&first);
+  optimizer()->Write(&second);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrKeyedProperty);
+  CHECK_EQ(last_written().operand_count(), expected_operand_count);
+  for (int i = 0; i < expected_operand_count; ++i) {
+    CHECK_EQ(last_written().operand(i), operands[i]);
+  }
+  CHECK_EQ(last_written().operand_scale(),
+           std::max(first.operand_scale(), second.operand_scale()));
+  optimizer()->Write(&third);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
+  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
+  optimizer()->FlushBasicBlock();
+  CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
+  const uint32_t operands[] = {54321, 19191,
+                               static_cast<uint32_t>(Register(1).ToOperand())};
+  const int expected_operand_count = static_cast<int>(arraysize(operands));
+
+  BytecodeNode first(Bytecode::kLdaGlobal, operands[0], operands[1],
+                     OperandScale::kDouble);
+  BytecodeNode second(Bytecode::kStar, operands[2], OperandScale::kSingle);
+  BytecodeNode third(Bytecode::kReturn);
+  optimizer()->Write(&first);
+  optimizer()->Write(&second);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrGlobal);
+  CHECK_EQ(last_written().operand_count(), expected_operand_count);
+  for (int i = 0; i < expected_operand_count; ++i) {
+    CHECK_EQ(last_written().operand(i), operands[i]);
+  }
+  CHECK_EQ(last_written().operand_scale(),
+           std::max(first.operand_scale(), second.operand_scale()));
+  optimizer()->Write(&third);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
+  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
+  optimizer()->FlushBasicBlock();
+  CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaContextSlotStar) {
+  const uint32_t operands[] = {
+      static_cast<uint32_t>(Register(200000).ToOperand()), 55005500,
+      static_cast<uint32_t>(Register(1).ToOperand())};
+  const int expected_operand_count = static_cast<int>(arraysize(operands));
+
+  BytecodeNode first(Bytecode::kLdaContextSlot, operands[0], operands[1],
+                     OperandScale::kQuadruple);
+  BytecodeNode second(Bytecode::kStar, operands[2], OperandScale::kSingle);
+  BytecodeNode third(Bytecode::kReturn);
+  optimizer()->Write(&first);
+  optimizer()->Write(&second);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrContextSlot);
+  CHECK_EQ(last_written().operand_count(), expected_operand_count);
+  for (int i = 0; i < expected_operand_count; ++i) {
+    CHECK_EQ(last_written().operand(i), operands[i]);
+  }
+  CHECK_EQ(last_written().operand_scale(),
+           std::max(first.operand_scale(), second.operand_scale()));
+  optimizer()->Write(&third);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
+  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
+  optimizer()->FlushBasicBlock();
+  CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaUndefinedStar) {
+  const uint32_t operands[] = {
+      static_cast<uint32_t>(Register(100000).ToOperand())};
+  const int expected_operand_count = static_cast<int>(arraysize(operands));
+
+  BytecodeNode first(Bytecode::kLdaUndefined);
+  BytecodeNode second(Bytecode::kStar, operands[0], OperandScale::kQuadruple);
+  BytecodeNode third(Bytecode::kReturn);
+  optimizer()->Write(&first);
+  optimizer()->Write(&second);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdrUndefined);
+  CHECK_EQ(last_written().operand_count(), expected_operand_count);
+  for (int i = 0; i < expected_operand_count; ++i) {
+    CHECK_EQ(last_written().operand(i), operands[i]);
+  }
+  CHECK_EQ(last_written().operand_scale(),
+           std::max(first.operand_scale(), second.operand_scale()));
+  optimizer()->Write(&third);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
+  CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
+  optimizer()->FlushBasicBlock();
+  CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

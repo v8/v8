@@ -88,22 +88,10 @@ class Interpreter {
   // |compare_op|.
   void DoCompareOp(Token::Value compare_op, InterpreterAssembler* assembler);
 
-  // Generates code to load a constant from the constant pool.
-  void DoLoadConstant(InterpreterAssembler* assembler);
-
-  // Generates code to perform a global load via |ic|.
-  void DoLoadGlobal(Callable ic, InterpreterAssembler* assembler);
-
   // Generates code to perform a global store via |ic|.
-  void DoStoreGlobal(Callable ic, InterpreterAssembler* assembler);
+  void DoStaGlobal(Callable ic, InterpreterAssembler* assembler);
 
-  // Generates code to perform a named property load via |ic|.
-  void DoLoadIC(Callable ic, InterpreterAssembler* assembler);
-
-  // Generates code to perform a keyed property load via |ic|.
-  void DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler);
-
-  // Generates code to perform a namedproperty store via |ic|.
+  // Generates code to perform a named property store via |ic|.
   void DoStoreIC(Callable ic, InterpreterAssembler* assembler);
 
   // Generates code to perform a keyed property store via |ic|.
@@ -129,12 +117,29 @@ class Interpreter {
                 InterpreterAssembler* assembler);
 
   // Generates code to perform a lookup slot load via |function_id|.
-  void DoLoadLookupSlot(Runtime::FunctionId function_id,
-                        InterpreterAssembler* assembler);
+  void DoLdaLookupSlot(Runtime::FunctionId function_id,
+                       InterpreterAssembler* assembler);
 
   // Generates code to perform a lookup slot store depending on |language_mode|.
-  void DoStoreLookupSlot(LanguageMode language_mode,
-                         InterpreterAssembler* assembler);
+  void DoStaLookupSlot(LanguageMode language_mode,
+                       InterpreterAssembler* assembler);
+
+  // Generates a node with the undefined constant.
+  compiler::Node* BuildLoadUndefined(InterpreterAssembler* assembler);
+
+  // Generates code to load a context slot.
+  compiler::Node* BuildLoadContextSlot(InterpreterAssembler* assembler);
+
+  // Generates code to load a global.
+  compiler::Node* BuildLoadGlobal(Callable ic, InterpreterAssembler* assembler);
+
+  // Generates code to load a named property.
+  compiler::Node* BuildLoadNamedProperty(Callable ic,
+                                         InterpreterAssembler* assembler);
+
+  // Generates code to load a keyed property.
+  compiler::Node* BuildLoadKeyedProperty(Callable ic,
+                                         InterpreterAssembler* assembler);
 
   // Generates code to perform logical-not on boolean |value| and returns the
   // result.

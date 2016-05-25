@@ -577,6 +577,11 @@ void BytecodeGraphBuilder::VisitLdaUndefined() {
   environment()->BindAccumulator(node);
 }
 
+void BytecodeGraphBuilder::VisitLdrUndefined() {
+  Node* node = jsgraph()->UndefinedConstant();
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node);
+}
+
 void BytecodeGraphBuilder::VisitLdaNull() {
   Node* node = jsgraph()->NullConstant();
   environment()->BindAccumulator(node);
@@ -614,25 +619,32 @@ void BytecodeGraphBuilder::VisitMov() {
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), value);
 }
 
-void BytecodeGraphBuilder::BuildLoadGlobal(
-    TypeofMode typeof_mode) {
-  FrameStateBeforeAndAfter states(this);
+Node* BytecodeGraphBuilder::BuildLoadGlobal(TypeofMode typeof_mode) {
   Handle<Name> name =
       Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
-
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
-  Node* node = NewNode(op, GetFunctionClosure());
-  environment()->BindAccumulator(node, &states);
+  return NewNode(op, GetFunctionClosure());
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobal() {
-  BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
+  environment()->BindAccumulator(node, &states);
+}
+
+void BytecodeGraphBuilder::VisitLdrGlobal() {
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node,
+                              &states);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeof() {
-  BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
+  environment()->BindAccumulator(node, &states);
 }
 
 void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
@@ -656,7 +668,7 @@ void BytecodeGraphBuilder::VisitStaGlobalStrict() {
   BuildStoreGlobal(LanguageMode::STRICT);
 }
 
-void BytecodeGraphBuilder::VisitLdaContextSlot() {
+Node* BytecodeGraphBuilder::BuildLoadContextSlot() {
   // TODO(mythria): LoadContextSlots are unrolled by the required depth when
   // generating bytecode. Hence the value of depth is always 0. Update this
   // code, when the implementation changes.
@@ -667,8 +679,17 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
       0, bytecode_iterator().GetIndexOperand(1), false);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* node = NewNode(op, context);
+  return NewNode(op, context);
+}
+
+void BytecodeGraphBuilder::VisitLdaContextSlot() {
+  Node* node = BuildLoadContextSlot();
   environment()->BindAccumulator(node);
+}
+
+void BytecodeGraphBuilder::VisitLdrContextSlot() {
+  Node* node = BuildLoadContextSlot();
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node);
 }
 
 void BytecodeGraphBuilder::VisitStaContextSlot() {
@@ -723,8 +744,7 @@ void BytecodeGraphBuilder::VisitStaLookupSlotStrict() {
   BuildStaLookupSlot(LanguageMode::STRICT);
 }
 
-void BytecodeGraphBuilder::BuildNamedLoad() {
-  FrameStateBeforeAndAfter states(this);
+Node* BytecodeGraphBuilder::BuildNamedLoad() {
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Handle<Name> name =
@@ -733,14 +753,23 @@ void BytecodeGraphBuilder::BuildNamedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->LoadNamed(name, feedback);
-  Node* node = NewNode(op, object, GetFunctionClosure());
+  return NewNode(op, object, GetFunctionClosure());
+}
+
+void BytecodeGraphBuilder::VisitLoadIC() {
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildNamedLoad();
   environment()->BindAccumulator(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitLoadIC() { BuildNamedLoad(); }
-
-void BytecodeGraphBuilder::BuildKeyedLoad() {
+void BytecodeGraphBuilder::VisitLdrNamedProperty() {
   FrameStateBeforeAndAfter states(this);
+  Node* node = BuildNamedLoad();
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3), node,
+                              &states);
+}
+
+Node* BytecodeGraphBuilder::BuildKeyedLoad() {
   Node* key = environment()->LookupAccumulator();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -748,11 +777,21 @@ void BytecodeGraphBuilder::BuildKeyedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
 
   const Operator* op = javascript()->LoadProperty(feedback);
-  Node* node = NewNode(op, object, key, GetFunctionClosure());
+  return NewNode(op, object, key, GetFunctionClosure());
+}
+
+void BytecodeGraphBuilder::VisitKeyedLoadIC() {
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildKeyedLoad();
   environment()->BindAccumulator(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitKeyedLoadIC() { BuildKeyedLoad(); }
+void BytecodeGraphBuilder::VisitLdrKeyedProperty() {
+  FrameStateBeforeAndAfter states(this);
+  Node* node = BuildKeyedLoad();
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node,
+                              &states);
+}
 
 void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);

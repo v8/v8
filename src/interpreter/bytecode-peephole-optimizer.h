@@ -29,11 +29,17 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
  private:
   BytecodeNode* Optimize(BytecodeNode* current);
 
-  void UpdateLastAndCurrentBytecodes(BytecodeNode* const current);
+  void TryToRemoveLastExpressionPosition(const BytecodeNode* const current);
+  bool TransformLastAndCurrentBytecodes(BytecodeNode* const current);
   bool CanElideCurrent(const BytecodeNode* const current) const;
   bool CanElideLast(const BytecodeNode* const current) const;
   bool CanElideLastBasedOnSourcePosition(
       const BytecodeNode* const current) const;
+
+  // Simple substitution methods.
+  bool RemoveToBooleanFromJump(BytecodeNode* const current);
+  bool RemoveToBooleanFromLogicalNot(BytecodeNode* const current);
+  bool ChangeLdaToLdr(BytecodeNode* const current);
 
   void InvalidateLast();
   bool LastIsValid() const;

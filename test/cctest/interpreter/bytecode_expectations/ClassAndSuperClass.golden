@@ -24,7 +24,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 57
+bytecode array length: 56
 bytecodes: [
                 B(Ldar), R(closure),
                 B(Star), R(0),
@@ -38,8 +38,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(6), U8(1),
                 B(Star), R(6),
   /*  111 E> */ B(LdaConstant), U8(1),
-                B(KeyedLoadIC), R(6), U8(3),
-                B(Star), R(4),
+                B(LdrKeyedProperty), R(6), U8(3), R(4),
                 B(LdaConstant), U8(2),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
@@ -76,7 +75,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 80
+bytecode array length: 78
 bytecodes: [
                 B(Ldar), R(closure),
                 B(Star), R(0),
@@ -90,8 +89,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
                 B(Star), R(5),
   /*  130 E> */ B(LdaConstant), U8(1),
-                B(KeyedLoadIC), R(5), U8(1),
-                B(Star), R(2),
+                B(LdrKeyedProperty), R(5), U8(1), R(2),
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(LdaSmi), U8(2),
@@ -106,8 +104,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(Star), R(4),
   /*  150 E> */ B(LdaConstant), U8(1),
-                B(KeyedLoadIC), R(4), U8(3),
-                B(Star), R(2),
+                B(LdrKeyedProperty), R(4), U8(3), R(2),
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(1), U8(3),
