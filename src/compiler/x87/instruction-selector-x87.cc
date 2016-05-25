@@ -27,9 +27,13 @@ class X87OperandGenerator final : public OperandGenerator {
     return DefineAsRegister(node);
   }
 
-  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input) {
+  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
+                          int effect_level) {
     if (input->opcode() != IrOpcode::kLoad ||
         !selector()->CanCover(node, input)) {
+      return false;
+    }
+    if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
     MachineRepresentation rep =
@@ -1268,18 +1272,24 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   InstructionCode narrowed_opcode = TryNarrowOpcodeSize(opcode, left, right);
 
+  int effect_level = selector->GetEffectLevel(node);
+  if (cont->IsBranch()) {
+    effect_level = selector->GetEffectLevel(
+        cont->true_block()->PredecessorAt(0)->control_input());
+  }
+
   // If one of the two inputs is an immediate, make sure it's on the right, or
   // if one of the two inputs is a memory operand, make sure it's on the left.
   if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
-      (g.CanBeMemoryOperand(narrowed_opcode, node, right) &&
-       !g.CanBeMemoryOperand(narrowed_opcode, node, left))) {
+      (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
+       !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(opcode, node, left)) {
+    if (g.CanBeMemoryOperand(opcode, node, left, effect_level)) {
       // TODO(epertoso): we should use `narrowed_opcode' here once we match
       // immediates too.
       return VisitCompareWithMemoryOperand(selector, opcode, left,
@@ -1290,7 +1300,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 
   // Match memory operands on left side of comparison.
-  if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
+  if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
     bool needs_byte_register =
         narrowed_opcode == kX87Test8 || narrowed_opcode == kX87Cmp8;
     return VisitCompareWithMemoryOperand(
