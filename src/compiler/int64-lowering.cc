@@ -32,6 +32,8 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       signature_(signature),
       placeholder_(graph->NewNode(common->Parameter(-2, "placeholder"),
                                   graph->start())) {
+  DCHECK_NOT_NULL(graph);
+  DCHECK_NOT_NULL(graph->end());
   replacements_ = zone->NewArray<Replacement>(graph->NodeCount());
   memset(replacements_, 0, sizeof(Replacement) * graph->NodeCount());
 }
