@@ -230,10 +230,6 @@
   'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/values/detached-buffer': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4925
-  'built-ins/ThrowTypeError/forbidden-arguments': [FAIL],
-  'built-ins/ThrowTypeError/forbidden-caller': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
 

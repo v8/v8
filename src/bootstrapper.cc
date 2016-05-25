@@ -165,7 +165,7 @@ class Genesis BASE_EMBEDDED {
   void CreateJSProxyMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
-  void AddRestrictedFunctionProperties(Handle<Map> map);
+  void AddRestrictedFunctionProperties(Handle<JSFunction> empty);
 
   // Creates the global objects using the global proxy and the template passed
   // in through the API.  We call this regardless of whether we are building a
@@ -609,9 +609,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Map::SetPrototype(sloppy_function_without_prototype_map, empty_function);
   Map::SetPrototype(sloppy_function_map_writable_prototype_, empty_function);
 
-  // ES6 draft 03-17-2015, section 8.2.2 step 12
-  AddRestrictedFunctionProperties(empty_function_map);
-
   return empty_function;
 }
 
@@ -666,7 +663,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
       factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("ThrowTypeError"));
   Handle<Code> code(isolate()->builtins()->builtin(builtin_name));
   Handle<JSFunction> function =
-      factory()->NewFunctionWithoutPrototype(name, code);
+      factory()->NewFunctionWithoutPrototype(name, code, true);
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.
@@ -739,6 +736,10 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   strict_function_map_writable_prototype_ =
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
+
+  // Now that the strict mode function map is available, set up the
+  // restricted "arguments" and "caller" getters.
+  AddRestrictedFunctionProperties(empty);
 }
 
 void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
@@ -868,14 +869,14 @@ static void ReplaceAccessors(Handle<Map> map,
   descriptors->Replace(idx, &descriptor);
 }
 
-
-void Genesis::AddRestrictedFunctionProperties(Handle<Map> map) {
+void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
   PropertyAttributes rw_attribs = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> thrower = GetRestrictedFunctionPropertiesThrower();
   Handle<AccessorPair> accessors = factory()->NewAccessorPair();
   accessors->set_getter(*thrower);
   accessors->set_setter(*thrower);
 
+  Handle<Map> map(empty->map());
   ReplaceAccessors(map, factory()->arguments_string(), rw_attribs, accessors);
   ReplaceAccessors(map, factory()->caller_string(), rw_attribs, accessors);
 }
