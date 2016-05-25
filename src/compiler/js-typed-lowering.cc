@@ -224,9 +224,10 @@ class JSBinopReduction final {
     if (NodeProperties::GetType(node)->Is(Type::NumberOrUndefined())) {
       return node;
     }
+    // TODO(bmeurer): Introduce PlainPrimitiveToNumber here.
     return graph()->NewNode(
         javascript()->ToNumber(), node, jsgraph()->NoContextConstant(),
-        jsgraph()->EmptyFrameState(), graph()->start(), graph()->start());
+        lowering_->EmptyFrameState(), graph()->start(), graph()->start());
   }
 
   Node* ConvertSingleInputToNumber(Node* node, Node* frame_state) {
@@ -791,8 +792,7 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
       NodeProperties::ReplaceControlInput(node, graph()->start());
       NodeProperties::ReplaceEffectInput(node, graph()->start());
       DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      NodeProperties::ReplaceFrameStateInput(node, 0,
-                                             jsgraph()->EmptyFrameState());
+      NodeProperties::ReplaceFrameStateInput(node, 0, EmptyFrameState());
       return Changed(node);
     }
   }
@@ -1860,6 +1860,14 @@ Node* JSTypedLowering::Word32Shl(Node* const lhs, int32_t const rhs) {
                           jsgraph()->Int32Constant(rhs));
 }
 
+Node* JSTypedLowering::EmptyFrameState() {
+  return graph()->NewNode(
+      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                           nullptr),
+      jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
+      jsgraph()->EmptyStateValues(), jsgraph()->NoContextConstant(),
+      jsgraph()->UndefinedConstant(), graph()->start());
+}
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 

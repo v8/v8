@@ -43,13 +43,6 @@ class JSIntrinsicLoweringTest : public GraphTest {
     return reducer.Reduce(node);
   }
 
-  Node* EmptyFrameState() {
-    MachineOperatorBuilder machine(zone());
-    JSGraph jsgraph(isolate(), graph(), common(), javascript(), nullptr,
-                    &machine);
-    return jsgraph.EmptyFrameState();
-  }
-
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:

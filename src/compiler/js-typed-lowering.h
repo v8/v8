@@ -87,6 +87,8 @@ class JSTypedLowering final : public AdvancedReducer {
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
+  Node* EmptyFrameState();
+
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
