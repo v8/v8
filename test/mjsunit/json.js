@@ -520,3 +520,6 @@ reviver = function(p, v) {
   return p === "" ? v : 42;
 }
 assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
+
+reviver = (k, v) => (v === Infinity) ? "inf" : v;
+assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));

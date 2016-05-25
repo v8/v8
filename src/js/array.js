@@ -1784,10 +1784,6 @@ utils.Export(function(to) {
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
   to.PackedArrayReverse = PackedArrayReverse;
-  to.Stack = Stack;
-  to.StackHas = StackHas;
-  to.StackPush = StackPush;
-  to.StackPop = StackPop;
 });
 
 %InstallToContext([
