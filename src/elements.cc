@@ -445,6 +445,26 @@ static void TraceTopFrame(Isolate* isolate) {
   JavaScriptFrame::PrintTop(isolate, stdout, false, true);
 }
 
+static void SortIndices(
+    Handle<FixedArray> indices, uint32_t sort_size,
+    WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
+  struct {
+    bool operator()(Object* a, Object* b) {
+      if (!a->IsUndefined()) {
+        if (b->IsUndefined()) return true;
+        return a->Number() < b->Number();
+      }
+      return b->IsUndefined();
+    }
+  } cmp;
+  Object** start =
+      reinterpret_cast<Object**>(indices->GetFirstElementAddress());
+  std::sort(start, start + sort_size, cmp);
+  if (write_barrier_mode != SKIP_WRITE_BARRIER) {
+    FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(indices->GetIsolate()->heap(), *indices,
+                                       0, sort_size);
+  }
+}
 
 // Base class for element handler implementations. Contains the
 // the common logic for objects with different ElementsKinds.
@@ -709,14 +729,18 @@ class ElementsAccessorBase : public ElementsAccessor {
     JSObject::ValidateElements(array);
   }
 
-  static uint32_t GetIterationLength(JSObject* receiver,
-                                     FixedArrayBase* elements) {
+  static uint32_t GetMaxIndex(JSObject* receiver, FixedArrayBase* elements) {
     if (receiver->IsJSArray()) {
       DCHECK(JSArray::cast(receiver)->length()->IsSmi());
       return static_cast<uint32_t>(
           Smi::cast(JSArray::cast(receiver)->length())->value());
     }
     return Subclass::GetCapacityImpl(receiver, elements);
+  }
+
+  static uint32_t GetMaxNumberOfEntries(JSObject* receiver,
+                                        FixedArrayBase* elements) {
+    return Subclass::GetMaxIndex(receiver, elements);
   }
 
   static Handle<FixedArrayBase> ConvertElementsWithCapacity(
@@ -863,7 +887,6 @@ class ElementsAccessorBase : public ElementsAccessor {
       PropertyFilter filter) {
     int count = 0;
     KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
-    accumulator.NextPrototype();
     Subclass::CollectElementIndicesImpl(
         object, handle(object->elements(), isolate), &accumulator);
     Handle<FixedArray> keys = accumulator.GetKeys();
@@ -909,11 +932,12 @@ class ElementsAccessorBase : public ElementsAccessor {
                                         KeyAccumulator* keys) {
     DCHECK_NE(DICTIONARY_ELEMENTS, kind());
     // Non-dictionary elements can't have all-can-read accessors.
-    uint32_t length = GetIterationLength(*object, *backing_store);
+    uint32_t length = Subclass::GetMaxIndex(*object, *backing_store);
     PropertyFilter filter = keys->filter();
+    Factory* factory = keys->isolate()->factory();
     for (uint32_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
-        keys->AddKey(i);
+        keys->AddKey(factory->NewNumberFromUint(i));
       }
     }
   }
@@ -923,7 +947,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
-    uint32_t length = Subclass::GetIterationLength(*object, *backing_store);
+    uint32_t length = Subclass::GetMaxIndex(*object, *backing_store);
     for (uint32_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
         if (convert == CONVERT_TO_STRING) {
@@ -968,18 +992,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
     // Sort the indices list if necessary.
     if (IsDictionaryElementsKind(kind()) || IsSloppyArgumentsElements(kind())) {
-      struct {
-        bool operator()(Object* a, Object* b) {
-          if (!a->IsUndefined()) {
-            if (b->IsUndefined()) return true;
-            return a->Number() < b->Number();
-          }
-          return !b->IsUndefined();
-        }
-      } cmp;
-      Object** start =
-          reinterpret_cast<Object**>(combined_keys->GetFirstElementAddress());
-      std::sort(start, start + nof_indices, cmp);
+      SortIndices(combined_keys, nof_indices, SKIP_WRITE_BARRIER);
       uint32_t array_length = 0;
       // Indices from dictionary elements should only be converted after
       // sorting.
@@ -1044,7 +1057,7 @@ class ElementsAccessorBase : public ElementsAccessor {
                  ? index
                  : kMaxUInt32;
     } else {
-      uint32_t length = GetIterationLength(holder, backing_store);
+      uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
       return index < length ? index : kMaxUInt32;
     }
   }
@@ -1081,17 +1094,15 @@ class DictionaryElementsAccessor
       : ElementsAccessorBase<DictionaryElementsAccessor,
                              ElementsKindTraits<DICTIONARY_ELEMENTS> >(name) {}
 
-  static uint32_t GetIterationLength(JSObject* receiver,
-                                     FixedArrayBase* elements) {
-    uint32_t length;
-    if (receiver->IsJSArray()) {
-      // Special-case GetIterationLength for dictionary elements since the
-      // length of the array might be a HeapNumber.
-      JSArray::cast(receiver)->length()->ToArrayLength(&length);
-    } else {
-      length = GetCapacityImpl(receiver, elements);
-    }
-    return length;
+  static uint32_t GetMaxIndex(JSObject* receiver, FixedArrayBase* elements) {
+    // We cannot properly estimate this for dictionaries.
+    UNREACHABLE();
+  }
+
+  static uint32_t GetMaxNumberOfEntries(JSObject* receiver,
+                                        FixedArrayBase* backing_store) {
+    SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
+    return dict->NumberOfElements();
   }
 
   static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
@@ -1313,21 +1324,28 @@ class DictionaryElementsAccessor
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys) {
     if (keys->filter() & SKIP_STRINGS) return;
-    Isolate* isolate = keys->isolate();
-    Handle<Object> undefined = isolate->factory()->undefined_value();
-    Handle<Object> the_hole = isolate->factory()->the_hole_value();
+    Factory* factory = keys->isolate()->factory();
+    Handle<Object> undefined = factory->undefined_value();
+    Handle<Object> the_hole = factory->the_hole_value();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
+    Handle<FixedArray> elements =
+        factory->NewFixedArray(GetMaxNumberOfEntries(*object, *backing_store));
+    int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     for (int i = 0; i < capacity; i++) {
       uint32_t key =
           GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
       if (key == kMaxUInt32) continue;
-      keys->AddKey(key);
+      Handle<Object> key_handle = factory->NewNumberFromUint(key);
+      elements->set(insertion_index, *key_handle);
+      insertion_index++;
     }
-
-    keys->SortCurrentElementsList();
+    SortIndices(elements, insertion_index);
+    for (int i = 0; i < insertion_index; i++) {
+      keys->AddKey(elements->get(i));
+    }
   }
 
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
@@ -1552,8 +1570,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                               KeyAccumulator* accumulator,
                                               AddKeyConversion convert) {
     Handle<FixedArrayBase> elements(receiver->elements(),
-                                    receiver->GetIsolate());
-    uint32_t length = Subclass::GetIterationLength(*receiver, *elements);
+                                    accumulator->isolate());
+    uint32_t length = Subclass::GetMaxNumberOfEntries(*receiver, *elements);
     for (uint32_t i = 0; i < length; i++) {
       if (IsFastPackedElementsKind(KindTraits::Kind) ||
           HasEntryImpl(*elements, i)) {
@@ -2386,18 +2404,16 @@ class SloppyArgumentsElementsAccessor
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys) {
-    FixedArray* parameter_map = FixedArray::cast(*backing_store);
-    uint32_t length = parameter_map->length() - 2;
-    for (uint32_t i = 0; i < length; ++i) {
-      if (!parameter_map->get(i + 2)->IsTheHole()) {
-        keys->AddKey(i);
-      }
-    }
-
-    Handle<FixedArrayBase> store(FixedArrayBase::cast(parameter_map->get(1)));
-    ArgumentsAccessor::CollectElementIndicesImpl(object, store, keys);
-    if (Subclass::kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
-      keys->SortCurrentElementsList();
+    Isolate* isolate = keys->isolate();
+    uint32_t nof_indices = 0;
+    Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
+        GetCapacityImpl(*object, *backing_store));
+    DirectCollectElementIndicesImpl(isolate, object, backing_store,
+                                    KEEP_NUMBERS, ENUMERABLE_STRINGS, indices,
+                                    &nof_indices);
+    SortIndices(indices, nof_indices);
+    for (uint32_t i = 0; i < nof_indices; i++) {
+      keys->AddKey(indices->get(i));
     }
   }
 
@@ -2745,8 +2761,9 @@ class StringWrapperElementsAccessor
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys) {
     uint32_t length = GetString(*object)->length();
+    Factory* factory = keys->isolate()->factory();
     for (uint32_t i = 0; i < length; i++) {
-      keys->AddKey(i);
+      keys->AddKey(factory->NewNumberFromUint(i));
     }
     BackingStoreAccessor::CollectElementIndicesImpl(object, backing_store,
                                                     keys);

@@ -211,9 +211,8 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
       // collecting keys in that case.
       return *isolate->factory()->NewNumberFromUint(length);
     }
-    accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    accumulator.CollectOwnElementIndices(current);
+    accumulator.CollectOwnElementIndices(array, current);
   }
   // Erase any keys >= length.
   Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);

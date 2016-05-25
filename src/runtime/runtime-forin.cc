@@ -25,6 +25,7 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   FastKeyAccumulator accumulator(isolate, receiver, INCLUDE_PROTOS,
                                  ENUMERABLE_STRINGS);
   accumulator.set_filter_proxy_keys(false);
+  accumulator.set_is_for_in(true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
