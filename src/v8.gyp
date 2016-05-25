@@ -1170,6 +1170,8 @@
         'wasm/wasm-macro-gen.h',
         'wasm/wasm-module.cc',
         'wasm/wasm-module.h',
+        'wasm/wasm-interpreter.cc',
+        'wasm/wasm-interpreter.h',
         'wasm/wasm-opcodes.cc',
         'wasm/wasm-opcodes.h',
         'wasm/wasm-result.cc',

@@ -119,6 +119,7 @@
         'test-utils.h',
         'test-utils.cc',
         'wasm/ast-decoder-unittest.cc',
+        'wasm/control-transfer-unittest.cc',
         'wasm/decoder-unittest.cc',
         'wasm/encoder-unittest.cc',
         'wasm/leb-helper-unittest.cc',

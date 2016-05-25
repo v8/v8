@@ -140,9 +140,9 @@ class LocalDeclEncoder {
 
   // Prepend local declarations by creating a new buffer and copying data
   // over. The new buffer must be delete[]'d by the caller.
-  void Prepend(const byte** start, const byte** end) const {
+  void Prepend(Zone* zone, const byte** start, const byte** end) const {
     size_t size = (*end - *start);
-    byte* buffer = new byte[Size() + size];
+    byte* buffer = reinterpret_cast<byte*>(zone->New(Size() + size));
     size_t pos = Emit(buffer);
     memcpy(buffer + pos, *start, size);
     pos += size;

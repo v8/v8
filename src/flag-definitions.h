@@ -480,6 +480,7 @@ DEFINE_BOOL(trace_wasm_encoder, false, "trace encoding of wasm code")
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
+DEFINE_BOOL(trace_wasm_interpreter, false, "trace interpretation of wasm code")
 DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for WASM AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for WASM AST trace (exclusive)")
