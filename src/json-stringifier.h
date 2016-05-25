@@ -11,18 +11,15 @@
 namespace v8 {
 namespace internal {
 
-class BasicJsonStringifier BASE_EMBEDDED {
+class JsonStringifier BASE_EMBEDDED {
  public:
-  explicit BasicJsonStringifier(Isolate* isolate);
+  explicit JsonStringifier(Isolate* isolate);
 
-  ~BasicJsonStringifier() { DeleteArray(gap_); }
+  ~JsonStringifier() { DeleteArray(gap_); }
 
   MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object,
                                                 Handle<Object> replacer,
                                                 Handle<Object> gap);
-
-  MUST_USE_RESULT static MaybeHandle<Object> StringifyString(
-      Isolate* isolate, Handle<String> object);
 
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION };
@@ -33,6 +30,8 @@ class BasicJsonStringifier BASE_EMBEDDED {
   MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
       Handle<Object> object,
       Handle<Object> key);
+  MUST_USE_RESULT MaybeHandle<Object> ApplyReplacerFunction(
+      Handle<Object> object, Handle<Object> key);
 
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
@@ -100,6 +99,8 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(void Unindent() { indent_--; });
   INLINE(void Separator(bool first));
 
+  Handle<JSReceiver> CurrentHolder(Handle<Object> value);
+
   Result StackPush(Handle<Object> object);
   void StackPop();
 
@@ -110,6 +111,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   Handle<String> tojson_string_;
   Handle<JSArray> stack_;
   Handle<FixedArray> property_list_;
+  Handle<JSReceiver> replacer_function_;
   uc16* gap_;
   int indent_;
 

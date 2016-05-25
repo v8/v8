@@ -2779,7 +2779,7 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
                                         ? isolate->factory()->empty_string()
                                         : Utils::OpenHandle(*gap);
   i::Handle<i::Object> maybe;
-  has_pending_exception = !i::BasicJsonStringifier(isolate)
+  has_pending_exception = !i::JsonStringifier(isolate)
                                .Stringify(object, replacer, gap_string)
                                .ToHandle(&maybe);
   RETURN_ON_FAILED_EXECUTION(String);

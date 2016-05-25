@@ -18,6 +18,7 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
+#include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
@@ -2179,6 +2180,16 @@ BUILTIN(GlobalEval) {
       Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
 }
 
+// ES6 section 24.3.2 JSON.stringify.
+BUILTIN(JsonStringify) {
+  HandleScope scope(isolate);
+  JsonStringifier stringifier(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<Object> replacer = args.atOrUndefined(isolate, 2);
+  Handle<Object> indent = args.atOrUndefined(isolate, 3);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           stringifier.Stringify(object, replacer, indent));
+}
 
 // -----------------------------------------------------------------------------
 // ES6 section 20.2.2 Function Properties of the Math Object
