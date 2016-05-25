@@ -2023,6 +2023,33 @@ if (current_toolchain == v8_snapshot_toolchain) {
 # Public targets
 #
 
+want_v8_shell = (
+    (current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
+    (current_toolchain == v8_snapshot_toolchain &&
+     v8_toolset_for_shell == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target"))
+
+group("gn_all") {
+  testonly = true
+
+  deps = [
+    ":d8",
+  ]
+
+  if (want_v8_shell) {
+    deps += [
+      ":v8_shell",
+    ]
+  }
+
+  if (host_os != "mac" || !is_android) {
+    # These items don't compile for Android on Mac.
+    deps += [
+      "test/unittests:unittests",
+    ]
+  }
+}
+
 if (is_component_build) {
   component("v8") {
     sources = [
@@ -2095,10 +2122,7 @@ executable("d8") {
   }
 }
 
-if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
-    (current_toolchain == v8_snapshot_toolchain &&
-     v8_toolset_for_shell == "host") ||
-    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
+if (want_v8_shell) {
   executable("v8_shell") {
     sources = [
       "samples/shell.cc",
