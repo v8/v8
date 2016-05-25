@@ -547,6 +547,7 @@ void IncrementalMarking::StartMarking() {
       MarkCompactCollector::kMaxMarkingDequeSize);
 
   ActivateIncrementalWriteBarrier();
+  heap_->array_buffer_tracker()->ResetTrackersInOldSpace();
 
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
