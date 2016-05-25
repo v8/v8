@@ -105,11 +105,6 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
     Map* map, HeapObject* object) {
   typedef FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor, int>
       JSArrayBufferBodyVisitor;
-
-  if (!JSArrayBuffer::cast(object)->is_external()) {
-    Heap* heap = map->GetHeap();
-    heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
-  }
   return JSArrayBufferBodyVisitor::Visit(map, object);
 }
 

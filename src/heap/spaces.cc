@@ -511,13 +511,14 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
-  chunk->mutex_ = nullptr;
+  chunk->mutex_ = new base::Mutex();
   chunk->available_in_free_list_ = 0;
   chunk->wasted_memory_ = 0;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
+  chunk->local_tracker_.SetValue(nullptr);
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
@@ -1039,6 +1040,8 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (old_to_old_slots_ != nullptr) ReleaseOldToOldSlots();
   if (typed_old_to_new_slots_ != nullptr) ReleaseTypedOldToNewSlots();
   if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
+
+  if (local_tracker_.Value() != nullptr) ReleaseLocalTracker();
 }
 
 static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
@@ -1090,6 +1093,12 @@ void MemoryChunk::ReleaseTypedOldToOldSlots() {
   delete typed_old_to_old_slots_;
   typed_old_to_old_slots_ = nullptr;
 }
+
+void MemoryChunk::ReleaseLocalTracker() {
+  delete local_tracker_.Value();
+  local_tracker_.SetValue(nullptr);
+}
+
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
