@@ -69,7 +69,7 @@ bytecodes: [
                 B(LdrNamedProperty), R(1), U8(1), U8(1), R(2),
                 B(LdaSmi), U8(2),
                 B(Mul), R(2),
-  /*   61 E> */ B(StoreICSloppy), R(1), U8(1), U8(3),
+  /*   61 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(3),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -98,7 +98,7 @@ bytecodes: [
                 B(LdrKeyedProperty), R(1), U8(1), R(3),
                 B(LdaSmi), U8(2),
                 B(BitwiseXor), R(3),
-  /*   57 E> */ B(KeyedStoreICSloppy), R(1), R(2), U8(3),
+  /*   57 E> */ B(StaKeyedPropertySloppy), R(1), R(2), U8(3),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
 ]

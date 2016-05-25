@@ -59,7 +59,7 @@ bytecodes: [
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
   /*   75 E> */ B(Ldar), R(0),
-                B(StoreICSloppy), R(1), U8(1), U8(1),
+                B(StaNamedPropertySloppy), R(1), U8(1), U8(1),
                 B(Ldar), R(1),
   /*   80 S> */ B(Return),
 ]
@@ -87,7 +87,7 @@ bytecodes: [
   /*   67 E> */ B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Add), R(2),
-                B(StoreICSloppy), R(1), U8(1), U8(1),
+                B(StaNamedPropertySloppy), R(1), U8(1), U8(1),
                 B(Ldar), R(1),
   /*   76 S> */ B(Return),
 ]
@@ -110,7 +110,7 @@ bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(0),
                 B(CreateClosure), U8(1), U8(0),
-                B(StoreICSloppy), R(0), U8(2), U8(1),
+                B(StaNamedPropertySloppy), R(0), U8(2), U8(1),
                 B(Ldar), R(0),
   /*   67 S> */ B(Return),
 ]
@@ -134,7 +134,7 @@ bytecodes: [
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(0),
                 B(CreateClosure), U8(1), U8(0),
-                B(StoreICSloppy), R(0), U8(2), U8(1),
+                B(StaNamedPropertySloppy), R(0), U8(2), U8(1),
                 B(Ldar), R(0),
   /*   68 S> */ B(Return),
 ]
@@ -345,7 +345,7 @@ bytecodes: [
   /*   50 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(1),
                 B(Star), R(1),
   /*   64 E> */ B(Ldar), R(0),
-                B(StoreICSloppy), R(1), U8(2), U8(1),
+                B(StaNamedPropertySloppy), R(1), U8(2), U8(1),
                 B(Mov), R(1), R(2),
   /*   68 E> */ B(Ldar), R(0),
                 B(ToName),

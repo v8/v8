@@ -388,8 +388,8 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLoadICStar) {
       static_cast<uint32_t>(Register(256).ToOperand())};
   const int expected_operand_count = static_cast<int>(arraysize(operands));
 
-  BytecodeNode first(Bytecode::kLoadIC, operands[0], operands[1], operands[2],
-                     OperandScale::kSingle);
+  BytecodeNode first(Bytecode::kLdaNamedProperty, operands[0], operands[1],
+                     operands[2], OperandScale::kSingle);
   BytecodeNode second(Bytecode::kStar, operands[3], OperandScale::kDouble);
   BytecodeNode third(Bytecode::kReturn);
   optimizer()->Write(&first);
@@ -410,13 +410,13 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLoadICStar) {
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, MergeKeyedLoadICStar) {
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaKeyedPropertyStar) {
   const uint32_t operands[] = {static_cast<uint32_t>(Register(31).ToOperand()),
                                9999997,
                                static_cast<uint32_t>(Register(1).ToOperand())};
   const int expected_operand_count = static_cast<int>(arraysize(operands));
 
-  BytecodeNode first(Bytecode::kKeyedLoadIC, operands[0], operands[1],
+  BytecodeNode first(Bytecode::kLdaKeyedProperty, operands[0], operands[1],
                      OperandScale::kQuadruple);
   BytecodeNode second(Bytecode::kStar, operands[2], OperandScale::kSingle);
   BytecodeNode third(Bytecode::kReturn);

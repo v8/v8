@@ -201,10 +201,10 @@ void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
 bool BytecodePeepholeOptimizer::ChangeLdaToLdr(BytecodeNode* const current) {
   if (current->bytecode() == Bytecode::kStar) {
     switch (last_.bytecode()) {
-      case Bytecode::kLoadIC:
+      case Bytecode::kLdaNamedProperty:
         TransformLdaStarToLdrLdar(Bytecode::kLdrNamedProperty, &last_, current);
         return true;
-      case Bytecode::kKeyedLoadIC:
+      case Bytecode::kLdaKeyedProperty:
         TransformLdaStarToLdrLdar(Bytecode::kLdrKeyedProperty, &last_, current);
         return true;
       case Bytecode::kLdaGlobal:

@@ -363,8 +363,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
   OperandScale operand_scale = Bytecodes::OperandSizesToScale(
       object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(name_index),
       Bytecodes::SizeForUnsignedOperand(feedback_slot));
-  OutputScaled(Bytecode::kLoadIC, operand_scale, RegisterOperand(object),
-               UnsignedOperand(name_index), UnsignedOperand(feedback_slot));
+  OutputScaled(Bytecode::kLdaNamedProperty, operand_scale,
+               RegisterOperand(object), UnsignedOperand(name_index),
+               UnsignedOperand(feedback_slot));
   return *this;
 }
 
@@ -372,15 +373,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot) {
   OperandScale operand_scale = Bytecodes::OperandSizesToScale(
       object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(feedback_slot));
-  OutputScaled(Bytecode::kKeyedLoadIC, operand_scale, RegisterOperand(object),
-               UnsignedOperand(feedback_slot));
+  OutputScaled(Bytecode::kLdaKeyedProperty, operand_scale,
+               RegisterOperand(object), UnsignedOperand(feedback_slot));
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
-  Bytecode bytecode = BytecodeForStoreIC(language_mode);
+  Bytecode bytecode = BytecodeForStoreNamedProperty(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
   OperandScale operand_scale = Bytecodes::OperandSizesToScale(
       object.SizeOfOperand(), Bytecodes::SizeForUnsignedOperand(name_index),
@@ -394,7 +395,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
-  Bytecode bytecode = BytecodeForKeyedStoreIC(language_mode);
+  Bytecode bytecode = BytecodeForStoreKeyedProperty(language_mode);
   OperandScale operand_scale = Bytecodes::OperandSizesToScale(
       object.SizeOfOperand(), key.SizeOfOperand(),
       Bytecodes::SizeForUnsignedOperand(feedback_slot));
@@ -1150,12 +1151,13 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
 
 
 // static
-Bytecode BytecodeArrayBuilder::BytecodeForStoreIC(LanguageMode language_mode) {
+Bytecode BytecodeArrayBuilder::BytecodeForStoreNamedProperty(
+    LanguageMode language_mode) {
   switch (language_mode) {
     case SLOPPY:
-      return Bytecode::kStoreICSloppy;
+      return Bytecode::kStaNamedPropertySloppy;
     case STRICT:
-      return Bytecode::kStoreICStrict;
+      return Bytecode::kStaNamedPropertyStrict;
     default:
       UNREACHABLE();
   }
@@ -1164,13 +1166,13 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreIC(LanguageMode language_mode) {
 
 
 // static
-Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
+Bytecode BytecodeArrayBuilder::BytecodeForStoreKeyedProperty(
     LanguageMode language_mode) {
   switch (language_mode) {
     case SLOPPY:
-      return Bytecode::kKeyedStoreICSloppy;
+      return Bytecode::kStaKeyedPropertySloppy;
     case STRICT:
-      return Bytecode::kKeyedStoreICStrict;
+      return Bytecode::kStaKeyedPropertyStrict;
     default:
       UNREACHABLE();
   }

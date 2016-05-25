@@ -43,7 +43,7 @@ bytecodes: [
   /*   15 S> */ B(Ldar), R(0),
                 B(Star), R(1),
   /*   31 E> */ B(LdaZero),
-                B(KeyedLoadIC), R(1), U8(1),
+                B(LdaKeyedProperty), R(1), U8(1),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
@@ -90,7 +90,7 @@ bytecodes: [
   /*   16 S> */ B(Ldar), R(0),
                 B(Star), R(2),
   /*   32 E> */ B(LdaZero),
-                B(KeyedLoadIC), R(2), U8(1),
+                B(LdaKeyedProperty), R(2), U8(1),
   /*   37 S> */ B(Return),
 ]
 constant pool: [

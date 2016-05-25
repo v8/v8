@@ -288,8 +288,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCountOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
-  static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
-  static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreNamedProperty(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreKeyedProperty(LanguageMode language_mode);
   static Bytecode BytecodeForLoadGlobal(TypeofMode typeof_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForStoreLookupSlot(LanguageMode language_mode);

@@ -20,7 +20,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Ldar), R(arg0),
                 B(Star), R(0),
-  /*   24 E> */ B(LoadIC), R(0), U8(0), U8(1),
+  /*   24 E> */ B(LdaNamedProperty), R(0), U8(0), U8(1),
   /*   31 S> */ B(Return),
 ]
 constant pool: [
@@ -41,7 +41,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Ldar), R(arg0),
                 B(Star), R(0),
-  /*   24 E> */ B(LoadIC), R(0), U8(0), U8(1),
+  /*   24 E> */ B(LdaNamedProperty), R(0), U8(0), U8(1),
   /*   33 S> */ B(Return),
 ]
 constant pool: [
@@ -63,7 +63,7 @@ bytecodes: [
   /*   16 S> */ B(Ldar), R(arg0),
                 B(Star), R(0),
   /*   24 E> */ B(LdaSmi), U8(100),
-                B(KeyedLoadIC), R(0), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
   /*   31 S> */ B(Return),
 ]
 constant pool: [
@@ -84,7 +84,7 @@ bytecodes: [
   /*   19 S> */ B(Ldar), R(arg0),
                 B(Star), R(0),
   /*   27 E> */ B(Ldar), R(arg1),
-                B(KeyedLoadIC), R(0), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
@@ -108,7 +108,7 @@ bytecodes: [
   /*   32 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
   /*   40 E> */ B(LdaSmi), U8(-124),
-                B(KeyedLoadIC), R(1), U8(3),
+                B(LdaKeyedProperty), R(1), U8(3),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
@@ -644,7 +644,7 @@ bytecodes: [
   /* 1810 E> */ B(LdrNamedProperty), R(1), U8(0), U8(255), R(0),
   /* 1819 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
-  /* 1827 E> */ B(Wide), B(LoadIC), R16(1), U16(0), U16(257),
+  /* 1827 E> */ B(Wide), B(LdaNamedProperty), R16(1), U16(0), U16(257),
   /* 1834 S> */ B(Return),
 ]
 constant pool: [
@@ -1309,7 +1309,7 @@ bytecodes: [
   /* 1566 S> */ B(Ldar), R(arg0),
                 B(Star), R(1),
   /* 1574 E> */ B(Ldar), R(arg1),
-                B(Wide), B(KeyedLoadIC), R16(1), U16(257),
+                B(Wide), B(LdaKeyedProperty), R16(1), U16(257),
   /* 1579 S> */ B(Return),
 ]
 constant pool: [

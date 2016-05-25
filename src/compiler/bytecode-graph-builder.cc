@@ -756,7 +756,7 @@ Node* BytecodeGraphBuilder::BuildNamedLoad() {
   return NewNode(op, object, GetFunctionClosure());
 }
 
-void BytecodeGraphBuilder::VisitLoadIC() {
+void BytecodeGraphBuilder::VisitLdaNamedProperty() {
   FrameStateBeforeAndAfter states(this);
   Node* node = BuildNamedLoad();
   environment()->BindAccumulator(node, &states);
@@ -780,7 +780,7 @@ Node* BytecodeGraphBuilder::BuildKeyedLoad() {
   return NewNode(op, object, key, GetFunctionClosure());
 }
 
-void BytecodeGraphBuilder::VisitKeyedLoadIC() {
+void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   FrameStateBeforeAndAfter states(this);
   Node* node = BuildKeyedLoad();
   environment()->BindAccumulator(node, &states);
@@ -808,11 +808,11 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
   environment()->RecordAfterState(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitStoreICSloppy() {
+void BytecodeGraphBuilder::VisitStaNamedPropertySloppy() {
   BuildNamedStore(LanguageMode::SLOPPY);
 }
 
-void BytecodeGraphBuilder::VisitStoreICStrict() {
+void BytecodeGraphBuilder::VisitStaNamedPropertyStrict() {
   BuildNamedStore(LanguageMode::STRICT);
 }
 
@@ -831,11 +831,11 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
   environment()->RecordAfterState(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitKeyedStoreICSloppy() {
+void BytecodeGraphBuilder::VisitStaKeyedPropertySloppy() {
   BuildKeyedStore(LanguageMode::SLOPPY);
 }
 
-void BytecodeGraphBuilder::VisitKeyedStoreICStrict() {
+void BytecodeGraphBuilder::VisitStaKeyedPropertyStrict() {
   BuildKeyedStore(LanguageMode::STRICT);
 }
 

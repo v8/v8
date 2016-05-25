@@ -106,11 +106,11 @@ bytecodes: [
                 B(Star), R(1),
                 B(Star), R(0),
   /*   54 S> */ B(Star), R(1),
-                B(LoadIC), R(1), U8(1), U8(1),
+                B(LdaNamedProperty), R(1), U8(1), U8(1),
                 B(ToNumber),
                 B(Star), R(2),
                 B(Inc),
-  /*   66 E> */ B(StoreICSloppy), R(1), U8(1), U8(3),
+  /*   66 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(3),
                 B(Ldar), R(2),
   /*   70 S> */ B(Return),
 ]
@@ -134,9 +134,9 @@ bytecodes: [
                 B(Star), R(1),
                 B(Star), R(0),
   /*   54 S> */ B(Star), R(1),
-                B(LoadIC), R(1), U8(1), U8(1),
+                B(LdaNamedProperty), R(1), U8(1), U8(1),
                 B(Dec),
-  /*   65 E> */ B(StoreICSloppy), R(1), U8(1), U8(3),
+  /*   65 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(3),
   /*   70 S> */ B(Return),
 ]
 constant pool: [
@@ -163,11 +163,11 @@ bytecodes: [
   /*   72 S> */ B(Star), R(2),
   /*   81 E> */ B(Ldar), R(0),
                 B(Star), R(3),
-                B(KeyedLoadIC), R(2), U8(1),
+                B(LdaKeyedProperty), R(2), U8(1),
                 B(ToNumber),
                 B(Star), R(4),
                 B(Dec),
-  /*   86 E> */ B(KeyedStoreICSloppy), R(2), R(3), U8(3),
+  /*   86 E> */ B(StaKeyedPropertySloppy), R(2), R(3), U8(3),
                 B(Ldar), R(4),
   /*   90 S> */ B(Return),
 ]
@@ -195,9 +195,9 @@ bytecodes: [
   /*   72 S> */ B(Star), R(2),
   /*   83 E> */ B(Ldar), R(0),
                 B(Star), R(3),
-                B(KeyedLoadIC), R(2), U8(1),
+                B(LdaKeyedProperty), R(2), U8(1),
                 B(Inc),
-  /*   87 E> */ B(KeyedStoreICSloppy), R(2), R(3), U8(3),
+  /*   87 E> */ B(StaKeyedPropertySloppy), R(2), R(3), U8(3),
   /*   90 S> */ B(Return),
 ]
 constant pool: [
@@ -282,7 +282,7 @@ bytecodes: [
                 B(Inc),
   /*   75 E> */ B(Star), R(0),
                 B(LdaSmi), U8(2),
-  /*   79 E> */ B(KeyedStoreICSloppy), R(2), R(3), U8(1),
+  /*   79 E> */ B(StaKeyedPropertySloppy), R(2), R(3), U8(1),
   /*   84 S> */ B(Return),
 ]
 constant pool: [

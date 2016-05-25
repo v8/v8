@@ -125,24 +125,24 @@ namespace interpreter {
   /* Register-register transfers */                                           \
   V(Mov, AccumulatorUse::kNone, OperandType::kReg, OperandType::kRegOut)      \
                                                                               \
-  /* LoadIC operations */                                                     \
-  V(LoadIC, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx,     \
-    OperandType::kIdx)                                                        \
+  /* Property loads (LoadIC) operations */                                    \
+  V(LdaNamedProperty, AccumulatorUse::kWrite, OperandType::kReg,              \
+    OperandType::kIdx, OperandType::kIdx)                                     \
   V(LdrNamedProperty, AccumulatorUse::kNone, OperandType::kReg,               \
     OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)               \
-  V(KeyedLoadIC, AccumulatorUse::kReadWrite, OperandType::kReg,               \
+  V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,          \
     OperandType::kIdx)                                                        \
   V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,               \
     OperandType::kIdx, OperandType::kRegOut)                                  \
                                                                               \
-  /* StoreIC operations */                                                    \
-  V(StoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,                  \
+  /* Propery stores (StoreIC) operations */                                   \
+  V(StaNamedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                     \
-  V(StoreICStrict, AccumulatorUse::kRead, OperandType::kReg,                  \
+  V(StaNamedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                     \
-  V(KeyedStoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,             \
+  V(StaKeyedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kReg, OperandType::kIdx)                                     \
-  V(KeyedStoreICStrict, AccumulatorUse::kRead, OperandType::kReg,             \
+  V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kReg, OperandType::kIdx)                                     \
                                                                               \
   /* Binary Operators */                                                      \

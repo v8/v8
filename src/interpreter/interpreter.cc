@@ -593,11 +593,11 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
                      smi_slot, type_feedback_vector);
 }
 
-// LoadIC <object> <name_index> <slot>
+// LdaNamedProperty <object> <name_index> <slot>
 //
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
-void Interpreter::DoLoadIC(InterpreterAssembler* assembler) {
+void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
                                                    UNINITIALIZED);
   Node* result = BuildLoadNamedProperty(ic, assembler);
@@ -636,7 +636,7 @@ Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
 //
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
-void Interpreter::DoKeyedLoadIC(InterpreterAssembler* assembler) {
+void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
   Node* result = BuildLoadKeyedProperty(ic, assembler);
@@ -673,23 +673,23 @@ void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// StoreICSloppy <object> <name_index> <slot>
+// StaNamedPropertySloppy <object> <name_index> <slot>
 //
 // Calls the sloppy mode StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-void Interpreter::DoStoreICSloppy(InterpreterAssembler* assembler) {
+void Interpreter::DoStaNamedPropertySloppy(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
   DoStoreIC(ic, assembler);
 }
 
-// StoreICStrict <object> <name_index> <slot>
+// StaNamedPropertyStrict <object> <name_index> <slot>
 //
 // Calls the strict mode StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-void Interpreter::DoStoreICStrict(InterpreterAssembler* assembler) {
+void Interpreter::DoStaNamedPropertyStrict(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
   DoStoreIC(ic, assembler);
@@ -711,21 +711,21 @@ void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// KeyedStoreICSloppy <object> <key> <slot>
+// StaKeyedPropertySloppy <object> <key> <slot>
 //
 // Calls the sloppy mode KeyStoreIC at FeedBackVector slot <slot> for <object>
 // and the key <key> with the value in the accumulator.
-void Interpreter::DoKeyedStoreICSloppy(InterpreterAssembler* assembler) {
+void Interpreter::DoStaKeyedPropertySloppy(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
   DoKeyedStoreIC(ic, assembler);
 }
 
-// KeyedStoreICStrict <object> <key> <slot>
+// StaKeyedPropertyStrict <object> <key> <slot>
 //
 // Calls the strict mode KeyStoreIC at FeedBackVector slot <slot> for <object>
 // and the key <key> with the value in the accumulator.
-void Interpreter::DoKeyedStoreICStrict(InterpreterAssembler* assembler) {
+void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
   DoKeyedStoreIC(ic, assembler);
