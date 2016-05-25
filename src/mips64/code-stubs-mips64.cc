@@ -1991,16 +1991,16 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&done_initialize_count);
   // Initialize the call counter.
 
-  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
+  __ SmiScale(a4, a3, kPointerSizeLog2);
   __ Daddu(a4, a2, Operand(a4));
   __ li(a5, Operand(Smi::FromInt(1)));
+  __ Branch(USE_DELAY_SLOT, &done);
   __ sd(a5, FieldMemOperand(a4, FixedArray::kHeaderSize + kPointerSize));
-  __ bind(&done);
 
   __ bind(&done_increment_count);
 
   // Increment the call count for monomorphic function calls.
-  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
+  __ SmiScale(a4, a3, kPointerSizeLog2);
   __ Daddu(a5, a2, Operand(a4));
   __ ld(a4, FieldMemOperand(a5, FixedArray::kHeaderSize + kPointerSize));
   __ Daddu(a4, a4, Operand(Smi::FromInt(1)));

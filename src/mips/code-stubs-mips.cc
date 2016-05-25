@@ -1986,8 +1986,8 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Initialize the call counter.
   __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ li(t0, Operand(Smi::FromInt(1)));
+  __ Branch(USE_DELAY_SLOT, &done);
   __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-  __ b(&done);
 
   __ bind(&done_increment_count);
 
