@@ -327,6 +327,8 @@ namespace internal {
   F(OrdinaryHasInstance, 2, 1)
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
+  F(QuoteJSONString, 1, 1)         \
+  F(BasicJSONStringify, 3, 1)      \
   F(ParseJson, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \

@@ -1594,8 +1594,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
-    SimpleInstallFunction(json_object, "stringify", Builtins::kJsonStringify, 3,
-                          true);
   }
 
   {  // -- M a t h

@@ -121,8 +121,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(GlobalEval, kTarget)                                       \
                                                                \
-  V(JsonStringify, kNone)                                      \
-                                                               \
   V(MathAcos, kNone)                                           \
   V(MathAsin, kNone)                                           \
   V(MathAtan, kNone)                                           \
