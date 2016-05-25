@@ -513,19 +513,7 @@
   V(Bool8x16Swizzle)                        \
   V(Bool8x16Shuffle)                        \
   V(Bool8x16Equal)                          \
-  V(Bool8x16NotEqual)                       \
-  V(Simd128Load)                            \
-  V(Simd128Load1)                           \
-  V(Simd128Load2)                           \
-  V(Simd128Load3)                           \
-  V(Simd128Store)                           \
-  V(Simd128Store1)                          \
-  V(Simd128Store2)                          \
-  V(Simd128Store3)                          \
-  V(Simd128And)                             \
-  V(Simd128Or)                              \
-  V(Simd128Xor)                             \
-  V(Simd128Not)
+  V(Bool8x16NotEqual)
 
 #define MACHINE_SIMD_RETURN_NUM_OP_LIST(V) \
   V(Float32x4ExtractLane)                  \
@@ -544,10 +532,25 @@
   V(Bool8x16AnyTrue)                        \
   V(Bool8x16AllTrue)
 
+#define MACHINE_SIMD_GENERIC_OP_LIST(V) \
+  V(Simd128Load)                        \
+  V(Simd128Load1)                       \
+  V(Simd128Load2)                       \
+  V(Simd128Load3)                       \
+  V(Simd128Store)                       \
+  V(Simd128Store1)                      \
+  V(Simd128Store2)                      \
+  V(Simd128Store3)                      \
+  V(Simd128And)                         \
+  V(Simd128Or)                          \
+  V(Simd128Xor)                         \
+  V(Simd128Not)
+
 #define MACHINE_SIMD_OP_LIST(V)       \
   MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \
   MACHINE_SIMD_RETURN_NUM_OP_LIST(V)  \
-  MACHINE_SIMD_RETURN_BOOL_OP_LIST(V)
+  MACHINE_SIMD_RETURN_BOOL_OP_LIST(V) \
+  MACHINE_SIMD_GENERIC_OP_LIST(V)
 
 #define VALUE_OP_LIST(V)  \
   COMMON_OP_LIST(V)       \

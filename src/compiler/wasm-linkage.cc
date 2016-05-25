@@ -31,6 +31,8 @@ MachineType MachineTypeFor(LocalType type) {
       return MachineType::Float64();
     case kAstF32:
       return MachineType::Float32();
+    case kAstS128:
+      return MachineType::Simd128();
     default:
       UNREACHABLE();
       return MachineType::AnyTagged();

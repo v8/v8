@@ -716,6 +716,8 @@ class ModuleDecoder : public Decoder {
         return MachineType::Float32();
       case kMemF64:
         return MachineType::Float64();
+      case kMemS128:
+        return MachineType::Simd128();
       default:
         error(pc_ - 1, "invalid memory type");
         return MachineType::None();

@@ -2561,6 +2561,7 @@ Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
 #define SIMD_RETURN_SIMD(Name) \
   Type* Typer::Visitor::Type##Name(Node* node) { return Type::Simd(); }
 MACHINE_SIMD_RETURN_SIMD_OP_LIST(SIMD_RETURN_SIMD)
+MACHINE_SIMD_GENERIC_OP_LIST(SIMD_RETURN_SIMD)
 #undef SIMD_RETURN_SIMD
 
 #define SIMD_RETURN_NUM(Name) \
