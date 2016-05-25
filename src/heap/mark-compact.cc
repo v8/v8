@@ -14,7 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
-#include "src/heap/array-buffer-tracker.h"
+#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -872,6 +872,10 @@ void MarkCompactCollector::Prepare() {
        space = spaces.next()) {
     space->PrepareForMarkCompact();
   }
+  if (!was_marked_incrementally_) {
+    heap_->array_buffer_tracker()->ResetTrackersInOldSpace();
+  }
+  heap()->account_amount_of_external_allocated_freed_memory();
 
 #ifdef VERIFY_HEAP
   if (!was_marked_incrementally_ && FLAG_verify_heap) {
@@ -1727,20 +1731,12 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     if (heap_->ShouldBePromoted(object->address(), size) &&
         TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object,
                           &target_object)) {
-      // If we end up needing more special cases, we should factor this out.
-      if (V8_UNLIKELY(target_object->IsJSArrayBuffer())) {
-        heap_->array_buffer_tracker()->Promote(
-            JSArrayBuffer::cast(target_object));
-      }
       promoted_size_ += size;
       return true;
     }
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
-    if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-      heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
-    }
     semispace_copied_size_ += size;
     return true;
   }
@@ -1865,10 +1861,6 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
   }
 
   inline bool Visit(HeapObject* object) {
-    if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
-      object->GetHeap()->array_buffer_tracker()->Promote(
-          JSArrayBuffer::cast(object));
-    }
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBodyFast(&visitor);
     promoted_size_ += object->Size();
@@ -1909,6 +1901,9 @@ class MarkCompactCollector::EvacuateRecordOnlyVisitor final
   inline bool Visit(HeapObject* object) {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBody(&visitor);
+    if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
+      heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
+    }
     return true;
   }
 
@@ -3124,24 +3119,35 @@ bool MarkCompactCollector::Evacuator::EvacuateSinglePage(Page* p,
 bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
   bool result = false;
   DCHECK(page->SweepingDone());
+  Heap* heap = page->heap();
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
       result = EvacuateSinglePage<kClearMarkbits>(page, &new_space_visitor_);
+      heap->array_buffer_tracker()
+          ->ScanAndFreeDeadArrayBuffers<
+              LocalArrayBufferTracker::kForwardingPointer>(page);
       DCHECK(result);
       USE(result);
       break;
     case kPageNewToOld:
       result = EvacuateSinglePage<kKeepMarking>(page, &new_space_page_visitor);
+      // ArrayBufferTracker will be updated during sweeping.
       DCHECK(result);
       USE(result);
       break;
     case kObjectsOldToOld:
       result = EvacuateSinglePage<kClearMarkbits>(page, &old_space_visitor_);
+      heap->array_buffer_tracker()
+          ->ScanAndFreeDeadArrayBuffers<
+              LocalArrayBufferTracker::kForwardingPointer>(page);
       if (!result) {
         // Aborted compaction page. We can record slots here to have them
         // processed in parallel later on.
         EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
         result = EvacuateSinglePage<kKeepMarking>(page, &record_visitor);
+        heap->array_buffer_tracker()
+            ->ScanAndFreeDeadArrayBuffers<LocalArrayBufferTracker::kMarkBit>(
+                page);
         DCHECK(result);
         USE(result);
         // We need to return failure here to indicate that we want this page
@@ -3384,6 +3390,7 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
     freed_bytes = space->UnaccountedFree(free_start, size);
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
   }
+  p->heap()->array_buffer_tracker()->FreeDead(p);
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
 }
@@ -3526,11 +3533,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
-
-    // EvacuateNewSpaceAndCandidates iterates over new space objects and for
-    // ArrayBuffers either re-registers them as live or promotes them. This is
-    // needed to properly free them.
-    heap()->array_buffer_tracker()->FreeDead(false);
 
     // Deallocate evacuated candidate pages.
     ReleaseEvacuationCandidates();
