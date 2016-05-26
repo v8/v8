@@ -27,10 +27,10 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
+#include "src/libsampler/v8-sampler.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
-#include "src/profiler/sampler.h"
 #include "src/prototype.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
@@ -2006,7 +2006,7 @@ void Isolate::Deinit() {
   }
 
   // We must stop the logger before we tear down other components.
-  Sampler* sampler = logger_->sampler();
+  sampler::Sampler* sampler = logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
 
   delete deoptimizer_data_;

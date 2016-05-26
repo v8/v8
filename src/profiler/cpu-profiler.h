@@ -10,9 +10,9 @@
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
+#include "src/libsampler/v8-sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
-#include "src/profiler/sampler.h"
 #include "src/profiler/tick-sample.h"
 
 namespace v8 {
@@ -128,7 +128,7 @@ class CodeEventsContainer {
 class ProfilerEventsProcessor : public base::Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
-                          Sampler* sampler,
+                          sampler::Sampler* sampler,
                           base::TimeDelta period);
   virtual ~ProfilerEventsProcessor();
 
@@ -166,7 +166,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SampleProcessingResult ProcessOneSample();
 
   ProfileGenerator* generator_;
-  Sampler* sampler_;
+  sampler::Sampler* sampler_;
   base::Atomic32 running_;
   const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
