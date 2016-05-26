@@ -5274,6 +5274,18 @@ class V8_EXPORT HeapObjectStatistics {
   friend class Isolate;
 };
 
+class V8_EXPORT HeapCodeStatistics {
+ public:
+  HeapCodeStatistics();
+  size_t code_and_metadata_size() { return code_and_metadata_size_; }
+  size_t bytecode_and_metadata_size() { return bytecode_and_metadata_size_; }
+
+ private:
+  size_t code_and_metadata_size_;
+  size_t bytecode_and_metadata_size_;
+
+  friend class Isolate;
+};
 
 class RetainedObjectInfo;
 
@@ -5804,6 +5816,15 @@ class V8_EXPORT Isolate {
    */
   bool GetHeapObjectStatisticsAtLastGC(HeapObjectStatistics* object_statistics,
                                        size_t type_index);
+
+  /**
+   * Get statistics about code and its metadata in the heap.
+   *
+   * \param object_statistics The HeapCodeStatistics object to fill in
+   *   statistics of code, bytecode and their metadata.
+   * \returns true on success.
+   */
+  bool GetHeapCodeAndMetadataStatistics(HeapCodeStatistics* object_statistics);
 
   /**
    * Get a call stack sample from the isolate.

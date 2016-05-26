@@ -2025,7 +2025,6 @@ void SemiSpaceIterator::Initialize(Address start, Address end) {
   limit_ = end;
 }
 
-
 #ifdef DEBUG
 // heap_histograms is shared, always clear it before using it.
 static void ClearHistograms(Isolate* isolate) {
@@ -2043,24 +2042,21 @@ static void ClearHistograms(Isolate* isolate) {
 
 
 static void ClearCodeKindStatistics(int* code_kind_statistics) {
-  for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
+  for (int i = 0; i < AbstractCode::NUMBER_OF_KINDS; i++) {
     code_kind_statistics[i] = 0;
   }
 }
-
-
 static void ReportCodeKindStatistics(int* code_kind_statistics) {
   PrintF("\n   Code kind histograms: \n");
-  for (int i = 0; i < Code::NUMBER_OF_KINDS; i++) {
+  for (int i = 0; i < AbstractCode::NUMBER_OF_KINDS; i++) {
     if (code_kind_statistics[i] > 0) {
       PrintF("     %-20s: %10d bytes\n",
-             Code::Kind2String(static_cast<Code::Kind>(i)),
+             AbstractCode::Kind2String(static_cast<AbstractCode::Kind>(i)),
              code_kind_statistics[i]);
     }
   }
   PrintF("\n");
 }
-
 
 static int CollectHistogramInfo(HeapObject* obj) {
   Isolate* isolate = obj->GetIsolate();
@@ -2758,12 +2754,15 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   return SweepAndRetryAllocation(size_in_bytes);
 }
 
-
 #ifdef DEBUG
 void PagedSpace::ReportCodeStatistics(Isolate* isolate) {
   CommentStatistic* comments_statistics =
       isolate->paged_space_comments_statistics();
   ReportCodeKindStatistics(isolate->code_kind_statistics());
+  PrintF("Code size including metadata    : %10d bytes\n",
+         isolate->code_and_metadata_size());
+  PrintF("Bytecode size including metadata: %10d bytes\n",
+         isolate->bytecode_and_metadata_size());
   PrintF(
       "Code comment statistics (\"   [ comment-txt   :    size/   "
       "count  (average)\"):\n");
@@ -2776,7 +2775,6 @@ void PagedSpace::ReportCodeStatistics(Isolate* isolate) {
   }
   PrintF("\n");
 }
-
 
 void PagedSpace::ResetCodeStatistics(Isolate* isolate) {
   CommentStatistic* comments_statistics =
@@ -2853,40 +2851,28 @@ static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it) {
   EnterComment(isolate, comment_txt, flat_delta);
 }
 
-
-// Collects code size statistics:
-// - by code kind
-// - by code comment
-void PagedSpace::CollectCodeStatistics() {
-  Isolate* isolate = heap()->isolate();
-  HeapObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsAbstractCode()) {
-      AbstractCode* code = AbstractCode::cast(obj);
-      isolate->code_kind_statistics()[code->kind()] += code->Size();
-    }
-    if (obj->IsCode()) {
-      // TODO(mythria): Also enable this for BytecodeArray when it supports
-      // RelocInformation.
-      Code* code = Code::cast(obj);
-      RelocIterator it(code);
-      int delta = 0;
-      const byte* prev_pc = code->instruction_start();
-      while (!it.done()) {
-        if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
-          delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
-          CollectCommentStatistics(isolate, &it);
-          prev_pc = it.rinfo()->pc();
-        }
-        it.next();
-      }
-
-      DCHECK(code->instruction_start() <= prev_pc &&
-             prev_pc <= code->instruction_end());
-      delta += static_cast<int>(code->instruction_end() - prev_pc);
-      EnterComment(isolate, "NoComment", delta);
-    }
+// Collects code comment statistics
+static void CollectCodeCommentStatistics(HeapObject* obj, Isolate* isolate) {
+  if (!obj->IsCode()) {
+    return;
   }
+  Code* code = Code::cast(obj);
+  RelocIterator it(code);
+  int delta = 0;
+  const byte* prev_pc = code->instruction_start();
+  while (!it.done()) {
+    if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
+      delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
+      CollectCommentStatistics(isolate, &it);
+      prev_pc = it.rinfo()->pc();
+    }
+    it.next();
+  }
+
+  DCHECK(code->instruction_start() <= prev_pc &&
+         prev_pc <= code->instruction_end());
+  delta += static_cast<int>(code->instruction_end() - prev_pc);
+  EnterComment(isolate, "NoComment", delta);
 }
 
 
@@ -2907,6 +2893,44 @@ void PagedSpace::ReportStatistics() {
 }
 #endif
 
+static void RecordCodeSizeIncludingMetadata(AbstractCode* abstract_code,
+                                            Isolate* isolate) {
+  int size = abstract_code->SizeIncludingMetadata();
+  if (abstract_code->IsCode()) {
+    size += isolate->code_and_metadata_size();
+    isolate->set_code_and_metadata_size(size);
+  } else {
+    size += isolate->bytecode_and_metadata_size();
+    isolate->set_bytecode_and_metadata_size(size);
+  }
+}
+
+// Collects code size statistics:
+// - code and metadata size
+// - by code kind (only in debug mode)
+// - by code comment (only in debug mode)
+void PagedSpace::CollectCodeStatistics() {
+  Isolate* isolate = heap()->isolate();
+  HeapObjectIterator obj_it(this);
+  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
+    if (obj->IsAbstractCode()) {
+      AbstractCode* code = AbstractCode::cast(obj);
+      RecordCodeSizeIncludingMetadata(code, isolate);
+#ifdef DEBUG
+      isolate->code_kind_statistics()[code->kind()] += code->Size();
+      CollectCodeCommentStatistics(obj, isolate);
+#endif
+    }
+  }
+}
+
+void PagedSpace::ResetCodeAndMetadataStatistics(Isolate* isolate) {
+  isolate->set_code_and_metadata_size(0);
+  isolate->set_bytecode_and_metadata_size(0);
+#ifdef DEBUG
+  ResetCodeStatistics(isolate);
+#endif
+}
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
@@ -3177,6 +3201,20 @@ void LargeObjectSpace::Verify() {
 }
 #endif
 
+void LargeObjectSpace::CollectCodeStatistics() {
+  Isolate* isolate = heap()->isolate();
+  LargeObjectIterator obj_it(this);
+  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
+    if (obj->IsAbstractCode()) {
+      AbstractCode* code = AbstractCode::cast(obj);
+      RecordCodeSizeIncludingMetadata(code, isolate);
+#ifdef DEBUG
+      isolate->code_kind_statistics()[code->kind()] += code->Size();
+      CollectCodeCommentStatistics(obj, isolate);
+#endif
+    }
+  }
+}
 
 #ifdef DEBUG
 void LargeObjectSpace::Print() {
@@ -3203,18 +3241,6 @@ void LargeObjectSpace::ReportStatistics() {
       "size of objects %" V8PRIdPTR "\n",
       num_objects, objects_size_);
   if (num_objects > 0) ReportHistogram(heap()->isolate(), false);
-}
-
-
-void LargeObjectSpace::CollectCodeStatistics() {
-  Isolate* isolate = heap()->isolate();
-  LargeObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsAbstractCode()) {
-      AbstractCode* code = AbstractCode::cast(obj);
-      isolate->code_kind_statistics()[code->kind()] += code->Size();
-    }
-  }
 }
 
 

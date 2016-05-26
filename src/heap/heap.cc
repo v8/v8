@@ -4459,6 +4459,15 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
   }
 }
 
+void Heap::CollectCodeStatistics() {
+  PagedSpace::ResetCodeAndMetadataStatistics(isolate());
+  // We do not look for code in new space, or map space.  If code
+  // somehow ends up in those spaces, we would miss it here.
+  code_space_->CollectCodeStatistics();
+  old_space_->CollectCodeStatistics();
+  lo_space_->CollectCodeStatistics();
+}
+
 #ifdef DEBUG
 
 void Heap::Print() {
@@ -4473,11 +4482,7 @@ void Heap::Print() {
 
 void Heap::ReportCodeStatistics(const char* title) {
   PrintF(">>>>>> Code Stats (%s) >>>>>>\n", title);
-  PagedSpace::ResetCodeStatistics(isolate());
-  // We do not look for code in new space, map space, or old space.  If code
-  // somehow ends up in those spaces, we would miss it here.
-  code_space_->CollectCodeStatistics();
-  lo_space_->CollectCodeStatistics();
+  CollectCodeStatistics();
   PagedSpace::ReportCodeStatistics(isolate());
 }
 

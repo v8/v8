@@ -5511,6 +5511,8 @@ HeapObjectStatistics::HeapObjectStatistics()
       object_count_(0),
       object_size_(0) {}
 
+HeapCodeStatistics::HeapCodeStatistics()
+    : code_and_metadata_size_(0), bytecode_and_metadata_size_(0) {}
 
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
@@ -7465,6 +7467,18 @@ bool Isolate::GetHeapObjectStatisticsAtLastGC(
   return true;
 }
 
+bool Isolate::GetHeapCodeAndMetadataStatistics(
+    HeapCodeStatistics* code_statistics) {
+  if (!code_statistics) return false;
+
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->CollectCodeStatistics();
+
+  code_statistics->code_and_metadata_size_ = isolate->code_and_metadata_size();
+  code_statistics->bytecode_and_metadata_size_ =
+      isolate->bytecode_and_metadata_size();
+  return true;
+}
 
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {

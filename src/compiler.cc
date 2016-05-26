@@ -450,21 +450,10 @@ bool UseIgnition(CompilationInfo* info) {
 }
 
 int CodeAndMetadataSize(CompilationInfo* info) {
-  int size = 0;
   if (info->has_bytecode_array()) {
-    Handle<BytecodeArray> bytecode_array = info->bytecode_array();
-    size += bytecode_array->BytecodeArraySize();
-    size += bytecode_array->constant_pool()->Size();
-    size += bytecode_array->handler_table()->Size();
-    size += bytecode_array->source_position_table()->Size();
-  } else {
-    Handle<Code> code = info->code();
-    size += code->CodeSize();
-    size += code->relocation_info()->Size();
-    size += code->deoptimization_data()->Size();
-    size += code->handler_table()->Size();
+    return info->bytecode_array()->SizeIncludingMetadata();
   }
-  return size;
+  return info->code()->SizeIncludingMetadata();
 }
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {

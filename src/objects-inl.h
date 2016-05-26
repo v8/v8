@@ -4027,6 +4027,13 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
 
+int BytecodeArray::SizeIncludingMetadata() {
+  int size = BytecodeArraySize();
+  size += constant_pool()->Size();
+  size += handler_table()->Size();
+  size += source_position_table()->Size();
+  return size;
+}
 
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
@@ -5191,6 +5198,13 @@ int AbstractCode::instruction_size() {
   }
 }
 
+int AbstractCode::SizeIncludingMetadata() {
+  if (IsCode()) {
+    return GetCode()->SizeIncludingMetadata();
+  } else {
+    return GetBytecodeArray()->SizeIncludingMetadata();
+  }
+}
 int AbstractCode::ExecutableSize() {
   if (IsCode()) {
     return GetCode()->ExecutableSize();
@@ -6415,6 +6429,13 @@ int Code::body_size() {
   return RoundUp(instruction_size(), kObjectAlignment);
 }
 
+int Code::SizeIncludingMetadata() {
+  int size = CodeSize();
+  size += relocation_info()->Size();
+  size += deoptimization_data()->Size();
+  size += handler_table()->Size();
+  return size;
+}
 
 ByteArray* Code::unchecked_relocation_info() {
   return reinterpret_cast<ByteArray*>(READ_FIELD(this, kRelocationInfoOffset));

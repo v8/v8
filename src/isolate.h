@@ -372,10 +372,10 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef DEBUG
 
-#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)                                       \
-  V(CommentStatistic, paged_space_comments_statistics,                         \
-      CommentStatistic::kMaxComments + 1)                                      \
-  V(int, code_kind_statistics, Code::NUMBER_OF_KINDS)
+#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)               \
+  V(CommentStatistic, paged_space_comments_statistics, \
+    CommentStatistic::kMaxComments + 1)                \
+  V(int, code_kind_statistics, AbstractCode::NUMBER_OF_KINDS)
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
@@ -418,6 +418,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
+  V(int, code_and_metadata_size, 0)                                            \
+  V(int, bytecode_and_metadata_size, 0)                                        \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \

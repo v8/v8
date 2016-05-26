@@ -13539,6 +13539,14 @@ const char* Code::Kind2String(Kind kind) {
   return NULL;
 }
 
+// Identify kind of code.
+const char* AbstractCode::Kind2String(Kind kind) {
+  if (kind < AbstractCode::INTERPRETED_FUNCTION)
+    return Code::Kind2String((Code::Kind)kind);
+  if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
+  UNREACHABLE();
+  return NULL;
+}
 
 Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
   DCHECK(code->kind() == OPTIMIZED_FUNCTION);

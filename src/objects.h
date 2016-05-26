@@ -4445,6 +4445,10 @@ class BytecodeArray : public FixedArrayBase {
 
   inline int instruction_size();
 
+  // Returns the size of bytecode and its metadata. This includes the size of
+  // bytecode, constant pool, source position table, and handler table.
+  inline int SizeIncludingMetadata();
+
   int SourcePosition(int offset);
   int SourceStatementPosition(int offset);
 
@@ -5120,6 +5124,10 @@ class Code: public HeapObject {
   // Returns the size of the instructions, padding, and relocation information.
   inline int body_size();
 
+  // Returns the size of code and its metadata. This includes the size of code
+  // relocation information, deoptimization data and handler table.
+  inline int SizeIncludingMetadata();
+
   // Returns the address of the first relocation info (read backwards!).
   inline byte* relocation_start();
 
@@ -5351,7 +5359,10 @@ class AbstractCode : public HeapObject {
     CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
         INTERPRETED_FUNCTION,
+    NUMBER_OF_KINDS
   };
+
+  static const char* Kind2String(Kind kind);
 
   int SourcePosition(int offset);
   int SourceStatementPosition(int offset);
@@ -5362,8 +5373,11 @@ class AbstractCode : public HeapObject {
   // Returns the address right after the last instruction.
   inline Address instruction_end();
 
-  // Returns the of the code instructions.
+  // Returns the size of the code instructions.
   inline int instruction_size();
+
+  // Returns the size of instructions and the metadata.
+  inline int SizeIncludingMetadata();
 
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);

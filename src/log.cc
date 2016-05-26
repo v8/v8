@@ -1608,6 +1608,8 @@ void Logger::LogCodeObject(Object* object) {
       description = "A Wasm to JavaScript adapter";
       tag = Logger::STUB_TAG;
       break;
+    case AbstractCode::NUMBER_OF_KINDS:
+      UNIMPLEMENTED();
   }
   PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
 }

@@ -2243,6 +2243,12 @@ class PagedSpace : public Space {
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
 
+  // Collect code size related statistics
+  void CollectCodeStatistics();
+
+  // Reset code size related statistics
+  static void ResetCodeAndMetadataStatistics(Isolate* isolate);
+
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
   virtual void Verify(ObjectVisitor* visitor);
@@ -2260,7 +2266,6 @@ class PagedSpace : public Space {
   void ReportStatistics();
 
   // Report code object related statistics
-  void CollectCodeStatistics();
   static void ReportCodeStatistics(Isolate* isolate);
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
@@ -3068,6 +3073,9 @@ class LargeObjectSpace : public Space {
 
   LargePage* first_page() { return first_page_; }
 
+  // Collect code statistics.
+  void CollectCodeStatistics();
+
 #ifdef VERIFY_HEAP
   virtual void Verify();
 #endif
@@ -3075,7 +3083,6 @@ class LargeObjectSpace : public Space {
 #ifdef DEBUG
   void Print() override;
   void ReportStatistics();
-  void CollectCodeStatistics();
 #endif
 
  private:
