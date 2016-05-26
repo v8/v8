@@ -51,7 +51,7 @@ function CreateResolvingFunctions(promise) {
   var resolve = value => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
-    FulfillPromise(promise, value);
+    ResolvePromise(promise, value);
   };
 
   // ES#sec-promise-reject-functions
@@ -72,13 +72,13 @@ function CreateResolvingFunctions(promise) {
 
 // ES#sec-promise-executor
 // Promise ( executor )
-var GlobalPromise = function Promise(resolver) {
-  if (resolver === promiseRawSymbol) {
+var GlobalPromise = function Promise(executor) {
+  if (executor === promiseRawSymbol) {
     return %_NewObject(GlobalPromise, new.target);
   }
   if (IS_UNDEFINED(new.target)) throw MakeTypeError(kNotAPromise, this);
-  if (!IS_CALLABLE(resolver)) {
-    throw MakeTypeError(kResolverNotAFunction, resolver);
+  if (!IS_CALLABLE(executor)) {
+    throw MakeTypeError(kResolverNotAFunction, executor);
   }
 
   var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
@@ -86,7 +86,7 @@ var GlobalPromise = function Promise(resolver) {
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
     if (debug_is_active) %DebugPushPromise(promise, Promise);
-    resolver(callbacks.resolve, callbacks.reject);
+    executor(callbacks.resolve, callbacks.reject);
   } catch (e) {
     %_Call(callbacks.reject, UNDEFINED, e);
   } finally {
@@ -118,7 +118,7 @@ function PromiseInit(promise) {
       promise, kPending, UNDEFINED, new InternalArray, new InternalArray)
 }
 
-function PromiseDone(promise, status, value, promiseQueue) {
+function FulfillPromise(promise, status, value, promiseQueue) {
   if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var tasks = GET_PRIVATE(promise, promiseQueue);
     if (tasks.length) PromiseEnqueue(value, tasks, status);
@@ -178,16 +178,16 @@ function PromiseCreate() {
   return new GlobalPromise(PromiseNopResolver)
 }
 
-// ES#sec-fulfillpromise
-// FulfillPromise ( promise, value)
-function FulfillPromise(promise, x) {
-  if (x === promise) {
-    return RejectPromise(promise, MakeTypeError(kPromiseCyclic, x));
+// ES#sec-promise-resolve-functions
+// Promise Resolve Functions, steps 6-13
+function ResolvePromise(promise, resolution) {
+  if (resolution === promise) {
+    return RejectPromise(promise, MakeTypeError(kPromiseCyclic, resolution));
   }
-  if (IS_RECEIVER(x)) {
+  if (IS_RECEIVER(resolution)) {
     // 25.4.1.3.2 steps 8-12
     try {
-      var then = x.then;
+      var then = resolution.then;
     } catch (e) {
       return RejectPromise(promise, e);
     }
@@ -200,7 +200,7 @@ function FulfillPromise(promise, x) {
         }
         var callbacks = CreateResolvingFunctions(promise);
         try {
-          %_Call(then, x, callbacks.resolve, callbacks.reject);
+          %_Call(then, resolution, callbacks.resolve, callbacks.reject);
         } catch (e) {
           %_Call(callbacks.reject, UNDEFINED, e);
         }
@@ -216,22 +216,22 @@ function FulfillPromise(promise, x) {
       return;
     }
   }
-  PromiseDone(promise, kFulfilled, x, promiseFulfillReactionsSymbol);
+  FulfillPromise(promise, kFulfilled, resolution, promiseFulfillReactionsSymbol);
 }
 
 // ES#sec-rejectpromise
 // RejectPromise ( promise, reason )
-function RejectPromise(promise, r) {
+function RejectPromise(promise, reason) {
   // Check promise status to confirm that this reject has an effect.
   // Call runtime for callbacks to the debugger or for unhandled reject.
   if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var debug_is_active = DEBUG_IS_ACTIVE;
     if (debug_is_active ||
         !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-      %PromiseRejectEvent(promise, r, debug_is_active);
+      %PromiseRejectEvent(promise, reason, debug_is_active);
     }
   }
-  PromiseDone(promise, kRejected, r, promiseRejectReactionsSymbol)
+  FulfillPromise(promise, kRejected, reason, promiseRejectReactionsSymbol)
 }
 
 // ES#sec-newpromisecapability
@@ -496,7 +496,7 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", RejectPromise,
-  "promise_resolve", FulfillPromise,
+  "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
   "promise_create_rejected", PromiseCreateRejected,
   "promise_create_resolved", PromiseCreateResolved
@@ -507,7 +507,7 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 // promise without having to hold on to those closures forever.
 utils.InstallFunctions(extrasUtils, 0, [
   "createPromise", PromiseCreate,
-  "resolvePromise", FulfillPromise,
+  "resolvePromise", ResolvePromise,
   "rejectPromise", RejectPromise
 ]);
 
