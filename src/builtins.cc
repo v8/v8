@@ -179,6 +179,19 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   }                                                                         \
   Handle<Type> name = Handle<Type>::cast(args.receiver())
 
+// Throws a TypeError for {method} if the receiver is not coercible to Object,
+// or converts the receiver to a String otherwise and assigns it to a new var
+// with the given {name}.
+#define TO_THIS_STRING(name, method)                                          \
+  if (args.receiver()->IsNull() || args.receiver()->IsUndefined()) {          \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                           \
+        isolate,                                                              \
+        NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \
+                     isolate->factory()->NewStringFromAsciiChecked(method))); \
+  }                                                                           \
+  Handle<String> name;                                                        \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
+      isolate, name, Object::ToString(isolate, args.receiver()))
 
 inline bool ClampedToInteger(Object* object, int* out) {
   // This is an extended version of ECMA-262 7.1.11 handling signed values
@@ -4539,6 +4552,27 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   Node* value = assembler->StringCharCodeAt(receiver, position);
   Node* result = assembler->SmiFromWord32(value);
   assembler->Return(result);
+}
+
+// ES6 section 21.1.3.25 String.prototype.trim ()
+BUILTIN(StringPrototypeTrim) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.trim");
+  return *String::Trim(string, String::kTrim);
+}
+
+// Non-standard WebKit extension
+BUILTIN(StringPrototypeTrimLeft) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.trimLeft");
+  return *String::Trim(string, String::kTrimLeft);
+}
+
+// Non-standard WebKit extension
+BUILTIN(StringPrototypeTrimRight) {
+  HandleScope scope(isolate);
+  TO_THIS_STRING(string, "String.prototype.trimRight");
+  return *String::Trim(string, String::kTrimRight);
 }
 
 // -----------------------------------------------------------------------------

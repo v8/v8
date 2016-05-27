@@ -518,25 +518,6 @@ function StringToLocaleUpperCase() {
   return %StringToUpperCase(TO_STRING(this));
 }
 
-// ES5, 15.5.4.20
-function StringTrimJS() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
-
-  return %StringTrim(TO_STRING(this), true, true);
-}
-
-function StringTrimLeft() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimLeft");
-
-  return %StringTrim(TO_STRING(this), true, false);
-}
-
-function StringTrimRight() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimRight");
-
-  return %StringTrim(TO_STRING(this), false, true);
-}
-
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
@@ -850,9 +831,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "toLocaleLowerCase", StringToLocaleLowerCase,
   "toUpperCase", StringToUpperCaseJS,
   "toLocaleUpperCase", StringToLocaleUpperCase,
-  "trim", StringTrimJS,
-  "trimLeft", StringTrimLeft,
-  "trimRight", StringTrimRight,
 
   "link", StringLink,
   "anchor", StringAnchor,

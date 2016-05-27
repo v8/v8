@@ -1088,39 +1088,6 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
   return ConvertCase(s, isolate, isolate->runtime_state()->to_upper_mapping());
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringTrim) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(trimLeft, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(trimRight, 2);
-
-  string = String::Flatten(string);
-  int length = string->length();
-
-  int left = 0;
-  UnicodeCache* unicode_cache = isolate->unicode_cache();
-  if (trimLeft) {
-    while (left < length &&
-           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
-      left++;
-    }
-  }
-
-  int right = length;
-  if (trimRight) {
-    while (
-        right > left &&
-        unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(right - 1))) {
-      right--;
-    }
-  }
-
-  return *isolate->factory()->NewSubString(string, left, right);
-}
-
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());

@@ -9981,6 +9981,34 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 }
 #endif
 
+// static
+Handle<String> String::Trim(Handle<String> string, TrimMode mode) {
+  Isolate* const isolate = string->GetIsolate();
+  string = String::Flatten(string);
+  int const length = string->length();
+
+  // Perform left trimming if requested.
+  int left = 0;
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
+  if (mode == kTrim || mode == kTrimLeft) {
+    while (left < length &&
+           unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(left))) {
+      left++;
+    }
+  }
+
+  // Perform right trimming if requested.
+  int right = length;
+  if (mode == kTrim || mode == kTrimRight) {
+    while (
+        right > left &&
+        unicode_cache->IsWhiteSpaceOrLineTerminator(string->Get(right - 1))) {
+      right--;
+    }
+  }
+
+  return isolate->factory()->NewSubString(string, left, right);
+}
 
 bool String::LooksValid() {
   if (!GetIsolate()->heap()->Contains(this)) return false;
