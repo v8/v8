@@ -12617,38 +12617,6 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
-    CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 3);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
-  HValue* string = Pop();
-  HValue* value = Pop();
-  HValue* index = Pop();
-  Add<HSeqStringSetChar>(String::ONE_BYTE_ENCODING, string,
-                         index, value);
-  Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
-}
-
-
-void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
-    CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 3);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(2)));
-  HValue* string = Pop();
-  HValue* value = Pop();
-  HValue* index = Pop();
-  Add<HSeqStringSetChar>(String::TWO_BYTE_ENCODING, string,
-                         index, value);
-  Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
-}
-
-
 // Fast support for charCodeAt(n).
 void HOptimizedGraphBuilder::GenerateStringCharCodeAt(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 2);

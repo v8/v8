@@ -2093,6 +2093,29 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+// ES6 section 18.2.6.2 decodeURI (encodedURI)
+BUILTIN(GlobalDecodeURI) {
+  HandleScope scope(isolate);
+  Handle<String> encoded_uri;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, encoded_uri,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  RETURN_RESULT_OR_FAILURE(isolate, Uri::DecodeUri(isolate, encoded_uri));
+}
+
+// ES6 section 18.2.6.3 decodeURIComponent (encodedURIComponent)
+BUILTIN(GlobalDecodeURIComponent) {
+  HandleScope scope(isolate);
+  Handle<String> encoded_uri_component;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, encoded_uri_component,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Uri::DecodeUriComponent(isolate, encoded_uri_component));
+}
+
 // ES6 section 18.2.6.4 encodeURI (uri)
 BUILTIN(GlobalEncodeURI) {
   HandleScope scope(isolate);
@@ -2106,13 +2129,13 @@ BUILTIN(GlobalEncodeURI) {
 // ES6 section 18.2.6.5 encodeURIComponenet (uriComponent)
 BUILTIN(GlobalEncodeURIComponent) {
   HandleScope scope(isolate);
-  Handle<String> uriComponent;
+  Handle<String> uri_component;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, uriComponent,
+      isolate, uri_component,
       Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
 
   RETURN_RESULT_OR_FAILURE(isolate,
-                           Uri::EncodeUriComponent(isolate, uriComponent));
+                           Uri::EncodeUriComponent(isolate, uri_component));
 }
 
 namespace {

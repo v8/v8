@@ -512,8 +512,6 @@ class FullCodeGenerator: public AstVisitor {
   F(NewObject)                          \
   F(ValueOf)                            \
   F(StringCharFromCode)                 \
-  F(OneByteSeqStringSetChar)            \
-  F(TwoByteSeqStringSetChar)            \
   F(IsJSReceiver)                       \
   F(MathPow)                            \
   F(HasCachedArrayIndex)                \

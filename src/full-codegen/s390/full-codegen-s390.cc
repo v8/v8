@@ -2828,68 +2828,6 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
   context()->Plug(r2);
 }
 
-void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(3, args->length());
-
-  Register string = r2;
-  Register index = r3;
-  Register value = r4;
-
-  VisitForStackValue(args->at(0));        // index
-  VisitForStackValue(args->at(1));        // value
-  VisitForAccumulatorValue(args->at(2));  // string
-  PopOperands(index, value);
-
-  if (FLAG_debug_code) {
-    __ TestIfSmi(value);
-    __ Check(eq, kNonSmiValue, cr0);
-    __ TestIfSmi(index);
-    __ Check(eq, kNonSmiIndex, cr0);
-    __ SmiUntag(index);
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, value, one_byte_seq_type);
-    __ SmiTag(index);
-  }
-
-  __ SmiUntag(value);
-  __ AddP(ip, string, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ SmiToByteArrayOffset(r1, index);
-  __ StoreByte(value, MemOperand(ip, r1));
-  context()->Plug(string);
-}
-
-void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(3, args->length());
-
-  Register string = r2;
-  Register index = r3;
-  Register value = r4;
-
-  VisitForStackValue(args->at(0));        // index
-  VisitForStackValue(args->at(1));        // value
-  VisitForAccumulatorValue(args->at(2));  // string
-  PopOperands(index, value);
-
-  if (FLAG_debug_code) {
-    __ TestIfSmi(value);
-    __ Check(eq, kNonSmiValue, cr0);
-    __ TestIfSmi(index);
-    __ Check(eq, kNonSmiIndex, cr0);
-    __ SmiUntag(index, index);
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, value, two_byte_seq_type);
-    __ SmiTag(index, index);
-  }
-
-  __ SmiUntag(value);
-  __ SmiToShortArrayOffset(r1, index);
-  __ StoreHalfWord(value, MemOperand(r1, string, SeqTwoByteString::kHeaderSize -
-                                                     kHeapObjectTag));
-  context()->Plug(string);
-}
-
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

@@ -2824,6 +2824,14 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   Handle<JSGlobalObject> global_object =
       handle(native_context()->global_object());
 
+  // Install Global.decodeURI.
+  SimpleInstallFunction(global_object, "decodeURI", Builtins::kGlobalDecodeURI,
+                        1, false);
+
+  // Install Global.decodeURIComponent.
+  SimpleInstallFunction(global_object, "decodeURIComponent",
+                        Builtins::kGlobalDecodeURIComponent, 1, false);
+
   // Install Global.encodeURI.
   SimpleInstallFunction(global_object, "encodeURI", Builtins::kGlobalEncodeURI,
                         1, false);

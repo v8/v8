@@ -2809,66 +2809,6 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(3, args->length());
-
-  Register string = x0;
-  Register index = x1;
-  Register value = x2;
-  Register scratch = x10;
-
-  VisitForStackValue(args->at(0));        // index
-  VisitForStackValue(args->at(1));        // value
-  VisitForAccumulatorValue(args->at(2));  // string
-  PopOperands(value, index);
-
-  if (FLAG_debug_code) {
-    __ AssertSmi(value, kNonSmiValue);
-    __ AssertSmi(index, kNonSmiIndex);
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
-                                 one_byte_seq_type);
-  }
-
-  __ Add(scratch, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
-  __ SmiUntag(value);
-  __ SmiUntag(index);
-  __ Strb(value, MemOperand(scratch, index));
-  context()->Plug(string);
-}
-
-
-void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(3, args->length());
-
-  Register string = x0;
-  Register index = x1;
-  Register value = x2;
-  Register scratch = x10;
-
-  VisitForStackValue(args->at(0));        // index
-  VisitForStackValue(args->at(1));        // value
-  VisitForAccumulatorValue(args->at(2));  // string
-  PopOperands(value, index);
-
-  if (FLAG_debug_code) {
-    __ AssertSmi(value, kNonSmiValue);
-    __ AssertSmi(index, kNonSmiIndex);
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ EmitSeqStringSetCharCheck(string, index, kIndexIsSmi, scratch,
-                                 two_byte_seq_type);
-  }
-
-  __ Add(scratch, string, SeqTwoByteString::kHeaderSize - kHeapObjectTag);
-  __ SmiUntag(value);
-  __ SmiUntag(index);
-  __ Strh(value, MemOperand(scratch, index, LSL, 1));
-  context()->Plug(string);
-}
-
-
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

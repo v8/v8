@@ -833,8 +833,6 @@ namespace internal {
   F(StringToLowerCase, 1, 1)              \
   F(StringToUpperCase, 1, 1)              \
   F(StringTrim, 3, 1)                     \
-  F(TruncateString, 2, 1)                 \
-  F(NewString, 2, 1)                      \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringGreaterThan, 2, 1)              \
@@ -844,10 +842,6 @@ namespace internal {
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
   F(ExternalStringGetChar, 2, 1)          \
-  F(OneByteSeqStringGetChar, 2, 1)        \
-  F(OneByteSeqStringSetChar, 3, 1)        \
-  F(TwoByteSeqStringGetChar, 2, 1)        \
-  F(TwoByteSeqStringSetChar, 3, 1)        \
   F(StringCharCodeAt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
