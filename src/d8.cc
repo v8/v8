@@ -338,7 +338,9 @@ MaybeLocal<Script> Shell::CompileString(
     ScriptCompiler::CompileOptions compile_options, SourceType source_type) {
   Local<Context> context(isolate->GetCurrentContext());
   ScriptOrigin origin(name);
-  if (compile_options == ScriptCompiler::kNoCompileOptions) {
+  // TODO(adamk): Make use of compile options for Modules.
+  if (compile_options == ScriptCompiler::kNoCompileOptions ||
+      source_type == MODULE) {
     ScriptCompiler::Source script_source(source, origin);
     return source_type == SCRIPT
                ? ScriptCompiler::Compile(context, &script_source,
@@ -358,11 +360,9 @@ MaybeLocal<Script> Shell::CompileString(
     DCHECK(false);  // A new compile option?
   }
   if (data == NULL) compile_options = ScriptCompiler::kNoCompileOptions;
+  DCHECK_EQ(SCRIPT, source_type);
   MaybeLocal<Script> result =
-      source_type == SCRIPT
-          ? ScriptCompiler::Compile(context, &cached_source, compile_options)
-          : ScriptCompiler::CompileModule(context, &cached_source,
-                                          compile_options);
+      ScriptCompiler::Compile(context, &cached_source, compile_options);
   CHECK(data == NULL || !data->rejected);
   return result;
 }
