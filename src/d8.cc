@@ -523,9 +523,8 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Local<Context>::New(args.GetIsolate(), data->realms_[index])->Global());
 }
 
-
-// Realm.create() creates a new realm and returns its index.
-void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+MaybeLocal<Context> Shell::CreateRealm(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -542,12 +541,29 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (context.IsEmpty()) {
     DCHECK(try_catch.HasCaught());
     try_catch.ReThrow();
-    return;
+    return MaybeLocal<Context>();
   }
   data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
+  return context;
 }
 
+// Realm.create() creates a new realm with a distinct security token
+// and returns its index.
+void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CreateRealm(args);
+}
+
+// Realm.createAllowCrossRealmAccess() creates a new realm with the same
+// security token as the current realm.
+void Shell::RealmCreateAllowCrossRealmAccess(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<Context> context;
+  if (CreateRealm(args).ToLocal(&context)) {
+    context->SetSecurityToken(
+        args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
+  }
+}
 
 // Realm.dispose(i) disposes the reference to the realm i.
 void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1135,6 +1151,11 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "create", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmCreate));
+  realm_template->Set(
+      String::NewFromUtf8(isolate, "createAllowCrossRealmAccess",
+                          NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
   realm_template->Set(
       String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
           .ToLocalChecked(),

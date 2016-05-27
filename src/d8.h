@@ -375,6 +375,8 @@ class Shell : public i::AllStatic {
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmCreateAllowCrossRealmAccess(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -469,6 +471,8 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static MaybeLocal<Context> CreateRealm(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 
