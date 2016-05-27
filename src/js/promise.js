@@ -127,8 +127,7 @@ function PromiseCreateAndSet(status, value) {
 }
 
 function PromiseInit(promise) {
-  return PromiseSet(
-      promise, kPending, UNDEFINED, UNDEFINED, UNDEFINED, UNDEFINED);
+  return PromiseSet(promise, kPending, UNDEFINED);
 }
 
 function FulfillPromise(promise, status, value, promiseQueue) {
