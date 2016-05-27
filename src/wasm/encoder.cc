@@ -50,8 +50,13 @@ void FixupSection(ZoneBuffer& buffer, size_t start) {
                                                  kPaddedVarInt32Size));
 }
 
-WasmFunctionBuilder::WasmFunctionBuilder(Zone* zone)
-    : locals_(zone), exported_(0), body_(zone), name_(zone) {}
+WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
+    : builder_(builder),
+      locals_(builder->zone()),
+      signature_index_(0),
+      exported_(0),
+      body_(builder->zone()),
+      name_(builder->zone()) {}
 
 void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
   byte buffer[8];
@@ -65,6 +70,7 @@ void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
 void WasmFunctionBuilder::SetSignature(FunctionSig* sig) {
   DCHECK(!locals_.has_sig());
   locals_.set_sig(sig);
+  signature_index_ = builder_->AddSignature(sig);
 }
 
 uint32_t WasmFunctionBuilder::AddLocal(LocalType type) {
@@ -118,7 +124,7 @@ void WasmFunctionBuilder::EmitI32Const(int32_t value) {
   }
 }
 
-void WasmFunctionBuilder::Exported(uint8_t flag) { exported_ = flag; }
+void WasmFunctionBuilder::SetExported() { exported_ = true; }
 
 void WasmFunctionBuilder::SetName(const char* name, int name_length) {
   name_.clear();
@@ -129,26 +135,11 @@ void WasmFunctionBuilder::SetName(const char* name, int name_length) {
   }
 }
 
-WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
-                                                WasmModuleBuilder* mb) const {
-  WasmFunctionEncoder* e =
-      new (zone) WasmFunctionEncoder(zone, locals_, exported_);
-  // TODO(titzer): lame memcpy here.
-  e->body_.insert(e->body_.begin(), body_.begin(), body_.end());
-  e->signature_index_ = mb->AddSignature(locals_.get_sig());
-  e->name_.insert(e->name_.begin(), name_.begin(), name_.end());
-  return e;
-}
-
-WasmFunctionEncoder::WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals,
-                                         bool exported)
-    : locals_(locals), exported_(exported), body_(zone), name_(zone) {}
-
-void WasmFunctionEncoder::WriteSignature(ZoneBuffer& buffer) const {
+void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
   buffer.write_u32v(signature_index_);
 }
 
-void WasmFunctionEncoder::WriteExport(ZoneBuffer& buffer,
+void WasmFunctionBuilder::WriteExport(ZoneBuffer& buffer,
                                       uint32_t func_index) const {
   if (exported_) {
     buffer.write_u32v(func_index);
@@ -159,7 +150,7 @@ void WasmFunctionEncoder::WriteExport(ZoneBuffer& buffer,
   }
 }
 
-void WasmFunctionEncoder::WriteBody(ZoneBuffer& buffer) const {
+void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
   size_t locals_size = locals_.Size();
   buffer.write_size(locals_size + body_.size());
   buffer.EnsureSpace(locals_size);
@@ -197,7 +188,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       start_function_index_(-1) {}
 
 uint32_t WasmModuleBuilder::AddFunction() {
-  functions_.push_back(new (zone_) WasmFunctionBuilder(zone_));
+  functions_.push_back(new (zone_) WasmFunctionBuilder(this));
   return static_cast<uint32_t>(functions_.size() - 1);
 }
 
@@ -256,44 +247,12 @@ void WasmModuleBuilder::MarkStartFunction(uint32_t index) {
   start_function_index_ = index;
 }
 
-WasmModuleWriter* WasmModuleBuilder::Build(Zone* zone) {
-  WasmModuleWriter* writer = new (zone) WasmModuleWriter(zone);
-  for (auto import : imports_) {
-    writer->imports_.push_back(import);
-  }
-  for (auto function : functions_) {
-    writer->functions_.push_back(function->Build(zone, this));
-  }
-  for (auto segment : data_segments_) {
-    writer->data_segments_.push_back(segment);
-  }
-  for (auto sig : signatures_) {
-    writer->signatures_.push_back(sig);
-  }
-  for (auto index : indirect_functions_) {
-    writer->indirect_functions_.push_back(index);
-  }
-  for (auto global : globals_) {
-    writer->globals_.push_back(global);
-  }
-  writer->start_function_index_ = start_function_index_;
-  return writer;
-}
-
 uint32_t WasmModuleBuilder::AddGlobal(MachineType type, bool exported) {
   globals_.push_back(std::make_pair(type, exported));
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
-WasmModuleWriter::WasmModuleWriter(Zone* zone)
-    : imports_(zone),
-      functions_(zone),
-      data_segments_(zone),
-      signatures_(zone),
-      indirect_functions_(zone),
-      globals_(zone) {}
-
-void WasmModuleWriter::WriteTo(ZoneBuffer& buffer) const {
+void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   uint32_t exports = 0;
 
   // == Emit magic =============================================================

@@ -23,8 +23,7 @@ namespace {
 void TestModule(Zone* zone, WasmModuleBuilder* builder,
                 int32_t expected_result) {
   ZoneBuffer buffer(zone);
-  WasmModuleWriter* writer = builder->Build(zone);
-  writer->WriteTo(buffer);
+  builder->WriteTo(buffer);
 
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
@@ -45,7 +44,7 @@ TEST(Run_WasmModule_Return114) {
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
   f->SetSignature(sigs.i_v());
-  f->Exported(1);
+  f->SetExported();
   byte code[] = {WASM_I8(kReturnValue)};
   f->EmitCode(code, sizeof(code));
   TestModule(&zone, builder, kReturnValue);
@@ -70,7 +69,7 @@ TEST(Run_WasmModule_CallAdd) {
   f = builder->FunctionAt(f2_index);
   f->SetSignature(sigs.i_v());
 
-  f->Exported(1);
+  f->SetExported();
   byte code2[] = {WASM_CALL_FUNCTION2(f1_index, WASM_I8(77), WASM_I8(22))};
   f->EmitCode(code2, sizeof(code2));
   TestModule(&zone, builder, 99);
@@ -87,7 +86,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
   WasmFunctionBuilder* f = builder->FunctionAt(f_index);
   f->SetSignature(sigs.i_v());
 
-  f->Exported(1);
+  f->SetExported();
   byte code[] = {
       WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(kDataSegmentDest0))};
   f->EmitCode(code, sizeof(code));
@@ -109,7 +108,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
   f->SetSignature(sigs.i_v());
 
   uint16_t localIndex = f->AddLocal(kAstI32);
-  f->Exported(1);
+  f->SetExported();
   byte code[] = {WASM_BLOCK(
       2,
       WASM_WHILE(
@@ -133,7 +132,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
   f->SetSignature(sigs.i_v());
 
   uint16_t localIndex = f->AddLocal(kAstI32);
-  f->Exported(1);
+  f->SetExported();
   byte code[] = {WASM_BLOCK(
       2, WASM_SET_LOCAL(localIndex,
                         WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
@@ -163,7 +162,7 @@ TEST(Run_WasmModule_Global) {
   uint16_t f2_index = builder->AddFunction();
   f = builder->FunctionAt(f2_index);
   f->SetSignature(sigs.i_v());
-  f->Exported(1);
+  f->SetExported();
   byte code2[] = {WASM_STORE_GLOBAL(global1, WASM_I32V_1(56)),
                   WASM_STORE_GLOBAL(global2, WASM_I32V_1(41)),
                   WASM_RETURN1(WASM_CALL_FUNCTION0(f1_index))};

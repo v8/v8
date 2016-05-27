@@ -112,27 +112,9 @@ class ZoneBuffer : public ZoneObject {
 
 class WasmModuleBuilder;
 
-class WasmFunctionEncoder : public ZoneObject {
- public:
-  void WriteSignature(ZoneBuffer& buffer) const;
-  void WriteExport(ZoneBuffer& buffer, uint32_t func_index) const;
-  void WriteBody(ZoneBuffer& buffer) const;
-  bool exported() const { return exported_; }
-
- private:
-  WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals, bool exported);
-  friend class WasmFunctionBuilder;
-  uint32_t signature_index_;
-  LocalDeclEncoder locals_;
-  bool exported_;
-  ZoneVector<uint8_t> body_;
-  ZoneVector<char> name_;
-
-  bool HasName() const { return exported_ && name_.size() > 0; }
-};
-
 class WasmFunctionBuilder : public ZoneObject {
  public:
+  // Building methods.
   void SetSignature(FunctionSig* sig);
   uint32_t AddLocal(LocalType type);
   void EmitVarInt(uint32_t val);
@@ -144,20 +126,27 @@ class WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
-  void Exported(uint8_t flag);
+  void SetExported();
   void SetName(const char* name, int name_length);
-  WasmFunctionEncoder* Build(Zone* zone, WasmModuleBuilder* mb) const;
+  bool exported() { return exported_; }
+
+  // Writing methods.
+  void WriteSignature(ZoneBuffer& buffer) const;
+  void WriteExport(ZoneBuffer& buffer, uint32_t func_index) const;
+  void WriteBody(ZoneBuffer& buffer) const;
 
  private:
-  explicit WasmFunctionBuilder(Zone* zone);
+  explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
+  WasmModuleBuilder* builder_;
   LocalDeclEncoder locals_;
-  uint8_t exported_;
+  uint32_t signature_index_;
+  bool exported_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
-  void IndexVars(WasmFunctionEncoder* e, uint32_t* var_index) const;
 };
 
+// TODO(titzer): kill!
 class WasmDataSegmentEncoder : public ZoneObject {
  public:
   WasmDataSegmentEncoder(Zone* zone, const byte* data, uint32_t size,
@@ -175,25 +164,11 @@ struct WasmFunctionImport {
   int name_length;
 };
 
-class WasmModuleWriter : public ZoneObject {
- public:
-  void WriteTo(ZoneBuffer& buffer) const;
-
- private:
-  friend class WasmModuleBuilder;
-  explicit WasmModuleWriter(Zone* zone);
-  ZoneVector<WasmFunctionImport> imports_;
-  ZoneVector<WasmFunctionEncoder*> functions_;
-  ZoneVector<WasmDataSegmentEncoder*> data_segments_;
-  ZoneVector<FunctionSig*> signatures_;
-  ZoneVector<uint32_t> indirect_functions_;
-  ZoneVector<std::pair<MachineType, bool>> globals_;
-  int start_function_index_;
-};
-
 class WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
+
+  // Building methods.
   uint32_t AddFunction();
   uint32_t AddGlobal(MachineType type, bool exported);
   WasmFunctionBuilder* FunctionAt(size_t index);
@@ -202,12 +177,16 @@ class WasmModuleBuilder : public ZoneObject {
   void AddIndirectFunction(uint32_t index);
   void MarkStartFunction(uint32_t index);
   uint32_t AddImport(const char* name, int name_length, FunctionSig* sig);
-  WasmModuleWriter* Build(Zone* zone);
+
+  // Writing methods.
+  void WriteTo(ZoneBuffer& buffer) const;
 
   struct CompareFunctionSigs {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   typedef ZoneMap<FunctionSig*, uint32_t, CompareFunctionSigs> SignatureMap;
+
+  Zone* zone() { return zone_; }
 
  private:
   Zone* zone_;

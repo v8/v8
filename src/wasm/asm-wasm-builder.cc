@@ -90,7 +90,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
     current_function_builder_ =
         builder_->FunctionAt(foreign_init_function_index_);
-    current_function_builder_->Exported(1);
+    current_function_builder_->SetExported();
     std::string raw_name = "__foreign_init__";
     current_function_builder_->SetName(raw_name.data(),
                                        static_cast<int>(raw_name.size()));
@@ -114,7 +114,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return ret;
   }
 
-  void Compile() {
+  void Build() {
     InitializeInitFunction();
     RECURSE(VisitFunctionLiteral(literal_));
     BuildForeignInitFunction();
@@ -607,7 +607,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
         uint32_t index = LookupOrInsertFunction(var);
-        builder_->FunctionAt(index)->Exported(1);
+        builder_->FunctionAt(index)->SetExported();
         builder_->FunctionAt(index)->SetName(
             reinterpret_cast<const char*>(raw_name->raw_data()),
             raw_name->length());
@@ -1761,11 +1761,10 @@ AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
 // that zone in constructor may be thrown away once wasm module is written.
 ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
   AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
-  impl.Compile();
+  impl.Build();
   *foreign_args = impl.GetForeignArgs();
   ZoneBuffer* buffer = new (zone_) ZoneBuffer(zone_);
-  WasmModuleWriter* writer = impl.builder_->Build(zone_);
-  writer->WriteTo(*buffer);
+  impl.builder_->WriteTo(*buffer);
   return buffer;
 }
 }  // namespace wasm
