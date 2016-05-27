@@ -142,10 +142,6 @@
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
-  'language/eval-code/non-definable-function-with-variable': [FAIL],
-  'language/eval-code/non-definable-function-with-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4592
   'built-ins/ArrayBuffer/length-is-absent': [FAIL],
   'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
@@ -264,7 +260,7 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
   'language/literals/regexp/early-err-pattern': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4468
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
