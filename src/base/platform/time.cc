@@ -41,9 +41,11 @@ int64_t ComputeThreadTicks() {
   CHECK(kr == KERN_SUCCESS);
 
   v8::base::CheckedNumeric<int64_t> absolute_micros(
-      thread_info_data.user_time.seconds);
+      thread_info_data.user_time.seconds +
+      thread_info_data.system_time.seconds);
   absolute_micros *= v8::base::Time::kMicrosecondsPerSecond;
-  absolute_micros += thread_info_data.user_time.microseconds;
+  absolute_micros += (thread_info_data.user_time.microseconds +
+                      thread_info_data.system_time.microseconds);
   return absolute_micros.ValueOrDie();
 }
 #elif V8_OS_POSIX
