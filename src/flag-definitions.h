@@ -205,6 +205,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_restrictive_generators,                                     \
     "harmony restrictions on generator declarations")                   \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_for_in, "harmony for-in syntax")                            \
   V(harmony_async_await, "harmony async-await")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
@@ -230,7 +231,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_function_name, "harmony Function name inference")         \
   V(harmony_instanceof, "harmony instanceof support")                 \
-  V(harmony_for_in, "harmony for-in syntax")                          \
   V(harmony_iterator_close, "harmony iterator finalization")          \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
   V(harmony_regexp_exec, "harmony RegExp exec override behavior")     \
