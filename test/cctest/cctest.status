@@ -303,15 +303,14 @@
   'test-run-wasm-module/Run_WasmModule_Return114': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
   'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
-  'test-run-wasm/Run_Wasm_Int32LoadInt16_signext': [SKIP],
-  'test-run-wasm/Run_Wasm_Int32LoadInt16_zeroext': [SKIP],
-  'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
-  'test-run-wasm-64/Run_WasmI64*': [SKIP],
-  'test-run-wasm-64/Run_Wasm_I64*': [SKIP],
-  'test-run-wasm-64/Run_Wasm_LoadStoreI64_sx': [SKIP],
+  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_signext': [SKIP],
+  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_zeroext': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MixedGlobals': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_I64*': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_LoadStoreI64_sx': [SKIP],
   'test-run-wasm-64/Run_TestI64WasmRunner': [SKIP],
-  'test-run-wasm-64/Run_WasmCall_Int64Sub': [SKIP],
-  'test-run-wasm-64/Run_Wasm_MemI64_Sum': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_Call_Int64Sub': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_MemI64_Sum': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
