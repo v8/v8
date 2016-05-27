@@ -668,7 +668,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
                                           &miss,  // When index out of range.
-                                          STRING_INDEX_IS_ARRAY_INDEX,
                                           RECEIVER_IS_STRING);
   char_at_generator.GenerateFast(masm);
   __ ret(0);
@@ -2105,13 +2104,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   }
   __ push(object_);
   __ push(index_);  // Consumed by runtime conversion function.
-  if (index_flags_ == STRING_INDEX_IS_NUMBER) {
-    __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero);
-  } else {
-    DCHECK(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
-    // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kNumberToSmi);
-  }
+  __ CallRuntime(Runtime::kNumberToSmi);
   if (!index_.is(eax)) {
     // Save the conversion result before the pop instructions below
     // have a chance to overwrite it.
@@ -2444,8 +2437,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // ecx: sub string length (smi)
   // edx: from index (smi)
   StringCharAtGenerator generator(eax, edx, ecx, eax, &runtime, &runtime,
-                                  &runtime, STRING_INDEX_IS_NUMBER,
-                                  RECEIVER_IS_STRING);
+                                  &runtime, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ ret(3 * kPointerSize);
   generator.SkipSlow(masm, &runtime);

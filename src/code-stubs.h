@@ -2159,17 +2159,6 @@ class CallConstructStub final : public PlatformCodeStub {
 };
 
 
-enum StringIndexFlags {
-  // Accepts smis or heap numbers.
-  STRING_INDEX_IS_NUMBER,
-
-  // Accepts smis or heap numbers that are valid array indices
-  // (ECMA-262 15.4). Invalid indices are reported as being out of
-  // range.
-  STRING_INDEX_IS_ARRAY_INDEX
-};
-
-
 enum ReceiverCheckMode {
   // We don't know anything about the receiver.
   RECEIVER_IS_UNKNOWN,
@@ -2203,7 +2192,6 @@ class StringCharCodeAtGenerator {
   StringCharCodeAtGenerator(Register object, Register index, Register result,
                             Label* receiver_not_string, Label* index_not_number,
                             Label* index_out_of_range,
-                            StringIndexFlags index_flags,
                             ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
       : object_(object),
         index_(index),
@@ -2211,7 +2199,6 @@ class StringCharCodeAtGenerator {
         receiver_not_string_(receiver_not_string),
         index_not_number_(index_not_number),
         index_out_of_range_(index_out_of_range),
-        index_flags_(index_flags),
         check_mode_(check_mode) {
     DCHECK(!result_.is(object_));
     DCHECK(!result_.is(index_));
@@ -2243,7 +2230,6 @@ class StringCharCodeAtGenerator {
   Label* index_not_number_;
   Label* index_out_of_range_;
 
-  StringIndexFlags index_flags_;
   ReceiverCheckMode check_mode_;
 
   Label call_runtime_;
@@ -2307,11 +2293,10 @@ class StringCharAtGenerator {
   StringCharAtGenerator(Register object, Register index, Register scratch,
                         Register result, Label* receiver_not_string,
                         Label* index_not_number, Label* index_out_of_range,
-                        StringIndexFlags index_flags,
                         ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
       : char_code_at_generator_(object, index, scratch, receiver_not_string,
                                 index_not_number, index_out_of_range,
-                                index_flags, check_mode),
+                                check_mode),
         char_from_code_generator_(scratch, result) {}
 
   // Generates the fast case code. On the fallthrough path |result|

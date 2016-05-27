@@ -374,7 +374,6 @@ namespace internal {
   F(StringParseFloat, 1, 1)            \
   F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
-  F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \

@@ -2861,8 +2861,7 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
   Label index_out_of_range;
   Label done;
   StringCharCodeAtGenerator generator(object, index, result, &need_conversion,
-                                      &need_conversion, &index_out_of_range,
-                                      STRING_INDEX_IS_NUMBER);
+                                      &need_conversion, &index_out_of_range);
   generator.GenerateFast(masm_);
   __ b(&done);
 
