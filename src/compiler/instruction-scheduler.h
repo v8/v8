@@ -177,12 +177,12 @@ class InstructionScheduler final : public ZoneObject {
   // Identify nops used as a definition point for live-in registers at
   // function entry.
   bool IsFixedRegisterParameter(const Instruction* instr) const {
-    return (instr->arch_opcode() == kArchNop) &&
-      (instr->OutputCount() == 1) &&
-      (instr->OutputAt(0)->IsUnallocated()) &&
-      (UnallocatedOperand::cast(instr->OutputAt(0))->HasFixedRegisterPolicy() ||
-       UnallocatedOperand::cast(
-           instr->OutputAt(0))->HasFixedDoubleRegisterPolicy());
+    return (instr->arch_opcode() == kArchNop) && (instr->OutputCount() == 1) &&
+           (instr->OutputAt(0)->IsUnallocated()) &&
+           (UnallocatedOperand::cast(instr->OutputAt(0))
+                ->HasFixedRegisterPolicy() ||
+            UnallocatedOperand::cast(instr->OutputAt(0))
+                ->HasFixedFPRegisterPolicy());
   }
 
   void ComputeTotalLatencies();

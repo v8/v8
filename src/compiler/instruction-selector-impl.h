@@ -54,9 +54,10 @@ class OperandGenerator {
                                            reg.code(), GetVReg(node)));
   }
 
-  InstructionOperand DefineAsFixed(Node* node, DoubleRegister reg) {
+  template <typename FPRegType>
+  InstructionOperand DefineAsFixed(Node* node, FPRegType reg) {
     return Define(node,
-                  UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
+                  UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                      reg.code(), GetVReg(node)));
   }
 
@@ -122,10 +123,10 @@ class OperandGenerator {
                                         reg.code(), GetVReg(node)));
   }
 
-  InstructionOperand UseFixed(Node* node, DoubleRegister reg) {
-    return Use(node,
-               UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
-                                  reg.code(), GetVReg(node)));
+  template <typename FPRegType>
+  InstructionOperand UseFixed(Node* node, FPRegType reg) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
+                                        reg.code(), GetVReg(node)));
   }
 
   InstructionOperand UseExplicit(LinkageLocation location) {
@@ -274,7 +275,7 @@ class OperandGenerator {
     }
     // a fixed register.
     if (IsFloatingPoint(rep)) {
-      return UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
+      return UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                 location.AsRegister(), virtual_register);
     }
     return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,

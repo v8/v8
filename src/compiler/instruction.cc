@@ -95,7 +95,7 @@ std::ostream& operator<<(std::ostream& os,
                     << conf->GetGeneralRegisterName(
                            unalloc->fixed_register_index())
                     << ")";
-        case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
+        case UnallocatedOperand::FIXED_FP_REGISTER:
           return os << "(="
                     << conf->GetDoubleRegisterName(
                            unalloc->fixed_register_index())

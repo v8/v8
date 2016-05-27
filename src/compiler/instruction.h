@@ -155,7 +155,7 @@ class UnallocatedOperand : public InstructionOperand {
     NONE,
     ANY,
     FIXED_REGISTER,
-    FIXED_DOUBLE_REGISTER,
+    FIXED_FP_REGISTER,
     MUST_HAVE_REGISTER,
     MUST_HAVE_SLOT,
     SAME_AS_FIRST_INPUT
@@ -192,7 +192,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   UnallocatedOperand(ExtendedPolicy policy, int index, int virtual_register)
       : UnallocatedOperand(virtual_register) {
-    DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
+    DCHECK(policy == FIXED_REGISTER || policy == FIXED_FP_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -220,7 +220,7 @@ class UnallocatedOperand : public InstructionOperand {
   bool HasFixedPolicy() const {
     return basic_policy() == FIXED_SLOT ||
            extended_policy() == FIXED_REGISTER ||
-           extended_policy() == FIXED_DOUBLE_REGISTER;
+           extended_policy() == FIXED_FP_REGISTER;
   }
   bool HasRegisterPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&
@@ -239,9 +239,9 @@ class UnallocatedOperand : public InstructionOperand {
     return basic_policy() == EXTENDED_POLICY &&
            extended_policy() == FIXED_REGISTER;
   }
-  bool HasFixedDoubleRegisterPolicy() const {
+  bool HasFixedFPRegisterPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&
-           extended_policy() == FIXED_DOUBLE_REGISTER;
+           extended_policy() == FIXED_FP_REGISTER;
   }
   bool HasSecondaryStorage() const {
     return basic_policy() == EXTENDED_POLICY &&
@@ -272,9 +272,9 @@ class UnallocatedOperand : public InstructionOperand {
                             FixedSlotIndexField::kShift);
   }
 
-  // [fixed_register_index]: Only for FIXED_REGISTER or FIXED_DOUBLE_REGISTER.
+  // [fixed_register_index]: Only for FIXED_REGISTER or FIXED_FP_REGISTER.
   int fixed_register_index() const {
-    DCHECK(HasFixedRegisterPolicy() || HasFixedDoubleRegisterPolicy());
+    DCHECK(HasFixedRegisterPolicy() || HasFixedFPRegisterPolicy());
     return FixedRegisterField::decode(value_);
   }
 
@@ -421,30 +421,31 @@ class LocationOperand : public InstructionOperand {
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
+  int register_code() const {
+    DCHECK(IsRegister() || IsFPRegister());
+    return static_cast<int64_t>(value_) >> IndexField::kShift;
+  }
+
   Register GetRegister() const {
     DCHECK(IsRegister());
-    return Register::from_code(static_cast<int64_t>(value_) >>
-                               IndexField::kShift);
+    return Register::from_code(register_code());
   }
 
   FloatRegister GetFloatRegister() const {
     DCHECK(IsFloatRegister());
-    return FloatRegister::from_code(static_cast<int64_t>(value_) >>
-                                    IndexField::kShift);
+    return FloatRegister::from_code(register_code());
   }
 
   DoubleRegister GetDoubleRegister() const {
     // TODO(bbudge) Tighten this test to IsDoubleRegister when all code
     // generators are changed to use the correct Get*Register method.
     DCHECK(IsFPRegister());
-    return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
-                                     IndexField::kShift);
+    return DoubleRegister::from_code(register_code());
   }
 
   Simd128Register GetSimd128Register() const {
     DCHECK(IsSimd128Register());
-    return Simd128Register::from_code(static_cast<int64_t>(value_) >>
-                                      IndexField::kShift);
+    return Simd128Register::from_code(register_code());
   }
 
   LocationKind location_kind() const {
