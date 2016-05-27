@@ -194,6 +194,7 @@ class FunctionTester : public InitializedHandleScope {
       CHECK(Compiler::Analyze(info.parse_info()));
       CHECK(Compiler::EnsureDeoptimizationSupport(&info));
     }
+    JSFunction::EnsureLiterals(function);
 
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&info);
     CHECK(!code.is_null());

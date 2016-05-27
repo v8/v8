@@ -377,6 +377,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
+
   // Remember that we inlined this function. This needs to be called right
   // after we ensure deoptimization support so that the code flusher
   // does not remove the code with the deoptimization support.
@@ -389,6 +390,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   TRACE("Inlining %s into %s\n",
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
+
+  // If function was lazily compiled, it's literals array may not yet be set up.
+  JSFunction::EnsureLiterals(function);
 
   // Create the subgraph for the inlinee.
   Node* start;

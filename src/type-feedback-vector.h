@@ -136,6 +136,10 @@ class TypeFeedbackMetadata : public FixedArray {
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
+  bool DiffersFrom(const TypeFeedbackMetadata* other_metadata) const;
+
+  inline bool is_empty() const;
+
   // Returns number of slots in the vector.
   inline int slot_count() const;
 
@@ -194,12 +198,12 @@ class TypeFeedbackVector : public FixedArray {
   inline TypeFeedbackMetadata* metadata() const;
 
   // Conversion from a slot to an integer index to the underlying array.
-  inline int GetIndex(FeedbackVectorSlot slot) const;
+  static inline int GetIndex(FeedbackVectorSlot slot);
   static int GetIndexFromSpec(const FeedbackVectorSpec* spec,
                               FeedbackVectorSlot slot);
 
   // Conversion from an integer index to the underlying array to a slot.
-  inline FeedbackVectorSlot ToSlot(int index) const;
+  static inline FeedbackVectorSlot ToSlot(int index);
   inline Object* Get(FeedbackVectorSlot slot) const;
   inline void Set(FeedbackVectorSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

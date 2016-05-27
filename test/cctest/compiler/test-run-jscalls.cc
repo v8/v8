@@ -218,6 +218,7 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
+  jsfun->set_literals(T.function->literals());
   CHECK(context->Global()
             ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
             .FromJust());
@@ -242,6 +243,7 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
+  jsfun->set_literals(T.function->literals());
   CHECK(context->Global()
             ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
             .FromJust());

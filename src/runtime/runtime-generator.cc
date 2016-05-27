@@ -77,7 +77,6 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorClose) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -117,7 +116,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetInput) {
 
   return generator->input();
 }
-
 
 // Returns resume mode of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {

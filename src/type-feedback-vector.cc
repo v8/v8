@@ -88,6 +88,14 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   for (int i = 0; i < slot_count; i++) {
     metadata->SetKind(FeedbackVectorSlot(i), spec->GetKind(i));
   }
+
+  // It's important that the TypeFeedbackMetadata have a COW map, since it's
+  // pointed to by both a SharedFunctionInfo and indirectly by closures through
+  // the TypeFeedbackVector. The serializer uses the COW map type to decide
+  // this object belongs in the startup snapshot and not the partial
+  // snapshot(s).
+  metadata->set_map(isolate->heap()->fixed_cow_array_map());
+
   return metadata;
 }
 
@@ -107,6 +115,21 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
   return false;
 }
 
+bool TypeFeedbackMetadata::DiffersFrom(
+    const TypeFeedbackMetadata* other_metadata) const {
+  if (other_metadata->slot_count() != slot_count()) {
+    return true;
+  }
+
+  int slots = slot_count();
+  for (int i = 0; i < slots; i++) {
+    FeedbackVectorSlot slot(i);
+    if (GetKind(slot) != other_metadata->GetKind(slot)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
   switch (kind) {
@@ -251,8 +274,20 @@ void TypeFeedbackVector::ClearAllKeyedStoreICs(Isolate* isolate) {
   SharedFunctionInfo::Iterator iterator(isolate);
   SharedFunctionInfo* shared;
   while ((shared = iterator.Next())) {
-    TypeFeedbackVector* vector = shared->feedback_vector();
-    vector->ClearKeyedStoreICs(shared);
+    if (!shared->OptimizedCodeMapIsCleared()) {
+      FixedArray* optimized_code_map = shared->optimized_code_map();
+      int length = optimized_code_map->length();
+      for (int i = SharedFunctionInfo::kEntriesStart; i < length;
+           i += SharedFunctionInfo::kEntryLength) {
+        WeakCell* cell = WeakCell::cast(
+            optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
+        if (cell->value()->IsLiteralsArray()) {
+          TypeFeedbackVector* vector =
+              LiteralsArray::cast(cell->value())->feedback_vector();
+          vector->ClearKeyedStoreICs(shared);
+        }
+      }
+    }
   }
 }
 

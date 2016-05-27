@@ -188,7 +188,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_num_literals(source_shared->num_literals());
-  target_shared->set_feedback_vector(source_shared->feedback_vector());
+  target_shared->set_feedback_metadata(source_shared->feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
   target_shared->set_start_position_and_type(
@@ -207,15 +207,13 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   target->ReplaceCode(source_shared->code());
   DCHECK(target->next_function_link()->IsUndefined());
 
-  // Make sure we get a fresh copy of the literal vector to avoid cross
-  // context contamination.
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  Handle<LiteralsArray> literals =
-      LiteralsArray::New(isolate, handle(target_shared->feedback_vector()),
-                         target_shared->num_literals(), TENURED);
-  target->set_literals(*literals);
+  // Make sure we get a fresh copy of the literal vector to avoid cross
+  // context contamination, and that the literal vector makes it's way into
+  // the target_shared optimized code map.
+  JSFunction::EnsureLiterals(target);
 
   if (isolate->logger()->is_logging_code_events() ||
       isolate->cpu_profiler()->is_profiling()) {

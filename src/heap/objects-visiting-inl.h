@@ -459,9 +459,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
   }
-  if (FLAG_cleanup_code_caches_at_gc) {
-    shared->ClearTypeFeedbackInfoAtGCTime();
-  }
   if (FLAG_flush_optimized_code_cache) {
     if (!shared->OptimizedCodeMapIsCleared()) {
       // Always flush the optimized code map if requested by flag.
@@ -492,6 +489,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
                                                           HeapObject* object) {
   Heap* heap = map->GetHeap();
   JSFunction* function = JSFunction::cast(object);
+  if (FLAG_cleanup_code_caches_at_gc) {
+    function->ClearTypeFeedbackInfoAtGCTime();
+  }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
     if (IsFlushable(heap, function)) {

@@ -208,7 +208,7 @@ TEST(VectorCallICStates) {
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -247,7 +247,7 @@ TEST(VectorCallCounts) {
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -261,8 +261,7 @@ TEST(VectorCallCounts) {
       "function f(a) { new a(); } f(Foo);");
   f = GetFunction("f");
   // There should be one IC.
-  feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+  feedback_vector = Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot cslot(1);
 
   CompileRun("f(Foo); f(Foo);");
@@ -285,7 +284,7 @@ TEST(VectorLoadICStates) {
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
@@ -344,7 +343,7 @@ TEST(VectorLoadICSlotSharing) {
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
   Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackVectorSlot slot(0);
@@ -368,7 +367,7 @@ TEST(VectorLoadICOnSmi) {
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector(), isolate);
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
@@ -433,7 +432,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be two LOAD_ICs, one for a and one for y at the end.
     Handle<TypeFeedbackVector> feedback_vector =
-        handle(f->shared()->feedback_vector(), isolate);
+        handle(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_IC);
@@ -452,7 +451,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testprop");
 
     // There should be one LOAD_IC, for the load of a.
-    Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
   }
@@ -469,7 +468,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testpropfunc");
 
     // There should be 2 LOAD_ICs and 2 CALL_ICs.
-    Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
@@ -491,7 +490,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_ICs for the load of a, and one KEYED_LOAD_IC for
     // the load of x[0] in the return statement.
-    Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
@@ -510,7 +509,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testcompound");
 
     // There should be 3 LOAD_ICs, for load of a and load of x.old and x.young.
-    Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(6, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
@@ -540,7 +539,7 @@ TEST(VectorStoreICBasic) {
       "f(a);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackVectorSlot slot(0);

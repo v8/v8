@@ -436,7 +436,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
       bytecode_array_(handle(info->shared_info()->bytecode_array())),
       exception_handler_table_(
           handle(HandlerTable::cast(bytecode_array()->handler_table()))),
-      feedback_vector_(handle(info->shared_info()->feedback_vector())),
+      feedback_vector_(handle(info->closure()->feedback_vector())),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),

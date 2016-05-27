@@ -38,6 +38,11 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
+Node* JSGraph::EmptyLiteralsArrayConstant() {
+  return CACHED(kEmptyLiteralsArrayConstant,
+                HeapConstant(factory()->empty_literals_array()));
+}
+
 Node* JSGraph::HeapNumberMapConstant() {
   return CACHED(kHeapNumberMapConstant,
                 HeapConstant(factory()->heap_number_map()));

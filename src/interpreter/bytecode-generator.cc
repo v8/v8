@@ -2338,9 +2338,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     }
 
     builder()->Bind(&resume_with_throw);
-    builder()
-        ->LoadAccumulatorWithRegister(input)
-        .Throw();
+    builder()->LoadAccumulatorWithRegister(input).Throw();
 
     builder()->Bind(&resume_with_next);
     builder()->LoadAccumulatorWithRegister(input);
@@ -3279,7 +3277,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 
 
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
-  return info()->shared_info()->feedback_vector()->GetIndex(slot);
+  return TypeFeedbackVector::GetIndex(slot);
 }
 
 }  // namespace interpreter

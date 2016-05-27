@@ -3121,7 +3121,7 @@ LanguageMode AstGraphBuilder::language_mode() const {
 
 VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
     FeedbackVectorSlot slot) const {
-  return VectorSlotPair(handle(info()->shared_info()->feedback_vector()), slot);
+  return VectorSlotPair(handle(info()->closure()->feedback_vector()), slot);
 }
 
 

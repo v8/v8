@@ -3641,7 +3641,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
   FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
@@ -3678,7 +3678,7 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<TypeFeedbackVector> vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
+      Handle<TypeFeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
   FeedbackVectorSlot slot = helper.slot(slot_index);
   if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
@@ -3690,16 +3690,6 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
     CHECK(nexus.StateFromFeedback() == desired_state);
   }
 }
-
-
-static void CheckVectorICCleared(Handle<JSFunction> f, int slot_index) {
-  Handle<TypeFeedbackVector> vector =
-      Handle<TypeFeedbackVector>(f->shared()->feedback_vector());
-  FeedbackVectorSlot slot(slot_index);
-  LoadICNexus nexus(vector, slot);
-  CHECK(IC::IsCleared(&nexus));
-}
-
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   if (i::FLAG_always_opt) return;
@@ -3715,7 +3705,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> vector(f->feedback_vector());
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -3723,45 +3713,6 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
 
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
 }
-
-
-TEST(IncrementalMarkingClearsMonomorphicConstructor) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Value> fun1;
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-
-  {
-    LocalContext env;
-    CompileRun("function fun() { this.x = 1; };");
-    fun1 = env->Global()->Get(env.local(), v8_str("fun")).ToLocalChecked();
-  }
-
-  // Prepare function f that contains a monomorphic constructor for object
-  // originating from a different native context.
-  CHECK(CcTest::global()->Set(ctx, v8_str("fun1"), fun1).FromJust());
-  CompileRun(
-      "function fun() { this.x = 1; };"
-      "function f(o) { return new o(); } f(fun1); f(fun1);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
-
-
-  Handle<TypeFeedbackVector> vector(f->shared()->feedback_vector());
-  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
-
-  // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
-  heap::SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage();
-
-  CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
-           vector->Get(FeedbackVectorSlot(0)));
-}
-
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (i::FLAG_always_opt) return;
@@ -3783,39 +3734,6 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
 
   CheckVectorIC(f, 0, MONOMORPHIC);
 }
-
-
-TEST(IncrementalMarkingClearsMonomorphicIC) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Value> obj1;
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-
-  {
-    LocalContext env;
-    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
-    obj1 = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
-  }
-
-  // Prepare function f that contains a monomorphic IC for object
-  // originating from a different native context.
-  CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
-  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
-  Handle<JSFunction> f = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
-
-  CheckVectorIC(f, 0, MONOMORPHIC);
-
-  // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
-  heap::SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage();
-
-  CheckVectorICCleared(f, 0);
-}
-
 
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
   if (i::FLAG_always_opt) return;
@@ -3854,8 +3772,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   CheckVectorIC(f, 0, POLYMORPHIC);
 }
 
-
-TEST(IncrementalMarkingClearsPolymorphicIC) {
+TEST(ContextDisposeDoesntClearPolymorphicIC) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3890,7 +3807,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage();
 
-  CheckVectorICCleared(f, 0);
+  CheckVectorIC(f, 0, POLYMORPHIC);
 }
 
 
@@ -4304,7 +4221,8 @@ TEST(Regress513507) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<TypeFeedbackVector> vector = handle(shared->feedback_vector());
+  Handle<TypeFeedbackVector> vector =
+      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
   Handle<LiteralsArray> lit =
       LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
@@ -4361,7 +4279,8 @@ TEST(Regress514122) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<TypeFeedbackVector> vector = handle(shared->feedback_vector());
+  Handle<TypeFeedbackVector> vector =
+      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
   Handle<LiteralsArray> lit =
       LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
@@ -5066,7 +4985,7 @@ TEST(WeakFunctionInConstructor) {
   // cleared. Now, verify that one additional call with a new function
   // allows monomorphicity.
   Handle<TypeFeedbackVector> feedback_vector = Handle<TypeFeedbackVector>(
-      createObj->shared()->feedback_vector(), CcTest::i_isolate());
+      createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
     Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
     CHECK(slot_value->IsWeakCell());
@@ -5267,12 +5186,11 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
   return Handle<JSFunction>::cast(obj);
 }
 
-
-void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
-             int slot_index, InlineCacheState state) {
+void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
+             InlineCacheState state) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
       kind == Code::CALL_IC) {
-    TypeFeedbackVector* vector = shared->feedback_vector();
+    TypeFeedbackVector* vector = function->feedback_vector();
     FeedbackVectorSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);
@@ -5285,7 +5203,7 @@ void CheckIC(Code* code, Code::Kind kind, SharedFunctionInfo* shared,
       CHECK_EQ(nexus.StateFromFeedback(), state);
     }
   } else {
-    Code* ic = FindFirstIC(code, kind);
+    Code* ic = FindFirstIC(function->code(), kind);
     CHECK(ic->is_inline_cache_stub());
     CHECK(ic->ic_state() == state);
   }
@@ -5316,12 +5234,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage();
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
+  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, MONOMORPHIC);
+  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
 }
 
 
@@ -5352,12 +5270,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   heap->CollectAllGarbage();
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
+  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC->code(), Code::LOAD_IC, loadIC->shared(), 0, POLYMORPHIC);
+  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
 }
 
 

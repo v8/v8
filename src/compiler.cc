@@ -406,25 +406,25 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   }
 }
 
-void EnsureFeedbackVector(CompilationInfo* info) {
+void EnsureFeedbackMetadata(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
 
-  // If no type feedback vector exists, we create one now. At this point the
+  // If no type feedback metadata exists, we create it now. At this point the
   // AstNumbering pass has already run. Note the snapshot can contain outdated
   // vectors for a different configuration, hence we also recreate a new vector
   // when the function is not compiled (i.e. no code was serialized).
-  if (info->shared_info()->feedback_vector()->is_empty() ||
+
+  // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
+  if (info->shared_info()->feedback_metadata()->length() == 0 ||
       !info->shared_info()->is_compiled()) {
     Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
         info->isolate(), info->literal()->feedback_vector_spec());
-    Handle<TypeFeedbackVector> feedback_vector =
-        TypeFeedbackVector::New(info->isolate(), feedback_metadata);
-    info->shared_info()->set_feedback_vector(*feedback_vector);
+    info->shared_info()->set_feedback_metadata(*feedback_metadata);
   }
 
   // It's very important that recompiles do not alter the structure of the type
   // feedback vector. Verify that the structure fits the function literal.
-  CHECK(!info->shared_info()->feedback_vector()->metadata()->SpecDiffersFrom(
+  CHECK(!info->shared_info()->feedback_metadata()->SpecDiffersFrom(
       info->literal()->feedback_vector_spec()));
 }
 
@@ -458,7 +458,7 @@ int CodeAndMetadataSize(CompilationInfo* info) {
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   bool success;
-  EnsureFeedbackVector(info);
+  EnsureFeedbackMetadata(info);
   if (FLAG_validate_asm && info->scope()->asm_module()) {
     AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
                    info->literal());
@@ -633,7 +633,10 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+    EnsureFeedbackMetadata(info);
   }
+
+  JSFunction::EnsureLiterals(info->closure());
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
@@ -677,7 +680,10 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   // Parsing is not required when optimizing from existing bytecode.
   if (!info->is_optimizing_from_bytecode()) {
     if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
+    EnsureFeedbackMetadata(info);
   }
+
+  JSFunction::EnsureLiterals(info->closure());
 
   // Reopen handles in the new CompilationHandleScope.
   info->ReopenHandlesInNewHandleScope();
@@ -1139,6 +1145,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
 
   // Install code on closure.
   function->ReplaceCode(*code);
+  JSFunction::EnsureLiterals(function);
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
@@ -1195,6 +1202,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 
   // Install code on closure.
   function->ReplaceCode(*code);
+  JSFunction::EnsureLiterals(function);
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
@@ -1325,7 +1333,7 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
         shared->code()->has_reloc_info_for_serialization()) {
       unoptimized.PrepareForSerializing();
     }
-    EnsureFeedbackVector(&unoptimized);
+    EnsureFeedbackMetadata(&unoptimized);
     if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
 
     // TODO(4280): For now we play it safe and remove the bytecode array when we
@@ -1686,7 +1694,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
       name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
-  shared->set_feedback_vector(fun->shared()->feedback_vector());
+  shared->set_feedback_metadata(fun->shared()->feedback_metadata());
 
   // Copy the function data to the shared function info.
   shared->set_function_data(fun->shared()->function_data());
@@ -1773,21 +1781,11 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   }
 
   if (cached.literals != nullptr) {
+    DCHECK(shared->is_compiled());
     function->set_literals(cached.literals);
-  } else {
-    Isolate* isolate = function->GetIsolate();
-    int number_of_literals = shared->num_literals();
-    Handle<LiteralsArray> literals =
-        LiteralsArray::New(isolate, handle(shared->feedback_vector()),
-                           number_of_literals, pretenure);
-    function->set_literals(*literals);
-
-    // Cache context-specific literals.
-    MaybeHandle<Code> code;
-    if (cached.code != nullptr) code = handle(cached.code);
-    Handle<Context> native_context(function->context()->native_context());
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
-                                              literals, BailoutId::None());
+  } else if (shared->is_compiled()) {
+    // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
+    JSFunction::EnsureLiterals(function);
   }
 }
 

@@ -4154,8 +4154,7 @@ TEST(InterpreterGenerators) {
   };
 
   for (size_t i = 0; i < arraysize(tests); i++) {
-    std::string source(
-        InterpreterTester::SourceForBody(tests[i].first));
+    std::string source(InterpreterTester::SourceForBody(tests[i].first));
     InterpreterTester tester(handles.main_isolate(), source.c_str());
     auto callable = tester.GetCallable<>();
 
@@ -4165,7 +4164,6 @@ TEST(InterpreterGenerators) {
 
   FLAG_ignition_generators = old_flag;
 }
-
 
 }  // namespace interpreter
 }  // namespace internal

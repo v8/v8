@@ -19,6 +19,10 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
   if (restore_function_code) {
     Handle<JSFunction> function = job->info()->closure();
     function->ReplaceCode(function->shared()->code());
+    // TODO(mvstanton): We can't call ensureliterals here due to allocation,
+    // but we probably shouldn't call ReplaceCode either, as this
+    // sometimes runs on the worker thread!
+    // JSFunction::EnsureLiterals(function);
   }
   delete job;
 }

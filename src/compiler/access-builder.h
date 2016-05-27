@@ -144,9 +144,6 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForPropertyCellValue();
   static FieldAccess ForPropertyCellValue(Type* type);
 
-  // Provides access to SharedFunctionInfo::feedback_vector() field.
-  static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();
-
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 

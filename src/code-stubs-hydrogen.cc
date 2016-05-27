@@ -1805,6 +1805,8 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HInstruction* empty_fixed_array =
       Add<HConstant>(factory->empty_fixed_array());
+  HInstruction* empty_literals_array =
+      Add<HConstant>(factory->empty_literals_array());
   HValue* shared_info = GetParameter(0);
 
   AddIncrementCounter(counters->fast_new_closure_total());
@@ -1831,7 +1833,7 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
                         empty_fixed_array);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_fixed_array);
+                        empty_literals_array);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
                         graph()->GetConstantHole());
   Add<HStoreNamedField>(

@@ -5669,10 +5669,10 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   // We also have a stack overflow if the recursive compilation did.
   if (HasStackOverflow()) return;
   // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
+  // space for nested functions that don't need pretenuring.
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
-  if (!expr->pretenure() && shared_info->num_literals() == 0) {
+  if (!expr->pretenure()) {
     FastNewClosureStub stub(isolate(), shared_info->language_mode(),
                             shared_info->kind());
     FastNewClosureDescriptor descriptor(isolate());
@@ -8628,6 +8628,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     TraceInline(target, caller, "could not generate deoptimization info");
     return false;
   }
+
   // Remember that we inlined this function. This needs to be called right
   // after the EnsureDeoptimizationSupport call so that the code flusher
   // does not remove the code with the deoptimization support.
@@ -8636,6 +8637,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function (so
   // TryInline should always return true).
+
+  // If target was lazily compiled, it's literals array may not yet be set up.
+  JSFunction::EnsureLiterals(target);
 
   // Type-check the inlined function.
   DCHECK(target_shared->has_deoptimization_support());

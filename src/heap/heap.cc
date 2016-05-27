@@ -2808,6 +2808,13 @@ void Heap::CreateInitialObjects() {
   }
 
   {
+    Handle<FixedArray> empty_literals_array =
+        factory->NewFixedArray(1, TENURED);
+    empty_literals_array->set(0, *factory->empty_fixed_array());
+    set_empty_literals_array(*empty_literals_array);
+  }
+
+  {
     Handle<WeakCell> cell = factory->NewWeakCell(factory->undefined_value());
     set_empty_weak_cell(*cell);
     cell->clear();

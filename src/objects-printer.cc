@@ -918,8 +918,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - length = " << length();
   os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
-  os << "\n - feedback_vector = ";
-  feedback_vector()->TypeFeedbackVectorPrint(os);
+  os << "\n - feedback_metadata = ";
+  feedback_metadata()->TypeFeedbackMetadataPrint(os);
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
