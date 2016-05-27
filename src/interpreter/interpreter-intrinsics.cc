@@ -49,10 +49,10 @@ Node* IntrinsicsHelper::InvokeIntrinsic(Node* function_id, Node* context,
   __ Switch(function_id, &abort, cases, labels, arraysize(cases));
 #define HANDLE_CASE(name, lower_case, expected_arg_count)   \
   __ Bind(&lower_case);                                     \
-  if (FLAG_debug_code) {                                    \
+  if (FLAG_debug_code && expected_arg_count >= 0) {         \
     AbortIfArgCountMismatch(expected_arg_count, arg_count); \
   }                                                         \
-  result.Bind(name(first_arg_reg));                         \
+  result.Bind(name(first_arg_reg, arg_count, context));     \
   __ Goto(&end);
   INTRINSICS_LIST(HANDLE_CASE)
 #undef HANDLE_CASE
@@ -96,7 +96,8 @@ Node* IntrinsicsHelper::CompareInstanceType(Node* map, int type,
   return return_value.value();
 }
 
-Node* IntrinsicsHelper::IsJSReceiver(Node* input) {
+Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
+                                     Node* context) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
 
@@ -119,7 +120,7 @@ Node* IntrinsicsHelper::IsJSReceiver(Node* input) {
   return return_value.value();
 }
 
-Node* IntrinsicsHelper::IsArray(Node* input) {
+Node* IntrinsicsHelper::IsArray(Node* input, Node* arg_count, Node* context) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
 
@@ -141,17 +142,39 @@ Node* IntrinsicsHelper::IsArray(Node* input) {
   return return_value.value();
 }
 
+Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
+  // First argument register contains the function target.
+  Node* function = __ LoadRegister(args_reg);
+
+  // Receiver is the second runtime call argument.
+  Node* receiver_reg = __ NextRegister(args_reg);
+  Node* receiver_arg = __ RegisterLocation(receiver_reg);
+
+  // Subtract function and receiver from arg count.
+  Node* function_and_receiver_count = __ Int32Constant(2);
+  Node* target_args_count = __ Int32Sub(arg_count, function_and_receiver_count);
+
+  if (FLAG_debug_code) {
+    InterpreterAssembler::Label arg_count_positive(assembler_);
+    Node* comparison = __ Int32LessThan(target_args_count, __ Int32Constant(0));
+    __ GotoUnless(comparison, &arg_count_positive);
+    __ Abort(kWrongArgumentCountForInvokeIntrinsic);
+    __ Goto(&arg_count_positive);
+    __ Bind(&arg_count_positive);
+  }
+
+  Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
+                           TailCallMode::kDisallow);
+  return result;
+}
+
 void IntrinsicsHelper::AbortIfArgCountMismatch(int expected, Node* actual) {
-  InterpreterAssembler::Label match(assembler_), mismatch(assembler_),
-      end(assembler_);
+  InterpreterAssembler::Label match(assembler_);
   Node* comparison = __ Word32Equal(actual, __ Int32Constant(expected));
-  __ Branch(comparison, &match, &mismatch);
-  __ Bind(&mismatch);
+  __ GotoIf(comparison, &match);
   __ Abort(kWrongArgumentCountForInvokeIntrinsic);
-  __ Goto(&end);
+  __ Goto(&match);
   __ Bind(&match);
-  __ Goto(&end);
-  __ Bind(&end);
 }
 
 }  // namespace interpreter

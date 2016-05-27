@@ -20,7 +20,10 @@ namespace compiler {
 class Node;
 }  // namespace compiler
 
+// List of supported intrisics, with upper case name, lower case name and
+// expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)           \
+  V(Call, call, -1)                  \
   V(IsJSReceiver, is_js_receiver, 1) \
   V(IsArray, is_array, 1)
 
@@ -47,8 +50,9 @@ class IntrinsicsHelper {
   void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
   InterpreterAssembler* assembler_;
 
-#define DECLARE_INTRINSIC_HELPER(name, lower_case, count) \
-  compiler::Node* name(compiler::Node* input);
+#define DECLARE_INTRINSIC_HELPER(name, lower_case, count)                \
+  compiler::Node* name(compiler::Node* input, compiler::Node* arg_count, \
+                       compiler::Node* context);
   INTRINSICS_LIST(DECLARE_INTRINSIC_HELPER)
 #undef DECLARE_INTRINSIC_HELPER
 
