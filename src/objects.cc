@@ -1913,8 +1913,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   return true;
 }
 
-
-void String::StringShortPrint(StringStream* accumulator) {
+void String::StringShortPrint(StringStream* accumulator, bool show_details) {
   int len = length();
   if (len > kMaxShortPrintLength) {
     accumulator->Add("<Very long string[%u]>", len);
@@ -1943,15 +1942,15 @@ void String::StringShortPrint(StringStream* accumulator) {
   }
   stream.Reset(this);
   if (one_byte) {
-    accumulator->Add("<String[%u]: ", length());
+    if (show_details) accumulator->Add("<String[%u]: ", length());
     for (int i = 0; i < len; i++) {
       accumulator->Put(static_cast<char>(stream.GetNext()));
     }
-    accumulator->Put('>');
+    if (show_details) accumulator->Put('>');
   } else {
     // Backslash indicates that the string contains control
     // characters and that backslashes are therefore escaped.
-    accumulator->Add("<String[%u]\\: ", length());
+    if (show_details) accumulator->Add("<String[%u]\\: ", length());
     for (int i = 0; i < len; i++) {
       uint16_t c = stream.GetNext();
       if (c == '\n') {
@@ -1971,7 +1970,7 @@ void String::StringShortPrint(StringStream* accumulator) {
       accumulator->Put('.');
       accumulator->Put('.');
     }
-    accumulator->Put('>');
+    if (show_details) accumulator->Put('>');
   }
   return;
 }
@@ -15396,12 +15395,12 @@ const char* Symbol::PrivateSymbolToName() const {
 
 
 void Symbol::SymbolShortPrint(std::ostream& os) {
-  os << "<Symbol: " << Hash();
+  os << "<Symbol:";
   if (!name()->IsUndefined()) {
     os << " ";
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    String::cast(name())->StringShortPrint(&accumulator);
+    String::cast(name())->StringShortPrint(&accumulator, false);
     os << accumulator.ToCString().get();
   } else {
     os << " (" << PrivateSymbolToName() << ")";

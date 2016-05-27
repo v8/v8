@@ -8869,7 +8869,7 @@ class String: public Name {
   bool LooksValid();
 
   // Dispatched behavior.
-  void StringShortPrint(StringStream* accumulator);
+  void StringShortPrint(StringStream* accumulator, bool show_details = true);
   void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   char* ToAsciiArray();

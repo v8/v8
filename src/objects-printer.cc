@@ -380,7 +380,6 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      os << "\n - elements: ";
       elements()->Print(os);
       break;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -424,10 +423,14 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
-  os << "\n {";
+  os << "\n - properties = {";
   obj->PrintProperties(os);
-  if (print_elements) obj->PrintElements(os);
   os << "\n }\n";
+  if (print_elements && obj->elements()->length() > 0) {
+    os << " - elements = {";
+    obj->PrintElements(os);
+    os << "\n }\n";
+  }
 }
 
 
@@ -716,8 +719,6 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
 void Name::NamePrint(std::ostream& os) {  // NOLINT
   if (IsString()) {
     String::cast(this)->StringPrint(os);
-  } else if (IsSymbol()) {
-    Symbol::cast(this)->name()->Print(os);
   } else {
     os << Brief(this);
   }
