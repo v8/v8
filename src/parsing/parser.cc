@@ -803,6 +803,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_exponentiation_operator(
       FLAG_harmony_exponentiation_operator);
   set_allow_harmony_async_await(FLAG_harmony_async_await);
+  set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1971,10 +1972,24 @@ Variable* Parser::Declare(Declaration* declaration,
     } else if (IsLexicalVariableMode(mode) ||
                IsLexicalVariableMode(var->mode())) {
       // Allow duplicate function decls for web compat, see bug 4693.
+      bool duplicate_allowed = false;
       if (is_sloppy(language_mode()) && is_function_declaration &&
           var->is_function()) {
         DCHECK(IsLexicalVariableMode(mode) &&
                IsLexicalVariableMode(var->mode()));
+        // If the duplication is allowed, then the var will show up
+        // in the SloppyBlockFunctionMap and the new FunctionKind
+        // will be a permitted duplicate.
+        FunctionKind function_kind =
+            declaration->AsFunctionDeclaration()->fun()->kind();
+        duplicate_allowed =
+            scope->DeclarationScope()->sloppy_block_function_map()->Lookup(
+                const_cast<AstRawString*>(name), name->hash()) != nullptr &&
+            !IsAsyncFunction(function_kind) &&
+            !(allow_harmony_restrictive_generators() &&
+              IsGeneratorFunction(function_kind));
+      }
+      if (duplicate_allowed) {
         ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
       } else {
         // The name was declared in this scope before; check for conflicting
@@ -2188,7 +2203,13 @@ Statement* Parser::ParseHoistableDeclaration(
   Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   if (names) names->Add(name, zone());
   EmptyStatement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
-  if (is_sloppy(language_mode()) && !scope_->is_declaration_scope()) {
+  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
+  // allow duplicates in a block. Both are represented by the
+  // sloppy_block_function_map. Don't add them to the map for async functions.
+  // Generators are also supposed to be prohibited; currently doing this behind
+  // a flag and UseCounting violations to assess web compatibility.
+  if (is_sloppy(language_mode()) && !scope_->is_declaration_scope() &&
+      !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
     SloppyBlockFunctionStatement* delegate =
         factory()->NewSloppyBlockFunctionStatement(empty, scope_);
     scope_->DeclarationScope()->sloppy_block_function_map()->Declare(name,

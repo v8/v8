@@ -198,7 +198,8 @@ class ParserBase : public Traits {
         allow_harmony_for_in_(false),
         allow_harmony_function_name_(false),
         allow_harmony_function_sent_(false),
-        allow_harmony_async_await_(false) {}
+        allow_harmony_async_await_(false),
+        allow_harmony_restrictive_generators_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -219,6 +220,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
+  ALLOW_ACCESSORS(harmony_restrictive_generators);
   SCANNER_ACCESSORS(harmony_exponentiation_operator);
 
 #undef SCANNER_ACCESSORS
@@ -1176,6 +1178,7 @@ class ParserBase : public Traits {
   bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
+  bool allow_harmony_restrictive_generators_;
 };
 
 template <class Traits>

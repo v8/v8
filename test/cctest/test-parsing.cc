@@ -1509,7 +1509,8 @@ enum ParserFlag {
   kAllowHarmonyRestrictiveDeclarations,
   kAllowHarmonyExponentiationOperator,
   kAllowHarmonyForIn,
-  kAllowHarmonyAsyncAwait
+  kAllowHarmonyAsyncAwait,
+  kAllowHarmonyRestrictiveGenerators,
 };
 
 enum ParserSyncTestResult {
@@ -1532,6 +1533,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
   parser->set_allow_harmony_async_await(
       flags.Contains(kAllowHarmonyAsyncAwait));
+  parser->set_allow_harmony_restrictive_generators(
+      flags.Contains(kAllowHarmonyRestrictiveGenerators));
 }
 
 
@@ -7730,4 +7733,61 @@ TEST(RestrictiveForInErrors) {
   static const ParserFlag always_flags[] = {kAllowHarmonyForIn};
   RunParserSyncTest(context_data, error_data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
+}
+
+TEST(NoDuplicateGeneratorsInBlock) {
+  const char* block_context_data[][2] = {
+      {"'use strict'; {", "}"},
+      {"{", "}"},
+      {"(function() { {", "} })()"},
+      {"(function() {'use strict'; {", "} })()"},
+      {NULL, NULL}};
+  const char* top_level_context_data[][2] = {
+      {"'use strict';", ""},
+      {"", ""},
+      {"(function() {", "})()"},
+      {"(function() {'use strict';", "})()"},
+      {NULL, NULL}};
+  const char* error_data[] = {"function* x() {} function* x() {}",
+                              "function x() {} function* x() {}",
+                              "function* x() {} function x() {}", NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyRestrictiveGenerators};
+  // The preparser doesn't enforce the restriction, so turn it off.
+  bool test_preparser = false;
+  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags), NULL, 0, false,
+                    test_preparser);
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+TEST(NoDuplicateAsyncFunctionInBlock) {
+  const char* block_context_data[][2] = {
+      {"'use strict'; {", "}"},
+      {"{", "}"},
+      {"(function() { {", "} })()"},
+      {"(function() {'use strict'; {", "} })()"},
+      {NULL, NULL}};
+  const char* top_level_context_data[][2] = {
+      {"'use strict';", ""},
+      {"", ""},
+      {"(function() {", "})()"},
+      {"(function() {'use strict';", "})()"},
+      {NULL, NULL}};
+  const char* error_data[] = {"async function x() {} async function x() {}",
+                              "function x() {} async function x() {}",
+                              "async function x() {} function x() {}",
+                              "function* x() {} async function x() {}",
+                              "function* x() {} async function x() {}",
+                              "async function x() {} function* x() {}",
+                              "function* x() {} async function x() {}",
+                              NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
+  // The preparser doesn't enforce the restriction, so turn it off.
+  bool test_preparser = false;
+  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags), NULL, 0, false,
+                    test_preparser);
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }

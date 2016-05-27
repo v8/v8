@@ -202,6 +202,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_simd, "harmony simd")                                       \
   V(harmony_do_expressions, "harmony do-expressions")                   \
+  V(harmony_restrictive_generators,                                     \
+    "harmony restrictions on generator declarations")                   \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_async_await, "harmony async-await")
 
