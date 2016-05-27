@@ -754,20 +754,6 @@ void Interpreter::DoPopContext(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoBinaryOp(Callable callable,
-                             InterpreterAssembler* assembler) {
-  // TODO(bmeurer): Collect definition side type feedback for various
-  // binary operations.
-  Node* target = __ HeapConstant(callable.code());
-  Node* reg_index = __ BytecodeOperandReg(0);
-  Node* lhs = __ LoadRegister(reg_index);
-  Node* rhs = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallStub(callable.descriptor(), target, context, lhs, rhs);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
 template <class Generator>
 void Interpreter::DoBinaryOp(InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
@@ -1168,35 +1154,35 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::Equal(isolate_), assembler);
+  DoBinaryOp<EqualStub>(assembler);
 }
 
 // TestNotEqual <src>
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::NotEqual(isolate_), assembler);
+  DoBinaryOp<NotEqualStub>(assembler);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::StrictEqual(isolate_), assembler);
+  DoBinaryOp<StrictEqualStub>(assembler);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::LessThan(isolate_), assembler);
+  DoBinaryOp<LessThanStub>(assembler);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::GreaterThan(isolate_), assembler);
+  DoBinaryOp<GreaterThanStub>(assembler);
 }
 
 // TestLessThanOrEqual <src>
@@ -1204,7 +1190,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::LessThanOrEqual(isolate_), assembler);
+  DoBinaryOp<LessThanOrEqualStub>(assembler);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1212,7 +1198,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::GreaterThanOrEqual(isolate_), assembler);
+  DoBinaryOp<GreaterThanOrEqualStub>(assembler);
 }
 
 // TestIn <src>
@@ -1220,7 +1206,7 @@ void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::HasProperty(isolate_), assembler);
+  DoBinaryOp<HasPropertyStub>(assembler);
 }
 
 // TestInstanceOf <src>
@@ -1228,7 +1214,7 @@ void Interpreter::DoTestIn(InterpreterAssembler* assembler) {
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
-  DoBinaryOp(CodeFactory::InstanceOf(isolate_), assembler);
+  DoBinaryOp<InstanceOfStub>(assembler);
 }
 
 // Jump <imm>

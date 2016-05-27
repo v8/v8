@@ -70,9 +70,6 @@ class Interpreter {
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
-  // Generates code to perform the binary operation via |callable|.
-  void DoBinaryOp(Callable callable, InterpreterAssembler* assembler);
-
   // Generates code to perform the binary operation via |Generator|.
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);

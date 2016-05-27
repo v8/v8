@@ -810,7 +810,7 @@ class InstanceOfStub final : public TurboFanCodeStub {
 
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(InstanceOf, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(InstanceOf, TurboFanCodeStub);
 };
 
 class LessThanStub final : public TurboFanCodeStub {
@@ -818,7 +818,7 @@ class LessThanStub final : public TurboFanCodeStub {
   explicit LessThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(LessThan, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(LessThan, TurboFanCodeStub);
 };
 
 class LessThanOrEqualStub final : public TurboFanCodeStub {
@@ -826,7 +826,7 @@ class LessThanOrEqualStub final : public TurboFanCodeStub {
   explicit LessThanOrEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(LessThanOrEqual, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(LessThanOrEqual, TurboFanCodeStub);
 };
 
 class GreaterThanStub final : public TurboFanCodeStub {
@@ -834,7 +834,7 @@ class GreaterThanStub final : public TurboFanCodeStub {
   explicit GreaterThanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(GreaterThan, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(GreaterThan, TurboFanCodeStub);
 };
 
 class GreaterThanOrEqualStub final : public TurboFanCodeStub {
@@ -843,7 +843,7 @@ class GreaterThanOrEqualStub final : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(GreaterThanOrEqual, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(GreaterThanOrEqual, TurboFanCodeStub);
 };
 
 class EqualStub final : public TurboFanCodeStub {
@@ -851,7 +851,7 @@ class EqualStub final : public TurboFanCodeStub {
   explicit EqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(Equal, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(Equal, TurboFanCodeStub);
 };
 
 class NotEqualStub final : public TurboFanCodeStub {
@@ -859,7 +859,7 @@ class NotEqualStub final : public TurboFanCodeStub {
   explicit NotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(NotEqual, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(NotEqual, TurboFanCodeStub);
 };
 
 class StrictEqualStub final : public TurboFanCodeStub {
@@ -867,7 +867,7 @@ class StrictEqualStub final : public TurboFanCodeStub {
   explicit StrictEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(StrictEqual, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(StrictEqual, TurboFanCodeStub);
 };
 
 class StrictNotEqualStub final : public TurboFanCodeStub {
@@ -875,7 +875,7 @@ class StrictNotEqualStub final : public TurboFanCodeStub {
   explicit StrictNotEqualStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
-  DEFINE_TURBOFAN_CODE_STUB(StrictNotEqual, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(StrictNotEqual, TurboFanCodeStub);
 };
 
 class StringEqualStub final : public TurboFanCodeStub {
@@ -986,7 +986,7 @@ class HasPropertyStub : public TurboFanCodeStub {
   explicit HasPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(HasProperty);
-  DEFINE_TURBOFAN_CODE_STUB(HasProperty, TurboFanCodeStub);
+  DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(HasProperty, TurboFanCodeStub);
 };
 
 enum StringAddFlags {
