@@ -843,7 +843,6 @@ namespace internal {
   F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
-  F(StringCharAt, 2, 1)                   \
   F(ExternalStringGetChar, 2, 1)          \
   F(OneByteSeqStringGetChar, 2, 1)        \
   F(OneByteSeqStringSetChar, 3, 1)        \

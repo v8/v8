@@ -12671,20 +12671,6 @@ void HOptimizedGraphBuilder::GenerateStringCharFromCode(CallRuntime* call) {
 }
 
 
-// Fast support for string.charAt(n) and string[n].
-void HOptimizedGraphBuilder::GenerateStringCharAt(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 2);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* index = Pop();
-  HValue* string = Pop();
-  HInstruction* char_code = BuildStringCharCodeAt(string, index);
-  AddInstruction(char_code);
-  HInstruction* result = NewUncasted<HStringCharFromCode>(char_code);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 // Fast support for SubString.
 void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());

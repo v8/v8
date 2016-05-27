@@ -3031,53 +3031,6 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  VisitForStackValue(args->at(0));
-  VisitForAccumulatorValue(args->at(1));
-
-  Register object = r1;
-  Register index = r0;
-  Register scratch = r3;
-  Register result = r0;
-
-  PopOperand(object);
-
-  Label need_conversion;
-  Label index_out_of_range;
-  Label done;
-  StringCharAtGenerator generator(object,
-                                  index,
-                                  scratch,
-                                  result,
-                                  &need_conversion,
-                                  &need_conversion,
-                                  &index_out_of_range,
-                                  STRING_INDEX_IS_NUMBER);
-  generator.GenerateFast(masm_);
-  __ jmp(&done);
-
-  __ bind(&index_out_of_range);
-  // When the index is out of range, the spec requires us to return
-  // the empty string.
-  __ LoadRoot(result, Heap::kempty_stringRootIndex);
-  __ jmp(&done);
-
-  __ bind(&need_conversion);
-  // Move smi zero into the result register, which will trigger
-  // conversion.
-  __ mov(result, Operand(Smi::FromInt(0)));
-  __ jmp(&done);
-
-  NopRuntimeCallHelper call_helper;
-  generator.GenerateSlow(masm_, NOT_PART_OF_IC_HANDLER, call_helper);
-
-  __ bind(&done);
-  context()->Plug(result);
-}
-
-
 void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_LE(2, args->length());

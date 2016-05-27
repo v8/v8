@@ -1255,18 +1255,6 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
   return isolate->heap()->empty_string();
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringCharAt) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  if (!args[0]->IsString()) return Smi::FromInt(0);
-  if (!args[1]->IsNumber()) return Smi::FromInt(0);
-  if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
-  Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
-  if (code->IsNaN()) return isolate->heap()->empty_string();
-  return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
-}
-
 RUNTIME_FUNCTION(Runtime_ExternalStringGetChar) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

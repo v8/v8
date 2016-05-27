@@ -151,15 +151,6 @@ TEST(StringAdd) {
 }
 
 
-TEST(StringCharAt) {
-  FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })", flags);
-
-  T.CheckCall(T.Val("e"), T.Val("huge fan!"), T.Val(3));
-  T.CheckCall(T.Val("f"), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
-  T.CheckCall(T.Val(""), T.Val("not a fan!"), T.Val(23));
-}
-
-
 TEST(StringCharCodeAt) {
   FunctionTester T("(function(a,b) { return %_StringCharCodeAt(a,b); })",
                    flags);
