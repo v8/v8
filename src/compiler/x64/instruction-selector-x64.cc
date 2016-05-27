@@ -1440,7 +1440,7 @@ void InstructionSelector::EmitPrepareArguments(
           g.CanBeImmediate(input.node())
               ? g.UseImmediate(input.node())
               : IsSupported(ATOM) ||
-                        sequence()->IsFloat(GetVirtualRegister(input.node()))
+                        sequence()->IsFP(GetVirtualRegister(input.node()))
                     ? g.UseRegister(input.node())
                     : g.Use(input.node());
       Emit(kX64Push, g.NoOutput(), value);

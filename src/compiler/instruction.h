@@ -1323,8 +1323,16 @@ class InstructionSequence final : public ZoneObject {
     return GetRepresentation(virtual_register) ==
            MachineRepresentation::kTagged;
   }
-  bool IsFloat(int virtual_register) const {
+  bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));
+  }
+  bool IsFloat(int virtual_register) const {
+    return GetRepresentation(virtual_register) ==
+           MachineRepresentation::kFloat32;
+  }
+  bool IsDouble(int virtual_register) const {
+    return GetRepresentation(virtual_register) ==
+           MachineRepresentation::kFloat64;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
