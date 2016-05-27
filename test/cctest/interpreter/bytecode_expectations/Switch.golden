@@ -17,17 +17,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 33
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(1),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrue), U8(7),
@@ -54,17 +54,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 39
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(1),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrue), U8(10),
@@ -93,17 +93,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 37
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(1),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrue), U8(8),
@@ -132,17 +132,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 37
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(2),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(2),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(3),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrue), U8(6),
@@ -171,17 +171,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 45
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
                 B(TypeOf),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(2),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(2),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(3),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrue), U8(10),
@@ -213,18 +213,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(Ldar), R(1),
-                B(TypeOf),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(4),
+  /*   45 S> */ B(TypeOf),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(4),
                 B(Jump), U8(8),
   /*   74 S> */ B(LdaSmi), U8(1),
                 B(Star), R(1),
@@ -317,17 +316,17 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 290
+bytecode array length: 291
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(1),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(2),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(1),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(2),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(2),
                 B(JumpIfTrueConstant), U8(0),
@@ -488,30 +487,28 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 62
+bytecode array length: 60
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(Star), R(2),
   /*   52 E> */ B(Nop),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(3),
-                B(LdaSmi), U8(1),
-                B(TestEqualStrict), R(3),
-                B(JumpIfTrue), U8(10),
+  /*   45 S> */ B(LdaSmi), U8(1),
+                B(TestEqualStrict), R(0),
+                B(Mov), R(0), R(3),
+                B(JumpIfToBooleanTrue), U8(10),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(3),
-                B(JumpIfTrue), U8(36),
-                B(Jump), U8(38),
-  /*   77 E> */ B(Ldar), R(2),
-                B(Star), R(4),
-                B(LdaSmi), U8(1),
-                B(Add), R(4),
+                B(JumpIfTrue), U8(33),
+                B(Jump), U8(35),
+  /*   77 E> */ B(LdaSmi), U8(1),
+                B(Add), R(2),
                 B(Star), R(1),
-  /*   70 S> */ B(Star), R(4),
-                B(LdaSmi), U8(2),
-                B(TestEqualStrict), R(4),
-                B(JumpIfTrue), U8(4),
+  /*   70 S> */ B(LdaSmi), U8(2),
+                B(TestEqualStrict), R(1),
+                B(Mov), R(1), R(4),
+                B(JumpIfToBooleanTrue), U8(4),
                 B(Jump), U8(8),
   /*  101 S> */ B(LdaSmi), U8(1),
                 B(Star), R(2),

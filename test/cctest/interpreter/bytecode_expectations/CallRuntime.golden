@@ -32,14 +32,12 @@ snippet: "
   function f(a) { return %IsArray(a) }
   f(undefined);
 "
-frame size: 1
+frame size: 0
 parameter count: 2
-bytecode array length: 11
+bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   16 S> */ B(Ldar), R(arg0),
-                B(Star), R(0),
-                B(CallRuntime), U16(Runtime::kIsArray), R(0), U8(1),
+  /*   16 S> */ B(CallRuntime), U16(Runtime::kIsArray), R(arg0), U8(1),
   /*   35 S> */ B(Return),
 ]
 constant pool: [

@@ -13,14 +13,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 16
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(1),
-                B(LdaSmi), U8(2),
-                B(Add), R(1),
+  /*   45 S> */ B(LdaSmi), U8(2),
+                B(Add), R(0),
+                B(Mov), R(0), R(1),
   /*   47 E> */ B(Star), R(0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
@@ -36,14 +36,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 16
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(1),
-                B(LdaSmi), U8(2),
-                B(Div), R(1),
+  /*   45 S> */ B(LdaSmi), U8(2),
+                B(Div), R(0),
+                B(Mov), R(0), R(1),
   /*   47 E> */ B(Star), R(0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
@@ -59,17 +59,16 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Star), R(0),
-  /*   54 S> */ B(Star), R(1),
-                B(LdrNamedProperty), R(1), U8(1), U8(1), R(2),
+  /*   54 S> */ B(LdrNamedProperty), R(0), U8(1), U8(1), R(2),
                 B(LdaSmi), U8(2),
                 B(Mul), R(2),
-  /*   61 E> */ B(StaNamedPropertySloppy), R(1), U8(1), U8(3),
+  /*   61 E> */ B(StaNamedPropertySloppy), R(0), U8(1), U8(3),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -86,19 +85,18 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 27
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Star), R(0),
-  /*   52 S> */ B(Star), R(1),
-                B(LdaSmi), U8(1),
+  /*   52 S> */ B(LdaSmi), U8(1),
                 B(Star), R(2),
-                B(LdrKeyedProperty), R(1), U8(1), R(3),
+                B(LdrKeyedProperty), R(0), U8(1), R(3),
                 B(LdaSmi), U8(2),
                 B(BitwiseXor), R(3),
-  /*   57 E> */ B(StaKeyedPropertySloppy), R(1), R(2), U8(3),
+  /*   57 E> */ B(StaKeyedPropertySloppy), R(0), R(2), U8(3),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
 ]

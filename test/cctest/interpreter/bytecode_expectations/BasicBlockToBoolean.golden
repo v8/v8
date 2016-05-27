@@ -11,18 +11,16 @@ wrap: yes
 snippet: "
   var a = 1; if (a || a < 0) { return 1; }
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
-  /*   54 E> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaZero),
-  /*   56 E> */ B(TestLessThan), R(1),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(5),
+  /*   54 E> */ B(LdaZero),
+  /*   56 E> */ B(TestLessThan), R(0),
                 B(JumpIfToBooleanFalse), U8(5),
   /*   63 S> */ B(LdaSmi), U8(1),
   /*   75 S> */ B(Return),
@@ -38,18 +36,16 @@ handlers: [
 snippet: "
   var a = 1; if (a && a < 0) { return 1; }
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 17
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanFalse), U8(9),
-  /*   54 E> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaZero),
-  /*   56 E> */ B(TestLessThan), R(1),
+  /*   45 S> */ B(JumpIfToBooleanFalse), U8(5),
+  /*   54 E> */ B(LdaZero),
+  /*   56 E> */ B(TestLessThan), R(0),
                 B(JumpIfToBooleanFalse), U8(5),
   /*   63 S> */ B(LdaSmi), U8(1),
   /*   75 S> */ B(Return),
@@ -65,18 +61,16 @@ handlers: [
 snippet: "
   var a = 1; a = (a || a < 0) ? 2 : 3;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 22
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   45 S> */ B(JumpIfToBooleanTrue), U8(9),
-  /*   55 E> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaZero),
-  /*   57 E> */ B(TestLessThan), R(1),
+  /*   45 S> */ B(JumpIfToBooleanTrue), U8(5),
+  /*   55 E> */ B(LdaZero),
+  /*   57 E> */ B(TestLessThan), R(0),
                 B(JumpIfToBooleanFalse), U8(6),
                 B(LdaSmi), U8(2),
                 B(Jump), U8(4),

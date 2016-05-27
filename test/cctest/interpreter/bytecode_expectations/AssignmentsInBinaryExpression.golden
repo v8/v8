@@ -68,13 +68,13 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(55),
                 B(Star), R(0),
-  /*   46 S> */ B(Star), R(1),
-                B(LdaSmi), U8(100),
+  /*   46 S> */ B(LdaSmi), U8(100),
+                B(Mov), R(0), R(1),
   /*   57 E> */ B(Star), R(0),
                 B(Add), R(1),
                 B(Star), R(2),
@@ -99,16 +99,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 29
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(55),
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(56),
   /*   53 E> */ B(Star), R(0),
-                B(Star), R(1),
-  /*   61 E> */ B(Ldar), R(0),
-                B(Sub), R(1),
+  /*   61 E> */ B(Sub), R(0),
                 B(Star), R(2),
                 B(LdaSmi), U8(57),
   /*   68 E> */ B(Star), R(0),
@@ -134,13 +132,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 34
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(55),
                 B(Star), R(0),
-  /*   76 S> */ B(Star), R(2),
-                B(LdaSmi), U8(1),
+  /*   76 S> */ B(LdaSmi), U8(1),
+                B(Mov), R(0), R(2),
   /*   61 E> */ B(Star), R(0),
                 B(Add), R(2),
                 B(Star), R(3),
@@ -168,13 +166,13 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 34
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(55),
                 B(Star), R(0),
-  /*   76 S> */ B(Star), R(1),
-                B(LdaSmi), U8(1),
+  /*   76 S> */ B(LdaSmi), U8(1),
+                B(Mov), R(0), R(1),
   /*   61 E> */ B(Star), R(0),
                 B(Add), R(1),
                 B(Star), R(2),
@@ -201,23 +199,20 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 70
+bytecode array length: 65
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
                 B(Star), R(0),
   /*   50 S> */ B(LdaSmi), U8(20),
                 B(Star), R(1),
-  /*   54 S> */ B(Ldar), R(0),
-                B(Star), R(2),
-                B(LdaSmi), U8(1),
+  /*   54 S> */ B(LdaSmi), U8(1),
+                B(Mov), R(0), R(2),
   /*   68 E> */ B(Star), R(0),
                 B(Add), R(2),
                 B(Star), R(3),
-  /*   76 E> */ B(Ldar), R(0),
-                B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(Add), R(2),
+  /*   76 E> */ B(LdaSmi), U8(1),
+                B(Add), R(0),
                 B(Star), R(4),
                 B(LdaSmi), U8(2),
   /*   88 E> */ B(Star), R(1),

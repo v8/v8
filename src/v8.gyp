@@ -904,6 +904,8 @@
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register-allocator.cc',
         'interpreter/bytecode-register-allocator.h',
+        'interpreter/bytecode-register-optimizer.cc',
+        'interpreter/bytecode-register-optimizer.h',
         'interpreter/bytecode-generator.cc',
         'interpreter/bytecode-generator.h',
         'interpreter/bytecode-traits.h',

@@ -47,6 +47,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(smi_1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
+      .BinaryOperation(Token::Value::ADD, reg_0)
       .StoreAccumulatorInRegister(reg_1)
       .LoadNamedProperty(reg_1, name, feedback_slot)
       .BinaryOperation(Token::Value::ADD, reg_0)
@@ -154,6 +155,15 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdar, OperandScale::kSingle);
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kAdd);
+  CHECK_EQ(iterator.current_offset(), offset);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
+  CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
+  CHECK_EQ(iterator.GetRegisterOperandRange(0), 1);
+  CHECK(!iterator.done());
+  offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);

@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 39
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
@@ -22,8 +22,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
-                B(Ldar), R(closure),
-                B(Star), R(4),
+                B(Mov), R(closure), R(4),
                 B(CallRuntime), U16(Runtime::kPushCatchContext), R(2), U8(3),
                 B(Star), R(1),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
@@ -50,18 +49,17 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 81
+bytecode array length: 79
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(2),
   /*   47 S> */ B(LdaSmi), U8(1),
   /*   49 E> */ B(Star), R(0),
-                B(Jump), U8(30),
+                B(Jump), U8(29),
                 B(Star), R(4),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
-                B(Ldar), R(closure),
-                B(Star), R(5),
+                B(Mov), R(closure), R(5),
                 B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
@@ -71,12 +69,11 @@ bytecodes: [
                 B(Mov), R(context), R(2),
   /*   75 S> */ B(LdaSmi), U8(2),
   /*   77 E> */ B(Star), R(0),
-                B(Jump), U8(34),
+                B(Jump), U8(33),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
-                B(Ldar), R(closure),
-                B(Star), R(5),
+                B(Mov), R(closure), R(5),
                 B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
@@ -94,6 +91,6 @@ constant pool: [
 ]
 handlers: [
   [4, 8, 10],
-  [41, 45, 47],
+  [40, 44, 46],
 ]
 

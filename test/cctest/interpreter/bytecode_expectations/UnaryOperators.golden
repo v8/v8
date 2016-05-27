@@ -15,26 +15,22 @@ snippet: "
   }
   return x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 23
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
   /*   42 E> */ B(Star), R(0),
-  /*   54 S> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaSmi), U8(10),
-  /*   54 E> */ B(TestEqual), R(1),
+  /*   54 S> */ B(LdaSmi), U8(10),
+  /*   54 E> */ B(TestEqual), R(0),
                 B(LogicalNot),
-                B(JumpIfFalse), U8(15),
+                B(JumpIfFalse), U8(11),
   /*   45 E> */ B(StackCheck),
-  /*   65 S> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaSmi), U8(10),
-                B(Add), R(1),
+  /*   65 S> */ B(LdaSmi), U8(10),
+                B(Add), R(0),
   /*   67 E> */ B(Star), R(0),
-                B(Jump), U8(-22),
+                B(Jump), U8(-14),
   /*   79 S> */ B(Ldar), R(0),
   /*   89 S> */ B(Return),
 ]
@@ -51,9 +47,9 @@ snippet: "
   } while(x == false);
   return x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 18
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaFalse),
@@ -62,11 +58,9 @@ bytecodes: [
   /*   56 S> */ B(Ldar), R(0),
                 B(ToBooleanLogicalNot),
   /*   58 E> */ B(Star), R(0),
-  /*   74 S> */ B(Ldar), R(0),
-                B(Star), R(1),
-                B(LdaFalse),
-  /*   74 E> */ B(TestEqual), R(1),
-                B(JumpIfTrue), U8(-13),
+  /*   74 S> */ B(LdaFalse),
+  /*   74 E> */ B(TestEqual), R(0),
+                B(JumpIfTrue), U8(-9),
   /*   85 S> */ B(Ldar), R(0),
   /*   95 S> */ B(Return),
 ]
@@ -80,16 +74,15 @@ snippet: "
   var x = 101;
   return void(x * 3);
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(101),
                 B(Star), R(0),
-  /*   47 S> */ B(Star), R(1),
-                B(LdaSmi), U8(3),
-                B(Mul), R(1),
+  /*   47 S> */ B(LdaSmi), U8(3),
+                B(Mul), R(0),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -106,14 +99,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 22
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), U16(1234),
                 B(Star), R(0),
-  /*   56 S> */ B(Star), R(2),
-  /*   66 E> */ B(Ldar), R(0),
-                B(Mul), R(2),
+  /*   56 S> */ B(Nop),
+  /*   66 E> */ B(Mul), R(0),
                 B(Star), R(3),
                 B(LdaSmi), U8(1),
                 B(Sub), R(3),
@@ -132,16 +124,15 @@ snippet: "
   var x = 13;
   return ~x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Star), R(1),
-                B(LdaSmi), U8(-1),
-                B(BitwiseXor), R(1),
+  /*   46 S> */ B(LdaSmi), U8(-1),
+                B(BitwiseXor), R(0),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -154,16 +145,15 @@ snippet: "
   var x = 13;
   return +x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Star), R(1),
-                B(LdaSmi), U8(1),
-                B(Mul), R(1),
+  /*   46 S> */ B(LdaSmi), U8(1),
+                B(Mul), R(0),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -176,16 +166,15 @@ snippet: "
   var x = 13;
   return -x;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(Star), R(1),
-                B(LdaSmi), U8(-1),
-                B(Mul), R(1),
+  /*   46 S> */ B(LdaSmi), U8(-1),
+                B(Mul), R(0),
   /*   57 S> */ B(Return),
 ]
 constant pool: [

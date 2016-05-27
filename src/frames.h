@@ -325,6 +325,8 @@ class InterpreterFrameConstants : public AllStatic {
 
   // FP-relative.
   static const int kLastParamFromFp = StandardFrameConstants::kCallerSPOffset;
+  static const int kCallerPCOffsetFromFp =
+      StandardFrameConstants::kCallerPCOffset;
   static const int kNewTargetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
   static const int kBytecodeArrayFromFp =

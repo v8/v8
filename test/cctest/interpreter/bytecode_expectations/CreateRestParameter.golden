@@ -15,12 +15,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   26 S> */ B(Ldar), R(0),
+  /*   26 S> */ B(Nop),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -35,15 +35,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 14
+bytecode array length: 13
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
                 B(LdaTheHole),
                 B(Star), R(1),
   /*   10 E> */ B(StackCheck),
-                B(Ldar), R(arg0),
-                B(Star), R(1),
+                B(Mov), R(arg0), R(1),
   /*   29 S> */ B(Ldar), R(0),
   /*   46 S> */ B(Return),
 ]
@@ -57,21 +56,19 @@ snippet: "
   function f(a, ...restArgs) { return restArgs[0]; }
   f();
 "
-frame size: 3
+frame size: 2
 parameter count: 2
-bytecode array length: 20
+bytecode array length: 16
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
                 B(LdaTheHole),
                 B(Star), R(1),
   /*   10 E> */ B(StackCheck),
-                B(Ldar), R(arg0),
-                B(Star), R(1),
-  /*   29 S> */ B(Ldar), R(0),
-                B(Star), R(2),
+                B(Mov), R(arg0), R(1),
+  /*   29 S> */ B(Nop),
   /*   44 E> */ B(LdaZero),
-                B(LdaKeyedProperty), R(2), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -86,7 +83,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 34
+bytecode array length: 29
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
@@ -95,16 +92,14 @@ bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(2),
   /*   10 E> */ B(StackCheck),
-                B(Ldar), R(arg0),
-                B(Star), R(2),
-  /*   29 S> */ B(Ldar), R(1),
-                B(Star), R(3),
+                B(Mov), R(arg0), R(2),
+  /*   29 S> */ B(Nop),
   /*   44 E> */ B(LdaZero),
-                B(LdrKeyedProperty), R(3), U8(1), R(4),
-  /*   50 E> */ B(Ldar), R(0),
-                B(Star), R(3),
+                B(LdrKeyedProperty), R(1), U8(1), R(4),
+                B(Ldar), R(4),
+  /*   50 E> */ B(Nop),
   /*   59 E> */ B(LdaZero),
-                B(LdaKeyedProperty), R(3), U8(3),
+                B(LdaKeyedProperty), R(0), U8(3),
                 B(Add), R(4),
   /*   64 S> */ B(Return),
 ]

@@ -24,14 +24,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 56
+bytecode array length: 55
 bytecodes: [
-                B(Ldar), R(closure),
-                B(Star), R(0),
+                B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
-  /*  104 S> */ B(Ldar), R(this),
-                B(Star), R(3),
-  /*  111 E> */ B(Ldar), R(0),
+  /*  104 S> */ B(Nop),
+  /*  111 E> */ B(Ldar), R(closure),
+                B(Mov), R(this), R(3),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(6),
@@ -75,14 +74,13 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 78
+bytecode array length: 77
 bytecodes: [
-                B(Ldar), R(closure),
-                B(Star), R(0),
+                B(Mov), R(closure), R(0),
   /*  125 E> */ B(StackCheck),
-  /*  130 S> */ B(Ldar), R(this),
-                B(Star), R(1),
-  /*  130 E> */ B(Ldar), R(0),
+  /*  130 S> */ B(Nop),
+  /*  130 E> */ B(Ldar), R(closure),
+                B(Mov), R(this), R(1),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(5),
@@ -95,9 +93,9 @@ bytecodes: [
                 B(LdaSmi), U8(2),
   /*  138 E> */ B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kStoreToSuper_Strict), R(1), U8(4),
-  /*  143 S> */ B(Ldar), R(this),
-                B(Star), R(1),
+  /*  143 S> */ B(Nop),
   /*  150 E> */ B(Ldar), R(0),
+                B(Mov), R(this), R(1),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -133,14 +131,12 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 105
 bytecodes: [
-                B(Ldar), R(closure),
-                B(Star), R(1),
-                B(Ldar), R(new_target),
-                B(Star), R(0),
+                B(Mov), R(closure), R(1),
+                B(Mov), R(new_target), R(0),
   /*  113 E> */ B(StackCheck),
-  /*  118 S> */ B(Ldar), R(1),
+  /*  118 S> */ B(Ldar), R(closure),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -163,9 +159,9 @@ bytecodes: [
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
-                B(Ldar), R(2),
-                B(Star), R(this),
-  /*  128 S> */ B(JumpIfNotHole), U8(11),
+                B(Mov), R(2), R(this),
+  /*  128 S> */ B(Ldar), R(this),
+                B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(2),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
@@ -203,14 +199,12 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 102
+bytecode array length: 101
 bytecodes: [
-                B(Ldar), R(closure),
-                B(Star), R(1),
-                B(Ldar), R(new_target),
-                B(Star), R(0),
+                B(Mov), R(closure), R(1),
+                B(Mov), R(new_target), R(0),
   /*  112 E> */ B(StackCheck),
-  /*  117 S> */ B(Ldar), R(1),
+  /*  117 S> */ B(Ldar), R(closure),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -231,9 +225,9 @@ bytecodes: [
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
-                B(Ldar), R(2),
-                B(Star), R(this),
-  /*  126 S> */ B(JumpIfNotHole), U8(11),
+                B(Mov), R(2), R(this),
+  /*  126 S> */ B(Ldar), R(this),
+                B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(2),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),

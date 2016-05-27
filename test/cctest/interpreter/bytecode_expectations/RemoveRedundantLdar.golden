@@ -16,25 +16,23 @@ snippet: "
   }
   return ld_a;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(1),
   /*   45 E> */ B(Star), R(0),
   /*   48 E> */ B(StackCheck),
-  /*   64 S> */ B(Ldar), R(0),
-                B(Star), R(1),
+  /*   64 S> */ B(Nop),
   /*   78 E> */ B(Ldar), R(0),
-                B(Add), R(1),
+                B(Add), R(0),
                 B(Star), R(0),
-  /*   86 S> */ B(Star), R(1),
-                B(LdaSmi), U8(10),
-  /*   95 E> */ B(TestGreaterThan), R(1),
+  /*   86 S> */ B(LdaSmi), U8(10),
+  /*   95 E> */ B(TestGreaterThan), R(0),
                 B(JumpIfFalse), U8(4),
   /*  101 S> */ B(Jump), U8(4),
-                B(Jump), U8(-21),
+                B(Jump), U8(-16),
   /*  110 S> */ B(Ldar), R(0),
   /*  123 S> */ B(Return),
 ]
@@ -52,22 +50,20 @@ snippet: "
   } while(false);
   return ld_a;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(1),
   /*   45 E> */ B(Star), R(0),
   /*   48 E> */ B(StackCheck),
-  /*   55 S> */ B(Ldar), R(0),
-                B(Star), R(1),
+  /*   55 S> */ B(Nop),
   /*   69 E> */ B(Ldar), R(0),
-                B(Add), R(1),
+                B(Add), R(0),
                 B(Star), R(0),
-  /*   77 S> */ B(Star), R(1),
-                B(LdaSmi), U8(10),
-  /*   86 E> */ B(TestGreaterThan), R(1),
+  /*   77 S> */ B(LdaSmi), U8(10),
+  /*   86 E> */ B(TestGreaterThan), R(0),
                 B(JumpIfFalse), U8(4),
   /*   92 S> */ B(Jump), U8(2),
   /*  118 S> */ B(Ldar), R(0),
@@ -84,16 +80,15 @@ snippet: "
     ld_a = ld_a + ld_a;
     return ld_a;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-  /*   50 S> */ B(Star), R(1),
-  /*   64 E> */ B(Ldar), R(0),
-                B(Add), R(1),
+  /*   50 S> */ B(Nop),
+  /*   64 E> */ B(Add), R(0),
                 B(Star), R(0),
   /*   72 S> */ B(Nop),
   /*   85 S> */ B(Return),

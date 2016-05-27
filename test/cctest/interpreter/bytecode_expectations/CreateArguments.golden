@@ -15,12 +15,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(Ldar), R(0),
+  /*   15 S> */ B(Nop),
   /*   33 S> */ B(Return),
 ]
 constant pool: [
@@ -33,17 +33,16 @@ snippet: "
   function f() { return arguments[0]; }
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 10
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(Ldar), R(0),
-                B(Star), R(1),
+  /*   15 S> */ B(Nop),
   /*   31 E> */ B(LdaZero),
-                B(LdaKeyedProperty), R(1), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
@@ -58,12 +57,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   29 S> */ B(Ldar), R(0),
+  /*   29 S> */ B(Nop),
   /*   47 S> */ B(Return),
 ]
 constant pool: [
@@ -76,9 +75,9 @@ snippet: "
   function f(a) { return arguments[0]; }
   f();
 "
-frame size: 3
+frame size: 2
 parameter count: 2
-bytecode array length: 25
+bytecode array length: 22
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(1),
@@ -87,10 +86,9 @@ bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   16 S> */ B(Ldar), R(0),
-                B(Star), R(2),
+  /*   16 S> */ B(Nop),
   /*   32 E> */ B(LdaZero),
-                B(LdaKeyedProperty), R(2), U8(1),
+                B(LdaKeyedProperty), R(0), U8(1),
   /*   37 S> */ B(Return),
 ]
 constant pool: [
@@ -105,7 +103,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 29
+bytecode array length: 28
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(1),
@@ -118,7 +116,7 @@ bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   22 S> */ B(Ldar), R(0),
+  /*   22 S> */ B(Nop),
   /*   40 S> */ B(Return),
 ]
 constant pool: [
@@ -133,12 +131,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 4
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
                 B(CreateUnmappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
-  /*   36 S> */ B(Ldar), R(0),
+  /*   36 S> */ B(Nop),
   /*   54 S> */ B(Return),
 ]
 constant pool: [

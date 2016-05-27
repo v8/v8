@@ -16,11 +16,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
   /*   21 E> */ B(StackCheck),
-                B(Ldar), R(closure),
-                B(Star), R(0),
+                B(Mov), R(closure), R(0),
                 B(LdaUndefined),
   /*   25 S> */ B(Return),
 ]
@@ -40,9 +39,8 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*   21 E> */ B(StackCheck),
-                B(Ldar), R(closure),
-                B(Star), R(0),
-  /*   26 S> */ B(Nop),
+                B(Mov), R(closure), R(0),
+  /*   26 S> */ B(Ldar), R(0),
   /*   36 S> */ B(Return),
 ]
 constant pool: [

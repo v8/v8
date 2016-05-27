@@ -89,7 +89,7 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
     return operand_types;
   }
 
-  static OperandSize GetOperandSize(int i, OperandScale operand_scale) {
+  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
     switch (operand_scale) {
 #define CASE(Name, _)                                                  \
   case OperandScale::k##Name: {                                        \
@@ -99,14 +99,13 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
         OperandScaler<operand_2, OperandScale::k##Name>::kOperandSize, \
         OperandScaler<operand_3, OperandScale::k##Name>::kOperandSize, \
     };                                                                 \
-    DCHECK_LT(static_cast<size_t>(i), arraysize(kOperandSizes));       \
-    return kOperandSizes[i];                                           \
+    return kOperandSizes;                                              \
   }
       OPERAND_SCALE_LIST(CASE)
 #undef CASE
     }
     UNREACHABLE();
-    return OperandSize::kNone;
+    return nullptr;
   }
 
   template <OperandType ot>
@@ -145,7 +144,7 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
     return operand_types;
   }
 
-  static OperandSize GetOperandSize(int i, OperandScale operand_scale) {
+  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
     switch (operand_scale) {
 #define CASE(Name, _)                                                  \
   case OperandScale::k##Name: {                                        \
@@ -154,14 +153,13 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
         OperandScaler<operand_1, OperandScale::k##Name>::kOperandSize, \
         OperandScaler<operand_2, OperandScale::k##Name>::kOperandSize, \
     };                                                                 \
-    DCHECK_LT(static_cast<size_t>(i), arraysize(kOperandSizes));       \
-    return kOperandSizes[i];                                           \
+    return kOperandSizes;                                              \
   }
       OPERAND_SCALE_LIST(CASE)
 #undef CASE
     }
     UNREACHABLE();
-    return OperandSize::kNone;
+    return nullptr;
   }
 
   template <OperandType ot>
@@ -196,7 +194,7 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
     return operand_types;
   }
 
-  static OperandSize GetOperandSize(int i, OperandScale operand_scale) {
+  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
     switch (operand_scale) {
 #define CASE(Name, _)                                                  \
   case OperandScale::k##Name: {                                        \
@@ -204,14 +202,13 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
         OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
         OperandScaler<operand_1, OperandScale::k##Name>::kOperandSize, \
     };                                                                 \
-    DCHECK_LT(static_cast<size_t>(i), arraysize(kOperandSizes));       \
-    return kOperandSizes[i];                                           \
+    return kOperandSizes;                                              \
   }
       OPERAND_SCALE_LIST(CASE)
 #undef CASE
     }
     UNREACHABLE();
-    return OperandSize::kNone;
+    return nullptr;
   }
 
   template <OperandType ot>
@@ -241,21 +238,20 @@ struct BytecodeTraits<accumulator_use, operand_0> {
     return operand_types;
   }
 
-  static OperandSize GetOperandSize(int i, OperandScale operand_scale) {
+  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
     switch (operand_scale) {
 #define CASE(Name, _)                                                  \
   case OperandScale::k##Name: {                                        \
     static const OperandSize kOperandSizes[] = {                       \
         OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
     };                                                                 \
-    DCHECK_LT(static_cast<size_t>(i), arraysize(kOperandSizes));       \
-    return kOperandSizes[i];                                           \
+    return kOperandSizes;                                              \
   }
       OPERAND_SCALE_LIST(CASE)
 #undef CASE
     }
     UNREACHABLE();
-    return OperandSize::kNone;
+    return nullptr;
   }
 
   template <OperandType ot>
@@ -282,9 +278,8 @@ struct BytecodeTraits<accumulator_use> {
     return operand_types;
   }
 
-  static OperandSize GetOperandSize(int i, OperandScale operand_scale) {
-    UNREACHABLE();
-    return OperandSize::kNone;
+  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
+    return nullptr;
   }
 
   template <OperandType ot>

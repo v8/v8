@@ -12,6 +12,8 @@ namespace internal {
 namespace interpreter {
 
 void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
+  if (!entry.is_valid()) return;
+
   if (!is_valid() || (entry.is_statement() && !is_statement()) ||
       (entry.is_statement() && is_statement() &&
        entry.source_position() > source_position())) {
@@ -73,6 +75,15 @@ BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
   operands_[2] = operand2;
   operands_[3] = operand3;
   operand_scale_ = operand_scale;
+}
+
+BytecodeNode::BytecodeNode(const BytecodeNode& other) {
+  memcpy(this, &other, sizeof(other));
+}
+
+BytecodeNode& BytecodeNode::operator=(const BytecodeNode& other) {
+  memcpy(this, &other, sizeof(other));
+  return *this;
 }
 
 void BytecodeNode::set_bytecode(Bytecode bytecode) {

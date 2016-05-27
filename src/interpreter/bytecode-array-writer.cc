@@ -54,10 +54,12 @@ void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
 
   int register_operand_bitmap = Bytecodes::GetRegisterOperandBitmap(bytecode);
   const uint32_t* const operands = node->operands();
+  const OperandSize* operand_sizes =
+      Bytecodes::GetOperandSizes(bytecode, operand_scale);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
   for (int i = 0; operand_types[i] != OperandType::kNone; ++i) {
     OperandType operand_type = operand_types[i];
-    switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
+    switch (operand_sizes[i]) {
       case OperandSize::kNone:
         UNREACHABLE();
         break;

@@ -13,15 +13,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Star), R(0),
-  /*   56 S> */ B(Star), R(1),
-                B(LdaConstant), U8(1),
-                B(DeletePropertySloppy), R(1),
+  /*   56 S> */ B(LdaConstant), U8(1),
+                B(DeletePropertySloppy), R(0),
   /*   75 S> */ B(Return),
 ]
 constant pool: [
@@ -37,15 +36,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Star), R(0),
-  /*   70 S> */ B(Star), R(1),
-                B(LdaConstant), U8(1),
-                B(DeletePropertyStrict), R(1),
+  /*   70 S> */ B(LdaConstant), U8(1),
+                B(DeletePropertyStrict), R(0),
   /*   89 S> */ B(Return),
 ]
 constant pool: [
@@ -61,15 +59,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(1),
                 B(Star), R(0),
-  /*   56 S> */ B(Star), R(1),
-                B(LdaSmi), U8(2),
-                B(DeletePropertySloppy), R(1),
+  /*   56 S> */ B(LdaSmi), U8(2),
+                B(DeletePropertySloppy), R(0),
   /*   76 S> */ B(Return),
 ]
 constant pool: [

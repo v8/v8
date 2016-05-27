@@ -7,6 +7,7 @@
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
+#include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 
 namespace v8 {
@@ -38,6 +39,11 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
   if (FLAG_ignition_peephole) {
     pipeline_ = new (zone)
         BytecodePeepholeOptimizer(&constant_array_builder_, pipeline_);
+  }
+
+  if (FLAG_ignition_reo) {
+    pipeline_ = new (zone) BytecodeRegisterOptimizer(
+        zone, &temporary_allocator_, parameter_count, pipeline_);
   }
 
   return_position_ =

@@ -88,6 +88,9 @@ class BytecodeNode final : ZoneObject {
                uint32_t operand2, uint32_t operand3,
                OperandScale operand_scale);
 
+  BytecodeNode(const BytecodeNode& other);
+  BytecodeNode& operator=(const BytecodeNode& other);
+
   void set_bytecode(Bytecode bytecode);
   void set_bytecode(Bytecode bytecode, uint32_t operand0,
                     OperandScale operand_scale);
@@ -117,6 +120,9 @@ class BytecodeNode final : ZoneObject {
 
   int operand_count() const { return Bytecodes::NumberOfOperands(bytecode_); }
   OperandScale operand_scale() const { return operand_scale_; }
+  void set_operand_scale(OperandScale operand_scale) {
+    operand_scale_ = operand_scale;
+  }
 
   const BytecodeSourceInfo& source_info() const { return source_info_; }
   BytecodeSourceInfo& source_info() { return source_info_; }

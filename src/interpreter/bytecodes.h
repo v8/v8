@@ -387,6 +387,11 @@ class Register final {
   static Register bytecode_offset();
   bool is_bytecode_offset() const;
 
+  // Returns a register that can be used to represent the accumulator
+  // within code in the interpreter, but should never be emitted in
+  // bytecode.
+  static Register virtual_accumulator();
+
   OperandSize SizeOfOperand() const;
 
   int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
@@ -504,6 +509,10 @@ class Bytecodes {
   // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
                                     OperandScale operand_scale);
+
+  // Returns a pointer to an array of the operand sizes for |bytecode|.
+  static const OperandSize* GetOperandSizes(Bytecode bytecode,
+                                            OperandScale operand_scale);
 
   // Returns the offset of the i-th operand of |bytecode| relative to the start
   // of the bytecode.
@@ -642,9 +651,10 @@ class Bytecodes {
 
   // Return the OperandScale required for bytecode emission of
   // operand sizes.
+  static OperandScale OperandSizesToScale(OperandSize size0);
+  static OperandScale OperandSizesToScale(OperandSize size0, OperandSize size1);
   static OperandScale OperandSizesToScale(
-      OperandSize size0, OperandSize size1 = OperandSize::kByte,
-      OperandSize size2 = OperandSize::kByte,
+      OperandSize size0, OperandSize size1, OperandSize size2,
       OperandSize size3 = OperandSize::kByte);
 
  private:

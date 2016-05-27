@@ -59,7 +59,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 28
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
@@ -71,8 +71,8 @@ bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
-                B(Ldar), R(1),
-                B(Star), R(0),
+                B(Mov), R(1), R(0),
+                B(Ldar), R(0),
                 B(LdaUndefined),
   /*   52 S> */ B(Return),
 ]
@@ -88,7 +88,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 30
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
@@ -102,8 +102,7 @@ bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
-                B(Ldar), R(1),
-                B(Star), R(0),
+                B(Mov), R(1), R(0),
                 B(LdaUndefined),
   /*   54 S> */ B(Return),
 ]

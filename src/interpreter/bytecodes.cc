@@ -301,16 +301,23 @@ const OperandType* Bytecodes::GetOperandTypes(Bytecode bytecode) {
 // static
 OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i,
                                       OperandScale operand_scale) {
+  DCHECK_LT(i, NumberOfOperands(bytecode));
+  return GetOperandSizes(bytecode, operand_scale)[i];
+}
+
+// static
+const OperandSize* Bytecodes::GetOperandSizes(Bytecode bytecode,
+                                              OperandScale operand_scale) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
-    return BytecodeTraits<__VA_ARGS__>::GetOperandSize(i, operand_scale);
+    return BytecodeTraits<__VA_ARGS__>::GetOperandSizes(operand_scale);
     BYTECODE_LIST(CASE)
 #undef CASE
   }
   UNREACHABLE();
-  return OperandSize::kNone;
+  return nullptr;
 }
 
 // static
@@ -619,6 +626,33 @@ OperandSize Bytecodes::SizeForUnsignedOperand(size_t value) {
   }
 }
 
+OperandScale Bytecodes::OperandSizesToScale(OperandSize size0) {
+  OperandScale operand_scale = static_cast<OperandScale>(size0);
+  DCHECK(operand_scale == OperandScale::kSingle ||
+         operand_scale == OperandScale::kDouble ||
+         operand_scale == OperandScale::kQuadruple);
+  return operand_scale;
+}
+
+OperandScale Bytecodes::OperandSizesToScale(OperandSize size0,
+                                            OperandSize size1) {
+  OperandSize operand_size = std::max(size0, size1);
+  // Operand sizes have been scaled before calling this function.
+  // Currently all scalable operands are byte sized at
+  // OperandScale::kSingle.
+  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
+                    static_cast<int>(OperandScale::kSingle) &&
+                static_cast<int>(OperandSize::kShort) ==
+                    static_cast<int>(OperandScale::kDouble) &&
+                static_cast<int>(OperandSize::kQuad) ==
+                    static_cast<int>(OperandScale::kQuadruple));
+  OperandScale operand_scale = static_cast<OperandScale>(operand_size);
+  DCHECK(operand_scale == OperandScale::kSingle ||
+         operand_scale == OperandScale::kDouble ||
+         operand_scale == OperandScale::kQuadruple);
+  return operand_scale;
+}
+
 OperandScale Bytecodes::OperandSizesToScale(OperandSize size0,
                                             OperandSize size1,
                                             OperandSize size2,
@@ -830,6 +864,10 @@ static const int kBytecodeOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kBytecodeOffsetFromFp) /
     kPointerSize;
+static const int kCallerPCOffsetRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kCallerPCOffsetFromFp) /
+    kPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
@@ -880,6 +918,11 @@ Register Register::bytecode_offset() {
 
 bool Register::is_bytecode_offset() const {
   return index() == kBytecodeOffsetRegisterIndex;
+}
+
+// static
+Register Register::virtual_accumulator() {
+  return Register(kCallerPCOffsetRegisterIndex);
 }
 
 OperandSize Register::SizeOfOperand() const {

@@ -31,16 +31,15 @@ handlers: [
 snippet: "
   var x = 0; return (x == 1) || 3;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 13
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(1),
-                B(LdaSmi), U8(1),
-  /*   55 E> */ B(TestEqual), R(1),
+  /*   45 S> */ B(LdaSmi), U8(1),
+  /*   55 E> */ B(TestEqual), R(0),
                 B(JumpIfTrue), U8(4),
                 B(LdaSmi), U8(3),
   /*   67 S> */ B(Return),
@@ -74,16 +73,15 @@ handlers: [
 snippet: "
   var x = 0; return (x == 0) && 3;
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   45 S> */ B(Star), R(1),
-                B(LdaZero),
-  /*   55 E> */ B(TestEqual), R(1),
+  /*   45 S> */ B(LdaZero),
+  /*   55 E> */ B(TestEqual), R(0),
                 B(JumpIfFalse), U8(4),
                 B(LdaSmi), U8(3),
   /*   67 S> */ B(Return),
@@ -119,7 +117,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 27
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(2),
@@ -129,10 +127,10 @@ bytecodes: [
   /*   56 S> */ B(LdaSmi), U8(4),
                 B(Star), R(2),
   /*   59 S> */ B(Ldar), R(0),
-                B(JumpIfToBooleanTrue), U8(14),
-  /*   72 E> */ B(Ldar), R(0),
-  /*   75 E> */ B(Ldar), R(1),
-  /*   78 E> */ B(Ldar), R(0),
+                B(JumpIfToBooleanTrue), U8(11),
+  /*   72 E> */ B(Nop),
+  /*   75 E> */ B(Nop),
+  /*   78 E> */ B(Nop),
   /*   81 E> */ B(LdaSmi), U8(5),
   /*   86 E> */ B(Star), R(2),
                 B(LdaSmi), U8(3),
@@ -551,9 +549,9 @@ snippet: "
     a = 1, b = 2, 
     a = 1, b = 2, 3);
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 282
+bytecode array length: 278
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -562,10 +560,8 @@ bytecodes: [
                 B(Star), R(1),
   /*   60 S> */ B(LdaSmi), U8(3),
                 B(Star), R(2),
-  /*   63 S> */ B(Ldar), R(0),
-                B(Star), R(3),
-                B(LdaSmi), U8(3),
-  /*   73 E> */ B(TestGreaterThan), R(3),
+  /*   63 S> */ B(LdaSmi), U8(3),
+  /*   73 E> */ B(TestGreaterThan), R(0),
                 B(JumpIfTrueConstant), U8(0),
                 B(LdaSmi), U8(1),
   /*   87 E> */ B(Star), R(1),
@@ -740,9 +736,9 @@ snippet: "
     a = 1, b = 2, 
     a = 1, b = 2, 3);
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 281
+bytecode array length: 277
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
@@ -751,10 +747,8 @@ bytecodes: [
                 B(Star), R(1),
   /*   60 S> */ B(LdaSmi), U8(3),
                 B(Star), R(2),
-  /*   63 S> */ B(Ldar), R(0),
-                B(Star), R(3),
-                B(LdaSmi), U8(5),
-  /*   73 E> */ B(TestLessThan), R(3),
+  /*   63 S> */ B(LdaSmi), U8(5),
+  /*   73 E> */ B(TestLessThan), R(0),
                 B(JumpIfFalseConstant), U8(0),
                 B(LdaSmi), U8(1),
   /*   87 E> */ B(Star), R(1),

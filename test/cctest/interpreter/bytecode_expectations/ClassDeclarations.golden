@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 74
+bytecode array length: 72
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(1),
@@ -34,8 +34,6 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
                 B(Star), R(2),
                 B(LdrNamedProperty), R(2), U8(1), U8(1), R(3),
-                B(Ldar), R(3),
-                B(Mov), R(3), R(4),
                 B(LdaConstant), U8(2),
                 B(Star), R(5),
                 B(CreateClosure), U8(3), U8(0),
@@ -44,6 +42,7 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(Star), R(8),
+                B(Mov), R(3), R(4),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(5),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(Star), R(0),
@@ -69,7 +68,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 74
+bytecode array length: 72
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(1),
@@ -87,8 +86,6 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
                 B(Star), R(2),
                 B(LdrNamedProperty), R(2), U8(1), U8(1), R(3),
-                B(Ldar), R(3),
-                B(Mov), R(3), R(4),
                 B(LdaConstant), U8(2),
                 B(Star), R(5),
                 B(CreateClosure), U8(3), U8(0),
@@ -97,6 +94,7 @@ bytecodes: [
                 B(Star), R(7),
                 B(LdaZero),
                 B(Star), R(8),
+                B(Mov), R(3), R(4),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(5),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(Star), R(0),
@@ -124,7 +122,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 128
+bytecode array length: 126
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(2),
@@ -148,8 +146,6 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
                 B(Star), R(3),
                 B(LdrNamedProperty), R(3), U8(3), U8(1), R(4),
-                B(Ldar), R(4),
-                B(Mov), R(4), R(5),
   /*   75 E> */ B(LdaContextSlot), R(context), U8(4),
                 B(ToName),
                 B(Star), R(6),
@@ -159,14 +155,15 @@ bytecodes: [
                 B(Star), R(8),
                 B(LdaSmi), U8(1),
                 B(Star), R(9),
+                B(Mov), R(4), R(5),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(5),
-                B(Mov), R(3), R(5),
   /*  106 E> */ B(LdaContextSlot), R(context), U8(5),
                 B(ToName),
                 B(Star), R(6),
                 B(LdaConstant), U8(3),
                 B(TestEqualStrict), R(6),
-                B(JumpIfFalse), U8(7),
+                B(Mov), R(3), R(5),
+                B(JumpIfToBooleanFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
                 B(CreateClosure), U8(5), U8(0),
                 B(Star), R(7),

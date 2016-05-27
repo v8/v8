@@ -105,7 +105,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 47
+bytecode array length: 46
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
@@ -116,8 +116,7 @@ bytecodes: [
   /*   56 E> */ B(StaContextSlot), R(context), U8(4),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
-                B(Ldar), R(closure),
-                B(Star), R(3),
+                B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kPushBlockContext), R(2), U8(2),
                 B(PushContext), R(1),
                 B(LdaTheHole),

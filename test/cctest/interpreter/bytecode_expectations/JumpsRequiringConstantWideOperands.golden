@@ -329,7 +329,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 1422
+bytecode array length: 1410
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -958,22 +958,16 @@ bytecodes: [
                 B(Star), R(0),
   /* 4103 S> */ B(LdaZero),
   /* 4103 E> */ B(Star), R(1),
-  /* 4108 S> */ B(Ldar), R(1),
-                B(Star), R(2),
-                B(LdaSmi), U8(3),
-  /* 4108 E> */ B(TestLessThan), R(2),
-                B(Wide), B(JumpIfFalse), U16(46),
+  /* 4108 S> */ B(LdaSmi), U8(3),
+  /* 4108 E> */ B(TestLessThan), R(1),
+                B(Wide), B(JumpIfFalse), U16(38),
   /* 4090 E> */ B(StackCheck),
-  /* 4122 S> */ B(Ldar), R(1),
-                B(Star), R(2),
-                B(LdaSmi), U8(1),
-  /* 4128 E> */ B(TestEqual), R(2),
+  /* 4122 S> */ B(LdaSmi), U8(1),
+  /* 4128 E> */ B(TestEqual), R(1),
                 B(Wide), B(JumpIfFalse), U16(7),
-  /* 4134 S> */ B(Wide), B(Jump), U16(19),
-  /* 4146 S> */ B(Ldar), R(1),
-                B(Star), R(2),
-                B(LdaSmi), U8(2),
-  /* 4152 E> */ B(TestEqual), R(2),
+  /* 4134 S> */ B(Wide), B(Jump), U16(15),
+  /* 4146 S> */ B(LdaSmi), U8(2),
+  /* 4152 E> */ B(TestEqual), R(1),
                 B(Wide), B(JumpIfFalse), U16(7),
   /* 4158 S> */ B(Wide), B(Jump), U16(13),
   /* 4114 S> */ B(Ldar), R(1),
@@ -981,7 +975,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(Inc),
   /* 4114 E> */ B(Star), R(1),
-                B(Jump), U8(-53),
+                B(Jump), U8(-41),
   /* 4167 S> */ B(LdaSmi), U8(3),
   /* 4177 S> */ B(Return),
 ]

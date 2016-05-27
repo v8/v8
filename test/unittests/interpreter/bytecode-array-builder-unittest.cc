@@ -57,11 +57,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadFalse()
       .StoreAccumulatorInRegister(wide);
 
+  // Emit Ldar and Star taking care to foil the register optimizer.
   builder.StackCheck(0)
       .LoadAccumulatorWithRegister(other)
+      .BinaryOperation(Token::ADD, reg)
       .StoreAccumulatorInRegister(reg)
-      .LoadNull()
-      .StoreAccumulatorInRegister(reg);
+      .LoadNull();
 
   // Emit register-register transfer.
   builder.MoveRegister(reg, other);
@@ -291,12 +292,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Longer jumps requiring ConstantWide operand
   builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start).JumpIfNotHole(
       &start);
+
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&start)
       .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&start);
+
   // Perform an operation that returns a non-boolean operation to
   // generate JumpIfToBooleanTrue/False.
   builder.BinaryOperation(Token::Value::ADD, reg)
@@ -377,8 +380,19 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         BytecodeArrayBuilder builder(isolate(), zone(), 0, contexts, locals);
         BytecodeRegisterAllocator temporaries(
             zone(), builder.temporary_register_allocator());
+        for (int i = 0; i < locals + contexts; i++) {
+          builder.LoadLiteral(Smi::FromInt(0));
+          builder.StoreAccumulatorInRegister(Register(i));
+        }
         for (int i = 0; i < temps; i++) {
+          builder.LoadLiteral(Smi::FromInt(0));
           builder.StoreAccumulatorInRegister(temporaries.NewRegister());
+        }
+        if (temps > 0) {
+          // Ensure temporaries are used so not optimized away by the
+          // register optimizer.
+          builder.New(Register(locals + contexts), Register(locals + contexts),
+                      static_cast<size_t>(temps));
         }
         builder.Return();
 
@@ -405,6 +419,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
 
 TEST_F(BytecodeArrayBuilderTest, Parameters) {
   BytecodeArrayBuilder builder(isolate(), zone(), 10, 0, 0);
+
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
   CHECK_EQ(param9.index() - param0.index(), 9);
@@ -436,6 +451,7 @@ TEST_F(BytecodeArrayBuilderTest, RegisterType) {
 
 TEST_F(BytecodeArrayBuilderTest, Constants) {
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
+
   Factory* factory = isolate()->factory();
   Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(3.14);
   Handle<HeapObject> heap_num_2 = factory->NewHeapNumber(5.2);
@@ -459,6 +475,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   static const int kFarJumpDistance = 256;
 
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
+
   Register reg(0);
   BytecodeLabel far0, far1, far2, far3, far4;
   BytecodeLabel near0, near1, near2, near3, near4;
@@ -570,6 +587,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
 TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
+
   Register reg(0);
 
   BytecodeLabel label0, label1, label2, label3, label4;
