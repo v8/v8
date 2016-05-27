@@ -1084,6 +1084,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32Sub(node);
     case IrOpcode::kFloat32SubPreserveNan:
       return MarkAsFloat32(node), VisitFloat32SubPreserveNan(node);
+    case IrOpcode::kFloat32Neg:
+      return MarkAsFloat32(node), VisitFloat32Neg(node);
     case IrOpcode::kFloat32Mul:
       return MarkAsFloat32(node), VisitFloat32Mul(node);
     case IrOpcode::kFloat32Div:
@@ -1108,6 +1110,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Sub(node);
     case IrOpcode::kFloat64SubPreserveNan:
       return MarkAsFloat64(node), VisitFloat64SubPreserveNan(node);
+    case IrOpcode::kFloat64Neg:
+      return MarkAsFloat64(node), VisitFloat64Neg(node);
     case IrOpcode::kFloat64Mul:
       return MarkAsFloat64(node), VisitFloat64Mul(node);
     case IrOpcode::kFloat64Div:

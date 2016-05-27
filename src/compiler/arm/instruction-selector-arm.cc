@@ -1440,6 +1440,13 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, kArmVrintnF64, node);
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  VisitRR(this, kArmVnegF32, node);
+}
+
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  VisitRR(this, kArmVnegF64, node);
+}
 
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
@@ -1963,7 +1970,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat32Min |
              MachineOperatorBuilder::kFloat32Max |
              MachineOperatorBuilder::kFloat64Min |
-             MachineOperatorBuilder::kFloat64Max;
+             MachineOperatorBuilder::kFloat64Max |
+             MachineOperatorBuilder::kFloat32Neg |
+             MachineOperatorBuilder::kFloat64Neg;
   }
   return flags;
 }

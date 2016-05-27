@@ -327,6 +327,8 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
     OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --
+    OPTIONAL_ENTRY(Float32Neg, 1, 0, 1),            // --
+    OPTIONAL_ENTRY(Float64Neg, 1, 0, 1),            // --
 #undef OPTIONAL_ENTRY
 };
 }  // namespace

@@ -645,16 +645,28 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprF32Abs:
       op = m->Float32Abs();
       break;
-    case wasm::kExprF32Neg:
-      return BuildF32Neg(input);
+    case wasm::kExprF32Neg: {
+      if (m->Float32Neg().IsSupported()) {
+        op = m->Float32Neg().op();
+        break;
+      } else {
+        return BuildF32Neg(input);
+      }
+    }
     case wasm::kExprF32Sqrt:
       op = m->Float32Sqrt();
       break;
     case wasm::kExprF64Abs:
       op = m->Float64Abs();
       break;
-    case wasm::kExprF64Neg:
-      return BuildF64Neg(input);
+    case wasm::kExprF64Neg: {
+      if (m->Float64Neg().IsSupported()) {
+        op = m->Float64Neg().op();
+        break;
+      } else {
+        return BuildF64Neg(input);
+      }
+    }
     case wasm::kExprF64Sqrt:
       op = m->Float64Sqrt();
       break;
