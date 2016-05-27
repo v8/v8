@@ -2725,7 +2725,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       Expression* is_spec_object_call = factory()->NewCallRuntime(
           Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
 
-      // %_IsJSReceiver(temp) ? temp : throw_expression
+      // %_IsJSReceiver(temp) ? temp : 1;
       Expression* is_object_conditional = factory()->NewConditional(
           is_spec_object_call, factory()->NewVariableProxy(temp),
           factory()->NewSmiLiteral(1, pos), pos);
