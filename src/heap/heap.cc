@@ -2815,6 +2815,13 @@ void Heap::CreateInitialObjects() {
   }
 
   {
+    Handle<FixedArray> empty_sloppy_arguments_elements =
+        factory->NewFixedArray(2, TENURED);
+    empty_sloppy_arguments_elements->set_map(sloppy_arguments_elements_map());
+    set_empty_sloppy_arguments_elements(*empty_sloppy_arguments_elements);
+  }
+
+  {
     Handle<WeakCell> cell = factory->NewWeakCell(factory->undefined_value());
     set_empty_weak_cell(*cell);
     cell->clear();
@@ -3555,7 +3562,8 @@ AllocationResult Heap::AllocateJSObjectFromMap(
   // Initialize the JSObject.
   InitializeJSObjectFromMap(js_obj, properties, map);
   DCHECK(js_obj->HasFastElements() || js_obj->HasFixedTypedArrayElements() ||
-         js_obj->HasFastStringWrapperElements());
+         js_obj->HasFastStringWrapperElements() ||
+         js_obj->HasFastArgumentsElements());
   return js_obj;
 }
 

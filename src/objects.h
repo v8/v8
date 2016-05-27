@@ -5708,6 +5708,7 @@ class Map: public HeapObject {
   inline bool has_fast_double_elements();
   inline bool has_fast_elements();
   inline bool has_sloppy_arguments_elements();
+  inline bool has_fast_sloppy_arguments_elements();
   inline bool has_fast_string_wrapper_elements();
   inline bool has_fixed_typed_array_elements();
   inline bool has_dictionary_elements();

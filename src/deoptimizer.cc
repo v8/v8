@@ -3685,15 +3685,11 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           return object;
         }
         case JS_OBJECT_TYPE: {
-          Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(
-              map->has_sloppy_arguments_elements()
-                  ? isolate()->sloppy_arguments_map()
-                  : map,
-              NOT_TENURED);
+          Handle<JSObject> object =
+              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED);
           slot->value_ = object;
           Handle<Object> properties = MaterializeAt(frame_index, value_index);
           Handle<Object> elements = MaterializeAt(frame_index, value_index);
-          object->set_map(*map);  // Correct elements kind for sloppy arguments.
           object->set_properties(FixedArray::cast(*properties));
           object->set_elements(FixedArrayBase::cast(*elements));
           for (int i = 0; i < length - 3; ++i) {

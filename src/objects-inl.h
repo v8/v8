@@ -2796,18 +2796,18 @@ void Map::SetEnumLength(int length) {
 
 
 FixedArrayBase* Map::GetInitialElements() {
+  FixedArrayBase* result = nullptr;
   if (has_fast_elements() || has_fast_string_wrapper_elements()) {
-    DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
-    return GetHeap()->empty_fixed_array();
+    result = GetHeap()->empty_fixed_array();
+  } else if (has_fast_sloppy_arguments_elements()) {
+    result = GetHeap()->empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
-    FixedTypedArrayBase* empty_array =
-        GetHeap()->EmptyFixedTypedArrayForMap(this);
-    DCHECK(!GetHeap()->InNewSpace(empty_array));
-    return empty_array;
+    result = GetHeap()->EmptyFixedTypedArrayForMap(this);
   } else {
     UNREACHABLE();
   }
-  return NULL;
+  DCHECK(!GetHeap()->InNewSpace(result));
+  return result;
 }
 
 
@@ -4571,6 +4571,10 @@ bool Map::has_fast_elements() { return IsFastElementsKind(elements_kind()); }
 
 bool Map::has_sloppy_arguments_elements() {
   return IsSloppyArgumentsElements(elements_kind());
+}
+
+bool Map::has_fast_sloppy_arguments_elements() {
+  return elements_kind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
 bool Map::has_fast_string_wrapper_elements() {

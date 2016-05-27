@@ -184,6 +184,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
   V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
+  V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(FixedArray, cleared_optimized_code_map, ClearedOptimizedCodeMap)           \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(ArrayList, retained_maps, RetainedMaps)                                    \
