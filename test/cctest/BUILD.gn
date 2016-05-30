@@ -1,0 +1,350 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+executable("cctest") {
+  testonly = true
+
+  sources = [
+    "$target_gen_dir/resources.cc",
+    "cctest.cc",
+    "compiler/c-signature.h",
+    "compiler/codegen-tester.cc",
+    "compiler/codegen-tester.h",
+    "compiler/function-tester.h",
+    "compiler/graph-builder-tester.h",
+    "compiler/test-basic-block-profiler.cc",
+    "compiler/test-branch-combine.cc",
+    "compiler/test-code-stub-assembler.cc",
+    "compiler/test-gap-resolver.cc",
+    "compiler/test-graph-visualizer.cc",
+    "compiler/test-instruction.cc",
+    "compiler/test-js-constant-cache.cc",
+    "compiler/test-js-context-specialization.cc",
+    "compiler/test-js-typed-lowering.cc",
+    "compiler/test-jump-threading.cc",
+    "compiler/test-linkage.cc",
+    "compiler/test-loop-analysis.cc",
+    "compiler/test-loop-assignment-analysis.cc",
+    "compiler/test-machine-operator-reducer.cc",
+    "compiler/test-multiple-return.cc",
+    "compiler/test-node.cc",
+    "compiler/test-operator.cc",
+    "compiler/test-osr.cc",
+    "compiler/test-representation-change.cc",
+    "compiler/test-run-bytecode-graph-builder.cc",
+    "compiler/test-run-calls-to-external-references.cc",
+    "compiler/test-run-deopt.cc",
+    "compiler/test-run-inlining.cc",
+    "compiler/test-run-intrinsics.cc",
+    "compiler/test-run-jsbranches.cc",
+    "compiler/test-run-jscalls.cc",
+    "compiler/test-run-jsexceptions.cc",
+    "compiler/test-run-jsobjects.cc",
+    "compiler/test-run-jsops.cc",
+    "compiler/test-run-load-store.cc",
+    "compiler/test-run-machops.cc",
+    "compiler/test-run-native-calls.cc",
+    "compiler/test-run-stackcheck.cc",
+    "compiler/test-run-stubs.cc",
+    "compiler/test-run-variables.cc",
+    "compiler/test-run-wasm-machops.cc",
+    "compiler/test-simplified-lowering.cc",
+    "expression-type-collector.cc",
+    "expression-type-collector.h",
+    "gay-fixed.cc",
+    "gay-precision.cc",
+    "gay-shortest.cc",
+    "heap/heap-tester.h",
+    "heap/heap-utils.cc",
+    "heap/heap-utils.h",
+    "heap/test-alloc.cc",
+    "heap/test-compaction.cc",
+    "heap/test-heap.cc",
+    "heap/test-incremental-marking.cc",
+    "heap/test-lab.cc",
+    "heap/test-mark-compact.cc",
+    "heap/test-spaces.cc",
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/interpreter-tester.cc",
+    "interpreter/test-bytecode-generator.cc",
+    "interpreter/test-interpreter-intrinsics.cc",
+    "interpreter/test-interpreter.cc",
+    "print-extension.cc",
+    "profiler-extension.cc",
+    "test-accessors.cc",
+    "test-api-accessors.cc",
+    "test-api-fast-accessor-builder.cc",
+    "test-api-interceptors.cc",
+    "test-api.cc",
+    "test-api.h",
+    "test-array-list.cc",
+    "test-asm-validator.cc",
+    "test-ast-expression-visitor.cc",
+    "test-ast.cc",
+    "test-atomicops.cc",
+    "test-bignum-dtoa.cc",
+    "test-bignum.cc",
+    "test-bit-vector.cc",
+    "test-circular-queue.cc",
+    "test-compiler.cc",
+    "test-constantpool.cc",
+    "test-conversions.cc",
+    "test-cpu-profiler.cc",
+    "test-date.cc",
+    "test-debug.cc",
+    "test-decls.cc",
+    "test-deoptimization.cc",
+    "test-dictionary.cc",
+    "test-diy-fp.cc",
+    "test-double.cc",
+    "test-dtoa.cc",
+    "test-elements-kind.cc",
+    "test-fast-dtoa.cc",
+    "test-feedback-vector.cc",
+    "test-field-type-tracking.cc",
+    "test-fixed-dtoa.cc",
+    "test-flags.cc",
+    "test-func-name-inference.cc",
+    "test-global-handles.cc",
+    "test-global-object.cc",
+    "test-hashing.cc",
+    "test-hashmap.cc",
+    "test-heap-profiler.cc",
+    "test-hydrogen-types.cc",
+    "test-identity-map.cc",
+    "test-inobject-slack-tracking.cc",
+    "test-list.cc",
+    "test-liveedit.cc",
+    "test-lockers.cc",
+    "test-log.cc",
+    "test-mementos.cc",
+    "test-parsing.cc",
+    "test-platform.cc",
+    "test-profile-generator.cc",
+    "test-random-number-generator.cc",
+    "test-receiver-check-hidden-prototype.cc",
+    "test-regexp.cc",
+    "test-reloc-info.cc",
+    "test-representation.cc",
+    "test-sampler-api.cc",
+    "test-serialize.cc",
+    "test-simd.cc",
+    "test-strings.cc",
+    "test-strtod.cc",
+    "test-symbols.cc",
+    "test-thread-termination.cc",
+    "test-threads.cc",
+    "test-trace-event.cc",
+    "test-transitions.cc",
+    "test-typedarrays.cc",
+    "test-types.cc",
+    "test-unbound-queue.cc",
+    "test-unboxed-doubles.cc",
+    "test-unique.cc",
+    "test-unscopables-hidden-prototype.cc",
+    "test-utils.cc",
+    "test-version.cc",
+    "test-weakmaps.cc",
+    "test-weaksets.cc",
+    "trace-extension.cc",
+    "wasm/test-run-wasm-64.cc",
+    "wasm/test-run-wasm-asmjs.cc",
+    "wasm/test-run-wasm-interpreter.cc",
+    "wasm/test-run-wasm-js.cc",
+    "wasm/test-run-wasm-module.cc",
+    "wasm/test-run-wasm.cc",
+    "wasm/test-signatures.h",
+    "wasm/test-wasm-function-name-table.cc",
+    "wasm/test-wasm-stack.cc",
+    "wasm/test-wasm-trap-position.cc",
+    "wasm/wasm-run-utils.h",
+  ]
+
+  if (v8_target_arch == "arm") {
+    sources += [
+      "test-assembler-arm.cc",
+      "test-code-stubs-arm.cc",
+      "test-code-stubs.cc",
+      "test-disasm-arm.cc",
+      "test-macro-assembler-arm.cc",
+      "test-run-wasm-relocation-arm.cc",
+    ]
+  } else if (v8_target_arch == "arm64") {
+    sources += [
+      "test-assembler-arm64.cc",
+      "test-code-stubs-arm64.cc",
+      "test-code-stubs.cc",
+      "test-disasm-arm64.cc",
+      "test-fuzz-arm64.cc",
+      "test-javascript-arm64.cc",
+      "test-js-arm64-variables.cc",
+      "test-run-wasm-relocation-arm64.cc",
+      "test-utils-arm64.cc",
+    ]
+  } else if (v8_target_arch == "ia32") {
+    sources += [
+      "test-assembler-ia32.cc",
+      "test-code-stubs-ia32.cc",
+      "test-code-stubs.cc",
+      "test-disasm-ia32.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-ia32.cc",
+      "test-run-wasm-relocation-ia32.cc",
+    ]
+  } else if (v8_target_arch == "mips") {
+    sources += [
+      "test-assembler-mips.cc",
+      "test-code-stubs-mips.cc",
+      "test-code-stubs.cc",
+      "test-disasm-mips.cc",
+      "test-macro-assembler-mips.cc",
+    ]
+  } else if (v8_target_arch == "mipsel") {
+    sources += [
+      "test-assembler-mips.cc",
+      "test-code-stubs-mips.cc",
+      "test-code-stubs.cc",
+      "test-disasm-mips.cc",
+      "test-macro-assembler-mips.cc",
+    ]
+  } else if (v8_target_arch == "mips64") {
+    sources += [
+      "test-assembler-mips64.cc",
+      "test-code-stubs-mips64.cc",
+      "test-code-stubs.cc",
+      "test-disasm-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
+  } else if (v8_target_arch == "mips64el") {
+    sources += [
+      "test-assembler-mips64.cc",
+      "test-code-stubs-mips64.cc",
+      "test-code-stubs.cc",
+      "test-disasm-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
+  } else if (v8_target_arch == "x64") {
+    sources += [
+      "test-assembler-x64.cc",
+      "test-code-stubs-x64.cc",
+      "test-code-stubs.cc",
+      "test-disasm-x64.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-x64.cc",
+      "test-run-wasm-relocation-x64.cc",
+    ]
+  } else if (v8_target_arch == "x87") {
+    sources += [
+      "test-assembler-x87.cc",
+      "test-code-stubs-x87.cc",
+      "test-code-stubs.cc",
+      "test-disasm-x87.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-x87.cc",
+      "test-run-wasm-relocation-x87.cc",
+    ]
+  } else if (v8_target_arch == "ppc" || v8_target_arch == "ppc64") {
+    sources += [
+      "test-assembler-ppc.cc",
+      "test-code-stubs.cc",
+      "test-disasm-ppc.cc",
+    ]
+  } else if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
+    sources += [
+      "test-assembler-s390.cc",
+      "test-code-stubs.cc",
+      "test-disasm-s390.cc",
+    ]
+  }
+
+  if (is_linux) {
+    # TODO(machenbach): Translate 'or OS=="qnx"' from gyp.
+    sources += [ "test-platform-linux.cc" ]
+  } else if (is_win) {
+    sources += [ "test-platform-win32.cc" ]
+    # TODO(machenbach): Translate from gyp.
+    # "msvs_settings": {
+    #   "VCCLCompilerTool": {
+    #     # MSVS wants this for gay-{precision,shortest}.cc.
+    #     "AdditionalOptions": ["/bigobj"],
+    #   },
+    # },
+  }
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    "../..:internal_config_base",
+    "../..:features",
+    "../..:toolchain",
+  ]
+
+  # TODO(machenbach): Translate from gyp.
+  #['v8_target_arch=="ppc" or v8_target_arch=="ppc64" \
+  #  or v8_target_arch=="arm" or v8_target_arch=="arm64" \
+  #  or v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+  #  # disable fmadd/fmsub so that expected results match generated code in
+  #  # RunFloat64MulAndFloat64Add1 and friends.
+  #  'cflags': ['-ffp-contract=off'],
+  #}],
+
+  # TODO(machenbach): Translate from gyp.
+  #["OS=="aix"", {
+  #  "ldflags": [ "-Wl,-bbigtoc" ],
+  #}],
+
+  deps = [
+    ":resources",
+    "../..:v8_libplatform",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
+  ]
+
+  if (is_component_build) {
+    # cctest can't be built against a shared library, so we
+    # need to depend on the underlying static target in that case.
+    deps += [ "../..:v8_maybe_snapshot" ]
+  } else {
+    deps += [ "../..:v8" ]
+  }
+}
+
+action("resources") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "../../tools/js2c.py"
+
+  # The script depends on this other script, this rule causes a rebuild if it
+  # changes.
+  inputs = [
+    "../../tools/jsmin.py",
+  ]
+
+  # NOSORT
+  sources = [
+    "../../tools/splaytree.js",
+    "../../tools/codemap.js",
+    "../../tools/csvparser.js",
+    "../../tools/consarray.js",
+    "../../tools/profile.js",
+    "../../tools/profile_view.js",
+    "../../tools/logreader.js",
+    "log-eq-of-logging-and-traversal.js",
+  ]
+
+  outputs = [
+    "$target_gen_dir/resources.cc",
+  ]
+
+  args = [
+    rebase_path("$target_gen_dir/resources.cc", root_build_dir),
+    "TEST",
+  ]
+  args += rebase_path(sources, root_build_dir)
+}
+
+# TODO(machenbach): Migrate generate-bytecode-expectations.
