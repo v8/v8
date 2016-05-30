@@ -4554,24 +4554,6 @@ void Builtins::Generate_StringPrototypeCharCodeAt(
   assembler->Return(result);
 }
 
-// ES6 section 21.1.3.22 String.prototype.toLowerCase ( )
-BUILTIN(StringPrototypeToLowerCase) {
-  HandleScope scope(isolate);
-  TO_THIS_STRING(string, "String.prototype.toLowerCase");
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
-                                     String::ToLowerCase(string));
-  return *string;
-}
-
-// ES6 section 21.1.3.24 String.prototype.toUpperCase ( )
-BUILTIN(StringPrototypeToUpperCase) {
-  HandleScope scope(isolate);
-  TO_THIS_STRING(string, "String.prototype.toUpperCase");
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
-                                     String::ToUpperCase(string));
-  return *string;
-}
-
 // ES6 section 21.1.3.25 String.prototype.trim ()
 BUILTIN(StringPrototypeTrim) {
   HandleScope scope(isolate);
