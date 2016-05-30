@@ -3138,8 +3138,11 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
     case kObjectsOldToOld:
       result = EvacuateSinglePage<kClearMarkbits>(page, &old_space_visitor_);
       if (!result) {
-        // Aborted compaction page. We can record slots here to have them
-        // processed in parallel later on.
+        // Aborted compaction page. We have to record slots here, since we might
+        // not have recorded them in first place.
+        // Note: We mark the page as aborted here to be able to record slots
+        // for code objects in |RecordMigratedSlotVisitor|.
+        page->SetFlag(Page::COMPACTION_WAS_ABORTED);
         EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
         result = EvacuateSinglePage<kKeepMarking>(page, &record_visitor);
         DCHECK(result);
@@ -3234,7 +3237,6 @@ class EvacuationJobTraits {
       } else {
         // We have partially compacted the page, i.e., some objects may have
         // moved, others are still in place.
-        p->SetFlag(Page::COMPACTION_WAS_ABORTED);
         p->ClearEvacuationCandidate();
         // Slots have already been recorded so we just need to add it to the
         // sweeper.
