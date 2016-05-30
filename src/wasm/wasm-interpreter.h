@@ -26,6 +26,8 @@ typedef size_t sp_t;
 typedef int32_t pcdiff_t;
 typedef uint32_t spdiff_t;
 
+const pc_t kInvalidPc = 0x80000000;
+
 // Visible for testing. A {ControlTransfer} helps the interpreter figure out
 // the target program counter and stack manipulations for a branch.
 struct ControlTransfer {
@@ -126,6 +128,7 @@ class WasmInterpreter {
     virtual ~Thread() {}
 
     // Stack inspection and modification.
+    virtual pc_t GetBreakpointPc() = 0;
     virtual int GetFrameCount() = 0;
     virtual const WasmFrame* GetFrame(int index) = 0;
     virtual WasmFrame* GetMutableFrame(int index) = 0;
@@ -148,10 +151,10 @@ class WasmInterpreter {
 
   // Set a breakpoint at {pc} in {function} to be {enabled}. Returns the
   // previous state of the breakpoint at {pc}.
-  bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
+  bool SetBreakpoint(const WasmFunction* function, pc_t pc, bool enabled);
 
   // Gets the current state of the breakpoint at {function}.
-  bool GetBreakpoint(const WasmFunction* function, int pc);
+  bool GetBreakpoint(const WasmFunction* function, pc_t pc);
 
   // Enable or disable tracing for {function}. Return the previous state.
   bool SetTracing(const WasmFunction* function, bool enabled);

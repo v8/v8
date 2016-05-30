@@ -135,17 +135,153 @@ TEST(Run_Wasm_nested_ifs_i) {
   CHECK_EQ(14, r.Call(0, 0));
 }
 
-TEST(Step_I32Add) {
-  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Int32(),
-                        MachineType::Int32());
-  BUILD(r, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+// Make tests more robust by not hard-coding offsets of various operations.
+// The {Find} method finds the offsets for the given bytecodes, returning
+// the offsets in an array.
+SmartArrayPointer<int> Find(byte* code, size_t code_size, int n, ...) {
+  va_list vl;
+  va_start(vl, n);
+
+  SmartArrayPointer<int> offsets(new int[n]);
+
+  for (int i = 0; i < n; i++) {
+    offsets[i] = -1;
+  }
+
+  int pos = 0;
+  WasmOpcode current = static_cast<WasmOpcode>(va_arg(vl, int));
+  for (size_t i = 0; i < code_size; i++) {
+    if (code[i] == current) {
+      offsets[pos++] = static_cast<int>(i);
+      if (pos == n) break;
+      current = static_cast<WasmOpcode>(va_arg(vl, int));
+    }
+  }
+  va_end(vl);
+
+  return offsets;
+}
+
+TEST(Breakpoint_I32Add) {
+  static const int kLocalsDeclSize = 1;
+  static const int kNumBreakpoints = 3;
+  byte code[] = {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
+  SmartArrayPointer<int> offsets =
+      Find(code, sizeof(code), kNumBreakpoints, kExprGetLocal, kExprGetLocal,
+           kExprI32Add);
+
+  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
+                        MachineType::Uint32());
+
+  r.Build(code, code + arraysize(code));
 
   WasmInterpreter* interpreter = r.interpreter();
-  interpreter->SetBreakpoint(r.function(), 0, true);
+  WasmInterpreter::Thread& thread = interpreter->GetThread(0);
+  for (int i = 0; i < kNumBreakpoints; i++) {
+    interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[i],
+                               true);
+  }
 
-  r.Call(1, 1);
-  interpreter->Run();
-  CHECK_EQ(2, interpreter->GetThread(0).GetReturnValue().to<int32_t>());
+  FOR_UINT32_INPUTS(a) {
+    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
+      thread.Reset();
+      WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+      thread.PushFrame(r.function(), args);
+
+      for (int i = 0; i < kNumBreakpoints; i++) {
+        thread.Run();  // run to next breakpoint
+        // Check the thread stopped at the right pc.
+        CHECK_EQ(WasmInterpreter::PAUSED, thread.state());
+        CHECK_EQ(kLocalsDeclSize + offsets[i], thread.GetBreakpointPc());
+      }
+
+      thread.Run();  // run to completion
+
+      // Check the thread finished with the right value.
+      CHECK_EQ(WasmInterpreter::FINISHED, thread.state());
+      uint32_t expected = (*a) + (b);
+      CHECK_EQ(expected, thread.GetReturnValue().to<uint32_t>());
+    }
+  }
+}
+
+TEST(Step_I32Mul) {
+  static const int kTraceLength = 4;
+  byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
+
+  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
+                        MachineType::Uint32());
+
+  r.Build(code, code + arraysize(code));
+
+  WasmInterpreter* interpreter = r.interpreter();
+  WasmInterpreter::Thread& thread = interpreter->GetThread(0);
+
+  FOR_UINT32_INPUTS(a) {
+    for (uint32_t b = 33; b < 3000000000u; b += 1000000000u) {
+      thread.Reset();
+      WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+      thread.PushFrame(r.function(), args);
+
+      // Run instructions one by one.
+      for (int i = 0; i < kTraceLength - 1; i++) {
+        thread.Step();
+        // Check the thread stopped.
+        CHECK_EQ(WasmInterpreter::PAUSED, thread.state());
+      }
+
+      // Run last instruction.
+      thread.Step();
+
+      // Check the thread finished with the right value.
+      CHECK_EQ(WasmInterpreter::FINISHED, thread.state());
+      uint32_t expected = (*a) * (b);
+      CHECK_EQ(expected, thread.GetReturnValue().to<uint32_t>());
+    }
+  }
+}
+
+TEST(Breakpoint_I32And_disable) {
+  static const int kLocalsDeclSize = 1;
+  static const int kNumBreakpoints = 1;
+  byte code[] = {WASM_I32_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
+  SmartArrayPointer<int> offsets =
+      Find(code, sizeof(code), kNumBreakpoints, kExprI32And);
+
+  WasmRunner<int32_t> r(kExecuteInterpreted, MachineType::Uint32(),
+                        MachineType::Uint32());
+
+  r.Build(code, code + arraysize(code));
+
+  WasmInterpreter* interpreter = r.interpreter();
+  WasmInterpreter::Thread& thread = interpreter->GetThread(0);
+
+  FOR_UINT32_INPUTS(a) {
+    for (uint32_t b = 11; b < 3000000000u; b += 1000000000u) {
+      // Run with and without breakpoints.
+      for (int do_break = 0; do_break < 2; do_break++) {
+        interpreter->SetBreakpoint(r.function(), kLocalsDeclSize + offsets[0],
+                                   do_break);
+        thread.Reset();
+        WasmVal args[] = {WasmVal(*a), WasmVal(b)};
+        thread.PushFrame(r.function(), args);
+
+        if (do_break) {
+          thread.Run();  // run to next breakpoint
+          // Check the thread stopped at the right pc.
+          CHECK_EQ(WasmInterpreter::PAUSED, thread.state());
+          CHECK_EQ(kLocalsDeclSize + offsets[0], thread.GetBreakpointPc());
+        }
+
+        thread.Run();  // run to completion
+
+        // Check the thread finished with the right value.
+        CHECK_EQ(WasmInterpreter::FINISHED, thread.state());
+        uint32_t expected = (*a) & (b);
+        CHECK_EQ(expected, thread.GetReturnValue().to<uint32_t>());
+      }
+    }
+  }
 }
 
 }  // namespace wasm

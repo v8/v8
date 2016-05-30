@@ -927,6 +927,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
         stack_(zone),
         frames_(zone),
         state_(WasmInterpreter::STOPPED),
+        break_pc_(kInvalidPc),
         trap_reason_(kTrapCount) {}
 
   virtual ~ThreadImpl() {}
@@ -945,12 +946,13 @@ class ThreadImpl : public WasmInterpreter::Thread {
       stack_.push_back(args[i]);
     }
     frames_.back().ret_pc = InitLocals(code);
-    TRACE("  => push func#%u @%zu\n", code->function->func_index,
+    TRACE("  => PushFrame(#%u @%zu)\n", code->function->func_index,
           frames_.back().ret_pc);
   }
 
   virtual WasmInterpreter::State Run() {
     do {
+      TRACE("  => Run()\n");
       if (state_ == WasmInterpreter::STOPPED ||
           state_ == WasmInterpreter::PAUSED) {
         state_ = WasmInterpreter::RUNNING;
@@ -961,8 +963,13 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   virtual WasmInterpreter::State Step() {
-    UNIMPLEMENTED();
-    return WasmInterpreter::STOPPED;
+    TRACE("  => Step()\n");
+    if (state_ == WasmInterpreter::STOPPED ||
+        state_ == WasmInterpreter::PAUSED) {
+      state_ = WasmInterpreter::RUNNING;
+      Execute(frames_.back().code, frames_.back().ret_pc, 1);
+    }
+    return state_;
   }
 
   virtual void Pause() { UNIMPLEMENTED(); }
@@ -994,6 +1001,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return stack_[0];
   }
 
+  virtual pc_t GetBreakpointPc() { return break_pc_; }
+
   bool Terminated() {
     return state_ == WasmInterpreter::TRAPPED ||
            state_ == WasmInterpreter::FINISHED;
@@ -1018,6 +1027,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
   WasmInterpreter::State state_;
+  pc_t break_pc_;
   TrapReason trap_reason_;
 
   CodeMap* codemap() { return codemap_; }
@@ -1077,8 +1087,10 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   bool SkipBreakpoint(InterpreterCode* code, pc_t pc) {
-    // TODO(titzer): skip a breakpoint if we are resuming from it, or it
-    // is set for another thread only.
+    if (pc == break_pc_) {
+      break_pc_ = kInvalidPc;
+      return true;
+    }
     return false;
   }
 
@@ -1165,17 +1177,22 @@ class ThreadImpl : public WasmInterpreter::Thread {
         continue;
       }
 
-      const char* skip = "";
+      const char* skip = "        ";
       int len = 1;
       byte opcode = code->start[pc];
       byte orig = opcode;
       if (opcode == kInternalBreakpoint) {
+        orig = code->orig_start[pc];
         if (SkipBreakpoint(code, pc)) {
           // skip breakpoint by switching on original code.
-          orig = code->orig_start[pc];
-          skip = "[skip] ";
+          skip = "[skip]  ";
         } else {
           state_ = WasmInterpreter::PAUSED;
+          TRACE("@%-3zu: [break] %-24s:", pc,
+                WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(orig)));
+          TraceValueStack();
+          TRACE("\n");
+          break_pc_ = pc;
           return CommitPc(pc);
         }
       }
@@ -1684,13 +1701,13 @@ void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
 void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
 
-bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, int pc,
+bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
                                     bool enabled) {
   InterpreterCode* code = internals_->codemap_.FindCode(function);
   if (!code) return false;
-  int size = static_cast<int>(code->end - code->start);
+  size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < 0 || pc >= size) return false;
+  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
   // Make a copy of the code before enabling a breakpoint.
   if (enabled && code->orig_start == code->start) {
     code->start = reinterpret_cast<byte*>(zone_.New(size));
@@ -1706,12 +1723,12 @@ bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, int pc,
   return prev;
 }
 
-bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, int pc) {
+bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, pc_t pc) {
   InterpreterCode* code = internals_->codemap_.FindCode(function);
   if (!code) return false;
-  int size = static_cast<int>(code->end - code->start);
+  size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < 0 || pc >= size) return false;
+  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
   // Check if a breakpoint is present at that place in the code.
   return code->start[pc] == kInternalBreakpoint;
 }
