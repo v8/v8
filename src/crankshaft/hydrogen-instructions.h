@@ -5148,8 +5148,11 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     HAllocate* allocate = HAllocate::cast(object);
     if (allocate->IsAllocationFolded()) {
       HValue* dominator = allocate->allocation_folding_dominator();
-      DCHECK(HAllocate::cast(dominator)->IsAllocationFoldingDominator());
-      object = dominator;
+      // There is no guarantee that all allocations are folded together because
+      // GVN performs a fixpoint.
+      if (HAllocate::cast(dominator)->IsAllocationFoldingDominator()) {
+        object = dominator;
+      }
     }
   }
 
