@@ -1388,11 +1388,9 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
   Node* from = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
   VirtualState* state = virtual_states_[node->id()];
   if (VirtualObject* object = GetVirtualObject(state, from)) {
+    if (!object->IsTracked()) return;
     int offset = OffsetForFieldAccess(node);
-    if (!object->IsTracked() ||
-        static_cast<size_t>(offset) >= object->field_count()) {
-      return;
-    }
+    if (static_cast<size_t>(offset) >= object->field_count()) return;
     Node* value = object->GetField(offset);
     if (value) {
       value = ResolveReplacement(value);
@@ -1422,11 +1420,9 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
          index_node->opcode() != IrOpcode::kFloat64Constant);
   if (index.HasValue()) {
     if (VirtualObject* object = GetVirtualObject(state, from)) {
+      if (!object->IsTracked()) return;
       int offset = OffsetForElementAccess(node, index.Value());
-      if (!object->IsTracked() ||
-          static_cast<size_t>(offset) >= object->field_count()) {
-        return;
-      }
+      if (static_cast<size_t>(offset) >= object->field_count()) return;
       Node* value = object->GetField(offset);
       if (value) {
         value = ResolveReplacement(value);
@@ -1456,10 +1452,10 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
   ForwardVirtualState(node);
   Node* to = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
   VirtualState* state = virtual_states_[node->id()];
-  VirtualObject* obj = GetVirtualObject(state, to);
-  int offset = OffsetForFieldAccess(node);
-  if (obj && obj->IsTracked() &&
-      static_cast<size_t>(offset) < obj->field_count()) {
+  if (VirtualObject* object = GetVirtualObject(state, to)) {
+    if (!object->IsTracked()) return;
+    int offset = OffsetForFieldAccess(node);
+    if (static_cast<size_t>(offset) >= object->field_count()) return;
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
     // TODO(mstarzinger): The following is a workaround to not track the code
     // entry field in virtual JSFunction objects. We only ever store the inner
@@ -1470,9 +1466,9 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
       DCHECK_EQ(JSFunction::kCodeEntryOffset, FieldAccessOf(node->op()).offset);
       val = slot_not_analyzed_;
     }
-    if (obj->GetField(offset) != val) {
-      obj = CopyForModificationAt(obj, state, node);
-      obj->SetField(offset, val);
+    if (object->GetField(offset) != val) {
+      object = CopyForModificationAt(object, state, node);
+      object->SetField(offset, val);
     }
   }
 }
@@ -1488,15 +1484,15 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
          index_node->opcode() != IrOpcode::kFloat32Constant &&
          index_node->opcode() != IrOpcode::kFloat64Constant);
   VirtualState* state = virtual_states_[node->id()];
-  VirtualObject* obj = GetVirtualObject(state, to);
   if (index.HasValue()) {
-    int offset = OffsetForElementAccess(node, index.Value());
-    if (obj && obj->IsTracked() &&
-        static_cast<size_t>(offset) < obj->field_count()) {
+    if (VirtualObject* object = GetVirtualObject(state, to)) {
+      if (!object->IsTracked()) return;
+      int offset = OffsetForElementAccess(node, index.Value());
+      if (static_cast<size_t>(offset) >= object->field_count()) return;
       Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 2));
-      if (obj->GetField(offset) != val) {
-        obj = CopyForModificationAt(obj, state, node);
-        obj->SetField(offset, val);
+      if (object->GetField(offset) != val) {
+        object = CopyForModificationAt(object, state, node);
+        object->SetField(offset, val);
       }
     }
   } else {
@@ -1508,12 +1504,13 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
           to->id(), to->op()->mnemonic(), node->id(), index_node->id(),
           index_node->op()->mnemonic());
     }
-    if (obj && obj->IsTracked()) {
-      if (!obj->AllFieldsClear()) {
-        obj = CopyForModificationAt(obj, state, node);
-        obj->ClearAllFields();
+    if (VirtualObject* object = GetVirtualObject(state, to)) {
+      if (!object->IsTracked()) return;
+      if (!object->AllFieldsClear()) {
+        object = CopyForModificationAt(object, state, node);
+        object->ClearAllFields();
         TRACE("Cleared all fields of @%d:#%d\n",
-              status_analysis_->GetAlias(obj->id()), obj->id());
+              status_analysis_->GetAlias(object->id()), object->id());
       }
     }
   }
