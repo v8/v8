@@ -33,11 +33,11 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }  // namespace
 
 MaybeHandle<FixedArray> KeyAccumulator::GetKeys(
-    Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
+    Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
     GetKeysConversion keys_conversion, bool filter_proxy_keys, bool is_for_in) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate, type, filter);
+  KeyAccumulator accumulator(isolate, mode, filter);
   accumulator.set_filter_proxy_keys(filter_proxy_keys);
   accumulator.set_is_for_in(is_for_in);
   MAYBE_RETURN(accumulator.CollectKeys(object, object),
@@ -51,7 +51,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   if (keys_.is_null()) {
     return isolate_->factory()->empty_fixed_array();
   }
-  if (type_ == OWN_ONLY &&
+  if (mode_ == KeyCollectionMode::kOwnOnly &&
       keys_->map() == isolate_->heap()->fixed_array_map()) {
     return Handle<FixedArray>::cast(keys_);
   }
@@ -134,7 +134,7 @@ Maybe<bool> KeyAccumulator::AddKeysFromJSProxy(Handle<JSProxy> proxy,
         isolate_, keys, FilterProxyKeys(isolate_, proxy, keys, filter_),
         Nothing<bool>());
   }
-  if (type_ == OWN_ONLY && !is_for_in_) {
+  if (mode_ == KeyCollectionMode::kOwnOnly && !is_for_in_) {
     // If we collect only the keys from a JSProxy do not sort or deduplicate it.
     keys_ = keys;
     return Just(true);
@@ -148,13 +148,13 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
   // Proxies have no hidden prototype and we should not trigger the
   // [[GetPrototypeOf]] trap on the last iteration when using
   // AdvanceFollowingProxies.
-  if (type_ == OWN_ONLY && object->IsJSProxy()) {
+  if (mode_ == KeyCollectionMode::kOwnOnly && object->IsJSProxy()) {
     MAYBE_RETURN(CollectOwnJSProxyKeys(receiver, Handle<JSProxy>::cast(object)),
                  Nothing<bool>());
     return Just(true);
   }
 
-  PrototypeIterator::WhereToEnd end = type_ == OWN_ONLY
+  PrototypeIterator::WhereToEnd end = mode_ == KeyCollectionMode::kOwnOnly
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate_, object,
@@ -209,7 +209,7 @@ bool CheckAndInitalizeSimpleEnumCache(JSReceiver* object) {
 void FastKeyAccumulator::Prepare() {
   DisallowHeapAllocation no_gc;
   // Directly go for the fast path for OWN_ONLY keys.
-  if (type_ == OWN_ONLY) return;
+  if (mode_ == KeyCollectionMode::kOwnOnly) return;
   // Fully walk the prototype chain and find the last prototype with keys.
   is_receiver_simple_enum_ = false;
   has_empty_prototype_ = true;
@@ -372,7 +372,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeys(GetKeysConversion convert) {
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     GetKeysConversion convert) {
-  bool own_only = has_empty_prototype_ || type_ == OWN_ONLY;
+  bool own_only = has_empty_prototype_ || mode_ == KeyCollectionMode::kOwnOnly;
   Map* map = receiver_->map();
   if (!own_only || !OnlyHasSimpleProperties(map)) {
     return MaybeHandle<FixedArray>();
@@ -408,7 +408,8 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
     GetKeysConversion convert) {
-  return KeyAccumulator::GetKeys(receiver_, type_, filter_, KEEP_NUMBERS,
+  return KeyAccumulator::GetKeys(receiver_, mode_, filter_,
+                                 GetKeysConversion::kKeepNumbers,
                                  filter_proxy_keys_, is_for_in_);
 }
 
@@ -536,11 +537,11 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
       !isolate_->MayAccess(handle(isolate_->context()), object)) {
     // The cross-origin spec says that [[Enumerate]] shall return an empty
     // iterator when it doesn't have access...
-    if (type_ == INCLUDE_PROTOS) {
+    if (mode_ == KeyCollectionMode::kIncludePrototypes) {
       return Just(false);
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
-    DCHECK_EQ(OWN_ONLY, type_);
+    DCHECK(KeyCollectionMode::kOwnOnly == mode_);
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
   MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());

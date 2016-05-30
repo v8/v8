@@ -1114,8 +1114,9 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
 // static
 MUST_USE_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
     Handle<JSReceiver> object) {
-  return KeyAccumulator::GetKeys(object, OWN_ONLY, ALL_PROPERTIES,
-                                 CONVERT_TO_STRING);
+  return KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+                                 ALL_PROPERTIES,
+                                 GetKeysConversion::kConvertToString);
 }
 
 #define FIELD_ADDR(p, offset) \

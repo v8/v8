@@ -3867,15 +3867,27 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   return Utils::ToLocal(i::handle(iter.GetCurrent<i::JSObject>(), isolate));
 }
 
-
 MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
+  return GetPropertyNames(
+      context, v8::KeyCollectionMode::kIncludePrototypes,
+      static_cast<v8::PropertyFilter>(ONLY_ENUMERABLE | SKIP_SYMBOLS),
+      v8::IndexFilter::kIncludeIndices);
+}
+
+MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context,
+                                               KeyCollectionMode mode,
+                                               PropertyFilter property_filter,
+                                               IndexFilter index_filter) {
   PREPARE_FOR_EXECUTION(context, Object, GetPropertyNames, Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
-  has_pending_exception = !i::KeyAccumulator::GetKeys(self, i::INCLUDE_PROTOS,
-                                                      i::ENUMERABLE_STRINGS)
-                               .ToHandle(&value);
+  i::KeyAccumulator accumulator(
+      isolate, static_cast<i::KeyCollectionMode>(mode),
+      static_cast<i::PropertyFilter>(property_filter));
+  accumulator.set_skip_indices(index_filter == IndexFilter::kSkipIndices);
+  has_pending_exception = accumulator.CollectKeys(self, self).IsNothing();
   RETURN_ON_FAILED_EXECUTION(Array);
+  value = accumulator.GetKeys(i::GetKeysConversion::kKeepNumbers);
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map()->EnumLength() == 0 ||
          self->map()->instance_descriptors()->GetEnumCache() != *value);
@@ -3901,19 +3913,8 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
                                                   PropertyFilter filter) {
-  PREPARE_FOR_EXECUTION(context, Object, GetOwnPropertyNames, Array);
-  auto self = Utils::OpenHandle(this);
-  i::Handle<i::FixedArray> value;
-  has_pending_exception =
-      !i::KeyAccumulator::GetKeys(self, i::OWN_ONLY,
-                                  static_cast<i::PropertyFilter>(filter))
-           .ToHandle(&value);
-  RETURN_ON_FAILED_EXECUTION(Array);
-  DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
-         self->map()->EnumLength() == 0 ||
-         self->map()->instance_descriptors()->GetEnumCache() != *value);
-  auto result = isolate->factory()->NewJSArrayWithElements(value);
-  RETURN_ESCAPED(Utils::ToLocal(result));
+  return GetPropertyNames(context, KeyCollectionMode::kOwnOnly, filter,
+                          v8::IndexFilter::kIncludeIndices);
 }
 
 MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {

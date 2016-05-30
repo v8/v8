@@ -15072,18 +15072,39 @@ THREADED_TEST(DateAccess) {
   CHECK_EQ(1224744689038.0, date.As<v8::Date>()->ValueOf());
 }
 
+void CheckIsSymbolAt(v8::Isolate* isolate, v8::Local<v8::Array> properties,
+                     unsigned index, const char* name) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Value> value =
+      properties->Get(context, v8::Integer::New(isolate, index))
+          .ToLocalChecked();
+  CHECK(value->IsSymbol());
+  v8::String::Utf8Value symbol_name(Local<Symbol>::Cast(value)->Name());
+  CHECK_EQ(0, strcmp(name, *symbol_name));
+}
+
+void CheckStringArray(v8::Isolate* isolate, v8::Local<v8::Array> properties,
+                      unsigned length, const char* names[]) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  CHECK_EQ(length, properties->Length());
+  for (unsigned i = 0; i < length; i++) {
+    v8::Local<v8::Value> value =
+        properties->Get(context, v8::Integer::New(isolate, i)).ToLocalChecked();
+    if (names[i] == nullptr) {
+      DCHECK(value->IsSymbol());
+    } else {
+      v8::String::Utf8Value elm(value);
+      CHECK_EQ(0, strcmp(names[i], *elm));
+    }
+  }
+}
 
 void CheckProperties(v8::Isolate* isolate, v8::Local<v8::Value> val,
-                     unsigned elmc, const char* elmv[]) {
+                     unsigned length, const char* names[]) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> obj = val.As<v8::Object>();
   v8::Local<v8::Array> props = obj->GetPropertyNames(context).ToLocalChecked();
-  CHECK_EQ(elmc, props->Length());
-  for (unsigned i = 0; i < elmc; i++) {
-    v8::String::Utf8Value elm(
-        props->Get(context, v8::Integer::New(isolate, i)).ToLocalChecked());
-    CHECK_EQ(0, strcmp(elmv[i], *elm));
-  }
+  CheckStringArray(isolate, props, length, names);
 }
 
 
@@ -15194,6 +15215,97 @@ THREADED_TEST(PropertyEnumeration2) {
   }
 }
 
+THREADED_TEST(PropertyNames) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Value> result = CompileRun(
+      "var result = {0: 0, 1: 1, a: 2, b: 3};"
+      "result[Symbol('symbol')] = true;"
+      "result.__proto__ = {2: 4, 3: 5, c: 6, d: 7};"
+      "result;");
+  v8::Local<v8::Object> object = result.As<v8::Object>();
+  v8::PropertyFilter default_filter =
+      static_cast<v8::PropertyFilter>(v8::ONLY_ENUMERABLE | v8::SKIP_SYMBOLS);
+  v8::PropertyFilter include_symbols_filter = v8::ONLY_ENUMERABLE;
+
+  v8::Local<v8::Array> properties =
+      object->GetPropertyNames(context.local()).ToLocalChecked();
+  const char* expected_properties1[] = {"0", "1", "a", "b", "2", "3", "c", "d"};
+  CheckStringArray(isolate, properties, 8, expected_properties1);
+
+  properties =
+      object
+          ->GetPropertyNames(context.local(),
+                             v8::KeyCollectionMode::kIncludePrototypes,
+                             default_filter, v8::IndexFilter::kIncludeIndices)
+          .ToLocalChecked();
+  CheckStringArray(isolate, properties, 8, expected_properties1);
+
+  properties = object
+                   ->GetPropertyNames(context.local(),
+                                      v8::KeyCollectionMode::kIncludePrototypes,
+                                      include_symbols_filter,
+                                      v8::IndexFilter::kIncludeIndices)
+                   .ToLocalChecked();
+  const char* expected_properties1_1[] = {"0", "1", "a", "b", nullptr,
+                                          "2", "3", "c", "d"};
+  CheckStringArray(isolate, properties, 9, expected_properties1_1);
+  CheckIsSymbolAt(isolate, properties, 4, "symbol");
+
+  properties =
+      object
+          ->GetPropertyNames(context.local(),
+                             v8::KeyCollectionMode::kIncludePrototypes,
+                             default_filter, v8::IndexFilter::kSkipIndices)
+          .ToLocalChecked();
+  const char* expected_properties2[] = {"a", "b", "c", "d"};
+  CheckStringArray(isolate, properties, 4, expected_properties2);
+
+  properties = object
+                   ->GetPropertyNames(context.local(),
+                                      v8::KeyCollectionMode::kIncludePrototypes,
+                                      include_symbols_filter,
+                                      v8::IndexFilter::kSkipIndices)
+                   .ToLocalChecked();
+  const char* expected_properties2_1[] = {"a", "b", nullptr, "c", "d"};
+  CheckStringArray(isolate, properties, 5, expected_properties2_1);
+  CheckIsSymbolAt(isolate, properties, 2, "symbol");
+
+  properties =
+      object
+          ->GetPropertyNames(context.local(), v8::KeyCollectionMode::kOwnOnly,
+                             default_filter, v8::IndexFilter::kIncludeIndices)
+          .ToLocalChecked();
+  const char* expected_properties3[] = {"0", "1", "a", "b"};
+  CheckStringArray(isolate, properties, 4, expected_properties3);
+
+  properties = object
+                   ->GetPropertyNames(
+                       context.local(), v8::KeyCollectionMode::kOwnOnly,
+                       include_symbols_filter, v8::IndexFilter::kIncludeIndices)
+                   .ToLocalChecked();
+  const char* expected_properties3_1[] = {"0", "1", "a", "b", nullptr};
+  CheckStringArray(isolate, properties, 5, expected_properties3_1);
+  CheckIsSymbolAt(isolate, properties, 4, "symbol");
+
+  properties =
+      object
+          ->GetPropertyNames(context.local(), v8::KeyCollectionMode::kOwnOnly,
+                             default_filter, v8::IndexFilter::kSkipIndices)
+          .ToLocalChecked();
+  const char* expected_properties4[] = {"a", "b"};
+  CheckStringArray(isolate, properties, 2, expected_properties4);
+
+  properties = object
+                   ->GetPropertyNames(
+                       context.local(), v8::KeyCollectionMode::kOwnOnly,
+                       include_symbols_filter, v8::IndexFilter::kSkipIndices)
+                   .ToLocalChecked();
+  const char* expected_properties4_1[] = {"a", "b", nullptr};
+  CheckStringArray(isolate, properties, 3, expected_properties4_1);
+  CheckIsSymbolAt(isolate, properties, 2, "symbol");
+}
 
 THREADED_TEST(AccessChecksReenabledCorrectly) {
   LocalContext context;

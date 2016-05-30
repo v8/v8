@@ -886,7 +886,8 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter) {
     int count = 0;
-    KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
+    KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
+                               ALL_PROPERTIES);
     Subclass::CollectElementIndicesImpl(
         object, handle(object->elements(), isolate), &accumulator);
     Handle<FixedArray> keys = accumulator.GetKeys();
@@ -950,7 +951,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t length = Subclass::GetMaxIndex(*object, *backing_store);
     for (uint32_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(object, i, backing_store, filter)) {
-        if (convert == CONVERT_TO_STRING) {
+        if (convert == GetKeysConversion::kConvertToString) {
           Handle<String> index_string = isolate->factory()->Uint32ToString(i);
           list->set(insertion_index, *index_string);
         } else {
@@ -996,7 +997,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t array_length = 0;
       // Indices from dictionary elements should only be converted after
       // sorting.
-      if (convert == CONVERT_TO_STRING) {
+      if (convert == GetKeysConversion::kConvertToString) {
         for (uint32_t i = 0; i < nof_indices; i++) {
           Handle<Object> index_string = isolate->factory()->Uint32ToString(
                   combined_keys->get(i)->Number());
@@ -2409,8 +2410,8 @@ class SloppyArgumentsElementsAccessor
     Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
         GetCapacityImpl(*object, *backing_store));
     DirectCollectElementIndicesImpl(isolate, object, backing_store,
-                                    KEEP_NUMBERS, ENUMERABLE_STRINGS, indices,
-                                    &nof_indices);
+                                    GetKeysConversion::kKeepNumbers,
+                                    ENUMERABLE_STRINGS, indices, &nof_indices);
     SortIndices(indices, nof_indices);
     for (uint32_t i = 0; i < nof_indices; i++) {
       keys->AddKey(indices->get(i));
@@ -2427,7 +2428,7 @@ class SloppyArgumentsElementsAccessor
 
     for (uint32_t i = 0; i < length; ++i) {
       if (parameter_map->get(i + 2)->IsTheHole()) continue;
-      if (convert == CONVERT_TO_STRING) {
+      if (convert == GetKeysConversion::kConvertToString) {
         Handle<String> index_string = isolate->factory()->Uint32ToString(i);
         list->set(insertion_index, *index_string);
       } else {

@@ -153,7 +153,7 @@ class ScopeIterator {
                                       Handle<JSObject> scope_object);
   void CopyContextExtensionToScopeObject(Handle<Context> context,
                                          Handle<JSObject> scope_object,
-                                         KeyCollectionType type);
+                                         KeyCollectionMode mode);
 
   // Get the chain of nested scopes within this scope for the source statement
   // position. The scopes will be added to the list from the outermost scope to

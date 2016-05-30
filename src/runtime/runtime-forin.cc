@@ -22,15 +22,17 @@ namespace {
 // deletions during a for-in.
 MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   Isolate* const isolate = receiver->GetIsolate();
-  FastKeyAccumulator accumulator(isolate, receiver, INCLUDE_PROTOS,
+  FastKeyAccumulator accumulator(isolate, receiver,
+                                 KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS);
   accumulator.set_filter_proxy_keys(false);
   accumulator.set_is_for_in(true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, keys, accumulator.GetKeys(KEEP_NUMBERS),
-                               HeapObject);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, keys, accumulator.GetKeys(GetKeysConversion::kKeepNumbers),
+        HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
   }

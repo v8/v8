@@ -199,7 +199,8 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
 
-  KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
+  KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
+                             ALL_PROPERTIES);
   // No need to separate prototype levels since we only get element keys.
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
@@ -215,7 +216,8 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     accumulator.CollectOwnElementIndices(array, current);
   }
   // Erase any keys >= length.
-  Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
+  Handle<FixedArray> keys =
+      accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
   int j = 0;
   for (int i = 0; i < keys->length(); i++) {
     if (NumberToUint32(keys->get(i)) >= length) continue;

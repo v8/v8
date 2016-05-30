@@ -494,7 +494,7 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
   if (function_context->closure() == *function &&
       !function_context->IsNativeContext()) {
     CopyContextExtensionToScopeObject(function_context, local_scope,
-                                      INCLUDE_PROTOS);
+                                      KeyCollectionMode::kIncludePrototypes);
   }
 
   return local_scope;
@@ -520,7 +520,8 @@ Handle<JSObject> ScopeIterator::MaterializeClosure() {
 
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
-  CopyContextExtensionToScopeObject(context, closure_scope, OWN_ONLY);
+  CopyContextExtensionToScopeObject(context, closure_scope,
+                                    KeyCollectionMode::kOwnOnly);
 
   return closure_scope;
 }
@@ -571,7 +572,8 @@ Handle<JSObject> ScopeIterator::MaterializeInnerScope() {
   if (!context.is_null()) {
     // Fill all context locals.
     CopyContextLocalsToScopeObject(CurrentScopeInfo(), context, inner_scope);
-    CopyContextExtensionToScopeObject(context, inner_scope, OWN_ONLY);
+    CopyContextExtensionToScopeObject(context, inner_scope,
+                                      KeyCollectionMode::kOwnOnly);
   }
   return inner_scope;
 }
@@ -764,11 +766,11 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
 
 void ScopeIterator::CopyContextExtensionToScopeObject(
     Handle<Context> context, Handle<JSObject> scope_object,
-    KeyCollectionType type) {
+    KeyCollectionMode mode) {
   if (context->extension_object() == nullptr) return;
   Handle<JSObject> extension(context->extension_object());
   Handle<FixedArray> keys =
-      KeyAccumulator::GetKeys(extension, type, ENUMERABLE_STRINGS)
+      KeyAccumulator::GetKeys(extension, mode, ENUMERABLE_STRINGS)
           .ToHandleChecked();
 
   for (int i = 0; i < keys->length(); i++) {
