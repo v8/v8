@@ -131,6 +131,9 @@
 
     # Link-Time Optimizations
     'use_lto%': 0,
+
+    # Indicates if gcmole tools are downloaded by a hook.
+    'gcmole%': 0,
   },
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or \

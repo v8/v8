@@ -382,9 +382,6 @@
     # fpxx - compatibility mode, it chooses fp32 or fp64 depending on runtime
     #        detection
     'mips_fpu_mode%': 'fp32',
-
-    # Indicates if gcmole tools are downloaded by a hook.
-    'gcmole%': 0,
   },
   'target_defaults': {
     'variables': {
