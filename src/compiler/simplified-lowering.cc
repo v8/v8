@@ -1091,14 +1091,14 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kBit);
         if (lower()) {
-          // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractLowWord32(x),
-          //                                   #HoleNaNLower32)
-          node->ReplaceInput(0,
-                             jsgraph_->graph()->NewNode(
-                                 lowering->machine()->Float64ExtractLowWord32(),
-                                 node->InputAt(0)));
+          // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractHighWord32(x),
+          //                                   #HoleNanUpper32)
+          node->ReplaceInput(
+              0, jsgraph_->graph()->NewNode(
+                     lowering->machine()->Float64ExtractHighWord32(),
+                     node->InputAt(0)));
           node->AppendInput(jsgraph_->zone(),
-                            jsgraph_->Int32Constant(kHoleNanLower32));
+                            jsgraph_->Int32Constant(kHoleNanUpper32));
           NodeProperties::ChangeOp(node, jsgraph_->machine()->Word32Equal());
         }
         break;
