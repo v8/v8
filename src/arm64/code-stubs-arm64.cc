@@ -2183,7 +2183,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ Add(feedback_vector, feedback_vector,
          Operand(FixedArray::kHeaderSize + kPointerSize));
   __ Ldr(index, FieldMemOperand(feedback_vector, 0));
-  __ Add(index, index, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Add(index, index, Operand(Smi::FromInt(1)));
   __ Str(index, FieldMemOperand(feedback_vector, 0));
 
   // Set up arguments for the array constructor stub.
@@ -2243,7 +2243,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Add(feedback_vector, feedback_vector,
          Operand(FixedArray::kHeaderSize + kPointerSize));
   __ Ldr(index, FieldMemOperand(feedback_vector, 0));
-  __ Add(index, index, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Add(index, index, Operand(Smi::FromInt(1)));
   __ Str(index, FieldMemOperand(feedback_vector, 0));
 
   __ Bind(&call_function);
@@ -2308,7 +2308,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ B(ne, &miss);
 
   // Initialize the call counter.
-  __ Mov(x5, Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ Mov(x5, Smi::FromInt(1));
   __ Adds(x4, feedback_vector,
           Operand::UntagSmiAndScale(index, kPointerSizeLog2));
   __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize + kPointerSize));

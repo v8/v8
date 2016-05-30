@@ -2107,7 +2107,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ dsrl(t0, a3, 32 - kPointerSizeLog2);
   __ Daddu(a3, a2, Operand(t0));
   __ ld(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-  __ Daddu(t0, t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Daddu(t0, t0, Operand(Smi::FromInt(1)));
   __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
   __ mov(a2, a4);
@@ -2155,7 +2155,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ dsrl(t0, a3, 32 - kPointerSizeLog2);
   __ Daddu(a3, a2, Operand(t0));
   __ ld(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-  __ Daddu(t0, t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Daddu(t0, t0, Operand(Smi::FromInt(1)));
   __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
   __ bind(&call_function);
@@ -2228,7 +2228,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Initialize the call counter.
   __ dsrl(at, a3, 32 - kPointerSizeLog2);
   __ Daddu(at, a2, Operand(at));
-  __ li(t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ li(t0, Operand(Smi::FromInt(1)));
   __ sd(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
 
   // Store the function. Use a stub since we need a frame for allocation.

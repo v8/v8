@@ -1478,7 +1478,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // Increment the call count for monomorphic function calls.
   __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(CallICNexus::kCallCountIncrement));
+                    Smi::FromInt(1));
 
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
@@ -1528,7 +1528,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
                                  FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(CallICNexus::kCallCountIncrement));
+                    Smi::FromInt(1));
 
   __ bind(&call_function);
   __ Set(rax, argc);
@@ -1598,7 +1598,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Initialize the call counter.
   __ Move(FieldOperand(rbx, rdx, times_pointer_size,
                        FixedArray::kHeaderSize + kPointerSize),
-          Smi::FromInt(CallICNexus::kCallCountIncrement));
+          Smi::FromInt(1));
 
   // Store the function. Use a stub since we need a frame for allocation.
   // rbx - vector

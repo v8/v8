@@ -397,10 +397,6 @@ class FeedbackNexus {
 
 class CallICNexus final : public FeedbackNexus {
  public:
-  // Monomorphic call ics store call counts. Platform code needs to increment
-  // the count appropriately (ie, by 2).
-  static const int kCallCountIncrement = 2;
-
   CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));

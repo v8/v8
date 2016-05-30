@@ -523,7 +523,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
   if (call_count->IsSmi()) {
-    int value = Smi::cast(call_count)->value() / 2;
+    int value = Smi::cast(call_count)->value();
     return value;
   }
   return -1;
@@ -540,14 +540,14 @@ void CallICNexus::ConfigureMonomorphicArray() {
         GetIsolate()->factory()->NewAllocationSite();
     SetFeedback(*new_site);
   }
-  SetFeedbackExtra(Smi::FromInt(kCallCountIncrement), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
 }
 
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
   Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
   SetFeedback(*new_cell);
-  SetFeedbackExtra(Smi::FromInt(kCallCountIncrement), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
 }
 
 
@@ -559,8 +559,7 @@ void CallICNexus::ConfigureMegamorphic() {
 void CallICNexus::ConfigureMegamorphic(int call_count) {
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
               SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(call_count * kCallCountIncrement),
-                   SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(call_count), SKIP_WRITE_BARRIER);
 }
 
 

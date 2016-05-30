@@ -1940,7 +1940,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize + kPointerSize));
   __ ldr(r3, FieldMemOperand(r2, 0));
-  __ add(r3, r3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ add(r3, r3, Operand(Smi::FromInt(1)));
   __ str(r3, FieldMemOperand(r2, 0));
 
   __ mov(r2, r4);
@@ -1988,7 +1988,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize + kPointerSize));
   __ ldr(r3, FieldMemOperand(r2, 0));
-  __ add(r3, r3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ add(r3, r3, Operand(Smi::FromInt(1)));
   __ str(r3, FieldMemOperand(r2, 0));
 
   __ bind(&call_function);
@@ -2059,7 +2059,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Initialize the call counter.
-  __ Move(r5, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ Move(r5, Operand(Smi::FromInt(1)));
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
   __ str(r5, FieldMemOperand(r4, FixedArray::kHeaderSize + kPointerSize));
 
