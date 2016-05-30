@@ -163,39 +163,35 @@ namespace {
 #if defined(USE_SIGNALS)
 typedef std::vector<Sampler*> SamplerList;
 typedef SamplerList::iterator SamplerListIterator;
+typedef base::AtomicValue<bool> AtomicMutex;
 
 class AtomicGuard {
  public:
-  explicit AtomicGuard(base::AtomicValue<int>* atomic, bool is_block = true)
-      : atomic_(atomic),
-        is_success_(false) {
+  explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
+      : atomic_(atomic), is_success_(false) {
     do {
       // Use Acquire_Load to gain mutual exclusion.
       USE(atomic_->Value());
-      is_success_ = atomic_->TrySetValue(0, 1);
-    } while (is_block && !is_success_);
+      is_success_ = atomic_->TrySetValue(false, true);
+    } while (is_blocking && !is_success_);
   }
 
-  bool is_success() { return is_success_; }
+  bool is_success() const { return is_success_; }
 
   ~AtomicGuard() {
-    if (is_success_) {
-      atomic_->SetValue(0);
-    }
-    atomic_ = NULL;
+    if (!is_success_) return;
+    atomic_->SetValue(false);
   }
 
  private:
-  base::AtomicValue<int>* atomic_;
+  AtomicMutex* const atomic_;
   bool is_success_;
 };
-
 
 // Returns key for hash map.
 void* ThreadKey(pthread_t thread_id) {
   return reinterpret_cast<void*>(thread_id);
 }
-
 
 // Returns hash value for hash map.
 uint32_t ThreadHash(pthread_t thread_id) {
@@ -221,19 +217,19 @@ class Sampler::PlatformData {
   pthread_t vm_tid_;
 };
 
-
 class SamplerManager {
  public:
-  static void AddSampler(Sampler* sampler) {
+  SamplerManager() : sampler_map_(HashMap::PointersMatch) {}
+
+  void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || !sampler->IsRegistered());
     // Add sampler into map if needed.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
-    HashMap::Entry* entry =
-        sampler_map_.Pointer()->LookupOrInsert(ThreadKey(thread_id),
-                                               ThreadHash(thread_id));
-    DCHECK(entry != NULL);
-    if (entry->value == NULL) {
+    HashMap::Entry* entry = sampler_map_.LookupOrInsert(ThreadKey(thread_id),
+                                                        ThreadHash(thread_id));
+    DCHECK(entry != nullptr);
+    if (entry->value == nullptr) {
       SamplerList* samplers = new SamplerList();
       samplers->push_back(sampler);
       entry->value = samplers;
@@ -253,15 +249,15 @@ class SamplerManager {
     }
   }
 
-  static void RemoveSampler(Sampler* sampler) {
+  void RemoveSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || sampler->IsRegistered());
     // Remove sampler from map.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
     void* thread_key = ThreadKey(thread_id);
     uint32_t thread_hash = ThreadHash(thread_id);
-    HashMap::Entry* entry = sampler_map_.Get().Lookup(thread_key, thread_hash);
-    DCHECK(entry != NULL);
+    HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
+    DCHECK(entry != nullptr);
     SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
     for (SamplerListIterator iter = samplers->begin(); iter != samplers->end();
          ++iter) {
@@ -271,27 +267,43 @@ class SamplerManager {
       }
     }
     if (samplers->empty()) {
-      sampler_map_.Pointer()->Remove(thread_key, thread_hash);
+      sampler_map_.Remove(thread_key, thread_hash);
       delete samplers;
     }
   }
 
- private:
-  struct HashMapCreateTrait {
-    static void Construct(HashMap* allocated_ptr) {
-      new (allocated_ptr) HashMap(HashMap::PointersMatch);
+#if defined(USE_SIGNALS)
+  void DoSample(const v8::RegisterState& state) {
+    AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
+    if (!atomic_guard.is_success()) return;
+    pthread_t thread_id = pthread_self();
+    HashMap::Entry* entry =
+        sampler_map_.Lookup(ThreadKey(thread_id), ThreadHash(thread_id));
+    if (!entry) return;
+    SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
+
+    for (int i = 0; i < samplers.size(); ++i) {
+      Sampler* sampler = samplers[i];
+      Isolate* isolate = sampler->isolate();
+      // We require a fully initialized and entered isolate.
+      if (isolate == nullptr || !isolate->IsInUse()) continue;
+      if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
+      sampler->SampleStack(state);
     }
-  };
-  friend class SignalHandler;
-  static base::LazyInstance<HashMap, HashMapCreateTrait>::type
-      sampler_map_;
-  static base::AtomicValue<int> samplers_access_counter_;
+  }
+#endif
+
+  static SamplerManager* instance() { return instance_.Pointer(); }
+
+ private:
+  HashMap sampler_map_;
+  static AtomicMutex samplers_access_counter_;
+  static base::LazyInstance<SamplerManager>::type instance_;
 };
 
-base::LazyInstance<HashMap, SamplerManager::HashMapCreateTrait>::type
-    SamplerManager::sampler_map_ = LAZY_INSTANCE_INITIALIZER;
-base::AtomicValue<int> SamplerManager::samplers_access_counter_(0);
-
+AtomicMutex SamplerManager::samplers_access_counter_;
+base::LazyInstance<SamplerManager>::type SamplerManager::instance_ =
+    LAZY_INSTANCE_INITIALIZER;
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
@@ -314,9 +326,9 @@ class Sampler::PlatformData {
                                     GetCurrentThreadId())) {}
 
   ~PlatformData() {
-    if (profiled_thread_ != NULL) {
+    if (profiled_thread_ != nullptr) {
       CloseHandle(profiled_thread_);
-      profiled_thread_ = NULL;
+      profiled_thread_ = nullptr;
     }
   }
 
@@ -332,7 +344,10 @@ class Sampler::PlatformData {
 class SignalHandler {
  public:
   static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
-  static void TearDown() { delete mutex_; mutex_ = NULL; }
+  static void TearDown() {
+    delete mutex_;
+    mutex_ = nullptr;
+  }
 
   static void IncreaseSamplerCount() {
     base::LockGuard<base::Mutex> lock_guard(mutex_);
@@ -385,8 +400,7 @@ class SignalHandler {
   static struct sigaction old_signal_handler_;
 };
 
-
-base::Mutex* SignalHandler::mutex_ = NULL;
+base::Mutex* SignalHandler::mutex_ = nullptr;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
@@ -398,29 +412,9 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
   USE(info);
   if (signal != SIGPROF) return;
-  AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
-  if (!atomic_guard.is_success()) return;
-  pthread_t thread_id = pthread_self();
-  HashMap::Entry* entry =
-      SamplerManager::sampler_map_.Pointer()->Lookup(ThreadKey(thread_id),
-                                                     ThreadHash(thread_id));
-  if (entry == NULL) return;
-  SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-
   v8::RegisterState state;
   FillRegisterState(context, &state);
-
-  for (int i = 0; i < samplers->size(); ++i) {
-    Sampler* sampler = (*samplers)[i];
-    Isolate* isolate = sampler->isolate();
-
-    // We require a fully initialized and entered isolate.
-    if (isolate == NULL || !isolate->IsInUse()) return;
-
-    if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) return;
-
-    sampler->SampleStack(state);
-  }
+  SamplerManager::instance()->DoSample(state);
 }
 
 void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
@@ -592,7 +586,7 @@ Sampler::~Sampler() {
   DCHECK(!IsActive());
 #if defined(USE_SIGNALS)
   if (IsRegistered()) {
-    SamplerManager::RemoveSampler(this);
+    SamplerManager::instance()->RemoveSampler(this);
   }
 #endif
   delete data_;
@@ -602,14 +596,14 @@ void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
 #if defined(USE_SIGNALS)
-  SamplerManager::AddSampler(this);
+  SamplerManager::instance()->AddSampler(this);
 #endif
 }
 
 
 void Sampler::Stop() {
 #if defined(USE_SIGNALS)
-  SamplerManager::RemoveSampler(this);
+  SamplerManager::instance()->RemoveSampler(this);
 #endif
   DCHECK(IsActive());
   SetActive(false);
@@ -638,7 +632,7 @@ void Sampler::DecreaseProfilingDepth() {
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
   if (!IsActive() && !IsRegistered()) {
-    SamplerManager::AddSampler(this);
+    SamplerManager::instance()->AddSampler(this);
     SetRegistered(true);
   }
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
@@ -648,7 +642,7 @@ void Sampler::DoSample() {
 
 void Sampler::DoSample() {
   HANDLE profiled_thread = platform_data()->profiled_thread();
-  if (profiled_thread == NULL) return;
+  if (profiled_thread == nullptr) return;
 
   const DWORD kSuspendFailed = static_cast<DWORD>(-1);
   if (SuspendThread(profiled_thread) == kSuspendFailed) return;
