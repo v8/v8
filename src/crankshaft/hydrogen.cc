@@ -5898,10 +5898,10 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         HValue* global_object = Add<HLoadNamedField>(
             BuildGetNativeContext(), nullptr,
             HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
+        Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
         HLoadGlobalGeneric* instr = New<HLoadGlobalGeneric>(
-            global_object, variable->name(), ast_context()->typeof_mode());
-        instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
-                                expr->VariableFeedbackSlot());
+            global_object, variable->name(), ast_context()->typeof_mode(),
+            vector, expr->VariableFeedbackSlot());
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
     }
@@ -7086,12 +7086,11 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* global_object = Add<HLoadNamedField>(
         BuildGetNativeContext(), nullptr,
         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
-    HStoreNamedGeneric* instr =
-        Add<HStoreNamedGeneric>(global_object, var->name(), value,
-                                function_language_mode(), PREMONOMORPHIC);
     Handle<TypeFeedbackVector> vector =
         handle(current_feedback_vector(), isolate());
-    instr->SetVectorAndSlot(vector, slot);
+    HStoreNamedGeneric* instr =
+        Add<HStoreNamedGeneric>(global_object, var->name(), value,
+                                function_language_mode(), vector, slot);
     USE(instr);
     DCHECK(instr->HasObservableSideEffects());
     Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -7417,16 +7416,17 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // it has to share information with full code.
       HConstant* key = Add<HConstant>(name);
       HLoadKeyedGeneric* result =
-          New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
-      result->SetVectorAndSlot(vector, slot);
+          New<HLoadKeyedGeneric>(object, key, vector, slot);
       return result;
     }
 
     HLoadNamedGeneric* result =
-        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
-    result->SetVectorAndSlot(vector, slot);
+        New<HLoadNamedGeneric>(object, name, vector, slot);
     return result;
   } else {
+    Handle<TypeFeedbackVector> vector =
+        handle(current_feedback_vector(), isolate());
+
     if (current_feedback_vector()->GetKind(slot) ==
         FeedbackVectorSlotKind::KEYED_STORE_IC) {
       // It's possible that a keyed store of a constant string was converted
@@ -7435,18 +7435,12 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // it has to share information with full code.
       HConstant* key = Add<HConstant>(name);
       HStoreKeyedGeneric* result = New<HStoreKeyedGeneric>(
-          object, key, value, function_language_mode(), PREMONOMORPHIC);
-      Handle<TypeFeedbackVector> vector =
-          handle(current_feedback_vector(), isolate());
-      result->SetVectorAndSlot(vector, slot);
+          object, key, value, function_language_mode(), vector, slot);
       return result;
     }
 
     HStoreNamedGeneric* result = New<HStoreNamedGeneric>(
-        object, name, value, function_language_mode(), PREMONOMORPHIC);
-    Handle<TypeFeedbackVector> vector =
-        handle(current_feedback_vector(), isolate());
-    result->SetVectorAndSlot(vector, slot);
+        object, name, value, function_language_mode(), vector, slot);
     return result;
   }
 }
@@ -7455,25 +7449,15 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
     HValue* object, HValue* key, HValue* value) {
+  Handle<TypeFeedbackVector> vector =
+      handle(current_feedback_vector(), isolate());
   if (access_type == LOAD) {
-    InlineCacheState initial_state = expr->AsProperty()->GetInlineCacheState();
     HLoadKeyedGeneric* result =
-        New<HLoadKeyedGeneric>(object, key, initial_state);
-    // HLoadKeyedGeneric with vector ics benefits from being encoded as
-    // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
-    if (initial_state != MEGAMORPHIC) {
-      // We need to pass vector information.
-      Handle<TypeFeedbackVector> vector =
-          handle(current_feedback_vector(), isolate());
-      result->SetVectorAndSlot(vector, slot);
-    }
+        New<HLoadKeyedGeneric>(object, key, vector, slot);
     return result;
   } else {
     HStoreKeyedGeneric* result = New<HStoreKeyedGeneric>(
-        object, key, value, function_language_mode(), PREMONOMORPHIC);
-    Handle<TypeFeedbackVector> vector =
-        handle(current_feedback_vector(), isolate());
-    result->SetVectorAndSlot(vector, slot);
+        object, key, value, function_language_mode(), vector, slot);
     return result;
   }
 }

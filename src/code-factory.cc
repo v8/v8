@@ -24,12 +24,10 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::LoadICInOptimizedCode(
-    Isolate* isolate, TypeofMode typeof_mode,
-    InlineCacheState initialization_state) {
+Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate,
+                                            TypeofMode typeof_mode) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(typeof_mode).GetExtraICState(),
-      initialization_state);
+      isolate, LoadICState(typeof_mode).GetExtraICState());
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
@@ -42,14 +40,10 @@ Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::KeyedLoadICInOptimizedCode(
-    Isolate* isolate, InlineCacheState initialization_state) {
-  auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
-      isolate, initialization_state, kNoExtraICState);
-  if (initialization_state != MEGAMORPHIC) {
-    return Callable(code, LoadWithVectorDescriptor(isolate));
-  }
-  return Callable(code, LoadDescriptor(isolate));
+Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
+  auto code =
+      KeyedLoadIC::initialize_stub_in_optimized_code(isolate, kNoExtraICState);
+  return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 
@@ -80,15 +74,12 @@ Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
 
 
 // static
-Callable CodeFactory::StoreICInOptimizedCode(
-    Isolate* isolate, LanguageMode language_mode,
-    InlineCacheState initialization_state) {
-  CallInterfaceDescriptor descriptor = initialization_state != MEGAMORPHIC
-                                           ? VectorStoreICDescriptor(isolate)
-                                           : StoreDescriptor(isolate);
-  return Callable(StoreIC::initialize_stub_in_optimized_code(
-                      isolate, language_mode, initialization_state),
-                  descriptor);
+Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
+                                             LanguageMode language_mode) {
+  CallInterfaceDescriptor descriptor = VectorStoreICDescriptor(isolate);
+  return Callable(
+      StoreIC::initialize_stub_in_optimized_code(isolate, language_mode),
+      descriptor);
 }
 
 
@@ -101,15 +92,12 @@ Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
 
 
 // static
-Callable CodeFactory::KeyedStoreICInOptimizedCode(
-    Isolate* isolate, LanguageMode language_mode,
-    InlineCacheState initialization_state) {
-  CallInterfaceDescriptor descriptor = initialization_state != MEGAMORPHIC
-                                           ? VectorStoreICDescriptor(isolate)
-                                           : StoreDescriptor(isolate);
-  return Callable(KeyedStoreIC::initialize_stub_in_optimized_code(
-                      isolate, language_mode, initialization_state),
-                  descriptor);
+Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
+                                                  LanguageMode language_mode) {
+  CallInterfaceDescriptor descriptor = VectorStoreICDescriptor(isolate);
+  return Callable(
+      KeyedStoreIC::initialize_stub_in_optimized_code(isolate, language_mode),
+      descriptor);
 }
 
 

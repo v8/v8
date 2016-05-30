@@ -410,8 +410,7 @@ Node* Interpreter::BuildLoadGlobal(Callable ic,
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   UNINITIALIZED);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -422,8 +421,7 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
 // Load the global with name in constant pool entry <name_index> into
 // register <reg> using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   UNINITIALIZED);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   Node* destination = __ BytecodeOperandReg(2);
   __ StoreRegister(result, destination);
@@ -435,8 +433,7 @@ void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> inside of a typeof.
 void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
-                                                   UNINITIALIZED);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -467,8 +464,7 @@ void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in sloppy mode.
 void Interpreter::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY);
   DoStaGlobal(ic, assembler);
 }
 
@@ -477,8 +473,7 @@ void Interpreter::DoStaGlobalSloppy(InterpreterAssembler* assembler) {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in strict mode.
 void Interpreter::DoStaGlobalStrict(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, STRICT);
   DoStaGlobal(ic, assembler);
 }
 
@@ -597,8 +592,7 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
 void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   UNINITIALIZED);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -609,8 +603,7 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index> and puts the result into register <reg>.
 void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   UNINITIALIZED);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   Node* destination = __ BytecodeOperandReg(3);
   __ StoreRegister(result, destination);
@@ -636,8 +629,7 @@ Node* Interpreter::BuildLoadKeyedProperty(Callable ic,
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
 void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
+  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadKeyedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -648,8 +640,7 @@ void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator and puts the result in register <reg>.
 void Interpreter::DoLdrKeyedProperty(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
+  Callable ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadKeyedProperty(ic, assembler);
   Node* destination = __ BytecodeOperandReg(2);
   __ StoreRegister(result, destination);
@@ -678,8 +669,7 @@ void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 void Interpreter::DoStaNamedPropertySloppy(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, SLOPPY);
   DoStoreIC(ic, assembler);
 }
 
@@ -689,8 +679,7 @@ void Interpreter::DoStaNamedPropertySloppy(InterpreterAssembler* assembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 void Interpreter::DoStaNamedPropertyStrict(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::StoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate_, STRICT);
   DoStoreIC(ic, assembler);
 }
 
@@ -715,8 +704,7 @@ void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
 // Calls the sloppy mode KeyStoreIC at FeedBackVector slot <slot> for <object>
 // and the key <key> with the value in the accumulator.
 void Interpreter::DoStaKeyedPropertySloppy(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+  Callable ic = CodeFactory::KeyedStoreICInOptimizedCode(isolate_, SLOPPY);
   DoKeyedStoreIC(ic, assembler);
 }
 
@@ -725,8 +713,7 @@ void Interpreter::DoStaKeyedPropertySloppy(InterpreterAssembler* assembler) {
 // Calls the strict mode KeyStoreIC at FeedBackVector slot <slot> for <object>
 // and the key <key> with the value in the accumulator.
 void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+  Callable ic = CodeFactory::KeyedStoreICInOptimizedCode(isolate_, STRICT);
   DoKeyedStoreIC(ic, assembler);
 }
 

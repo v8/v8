@@ -804,26 +804,19 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
 }
 
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, ExtraICState extra_state, State initialization_state) {
+    Isolate* isolate, ExtraICState extra_state) {
   return LoadICStub(isolate, LoadICState(extra_state)).GetCode();
 }
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, State initialization_state, ExtraICState extra_state) {
-  if (initialization_state != MEGAMORPHIC) {
-    return KeyedLoadICStub(isolate, LoadICState(extra_state)).GetCode();
-  }
-  return isolate->builtins()->KeyedLoadIC_Megamorphic();
+    Isolate* isolate, ExtraICState extra_state) {
+  return KeyedLoadICStub(isolate, LoadICState(extra_state)).GetCode();
 }
 
-
 Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, LanguageMode language_mode, State initialization_state) {
+    Isolate* isolate, LanguageMode language_mode) {
   StoreICState state = StoreICState(language_mode);
-  if (initialization_state != MEGAMORPHIC) {
-    return VectorKeyedStoreICStub(isolate, state).GetCode();
-  }
-  return ChooseMegamorphicStub(isolate, state.GetExtraICState());
+  return VectorKeyedStoreICStub(isolate, state).GetCode();
 }
 
 
@@ -1548,20 +1541,10 @@ Handle<Code> CallIC::initialize_stub_in_optimized_code(
   return code;
 }
 
-
 Handle<Code> StoreIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, LanguageMode language_mode, State initialization_state) {
-  DCHECK(initialization_state == UNINITIALIZED ||
-         initialization_state == PREMONOMORPHIC ||
-         initialization_state == MEGAMORPHIC);
-  if (initialization_state != MEGAMORPHIC) {
-    VectorStoreICStub stub(isolate, StoreICState(language_mode));
-    return stub.GetCode();
-  }
-
-  return is_strict(language_mode)
-             ? isolate->builtins()->StoreIC_Megamorphic_Strict()
-             : isolate->builtins()->StoreIC_Megamorphic();
+    Isolate* isolate, LanguageMode language_mode) {
+  VectorStoreICStub stub(isolate, StoreICState(language_mode));
+  return stub.GetCode();
 }
 
 Handle<Code> StoreIC::slow_stub() const {
