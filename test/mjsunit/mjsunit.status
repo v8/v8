@@ -413,6 +413,9 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # BUG(v8:5053).
+  'wasm/embenchen/fasta': [PASS, FAST_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
