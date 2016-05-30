@@ -84,6 +84,8 @@ enum BindingFlags {
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
   V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
   V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
+  V(STRING_TO_LOWER_CASE_INDEX, JSFunction, string_to_lower_case)       \
+  V(STRING_TO_UPPER_CASE_INDEX, JSFunction, string_to_upper_case)       \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
   V(MATH_FLOOR, JSFunction, math_floor)                                 \

@@ -172,6 +172,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ReflectSetPrototypeOf, kNone)                              \
                                                                \
   V(StringFromCharCode, kNone)                                 \
+  V(StringPrototypeToLowerCase, kNone)                         \
+  V(StringPrototypeToUpperCase, kNone)                         \
   V(StringPrototypeTrim, kNone)                                \
   V(StringPrototypeTrimLeft, kNone)                            \
   V(StringPrototypeTrimRight, kNone)                           \

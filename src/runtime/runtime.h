@@ -829,8 +829,6 @@ namespace internal {
   F(StringBuilderJoin, 3, 1)              \
   F(SparseJoinWithSeparator, 3, 1)        \
   F(StringToArray, 2, 1)                  \
-  F(StringToLowerCase, 1, 1)              \
-  F(StringToUpperCase, 1, 1)              \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringGreaterThan, 2, 1)              \

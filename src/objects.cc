@@ -9981,6 +9981,306 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
 }
 #endif
 
+namespace {
+
+bool ToUpperOverflows(uc32 character) {
+  // y with umlauts and the micro sign are the only characters that stop
+  // fitting into one-byte when converting to uppercase.
+  static const uc32 yuml_code = 0xff;
+  static const uc32 micro_code = 0xb5;
+  return (character == yuml_code || character == micro_code);
+}
+
+template <class Converter>
+MaybeHandle<Object> ConvertCaseHelper(
+    Isolate* isolate, Handle<String> string, Handle<SeqString> result,
+    int result_length, unibrow::Mapping<Converter, 128>* mapping) {
+  DisallowHeapAllocation no_gc;
+  // We try this twice, once with the assumption that the result is no longer
+  // than the input and, if that assumption breaks, again with the exact
+  // length.  This may not be pretty, but it is nicer than what was here before
+  // and I hereby claim my vaffel-is.
+  //
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
+  // might break in the future if we implement more context and locale
+  // dependent upper/lower conversions.
+  bool has_changed_character = false;
+
+  // Convert all characters to upper case, assuming that they will fit
+  // in the buffer
+  StringCharacterStream stream(*string);
+  unibrow::uchar chars[Converter::kMaxWidth];
+  // We can assume that the string is not empty
+  uc32 current = stream.GetNext();
+  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
+  for (int i = 0; i < result_length;) {
+    bool has_next = stream.HasMore();
+    uc32 next = has_next ? stream.GetNext() : 0;
+    int char_length = mapping->get(current, next, chars);
+    if (char_length == 0) {
+      // The case conversion of this character is the character itself.
+      result->Set(i, current);
+      i++;
+    } else if (char_length == 1 &&
+               (ignore_overflow || !ToUpperOverflows(current))) {
+      // Common case: converting the letter resulted in one character.
+      DCHECK(static_cast<uc32>(chars[0]) != current);
+      result->Set(i, chars[0]);
+      has_changed_character = true;
+      i++;
+    } else if (result_length == string->length()) {
+      bool overflows = ToUpperOverflows(current);
+      // We've assumed that the result would be as long as the
+      // input but here is a character that converts to several
+      // characters.  No matter, we calculate the exact length
+      // of the result and try the whole thing again.
+      //
+      // Note that this leaves room for optimization.  We could just
+      // memcpy what we already have to the result string.  Also,
+      // the result string is the last object allocated we could
+      // "realloc" it and probably, in the vast majority of cases,
+      // extend the existing string to be able to hold the full
+      // result.
+      int next_length = 0;
+      if (has_next) {
+        next_length = mapping->get(next, 0, chars);
+        if (next_length == 0) next_length = 1;
+      }
+      int current_length = i + char_length + next_length;
+      while (stream.HasMore()) {
+        current = stream.GetNext();
+        overflows |= ToUpperOverflows(current);
+        // NOTE: we use 0 as the next character here because, while
+        // the next character may affect what a character converts to,
+        // it does not in any case affect the length of what it convert
+        // to.
+        int char_length = mapping->get(current, 0, chars);
+        if (char_length == 0) char_length = 1;
+        current_length += char_length;
+        if (current_length > String::kMaxLength) {
+          AllowHeapAllocation allocate_error_and_return;
+          THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), Object);
+        }
+      }
+      // Try again with the real length.  Return signed if we need
+      // to allocate a two-byte string for to uppercase.
+      if (overflows && !ignore_overflow) {
+        return handle(Smi::FromInt(-current_length), isolate);
+      }
+      return handle(Smi::FromInt(current_length), isolate);
+    } else {
+      for (int j = 0; j < char_length; j++) {
+        result->Set(i, chars[j]);
+        i++;
+      }
+      has_changed_character = true;
+    }
+    current = next;
+  }
+  if (has_changed_character) {
+    return result;
+  } else {
+    // If we didn't actually change anything in doing the conversion
+    // we simple return the result and let the converted string
+    // become garbage; there is no reason to keep two identical strings
+    // alive.
+    return string;
+  }
+}
+
+const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
+const uintptr_t kAsciiMask = kOneInEveryByte << 7;
+
+// Given a word and two range boundaries returns a word with high bit
+// set in every byte iff the corresponding input byte was strictly in
+// the range (m, n). All the other bits in the result are cleared.
+// This function is only useful when it can be inlined and the
+// boundaries are statically known.
+// Requires: all bytes in the input word and the boundaries must be
+// ASCII (less than 0x7F).
+uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
+  // Use strict inequalities since in edge cases the function could be
+  // further simplified.
+  DCHECK(0 < m && m < n);
+  // Has high bit set in every w byte less than n.
+  uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
+  // Has high bit set in every w byte greater than m.
+  uintptr_t tmp2 = w + kOneInEveryByte * (0x7F - m);
+  return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
+}
+
+#ifdef DEBUG
+bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
+                           bool is_to_lower) {
+  bool expected_changed = false;
+  for (int i = 0; i < length; i++) {
+    if (dst[i] == src[i]) continue;
+    expected_changed = true;
+    if (is_to_lower) {
+      DCHECK('A' <= src[i] && src[i] <= 'Z');
+      DCHECK(dst[i] == src[i] + ('a' - 'A'));
+    } else {
+      DCHECK('a' <= src[i] && src[i] <= 'z');
+      DCHECK(dst[i] == src[i] - ('a' - 'A'));
+    }
+  }
+  return (expected_changed == changed);
+}
+#endif
+
+template <class Converter>
+bool FastAsciiConvert(char* dst, const char* src, int length,
+                      bool* changed_out) {
+#ifdef DEBUG
+  char* saved_dst = dst;
+  const char* saved_src = src;
+#endif
+  DisallowHeapAllocation no_gc;
+  // We rely on the distance between upper and lower case letters
+  // being a known power of 2.
+  DCHECK('a' - 'A' == (1 << 5));
+  // Boundaries for the range of input characters than require conversion.
+  static const char lo = Converter::kIsToLower ? 'A' - 1 : 'a' - 1;
+  static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
+  bool changed = false;
+  uintptr_t or_acc = 0;
+  const char* const limit = src + length;
+
+  // dst is newly allocated and always aligned.
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(dst), sizeof(uintptr_t)));
+  // Only attempt processing one word at a time if src is also aligned.
+  if (IsAligned(reinterpret_cast<intptr_t>(src), sizeof(uintptr_t))) {
+    // Process the prefix of the input that requires no conversion one aligned
+    // (machine) word at a time.
+    while (src <= limit - sizeof(uintptr_t)) {
+      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
+      or_acc |= w;
+      if (AsciiRangeMask(w, lo, hi) != 0) {
+        changed = true;
+        break;
+      }
+      *reinterpret_cast<uintptr_t*>(dst) = w;
+      src += sizeof(uintptr_t);
+      dst += sizeof(uintptr_t);
+    }
+    // Process the remainder of the input performing conversion when
+    // required one word at a time.
+    while (src <= limit - sizeof(uintptr_t)) {
+      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
+      or_acc |= w;
+      uintptr_t m = AsciiRangeMask(w, lo, hi);
+      // The mask has high (7th) bit set in every byte that needs
+      // conversion and we know that the distance between cases is
+      // 1 << 5.
+      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
+      src += sizeof(uintptr_t);
+      dst += sizeof(uintptr_t);
+    }
+  }
+  // Process the last few bytes of the input (or the whole input if
+  // unaligned access is not supported).
+  while (src < limit) {
+    char c = *src;
+    or_acc |= c;
+    if (lo < c && c < hi) {
+      c ^= (1 << 5);
+      changed = true;
+    }
+    *dst = c;
+    ++src;
+    ++dst;
+  }
+
+  if ((or_acc & kAsciiMask) != 0) return false;
+
+  DCHECK(CheckFastAsciiConvert(saved_dst, saved_src, length, changed,
+                               Converter::kIsToLower));
+
+  *changed_out = changed;
+  return true;
+}
+
+template <class Converter>
+MaybeHandle<String> ConvertCase(Handle<String> s, Isolate* isolate,
+                                unibrow::Mapping<Converter, 128>* mapping) {
+  s = String::Flatten(s);
+  int length = s->length();
+  // Assume that the string is not empty; we need this assumption later
+  if (length == 0) return s;
+
+  // Simpler handling of ASCII strings.
+  //
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
+  // might break in the future if we implement more context and locale
+  // dependent upper/lower conversions.
+  if (s->IsOneByteRepresentationUnderneath()) {
+    // Same length as input.
+    Handle<SeqOneByteString> result =
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat_content = s->GetFlatContent();
+    DCHECK(flat_content.IsFlat());
+    bool has_changed_character = false;
+    bool is_ascii = FastAsciiConvert<Converter>(
+        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
+        length, &has_changed_character);
+    // If not ASCII, we discard the result and take the 2 byte path.
+    if (is_ascii) {
+      if (has_changed_character) return result;
+      return s;
+    }
+  }
+
+  Handle<SeqString> result;  // Same length as input.
+  if (s->IsOneByteRepresentation()) {
+    result = isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+  } else {
+    result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+  }
+
+  Handle<Object> answer;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, answer, ConvertCaseHelper(isolate, s, result, length, mapping),
+      String);
+  if (!answer->IsString()) {
+    DCHECK(answer->IsSmi());
+    length = Handle<Smi>::cast(answer)->value();
+    if (s->IsOneByteRepresentation() && length > 0) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result, isolate->factory()->NewRawOneByteString(length),
+          String);
+    } else {
+      if (length < 0) length = -length;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result, isolate->factory()->NewRawTwoByteString(length),
+          String);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, answer, ConvertCaseHelper(isolate, s, result, length, mapping),
+        String);
+  }
+  return Handle<String>::cast(answer);
+}
+
+}  // namespace
+
+// static
+MaybeHandle<String> String::ToLowerCase(Handle<String> string) {
+  Isolate* const isolate = string->GetIsolate();
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_lower_mapping());
+}
+
+// static
+MaybeHandle<String> String::ToUpperCase(Handle<String> string) {
+  Isolate* const isolate = string->GetIsolate();
+  return ConvertCase(string, isolate,
+                     isolate->runtime_state()->to_upper_mapping());
+}
+
 // static
 Handle<String> String::Trim(Handle<String> string, TrimMode mode) {
   Isolate* const isolate = string->GetIsolate();

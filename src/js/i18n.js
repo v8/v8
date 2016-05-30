@@ -46,6 +46,8 @@ var StringLastIndexOf;
 var StringSplit;
 var StringSubstr;
 var StringSubstring;
+var StringToLowerCase = GlobalString.prototype.toLowerCase;
+var StringToUpperCase = GlobalString.prototype.toUpperCase;
 
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
@@ -693,8 +695,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return %StringToUpperCase(%_Call(StringSubstr, word, 0, 1)) +
-         %StringToLowerCase(%_Call(StringSubstr, word, 1));
+  return %_Call(StringToUpperCase, %_Call(StringSubstr, word, 0, 1)) +
+         %_Call(StringToLowerCase, %_Call(StringSubstr, word, 1));
 }
 
 /**
@@ -715,7 +717,7 @@ function toTitleCaseTimezoneLocation(location) {
     var parts = %_Call(StringSplit, match[2], separator);
     for (var i = 1; i < parts.length; i++) {
       var part = parts[i]
-      var lowercasedPart = %StringToLowerCase(part);
+      var lowercasedPart = %_Call(StringToLowerCase, part);
       result = result + separator +
           ((lowercasedPart !== 'es' &&
             lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
@@ -1155,7 +1157,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
-    defineWEProperty(internalOptions, 'currency', %StringToUpperCase(currency));
+    defineWEProperty(internalOptions, 'currency',
+                     %_Call(StringToUpperCase, currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
   }
 
@@ -1789,7 +1792,7 @@ function canonicalizeTimeZoneID(tzID) {
   }
 
   // Special case handling (UTC, GMT).
-  var upperID = %StringToUpperCase(tzID);
+  var upperID = %_Call(StringToUpperCase, tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
       upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
     return 'UTC';

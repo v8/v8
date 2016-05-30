@@ -8861,6 +8861,12 @@ class String: public Name {
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
 
+  // Case conversion.
+  static MaybeHandle<String> ToLowerCase(Handle<String> string)
+      WARN_UNUSED_RESULT;
+  static MaybeHandle<String> ToUpperCase(Handle<String> string)
+      WARN_UNUSED_RESULT;
+
   // Trimming.
   enum TrimMode { kTrim, kTrimLeft, kTrimRight };
   static Handle<String> Trim(Handle<String> string, TrimMode mode);
