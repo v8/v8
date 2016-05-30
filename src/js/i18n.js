@@ -21,7 +21,6 @@ var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
 var FLAG_intl_extra;
-var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
@@ -31,7 +30,6 @@ var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var InternalRegExpMatch;
 var InternalRegExpReplace
-var IsFinite;
 var IsNaN;
 var MakeError;
 var MakeRangeError;
@@ -51,7 +49,6 @@ utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
-  IsFinite = from.IsFinite;
   IsNaN = from.IsNaN;
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
@@ -285,7 +282,7 @@ function supportedLocalesOf(service, locales, options) {
 
   var matcher = options.localeMatcher;
   if (!IS_UNDEFINED(matcher)) {
-    matcher = GlobalString(matcher);
+    matcher = TO_STRING(matcher);
     if (matcher !== 'lookup' && matcher !== 'best fit') {
       throw MakeRangeError(kLocaleMatcher, matcher);
     }
@@ -366,13 +363,13 @@ function getGetOption(options, caller) {
       var value = options[property];
       switch (type) {
         case 'boolean':
-          value = GlobalBoolean(value);
+          value = TO_BOOLEAN(value);
           break;
         case 'string':
-          value = GlobalString(value);
+          value = TO_STRING(value);
           break;
         case 'number':
-          value = GlobalNumber(value);
+          value = TO_NUMBER(value);
           break;
         default:
           throw MakeError(kWrongValueType);
@@ -523,7 +520,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   var extension = '';
 
   var updateExtension = function updateExtension(key, value) {
-    return '-' + key + '-' + GlobalString(value);
+    return '-' + key + '-' + TO_STRING(value);
   }
 
   var updateProperty = function updateProperty(property, type, value) {
@@ -742,7 +739,7 @@ function canonicalizeLanguageTag(localeID) {
     return localeID;
   }
 
-  var localeString = GlobalString(localeID);
+  var localeString = TO_STRING(localeID);
 
   if (isValidLanguageTag(localeString) === false) {
     throw MakeRangeError(kInvalidLanguageTag, localeString);
@@ -1078,7 +1075,7 @@ InstallFunction(Intl.Collator, 'supportedLocalesOf', function(locales) {
  */
 function compare(collator, x, y) {
   return %InternalCompare(%GetImplFromInitializedIntlObject(collator),
-                          GlobalString(x), GlobalString(y));
+                          TO_STRING(x), TO_STRING(y));
 };
 
 
@@ -1102,8 +1099,8 @@ function isWellFormedCurrencyCode(currency) {
 function getNumberOption(options, property, min, max, fallback) {
   var value = options[property];
   if (!IS_UNDEFINED(value)) {
-    value = GlobalNumber(value);
-    if (IsNaN(value) || value < min || value > max) {
+    value = TO_NUMBER(value);
+    if (NUMBER_IS_NAN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
     return %math_floor(value);
@@ -1348,7 +1345,7 @@ function formatNumber(formatter, value) {
  */
 function IntlParseNumber(formatter, value) {
   return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
-                              GlobalString(value));
+                              TO_STRING(value));
 }
 
 AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat');
@@ -1755,7 +1752,7 @@ function formatDate(formatter, dateValue) {
     dateMs = TO_NUMBER(dateValue);
   }
 
-  if (!IsFinite(dateMs)) throw MakeRangeError(kDateRange);
+  if (!NUMBER_IS_FINITE(dateMs)) throw MakeRangeError(kDateRange);
 
   return %InternalDateFormat(%GetImplFromInitializedIntlObject(formatter),
                              new GlobalDate(dateMs));
@@ -1770,7 +1767,7 @@ function formatDate(formatter, dateValue) {
  */
 function IntlParseDate(formatter, value) {
   return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
-                            GlobalString(value));
+                            TO_STRING(value));
 }
 
 
@@ -1927,7 +1924,7 @@ InstallFunction(Intl.v8BreakIterator, 'supportedLocalesOf',
  */
 function adoptText(iterator, text) {
   %BreakIteratorAdoptText(%GetImplFromInitializedIntlObject(iterator),
-                          GlobalString(text));
+                          TO_STRING(text));
 }
 
 

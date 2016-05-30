@@ -449,7 +449,6 @@ function GetIterator(obj, method) {
 utils.Export(function(to) {
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
-  to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
   to.NumberIsNaN = NumberIsNaN;
   to.NumberIsInteger = NumberIsInteger;
