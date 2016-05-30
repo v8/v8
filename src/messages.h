@@ -97,7 +97,8 @@ class CallSite {
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
-    "CallSite expects function or number as second argument, got %")           \
+    "CallSite expects wasm object as first or function as second argument, "   \
+    "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \

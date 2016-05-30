@@ -13,6 +13,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -593,6 +594,15 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::OrdinaryHasInstance(isolate, callable, object));
+}
+
+RUNTIME_FUNCTION(Runtime_IsWasmObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  bool is_wasm_object = object->IsJSObject() &&
+                        wasm::IsWasmObject(Handle<JSObject>::cast(object));
+  return *isolate->factory()->ToBoolean(is_wasm_object);
 }
 
 }  // namespace internal

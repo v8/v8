@@ -320,6 +320,13 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module);
 MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
                                         uint32_t func_index);
 
+// Check whether the given object is a wasm object.
+// This checks the number and type of internal fields, so it's not 100 percent
+// secure. If it turns out that we need more complete checks, we could add a
+// special marker as internal field, which will definitely never occur anywhere
+// else.
+bool IsWasmObject(Handle<JSObject> object);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

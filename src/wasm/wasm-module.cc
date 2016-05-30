@@ -961,10 +961,20 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
 
 MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
                                         uint32_t func_index) {
+  DCHECK(IsWasmObject(wasm));
   Object* func_names_arr_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
   if (func_names_arr_obj->IsUndefined()) return Handle<String>::null();
   return GetWasmFunctionNameFromTable(
       handle(ByteArray::cast(func_names_arr_obj)), func_index);
+}
+
+bool IsWasmObject(Handle<JSObject> object) {
+  // TODO(clemensh): Check wasm byte header once we store a copy of the bytes.
+  return object->GetInternalFieldCount() == kWasmModuleInternalFieldCount &&
+         object->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() &&
+         object->GetInternalField(kWasmMemArrayBuffer)->IsJSArrayBuffer() &&
+         (object->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
+          object->GetInternalField(kWasmFunctionNamesArray)->IsUndefined());
 }
 
 }  // namespace wasm

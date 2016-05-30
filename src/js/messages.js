@@ -275,8 +275,8 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 function CallSite(receiver, fun, pos, strict_mode) {
   // For wasm frames, receiver is the wasm object and fun is the function index
   // instead of an actual function.
-  if (!IS_FUNCTION(fun) && !IS_NUMBER(fun)) {
-    throw MakeTypeError(kCallSiteExpectsFunction, typeof fun);
+  if (!IS_FUNCTION(fun) && !%IsWasmObject(receiver)) {
+    throw MakeTypeError(kCallSiteExpectsFunction, typeof receiver, typeof fun);
   }
 
   if (IS_UNDEFINED(new.target)) {
