@@ -651,6 +651,8 @@ class MemoryChunk {
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory() { return high_water_mark_.Value(); }
 
+  Address HighWaterMark() { return address() + high_water_mark_.Value(); }
+
   int progress_bar() {
     DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
     return progress_bar_;

@@ -3813,6 +3813,7 @@ void MarkCompactCollector::Sweeper::AddSweepingPageSafe(AllocationSpace space,
 }
 
 void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
+  Address space_top = space->top();
   space->ClearStats();
 
   PageIterator it(space);
@@ -3836,7 +3837,15 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       Bitmap::Clear(p);
       p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
       p->ClearFlag(Page::BLACK_PAGE);
-      // TODO(hpayer): Free unused memory of last black page.
+      // Area above the high watermark is free.
+      Address free_start = p->HighWaterMark();
+      // Check if the space top was in this page, which means that the
+      // high watermark is not up-to-date.
+      if (free_start < space_top && space_top <= p->area_end()) {
+        free_start = space_top;
+      }
+      int size = static_cast<int>(p->area_end() - free_start);
+      space->Free(free_start, size);
       continue;
     }
 

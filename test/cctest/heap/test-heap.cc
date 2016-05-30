@@ -6684,5 +6684,43 @@ TEST(Regress609761) {
   CHECK_EQ(size_after, size_before + array->Size());
 }
 
+TEST(Regress615489) {
+  FLAG_black_allocation = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  heap->CollectAllGarbage();
+
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking();
+  }
+  CHECK(marking->IsMarking());
+  marking->StartBlackAllocationForTesting();
+  {
+    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+    v8::HandleScope inner(CcTest::isolate());
+    isolate->factory()->NewFixedArray(500, TENURED)->Size();
+  }
+  while (!marking->IsComplete()) {
+    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    if (marking->IsReadyToOverApproximateWeakClosure()) {
+      marking->FinalizeIncrementally();
+    }
+  }
+  CHECK(marking->IsComplete());
+  intptr_t size_before = heap->SizeOfObjects();
+  CcTest::heap()->CollectAllGarbage();
+  intptr_t size_after = heap->SizeOfObjects();
+  // Live size does not increase after garbage collection.
+  CHECK_LE(size_after, size_before);
+}
+
 }  // namespace internal
 }  // namespace v8
