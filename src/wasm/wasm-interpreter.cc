@@ -1447,8 +1447,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
       return DoTrap(kTrapMemOutOfBounds, pc);                            \
     }                                                                    \
     byte* addr = instance()->mem_start + operand.offset + index;         \
-    /* TODO(titzer): alignment, endianness for load mem */               \
-    WasmVal result(static_cast<ctype>(*reinterpret_cast<mtype*>(addr))); \
+    WasmVal result(static_cast<ctype>(ReadUnalignedValue<mtype>(addr))); \
     Push(pc, result);                                                    \
     len = 1 + operand.length;                                            \
     break;                                                               \
@@ -1481,8 +1480,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
       return DoTrap(kTrapMemOutOfBounds, pc);                              \
     }                                                                      \
     byte* addr = instance()->mem_start + operand.offset + index;           \
-    /* TODO(titzer): alignment, endianness for store mem */                \
-    *reinterpret_cast<mtype*>(addr) = static_cast<mtype>(val.to<ctype>()); \
+    WriteUnalignedValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
     Push(pc, val);                                                         \
     len = 1 + operand.length;                                              \
     break;                                                                 \
