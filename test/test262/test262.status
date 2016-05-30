@@ -309,7 +309,6 @@
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
-  'intl402/DateTimeFormat/12.1.1': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],

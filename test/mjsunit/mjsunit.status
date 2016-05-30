@@ -94,14 +94,12 @@
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-ignore-breakpoints': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-stepin-positions': [PASS, NO_VARIANTS],  # only due to inlining.
   'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
@@ -124,7 +122,6 @@
   'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
   'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
@@ -194,11 +191,6 @@
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
   ##############################################################################
-  # This test expects to reach a certain recursion depth, which may not work
-  # for debug mode.
-  'json-recursive': [PASS, ['mode == debug', PASS, FAIL]],
-
-  ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
@@ -229,7 +221,6 @@
   # Tests with different versions for release and debug.
   'compiler/alloc-number': [PASS, ['mode == debug', SKIP]],
   'compiler/alloc-number-debug': [PASS, ['mode == release', SKIP]],
-  'regress/regress-634': [PASS, ['mode == debug', SKIP]],
   'regress/regress-634-debug': [PASS, ['mode == release', SKIP]],
 
   # BUG(336820). TODO(bmeurer): Investigate.
@@ -381,7 +372,6 @@
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
-  'regress/regress-417709a': [PASS, ['arch == arm64', NO_VARIANTS]],
   'regress/regress-transcendental': [PASS, ['arch == arm64', NO_VARIANTS]],
   'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
   'math-floor-of-div': [PASS, NO_VARIANTS],
@@ -456,15 +446,12 @@
   'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
-  'compiler/regress-max-locals-for-osr': [SKIP],
   'compiler/regress-4': [SKIP],
   'compiler/regress-or': [SKIP],
   'compiler/regress-rep-change': [SKIP],
   'regress/regress-1117': [SKIP],
-  'regress/regress-1145': [SKIP],
   'regress/regress-1849': [SKIP],
   'regress/regress-3247124': [SKIP],
-  'regress/regress-634': [SKIP],
   'regress/regress-91008': [SKIP],
   'regress/regress-91010': [SKIP],
   'regress/regress-91013': [SKIP],
@@ -520,11 +507,9 @@
 ['arch == arm64 and mode == debug and simulator_run == True', {
 
   # Pass but take too long with the simulator in debug mode.
-  'array-iterate-backwards': [PASS, TIMEOUT],
   'array-sort': [PASS, TIMEOUT],
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
-  'compiler/alloc-numbers': [SKIP],
   'math-floor-of-div': [PASS, TIMEOUT],
   'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
   'unicodelctest': [PASS, TIMEOUT],
@@ -591,7 +576,6 @@
   'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
-  'regress/regress-634': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
 
@@ -640,7 +624,6 @@
   # the buildbot.
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
-  'regress/regress-634': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
 
@@ -703,7 +686,6 @@
   'compiler/regress-3249650': [PASS, SLOW],
   'compiler/simple-deopt': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
-  'regress/regress-634': [PASS, SLOW],
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-3218915': [PASS, SLOW],
   'regress/regress-3247124': [PASS, SLOW],
@@ -723,7 +705,6 @@
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
-  'osr-regress-max-locals': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:3435)
@@ -768,7 +749,6 @@
   'regress/regress-1257': [PASS, NO_VARIANTS],
   'regress/regress-2618': [PASS, NO_VARIANTS],
   'regress/regress-298269': [PASS, NO_VARIANTS],
-  'regress/regress-634': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
   'compiler/osr-alignment': [PASS, NO_VARIANTS],
   'compiler/osr-one': [PASS, NO_VARIANTS],
