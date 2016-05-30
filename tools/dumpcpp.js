@@ -2,45 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Dump C++ symbols of shared library if possible
-
-function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
-  }
-}
-
-function initSourceMapSupport() {
-  // Pull dev tools source maps into our name space.
-  SourceMap = WebInspector.SourceMap;
-
-  // Overwrite the load function to load scripts synchronously.
-  SourceMap.load = function(sourceMapURL) {
-    var content = readFile(sourceMapURL);
-    var sourceMapObject = (JSON.parse(content));
-    return new SourceMap(sourceMapURL, sourceMapObject);
-  };
-}
-
-var entriesProviders = {
-  'unix': UnixCppEntriesProvider,
-  'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
-};
-
-var params = processArguments(arguments);
-var sourceMap = null;
-if (params.sourceMap) {
-  initSourceMapSupport();
-  sourceMap = SourceMap.load(params.sourceMap);
-}
-
 function CppProcessor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
   LogReader.call(this, {
-      'shared-library': { parsers: [null, parseInt, parseInt],
+      'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }
   }, timedRange, pairwiseTimedRange);
 
@@ -73,10 +37,10 @@ CppProcessor.prototype.processLogFileInTest = function(fileName) {
 };
 
 CppProcessor.prototype.processSharedLibrary = function(
-    name, startAddr, endAddr) {
+    name, startAddr, endAddr, aslrSlide) {
   var self = this;
   var libFuncs = this.cppEntriesProvider_.parseVmSymbols(
-      name, startAddr, endAddr, function(fName, fStart, fEnd) {
+      name, startAddr, endAddr, aslrSlide, function(fName, fStart, fEnd) {
     var entry = new CodeMap.CodeEntry(fEnd - fStart, fName, 'CPP');
     self.codeMap_.addStaticCode(fStart, entry);
   });
@@ -92,9 +56,3 @@ CppProcessor.prototype.dumpCppSymbols = function() {
     print(printValues.join(','));
   }
 };
-
-var cppProcessor = new CppProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
-  params.timedRange, params.pairwiseTimedRange);
-cppProcessor.processLogFile(params.logFileName);
-cppProcessor.dumpCppSymbols();
