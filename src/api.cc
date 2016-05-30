@@ -7186,22 +7186,6 @@ void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   isolate->heap()->SetEmbedderHeapTracer(tracer);
 }
 
-void Isolate::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
-                                          ObjectSpace space,
-                                          AllocationAction action) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->memory_allocator()->AddMemoryAllocationCallback(
-      callback, space, action);
-}
-
-
-void Isolate::RemoveMemoryAllocationCallback(
-    MemoryAllocationCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->memory_allocator()->RemoveMemoryAllocationCallback(callback);
-}
-
-
 void Isolate::TerminateExecution() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->stack_guard()->RequestTerminateExecution();

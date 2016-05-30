@@ -1456,16 +1456,6 @@ class MemoryAllocator {
   // filling it up with a recognizable non-NULL bit pattern.
   void ZapBlock(Address start, size_t size);
 
-  void PerformAllocationCallback(ObjectSpace space, AllocationAction action,
-                                 size_t size);
-
-  void AddMemoryAllocationCallback(MemoryAllocationCallback callback,
-                                   ObjectSpace space, AllocationAction action);
-
-  void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
-
-  bool MemoryAllocationCallbackRegistered(MemoryAllocationCallback callback);
-
   static int CodePageGuardStartOffset();
 
   static int CodePageGuardSize();
@@ -1525,19 +1515,6 @@ class MemoryAllocator {
   // and exclusive on the high end.
   base::AtomicValue<void*> lowest_ever_allocated_;
   base::AtomicValue<void*> highest_ever_allocated_;
-
-  struct MemoryAllocationCallbackRegistration {
-    MemoryAllocationCallbackRegistration(MemoryAllocationCallback callback,
-                                         ObjectSpace space,
-                                         AllocationAction action)
-        : callback(callback), space(space), action(action) {}
-    MemoryAllocationCallback callback;
-    ObjectSpace space;
-    AllocationAction action;
-  };
-
-  // A List of callback that are triggered when memory is allocated or free'd
-  List<MemoryAllocationCallbackRegistration> memory_allocation_callbacks_;
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact

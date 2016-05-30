@@ -5050,10 +5050,6 @@ enum ObjectSpace {
     kAllocationActionAll = kAllocationActionAllocate | kAllocationActionFree
   };
 
-typedef void (*MemoryAllocationCallback)(ObjectSpace space,
-                                         AllocationAction action,
-                                         int size);
-
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
@@ -6306,22 +6302,6 @@ class V8_EXPORT Isolate {
   void SetCaptureStackTraceForUncaughtExceptions(
       bool capture, int frame_limit = 10,
       StackTrace::StackTraceOptions options = StackTrace::kOverview);
-
-  /**
-   * Enables the host application to provide a mechanism to be notified
-   * and perform custom logging when V8 Allocates Executable Memory.
-   */
-  void V8_DEPRECATED(
-      "Use a combination of RequestInterrupt and GCCallback instead",
-      AddMemoryAllocationCallback(MemoryAllocationCallback callback,
-                                  ObjectSpace space, AllocationAction action));
-
-  /**
-   * Removes callback that was installed by AddMemoryAllocationCallback.
-   */
-  void V8_DEPRECATED(
-      "Use a combination of RequestInterrupt and GCCallback instead",
-      RemoveMemoryAllocationCallback(MemoryAllocationCallback callback));
 
   /**
    * Iterates through all external resources referenced from current isolate

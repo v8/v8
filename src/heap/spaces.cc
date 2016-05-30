@@ -723,10 +723,6 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
       static_cast<int>(chunk_size));
 
   LOG(isolate_, NewEvent("MemoryChunk", base, chunk_size));
-  if (owner != NULL) {
-    ObjectSpace space = static_cast<ObjectSpace>(1 << owner->identity());
-    PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
-  }
 
   // We cannot use the last chunk in the address space because we would
   // overflow when comparing top and limit if this chunk is used for a
@@ -758,11 +754,6 @@ void Page::ResetFreeListStatistics() {
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  if (chunk->owner() != NULL) {
-    ObjectSpace space =
-        static_cast<ObjectSpace>(1 << chunk->owner()->identity());
-    PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
-  }
 
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
@@ -910,52 +901,6 @@ void MemoryAllocator::ZapBlock(Address start, size_t size) {
     Memory::Address_at(start + s) = kZapValue;
   }
 }
-
-
-void MemoryAllocator::PerformAllocationCallback(ObjectSpace space,
-                                                AllocationAction action,
-                                                size_t size) {
-  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
-    MemoryAllocationCallbackRegistration registration =
-        memory_allocation_callbacks_[i];
-    if ((registration.space & space) == space &&
-        (registration.action & action) == action)
-      registration.callback(space, action, static_cast<int>(size));
-  }
-}
-
-
-bool MemoryAllocator::MemoryAllocationCallbackRegistered(
-    MemoryAllocationCallback callback) {
-  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
-    if (memory_allocation_callbacks_[i].callback == callback) return true;
-  }
-  return false;
-}
-
-
-void MemoryAllocator::AddMemoryAllocationCallback(
-    MemoryAllocationCallback callback, ObjectSpace space,
-    AllocationAction action) {
-  DCHECK(callback != NULL);
-  MemoryAllocationCallbackRegistration registration(callback, space, action);
-  DCHECK(!MemoryAllocator::MemoryAllocationCallbackRegistered(callback));
-  return memory_allocation_callbacks_.Add(registration);
-}
-
-
-void MemoryAllocator::RemoveMemoryAllocationCallback(
-    MemoryAllocationCallback callback) {
-  DCHECK(callback != NULL);
-  for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
-    if (memory_allocation_callbacks_[i].callback == callback) {
-      memory_allocation_callbacks_.Remove(i);
-      return;
-    }
-  }
-  UNREACHABLE();
-}
-
 
 #ifdef DEBUG
 void MemoryAllocator::ReportStatistics() {
@@ -2988,10 +2933,6 @@ void LargeObjectSpace::TearDown() {
     LargePage* page = first_page_;
     first_page_ = first_page_->next_page();
     LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", page->address()));
-
-    ObjectSpace space = static_cast<ObjectSpace>(1 << identity());
-    heap()->memory_allocator()->PerformAllocationCallback(
-        space, kAllocationActionFree, page->size());
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
   SetUp();
