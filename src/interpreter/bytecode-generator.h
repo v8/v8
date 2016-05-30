@@ -11,6 +11,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+
 namespace interpreter {
 
 class LoopBuilder;

@@ -58,7 +58,6 @@ class EmptyStatement;
 class ExternalCallbackScope;
 class ExternalReferenceTable;
 class Factory;
-class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
 class HStatistics;
@@ -383,8 +382,6 @@ typedef List<HeapObject*> DebugObjectCache;
   /* function cache of the native context. */                                  \
   V(int, next_serial_number, 0)                                                \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
-  /* Part of the state of liveedit. */                                         \
-  V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
@@ -691,7 +688,7 @@ class Isolate {
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result
-  // of Throw() as its return value.
+  // of Throw() as its return vaue.
   Object* Throw(Object* exception, MessageLocation* location = NULL);
   Object* ThrowIllegalOperation();
 
@@ -958,7 +955,9 @@ class Isolate {
   static const int kArrayProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
-  bool IsArraySpeciesLookupChainIntact();
+  inline bool IsArraySpeciesLookupChainIntact();
+  inline bool IsHasInstanceLookupChainIntact();
+  bool IsIsConcatSpreadableLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -975,6 +974,8 @@ class Isolate {
     UpdateArrayProtectorOnSetElement(object);
   }
   void InvalidateArraySpeciesProtector();
+  void InvalidateHasInstanceProtector();
+  void InvalidateIsConcatSpreadableProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1107,8 +1108,11 @@ class Isolate {
 
   base::AccountingAllocator* allocator() { return &allocator_; }
 
+  bool IsInAnyContext(Object* object, uint32_t index);
+
  protected:
   explicit Isolate(bool enable_serializer);
+  bool IsArrayOrObjectPrototype(Object* object);
 
  private:
   friend struct GlobalState;
@@ -1482,6 +1486,15 @@ class StackLimitCheck BASE_EMBEDDED {
   Isolate* isolate_;
 };
 
+#define STACK_CHECK(isolate, result_value)               \
+  do {                                                   \
+    StackLimitCheck stack_check(isolate);                \
+    if (stack_check.HasOverflowed()) {                   \
+      isolate->Throw(*isolate->factory()->NewRangeError( \
+          MessageTemplate::kStackOverflow));             \
+      return result_value;                               \
+    }                                                    \
+  } while (false)
 
 // Support for temporarily postponing interrupts. When the outermost
 // postpone scope is left the interrupts will be re-enabled and any

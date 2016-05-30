@@ -51,10 +51,6 @@ const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return eax; }
 
 
-const Register InstanceOfDescriptor::LeftRegister() { return edx; }
-const Register InstanceOfDescriptor::RightRegister() { return eax; }
-
-
 const Register StringCompareDescriptor::LeftRegister() { return edx; }
 const Register StringCompareDescriptor::RightRegister() { return eax; }
 
@@ -72,6 +68,8 @@ const Register MathPowIntegerDescriptor::exponent() {
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
 
+const Register HasPropertyDescriptor::ObjectRegister() { return eax; }
+const Register HasPropertyDescriptor::KeyRegister() { return ebx; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

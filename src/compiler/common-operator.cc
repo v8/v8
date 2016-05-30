@@ -149,7 +149,8 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 bool operator==(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs) {
-  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value();
+  return lhs.rmode() == rhs.rmode() && lhs.value() == rhs.value() &&
+         lhs.type() == rhs.type();
 }
 
 bool operator!=(RelocatablePtrConstantInfo const& lhs,
@@ -158,12 +159,12 @@ bool operator!=(RelocatablePtrConstantInfo const& lhs,
 }
 
 size_t hash_value(RelocatablePtrConstantInfo const& p) {
-  return base::hash_combine(p.value(), p.rmode());
+  return base::hash_combine(p.value(), p.rmode(), p.type());
 }
 
 std::ostream& operator<<(std::ostream& os,
                          RelocatablePtrConstantInfo const& p) {
-  return os << p.value() << "|" << p.rmode();
+  return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
 #define CACHED_OP_LIST(V)                                    \
@@ -178,6 +179,7 @@ std::ostream& operator<<(std::ostream& os,
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
+  V(CheckPoint, Operator::kKontrol, 1, 1, 1, 0, 1, 0)        \
   V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
   V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
 
@@ -703,12 +705,11 @@ const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
 
 const Operator* CommonOperatorBuilder::RelocatableInt64Constant(
     int64_t value, RelocInfo::Mode rmode) {
-  return new (zone()) Operator1<RelocatablePtrConstantInfo>(    // --
-      IrOpcode::kRelocatableInt64Constant, Operator::kPure,     // opcode
-      "RelocatableInt64Constant",                               // name
-      0, 0, 0, 1, 0, 0,                                         // counts
-      RelocatablePtrConstantInfo(static_cast<intptr_t>(value),  // parameter
-                                 rmode));
+  return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --
+      IrOpcode::kRelocatableInt64Constant, Operator::kPure,   // opcode
+      "RelocatableInt64Constant",                             // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      RelocatablePtrConstantInfo(value, rmode));              // parameter
 }
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
@@ -756,24 +757,6 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       IrOpcode::kEffectPhi, Operator::kPure,  // opcode
       "EffectPhi",                            // name
       0, effect_input_count, 1, 0, 1, 0);     // counts
-}
-
-
-const Operator* CommonOperatorBuilder::Guard(Type* type) {
-  return new (zone()) Operator1<Type*>(      // --
-      IrOpcode::kGuard, Operator::kKontrol,  // opcode
-      "Guard",                               // name
-      1, 0, 1, 1, 0, 0,                      // counts
-      type);                                 // parameter
-}
-
-
-const Operator* CommonOperatorBuilder::EffectSet(int arguments) {
-  DCHECK(arguments > 1);                      // Disallow empty/singleton sets.
-  return new (zone()) Operator(               // --
-      IrOpcode::kEffectSet, Operator::kPure,  // opcode
-      "EffectSet",                            // name
-      0, arguments, 0, 0, 1, 0);              // counts
 }
 
 

@@ -12,22 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
-  switch (kind) {
-    case kNoWriteBarrier:
-      return os << "NoWriteBarrier";
-    case kMapWriteBarrier:
-      return os << "MapWriteBarrier";
-    case kPointerWriteBarrier:
-      return os << "PointerWriteBarrier";
-    case kFullWriteBarrier:
-      return os << "FullWriteBarrier";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 bool operator==(StoreRepresentation lhs, StoreRepresentation rhs) {
   return lhs.representation() == rhs.representation() &&
          lhs.write_barrier_kind() == rhs.write_barrier_kind();
@@ -76,6 +60,11 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
 
 MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
+
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kAtomicStore, op->opcode());
   return OpParameter<MachineRepresentation>(op);
 }
 
@@ -160,12 +149,14 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
   V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Float32Mul, Operator::kCommutative, 2, 0, 1)                              \
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
   V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Float64Mul, Operator::kCommutative, 2, 0, 1)                              \
   V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
   V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
@@ -416,6 +407,11 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Int32)                  \
   V(Uint32)
 
+#define ATOMIC_REPRESENTATION_LIST(V) \
+  V(kWord8)                           \
+  V(kWord16)                          \
+  V(kWord32)
+
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -507,7 +503,7 @@ struct MachineOperatorGlobalCache {
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
-#define ATOMIC(Type)                                                          \
+#define ATOMIC_LOAD(Type)                                                     \
   struct AtomicLoad##Type##Operator final                                     \
       : public Operator1<LoadRepresentation> {                                \
     AtomicLoad##Type##Operator()                                              \
@@ -516,8 +512,20 @@ struct MachineOperatorGlobalCache {
               "AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
   };                                                                          \
   AtomicLoad##Type##Operator kAtomicLoad##Type;
-  ATOMIC_TYPE_LIST(ATOMIC)
-#undef ATOMIC
+  ATOMIC_TYPE_LIST(ATOMIC_LOAD)
+#undef ATOMIC_LOAD
+
+#define ATOMIC_STORE(Type)                                                     \
+  struct AtomicStore##Type##Operator                                           \
+      : public Operator1<MachineRepresentation> {                              \
+    AtomicStore##Type##Operator()                                              \
+        : Operator1<MachineRepresentation>(                                    \
+              IrOpcode::kAtomicStore, Operator::kNoRead | Operator::kNoThrow,  \
+              "AtomicStore", 3, 1, 1, 0, 1, 0, MachineRepresentation::Type) {} \
+  };                                                                           \
+  AtomicStore##Type##Operator kAtomicStore##Type;
+  ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
+#undef STORE
 };
 
 
@@ -647,6 +655,17 @@ const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {
   }
   ATOMIC_TYPE_LIST(LOAD)
 #undef LOAD
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
+#define STORE(kRep)                         \
+  if (rep == MachineRepresentation::kRep) { \
+    return &cache_.kAtomicStore##kRep;      \
+  }
+  ATOMIC_REPRESENTATION_LIST(STORE)
+#undef STORE
   UNREACHABLE();
   return nullptr;
 }

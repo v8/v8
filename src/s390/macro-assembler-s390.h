@@ -21,8 +21,8 @@ const Register kJSFunctionRegister = {Register::kCode_r3};
 const Register kContextRegister = {Register::kCode_r13};
 const Register kAllocateSizeRegister = {Register::kCode_r3};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_r2};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r5};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r6};
+const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r7};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
 const Register kJavaScriptCallArgCountRegister = {Register::kCode_r2};
 const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r5};
@@ -964,6 +964,15 @@ class MacroAssembler : public Assembler {
 
   void Allocate(Register object_size, Register result, Register result_end,
                 Register scratch, Label* gc_required, AllocationFlags flags);
+
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register scratch1,
+                    Register scratch2, AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    Register scratch, AllocationFlags flags);
 
   void AllocateTwoByteString(Register result, Register length,
                              Register scratch1, Register scratch2,

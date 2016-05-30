@@ -46,9 +46,8 @@
 #define INNER_OP_LIST(V) \
   V(Select)              \
   V(Phi)                 \
-  V(EffectSet)           \
   V(EffectPhi)           \
-  V(Guard)               \
+  V(CheckPoint)          \
   V(BeginRegion)         \
   V(FinishRegion)        \
   V(FrameState)          \
@@ -152,7 +151,6 @@
   V(JSForInStep)            \
   V(JSLoadMessage)          \
   V(JSStoreMessage)         \
-  V(JSYield)                \
   V(JSStackCheck)
 
 #define JS_OP_LIST(V)     \
@@ -187,6 +185,7 @@
   V(NumberShiftLeft)               \
   V(NumberShiftRight)              \
   V(NumberShiftRightLogical)       \
+  V(NumberImul)                    \
   V(NumberClz32)                   \
   V(NumberCeil)                    \
   V(NumberFloor)                   \
@@ -219,7 +218,8 @@
   V(ObjectIsReceiver)              \
   V(ObjectIsSmi)                   \
   V(ObjectIsString)                \
-  V(ObjectIsUndetectable)
+  V(ObjectIsUndetectable)          \
+  V(TypeGuard)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \
@@ -318,6 +318,7 @@
   V(BitcastInt64ToFloat64)      \
   V(Float32Add)                 \
   V(Float32Sub)                 \
+  V(Float32SubPreserveNan)      \
   V(Float32Mul)                 \
   V(Float32Div)                 \
   V(Float32Max)                 \
@@ -327,6 +328,7 @@
   V(Float32RoundDown)           \
   V(Float64Add)                 \
   V(Float64Sub)                 \
+  V(Float64SubPreserveNan)      \
   V(Float64Mul)                 \
   V(Float64Div)                 \
   V(Float64Mod)                 \
@@ -357,7 +359,8 @@
   V(Word32PairShl)              \
   V(Word32PairShr)              \
   V(Word32PairSar)              \
-  V(AtomicLoad)
+  V(AtomicLoad)                 \
+  V(AtomicStore)
 
 #define MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \
   V(CreateFloat32x4)                        \

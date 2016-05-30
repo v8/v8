@@ -77,6 +77,7 @@ REPLACE_STUB_CALL(LessThan)
 REPLACE_STUB_CALL(LessThanOrEqual)
 REPLACE_STUB_CALL(GreaterThan)
 REPLACE_STUB_CALL(GreaterThanOrEqual)
+REPLACE_STUB_CALL(HasProperty)
 REPLACE_STUB_CALL(Equal)
 REPLACE_STUB_CALL(NotEqual)
 REPLACE_STUB_CALL(ToInteger)
@@ -137,14 +138,14 @@ void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   Callable callable = CodeFactory::ToBoolean(isolate());
   node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
 }
 
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
   Callable callable = CodeFactory::Typeof(isolate());
   node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
                       Operator::kEliminatable);
 }
 
@@ -339,11 +340,6 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   ReplaceWithRuntimeCall(node, is_strict(language_mode)
                                    ? Runtime::kDeleteProperty_Strict
                                    : Runtime::kDeleteProperty_Sloppy);
-}
-
-
-void JSGenericLowering::LowerJSHasProperty(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kHasProperty);
 }
 
 
@@ -682,9 +678,6 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
                                      kNoWriteBarrier);
   NodeProperties::ChangeOp(node, machine()->Store(representation));
 }
-
-
-void JSGenericLowering::LowerJSYield(Node* node) { UNIMPLEMENTED(); }
 
 
 void JSGenericLowering::LowerJSStackCheck(Node* node) {

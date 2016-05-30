@@ -7834,8 +7834,8 @@ TEST(DebugPromiseInterceptedByTryCatch) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function() { r = 'rejected'; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function() { r = 'rejected'; });");
   CHECK(CompileRun("r")->Equals(context, v8_str("resolved")).FromJust());
 }
 
@@ -7874,8 +7874,8 @@ TEST(DebugPromiseRejectedByCallback) {
   CompileRun("var p = new Promise(function(res, rej) { fun(); res(); });");
   CompileRun(
       "var r;"
-      "p.chain(function() { r = 'resolved'; },"
-      "        function(e) { r = 'rejected' + e; });");
+      "p.then(function() { r = 'resolved'; },"
+      "       function(e) { r = 'rejected' + e; });");
   CHECK(
       CompileRun("r")->Equals(context, v8_str("rejectedrejection")).FromJust());
   CHECK_EQ(1, exception_event_counter);

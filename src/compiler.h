@@ -48,7 +48,7 @@ class Compiler : public AllStatic {
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<JSFunction> function);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
-  static bool CompileForLiveEdit(Handle<Script> script);
+  static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
   // Generate and install code from previously queued compilation job.
   static void FinalizeCompilationJob(CompilationJob* job);
@@ -120,22 +120,6 @@ class Compiler : public AllStatic {
       JavaScriptFrame* osr_frame);
 };
 
-struct InlinedFunctionInfo {
-  InlinedFunctionInfo(int parent_id, SourcePosition inline_position,
-                      int script_id, int start_position)
-      : parent_id(parent_id),
-        inline_position(inline_position),
-        script_id(script_id),
-        start_position(start_position) {}
-  int parent_id;
-  SourcePosition inline_position;
-  int script_id;
-  int start_position;
-  std::vector<size_t> deopt_pc_offsets;
-
-  static const int kNoParentId = -1;
-};
-
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
@@ -175,11 +159,6 @@ class CompilationInfo final {
   // TODO(titzer): inline and delete accessors of ParseInfo
   // -----------------------------------------------------------
   Handle<Script> script() const;
-  bool is_eval() const;
-  bool is_native() const;
-  bool is_module() const;
-  LanguageMode language_mode() const;
-  bool is_typed() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
   Handle<Context> context() const;
@@ -196,6 +175,7 @@ class CompilationInfo final {
   Handle<Code> code() const { return code_; }
   Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
+  JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
   bool is_this_defined() const;
@@ -345,9 +325,10 @@ class CompilationInfo final {
     code_flags_ =
         Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
   }
-  void SetOptimizingForOsr(BailoutId osr_ast_id) {
+  void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
     SetOptimizing();
     osr_ast_id_ = osr_ast_id;
+    osr_frame_ = osr_frame;
   }
 
   // Deoptimization support.
@@ -398,22 +379,7 @@ class CompilationInfo final {
     prologue_offset_ = prologue_offset;
   }
 
-  int start_position_for(uint32_t inlining_id) {
-    return inlined_function_infos_.at(inlining_id).start_position;
-  }
-  const std::vector<InlinedFunctionInfo>& inlined_function_infos() {
-    return inlined_function_infos_;
-  }
-
-  void LogDeoptCallPosition(int pc_offset, int inlining_id);
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position, int pareint_id);
-
   CompilationDependencies* dependencies() { return &dependencies_; }
-
-  bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
-    return osr_ast_id_ == osr_ast_id && function.is_identical_to(closure());
-  }
 
   int optimization_id() const { return optimization_id_; }
 
@@ -422,8 +388,6 @@ class CompilationInfo final {
     DCHECK(height >= 0);
     osr_expr_stack_height_ = height;
   }
-  JavaScriptFrame* osr_frame() const { return osr_frame_; }
-  void set_osr_frame(JavaScriptFrame* osr_frame) { osr_frame_ = osr_frame; }
 
 #if DEBUG
   void PrintAstForTesting();
@@ -461,6 +425,8 @@ class CompilationInfo final {
   }
 
   StackFrame::Type GetOutputStackFrameType() const;
+
+  int GetDeclareGlobalsFlags() const;
 
  protected:
   ParseInfo* parse_info_;
@@ -542,7 +508,6 @@ class CompilationInfo final {
 
   int prologue_offset_;
 
-  std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
 
   InlinedFunctionList inlined_functions_;

@@ -699,19 +699,16 @@ Type* Typer::Visitor::TypeEffectPhi(Node* node) {
   return nullptr;
 }
 
-
-Type* Typer::Visitor::TypeEffectSet(Node* node) {
-  UNREACHABLE();
-  return nullptr;
-}
-
-
-Type* Typer::Visitor::TypeGuard(Node* node) {
+Type* Typer::Visitor::TypeTypeGuard(Node* node) {
   Type* input_type = Operand(node, 0);
-  Type* guard_type = OpParameter<Type*>(node);
+  Type* guard_type = TypeOf(node->op());
   return Type::Intersect(input_type, guard_type, zone());
 }
 
+Type* Typer::Visitor::TypeCheckPoint(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
 
 Type* Typer::Visitor::TypeBeginRegion(Node* node) {
   UNREACHABLE();
@@ -1353,34 +1350,6 @@ Type* Typer::Visitor::TypeJSLoadProperty(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSLoadNamed(Node* node) {
-  Factory* const f = isolate()->factory();
-  Handle<Name> name = NamedAccessOf(node->op()).name();
-  if (name.is_identical_to(f->prototype_string())) {
-    Type* receiver = Operand(node, 0);
-    if (receiver->Is(Type::None())) return Type::None();
-    if (receiver->IsConstant() &&
-        receiver->AsConstant()->Value()->IsJSFunction()) {
-      Handle<JSFunction> function =
-          Handle<JSFunction>::cast(receiver->AsConstant()->Value());
-      if (function->has_prototype()) {
-        // We need to add a code dependency on the initial map of the {function}
-        // in order to be notified about changes to "prototype" of {function},
-        // so we can only infer a constant type if deoptimization is enabled.
-        if (flags() & kDeoptimizationEnabled) {
-          JSFunction::EnsureHasInitialMap(function);
-          Handle<Map> initial_map(function->initial_map(), isolate());
-          dependencies()->AssumeInitialMapCantChange(initial_map);
-          return Type::Constant(handle(initial_map->prototype(), isolate()),
-                                zone());
-        }
-      }
-    } else if (receiver->IsClass() &&
-               receiver->AsClass()->Map()->IsJSFunctionMap()) {
-      Handle<Map> map = receiver->AsClass()->Map();
-      return map->has_non_instance_prototype() ? Type::Primitive()
-                                               : Type::Receiver();
-    }
-  }
   return Type::Any();
 }
 
@@ -1557,9 +1526,6 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 
 // JS other operators.
-
-
-Type* Typer::Visitor::TypeJSYield(Node* node) { return Type::Any(); }
 
 
 Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
@@ -1778,6 +1744,8 @@ Type* Typer::Visitor::TypeNumberShiftRight(Node* node) {
 Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
+
+Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
 
 Type* Typer::Visitor::TypeNumberClz32(Node* node) {
   return typer_->cache_.kZeroToThirtyTwo;
@@ -2377,6 +2345,9 @@ Type* Typer::Visitor::TypeFloat32Add(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat32Sub(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat32SubPreserveNan(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeFloat32Mul(Node* node) { return Type::Number(); }
 
@@ -2417,6 +2388,9 @@ Type* Typer::Visitor::TypeFloat64Add(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sub(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64SubPreserveNan(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeFloat64Mul(Node* node) { return Type::Number(); }
 
@@ -2544,9 +2518,14 @@ Type* Typer::Visitor::TypeLoadParentFramePointer(Node* node) {
 
 Type* Typer::Visitor::TypeCheckedLoad(Node* node) { return Type::Any(); }
 
+Type* Typer::Visitor::TypeCheckedStore(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeAtomicLoad(Node* node) { return Type::Any(); }
 
-Type* Typer::Visitor::TypeCheckedStore(Node* node) {
+Type* Typer::Visitor::TypeAtomicStore(Node* node) {
   UNREACHABLE();
   return nullptr;
 }

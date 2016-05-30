@@ -7,6 +7,7 @@
 #include "src/v8.h"
 
 #include "src/interpreter/bytecodes.h"
+#include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -76,9 +77,13 @@ TEST(OperandConversion, RegistersParametersNoOverlap) {
 }
 
 TEST(OperandScaling, ScalableAndNonScalable) {
-  for (OperandScale operand_scale = OperandScale::kSingle;
-       operand_scale <= OperandScale::kMaxValid;
-       operand_scale = Bytecodes::NextOperandScale(operand_scale)) {
+  const OperandScale kOperandScales[] = {
+#define VALUE(Name, _) OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
+  for (OperandScale operand_scale : kOperandScales) {
     int scale = static_cast<int>(operand_scale);
     CHECK_EQ(Bytecodes::Size(Bytecode::kCallRuntime, operand_scale),
              1 + 2 + 2 * scale);
@@ -176,94 +181,39 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
     const char* output;
   };
 
-#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
-#define REG_OPERAND(i) \
-  (InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize - (i))
-#define REG8(i) static_cast<uint8_t>(REG_OPERAND(i))
-#if V8_TARGET_LITTLE_ENDIAN
-#define REG16(i)                        \
-  static_cast<uint8_t>(REG_OPERAND(i)), \
-      static_cast<uint8_t>(REG_OPERAND(i) >> 8)
-#elif V8_TARGET_BIG_ENDIAN
-#define REG16(i)                             \
-  static_cast<uint8_t>(REG_OPERAND(i) >> 8), \
-      static_cast<uint8_t>(REG_OPERAND(i))
-#else
-#error "Unknown Architecture"
-#endif
   const BytecodesAndResult cases[] = {
-#if V8_TARGET_LITTLE_ENDIAN
-    {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
-    {{B(Wide), B(LdaSmi), 0xe8, 0x03}, 4, 0, "      LdaSmi.Wide [1000]"},
-    {{B(ExtraWide), B(LdaSmi), 0xa0, 0x86, 0x01, 0x00},
-     6,
-     0,
-     "LdaSmi.ExtraWide [100000]"},
-    {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
-    {{B(Wide), B(LdaSmi), 0x18, 0xfc}, 4, 0, "      LdaSmi.Wide [-1000]"},
-    {{B(ExtraWide), B(LdaSmi), 0x60, 0x79, 0xfe, 0xff},
-     6,
-     0,
-     "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), REG16(134), REG16(135), 0x02, 0x00, 0xb1, 0x00},
-     10,
-     0,
-     "Call.Wide r134, r135, #2, [177]"},
-    {{B(Ldar),
-      static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
-     2,
-     3,
-     "            Ldar a1"},
-    {{B(Wide), B(CreateObjectLiteral), 0x01, 0x02, 0x03, 0x04, 0xa5},
-     7,
-     0,
-     "CreateObjectLiteral.Wide [513], [1027], #165"},
-    {{B(ExtraWide), B(JumpIfNull), 0x15, 0xcd, 0x5b, 0x07},
-     6,
-     0,
-     "JumpIfNull.ExtraWide [123456789]"},
-#elif V8_TARGET_BIG_ENDIAN
-    {{B(LdaSmi), 0x01}, 2, 0, "            LdaSmi [1]"},
-    {{B(Wide), B(LdaSmi), 0x03, 0xe8}, 4, 0, "      LdaSmi.Wide [1000]"},
-    {{B(ExtraWide), B(LdaSmi), 0x00, 0x01, 0x86, 0xa0},
-     6,
-     0,
-     "LdaSmi.ExtraWide [100000]"},
-    {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
-    {{B(Wide), B(LdaSmi), 0xfc, 0x18}, 4, 0, "      LdaSmi.Wide [-1000]"},
-    {{B(ExtraWide), B(LdaSmi), 0xff, 0xfe, 0x79, 0x60},
-     6,
-     0,
-     "LdaSmi.ExtraWide [-100000]"},
-    {{B(Star), REG8(5)}, 2, 0, "            Star r5"},
-    {{B(Wide), B(Star), REG16(136)}, 4, 0, "      Star.Wide r136"},
-    {{B(Wide), B(Call), REG16(134), REG16(135), 0x00, 0x02, 0x00, 0xb1},
-     10,
-     0,
-     "Call.Wide r134, r135, #2, [177]"},
-    {{B(Ldar),
-      static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
-     2,
-     3,
-     "            Ldar a1"},
-    {{B(Wide), B(CreateObjectLiteral), 0x02, 0x01, 0x04, 0x03, 0xa5},
-     7,
-     0,
-     "CreateObjectLiteral.Wide [513], [1027], #165"},
-    {{B(ExtraWide), B(JumpIfNull), 0x07, 0x5b, 0xcd, 0x15},
-     6,
-     0,
-     "JumpIfNull.ExtraWide [123456789]"},
-#else
-#error "Unknown Architecture"
-#endif
+      {{B(LdaSmi), U8(0x01)}, 2, 0, "            LdaSmi [1]"},
+      {{B(Wide), B(LdaSmi), U16(1000)}, 4, 0, "      LdaSmi.Wide [1000]"},
+      {{B(ExtraWide), B(LdaSmi), U32(100000)},
+       6,
+       0,
+       "LdaSmi.ExtraWide [100000]"},
+      {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
+      {{B(Wide), B(LdaSmi), 0x18, 0xfc}, 4, 0, "      LdaSmi.Wide [-1000]"},
+      {{B(ExtraWide), B(LdaSmi), U32(-100000)},
+       6,
+       0,
+       "LdaSmi.ExtraWide [-100000]"},
+      {{B(Star), R8(5)}, 2, 0, "            Star r5"},
+      {{B(Wide), B(Star), R16(136)}, 4, 0, "      Star.Wide r136"},
+      {{B(Wide), B(Call), R16(134), R16(135), U16(0x02), U16(177)},
+       10,
+       0,
+       "Call.Wide r134, r135, #2, [177]"},
+      {{B(Ldar),
+        static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
+       2,
+       3,
+       "            Ldar a1"},
+      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U16(165)},
+       7,
+       0,
+       "CreateObjectLiteral.Wide [513], [1027], #165"},
+      {{B(ExtraWide), B(JumpIfNull), U32(123456789)},
+       6,
+       0,
+       "JumpIfNull.ExtraWide [123456789]"},
   };
-#undef B
-#undef REG_OPERAND
-#undef REG8
-#undef REG16
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.
@@ -304,13 +254,71 @@ TEST(Bytecodes, PrefixMappings) {
   }
 }
 
-TEST(OperandScale, PrefixesScale) {
-  CHECK(Bytecodes::NextOperandScale(OperandScale::kSingle) ==
-        OperandScale::kDouble);
-  CHECK(Bytecodes::NextOperandScale(OperandScale::kDouble) ==
-        OperandScale::kQuadruple);
-  CHECK(Bytecodes::NextOperandScale(OperandScale::kQuadruple) ==
-        OperandScale::kInvalid);
+TEST(Bytecodes, OperandScales) {
+  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kByte),
+           OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kShort),
+           OperandScale::kDouble);
+  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kQuad),
+           OperandScale::kQuadruple);
+  CHECK_EQ(
+      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
+                                     OperandSize::kShort, OperandSize::kShort),
+      OperandScale::kDouble);
+  CHECK_EQ(
+      Bytecodes::OperandSizesToScale(OperandSize::kQuad, OperandSize::kShort,
+                                     OperandSize::kShort, OperandSize::kShort),
+      OperandScale::kQuadruple);
+  CHECK_EQ(
+      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kQuad,
+                                     OperandSize::kShort, OperandSize::kShort),
+      OperandScale::kQuadruple);
+  CHECK_EQ(
+      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
+                                     OperandSize::kQuad, OperandSize::kShort),
+      OperandScale::kQuadruple);
+  CHECK_EQ(
+      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
+                                     OperandSize::kShort, OperandSize::kQuad),
+      OperandScale::kQuadruple);
+}
+
+TEST(Bytecodes, SizesForSignedOperands) {
+  CHECK(Bytecodes::SizeForSignedOperand(0) == OperandSize::kByte);
+  CHECK(Bytecodes::SizeForSignedOperand(kMaxInt8) == OperandSize::kByte);
+  CHECK(Bytecodes::SizeForSignedOperand(kMinInt8) == OperandSize::kByte);
+  CHECK(Bytecodes::SizeForSignedOperand(kMaxInt8 + 1) == OperandSize::kShort);
+  CHECK(Bytecodes::SizeForSignedOperand(kMinInt8 - 1) == OperandSize::kShort);
+  CHECK(Bytecodes::SizeForSignedOperand(kMaxInt16) == OperandSize::kShort);
+  CHECK(Bytecodes::SizeForSignedOperand(kMinInt16) == OperandSize::kShort);
+  CHECK(Bytecodes::SizeForSignedOperand(kMaxInt16 + 1) == OperandSize::kQuad);
+  CHECK(Bytecodes::SizeForSignedOperand(kMinInt16 - 1) == OperandSize::kQuad);
+  CHECK(Bytecodes::SizeForSignedOperand(kMaxInt) == OperandSize::kQuad);
+  CHECK(Bytecodes::SizeForSignedOperand(kMinInt) == OperandSize::kQuad);
+}
+
+TEST(Bytecodes, SizesForUnsignedOperands) {
+  // int overloads
+  CHECK(Bytecodes::SizeForUnsignedOperand(0) == OperandSize::kByte);
+  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt8) == OperandSize::kByte);
+  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt8 + 1) ==
+        OperandSize::kShort);
+  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt16) == OperandSize::kShort);
+  CHECK(Bytecodes::SizeForUnsignedOperand(kMaxUInt16 + 1) ==
+        OperandSize::kQuad);
+  // size_t overloads
+  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(0)) ==
+        OperandSize::kByte);
+  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8)) ==
+        OperandSize::kByte);
+  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt8 + 1)) ==
+        OperandSize::kShort);
+  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt16)) ==
+        OperandSize::kShort);
+  CHECK(Bytecodes::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt16 + 1)) == OperandSize::kQuad);
+  CHECK(Bytecodes::SizeForUnsignedOperand(static_cast<size_t>(kMaxUInt32)) ==
+        OperandSize::kQuad);
 }
 
 TEST(OperandScale, PrefixesRequired) {

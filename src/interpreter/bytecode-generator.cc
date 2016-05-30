@@ -655,7 +655,14 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
         .CompareOperation(Token::Value::EQ_STRICT, index)
         .JumpIfTrue(&(targets[i]));
   }
-  builder()->Illegal();  // Should never get here.
+
+  RegisterAllocationScope register_scope(this);
+  Register reason = register_allocator()->NewRegister();
+  BailoutReason bailout_reason = BailoutReason::kInvalidJumpTableIndex;
+  builder()
+      ->LoadLiteral(Smi::FromInt(static_cast<int>(bailout_reason)))
+      .StoreAccumulatorInRegister(reason)
+      .CallRuntime(Runtime::kAbort, reason, 1);
 }
 
 void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
@@ -747,14 +754,11 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED: {
-      Handle<Oddball> value = variable->binding_needs_init()
-                                  ? isolate()->factory()->the_hole_value()
-                                  : isolate()->factory()->undefined_value();
+    case VariableLocation::UNALLOCATED:
+      DCHECK(!variable->binding_needs_init());
       globals()->push_back(variable->name());
-      globals()->push_back(value);
+      globals()->push_back(isolate()->factory()->undefined_value());
       break;
-    }
     case VariableLocation::LOCAL:
       if (hole_init) {
         Register destination(variable->index());
@@ -874,9 +878,7 @@ void BytecodeGenerator::VisitDeclarations(
   Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
       static_cast<int>(globals()->size()), TENURED);
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
-  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
-                      DeclareGlobalsNativeFlag::encode(info()->is_native()) |
-                      DeclareGlobalsLanguageMode::encode(language_mode());
+  int encoded_flags = info()->GetDeclareGlobalsFlags();
 
   Register pairs = register_allocator()->NewRegister();
   builder()->LoadLiteral(data);
@@ -1038,6 +1040,7 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
   ControlScopeForIteration execution_control(this, stmt, loop_builder);
   builder()->StackCheck(stmt->position());
   Visit(stmt->body());
+  loop_builder->SetContinueTarget();
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
@@ -1045,14 +1048,11 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   VisitIterationHeader(stmt, &loop_builder);
   if (stmt->cond()->ToBooleanIsFalse()) {
     VisitIterationBody(stmt, &loop_builder);
-    loop_builder.Condition();
   } else if (stmt->cond()->ToBooleanIsTrue()) {
-    loop_builder.Condition();
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.JumpToHeader();
   } else {
     VisitIterationBody(stmt, &loop_builder);
-    loop_builder.Condition();
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
@@ -1068,7 +1068,6 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
   LoopBuilder loop_builder(builder());
   VisitIterationHeader(stmt, &loop_builder);
-  loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
@@ -1092,7 +1091,6 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   LoopBuilder loop_builder(builder());
   VisitIterationHeader(stmt, &loop_builder);
-  loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
@@ -1100,7 +1098,6 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
-    loop_builder.Next();
     builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
@@ -1218,7 +1215,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // The loop
   VisitIterationHeader(stmt, &loop_builder);
   builder()->SetExpressionAsStatementPosition(stmt->each());
-  loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
   DCHECK(Register::AreContiguous(cache_type, cache_array));
@@ -1227,7 +1223,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   loop_builder.ContinueIfUndefined();
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   VisitIterationBody(stmt, &loop_builder);
-  loop_builder.Next();
   builder()->ForInStep(index);
   builder()->StoreAccumulatorInRegister(index);
   loop_builder.JumpToHeader();
@@ -1245,7 +1240,6 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   VisitForEffect(stmt->assign_iterator());
 
   VisitIterationHeader(stmt, &loop_builder);
-  loop_builder.Next();
   builder()->SetExpressionAsStatementPosition(stmt->next_result());
   VisitForEffect(stmt->next_result());
   VisitForAccumulatorValue(stmt->result_done());
@@ -1406,7 +1400,7 @@ void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
-  builder()->CallRuntime(Runtime::kFinalizeClassDefinition, literal, 2);
+  builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
     Variable* var = expr->class_variable_proxy()->var();
@@ -3276,7 +3270,7 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
 
 
 LanguageMode BytecodeGenerator::language_mode() const {
-  return info()->language_mode();
+  return execution_context()->scope()->language_mode();
 }
 
 

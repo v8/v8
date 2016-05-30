@@ -473,22 +473,25 @@ Callable CodeFactory::FastNewObject(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
-  FastNewRestParameterStub stub(isolate);
+Callable CodeFactory::FastNewRestParameter(Isolate* isolate,
+                                           bool skip_stub_frame) {
+  FastNewRestParameterStub stub(isolate, skip_stub_frame);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
 
 // static
-Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate) {
-  FastNewSloppyArgumentsStub stub(isolate);
+Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate,
+                                             bool skip_stub_frame) {
+  FastNewSloppyArgumentsStub stub(isolate, skip_stub_frame);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
 
 // static
-Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
-  FastNewStrictArgumentsStub stub(isolate);
+Callable CodeFactory::FastNewStrictArguments(Isolate* isolate,
+                                             bool skip_stub_frame) {
+  FastNewStrictArgumentsStub stub(isolate, skip_stub_frame);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
@@ -496,13 +499,6 @@ Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
 // static
 Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
   AllocateHeapNumberStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
-Callable CodeFactory::AllocateMutableHeapNumber(Isolate* isolate) {
-  AllocateMutableHeapNumberStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
@@ -549,6 +545,11 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
                   ConstructTrampolineDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::HasProperty(Isolate* isolate) {
+  HasPropertyStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,

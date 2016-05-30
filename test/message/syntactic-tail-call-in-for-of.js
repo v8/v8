@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-explicit-tailcalls
+"use strict";
 
 function f() {
   return 1;
@@ -10,6 +11,6 @@ function f() {
 
 function g() {
   for (var v of [1, 2, 3]) {
-    return continue f();
+    return continue f()  ;
   }
 }

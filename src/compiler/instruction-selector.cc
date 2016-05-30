@@ -858,8 +858,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsReference(node), VisitIfException(node);
     case IrOpcode::kFinishRegion:
       return MarkAsReference(node), VisitFinishRegion(node);
-    case IrOpcode::kGuard:
-      return MarkAsReference(node), VisitGuard(node);
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
@@ -1075,6 +1073,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32Add(node);
     case IrOpcode::kFloat32Sub:
       return MarkAsFloat32(node), VisitFloat32Sub(node);
+    case IrOpcode::kFloat32SubPreserveNan:
+      return MarkAsFloat32(node), VisitFloat32SubPreserveNan(node);
     case IrOpcode::kFloat32Mul:
       return MarkAsFloat32(node), VisitFloat32Mul(node);
     case IrOpcode::kFloat32Div:
@@ -1097,6 +1097,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
       return MarkAsFloat64(node), VisitFloat64Sub(node);
+    case IrOpcode::kFloat64SubPreserveNan:
+      return MarkAsFloat64(node), VisitFloat64SubPreserveNan(node);
     case IrOpcode::kFloat64Mul:
       return MarkAsFloat64(node), VisitFloat64Mul(node);
     case IrOpcode::kFloat64Div:
@@ -1188,6 +1190,8 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitAtomicLoad(node);
     }
+    case IrOpcode::kAtomicStore:
+      return VisitAtomicStore(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -1432,13 +1436,6 @@ void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
 void InstructionSelector::VisitFinishRegion(Node* node) {
-  OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-}
-
-
-void InstructionSelector::VisitGuard(Node* node) {
   OperandGenerator g(this);
   Node* value = node->InputAt(0);
   Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));

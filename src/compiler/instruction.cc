@@ -127,12 +127,12 @@ std::ostream& operator<<(std::ostream& os,
       LocationOperand allocated = LocationOperand::cast(op);
       if (op.IsStackSlot()) {
         os << "[stack:" << LocationOperand::cast(op).index();
-      } else if (op.IsDoubleStackSlot()) {
-        os << "[double_stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsFPStackSlot()) {
+        os << "[fp_stack:" << LocationOperand::cast(op).index();
       } else if (op.IsRegister()) {
         os << "[" << LocationOperand::cast(op).GetRegister().ToString() << "|R";
       } else {
-        DCHECK(op.IsDoubleRegister());
+        DCHECK(op.IsFPRegister());
         os << "[" << LocationOperand::cast(op).GetDoubleRegister().ToString()
            << "|R";
       }
@@ -335,7 +335,7 @@ std::ostream& operator<<(std::ostream& os,
 void ReferenceMap::RecordReference(const AllocatedOperand& op) {
   // Do not record arguments as pointers.
   if (op.IsStackSlot() && LocationOperand::cast(op).index() < 0) return;
-  DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());
+  DCHECK(!op.IsFPRegister() && !op.IsFPStackSlot());
   reference_operands_.push_back(op);
 }
 
@@ -504,14 +504,17 @@ std::ostream& operator<<(std::ostream& os,
 
 Constant::Constant(int32_t v) : type_(kInt32), value_(v) {}
 
-Constant::Constant(RelocatablePtrConstantInfo info)
-#ifdef V8_HOST_ARCH_32_BIT
-    : type_(kInt32), value_(info.value()), rmode_(info.rmode()) {
+Constant::Constant(RelocatablePtrConstantInfo info) {
+  if (info.type() == RelocatablePtrConstantInfo::kInt32) {
+    type_ = kInt32;
+  } else if (info.type() == RelocatablePtrConstantInfo::kInt64) {
+    type_ = kInt64;
+  } else {
+    UNREACHABLE();
+  }
+  value_ = info.value();
+  rmode_ = info.rmode();
 }
-#else
-    : type_(kInt64), value_(info.value()), rmode_(info.rmode()) {
-}
-#endif
 
 Handle<HeapObject> Constant::ToHeapObject() const {
   DCHECK_EQ(kHeapObject, type());

@@ -391,7 +391,6 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(ToNumber, Operator::kNoProperties, 1, 1)               \
   V(ToObject, Operator::kFoldable, 1, 1)                   \
   V(ToString, Operator::kNoProperties, 1, 1)               \
-  V(Yield, Operator::kNoProperties, 1, 1)                  \
   V(Create, Operator::kEliminatable, 2, 1)                 \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1) \
   V(HasProperty, Operator::kNoProperties, 2, 1)            \
@@ -707,11 +706,11 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
 
 
 const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
-  return new (zone()) Operator1<CreateArgumentsType>(    // --
-      IrOpcode::kJSCreateArguments, Operator::kNoThrow,  // opcode
-      "JSCreateArguments",                               // name
-      1, 1, 1, 1, 1, 0,                                  // counts
-      type);                                             // parameter
+  return new (zone()) Operator1<CreateArgumentsType>(         // --
+      IrOpcode::kJSCreateArguments, Operator::kEliminatable,  // opcode
+      "JSCreateArguments",                                    // name
+      1, 1, 0, 1, 1, 0,                                       // counts
+      type);                                                  // parameter
 }
 
 

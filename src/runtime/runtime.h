@@ -59,7 +59,6 @@ namespace internal {
   F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
   F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
   F(AtomicsCompareExchange, 4, 1)               \
-  F(AtomicsStore, 3, 1)                         \
   F(AtomicsAdd, 3, 1)                           \
   F(AtomicsSub, 3, 1)                           \
   F(AtomicsAnd, 3, 1)                           \
@@ -83,7 +82,6 @@ namespace internal {
   F(ThrowIfStaticPrototype, 1, 1)           \
   F(HomeObjectSymbol, 0, 1)                 \
   F(DefineClass, 4, 1)                      \
-  F(FinalizeClassDefinition, 2, 1)          \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreToSuper_Strict, 4, 1)              \
@@ -232,9 +230,13 @@ namespace internal {
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
   F(GeneratorGetInput, 1, 1)            \
+  F(GeneratorSetContext, 1, 1)          \
   F(GeneratorGetContinuation, 1, 1)     \
+  F(GeneratorSetContinuation, 2, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
-  F(GeneratorGetResumeMode, 1, 1)
+  F(GeneratorGetResumeMode, 1, 1)       \
+  F(GeneratorLoadRegister, 2, 1)        \
+  F(GeneratorStoreRegister, 3, 1)
 
 #ifdef V8_I18N_SUPPORT
 #define FOR_EACH_INTRINSIC_I18N(F)           \
@@ -260,7 +262,10 @@ namespace internal {
   F(BreakIteratorFirst, 1, 1)                \
   F(BreakIteratorNext, 1, 1)                 \
   F(BreakIteratorCurrent, 1, 1)              \
-  F(BreakIteratorBreakType, 1, 1)
+  F(BreakIteratorBreakType, 1, 1)            \
+  F(StringToLowerCaseI18N, 1, 1)             \
+  F(StringToUpperCaseI18N, 1, 1)             \
+  F(StringLocaleConvertCase, 3, 1)
 #else
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif
@@ -312,10 +317,11 @@ namespace internal {
   F(ThrowCalledOnNullOrUndefined, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
-  F(GetOrdinaryHasInstance, 0, 1)                   \
-  F(GetAndResetRuntimeCallStats, 0, 1)              \
+  F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(EnqueueMicrotask, 1, 1)                         \
-  F(RunMicrotasks, 0, 1)
+  F(RunMicrotasks, 0, 1)                            \
+  F(WasmGetFunctionName, 2, 1)                      \
+  F(OrdinaryHasInstance, 2, 1)
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \
@@ -426,8 +432,6 @@ namespace internal {
   F(SameValue, 2, 1)                                 \
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
-  F(InstanceOf, 2, 1)                                \
-  F(OrdinaryHasInstance, 2, 1)                       \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
@@ -452,7 +456,8 @@ namespace internal {
   F(LessThan, 2, 1)                     \
   F(GreaterThan, 2, 1)                  \
   F(LessThanOrEqual, 2, 1)              \
-  F(GreaterThanOrEqual, 2, 1)
+  F(GreaterThanOrEqual, 2, 1)           \
+  F(InstanceOf, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \
@@ -871,6 +876,7 @@ namespace internal {
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(DebugPrint, 1, 1)                         \
   F(DebugTrace, 0, 1)                         \
+  F(GetExceptionDetails, 1, 1)                \
   F(GlobalPrint, 1, 1)                        \
   F(SystemBreak, 0, 1)                        \
   F(SetFlags, 1, 1)                           \
@@ -901,7 +907,8 @@ namespace internal {
   F(HasFixedInt32Elements, 1, 1)              \
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
-  F(HasFixedUint8ClampedElements, 1, 1)
+  F(HasFixedUint8ClampedElements, 1, 1)       \
+  F(SpeciesProtector, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \

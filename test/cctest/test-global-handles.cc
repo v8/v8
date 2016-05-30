@@ -450,3 +450,22 @@ TEST(FinalizerWeakness) {
   CHECK_EQ(identity, o->GetIdentityHash());
   CHECK(o->Has(isolate->GetCurrentContext(), v8_str("finalizer")).FromJust());
 }
+
+TEST(PhatomHandlesWithoutCallbacks) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::Global<v8::Object> g1, g2;
+  {
+    v8::HandleScope scope(isolate);
+    g1.Reset(isolate, v8::Object::New(isolate));
+    g1.SetWeak();
+    g2.Reset(isolate, v8::Object::New(isolate));
+    g2.SetWeak();
+  }
+
+  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+  CHECK_EQ(2, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+}

@@ -183,7 +183,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         context_chain_element.wrapped_context = current_context;
       }
       context_chain_.Add(context_chain_element);
-    } else if (scope_type == ScopeIterator::ScopeTypeBlock) {
+    } else if (scope_type == ScopeIterator::ScopeTypeBlock ||
+               scope_type == ScopeIterator::ScopeTypeEval) {
       Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
       frame_inspector.MaterializeStackLocals(materialized,
                                              it.CurrentScopeInfo());

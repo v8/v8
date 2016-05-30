@@ -460,7 +460,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
       found = true;
       break;
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
   CHECK(found);
 #endif

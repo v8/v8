@@ -116,6 +116,7 @@ class PropertyCallbackArguments
 #define WRITE_CALL_1_NAME(Function, type, ApiReturn, InternalReturn)         \
   Handle<InternalReturn> Call(Function f, Handle<Name> name) {               \
     Isolate* isolate = this->isolate();                                      \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);       \
     VMState<EXTERNAL> state(isolate);                                        \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));             \
     PropertyCallbackInfo<ApiReturn> info(begin());                           \
@@ -138,6 +139,7 @@ class PropertyCallbackArguments
 #define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)  \
   Handle<InternalReturn> Call(Function f, uint32_t index) {            \
     Isolate* isolate = this->isolate();                                \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function); \
     VMState<EXTERNAL> state(isolate);                                  \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));       \
     PropertyCallbackInfo<ApiReturn> info(begin());                     \
@@ -155,6 +157,8 @@ class PropertyCallbackArguments
   Handle<Object> Call(GenericNamedPropertySetterCallback f, Handle<Name> name,
                       Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(
+        isolate, &RuntimeCallStats::GenericNamedPropertySetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<v8::Value> info(begin());
@@ -167,6 +171,8 @@ class PropertyCallbackArguments
   Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
                       Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(
+        isolate, &RuntimeCallStats::IndexedPropertySetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<v8::Value> info(begin());
@@ -179,6 +185,8 @@ class PropertyCallbackArguments
   void Call(AccessorNameSetterCallback f, Handle<Name> name,
             Handle<Object> value) {
     Isolate* isolate = this->isolate();
+    RuntimeCallTimerScope timer(isolate,
+                                &RuntimeCallStats::AccessorNameSetterCallback);
     VMState<EXTERNAL> state(isolate);
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
     PropertyCallbackInfo<void> info(begin());

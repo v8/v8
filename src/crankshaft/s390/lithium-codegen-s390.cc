@@ -312,8 +312,6 @@ bool LCodeGen::GenerateJumpTable() {
       } else {
         __ b(r14, &call_deopt_entry);
       }
-      info()->LogDeoptCallPosition(masm()->pc_offset(),
-                                   table_entry->deopt_info.inlining_id);
     }
 
     if (needs_frame.is_linked()) {
@@ -746,14 +744,13 @@ void LCodeGen::DeoptimizeIf(Condition cond, LInstruction* instr,
     __ stop("trap_on_deopt", cond, kDefaultStopCode, cr);
   }
 
-  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason);
+  Deoptimizer::DeoptInfo deopt_info = MakeDeoptInfo(instr, deopt_reason, id);
 
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
   // restore caller doubles.
   if (cond == al && frame_is_built_ && !info()->saves_caller_doubles()) {
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
-    info()->LogDeoptCallPosition(masm()->pc_offset(), deopt_info.inlining_id);
   } else {
     Deoptimizer::JumpTableEntry table_entry(entry, deopt_info, bailout_type,
                                             !frame_is_built_);
@@ -2538,15 +2535,6 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
   __ mov(temp, Operand(instr->map()));
   __ CmpP(temp, FieldMemOperand(reg, HeapObject::kMapOffset));
   EmitBranch(instr, eq);
-}
-
-void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->left()).is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(ToRegister(instr->right()).is(InstanceOfDescriptor::RightRegister()));
-  DCHECK(ToRegister(instr->result()).is(r2));
-  InstanceOfStub stub(isolate());
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 void LCodeGen::DoHasInPrototypeChainAndBranch(
@@ -5260,6 +5248,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     flags = static_cast<AllocationFlags>(flags | PRETENURE);
   }
 
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    flags = static_cast<AllocationFlags>(flags | ALLOCATION_FOLDING_DOMINATOR);
+  }
+
+  DCHECK(!instr->hydrogen()->IsAllocationFolded());
+
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     CHECK(size <= Page::kMaxRegularHeapObjectSize);
@@ -5338,6 +5332,49 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   CallRuntimeFromDeferred(Runtime::kAllocateInTargetSpace, 2, instr,
                           instr->context());
   __ StoreToSafepointRegisterSlot(r2, result);
+
+  if (instr->hydrogen()->IsAllocationFoldingDominator()) {
+    AllocationFlags allocation_flags = NO_ALLOCATION_FLAGS;
+    if (instr->hydrogen()->IsOldSpaceAllocation()) {
+      DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+      allocation_flags = static_cast<AllocationFlags>(flags | PRETENURE);
+    }
+    // If the allocation folding dominator allocate triggered a GC, allocation
+    // happend in the runtime. We have to reset the top pointer to virtually
+    // undo the allocation.
+    ExternalReference allocation_top =
+        AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
+    Register top_address = scratch0();
+    __ SubP(r2, r2, Operand(kHeapObjectTag));
+    __ mov(top_address, Operand(allocation_top));
+    __ StoreP(r2, MemOperand(top_address));
+    __ AddP(r2, r2, Operand(kHeapObjectTag));
+  }
+}
+
+void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
+  DCHECK(instr->hydrogen()->IsAllocationFolded());
+  DCHECK(!instr->hydrogen()->IsAllocationFoldingDominator());
+  Register result = ToRegister(instr->result());
+  Register scratch1 = ToRegister(instr->temp1());
+  Register scratch2 = ToRegister(instr->temp2());
+
+  AllocationFlags flags = ALLOCATION_FOLDED;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->hydrogen()->IsOldSpaceAllocation()) {
+    DCHECK(!instr->hydrogen()->IsNewSpaceAllocation());
+    flags = static_cast<AllocationFlags>(flags | PRETENURE);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    __ FastAllocate(size, result, scratch1, scratch2, flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ FastAllocate(size, result, scratch1, scratch2, flags);
+  }
 }
 
 void LCodeGen::DoTypeof(LTypeof* instr) {

@@ -277,6 +277,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kAtomicLoadWord32:
       return kIsLoadOperation;
 
+    case kAtomicStoreWord8:
+    case kAtomicStoreWord16:
+    case kAtomicStoreWord32:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     TARGET_ARCH_OPCODE_LIST(CASE)
 #undef CASE

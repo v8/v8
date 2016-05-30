@@ -48,6 +48,11 @@ Node* JSGraph::OptimizedOutConstant() {
                 HeapConstant(factory()->optimized_out()));
 }
 
+Node* JSGraph::StaleRegisterConstant() {
+  return CACHED(kStaleRegisterConstant,
+                HeapConstant(factory()->stale_register()));
+}
+
 Node* JSGraph::UndefinedConstant() {
   return CACHED(kUndefinedConstant, HeapConstant(factory()->undefined_value()));
 }

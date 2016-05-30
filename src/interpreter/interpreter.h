@@ -21,6 +21,10 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 
+namespace compiler {
+class Node;
+}  // namespace compiler
+
 namespace interpreter {
 
 class InterpreterAssembler;
@@ -66,15 +70,20 @@ class Interpreter {
   BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
 #undef DECLARE_BYTECODE_HANDLER_GENERATOR
 
-  // Generates code to perform the binary operations via |callable|.
+  // Generates code to perform the binary operation via |callable|.
   void DoBinaryOp(Callable callable, InterpreterAssembler* assembler);
 
-  // Generates code to perform the binary operations via |function_id|.
+  // Generates code to perform the binary operation via |function_id|.
   void DoBinaryOp(Runtime::FunctionId function_id,
                   InterpreterAssembler* assembler);
 
-  // Generates code to perform the count operations via |callable|.
-  void DoCountOp(Callable callable, InterpreterAssembler* assembler);
+  // Generates code to perform the binary operation via |Generator|.
+  template <class Generator>
+  void DoBinaryOp(InterpreterAssembler* assembler);
+
+  // Generates code to perform the unary operation via |Generator|.
+  template <class Generator>
+  void DoUnaryOp(InterpreterAssembler* assembler);
 
   // Generates code to perform the comparison operation associated with
   // |compare_op|.
@@ -118,6 +127,9 @@ class Interpreter {
 
   // Generates code to perform a type conversion.
   void DoTypeConversionOp(Callable callable, InterpreterAssembler* assembler);
+
+  // Generates code to perform logical-not on boolean |value|.
+  void DoLogicalNotOp(compiler::Node* value, InterpreterAssembler* assembler);
 
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,

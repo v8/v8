@@ -457,29 +457,6 @@ class WeakCallbackInfo {
 };
 
 
-template <class T, class P>
-class WeakCallbackData {
- public:
-  typedef void (*Callback)(const WeakCallbackData<T, P>& data);
-
-  WeakCallbackData(Isolate* isolate, P* parameter, Local<T> handle)
-      : isolate_(isolate), parameter_(parameter), handle_(handle) {}
-
-  V8_INLINE Isolate* GetIsolate() const { return isolate_; }
-  V8_INLINE P* GetParameter() const { return parameter_; }
-  V8_INLINE Local<T> GetValue() const { return handle_; }
-
- private:
-  Isolate* isolate_;
-  P* parameter_;
-  Local<T> handle_;
-};
-
-
-// TODO(dcarney): delete this with WeakCallbackData
-template <class T>
-using PhantomCallbackData = WeakCallbackInfo<T>;
-
 // kParameter will pass a void* parameter back to the callback, kInternalFields
 // will pass the first two internal fields back to the callback, kFinalizer
 // will pass a void* parameter back, but is invoked before the object is
@@ -564,35 +541,18 @@ template <class T> class PersistentBase {
    *  critical form of resource management!
    */
   template <typename P>
-  V8_INLINE V8_DEPRECATED(
-      "use WeakCallbackInfo version",
-      void SetWeak(P* parameter,
-                   typename WeakCallbackData<T, P>::Callback callback));
-
-  template <typename S, typename P>
-  V8_INLINE V8_DEPRECATED(
-      "use WeakCallbackInfo version",
-      void SetWeak(P* parameter,
-                   typename WeakCallbackData<S, P>::Callback callback));
-
-  // Phantom persistents work like weak persistents, except that the pointer to
-  // the object being collected is not available in the finalization callback.
-  // This enables the garbage collector to collect the object and any objects
-  // it references transitively in one GC cycle. At the moment you can either
-  // specify a parameter for the callback or the location of two internal
-  // fields in the dying object.
-  template <typename P>
-  V8_INLINE V8_DEPRECATED(
-      "use SetWeak",
-      void SetPhantom(P* parameter,
-                      typename WeakCallbackInfo<P>::Callback callback,
-                      int internal_field_index1 = -1,
-                      int internal_field_index2 = -1));
-
-  template <typename P>
   V8_INLINE void SetWeak(P* parameter,
                          typename WeakCallbackInfo<P>::Callback callback,
                          WeakCallbackType type);
+
+  /**
+   * Turns this handle into a weak phantom handle without finalization callback.
+   * The handle will be reset automatically when the garbage collector detects
+   * that the object is no longer reachable.
+   * A related function Isolate::NumberOfPhantomHandleResetsSinceLastCall
+   * returns how many phantom handles were reset by the garbage collector.
+   */
+  V8_INLINE void SetWeak();
 
   template<typename P>
   V8_INLINE P* ClearWeak();
@@ -623,7 +583,9 @@ template <class T> class PersistentBase {
    * external dependencies. This mark is automatically cleared after each
    * garbage collection.
    */
-  V8_INLINE void MarkPartiallyDependent();
+  V8_INLINE V8_DEPRECATED(
+      "deprecated optimization, do not use partially dependent groups",
+      void MarkPartiallyDependent());
 
   /**
    * Marks the reference to this object as active. The scavenge garbage
@@ -2065,6 +2027,8 @@ class V8_EXPORT Value : public Data {
 
   template <class T> V8_INLINE static Value* Cast(T* value);
 
+  Local<String> TypeOf(v8::Isolate*);
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
@@ -2655,6 +2619,18 @@ enum AccessControl {
 };
 
 /**
+ * Property filter bits. They can be or'ed to build a composite filter.
+ */
+enum PropertyFilter {
+  ALL_PROPERTIES = 0,
+  ONLY_WRITABLE = 1,
+  ONLY_ENUMERABLE = 2,
+  ONLY_CONFIGURABLE = 4,
+  SKIP_STRINGS = 8,
+  SKIP_SYMBOLS = 16
+};
+
+/**
  * Integrity level for objects.
  */
 enum class IntegrityLevel { kFrozen, kSealed };
@@ -2814,6 +2790,15 @@ class V8_EXPORT Object : public Value {
       Local<Context> context);
 
   /**
+   * Returns an array containing the names of the filtered properties
+   * of this object, including properties from prototype objects.  The
+   * array returned by this method contains the same values as would
+   * be enumerated by a for-in statement over this object.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Array> GetOwnPropertyNames(
+      Local<Context> context, PropertyFilter filter);
+
+  /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
@@ -2965,13 +2950,6 @@ class V8_EXPORT Object : public Value {
    */
   int GetIdentityHash();
 
-  V8_DEPRECATED("Use v8::Object::SetPrivate instead.",
-                bool SetHiddenValue(Local<String> key, Local<Value> value));
-  V8_DEPRECATED("Use v8::Object::GetPrivate instead.",
-                Local<Value> GetHiddenValue(Local<String> key));
-  V8_DEPRECATED("Use v8::Object::DeletePrivate instead.",
-                bool DeleteHiddenValue(Local<String> key));
-
   /**
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
@@ -2990,6 +2968,11 @@ class V8_EXPORT Object : public Value {
    * When an Object is callable this method returns true.
    */
   bool IsCallable();
+
+  /**
+   * True if this object is a constructor.
+   */
+  bool IsConstructor();
 
   /**
    * Call an Object as a function if a callback is set by the
@@ -3470,9 +3453,19 @@ enum class ArrayBufferCreationMode { kInternalized, kExternalized };
 class V8_EXPORT ArrayBuffer : public Object {
  public:
   /**
-   * Allocator that V8 uses to allocate |ArrayBuffer|'s memory.
+   * A thread-safe allocator that V8 uses to allocate |ArrayBuffer|'s memory.
    * The allocator is a global V8 setting. It has to be set via
    * Isolate::CreateParams.
+   *
+   * Memory allocated through this allocator by V8 is accounted for as external
+   * memory by V8. Note that V8 keeps track of the memory for all internalized
+   * |ArrayBuffer|s. Responsibility for tracking external memory (using
+   * Isolate::AdjustAmountOfExternalAllocatedMemory) is handed over to the
+   * embedder upon externalization and taken over upon internalization (creating
+   * an internalized buffer from an existing buffer).
+   *
+   * Note that it is unsafe to call back into V8 from any of the allocator
+   * functions.
    *
    * This API is experimental and may change significantly.
    */
@@ -5421,7 +5414,7 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  * called. When the garbage collection cycle is finished, TraceEpilogue will be
  * called.
  */
-class EmbedderHeapTracer {
+class V8_EXPORT EmbedderHeapTracer {
  public:
   /**
    * V8 will call this method at the beginning of the gc cycle.
@@ -5642,9 +5635,10 @@ class V8_EXPORT Isolate {
     kLegacyFunctionDeclaration = 29,
     kRegExpPrototypeSourceGetter = 30,
     kRegExpPrototypeOldFlagGetter = 31,
+    kDecimalWithLeadingZeroInStrictMode = 32,
 
-    // If you add new values here, you'll also need to update V8Initializer.cpp
-    // in Chromium.
+    // If you add new values here, you'll also need to update Chromium's:
+    // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
@@ -5815,6 +5809,12 @@ class V8_EXPORT Isolate {
    */
   V8_INLINE int64_t
       AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
+
+  /**
+   * Returns the number of phantom handles without callbacks that were reset
+   * by the garbage collector since the last call to this function.
+   */
+  size_t NumberOfPhantomHandleResetsSinceLastCall();
 
   /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
@@ -6661,19 +6661,17 @@ class V8_EXPORT V8 {
                                                internal::Object** handle);
   static internal::Object** CopyPersistent(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
-  typedef WeakCallbackData<Value, void>::Callback WeakCallback;
-  static void MakeWeak(internal::Object** global_handle, void* data,
-                       WeakCallback weak_callback);
-  static void MakeWeak(internal::Object** global_handle, void* data,
+  static void MakeWeak(internal::Object** location, void* data,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        WeakCallbackType type);
-  static void MakeWeak(internal::Object** global_handle, void* data,
+  static void MakeWeak(internal::Object** location, void* data,
                        // Must be 0 or -1.
                        int internal_field_index1,
                        // Must be 1 or -1.
                        int internal_field_index2,
                        WeakCallbackInfo<void>::Callback weak_callback);
-  static void* ClearWeak(internal::Object** global_handle);
+  static void MakeWeak(internal::Object*** location_addr);
+  static void* ClearWeak(internal::Object** location);
   static void Eternalize(Isolate* isolate,
                          Value* handle,
                          int* index);
@@ -7636,39 +7634,6 @@ void PersistentBase<T>::Reset(Isolate* isolate,
 
 
 template <class T>
-template <typename S, typename P>
-void PersistentBase<T>::SetWeak(
-    P* parameter,
-    typename WeakCallbackData<S, P>::Callback callback) {
-  TYPE_CHECK(S, T);
-  typedef typename WeakCallbackData<Value, void>::Callback Callback;
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
-               reinterpret_cast<Callback>(callback));
-}
-
-
-template <class T>
-template <typename P>
-void PersistentBase<T>::SetWeak(
-    P* parameter,
-    typename WeakCallbackData<T, P>::Callback callback) {
-  SetWeak<T, P>(parameter, callback);
-}
-
-
-template <class T>
-template <typename P>
-void PersistentBase<T>::SetPhantom(
-    P* parameter, typename WeakCallbackInfo<P>::Callback callback,
-    int internal_field_index1, int internal_field_index2) {
-  typedef typename WeakCallbackInfo<void>::Callback Callback;
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(this->val_), parameter,
-               internal_field_index1, internal_field_index2,
-               reinterpret_cast<Callback>(callback));
-}
-
-
-template <class T>
 template <typename P>
 V8_INLINE void PersistentBase<T>::SetWeak(
     P* parameter, typename WeakCallbackInfo<P>::Callback callback,
@@ -7678,6 +7643,10 @@ V8_INLINE void PersistentBase<T>::SetWeak(
                reinterpret_cast<Callback>(callback), type);
 }
 
+template <class T>
+void PersistentBase<T>::SetWeak() {
+  V8::MakeWeak(reinterpret_cast<internal::Object***>(&this->val_));
+}
 
 template <class T>
 template <typename P>

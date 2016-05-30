@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_KEY_ACCUMULATOR_H_
-#define V8_KEY_ACCUMULATOR_H_
+#ifndef V8_KEYS_H_
+#define V8_KEYS_H_
 
 #include "src/isolate.h"
 #include "src/objects.h"
@@ -36,25 +36,43 @@ class KeyAccumulator final BASE_EMBEDDED {
       : isolate_(isolate), type_(type), filter_(filter) {}
   ~KeyAccumulator();
 
+  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
+  Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
+                          Handle<JSReceiver> object);
+  void CollectOwnElementIndices(Handle<JSObject> object);
+  void CollectOwnPropertyNames(Handle<JSObject> object);
+
+  static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
+                                                Handle<JSObject> object);
+
   bool AddKey(uint32_t key);
   bool AddKey(Object* key, AddKeyConversion convert);
   bool AddKey(Handle<Object> key, AddKeyConversion convert);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
   void AddKeys(Handle<JSObject> array, AddKeyConversion convert);
-  void AddKeysFromProxy(Handle<JSObject> array);
-  Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
+
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
   void NextPrototype();
   // Sort the integer indices in the last list in |elements_|
   void SortCurrentElementsList();
-  Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   int length() { return length_; }
   Isolate* isolate() { return isolate_; }
+  PropertyFilter filter() { return filter_; }
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
 
  private:
+  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
+                             Handle<JSObject> object);
+  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
+                                    Handle<JSProxy> proxy);
+  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
+                                          Handle<JSReceiver> target);
+
+  Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
+                                 Handle<FixedArray> keys);
+
   bool AddIntegerKey(uint32_t key);
   bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
   bool AddSymbolKey(Handle<Object> array);
@@ -126,4 +144,4 @@ class FastKeyAccumulator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_KEY_ACCUMULATOR_H_
+#endif  // V8_KEYS_H_

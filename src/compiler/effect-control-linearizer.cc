@@ -290,12 +290,16 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
       node->opcode() == IrOpcode::kBeginRegion) {
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
+    return RemoveRegionNode(node);
+  }
 
-    // TODO(jarin) Enable this once we make sure everything with side effects
-    // is marked as effectful.
-    if (false) {
-      return RemoveRegionNode(node);
-    }
+  // Special treatment for CheckPoint nodes.
+  // TODO(epertoso): Pickup the current frame state.
+  if (node->opcode() == IrOpcode::kCheckPoint) {
+    // Unlink the check point; effect uses will be updated to the incoming
+    // effect that is passed.
+    node->Kill();
+    return;
   }
 
   if (node->opcode() == IrOpcode::kIfSuccess) {
@@ -328,13 +332,14 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
     DCHECK(node->op()->EffectOutputCount() == 0 ||
            node->opcode() == IrOpcode::kStart);
   }
-  // Rewire control inputs of control nodes, and update the current control
-  // input.
-  if (node->op()->ControlOutputCount() > 0) {
-    DCHECK_EQ(1, node->op()->ControlInputCount());
-    NodeProperties::ReplaceControlInput(node, *control);
-    *control = node;
 
+  // Rewire control inputs.
+  for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+    NodeProperties::ReplaceControlInput(node, *control, i);
+  }
+  // Update the current control and wire IfSuccess right after calls.
+  if (node->op()->ControlOutputCount() > 0) {
+    *control = node;
     if (node->opcode() == IrOpcode::kCall) {
       // Schedule the call's IfSuccess node (if there is no exception use).
       TryScheduleCallIfSuccess(node, control);
@@ -346,6 +351,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
                                                    Node** control) {
   ValueEffectControl state(nullptr, nullptr, nullptr);
   switch (node->opcode()) {
+    case IrOpcode::kTypeGuard:
+      state = LowerTypeGuard(node, *effect, *control);
+      break;
     case IrOpcode::kChangeBitToTagged:
       state = LowerChangeBitToTagged(node, *effect, *control);
       break;
@@ -404,6 +412,13 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
   *effect = state.effect;
   *control = state.control;
   return true;
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerTypeGuard(Node* node, Node* effect,
+                                        Node* control) {
+  Node* value = node->InputAt(0);
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl
@@ -905,7 +920,6 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
                                                      Node* control) {
-  effect = graph()->NewNode(common()->BeginRegion(), effect);
   Node* result = effect = graph()->NewNode(
       simplified()->Allocate(NOT_TENURED),
       jsgraph()->Int32Constant(HeapNumber::kSize), effect, control);
@@ -915,7 +929,6 @@ EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value, Node* effect,
   effect = graph()->NewNode(
       simplified()->StoreField(AccessBuilder::ForHeapNumberValue()), result,
       value, effect, control);
-  result = effect = graph()->NewNode(common()->FinishRegion(), result, effect);
   return ValueEffectControl(result, effect, control);
 }
 

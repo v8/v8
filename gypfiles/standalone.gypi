@@ -710,8 +710,7 @@
           '-Wno-long-long',
           '-pthread',
           '-pedantic',
-          # Don't warn about the "struct foo f = {0};" initialization pattern.
-          '-Wno-missing-field-initializers',
+          '-Wmissing-field-initializers',
           '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [

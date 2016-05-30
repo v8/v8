@@ -140,6 +140,10 @@ class IC {
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Code> ComputeHandler(LookupIterator* lookup,
                               Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> value,
                                       CacheHolderFlag cache_holder) {
@@ -304,6 +308,8 @@ class LoadIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
+  Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) override;
+
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
                               CacheHolderFlag cache_holder) override;
 
@@ -386,6 +392,7 @@ class StoreIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
+  Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) override;
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> value,
                               CacheHolderFlag cache_holder) override;
 

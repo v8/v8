@@ -1233,6 +1233,14 @@ class Object {
                                                         Handle<Object> lhs,
                                                         Handle<Object> rhs);
 
+  // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
+  MUST_USE_RESULT static MaybeHandle<Object> OrdinaryHasInstance(
+      Isolate* isolate, Handle<Object> callable, Handle<Object> object);
+
+  // ES6 section 12.10.4 Runtime Semantics: InstanceofOperator(O, C)
+  MUST_USE_RESULT static MaybeHandle<Object> InstanceOf(
+      Isolate* isolate, Handle<Object> object, Handle<Object> callable);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
   // ES6 [[Set]] (when passed DONT_THROW)
@@ -2207,30 +2215,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
-  // Accessors for hidden properties object.
-  //
-  // Hidden properties are not own properties of the object itself.  Instead
-  // they are stored in an auxiliary structure kept as an own property with a
-  // special name Heap::hidden_properties_symbol(). But if the receiver is a
-  // JSGlobalProxy then the auxiliary object is a property of its prototype, and
-  // if it's a detached proxy, then you can't have hidden properties.
-
-  // Sets a hidden property on this object. Returns this object if successful,
-  // undefined if called on a detached proxy.
-  static Handle<Object> SetHiddenProperty(Handle<JSObject> object,
-                                          Handle<Name> key,
-                                          Handle<Object> value);
-  // Gets the value of a hidden property with the given key. Returns the hole
-  // if the property doesn't exist (or if called on a detached proxy),
-  // otherwise returns the value set for the key.
-  Object* GetHiddenProperty(Handle<Name> key);
-  // Deletes a hidden property. Deleting a non-existing property is
-  // considered successful.
-  static void DeleteHiddenProperty(Handle<JSObject> object,
-                                   Handle<Name> key);
-  // Returns true if the object has a property with the hidden string as name.
-  static bool HasHiddenProperties(Handle<JSObject> object);
-
   static void ValidateElements(Handle<JSObject> object);
 
   // Makes sure that this object can contain HeapObject as elements.
@@ -2293,18 +2277,6 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Object* value);
   inline void SetInternalField(int index, Smi* value);
   bool WasConstructedFromApiFunction();
-
-  void CollectOwnPropertyNames(KeyAccumulator* keys,
-                               PropertyFilter filter = ALL_PROPERTIES);
-
-  static void CollectOwnElementKeys(Handle<JSObject> object,
-                                    KeyAccumulator* keys,
-                                    PropertyFilter filter);
-
-  static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object);
-
-  static Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
-                                                    Handle<JSObject> object);
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
@@ -2514,21 +2486,6 @@ class JSObject: public JSReceiver {
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
-
-  // Return the hash table backing store or the inline stored identity hash,
-  // whatever is found.
-  MUST_USE_RESULT Object* GetHiddenPropertiesHashTable();
-
-  // Return the hash table backing store for hidden properties.  If there is no
-  // backing store, allocate one.
-  static Handle<ObjectHashTable> GetOrCreateHiddenPropertiesHashtable(
-      Handle<JSObject> object);
-
-  // Set the hidden property backing store to either a hash table or
-  // the inline-stored identity hash.
-  static Handle<Object> SetHiddenPropertiesHashTable(
-      Handle<JSObject> object,
-      Handle<Object> value);
 
   static Handle<Object> GetIdentityHash(Isolate* isolate,
                                         Handle<JSObject> object);
@@ -3876,7 +3833,7 @@ class OrderedHashTable: public FixedArray {
   static Handle<Derived> Shrink(Handle<Derived> table);
 
   // Returns a new empty OrderedHashTable and records the clearing so that
-  // exisiting iterators can be updated.
+  // existing iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
 
   // Returns a true if the OrderedHashTable contains the key
@@ -3890,6 +3847,8 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
   }
 
+  // Returns the number of contiguous entries in the data table, starting at 0,
+  // that either are real entries or have been deleted.
   int UsedCapacity() { return NumberOfElements() + NumberOfDeletedElements(); }
 
   int NumberOfBuckets() {
@@ -3921,7 +3880,11 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(next_entry)->value();
   }
 
-  Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
+  // use KeyAt(i)->IsTheHole() to determine if this is a deleted entry.
+  Object* KeyAt(int entry) {
+    DCHECK_LT(entry, this->UsedCapacity());
+    return get(EntryToIndex(entry));
+  }
 
   bool IsObsolete() {
     return !get(kNextTableIndex)->IsSmi();
@@ -3982,6 +3945,7 @@ class OrderedHashTable: public FixedArray {
     set(kNumberOfDeletedElementsIndex, Smi::FromInt(num));
   }
 
+  // Returns the number elements that can fit into the allocated buffer.
   int Capacity() {
     return NumberOfBuckets() * kLoadFactor;
   }
@@ -4342,7 +4306,7 @@ class ScopeInfo : public FixedArray {
   class HasSimpleParametersField
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 8> {};
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 9> {};
   class TypedField : public BitField<bool, FunctionKindField::kNext, 1> {};
 
   // BitFields representing the encoded information for context locals in the
@@ -5969,8 +5933,8 @@ class Map: public HeapObject {
                                               PropertyAttributes attributes,
                                               StoreFromKeyed store_mode);
   static Handle<Map> TransitionToAccessorProperty(
-      Handle<Map> map, Handle<Name> name, int descriptor,
-      AccessorComponent component, Handle<Object> accessor,
+      Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
+      Handle<Object> getter, Handle<Object> setter,
       PropertyAttributes attributes);
   static Handle<Map> ReconfigureExistingProperty(Handle<Map> map,
                                                  int descriptor,
@@ -6750,7 +6714,6 @@ class SharedFunctionInfo: public HeapObject {
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray();
-  inline bool IsInterpreted();
   inline BytecodeArray* bytecode_array();
   inline void set_bytecode_array(BytecodeArray* bytecode);
   inline void ClearBytecodeArray();
@@ -6904,6 +6867,13 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that this function is a generator.
   DECL_BOOLEAN_ACCESSORS(is_generator)
+
+  // Indicates that this function is an async function.
+  DECL_BOOLEAN_ACCESSORS(is_async)
+
+  // Indicates that this function can be suspended, either via YieldExpressions
+  // or AwaitExpressions.
+  inline bool is_resumable() const;
 
   // Indicates that this function is an arrow function.
   DECL_BOOLEAN_ACCESSORS(is_arrow)
@@ -7201,6 +7171,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsGetterFunction,
     kIsSetterFunction,
     // byte 3
+    kIsAsyncFunction,
     kDeserialized,
     kIsDeclaration,
     kTypedFunction,
@@ -7224,7 +7195,7 @@ class SharedFunctionInfo: public HeapObject {
   ASSERT_FUNCTION_KIND_ORDER(kSetterFunction, kIsSetterFunction);
 #undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 8> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 9> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};
@@ -7348,7 +7319,6 @@ class JSGeneratorObject: public JSObject {
   DECLARE_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
-  DECLARE_PRINTER(JSGeneratorObject)
   DECLARE_VERIFIER(JSGeneratorObject)
 
   // Magic sentinel values for the continuation.
@@ -8699,26 +8669,26 @@ class String: public Name {
   class FlatContent {
    public:
     // Returns true if the string is flat and this structure contains content.
-    bool IsFlat() { return state_ != NON_FLAT; }
+    bool IsFlat() const { return state_ != NON_FLAT; }
     // Returns true if the structure contains one-byte content.
-    bool IsOneByte() { return state_ == ONE_BYTE; }
+    bool IsOneByte() const { return state_ == ONE_BYTE; }
     // Returns true if the structure contains two-byte content.
-    bool IsTwoByte() { return state_ == TWO_BYTE; }
+    bool IsTwoByte() const { return state_ == TWO_BYTE; }
 
     // Return the one byte content of the string. Only use if IsOneByte()
     // returns true.
-    Vector<const uint8_t> ToOneByteVector() {
+    Vector<const uint8_t> ToOneByteVector() const {
       DCHECK_EQ(ONE_BYTE, state_);
       return Vector<const uint8_t>(onebyte_start, length_);
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
-    Vector<const uc16> ToUC16Vector() {
+    Vector<const uc16> ToUC16Vector() const {
       DCHECK_EQ(TWO_BYTE, state_);
       return Vector<const uc16>(twobyte_start, length_);
     }
 
-    uc16 Get(int i) {
+    uc16 Get(int i) const {
       DCHECK(i < length_);
       DCHECK(state_ != NON_FLAT);
       if (state_ == ONE_BYTE) return onebyte_start[i];
@@ -10168,6 +10138,12 @@ class JSArray: public JSObject {
                                                     PropertyDescriptor* desc,
                                                     ShouldThrow should_throw);
 
+  // Checks whether the Array has the current realm's Array.prototype as its
+  // prototype. This function is best-effort and only gives a conservative
+  // approximation, erring on the side of false, in particular with respect
+  // to Proxies and objects with a hidden prototype.
+  inline bool HasArrayPrototype(Isolate* isolate);
+
   DECLARE_CAST(JSArray)
 
   // Dispatched behavior.
@@ -10256,6 +10232,9 @@ class AccessorInfo: public Struct {
   inline bool is_special_data_property();
   inline void set_is_special_data_property(bool value);
 
+  inline bool is_sloppy();
+  inline void set_is_sloppy(bool value);
+
   inline PropertyAttributes property_attributes();
   inline void set_property_attributes(PropertyAttributes attributes);
 
@@ -10293,7 +10272,8 @@ class AccessorInfo: public Struct {
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
   static const int kSpecialDataProperty = 2;
-  class AttributesField : public BitField<PropertyAttributes, 3, 3> {};
+  static const int kIsSloppy = 3;
+  class AttributesField : public BitField<PropertyAttributes, 4, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };

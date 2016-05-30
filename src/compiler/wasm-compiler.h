@@ -55,13 +55,13 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 
 WasmCompilationUnit* CreateWasmCompilationUnit(
     wasm::ErrorThrower* thrower, Isolate* isolate, wasm::ModuleEnv* module_env,
-    const wasm::WasmFunction* function);
+    const wasm::WasmFunction* function, uint32_t index);
 
 void ExecuteCompilation(WasmCompilationUnit* unit);
 
-int GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
-
 Handle<Code> FinishCompilation(WasmCompilationUnit* unit);
+
+uint32_t GetIndexOfWasmCompilationUnit(WasmCompilationUnit* unit);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
@@ -98,7 +98,7 @@ class WasmGraphBuilder {
   Node* Int64Constant(int64_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
-  Node* Constant(Handle<Object> value);
+  Node* HeapConstant(Handle<HeapObject> value);
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
@@ -290,6 +290,18 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
+
+  // Asm.js specific functionality.
+  Node* BuildI32AsmjsSConvertF32(Node* input);
+  Node* BuildI32AsmjsSConvertF64(Node* input);
+  Node* BuildI32AsmjsUConvertF32(Node* input);
+  Node* BuildI32AsmjsUConvertF64(Node* input);
+  Node* BuildI32AsmjsDivS(Node* left, Node* right);
+  Node* BuildI32AsmjsRemS(Node* left, Node* right);
+  Node* BuildI32AsmjsDivU(Node* left, Node* right);
+  Node* BuildI32AsmjsRemU(Node* left, Node* right);
+  Node* BuildAsmjsLoadMem(MachineType type, Node* index);
+  Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
   Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);

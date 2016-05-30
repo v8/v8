@@ -115,11 +115,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* Jump(compiler::Node* jump_offset);
 
   // Jump relative to the current bytecode by |jump_offset| if the
-  // |condition| is true. Helper function for JumpIfWordEqual and
-  // JumpIfWordNotEqual.
-  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
-
-  // Jump relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfWordEqual(compiler::Node* lhs, compiler::Node* rhs,
                        compiler::Node* jump_offset);
@@ -129,11 +124,11 @@ class InterpreterAssembler : public CodeStubAssembler {
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
 
-  // Perform a stack guard check.
-  void StackCheck();
+  // Returns true if the stack guard check triggers an interrupt.
+  compiler::Node* StackCheckTriggeredInterrupt();
 
-  // Returns from the function.
-  compiler::Node* InterpreterReturn();
+  // Updates the profiler interrupt budget for a return.
+  void UpdateInterruptBudgetOnReturn();
 
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();
@@ -148,6 +143,8 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);
+  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
+                           BailoutReason bailout_reason);
 
  protected:
   Bytecode bytecode() const { return bytecode_; }
@@ -207,6 +204,11 @@ class InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeUnsignedOperand(int operand_index,
                                           OperandSize operand_size);
 
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // |condition| is true. Helper function for JumpIfWordEqual and
+  // JumpIfWordNotEqual.
+  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
+
   // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
   // update BytecodeOffset() itself.
   compiler::Node* Advance(int delta);
@@ -222,10 +224,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
   compiler::Node* DispatchToBytecodeHandlerEntry(
       compiler::Node* handler_entry, compiler::Node* bytecode_offset);
-
-  // Abort operations for debug code.
-  void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
-                           BailoutReason bailout_reason);
 
   OperandScale operand_scale() const { return operand_scale_; }
 

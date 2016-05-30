@@ -293,6 +293,16 @@ function PromiseReject(r) {
   }
 }
 
+// Shortcut Promise.reject and Promise.resolve() implementations, used by
+// Async Functions implementation.
+function PromiseCreateRejected(r) {
+  return %_Call(PromiseReject, GlobalPromise, r);
+}
+
+function PromiseCreateResolved(x) {
+  return %_Call(PromiseResolve, GlobalPromise, x);
+}
+
 // ES#sec-promise.prototype.then
 // Promise.prototype.then ( onFulfilled, onRejected )
 // Multi-unwrapped chaining with thenable coercion.
@@ -487,6 +497,8 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "promise_reject", RejectPromise,
   "promise_resolve", FulfillPromise,
   "promise_then", PromiseThen,
+  "promise_create_rejected", PromiseCreateRejected,
+  "promise_create_resolved", PromiseCreateResolved
 ]);
 
 // This allows extras to create promises quickly without building extra
@@ -506,6 +518,10 @@ utils.Export(function(to) {
   to.PromiseChain = PromiseChain;
   to.PromiseDefer = PromiseDefer;
   to.PromiseAccept = PromiseAccept;
+
+  to.PromiseCreateRejected = PromiseCreateRejected;
+  to.PromiseCreateResolved = PromiseCreateResolved;
+  to.PromiseThen = PromiseThen;
 });
 
 })

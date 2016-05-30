@@ -256,13 +256,15 @@ PropertyAttribute.DontDelete = DONT_DELETE;
 // A copy of the scope types from runtime-debug.cc.
 // NOTE: these constants should be backward-compatible, so
 // add new ones to the end of this list.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
+var ScopeType = { Global:  0,
+                  Local:   1,
+                  With:    2,
                   Closure: 3,
-                  Catch: 4,
-                  Block: 5,
-                  Script: 6 };
+                  Catch:   4,
+                  Block:   5,
+                  Script:  6,
+                  Eval:    7,
+                };
 
 /**
  * Base class for all mirror objects.

@@ -103,7 +103,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK_NOT_NULL(op);
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index());
   }
 
@@ -175,7 +175,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
-        mode_(mode) {}
+        mode_(mode),
+        must_save_lr_(!gen->frame_access_state()->has_frame()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
@@ -674,6 +675,20 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ cmp(result, result);                                   \
     __ bne(&done);                                            \
     __ isync();                                               \
+  } while (0)
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx)  \
+  do {                                                        \
+    size_t index = 0;                                         \
+    AddressingMode mode = kMode_None;                         \
+    MemOperand operand = i.MemoryOperand(&mode, &index);      \
+    Register value = i.InputRegister(index);                  \
+    __ sync();                                                \
+    if (mode == kMode_MRI) {                                  \
+      __ asm_instr(value, operand);                           \
+    } else {                                                  \
+      __ asm_instrx(value, operand);                          \
+    }                                                         \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1294,7 +1309,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_Push:
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ stfdu(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else {
@@ -1305,21 +1320,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ stfdu(i.InputDoubleRegister(0),
-                 MemOperand(sp, -num_slots * kPointerSize));
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ StoreDoubleU(i.InputDoubleRegister(0),
+                        MemOperand(sp, -num_slots * kPointerSize), r0);
       } else {
         __ StorePU(i.InputRegister(0),
-                   MemOperand(sp, -num_slots * kPointerSize));
+                   MemOperand(sp, -num_slots * kPointerSize), r0);
       }
       break;
     }
     case kPPC_StoreToStackSlot: {
       int slot = i.InputInt32(1);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ stfd(i.InputDoubleRegister(0), MemOperand(sp, slot * kPointerSize));
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ StoreDouble(i.InputDoubleRegister(0),
+                       MemOperand(sp, slot * kPointerSize), r0);
       } else {
-        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
+        __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize), r0);
       }
       break;
     }
@@ -1610,6 +1626,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lwz, lwzx);
       break;
+
+    case kAtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(stb, stbx);
+      break;
+    case kAtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(sth, sthx);
+      break;
+    case kAtomicStoreWord32:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(stw, stwx);
+      break;
     default:
       UNREACHABLE();
       break;
@@ -1899,21 +1925,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
       switch (src.type()) {
         case Constant::kInt32:
-#if !V8_TARGET_ARCH_PPC64
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+#if V8_TARGET_ARCH_PPC64
+          if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+#else
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+              src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+#endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           } else {
-#endif
             __ mov(dst, Operand(src.ToInt32()));
-#if !V8_TARGET_ARCH_PPC64
           }
-#endif
           break;
         case Constant::kInt64:
 #if V8_TARGET_ARCH_PPC64
           if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
+            DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
 #endif
             __ mov(dst, Operand(src.ToInt64()));
 #if V8_TARGET_ARCH_PPC64
@@ -1952,29 +1980,29 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreP(dst, g.ToMemOperand(destination), r0);
       }
     } else {
-      DoubleRegister dst = destination->IsDoubleRegister()
+      DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
       double value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
                                                         : src.ToFloat64();
       __ LoadDoubleLiteral(dst, value, kScratchReg);
-      if (destination->IsDoubleStackSlot()) {
+      if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination), r0);
       }
     }
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       DoubleRegister dst = g.ToDoubleRegister(destination);
       __ Move(dst, src);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       __ StoreDouble(src, g.ToMemOperand(destination), r0);
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       __ LoadDouble(g.ToDoubleRegister(destination), src, r0);
     } else {
       DoubleRegister temp = kScratchDoubleReg;
@@ -2009,7 +2037,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ StoreP(temp, dst);
     }
 #if V8_TARGET_ARCH_PPC64
-  } else if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
+  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
 #else
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsStackSlot());
@@ -2022,24 +2050,24 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ LoadP(temp_1, dst);
     __ StoreP(temp_0, dst);
     __ StoreP(temp_1, src);
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     DoubleRegister temp = kScratchDoubleReg;
     DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       DoubleRegister dst = g.ToDoubleRegister(destination);
       __ fmr(temp, src);
       __ fmr(src, dst);
       __ fmr(dst, temp);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ fmr(temp, src);
       __ lfd(src, dst);
       __ stfd(temp, dst);
     }
 #if !V8_TARGET_ARCH_PPC64
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPStackSlot());
     DoubleRegister temp_0 = kScratchDoubleReg;
     DoubleRegister temp_1 = d0;
     MemOperand src = g.ToMemOperand(source);

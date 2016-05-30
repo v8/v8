@@ -1140,6 +1140,13 @@ void BytecodeGraphBuilder::VisitDec() {
 }
 
 void BytecodeGraphBuilder::VisitLogicalNot() {
+  Node* value = environment()->LookupAccumulator();
+  Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
+                       jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  environment()->BindAccumulator(node);
+}
+
+void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
   Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
                         environment()->LookupAccumulator());
   Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
@@ -1213,7 +1220,6 @@ void BytecodeGraphBuilder::VisitTestIn() {
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
-  DCHECK(!FLAG_harmony_instanceof);
   BuildCompareOp(javascript()->InstanceOf());
 }
 
@@ -1367,11 +1373,45 @@ void BytecodeGraphBuilder::VisitForInStep() {
 }
 
 void BytecodeGraphBuilder::VisitSuspendGenerator() {
-  UNIMPLEMENTED();
+  Node* state = environment()->LookupAccumulator();
+  Node* generator = environment()->LookupRegister(
+      bytecode_iterator().GetRegisterOperand(0));
+
+  for (int i = 0; i < environment()->register_count(); ++i) {
+    Node* value = environment()->LookupRegister(interpreter::Register(i));
+    NewNode(javascript()->CallRuntime(Runtime::kGeneratorStoreRegister),
+        generator, jsgraph()->Constant(i), value);
+  }
+
+  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContext), generator);
+  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContinuation),
+      generator, state);
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {
-  UNIMPLEMENTED();
+  FrameStateBeforeAndAfter states(this);
+
+  Node* generator = environment()->LookupRegister(
+      bytecode_iterator().GetRegisterOperand(0));
+  Node* state = NewNode(javascript()->CallRuntime(
+      Runtime::kGeneratorGetContinuation), generator);
+
+  // Bijection between registers and array indices must match that used in
+  // InterpreterAssembler::ExportRegisterFile.
+  for (int i = 0; i < environment()->register_count(); ++i) {
+    Node* value = NewNode(
+        javascript()->CallRuntime(Runtime::kGeneratorLoadRegister),
+        generator, jsgraph()->Constant(i));
+    environment()->BindRegister(interpreter::Register(i), value);
+
+    NewNode(javascript()->CallRuntime(Runtime::kGeneratorStoreRegister),
+        generator, jsgraph()->Constant(i), jsgraph()->StaleRegisterConstant());
+  }
+
+  NewNode(javascript()->CallRuntime(Runtime::kGeneratorSetContinuation),
+      generator, jsgraph()->Constant(JSGeneratorObject::kGeneratorExecuting));
+
+  environment()->BindAccumulator(state, &states);
 }
 
 void BytecodeGraphBuilder::VisitWide() {
@@ -1385,9 +1425,11 @@ void BytecodeGraphBuilder::VisitExtraWide() {
 }
 
 void BytecodeGraphBuilder::VisitIllegal() {
-  // Never present in valid bytecode.
+  // Not emitted in valid bytecode.
   UNREACHABLE();
 }
+
+void BytecodeGraphBuilder::VisitNop() {}
 
 void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
   if (merge_environments_[current_offset] != nullptr) {

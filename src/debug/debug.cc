@@ -1323,7 +1323,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       "prepare for break points");
 
-  bool is_interpreted = shared->IsInterpreted();
+  bool is_interpreted = shared->HasBytecodeArray();
 
   {
     // TODO(yangguo): with bytecode, we still walk the heap to find all
@@ -1532,7 +1532,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  if (shared->IsInterpreted()) {
+  if (shared->HasBytecodeArray()) {
     // To prepare bytecode for debugging, we already need to have the debug
     // info (containing the debug copy) upfront, but since we do not recompile,
     // preparing for break points cannot fail.
@@ -2159,7 +2159,7 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
       client_data);
   isolate_->logger()->DebugTag("Put command on command_queue.");
   command_queue_.Put(message);
-  command_received_.Signal();
+  command_received_.Signal("Debug::EnqueueCommandMessage");
 
   // Set the debug command break flag to have the command processed.
   if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();

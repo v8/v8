@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-tailcalls
+// Flags: --harmony-do-expressions
+
 "use strict";
 
 Error.prepareStackTrace = (error,stack) => {
@@ -20,6 +22,8 @@ function CheckStackTrace(expected) {
     assertEquals(expected[i].name, stack[i + 1].getFunctionName());
   }
 }
+%NeverOptimizeFunction(CheckStackTrace);
+
 
 function f(expected_call_stack, a, b) {
   CheckStackTrace(expected_call_stack);
@@ -221,6 +225,87 @@ function f_153(expected_call_stack, a) {
 })();
 
 
+// Tail calling from getter.
+(function() {
+  function g(v) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  function f(v) {
+    return g();
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineGetter__('p', f);
+    assertEquals(153, o.p);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from setter.
+(function() {
+  function g() {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  function f(v) {
+    return g();
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineSetter__('q', f);
+    assertEquals(1, o.q = 1);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from constructor.
+(function() {
+  function g(context) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return {x: 153};
+  }
+  %NeverOptimizeFunction(g);
+
+  function A() {
+    this.x = 42;
+    return g();
+  }
+
+  function test() {
+    var o = new A();
+    %DebugPrint(o);
+    assertEquals(153, o.x);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
 // Tail calling via various expressions.
 (function() {
   function g1(a) {
@@ -235,10 +320,57 @@ function f_153(expected_call_stack, a) {
     return f([f, g3, test], 13), f([f, test], 153);
   }
 
+  function g4(a) {
+    return f([f, g4, test], false) ||
+        (f([f, g4, test], true) && f([f, test], true));
+  }
+
+  function g5(a) {
+    return f([f, g5, test], true) &&
+        (f([f, g5, test], false) || f([f, test], true));
+  }
+
+  function g6(a) {
+    return f([f, g6, test], 13), f([f, g6, test], 42),
+        f([f, test], 153);
+  }
+
+  function g7(a) {
+    return f([f, g7, test], false) ||
+        (f([f, g7, test], false) ? f([f, test], true)
+             : f([f, test], true));
+  }
+
+  function g8(a) {
+    return f([f, g8, test], false) || f([f, g8, test], true) &&
+        f([f, test], true);
+  }
+
+  function g9(a) {
+    return f([f, g9, test], true) && f([f, g9, test], false) ||
+        f([f, test], true);
+  }
+
+  function g10(a) {
+    return f([f, g10, test], true) && f([f, g10, test], false) ||
+        f([f, g10, test], true) ?
+            f([f, g10, test], true) && f([f, g10, test], false) ||
+                f([f, test], true) :
+            f([f, g10, test], true) && f([f, g10, test], false) ||
+                f([f, test], true);
+  }
+
   function test() {
     assertEquals(true, g1());
     assertEquals(true, g2());
     assertEquals(153, g3());
+    assertEquals(true, g4());
+    assertEquals(true, g5());
+    assertEquals(153, g6());
+    assertEquals(true, g7());
+    assertEquals(true, g8());
+    assertEquals(true, g9());
+    assertEquals(true, g10());
   }
   test();
   test();
@@ -450,9 +582,34 @@ function f_153(expected_call_stack, a) {
     return (() => f_153([f_153, test]))();
   }
 
+  function g3(a) {
+    var closure = () => f([f, closure, test], true)
+                              ? f_153([f_153, test])
+                              : f_153([f_153, test]);
+    return closure();
+  }
+
   function test() {
     assertEquals(153, g1());
     assertEquals(153, g2());
+    assertEquals(153, g3());
+  }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Test tail calls from do expressions.
+(function () {
+  function g1(a) {
+    var a = do { return f_153([f_153, test]); 42; };
+    return a;
+  }
+
+  function test() {
+    assertEquals(153, g1());
   }
   test();
   test();

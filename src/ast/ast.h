@@ -369,10 +369,6 @@ class Expression : public AstNode {
   // True iff the expression is a valid target for an assignment.
   bool IsValidReferenceExpressionOrThis() const;
 
-  // Expression type bounds
-  Bounds bounds() const { return bounds_; }
-  void set_bounds(Bounds bounds) { bounds_ = bounds; }
-
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -406,7 +402,6 @@ class Expression : public AstNode {
   Expression(Zone* zone, int pos)
       : AstNode(pos),
         base_id_(BailoutId::None().ToInt()),
-        bounds_(Bounds::Unbounded()),
         bit_field_(0) {}
   static int parent_num_ids() { return 0; }
   void set_to_boolean_types(uint16_t types) {
@@ -422,7 +417,6 @@ class Expression : public AstNode {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   int base_id_;
-  Bounds bounds_;
   class ToBooleanTypesField : public BitField16<uint16_t, 0, 9> {};
   uint16_t bit_field_;
   // Ends with 16-bit field; deriving classes in turn begin with
@@ -822,17 +816,7 @@ class ForEachStatement : public IterationStatement {
     ITERATE      // for (each of subject) body;
   };
 
-  void Initialize(Expression* each, Expression* subject, Statement* body) {
-    IterationStatement::Initialize(body);
-    each_ = each;
-    subject_ = subject;
-  }
-
-  Expression* each() const { return each_; }
-  Expression* subject() const { return subject_; }
-
-  void set_each(Expression* e) { each_ = e; }
-  void set_subject(Expression* e) { subject_ = e; }
+  using IterationStatement::Initialize;
 
   static const char* VisitModeString(VisitMode mode) {
     return mode == ITERATE ? "for-of" : "for-in";
@@ -840,11 +824,7 @@ class ForEachStatement : public IterationStatement {
 
  protected:
   ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos), each_(NULL), subject_(NULL) {}
-
- private:
-  Expression* each_;
-  Expression* subject_;
+      : IterationStatement(zone, labels, pos) {}
 };
 
 
@@ -852,9 +832,21 @@ class ForInStatement final : public ForEachStatement {
  public:
   DECLARE_NODE_TYPE(ForInStatement)
 
+  void Initialize(Expression* each, Expression* subject, Statement* body) {
+    ForEachStatement::Initialize(body);
+    each_ = each;
+    subject_ = subject;
+  }
+
   Expression* enumerable() const {
     return subject();
   }
+
+  Expression* each() const { return each_; }
+  Expression* subject() const { return subject_; }
+
+  void set_each(Expression* e) { each_ = e; }
+  void set_subject(Expression* e) { subject_ = e; }
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
@@ -881,12 +873,17 @@ class ForInStatement final : public ForEachStatement {
 
  protected:
   ForInStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos), for_in_type_(SLOW_FOR_IN) {}
+      : ForEachStatement(zone, labels, pos),
+        each_(nullptr),
+        subject_(nullptr),
+        for_in_type_(SLOW_FOR_IN) {}
   static int parent_num_ids() { return ForEachStatement::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  Expression* each_;
+  Expression* subject_;
   ForInType for_in_type_;
   FeedbackVectorSlot each_slot_;
   FeedbackVectorSlot for_in_feedback_slot_;
@@ -897,24 +894,15 @@ class ForOfStatement final : public ForEachStatement {
  public:
   DECLARE_NODE_TYPE(ForOfStatement)
 
-  void Initialize(Expression* each,
-                  Expression* subject,
-                  Statement* body,
-                  Variable* iterator,
-                  Expression* assign_iterator,
-                  Expression* next_result,
-                  Expression* result_done,
-                  Expression* assign_each) {
-    ForEachStatement::Initialize(each, subject, body);
+  void Initialize(Statement* body, Variable* iterator,
+                  Expression* assign_iterator, Expression* next_result,
+                  Expression* result_done, Expression* assign_each) {
+    ForEachStatement::Initialize(body);
     iterator_ = iterator;
     assign_iterator_ = assign_iterator;
     next_result_ = next_result;
     result_done_ = result_done;
     assign_each_ = assign_each;
-  }
-
-  Expression* iterable() const {
-    return subject();
   }
 
   Variable* iterator() const {
@@ -2625,12 +2613,12 @@ class FunctionLiteral final : public Expression {
   int start_position() const;
   int end_position() const;
   int SourceSize() const { return end_position() - start_position(); }
-  bool is_declaration() const { return IsDeclaration::decode(bitfield_); }
+  bool is_declaration() const { return function_type() == kDeclaration; }
   bool is_named_expression() const {
-    return IsNamedExpression::decode(bitfield_);
+    return function_type() == kNamedExpression;
   }
   bool is_anonymous_expression() const {
-    return IsAnonymousExpression::decode(bitfield_);
+    return function_type() == kAnonymousExpression;
   }
   LanguageMode language_mode() const;
   bool typed() const;
@@ -2708,6 +2696,9 @@ class FunctionLiteral final : public Expression {
     bitfield_ = ShouldBeUsedOnceHint::update(bitfield_, true);
   }
 
+  FunctionType function_type() const {
+    return FunctionTypeBits::decode(bitfield_);
+  }
   FunctionKind kind() const { return FunctionKindBits::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
@@ -2753,10 +2744,7 @@ class FunctionLiteral final : public Expression {
         function_token_position_(RelocInfo::kNoPosition),
         yield_count_(0) {
     bitfield_ =
-        IsDeclaration::encode(function_type == kDeclaration) |
-        IsNamedExpression::encode(function_type == kNamedExpression) |
-        IsAnonymousExpression::encode(function_type == kAnonymousExpression) |
-        Pretenure::encode(false) |
+        FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
@@ -2766,15 +2754,13 @@ class FunctionLiteral final : public Expression {
   }
 
  private:
-  class IsDeclaration : public BitField16<bool, 0, 1> {};
-  class IsNamedExpression : public BitField16<bool, 1, 1> {};
-  class IsAnonymousExpression : public BitField16<bool, 2, 1> {};
-  class Pretenure : public BitField16<bool, 3, 1> {};
-  class HasDuplicateParameters : public BitField16<bool, 4, 1> {};
-  class IsFunction : public BitField16<bool, 5, 1> {};
-  class ShouldEagerCompile : public BitField16<bool, 6, 1> {};
-  class ShouldBeUsedOnceHint : public BitField16<bool, 7, 1> {};
-  class FunctionKindBits : public BitField16<FunctionKind, 8, 8> {};
+  class FunctionTypeBits : public BitField16<FunctionType, 0, 2> {};
+  class Pretenure : public BitField16<bool, 2, 1> {};
+  class HasDuplicateParameters : public BitField16<bool, 3, 1> {};
+  class IsFunction : public BitField16<bool, 4, 1> {};
+  class ShouldEagerCompile : public BitField16<bool, 5, 1> {};
+  class ShouldBeUsedOnceHint : public BitField16<bool, 6, 1> {};
+  class FunctionKindBits : public BitField16<FunctionKind, 7, 9> {};
 
   // Start with 16-bit field, which should get packed together
   // with Expression's trailing 16-bit field.
@@ -3527,6 +3513,30 @@ class AstVisitor BASE_EMBEDDED {
     AST_REWRITE(Type, _list->at(_index), _list->Set(_index, replacement)); \
   } while (false)
 
+
+// ----------------------------------------------------------------------------
+// Traversing visitor
+// - fully traverses the entire AST.
+
+class AstTraversalVisitor : public AstVisitor {
+ public:
+  explicit AstTraversalVisitor(Isolate* isolate);
+  virtual ~AstTraversalVisitor() {}
+
+  // Iteration left-to-right.
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitExpressions(ZoneList<Expression*>* expressions) override;
+
+// Individual nodes
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+ private:
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+  DISALLOW_COPY_AND_ASSIGN(AstTraversalVisitor);
+};
 
 // ----------------------------------------------------------------------------
 // AstNode factory

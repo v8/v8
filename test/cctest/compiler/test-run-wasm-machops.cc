@@ -18,14 +18,16 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 
 static void UpdateMemoryReferences(Handle<Code> code, Address old_base,
-                                   Address new_base, size_t old_size,
-                                   size_t new_size) {
+                                   Address new_base, uint32_t old_size,
+                                   uint32_t new_size) {
   Isolate* isolate = CcTest::i_isolate();
   bool modified = false;
-  int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemoryReference(mode)) {
+    if (RelocInfo::IsWasmMemoryReference(mode) ||
+        RelocInfo::IsWasmMemorySizeReference(mode)) {
       // Patch addresses with change in memory start address
       it.rinfo()->update_wasm_memory_reference(old_base, new_base, old_size,
                                                new_size);
@@ -142,4 +144,27 @@ TEST(RunLoadStoreRelocationOffset) {
   RunLoadStoreRelocationOffset<void*>(MachineType::AnyTagged());
   RunLoadStoreRelocationOffset<float>(MachineType::Float32());
   RunLoadStoreRelocationOffset<double>(MachineType::Float64());
+}
+
+TEST(Uint32LessThanRelocation) {
+  RawMachineAssemblerTester<uint32_t> m;
+  RawMachineLabel within_bounds, out_of_bounds;
+  Node* index = m.Int32Constant(0x200);
+  Node* limit =
+      m.RelocatableInt32Constant(0x200, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  Node* cond = m.AddNode(m.machine()->Uint32LessThan(), index, limit);
+  m.Branch(cond, &within_bounds, &out_of_bounds);
+  m.Bind(&within_bounds);
+  m.Return(m.Int32Constant(0xaced));
+  m.Bind(&out_of_bounds);
+  m.Return(m.Int32Constant(0xdeadbeef));
+  // Check that index is out of bounds with current size
+  CHECK_EQ(0xdeadbeef, m.Call());
+  m.GenerateCode();
+
+  Handle<Code> code = m.GetCode();
+  UpdateMemoryReferences(code, reinterpret_cast<Address>(1234),
+                         reinterpret_cast<Address>(1234), 0x200, 0x400);
+  // Check that after limit is increased, index is within bounds.
+  CHECK_EQ(0xaced, m.Call());
 }

@@ -4,7 +4,6 @@
 
 #include "src/compiler/load-elimination.h"
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -57,8 +56,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
               return Replace(value);
             } else {
               Node* renamed = graph()->NewNode(
-                  common()->Guard(Type::Intersect(stored_value_type, load_type,
-                                                  graph()->zone())),
+                  simplified()->TypeGuard(Type::Intersect(
+                      stored_value_type, load_type, graph()->zone())),
                   value, NodeProperties::GetControlInput(node));
               ReplaceWithValue(node, renamed);
               return Replace(renamed);

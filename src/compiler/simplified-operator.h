@@ -25,8 +25,9 @@ namespace compiler {
 class Operator;
 struct SimplifiedOperatorGlobalCache;
 
+enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
-enum BaseTaggedness { kUntaggedBase, kTaggedBase };
+size_t hash_value(BaseTaggedness);
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
@@ -63,6 +64,7 @@ struct FieldAccess {
   MaybeHandle<Name> name;         // debugging only.
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -86,6 +88,7 @@ struct ElementAccess {
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
   MachineType machine_type;       // machine type of the element.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -99,6 +102,7 @@ std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
+Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
@@ -143,6 +147,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberShiftLeft();
   const Operator* NumberShiftRight();
   const Operator* NumberShiftRightLogical();
+  const Operator* NumberImul();
   const Operator* NumberClz32();
   const Operator* NumberCeil();
   const Operator* NumberFloor();
@@ -177,6 +182,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
+
+  const Operator* TypeGuard(Type* type);
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 

@@ -72,7 +72,7 @@ std::string Validate(Zone* zone, const char* source,
       info.scope()->declarations()->at(0)->AsFunctionDeclaration()->fun();
   AsmTyper typer(isolate, zone, *script, root);
   if (typer.Validate()) {
-    ExpressionTypeCollector(isolate, root, types).Run();
+    ExpressionTypeCollector(isolate, root, typer.bounds(), types).Run();
     return "";
   } else {
     return typer.error_message();
@@ -1800,14 +1800,10 @@ TEST(NeStrict) {
 
 
 TEST(InstanceOf) {
-  const char* errorMsg = FLAG_harmony_instanceof
-                             ? "asm: line 0: do-expression encountered\n"
-                             : "asm: line 1: illegal comparison operator\n";
-
   CHECK_FUNC_ERROR(
       "function bar() { return (0 instanceof 0)|0; }\n"
       "function foo() { bar(); }",
-      errorMsg);
+      "asm: line 1: illegal comparison operator\n");
 }
 
 

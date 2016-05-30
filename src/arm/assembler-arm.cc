@@ -255,6 +255,42 @@ bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return reinterpret_cast<uint32_t>(Assembler::target_address_at(pc_, host_));
+}
+
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
+  if (IsWasmMemoryReference(rmode_)) {
+    Address updated_memory_reference;
+    DCHECK(old_base <= wasm_memory_reference() &&
+           wasm_memory_reference() < old_base + old_size);
+    updated_memory_reference = new_base + (wasm_memory_reference() - old_base);
+    DCHECK(new_base <= updated_memory_reference &&
+           updated_memory_reference < new_base + new_size);
+    Assembler::set_target_address_at(
+        isolate_, pc_, host_, updated_memory_reference, icache_flush_mode);
+  } else if (IsWasmMemorySizeReference(rmode_)) {
+    uint32_t updated_size_reference;
+    DCHECK(wasm_memory_size_reference() <= old_size);
+    updated_size_reference =
+        new_size + (wasm_memory_size_reference() - old_size);
+    DCHECK(updated_size_reference <= new_size);
+    Assembler::set_target_address_at(
+        isolate_, pc_, host_, reinterpret_cast<Address>(updated_size_reference),
+        icache_flush_mode);
+  } else {
+    UNREACHABLE();
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
@@ -1702,8 +1738,6 @@ void Assembler::usat(Register dst,
                      int satpos,
                      const Operand& src,
                      Condition cond) {
-  // v6 and above.
-  DCHECK(CpuFeatures::IsSupported(ARMv7));
   DCHECK(!dst.is(pc) && !src.rm_.is(pc));
   DCHECK((satpos >= 0) && (satpos <= 31));
   DCHECK((src.shift_op_ == ASR) || (src.shift_op_ == LSL));
@@ -2038,7 +2072,6 @@ void Assembler::ldrsh(Register dst, const MemOperand& src, Condition cond) {
 
 void Assembler::ldrd(Register dst1, Register dst2,
                      const MemOperand& src, Condition cond) {
-  DCHECK(IsEnabled(ARMv7));
   DCHECK(src.rm().is(no_reg));
   DCHECK(!dst1.is(lr));  // r14.
   DCHECK_EQ(0, dst1.code() % 2);
@@ -2053,7 +2086,6 @@ void Assembler::strd(Register src1, Register src2,
   DCHECK(!src1.is(lr));  // r14.
   DCHECK_EQ(0, src1.code() % 2);
   DCHECK_EQ(src1.code() + 1, src2.code());
-  DCHECK(IsEnabled(ARMv7));
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 

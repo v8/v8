@@ -421,7 +421,7 @@ function clearArray(sab) {
       assertEquals(50, Atomics.compareExchange(sta, 0, v, v), name);
 
       // Store
-      assertEquals(+v, Atomics.store(sta, 0, v), name);
+      assertEquals(v|0, Atomics.store(sta, 0, v), name);
       assertEquals(v|0, sta[0], name);
 
       // Add

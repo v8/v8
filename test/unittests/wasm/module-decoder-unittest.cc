@@ -13,7 +13,7 @@ namespace internal {
 namespace wasm {
 
 #define EMPTY_FUNCTION(sig_index) 0, SIG_INDEX(sig_index), U16_LE(0)
-#define EMPTY_FUNCTION_SIZE ((size_t)5)
+#define SIZEOF_EMPTY_FUNCTION ((size_t)5)
 #define EMPTY_BODY 0
 #define SIZEOF_EMPTY_BODY ((size_t)1)
 #define NOP_BODY 2, 0, kExprNop
@@ -169,7 +169,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 1),  // --
@@ -179,7 +178,6 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   EXPECT_OK(result);
   if (result.val) delete result.val;
 }
-
 
 static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
   while (true) {
@@ -194,7 +192,6 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
     }
   }
 }
-
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
@@ -245,7 +242,6 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
   EXPECT_FAILURE(data);
 }
 
-
 TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 7),
@@ -285,7 +281,6 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneSignature) {
   {
     static const byte data[] = {SIGNATURES_SECTION_VOID_VOID};
@@ -298,7 +293,6 @@ TEST_F(WasmModuleVerifyTest, OneSignature) {
     EXPECT_VERIFIES(data);
   }
 }
-
 
 TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   static const byte data[] = {
@@ -327,7 +321,6 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
-
 TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   static const byte data[] = {
       SECTION(OLD_FUNCTIONS, 25), 1,
@@ -341,7 +334,7 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
       U16_LE(699),   // local float32 count
       U16_LE(599),   // local float64 count
       0,             // exported
-      1              // external
+      0              // external
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -349,23 +342,17 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
-  const int kCodeStartOffset = 49;
+  const int kCodeStartOffset = 41;
   const int kCodeEndOffset = kCodeStartOffset + 1;
 
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
       // func#0 ------------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 18), 1,
-      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName,
+      SECTION(OLD_FUNCTIONS, 10), 1, kDeclFunctionExport | kDeclFunctionName,
       SIG_INDEX(0),              // signature index
       NAME_LENGTH(2), 'h', 'i',  // name
-      U16_LE(1466),              // local int32 count
-      U16_LE(1355),              // local int64 count
-      U16_LE(1244),              // local float32 count
-      U16_LE(1133),              // local float64 count
       1, 0,                      // size
       kExprNop,
   };
@@ -387,50 +374,12 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-    EXPECT_EQ(1466, function->local_i32_count);
-    EXPECT_EQ(1355, function->local_i64_count);
-    EXPECT_EQ(1244, function->local_f32_count);
-    EXPECT_EQ(1133, function->local_f64_count);
-
     EXPECT_TRUE(function->exported);
-    EXPECT_FALSE(function->external);
 
     if (result.val) delete result.val;
   }
 
   EXPECT_OFF_END_FAILURE(data, 16, sizeof(data));
-}
-
-
-TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
-  static const byte data[] = {
-      // signatures
-      SIGNATURES_SECTION_VOID_VOID,
-      // functions
-      SECTION(OLD_FUNCTIONS, 4), 1,
-      // func#0 ------------------------------------------------------
-      kDeclFunctionImport,  // no name, no locals, imported
-      SIG_INDEX(0),
-  };
-
-  ModuleResult result = DecodeModule(data, data + arraysize(data));
-  EXPECT_OK(result);
-  EXPECT_EQ(1, result.val->functions.size());
-  WasmFunction* function = &result.val->functions.back();
-
-  EXPECT_EQ(0, function->name_length);
-  EXPECT_EQ(0, function->code_start_offset);
-  EXPECT_EQ(0, function->code_end_offset);
-
-  EXPECT_EQ(0, function->local_i32_count);
-  EXPECT_EQ(0, function->local_i64_count);
-  EXPECT_EQ(0, function->local_f32_count);
-  EXPECT_EQ(0, function->local_f64_count);
-
-  EXPECT_FALSE(function->exported);
-  EXPECT_TRUE(function->external);
-
-  if (result.val) delete result.val;
 }
 
 TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
@@ -456,59 +405,14 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
   EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-  EXPECT_EQ(0, function->local_i32_count);
-  EXPECT_EQ(0, function->local_i64_count);
-  EXPECT_EQ(0, function->local_f32_count);
-  EXPECT_EQ(0, function->local_f64_count);
-
   EXPECT_FALSE(function->exported);
-  EXPECT_FALSE(function->external);
 
   if (result.val) delete result.val;
 }
-
-
-TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
-  static const byte kCodeStartOffset = 46;
-  static const byte kCodeEndOffset = kCodeStartOffset + 1;
-
-  static const byte data[] = {
-      SIGNATURES_SECTION_VOID_VOID,  // --
-      SECTION(OLD_FUNCTIONS, 15), 1,
-      // func#0 ------------------------------------------------------
-      kDeclFunctionLocals, 0, 0,  // signature index
-      1, 2,                       // local int32 count
-      3, 4,                       // local int64 count
-      5, 6,                       // local float32 count
-      7, 8,                       // local float64 count
-      1, 0,                       // body size
-      kExprNop                    // body
-  };
-
-  ModuleResult result = DecodeModule(data, data + arraysize(data));
-  EXPECT_OK(result);
-  EXPECT_EQ(1, result.val->functions.size());
-  WasmFunction* function = &result.val->functions.back();
-
-  EXPECT_EQ(0, function->name_length);
-  EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
-  EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
-
-  EXPECT_EQ(513, function->local_i32_count);
-  EXPECT_EQ(1027, function->local_i64_count);
-  EXPECT_EQ(1541, function->local_f32_count);
-  EXPECT_EQ(2055, function->local_f64_count);
-
-  EXPECT_FALSE(function->exported);
-  EXPECT_FALSE(function->external);
-
-  if (result.val) delete result.val;
-}
-
 
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   static const byte kNameOffset = 49;
-  static const byte kCodeStartOffset = 61;
+  static const byte kCodeStartOffset = 53;
   static const byte kCodeEndOffset = kCodeStartOffset + 3;
   static const byte kDataSegmentSourceOffset = kCodeEndOffset + 22;
 
@@ -521,18 +425,14 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
       // sig#0 -----------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // func#0 ----------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 20), 1,
-      kDeclFunctionLocals | kDeclFunctionName,  // --
-      SIG_INDEX(0),                             // signature index
-      2, 'h', 'i',                              // name
-      1, 2,                                     // local int32 count
-      3, 4,                                     // local int64 count
-      5, 6,                                     // local float32 count
-      7, 8,                                     // local float64 count
-      3, 0,                                     // body size
-      kExprNop,                                 // func#0 body
-      kExprNop,                                 // func#0 body
-      kExprNop,                                 // func#0 body
+      SECTION(OLD_FUNCTIONS, 12), 1,
+      kDeclFunctionName,  // --
+      SIG_INDEX(0),       // signature index
+      2, 'h', 'i',        // name
+      3, 0,               // body size
+      kExprNop,           // func#0 body
+      kExprNop,           // func#0 body
+      kExprNop,           // func#0 body
       // memory section --------------------------------------------
       SECTION(MEMORY, 3), 28, 28, 1,
       // segment#0 -------------------------------------------------
@@ -566,7 +466,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
     EXPECT_FALSE(function->exported);
-    EXPECT_FALSE(function->external);
 
     WasmDataSegment* segment = &result.val->data_segments.back();
 
@@ -578,7 +477,6 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     if (result.val) delete result.val;
   }
 }
-
 
 TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte kDataSegmentSourceOffset = 30;
@@ -616,7 +514,6 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
   EXPECT_OFF_END_FAILURE(data, 13, sizeof(data));
 }
-
 
 TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte kDataSegment0SourceOffset = 30;
@@ -704,16 +601,13 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
   }
 }
 
-
-// To make below tests for indirect calls much shorter.
-#define FUNCTION(sig_index, external) kDeclFunctionImport, SIG_INDEX(sig_index)
-
 TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // func#0 ------------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 4), 1, FUNCTION(0, 0),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION), 1,  // --
+      EMPTY_FUNCTION(0),
       // indirect table ----------------------------------------------
       SECTION(FUNCTION_TABLE, 2), 1, U32V_1(0)};
 
@@ -728,7 +622,6 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
@@ -737,10 +630,11 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       SIG_ENTRY_v_v,             // void -> void
       SIG_ENTRY_v_x(kLocalI32),  // void -> i32
       // func#0 ------------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 13), 4, FUNCTION(0, 1),  // --
-      FUNCTION(1, 1),                                 // --
-      FUNCTION(0, 1),                                 // --
-      FUNCTION(1, 1),                                 // --
+      SECTION(OLD_FUNCTIONS, 1 + 4 * SIZEOF_EMPTY_FUNCTION), 4,  // --
+      EMPTY_FUNCTION(0),                                         // --
+      EMPTY_FUNCTION(1),                                         // --
+      EMPTY_FUNCTION(0),                                         // --
+      EMPTY_FUNCTION(1),                                         // --
       // indirect table ----------------------------------------------
       SECTION(FUNCTION_TABLE, 9), 8,
       U32V_1(0),  // --
@@ -766,7 +660,6 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   if (result.val) delete result.val;
 }
 
-
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
@@ -778,13 +671,13 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   EXPECT_FAILURE(data);
 }
 
-
 TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------
       SIGNATURES_SECTION_VOID_VOID,
       // functions ---------------------------------------------------
-      SECTION(OLD_FUNCTIONS, 4), 1, FUNCTION(0, 1),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION), 1,  // --
+      EMPTY_FUNCTION(0),
       // indirect table ----------------------------------------------
       SECTION(FUNCTION_TABLE, 3), 1, 1, 0,
   };
@@ -792,9 +685,7 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   EXPECT_FAILURE(data);
 }
 
-
 class WasmSignatureDecodeTest : public TestWithZone {};
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   static const byte data[] = {SIG_ENTRY_v_v};
@@ -807,7 +698,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
   EXPECT_EQ(0, sig->parameter_count());
   EXPECT_EQ(0, sig->return_count());
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -823,7 +713,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   }
 }
 
-
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalTypePair param_type = kLocalTypes[i];
@@ -837,7 +726,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
     EXPECT_EQ(param_type.type, sig->GetParam(0));
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -856,7 +744,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
     }
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
@@ -877,7 +764,6 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   }
 }
 
-
 TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
   byte data[256];
   for (int p = 0; p <= 255; p = p + 1 + p * 3) {
@@ -891,7 +777,6 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
     }
   }
 }
-
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
   byte kInvalidType = 76;
@@ -954,7 +839,6 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     EXPECT_EQ(SIZEOF_SIG_ENTRY_v_v, function->code_start_offset);
     EXPECT_EQ(arraysize(data), function->code_end_offset);
     // TODO(titzer): verify encoding of local declarations
-    EXPECT_FALSE(function->external);
     EXPECT_FALSE(function->exported);
   }
 
@@ -1190,7 +1074,7 @@ TEST_F(WasmModuleVerifyTest, ExportTable_empty1) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(OLD_FUNCTIONS, 1 + EMPTY_FUNCTION_SIZE),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION),
       1,
       EMPTY_FUNCTION(0),
       SECTION(EXPORT_TABLE, 1),
@@ -1224,7 +1108,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(OLD_FUNCTIONS, 1 + EMPTY_FUNCTION_SIZE),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION),
       1,                  // functions
       EMPTY_FUNCTION(0),  // --
       SECTION(EXPORT_TABLE, 3),
@@ -1239,7 +1123,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(OLD_FUNCTIONS, 1 + EMPTY_FUNCTION_SIZE),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION),
       1,                  // functions
       EMPTY_FUNCTION(0),  // --
       SECTION(EXPORT_TABLE, 12),
@@ -1263,7 +1147,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableThree) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(OLD_FUNCTIONS, 1 + 3 * EMPTY_FUNCTION_SIZE),
+      SECTION(OLD_FUNCTIONS, 1 + 3 * SIZEOF_EMPTY_FUNCTION),
       3,                  // functions
       EMPTY_FUNCTION(0),  // --
       EMPTY_FUNCTION(0),  // --
@@ -1288,7 +1172,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
     const byte data[] = {
         // signatures
         SIGNATURES_SECTION_VOID_VOID,
-        SECTION(OLD_FUNCTIONS, 1 + 3 * EMPTY_FUNCTION_SIZE),
+        SECTION(OLD_FUNCTIONS, 1 + 3 * SIZEOF_EMPTY_FUNCTION),
         3,                  // functions
         EMPTY_FUNCTION(0),  // --
         EMPTY_FUNCTION(0),  // --
@@ -1313,7 +1197,7 @@ TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
   static const byte data[] = {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
-      SECTION(OLD_FUNCTIONS, 1 + EMPTY_FUNCTION_SIZE),
+      SECTION(OLD_FUNCTIONS, 1 + SIZEOF_EMPTY_FUNCTION),
       1,                  // functions
       EMPTY_FUNCTION(0),  // --
       SECTION(EXPORT_TABLE, 1 + 6),

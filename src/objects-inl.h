@@ -22,6 +22,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
+#include "src/isolate-inl.h"
 #include "src/layout-descriptor-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
@@ -2260,7 +2261,6 @@ void Struct::InitializeBody(int object_size) {
     WRITE_FIELD(this, offset, value);
   }
 }
-
 
 bool Object::ToArrayLength(uint32_t* index) { return Object::ToUint32(index); }
 
@@ -5798,6 +5798,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_async, kIsAsyncFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
                kIsConciseMethod)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_getter_function,
@@ -5806,6 +5807,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_setter_function,
                kIsSetterFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_default_constructor,
                kIsDefaultConstructor)
+
+inline bool SharedFunctionInfo::is_resumable() const {
+  return is_generator() || is_async();
+}
 
 bool Script::HasValidSource() {
   Object* src = this->source();
@@ -5913,7 +5918,7 @@ DebugInfo* SharedFunctionInfo::GetDebugInfo() {
 
 
 bool SharedFunctionInfo::HasDebugCode() {
-  return IsInterpreted() ||
+  return HasBytecodeArray() ||
          (code()->kind() == Code::FUNCTION && code()->has_debug_break_slots());
 }
 
@@ -5935,16 +5940,6 @@ void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
 
 bool SharedFunctionInfo::HasBytecodeArray() {
   return function_data()->IsBytecodeArray();
-}
-
-bool SharedFunctionInfo::IsInterpreted() {
-  // Currently, having bytecode does not mean the function is actually being
-  // interpreted. However, the debugger has to know precisely what is going to
-  // be executed.
-  // TODO(yangguo,mstarzinger): make this a synonym of HasBytecodeArray().
-  return code() ==
-         GetIsolate()->builtins()->builtin(
-             Builtins::kInterpreterEntryTrampoline);
 }
 
 BytecodeArray* SharedFunctionInfo::bytecode_array() {
@@ -7135,7 +7130,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
   if (object->IsJSObject()) {  // Shortcut
     LookupIterator it = LookupIterator::PropertyOrElement(
-        object->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
+        object->GetIsolate(), object, name, object, LookupIterator::OWN);
     return HasProperty(&it);
   }
 
@@ -7157,7 +7152,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, object, LookupIterator::HIDDEN);
+      name->GetIsolate(), object, name, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
@@ -7179,7 +7174,7 @@ Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
     Handle<JSReceiver> object, uint32_t index) {
   Isolate* isolate = object->GetIsolate();
-  LookupIterator it(isolate, object, index, object, LookupIterator::HIDDEN);
+  LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 
@@ -7240,6 +7235,11 @@ void AccessorInfo::set_is_special_data_property(bool value) {
   set_flag(BooleanBit::set(flag(), kSpecialDataProperty, value));
 }
 
+bool AccessorInfo::is_sloppy() { return BooleanBit::get(flag(), kIsSloppy); }
+
+void AccessorInfo::set_is_sloppy(bool value) {
+  set_flag(BooleanBit::set(flag(), kIsSloppy, value));
+}
 
 PropertyAttributes AccessorInfo::property_attributes() {
   return AttributesField::decode(static_cast<uint32_t>(flag()));
@@ -7598,6 +7598,11 @@ void JSArray::SetContent(Handle<JSArray> array,
             Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));
+}
+
+
+bool JSArray::HasArrayPrototype(Isolate* isolate) {
+  return map()->prototype() == *isolate->initial_array_prototype();
 }
 
 

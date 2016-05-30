@@ -33,6 +33,24 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return InputDoubleRegister(index);
   }
 
+  CPURegister InputFloat32OrZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK(bit_cast<int32_t>(InputFloat32(index)) == 0);
+      return wzr;
+    }
+    DCHECK(instr_->InputAt(index)->IsFPRegister());
+    return InputDoubleRegister(index).S();
+  }
+
+  CPURegister InputFloat64OrZeroRegister(size_t index) {
+    if (instr_->InputAt(index)->IsImmediate()) {
+      DCHECK(bit_cast<int64_t>(InputDouble(index)) == 0);
+      return xzr;
+    }
+    DCHECK(instr_->InputAt(index)->IsDoubleRegister());
+    return InputDoubleRegister(index);
+  }
+
   size_t OutputCount() { return instr_->OutputCount(); }
 
   DoubleRegister OutputFloat32Register() { return OutputDoubleRegister().S(); }
@@ -141,7 +159,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     const size_t index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
-      case kMode_Operand2_R_LSL_I:
       case kMode_Operand2_R_LSR_I:
       case kMode_Operand2_R_ASR_I:
       case kMode_Operand2_R_ROR_I:
@@ -150,6 +167,10 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_SXTB:
       case kMode_Operand2_R_SXTH:
         break;
+      case kMode_Operand2_R_LSL_I:
+        *first_index += 3;
+        return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
+                          LSL, InputInt32(index + 2));
       case kMode_MRI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
@@ -183,11 +204,16 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     switch (constant.type()) {
       case Constant::kInt32:
-        return Operand(constant.ToInt32());
+        if (constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+          return Operand(constant.ToInt32(), constant.rmode());
+        } else {
+          return Operand(constant.ToInt32());
+        }
       case Constant::kInt64:
         if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
           return Operand(constant.ToInt64(), constant.rmode());
         } else {
+          DCHECK(constant.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
           return Operand(constant.ToInt64());
         }
       case Constant::kFloat32:
@@ -210,7 +236,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   MemOperand ToMemOperand(InstructionOperand* op, MacroAssembler* masm) const {
     DCHECK_NOT_NULL(op);
-    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsFPStackSlot());
     return SlotToMemOperand(AllocatedOperand::cast(op)->index(), masm);
   }
 
@@ -416,48 +442,44 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Bind(ool->exit());                                    \
   } while (0)
 
-
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width)          \
-  do {                                               \
-    auto buffer = i.InputRegister(0);                \
-    auto offset = i.InputRegister32(1);              \
-    auto length = i.InputOperand32(2);               \
-    auto value = i.InputFloat##width##Register(3);   \
-    __ Cmp(offset, length);                          \
-    Label done;                                      \
-    __ B(hs, &done);                                 \
-    __ Str(value, MemOperand(buffer, offset, UXTW)); \
-    __ Bind(&done);                                  \
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width)              \
+  do {                                                   \
+    auto buffer = i.InputRegister(0);                    \
+    auto offset = i.InputRegister32(1);                  \
+    auto length = i.InputOperand32(2);                   \
+    auto value = i.InputFloat##width##OrZeroRegister(3); \
+    __ Cmp(offset, length);                              \
+    Label done;                                          \
+    __ B(hs, &done);                                     \
+    __ Str(value, MemOperand(buffer, offset, UXTW));     \
+    __ Bind(&done);                                      \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)          \
   do {                                                     \
     auto buffer = i.InputRegister(0);                      \
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
-    auto value = i.InputRegister32(3);                     \
+    auto value = i.InputOrZeroRegister32(3);               \
     __ Cmp(offset, length);                                \
     Label done;                                            \
     __ B(hs, &done);                                       \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_STORE_INTEGER_64(asm_instr)       \
   do {                                                     \
     auto buffer = i.InputRegister(0);                      \
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
-    auto value = i.InputRegister(3);                       \
+    auto value = i.InputOrZeroRegister64(3);               \
     __ Cmp(offset, length);                                \
     Label done;                                            \
     __ B(hs, &done);                                       \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
-
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
   do {                                                                      \
@@ -475,6 +497,14 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
   do {                                                                \
     __ asm_instr(i.OutputRegister(),                                  \
+                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
+    __ Dmb(InnerShareable, BarrierAll);                               \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                      \
+  do {                                                                \
+    __ Dmb(InnerShareable, BarrierAll);                               \
+    __ asm_instr(i.InputRegister(2),                                  \
                  MemOperand(i.InputRegister(0), i.InputRegister(1))); \
     __ Dmb(InnerShareable, BarrierAll);                               \
   } while (0)
@@ -1060,7 +1090,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register prev = __ StackPointer();
       __ SetStackPointer(arch_opcode == kArm64PokeCSP ? csp : jssp);
       Operand operand(i.InputInt32(1) * kPointerSize);
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ Poke(i.InputFloat64Register(0), operand);
       } else {
         __ Poke(i.InputRegister(0), operand);
@@ -1070,7 +1100,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64PokePair: {
       int slot = i.InputInt32(2) - 1;
-      if (instr->InputAt(0)->IsDoubleRegister()) {
+      if (instr->InputAt(0)->IsFPRegister()) {
         __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
                     slot * kPointerSize);
       } else {
@@ -1110,7 +1140,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Tst(i.InputRegister32(0), i.InputOperand32(1));
       break;
     case kArm64Float32Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
@@ -1154,7 +1184,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
     case kArm64Float64Cmp:
-      if (instr->InputAt(1)->IsDoubleRegister()) {
+      if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
@@ -1337,7 +1367,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strb:
-      __ Strb(i.InputRegister(2), i.MemoryOperand());
+      __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrh:
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
@@ -1346,31 +1376,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Strh:
-      __ Strh(i.InputRegister(2), i.MemoryOperand());
+      __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64StrW:
-      __ Str(i.InputRegister32(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
     case kArm64Ldr:
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
-      __ Str(i.InputRegister(2), i.MemoryOperand());
+      __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrS:
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
-      __ Str(i.InputDoubleRegister(2).S(), i.MemoryOperand());
+      __ Str(i.InputFloat32OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
-      __ Str(i.InputDoubleRegister(2), i.MemoryOperand());
+      __ Str(i.InputFloat64OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsb);
@@ -1428,6 +1458,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicLoadWord32:
       __ Ldr(i.OutputRegister32(),
+             MemOperand(i.InputRegister(0), i.InputRegister(1)));
+      __ Dmb(InnerShareable, BarrierAll);
+      break;
+    case kAtomicStoreWord8:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Strb);
+      break;
+    case kAtomicStoreWord16:
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Strh);
+      break;
+    case kAtomicStoreWord32:
+      __ Dmb(InnerShareable, BarrierAll);
+      __ Str(i.InputRegister32(2),
              MemOperand(i.InputRegister(0), i.InputRegister(1)));
       __ Dmb(InnerShareable, BarrierAll);
       break;
@@ -1726,11 +1768,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ Str(dst, g.ToMemOperand(destination, masm()));
       }
     } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         FPRegister dst = g.ToDoubleRegister(destination).S();
         __ Fmov(dst, src.ToFloat32());
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         UseScratchRegisterScope scope(masm());
         FPRegister temp = scope.AcquireS();
         __ Fmov(temp, src.ToFloat32());
@@ -1738,30 +1780,30 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
-      if (destination->IsDoubleRegister()) {
+      if (destination->IsFPRegister()) {
         FPRegister dst = g.ToDoubleRegister(destination);
         __ Fmov(dst, src.ToFloat64());
       } else {
-        DCHECK(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsFPStackSlot());
         UseScratchRegisterScope scope(masm());
         FPRegister temp = scope.AcquireD();
         __ Fmov(temp, src.ToFloat64());
         __ Str(temp, g.ToMemOperand(destination, masm()));
       }
     }
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     FPRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(dst, src);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       __ Str(src, g.ToMemOperand(destination, masm()));
     }
-  } else if (source->IsDoubleStackSlot()) {
-    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+  } else if (source->IsFPStackSlot()) {
+    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source, masm());
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       __ Ldr(g.ToDoubleRegister(destination), src);
     } else {
       UseScratchRegisterScope scope(masm());
@@ -1797,7 +1839,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Ldr(src, dst);
       __ Str(temp, dst);
     }
-  } else if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
+  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
     UseScratchRegisterScope scope(masm());
     DoubleRegister temp_0 = scope.AcquireD();
     DoubleRegister temp_1 = scope.AcquireD();
@@ -1807,17 +1849,17 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Ldr(temp_1, dst);
     __ Str(temp_0, dst);
     __ Str(temp_1, src);
-  } else if (source->IsDoubleRegister()) {
+  } else if (source->IsFPRegister()) {
     UseScratchRegisterScope scope(masm());
     FPRegister temp = scope.AcquireD();
     FPRegister src = g.ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
+    if (destination->IsFPRegister()) {
       FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(temp, src);
       __ Fmov(src, dst);
       __ Fmov(dst, temp);
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, masm());
       __ Fmov(temp, src);
       __ Ldr(src, dst);

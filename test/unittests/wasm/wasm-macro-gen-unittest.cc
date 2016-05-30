@@ -18,7 +18,6 @@ class WasmMacroGenTest : public TestWithZone {};
     EXPECT_EQ(size, sizeof(code)); \
   } while (false)
 
-
 TEST_F(WasmMacroGenTest, Constants) {
   EXPECT_SIZE(2, WASM_ONE);
   EXPECT_SIZE(2, WASM_ZERO);
@@ -47,7 +46,6 @@ TEST_F(WasmMacroGenTest, Constants) {
   EXPECT_SIZE(9, WASM_F64(10200.0));
   EXPECT_SIZE(9, WASM_F64(-9818934.0));
 }
-
 
 TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(1, WASM_NOP);
@@ -85,7 +83,6 @@ TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(1, WASM_UNREACHABLE);
 }
 
-
 TEST_F(WasmMacroGenTest, MacroStatements) {
   EXPECT_SIZE(10, WASM_WHILE(WASM_I8(0), WASM_NOP));
   EXPECT_SIZE(7, WASM_INC_LOCAL(0));
@@ -99,7 +96,6 @@ TEST_F(WasmMacroGenTest, BrTable) {
   EXPECT_SIZE(9, WASM_BR_TABLE(WASM_ZERO, 1, BR_TARGET(1)));
   EXPECT_SIZE(11, WASM_BR_TABLEV(WASM_ZERO, WASM_ZERO, 1, BR_TARGET(1)));
 }
-
 
 TEST_F(WasmMacroGenTest, Expressions) {
   EXPECT_SIZE(2, WASM_GET_LOCAL(0));
@@ -188,7 +184,6 @@ TEST_F(WasmMacroGenTest, Int32Ops) {
   EXPECT_SIZE(3, WASM_I32_EQZ(WASM_ZERO));
 }
 
-
 TEST_F(WasmMacroGenTest, Int64Ops) {
   EXPECT_SIZE(5, WASM_I64_ADD(WASM_ZERO, WASM_ZERO));
   EXPECT_SIZE(5, WASM_I64_SUB(WASM_ZERO, WASM_ZERO));
@@ -224,7 +219,6 @@ TEST_F(WasmMacroGenTest, Int64Ops) {
   EXPECT_SIZE(3, WASM_I64_EQZ(WASM_ZERO));
 }
 
-
 TEST_F(WasmMacroGenTest, Float32Ops) {
   EXPECT_SIZE(5, WASM_F32_ADD(WASM_ZERO, WASM_ZERO));
   EXPECT_SIZE(5, WASM_F32_SUB(WASM_ZERO, WASM_ZERO));
@@ -249,7 +243,6 @@ TEST_F(WasmMacroGenTest, Float32Ops) {
   EXPECT_SIZE(5, WASM_F32_GE(WASM_ZERO, WASM_ZERO));
 }
 
-
 TEST_F(WasmMacroGenTest, Float64Ops) {
   EXPECT_SIZE(5, WASM_F64_ADD(WASM_ZERO, WASM_ZERO));
   EXPECT_SIZE(5, WASM_F64_SUB(WASM_ZERO, WASM_ZERO));
@@ -273,7 +266,6 @@ TEST_F(WasmMacroGenTest, Float64Ops) {
   EXPECT_SIZE(5, WASM_F64_GT(WASM_ZERO, WASM_ZERO));
   EXPECT_SIZE(5, WASM_F64_GE(WASM_ZERO, WASM_ZERO));
 }
-
 
 TEST_F(WasmMacroGenTest, Conversions) {
   EXPECT_SIZE(3, WASM_I32_SCONVERT_F32(WASM_ZERO));
@@ -315,7 +307,6 @@ TEST_F(WasmMacroGenTest, LoadsAndStores) {
     EXPECT_SIZE(7, WASM_STORE_MEM(kMemTypes[i], WASM_ZERO, WASM_GET_LOCAL(0)));
   }
 }
-
 
 TEST_F(WasmMacroGenTest, LoadsAndStoresWithOffset) {
   for (size_t i = 0; i < arraysize(kMemTypes); i++) {

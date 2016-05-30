@@ -32,16 +32,6 @@ class OptionalOperator final {
   const Operator* const op_;
 };
 
-// Supported write barrier modes.
-enum WriteBarrierKind {
-  kNoWriteBarrier,
-  kMapWriteBarrier,
-  kPointerWriteBarrier,
-  kFullWriteBarrier
-};
-
-std::ostream& operator<<(std::ostream& os, WriteBarrierKind);
-
 
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
@@ -87,6 +77,8 @@ typedef MachineRepresentation CheckedStoreRepresentation;
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
 MachineRepresentation StackSlotRepresentationOf(Operator const* op);
+
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -253,6 +245,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   // (single-precision).
   const Operator* Float32Add();
   const Operator* Float32Sub();
+  const Operator* Float32SubPreserveNan();
   const Operator* Float32Mul();
   const Operator* Float32Div();
   const Operator* Float32Sqrt();
@@ -261,6 +254,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   // (double-precision).
   const Operator* Float64Add();
   const Operator* Float64Sub();
+  const Operator* Float64SubPreserveNan();
   const Operator* Float64Mul();
   const Operator* Float64Div();
   const Operator* Float64Mod();
@@ -511,6 +505,8 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // atomic-load [base + index]
   const Operator* AtomicLoad(LoadRepresentation rep);
+  // atomic-store [base + index], value
+  const Operator* AtomicStore(MachineRepresentation rep);
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

@@ -399,15 +399,6 @@ TEST(Type3) {
     COMPARE(bfi(r1, r0, 31, 1),
             "e7df1f90       bfi r1, r0, #31, #1");
 
-    COMPARE(usat(r0, 1, Operand(r1)),
-            "e6e10011       usat r0, #1, r1");
-    COMPARE(usat(r2, 7, Operand(lr)),
-            "e6e7201e       usat r2, #7, lr");
-    COMPARE(usat(r3, 31, Operand(r4, LSL, 31)),
-            "e6ff3f94       usat r3, #31, r4, lsl #31");
-    COMPARE(usat(r8, 0, Operand(r5, ASR, 17)),
-            "e6e088d5       usat r8, #0, r5, asr #17");
-
     COMPARE(pkhbt(r3, r4, Operand(r5, LSL, 17)),
             "e6843895       pkhbt r3, r4, r5, lsl #17");
     COMPARE(pkhtb(r3, r4, Operand(r5, ASR, 17)),
@@ -442,6 +433,15 @@ TEST(Type3) {
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
   }
+
+  COMPARE(usat(r0, 1, Operand(r1)),
+          "e6e10011       usat r0, #1, r1");
+  COMPARE(usat(r2, 7, Operand(lr)),
+          "e6e7201e       usat r2, #7, lr");
+  COMPARE(usat(r3, 31, Operand(r4, LSL, 31)),
+          "e6ff3f94       usat r3, #31, r4, lsl #31");
+  COMPARE(usat(r8, 0, Operand(r5, ASR, 17)),
+          "e6e088d5       usat r8, #0, r5, asr #17");
 
   COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");
   COMPARE(smmla(r10, r9, r8, r7), "e75a7819       smmla r10, r9, r8, r7");

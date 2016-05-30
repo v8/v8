@@ -4330,7 +4330,11 @@ void MacroAssembler::Allocate(int object_size,
   // to calculate the new top.
   Daddu(result_end, result, Operand(object_size));
   Branch(gc_required, Ugreater, result_end, Operand(alloc_limit));
-  sd(result_end, MemOperand(top_address));
+
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    sd(result_end, MemOperand(top_address));
+  }
 
   // Tag object.
   Daddu(result, result, Operand(kHeapObjectTag));
@@ -4403,6 +4407,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   } else {
     Daddu(result_end, result, Operand(object_size));
   }
+
   Branch(gc_required, Ugreater, result_end, Operand(alloc_limit));
 
   // Update allocation top. result temporarily holds the new top.
@@ -4410,12 +4415,91 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     And(at, result_end, Operand(kObjectAlignmentMask));
     Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
   }
-  sd(result_end, MemOperand(top_address));
+
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    sd(result_end, MemOperand(top_address));
+  }
 
   // Tag object if.
   Daddu(result, result, Operand(kHeapObjectTag));
 }
 
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(!AreAliased(result, scratch1, scratch2, at));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  DCHECK(0 == (object_size & kObjectAlignmentMask));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  li(top_address, Operand(allocation_top));
+  ld(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on MIPS64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  if (emit_debug_code()) {
+    And(at, result, Operand(kDoubleAlignmentMask));
+    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
+  }
+
+  // Calculate new top and write it back.
+  Daddu(result_end, result, Operand(object_size));
+  sd(result_end, MemOperand(top_address));
+
+  Daddu(result, result, Operand(kHeapObjectTag));
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap, other registers must not.
+  DCHECK(!AreAliased(object_size, result, scratch, at));
+  DCHECK(!AreAliased(result_end, result, scratch, at));
+
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and object size registers.
+  Register top_address = scratch;
+  li(top_address, Operand(allocation_top));
+  ld(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on MIPS64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  if (emit_debug_code()) {
+    And(at, result, Operand(kDoubleAlignmentMask));
+    Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
+  }
+
+  // Calculate new top and write it back
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    Dlsa(result_end, result, object_size, kPointerSizeLog2);
+  } else {
+    Daddu(result_end, result, Operand(object_size));
+  }
+
+  // Update allocation top. result temporarily holds the new top.
+  if (emit_debug_code()) {
+    And(at, result_end, Operand(kObjectAlignmentMask));
+    Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
+  }
+
+  Daddu(result, result, Operand(kHeapObjectTag));
+}
 
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,
@@ -6883,14 +6967,14 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
   Xor(scratch_reg, scratch_reg, Operand(new_space_allocation_top));
   And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
   Branch(&top_check, eq, scratch_reg, Operand(zero_reg));
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
   Xor(scratch_reg, scratch_reg, Operand(receiver_reg));
   And(scratch_reg, scratch_reg, Operand(~Page::kPageAlignmentMask));
   Branch(no_memento_found, ne, scratch_reg, Operand(zero_reg));
@@ -6899,13 +6983,13 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver_reg,
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  Addu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
+  Daddu(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
   li(at, Operand(new_space_allocation_top));
-  lw(at, MemOperand(at));
+  ld(at, MemOperand(at));
   Branch(no_memento_found, gt, scratch_reg, Operand(at));
   // Memento map check.
   bind(&map_check);
-  lw(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
+  ld(scratch_reg, MemOperand(receiver_reg, kMementoMapOffset));
   Branch(no_memento_found, ne, scratch_reg,
          Operand(isolate()->factory()->allocation_memento_map()));
 }

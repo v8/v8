@@ -60,6 +60,9 @@ Handle<Object> GetWasmFunctionNameFromTable(Handle<ByteArray> func_names_array,
                         : func_names_array->get_int(func_index + 2);
   ScopedVector<byte> buffer(next_offset - offset);
   func_names_array->copy_out(offset, buffer.start(), next_offset - offset);
+  if (!unibrow::Utf8::Validate(buffer.start(), buffer.length())) {
+    return undefined();
+  }
   MaybeHandle<Object> maybe_name =
       func_names_array->GetIsolate()->factory()->NewStringFromUtf8(
           Vector<const char>::cast(buffer));

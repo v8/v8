@@ -430,6 +430,7 @@
         'ast/ast-literal-reindexer.h',
         'ast/ast-numbering.cc',
         'ast/ast-numbering.h',
+        'ast/ast-type-bounds.h',
         'ast/ast-value-factory.cc',
         'ast/ast-value-factory.h',
         'ast/ast.cc',
@@ -444,7 +445,6 @@
         'ast/scopes.h',
         'ast/variables.cc',
         'ast/variables.h',
-        'atomic-utils.h',
         'background-parsing-task.cc',
         'background-parsing-task.h',
         'bailout-reason.cc',
@@ -503,8 +503,6 @@
         'compiler/bytecode-branch-analysis.h',
         'compiler/bytecode-graph-builder.cc',
         'compiler/bytecode-graph-builder.h',
-        'compiler/change-lowering.cc',
-        'compiler/change-lowering.h',
         'compiler/c-linkage.cc',
         'compiler/coalesced-live-ranges.cc',
         'compiler/coalesced-live-ranges.h',
@@ -610,6 +608,8 @@
         'compiler/machine-operator-reducer.h',
         'compiler/machine-operator.cc',
         'compiler/machine-operator.h',
+        'compiler/memory-optimizer.cc',
+        'compiler/memory-optimizer.h',
         'compiler/move-optimizer.cc',
         'compiler/move-optimizer.h',
         'compiler/node-aux-data.h',
@@ -686,6 +686,7 @@
         'conversions-inl.h',
         'conversions.cc',
         'conversions.h',
+        'counters-inl.h',
         'counters.cc',
         'counters.h',
         'crankshaft/compilation-phase.cc',
@@ -894,6 +895,12 @@
         'interpreter/bytecode-array-builder.h',
         'interpreter/bytecode-array-iterator.cc',
         'interpreter/bytecode-array-iterator.h',
+        'interpreter/bytecode-array-writer.cc',
+        'interpreter/bytecode-array-writer.h',
+        'interpreter/bytecode-peephole-optimizer.cc',
+        'interpreter/bytecode-peephole-optimizer.h',
+        'interpreter/bytecode-pipeline.cc',
+        'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register-allocator.cc',
         'interpreter/bytecode-register-allocator.h',
         'interpreter/bytecode-generator.cc',
@@ -998,6 +1005,8 @@
         'profiler/sampling-heap-profiler.h',
         'profiler/strings-storage.cc',
         'profiler/strings-storage.h',
+        'profiler/tick-sample.cc',
+        'profiler/tick-sample.h',
         'profiler/unbound-queue-inl.h',
         'profiler/unbound-queue.h',
         'property-descriptor.cc',
@@ -1115,8 +1124,6 @@
         'types.h',
         'typing-asm.cc',
         'typing-asm.h',
-        'typing-reset.cc',
-        'typing-reset.h',
         'unicode-inl.h',
         'unicode.cc',
         'unicode.h',
@@ -1124,6 +1131,8 @@
         'unicode-cache.h',
         'unicode-decoder.cc',
         'unicode-decoder.h',
+        'uri.cc',
+        'uri.h',
         'utils-inl.h',
         'utils.cc',
         'utils.h',
@@ -1632,6 +1641,7 @@
         'base/accounting-allocator.cc',
         'base/accounting-allocator.h',
         'base/adapters.h',
+        'base/atomic-utils.h',
         'base/atomicops.h',
         'base/atomicops_internals_arm64_gcc.h',
         'base/atomicops_internals_arm_gcc.h',
@@ -1989,17 +1999,6 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['v8_enable_i18n_support==1', {
-          'variables': {
-            'i18n_library_files': [
-              'js/i18n.js',
-            ],
-          },
-        }, {
-          'variables': {
-            'i18n_library_files': [],
-          },
-        }],
       ],
       'variables': {
         'library_files': [
@@ -2044,11 +2043,21 @@
           'js/harmony-unicode-regexps.js',
           'js/harmony-string-padding.js',
           'js/promise-extra.js',
+          'js/harmony-async-await.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
         'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
+        'conditions': [
+          ['v8_enable_i18n_support==1', {
+            'library_files': ['js/i18n.js'],
+            'experimental_library_files': [
+              'js/icu-case-mapping.js',
+              'js/intl-extra.js',
+             ],
+          }],
+        ],
       },
       'actions': [
         {
@@ -2056,7 +2065,6 @@
           'inputs': [
             '../tools/js2c.py',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
           'outputs': ['<(SHARED_INTERMEDIATE_DIR)/libraries.cc'],
           'action': [
@@ -2065,7 +2073,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
         },
         {
@@ -2073,7 +2080,6 @@
           'inputs': [
             '../tools/js2c.py',
             '<@(library_files)',
-            '<@(i18n_library_files)'
           ],
           'outputs': ['<@(libraries_bin_file)'],
           'action': [
@@ -2082,7 +2088,6 @@
             '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<@(library_files)',
-            '<@(i18n_library_files)',
             '--startup_blob', '<@(libraries_bin_file)',
             '--nojs',
           ],
@@ -2099,7 +2104,7 @@
             '../tools/js2c.py',
             '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
             'EXPERIMENTAL',
-            '<@(experimental_library_files)'
+            '<@(experimental_library_files)',
           ],
         },
         {

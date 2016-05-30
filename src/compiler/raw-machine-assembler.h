@@ -137,6 +137,10 @@ class RawMachineAssembler {
   Node* AtomicLoad(MachineType rep, Node* base, Node* index) {
     return AddNode(machine()->AtomicLoad(rep), base, index);
   }
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+                    Node* value) {
+    return AddNode(machine()->AtomicStore(rep), base, index, value);
+  }
 
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
@@ -395,6 +399,9 @@ class RawMachineAssembler {
   Node* Float32Sub(Node* a, Node* b) {
     return AddNode(machine()->Float32Sub(), a, b);
   }
+  Node* Float32SubPreserveNan(Node* a, Node* b) {
+    return AddNode(machine()->Float32SubPreserveNan(), a, b);
+  }
   Node* Float32Mul(Node* a, Node* b) {
     return AddNode(machine()->Float32Mul(), a, b);
   }
@@ -432,6 +439,9 @@ class RawMachineAssembler {
   }
   Node* Float64Sub(Node* a, Node* b) {
     return AddNode(machine()->Float64Sub(), a, b);
+  }
+  Node* Float64SubPreserveNan(Node* a, Node* b) {
+    return AddNode(machine()->Float64SubPreserveNan(), a, b);
   }
   Node* Float64Mul(Node* a, Node* b) {
     return AddNode(machine()->Float64Mul(), a, b);

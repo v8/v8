@@ -256,29 +256,27 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F64Log, 0xc7, d_d)                 \
   V(F64Atan2, 0xc8, d_dd)              \
   V(F64Pow, 0xc9, d_dd)                \
-  V(F64Mod, 0xca, d_dd)
-
-// TODO(titzer): sketch of asm-js compatibility bytecodes
-/* V(I32AsmjsDivS, 0xd0, i_ii)          \ */
-/* V(I32AsmjsDivU, 0xd1, i_ii)          \ */
-/* V(I32AsmjsRemS, 0xd2, i_ii)          \ */
-/* V(I32AsmjsRemU, 0xd3, i_ii)          \ */
-/* V(I32AsmjsLoad8S, 0xd4, i_i)         \ */
-/* V(I32AsmjsLoad8U, 0xd5, i_i)         \ */
-/* V(I32AsmjsLoad16S, 0xd6, i_i)        \ */
-/* V(I32AsmjsLoad16U, 0xd7, i_i)        \ */
-/* V(I32AsmjsLoad, 0xd8, i_i)           \ */
-/* V(F32AsmjsLoad, 0xd9, f_i)           \ */
-/* V(F64AsmjsLoad, 0xda, d_i)           \ */
-/* V(I32AsmjsStore8, 0xdb, i_i)         \ */
-/* V(I32AsmjsStore16, 0xdc, i_i)        \ */
-/* V(I32AsmjsStore, 0xdd, i_ii)         \ */
-/* V(F32AsmjsStore, 0xde, i_if)         \ */
-/* V(F64AsmjsStore, 0xdf, i_id)         \ */
-/* V(I32SAsmjsConvertF32, 0xe0, i_f)    \ */
-/* V(I32UAsmjsConvertF32, 0xe1, i_f)    \ */
-/* V(I32SAsmjsConvertF64, 0xe2, i_d)    \ */
-/* V(I32SAsmjsConvertF64, 0xe3, i_d) */
+  V(F64Mod, 0xca, d_dd)                \
+  V(I32AsmjsDivS, 0xd0, i_ii)          \
+  V(I32AsmjsDivU, 0xd1, i_ii)          \
+  V(I32AsmjsRemS, 0xd2, i_ii)          \
+  V(I32AsmjsRemU, 0xd3, i_ii)          \
+  V(I32AsmjsLoadMem8S, 0xd4, i_i)      \
+  V(I32AsmjsLoadMem8U, 0xd5, i_i)      \
+  V(I32AsmjsLoadMem16S, 0xd6, i_i)     \
+  V(I32AsmjsLoadMem16U, 0xd7, i_i)     \
+  V(I32AsmjsLoadMem, 0xd8, i_i)        \
+  V(F32AsmjsLoadMem, 0xd9, f_i)        \
+  V(F64AsmjsLoadMem, 0xda, d_i)        \
+  V(I32AsmjsStoreMem8, 0xdb, i_ii)     \
+  V(I32AsmjsStoreMem16, 0xdc, i_ii)    \
+  V(I32AsmjsStoreMem, 0xdd, i_ii)      \
+  V(F32AsmjsStoreMem, 0xde, f_if)      \
+  V(F64AsmjsStoreMem, 0xdf, d_id)      \
+  V(I32AsmjsSConvertF32, 0xe0, i_f)    \
+  V(I32AsmjsUConvertF32, 0xe1, i_f)    \
+  V(I32AsmjsSConvertF64, 0xe2, i_d)    \
+  V(I32AsmjsUConvertF64, 0xe3, i_d)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)     \
@@ -348,7 +346,6 @@ enum TrapReason {
 // A collection of opcode-related static methods.
 class WasmOpcodes {
  public:
-  static bool IsSupported(WasmOpcode opcode);
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);

@@ -121,6 +121,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceType(compiler::Node* map);
   // Load the instance descriptors of a map.
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
+  // Load the prototype of a map.
+  compiler::Node* LoadMapPrototype(compiler::Node* map);
 
   // Load the hash field of a name.
   compiler::Node* LoadNameHash(compiler::Node* name);
@@ -141,6 +143,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);
+
+  compiler::Node* LoadJSArrayElementsMap(ElementsKind kind,
+                                         compiler::Node* native_context);
 
   // Store the floating point value of a HeapNumber.
   compiler::Node* StoreHeapNumberValue(compiler::Node* object,
@@ -183,9 +188,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Allocate a SeqTwoByteString with the given length.
   compiler::Node* AllocateSeqTwoByteString(int length);
   // Allocated an JSArray
-  compiler::Node* AllocateJSArray(ElementsKind kind,
-                                  compiler::Node* native_context, int capacity,
-                                  int length,
+  compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
+                                  int capacity, int length,
                                   compiler::Node* allocation_site = nullptr);
 
   // Allocation site manipulation
@@ -226,6 +230,26 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
+
+  // Various building blocks for stubs doing property lookups.
+  void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
+                 Label* if_keyisunique, Label* call_runtime);
+
+  void TryLookupProperty(compiler::Node* object, compiler::Node* map,
+                         compiler::Node* instance_type, compiler::Node* name,
+                         Label* if_found, Label* if_not_found,
+                         Label* call_runtime);
+
+  void TryLookupElement(compiler::Node* object, compiler::Node* map,
+                        compiler::Node* instance_type, compiler::Node* index,
+                        Label* if_found, Label* if_not_found,
+                        Label* call_runtime);
+
+  // Instanceof helpers.
+  // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
+  compiler::Node* OrdinaryHasInstance(compiler::Node* context,
+                                      compiler::Node* callable,
+                                      compiler::Node* object);
 
  private:
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,

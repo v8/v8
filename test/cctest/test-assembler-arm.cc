@@ -412,29 +412,26 @@ TEST(6) {
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(&assm, ARMv7);
-    __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
-    __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
-    __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
-    __ add(r0, r1, Operand(r2));
-    __ add(r0, r0, Operand(r3));
-    __ mov(pc, Operand(lr));
+  __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
+  __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
+  __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
+  __ add(r0, r1, Operand(r2));
+  __ add(r0, r0, Operand(r3));
+  __ mov(pc, Operand(lr));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-        CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
-    ::printf("f() = %d\n", res);
-    CHECK_EQ(382, res);
-  }
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(382, res);
 }
 
 

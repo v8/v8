@@ -29,6 +29,10 @@ enum AllocationFlags {
   DOUBLE_ALIGNMENT = 1 << 2,
   // Directly allocate in old space
   PRETENURE = 1 << 3,
+  // Allocation folding dominator
+  ALLOCATION_FOLDING_DOMINATOR = 1 << 4,
+  // Folded allocation
+  ALLOCATION_FOLDED = 1 << 5
 };
 
 #if V8_TARGET_ARCH_IA32

@@ -76,6 +76,7 @@
   'unicode-test': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
+  'ignition/regress-599001-verifyheap': [PASS, NO_VARIANTS],
   'es6/string-fromcodepoint': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
@@ -148,9 +149,6 @@
 
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
-
-  # TODO(turbofan): The escape analysis needs some investigation.
-  'compiler/escape-analysis-*': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -286,36 +284,16 @@
   ############################################################################
   # Ignition
 
-  # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-restart-frame': [PASS, NO_IGNITION],
-  'debug-liveedit-literals': [PASS, NO_IGNITION],
-  'debug-liveedit-3': [PASS, NO_IGNITION],
-  'debug-liveedit-1': [PASS, NO_IGNITION],
-  'debug-liveedit-2': [PASS, NO_IGNITION],
-  'debug-liveedit-patch-positions-replace': [PASS, NO_IGNITION],
-  'debug-liveedit-patch-positions': [PASS, NO_IGNITION],
-  'debug-liveedit-stepin': [PASS, NO_IGNITION],
-  'debug-liveedit-newsource': [PASS, NO_IGNITION],
-  'debug-liveedit-stack-padding': [PASS, NO_IGNITION],
-  'debug-liveedit-breakpoints': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-1': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-2': [PASS, NO_IGNITION],
-  'es6/debug-liveedit-new-target-3': [PASS, NO_IGNITION],
-  'es6/generators-debug-liveedit': [PASS, NO_IGNITION],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [PASS, NO_IGNITION],
   'regress/regress-4121': [PASS, NO_IGNITION],
 
   # TODO(mythria, 4764): lack of osr support.
   'regress/regress-2618': [PASS, NO_IGNITION],
+
   # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [PASS, NO_IGNITION],
-
-  # TODO(mythria, 4680): Relate to GC and ignition holding references to
-  # objects.
-  'es6/mirror-collections': [PASS, NO_IGNITION],
 
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
   # eager compile of the whole script instead of during lazy compile of the function
@@ -323,14 +301,10 @@
   # platforms the stack limit is different and the exception doesn't fire.
   'regress/regress-crbug-589472': [PASS, NO_IGNITION],
 
-  # Debugger test cases that pass with ignition, but not full-codegen.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction-no-ignition': [PASS, NO_IGNITION],
-
-  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', NO_IGNITION]],
-  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', NO_IGNITION]],
-
+  # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [PASS, NO_IGNITION],
+
+  # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'compiler/deopt-inlined-from-call': [PASS, NO_IGNITION],
   'compiler/increment-typefeedback': [PASS, NO_IGNITION],
   'compiler/manual-concurrent-recompile': [PASS, NO_IGNITION],
@@ -343,18 +317,14 @@
   'elements-transition-hoisting': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft': [PASS, NO_IGNITION],
   'es6/block-let-crankshaft-sloppy': [PASS, NO_IGNITION],
-  'es6/new-target': [PASS, ['no_snap and mode == debug', NO_IGNITION]],
   'getters-on-elements': [PASS, NO_IGNITION],
   'harmony/do-expressions': [PASS, NO_IGNITION],
-  'ignition/elided-instruction': [PASS, NO_IGNITION],
-  'ignition/optimized-debug-frame': [PASS, NO_IGNITION],
   'math-floor-of-div-minus-zero': [PASS, NO_IGNITION],
   'regress/regress-2132': [PASS, NO_IGNITION],
   'regress/regress-2339': [PASS, NO_IGNITION],
   'regress/regress-3176': [PASS, NO_IGNITION],
   'regress/regress-3709': [PASS, NO_IGNITION],
   'regress/regress-385565': [PASS, NO_IGNITION],
-  'regress/regress-3969': [PASS, NO_IGNITION],
   'regress/regress-crbug-594183': [PASS, NO_IGNITION],
   'regress/regress-embedded-cons-string': [PASS, NO_IGNITION],
   'regress/regress-map-invalidation-2': [PASS, NO_IGNITION],
@@ -365,7 +335,6 @@
   'smi-mul-const': [PASS, NO_IGNITION],
   'smi-mul': [PASS, NO_IGNITION],
   'unary-minus-deopt': [PASS, NO_IGNITION],
-
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -445,10 +414,6 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
-
-  # TODO(oth,4680): failures from the bots.
-  'ignition/elided-instruction': [PASS, NO_IGNITION],
-  'regress/regress-269': [PASS, NO_IGNITION],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -465,6 +430,8 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
+  'regress/regress-599717': [SKIP],
+  'regress/regress-599719': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -867,23 +834,6 @@
 
 ##############################################################################
 ['ignition or ignition_turbofan', {
-   # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
-  'debug-liveedit-restart-frame': [FAIL],
-  'debug-liveedit-literals': [FAIL],
-  'debug-liveedit-3': [FAIL],
-  'debug-liveedit-1': [FAIL],
-  'debug-liveedit-2': [FAIL],
-  'debug-liveedit-patch-positions-replace': [FAIL],
-  'debug-liveedit-patch-positions': [FAIL],
-  'debug-liveedit-stepin': [FAIL],
-  'debug-liveedit-newsource': [FAIL],
-  'debug-liveedit-stack-padding': [FAIL],
-  'debug-liveedit-breakpoints': [FAIL],
-  'es6/debug-liveedit-new-target-1': [FAIL],
-  'es6/debug-liveedit-new-target-2': [FAIL],
-  'es6/debug-liveedit-new-target-3': [FAIL],
-  'es6/generators-debug-liveedit': [FAIL],
-
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
@@ -894,22 +844,18 @@
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [SKIP],
 
-  # TODO(mythria, 4680): Relate to GC and ignition holding references to
-  # objects.
-  'es6/mirror-collections': [FAIL],
-
   # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
   # eager compile of the whole script instead of during lazy compile of the function
   # f(), so we can't catch the exception in the try/catch. Skip because on some
   # platforms the stack limit is different and the exception doesn't fire.
   'regress/regress-crbug-589472': [SKIP],
 
-  # Debugger test cases that pass with ignition, but not full-codegen.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction-no-ignition': [FAIL],
-
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
+
+  # TODO(rmcilroy,titzer): Times out after
+  # https://codereview.chromium.org/1951013002 .
+  'regress/regress-599717': [PASS, ['tsan', SKIP]],
 }],  # ignition or ignition_turbofan
 
 ['(ignition or ignition_turbofan) and arch == arm64', {
@@ -940,18 +886,6 @@
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [SKIP],
 }],  # (ignition or ignition_turbofan) and msan
-
-['(ignition or ignition_turbofan) and gc_stress == True', {
-  # TODO(oth,4680): failures from the bots.
-  'ignition/elided-instruction': [SKIP],
-  'regress/regress-269': [SKIP],
-}],  # (ignition or ignition_turbofan) and gc_stress == True
-
-['ignition == False and ignition_turbofan == False', {
-  # Debugger test cases that pass with full-codegen, but not ignition.
-  # These differences between full-codegen and ignition are deliberate.
-  'ignition/elided-instruction': [FAIL],
-}],  # ignition == False and ignition_turbofan == False
 
 ##############################################################################
 ['gcov_coverage', {

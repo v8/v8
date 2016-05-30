@@ -259,7 +259,7 @@ Node* CodeStubAssembler::SmiToWord32(Node* value) {
 }
 
 Node* CodeStubAssembler::SmiToFloat64(Node* value) {
-  return ChangeInt32ToFloat64(SmiUntag(value));
+  return ChangeInt32ToFloat64(SmiToWord32(value));
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
@@ -330,14 +330,19 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
 
   Bind(&runtime_call);
   // AllocateInTargetSpace does not use the context.
-  Node* context = IntPtrConstant(0);
-  Node* runtime_flags = SmiTag(Int32Constant(
-      AllocateDoubleAlignFlag::encode(false) |
-      AllocateTargetSpace::encode(flags & kPretenured
-                                      ? AllocationSpace::OLD_SPACE
-                                      : AllocationSpace::NEW_SPACE)));
-  Node* runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
-                                     SmiTag(size_in_bytes), runtime_flags);
+  Node* context = SmiConstant(Smi::FromInt(0));
+
+  Node* runtime_result;
+  if (flags & kPretenured) {
+    Node* runtime_flags = SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(false) |
+                     AllocateTargetSpace::encode(AllocationSpace::OLD_SPACE)));
+    runtime_result = CallRuntime(Runtime::kAllocateInTargetSpace, context,
+                                 SmiTag(size_in_bytes), runtime_flags);
+  } else {
+    runtime_result = CallRuntime(Runtime::kAllocateInNewSpace, context,
+                                 SmiTag(size_in_bytes));
+  }
   result.Bind(runtime_result);
   Goto(&merge_runtime);
 
@@ -496,6 +501,10 @@ Node* CodeStubAssembler::LoadMapDescriptors(Node* map) {
   return LoadObjectField(map, Map::kDescriptorsOffset);
 }
 
+Node* CodeStubAssembler::LoadMapPrototype(Node* map) {
+  return LoadObjectField(map, Map::kPrototypeOffset);
+}
+
 Node* CodeStubAssembler::LoadNameHash(Node* name) {
   return Load(MachineType::Uint32(), name,
               IntPtrConstant(Name::kHashFieldOffset - kHeapObjectTag));
@@ -554,6 +563,12 @@ Node* CodeStubAssembler::LoadFixedArrayElementConstantIndex(Node* object,
 Node* CodeStubAssembler::LoadNativeContext(Node* context) {
   return LoadFixedArrayElementConstantIndex(context,
                                             Context::NATIVE_CONTEXT_INDEX);
+}
+
+Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
+                                                Node* native_context) {
+  return LoadFixedArrayElementConstantIndex(native_context,
+                                            Context::ArrayMapIndex(kind));
 }
 
 Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
@@ -670,9 +685,8 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   return result;
 }
 
-Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind,
-                                         Node* native_context, int capacity,
-                                         int length,
+Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
+                                         int capacity, int length,
                                          compiler::Node* allocation_site) {
   bool is_double = IsFastDoubleElementsKind(kind);
   int element_size = is_double ? kDoubleSize : kPointerSize;
@@ -688,8 +702,6 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind,
   // Allocate both array and elements object, and initialize the JSArray.
   Heap* heap = isolate()->heap();
   Node* array = Allocate(total_size);
-  Node* array_map = LoadFixedArrayElementConstantIndex(
-      native_context, Context::ArrayMapIndex(kind));
   StoreMapNoWriteBarrier(array, array_map);
   Node* empty_properties =
       HeapConstant(Handle<HeapObject>(heap->empty_fixed_array()));
@@ -1262,6 +1274,282 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),
                    Int32Constant(shift));
+}
+
+void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
+                                  Variable* var_index, Label* if_keyisunique,
+                                  Label* call_runtime) {
+  DCHECK_EQ(MachineRepresentation::kWord32, var_index->rep());
+
+  Label if_keyissmi(this), if_keyisnotsmi(this);
+  Branch(WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
+  Bind(&if_keyissmi);
+  {
+    // Negative smi keys are named properties. Handle in the runtime.
+    Label if_keyispositive(this);
+    Branch(WordIsPositiveSmi(key), &if_keyispositive, call_runtime);
+    Bind(&if_keyispositive);
+
+    var_index->Bind(SmiToWord32(key));
+    Goto(if_keyisindex);
+  }
+
+  Bind(&if_keyisnotsmi);
+
+  Node* key_instance_type = LoadInstanceType(key);
+  Label if_keyisnotsymbol(this);
+  Branch(Word32Equal(key_instance_type, Int32Constant(SYMBOL_TYPE)),
+         if_keyisunique, &if_keyisnotsymbol);
+  Bind(&if_keyisnotsymbol);
+  {
+    Label if_keyisinternalized(this);
+    Node* bits =
+        WordAnd(key_instance_type,
+                Int32Constant(kIsNotStringMask | kIsNotInternalizedMask));
+    Branch(Word32Equal(bits, Int32Constant(kStringTag | kInternalizedTag)),
+           &if_keyisinternalized, call_runtime);
+    Bind(&if_keyisinternalized);
+
+    // Check whether the key is an array index passed in as string. Handle
+    // uniform with smi keys if so.
+    // TODO(verwaest): Also support non-internalized strings.
+    Node* hash = LoadNameHash(key);
+    Node* bit =
+        Word32And(hash, Int32Constant(internal::Name::kIsNotArrayIndexMask));
+    Label if_isarrayindex(this);
+    Branch(Word32Equal(bit, Int32Constant(0)), &if_isarrayindex,
+           if_keyisunique);
+    Bind(&if_isarrayindex);
+    var_index->Bind(BitFieldDecode<internal::Name::ArrayIndexValueBits>(hash));
+    Goto(if_keyisindex);
+  }
+}
+
+void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
+                                          Node* instance_type, Node* name,
+                                          Label* if_found, Label* if_not_found,
+                                          Label* call_runtime) {
+  {
+    Label if_objectissimple(this);
+    Branch(Int32LessThanOrEqual(instance_type,
+                                Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+           call_runtime, &if_objectissimple);
+    Bind(&if_objectissimple);
+  }
+
+  // TODO(verwaest): Perform a dictonary lookup on slow-mode receivers.
+  Node* bit_field3 = LoadMapBitField3(map);
+  Node* bit = BitFieldDecode<Map::DictionaryMap>(bit_field3);
+  Label if_isfastmap(this);
+  Branch(Word32Equal(bit, Int32Constant(0)), &if_isfastmap, call_runtime);
+  Bind(&if_isfastmap);
+  Node* nof = BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
+  // Bail out to the runtime for large numbers of own descriptors. The stub only
+  // does linear search, which becomes too expensive in that case.
+  {
+    static const int32_t kMaxLinear = 210;
+    Label above_max(this), below_max(this);
+    Branch(Int32LessThanOrEqual(nof, Int32Constant(kMaxLinear)), &below_max,
+           call_runtime);
+    Bind(&below_max);
+  }
+  Node* descriptors = LoadMapDescriptors(map);
+
+  Variable var_descriptor(this, MachineRepresentation::kWord32);
+  Label loop(this, &var_descriptor);
+  var_descriptor.Bind(Int32Constant(0));
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_descriptor.value();
+    Node* offset = Int32Constant(DescriptorArray::ToKeyIndex(0));
+    Node* factor = Int32Constant(DescriptorArray::kDescriptorSize);
+    Label if_notdone(this);
+    Branch(Word32Equal(index, nof), if_not_found, &if_notdone);
+    Bind(&if_notdone);
+    {
+      Node* array_index = Int32Add(offset, Int32Mul(index, factor));
+      Node* current = LoadFixedArrayElementInt32Index(descriptors, array_index);
+      Label if_unequal(this);
+      Branch(WordEqual(current, name), if_found, &if_unequal);
+      Bind(&if_unequal);
+
+      var_descriptor.Bind(Int32Add(index, Int32Constant(1)));
+      Goto(&loop);
+    }
+  }
+}
+
+void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
+                                         Node* instance_type, Node* index,
+                                         Label* if_found, Label* if_not_found,
+                                         Label* call_runtime) {
+  {
+    Label if_objectissimple(this);
+    Branch(Int32LessThanOrEqual(instance_type,
+                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+           call_runtime, &if_objectissimple);
+    Bind(&if_objectissimple);
+  }
+
+  Node* bit_field2 = LoadMapBitField2(map);
+  Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+
+  // TODO(verwaest): Support other elements kinds as well.
+  Label if_isobjectorsmi(this);
+  Branch(
+      Int32LessThanOrEqual(elements_kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+      &if_isobjectorsmi, call_runtime);
+  Bind(&if_isobjectorsmi);
+  {
+    Node* elements = LoadElements(object);
+    Node* length = LoadFixedArrayBaseLength(elements);
+
+    Label if_iskeyinrange(this);
+    Branch(Int32LessThan(index, SmiToWord32(length)), &if_iskeyinrange,
+           if_not_found);
+
+    Bind(&if_iskeyinrange);
+    Node* element = LoadFixedArrayElementInt32Index(elements, index);
+    Node* the_hole = LoadRoot(Heap::kTheHoleValueRootIndex);
+    Branch(WordEqual(element, the_hole), if_not_found, if_found);
+  }
+}
+
+Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
+                                             Node* object) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label return_false(this), return_true(this),
+      return_runtime(this, Label::kDeferred), return_result(this);
+
+  // Goto runtime if {object} is a Smi.
+  GotoIf(WordIsSmi(object), &return_runtime);
+
+  // Load map of {object}.
+  Node* object_map = LoadMap(object);
+
+  // Lookup the {callable} and {object} map in the global instanceof cache.
+  // Note: This is safe because we clear the global instanceof cache whenever
+  // we change the prototype of any object.
+  Node* instanceof_cache_function =
+      LoadRoot(Heap::kInstanceofCacheFunctionRootIndex);
+  Node* instanceof_cache_map = LoadRoot(Heap::kInstanceofCacheMapRootIndex);
+  {
+    Label instanceof_cache_miss(this);
+    GotoUnless(WordEqual(instanceof_cache_function, callable),
+               &instanceof_cache_miss);
+    GotoUnless(WordEqual(instanceof_cache_map, object_map),
+               &instanceof_cache_miss);
+    var_result.Bind(LoadRoot(Heap::kInstanceofCacheAnswerRootIndex));
+    Goto(&return_result);
+    Bind(&instanceof_cache_miss);
+  }
+
+  // Goto runtime if {callable} is a Smi.
+  GotoIf(WordIsSmi(callable), &return_runtime);
+
+  // Load map of {callable}.
+  Node* callable_map = LoadMap(callable);
+
+  // Goto runtime if {callable} is not a JSFunction.
+  Node* callable_instance_type = LoadMapInstanceType(callable_map);
+  GotoUnless(
+      Word32Equal(callable_instance_type, Int32Constant(JS_FUNCTION_TYPE)),
+      &return_runtime);
+
+  // Goto runtime if {callable} is not a constructor or has
+  // a non-instance "prototype".
+  Node* callable_bitfield = LoadMapBitField(callable_map);
+  GotoUnless(
+      Word32Equal(Word32And(callable_bitfield,
+                            Int32Constant((1 << Map::kHasNonInstancePrototype) |
+                                          (1 << Map::kIsConstructor))),
+                  Int32Constant(1 << Map::kIsConstructor)),
+      &return_runtime);
+
+  // Get the "prototype" (or initial map) of the {callable}.
+  Node* callable_prototype =
+      LoadObjectField(callable, JSFunction::kPrototypeOrInitialMapOffset);
+  {
+    Variable var_callable_prototype(this, MachineRepresentation::kTagged);
+    Label callable_prototype_valid(this);
+    var_callable_prototype.Bind(callable_prototype);
+
+    // Resolve the "prototype" if the {callable} has an initial map.  Afterwards
+    // the {callable_prototype} will be either the JSReceiver prototype object
+    // or the hole value, which means that no instances of the {callable} were
+    // created so far and hence we should return false.
+    Node* callable_prototype_instance_type =
+        LoadInstanceType(callable_prototype);
+    GotoUnless(
+        Word32Equal(callable_prototype_instance_type, Int32Constant(MAP_TYPE)),
+        &callable_prototype_valid);
+    var_callable_prototype.Bind(
+        LoadObjectField(callable_prototype, Map::kPrototypeOffset));
+    Goto(&callable_prototype_valid);
+    Bind(&callable_prototype_valid);
+    callable_prototype = var_callable_prototype.value();
+  }
+
+  // Update the global instanceof cache with the current {object} map and
+  // {callable}.  The cached answer will be set when it is known below.
+  StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, callable);
+  StoreRoot(Heap::kInstanceofCacheMapRootIndex, object_map);
+
+  // Loop through the prototype chain looking for the {callable} prototype.
+  Variable var_object_map(this, MachineRepresentation::kTagged);
+  var_object_map.Bind(object_map);
+  Label loop(this, &var_object_map);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* object_map = var_object_map.value();
+
+    // Check if the current {object} needs to be access checked.
+    Node* object_bitfield = LoadMapBitField(object_map);
+    GotoUnless(
+        Word32Equal(Word32And(object_bitfield,
+                              Int32Constant(1 << Map::kIsAccessCheckNeeded)),
+                    Int32Constant(0)),
+        &return_runtime);
+
+    // Check if the current {object} is a proxy.
+    Node* object_instance_type = LoadMapInstanceType(object_map);
+    GotoIf(Word32Equal(object_instance_type, Int32Constant(JS_PROXY_TYPE)),
+           &return_runtime);
+
+    // Check the current {object} prototype.
+    Node* object_prototype = LoadMapPrototype(object_map);
+    GotoIf(WordEqual(object_prototype, callable_prototype), &return_true);
+    GotoIf(WordEqual(object_prototype, NullConstant()), &return_false);
+
+    // Continue with the prototype.
+    var_object_map.Bind(LoadMap(object_prototype));
+    Goto(&loop);
+  }
+
+  Bind(&return_true);
+  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(true));
+  var_result.Bind(BooleanConstant(true));
+  Goto(&return_result);
+
+  Bind(&return_false);
+  StoreRoot(Heap::kInstanceofCacheAnswerRootIndex, BooleanConstant(false));
+  var_result.Bind(BooleanConstant(false));
+  Goto(&return_result);
+
+  Bind(&return_runtime);
+  {
+    // Invalidate the global instanceof cache.
+    StoreRoot(Heap::kInstanceofCacheFunctionRootIndex, SmiConstant(0));
+    // Fallback to the runtime implementation.
+    var_result.Bind(
+        CallRuntime(Runtime::kOrdinaryHasInstance, context, callable, object));
+  }
+  Goto(&return_result);
+
+  Bind(&return_result);
+  return var_result.value();
 }
 
 }  // namespace internal

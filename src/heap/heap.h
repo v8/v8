@@ -13,7 +13,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 // TODO(mstarzinger): Two more includes to kill!
@@ -188,12 +188,14 @@ using v8::MemoryPressureLevel;
   V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
   V(PropertyCell, array_protector, ArrayProtector)                             \
+  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
-  V(PropertyCell, species_protector, SpeciesProtector)
+  V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
+  V(Cell, species_protector, SpeciesProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -203,8 +205,8 @@ using v8::MemoryPressureLevel;
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset) \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)       \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)             \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
-
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)             \
+  V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 #define ROOT_LIST(V)  \
   STRONG_ROOT_LIST(V) \
@@ -792,6 +794,7 @@ class Heap {
   inline void SetConstructStubDeoptPCOffset(int pc_offset);
   inline void SetGetterStubDeoptPCOffset(int pc_offset);
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
+  inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
@@ -2003,11 +2006,11 @@ class Heap {
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
-  AtomicNumber<size_t> always_allocate_scope_count_;
+  base::AtomicNumber<size_t> always_allocate_scope_count_;
 
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
-  AtomicValue<MemoryPressureLevel> memory_pressure_level_;
+  base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;

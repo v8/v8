@@ -26,10 +26,8 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats* stats =
-        tracer_->heap_->isolate()->counters()->runtime_call_stats();
-    timer_.Initialize(&stats->GC, stats->current_timer());
-    stats->Enter(&timer_);
+    RuntimeCallStats::Enter(tracer_->heap_->isolate(), &timer_,
+                            &RuntimeCallStats::GC);
   }
 }
 
@@ -40,7 +38,7 @@ GCTracer::Scope::~Scope() {
       tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_;
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    tracer_->heap_->isolate()->counters()->runtime_call_stats()->Leave(&timer_);
+    RuntimeCallStats::Leave(tracer_->heap_->isolate(), &timer_);
   }
 }
 
@@ -190,10 +188,7 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
       start_time, used_memory);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    RuntimeCallStats* stats =
-        heap_->isolate()->counters()->runtime_call_stats();
-    timer_.Initialize(&stats->GC, stats->current_timer());
-    stats->Enter(&timer_);
+    RuntimeCallStats::Enter(heap_->isolate(), &timer_, &RuntimeCallStats::GC);
   }
 }
 
@@ -303,7 +298,7 @@ void GCTracer::Stop(GarbageCollector collector) {
   cumulative_incremental_marking_finalization_duration_ = 0.0;
   // TODO(cbruni): remove once we fully moved to a trace-based system.
   if (FLAG_runtime_call_stats) {
-    heap_->isolate()->counters()->runtime_call_stats()->Leave(&timer_);
+    RuntimeCallStats::Leave(heap_->isolate(), &timer_);
   }
 }
 

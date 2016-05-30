@@ -75,9 +75,7 @@ WasmModuleBuilder.prototype.addImportWithModule = function(module, name, sig) {
 }
 
 WasmModuleBuilder.prototype.addImport = function(name, sig) {
-  var sig_index = (typeof sig) == "number" ? sig : this.addSignature(sig);
-  this.imports.push({module: name, name: undefined, sig_index: sig_index});
-  return this.imports.length - 1;
+  this.addImportWithModule(name, undefined, sig);
 }
 
 WasmModuleBuilder.prototype.addDataSegment = function(addr, data, init) {
@@ -107,9 +105,19 @@ function emit_u32(bytes, val) {
 }
 
 function emit_string(bytes, string) {
-    emit_varint(bytes, string.length);
-    for (var i = 0; i < string.length; i++) {
-      emit_u8(bytes, string.charCodeAt(i));
+    // When testing illegal names, we pass a byte array directly.
+    if (string instanceof Array) {
+      emit_varint(bytes, string.length);
+      emit_bytes(bytes, string);
+      return;
+    }
+
+    // This is the hacky way to convert a JavaScript scring to a UTF8 encoded
+    // string only containing single-byte characters.
+    var string_utf8 = unescape(encodeURIComponent(string));
+    emit_varint(bytes, string_utf8.length);
+    for (var i = 0; i < string_utf8.length; i++) {
+      emit_u8(bytes, string_utf8.charCodeAt(i));
     }
 }
 
@@ -309,8 +317,8 @@ WasmModuleBuilder.prototype.toArray = function(debug) {
             emit_varint(bytes, wasm.functions.length);
             for (func of wasm.functions) {
                 var name = func.name == undefined ? "" : func.name;
-               emit_string(bytes, name);
-               emit_u8(bytes, 0);  // local names count == 0
+                emit_string(bytes, name);
+                emit_u8(bytes, 0);  // local names count == 0
             }
         });
     }

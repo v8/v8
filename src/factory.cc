@@ -190,8 +190,8 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
-  accessors->set_getter(*the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
   return accessors;
 }
 
@@ -866,6 +866,7 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   Handle<AccessorInfo> info =
       Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE));
   info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
+  info->set_is_sloppy(true);
   return info;
 }
 
@@ -1227,6 +1228,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
       map.is_identical_to(
           isolate()->sloppy_function_with_readonly_prototype_map()) ||
       map.is_identical_to(isolate()->strict_function_map()) ||
+      map.is_identical_to(isolate()->strict_function_without_prototype_map()) ||
       // TODO(titzer): wasm_function_map() could be undefined here. ugly.
       (*map == context->get(Context::WASM_FUNCTION_MAP_INDEX)) ||
       map.is_identical_to(isolate()->proxy_function_map()));
@@ -1660,7 +1662,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
-  DCHECK(function->shared()->is_generator());
+  DCHECK(function->shared()->is_resumable());
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map());
   DCHECK_EQ(JS_GENERATOR_OBJECT_TYPE, map->instance_type());
@@ -2066,6 +2068,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
     shared->DisableOptimization(kGenerator);
   }
+  if (IsAsyncFunction(kind)) {
+    // TODO(caitp): Enable optimization of async functions when they are enabled
+    // for generators functions.
+    shared->DisableOptimization(kGenerator);
+  }
   return shared;
 }
 
@@ -2232,7 +2239,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
-  if (shared->IsInterpreted()) {
+  if (shared->HasBytecodeArray()) {
     // We need to create a copy, but delay since this may cause heap
     // verification.
     debug_info->set_abstract_code(AbstractCode::cast(shared->bytecode_array()));
@@ -2240,7 +2247,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
     debug_info->set_abstract_code(AbstractCode::cast(shared->code()));
   }
   debug_info->set_break_points(*break_points);
-  if (shared->IsInterpreted()) {
+  if (shared->HasBytecodeArray()) {
     // Create a copy for debugging.
     Handle<BytecodeArray> original(shared->bytecode_array());
     Handle<BytecodeArray> copy = CopyBytecodeArray(original);

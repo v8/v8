@@ -8,6 +8,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/conversions-inl.h"
 #include "src/type-cache.h"
 
@@ -121,6 +122,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     default:
       break;
   }
@@ -143,6 +146,14 @@ Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
   return NoChange();
 }
 
+Reduction SimplifiedOperatorReducer::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(IrOpcode::kTypeGuard, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetTypeOrAny(input);
+  Type* const guard_type = TypeOf(node->op());
+  if (input_type->Is(guard_type)) return Replace(input);
+  return NoChange();
+}
 
 Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
                                             Node* a) {

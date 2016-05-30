@@ -11,16 +11,25 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetName) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 1);
 
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return f->shared()->name();
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+  Handle<Object> result;
+  if (function->IsJSBoundFunction()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, JSBoundFunction::GetName(
+                             isolate, Handle<JSBoundFunction>::cast(function)));
+  } else {
+    result = JSFunction::GetName(isolate, Handle<JSFunction>::cast(function));
+  }
+  return *result;
 }
 
 
@@ -300,6 +309,16 @@ RUNTIME_FUNCTION(Runtime_FunctionToString) {
              ? *JSBoundFunction::ToString(
                    Handle<JSBoundFunction>::cast(function))
              : *JSFunction::ToString(Handle<JSFunction>::cast(function));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGetFunctionName) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, wasm, 0);
+  CONVERT_SMI_ARG_CHECKED(func_index, 1);
+
+  return *wasm::GetWasmFunctionName(wasm, func_index);
 }
 
 }  // namespace internal

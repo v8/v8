@@ -285,7 +285,7 @@ struct WeakListVisitor<Context> {
   }
 
   static Object* WeakNext(Context* context) {
-    return context->get(Context::NEXT_CONTEXT_LINK);
+    return context->next_context_link();
   }
 
   static int WeakNextOffset() {

@@ -514,7 +514,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
-               RelocInfo::IsVeneerPool(rmode)) {
+               RelocInfo::IsVeneerPool(rmode) ||
+               RelocInfo::IsDeoptId(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -705,7 +706,8 @@ void RelocIterator::next() {
             Advance(kIntSize);
           }
         } else if (RelocInfo::IsConstPool(rmode) ||
-                   RelocInfo::IsVeneerPool(rmode)) {
+                   RelocInfo::IsVeneerPool(rmode) ||
+                   RelocInfo::IsDeoptId(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -828,6 +830,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "encoded internal reference";
     case DEOPT_REASON:
       return "deopt reason";
+    case DEOPT_ID:
+      return "deopt index";
     case CONST_POOL:
       return "constant pool";
     case VENEER_POOL:
@@ -846,6 +850,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "generator continuation";
     case WASM_MEMORY_REFERENCE:
       return "wasm memory reference";
+    case WASM_MEMORY_SIZE_REFERENCE:
+      return "wasm memory size reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -933,6 +939,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
     case DEOPT_REASON:
+    case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
     case DEBUG_BREAK_SLOT_AT_POSITION:
@@ -941,6 +948,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
     case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
+    case WASM_MEMORY_SIZE_REFERENCE:
     case NONE32:
     case NONE64:
       break;
@@ -2049,12 +2057,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-
-void Assembler::RecordDeoptReason(const int reason, int raw_position) {
+void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+    RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }
 }
 

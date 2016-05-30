@@ -2495,7 +2495,8 @@ int Shell::Main(int argc, char* argv[]) {
     }
 
 #ifndef V8_SHARED
-    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches) {
+    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches &&
+        i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
       WriteIgnitionDispatchCountersFile(isolate);
     }
 #endif

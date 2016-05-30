@@ -570,17 +570,19 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
   return var;
 }
 
-
-bool Scope::RemoveTemporary(Variable* var) {
+int Scope::RemoveTemporary(Variable* var) {
+  DCHECK_NOT_NULL(var);
   // Most likely (always?) any temporary variable we want to remove
   // was just added before, so we search backwards.
   for (int i = temps_.length(); i-- > 0;) {
     if (temps_[i] == var) {
-      temps_.Remove(i);
-      return true;
+      // Don't shrink temps_, as callers of this method expect
+      // the returned indices to be unique per-scope.
+      temps_[i] = nullptr;
+      return i;
     }
   }
-  return false;
+  return -1;
 }
 
 
@@ -647,6 +649,7 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
   // context as a whole has forced context allocation.
   for (int i = 0; i < temps_.length(); i++) {
     Variable* var = temps_[i];
+    if (var == nullptr) continue;
     if (var->is_used()) {
       if (var->IsContextSlot()) {
         DCHECK(has_forced_context_allocation());
@@ -973,6 +976,8 @@ void Scope::Print(int n) {
   if (typed()) {
     Indent(n1, "// typed mode scope\n");
   }
+  if (asm_module_) Indent(n1, "// scope is an asm module\n");
+  if (asm_function_) Indent(n1, "// scope is an asm function\n");
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
@@ -999,9 +1004,15 @@ void Scope::Print(int n) {
   }
 
   if (temps_.length() > 0) {
-    Indent(n1, "// temporary vars:\n");
+    bool printed_header = false;
     for (int i = 0; i < temps_.length(); i++) {
-      PrintVar(n1, temps_[i]);
+      if (temps_[i] != nullptr) {
+        if (!printed_header) {
+          printed_header = true;
+          Indent(n1, "// temporary vars:\n");
+        }
+        PrintVar(n1, temps_[i]);
+      }
     }
   }
 
@@ -1113,12 +1124,15 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_sloppy_eval() && !is_script_scope() &&
-             name_can_be_shadowed) {
+  } else if (calls_sloppy_eval() && is_declaration_scope() &&
+             !is_script_scope() && name_can_be_shadowed) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).
     // In that case, change the lookup result to reflect this situation.
+    // Only scopes that can host var bindings (declaration scopes) need be
+    // considered here (this excludes block and catch scopes), and variable
+    // lookups at script scope are always dynamic.
     if (*binding_kind == BOUND) {
       *binding_kind = BOUND_EVAL_SHADOWED;
     } else if (*binding_kind == UNBOUND) {
@@ -1428,6 +1442,7 @@ void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   // All variables that have no rewrite yet are non-parameter locals.
   for (int i = 0; i < temps_.length(); i++) {
+    if (temps_[i] == nullptr) continue;
     AllocateNonParameterLocal(isolate, temps_[i]);
   }
 

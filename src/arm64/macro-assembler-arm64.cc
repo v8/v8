@@ -3030,6 +3030,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3092,7 +3093,11 @@ void MacroAssembler::Allocate(int object_size,
   Adds(result_end, result, object_size);
   Ccmp(result_end, alloc_limit, NoFlag, cc);
   B(hi, gc_required);
-  Str(result_end, MemOperand(top_address));
+
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    Str(result_end, MemOperand(top_address));
+  }
 
   // Tag the object.
   ObjectTag(result, result);
@@ -3168,14 +3173,88 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     Check(eq, kUnalignedAllocationInNewSpace);
   }
 
-  Ccmp(result_end, alloc_limit, CFlag, cc);
+  Ccmp(result_end, alloc_limit, NoFlag, cc);
   B(hi, gc_required);
-  Str(result_end, MemOperand(top_address));
+
+  if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
+    // The top pointer is not updated for allocation folding dominators.
+    Str(result_end, MemOperand(top_address));
+  }
 
   // Tag the object.
   ObjectTag(result, result);
 }
 
+void MacroAssembler::FastAllocate(int object_size, Register result,
+                                  Register scratch1, Register scratch2,
+                                  AllocationFlags flags) {
+  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+
+  DCHECK(!AreAliased(result, scratch1, scratch2));
+  DCHECK(result.Is64Bits() && scratch1.Is64Bits() && scratch2.Is64Bits());
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  DCHECK(0 == (object_size & kObjectAlignmentMask));
+
+  ExternalReference heap_allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and allocation limit registers.
+  Register top_address = scratch1;
+  Register result_end = scratch2;
+  Mov(top_address, Operand(heap_allocation_top));
+  Ldr(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on ARM64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  // Calculate new top and write it back.
+  Adds(result_end, result, object_size);
+  Str(result_end, MemOperand(top_address));
+
+  ObjectTag(result, result);
+}
+
+void MacroAssembler::FastAllocate(Register object_size, Register result,
+                                  Register result_end, Register scratch,
+                                  AllocationFlags flags) {
+  // |object_size| and |result_end| may overlap, other registers must not.
+  DCHECK(!AreAliased(object_size, result, scratch));
+  DCHECK(!AreAliased(result_end, result, scratch));
+  DCHECK(object_size.Is64Bits() && result.Is64Bits() && scratch.Is64Bits() &&
+         result_end.Is64Bits());
+
+  ExternalReference heap_allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+
+  // Set up allocation top address and allocation limit registers.
+  Register top_address = scratch;
+  Mov(top_address, heap_allocation_top);
+  Ldr(result, MemOperand(top_address));
+
+  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
+  // the same alignment on ARM64.
+  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
+
+  // Calculate new top and write it back.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    Adds(result_end, result, Operand(object_size, LSL, kPointerSizeLog2));
+  } else {
+    Adds(result_end, result, object_size);
+  }
+  Str(result_end, MemOperand(top_address));
+
+  if (emit_debug_code()) {
+    Tst(result_end, kObjectAlignmentMask);
+    Check(eq, kUnalignedAllocationInNewSpace);
+  }
+
+  ObjectTag(result, result);
+}
 
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,

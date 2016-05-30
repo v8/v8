@@ -23,6 +23,7 @@
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/string-builder.h"
+#include "src/uri.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -147,8 +148,7 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                        \
       int args_length, Object** args_object, Isolate* isolate) {               \
     name##ArgumentsType args(args_length, args_object);                        \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
-    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name);   \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                      \
                  "V8.Builtin_" #name);                                         \
     return Builtin_Impl_##name(args, isolate);                                 \
@@ -407,153 +407,17 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
 
   Variable var_index(assembler, MachineRepresentation::kWord32);
 
-  Label if_keyissmi(assembler), if_keyisnotsmi(assembler),
-      keyisindex(assembler);
-  assembler->Branch(assembler->WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
-  assembler->Bind(&if_keyissmi);
-  {
-    // Negative smi keys are named properties. Handle in the runtime.
-    Label if_keyispositive(assembler);
-    assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositive,
-                      &call_runtime);
-    assembler->Bind(&if_keyispositive);
+  Label keyisindex(assembler), if_iskeyunique(assembler);
+  assembler->TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
+                       &call_runtime);
 
-    var_index.Bind(assembler->SmiUntag(key));
-    assembler->Goto(&keyisindex);
-  }
-
-  assembler->Bind(&if_keyisnotsmi);
-
-  Node* key_instance_type = assembler->LoadInstanceType(key);
-  Label if_iskeyunique(assembler), if_iskeynotsymbol(assembler);
-  assembler->Branch(
-      assembler->Word32Equal(key_instance_type,
-                             assembler->Int32Constant(SYMBOL_TYPE)),
-      &if_iskeyunique, &if_iskeynotsymbol);
-  assembler->Bind(&if_iskeynotsymbol);
-  {
-    Label if_iskeyinternalized(assembler);
-    Node* bits = assembler->WordAnd(
-        key_instance_type,
-        assembler->Int32Constant(kIsNotStringMask | kIsNotInternalizedMask));
-    assembler->Branch(
-        assembler->Word32Equal(
-            bits, assembler->Int32Constant(kStringTag | kInternalizedTag)),
-        &if_iskeyinternalized, &call_runtime);
-    assembler->Bind(&if_iskeyinternalized);
-
-    // Check whether the key is an array index passed in as string. Handle
-    // uniform with smi keys if so.
-    // TODO(verwaest): Also support non-internalized strings.
-    Node* hash = assembler->LoadNameHash(key);
-    Node* bit = assembler->Word32And(
-        hash, assembler->Int32Constant(internal::Name::kIsNotArrayIndexMask));
-    Label if_isarrayindex(assembler);
-    assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
-                      &if_isarrayindex, &if_iskeyunique);
-    assembler->Bind(&if_isarrayindex);
-    var_index.Bind(
-        assembler->BitFieldDecode<internal::Name::ArrayIndexValueBits>(hash));
-    assembler->Goto(&keyisindex);
-  }
   assembler->Bind(&if_iskeyunique);
-
-  {
-    Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type,
-                          assembler->Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-                      &call_runtime, &if_objectissimple);
-    assembler->Bind(&if_objectissimple);
-  }
-
-  // TODO(verwaest): Perform a dictonary lookup on slow-mode receivers.
-  Node* bit_field3 = assembler->LoadMapBitField3(map);
-  Node* bit = assembler->BitFieldDecode<Map::DictionaryMap>(bit_field3);
-  Label if_isfastmap(assembler);
-  assembler->Branch(assembler->Word32Equal(bit, assembler->Int32Constant(0)),
-                    &if_isfastmap, &call_runtime);
-  assembler->Bind(&if_isfastmap);
-  Node* nof =
-      assembler->BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
-  // Bail out to the runtime for large numbers of own descriptors. The stub only
-  // does linear search, which becomes too expensive in that case.
-  {
-    static const int32_t kMaxLinear = 256;
-    Label above_max(assembler), below_max(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          nof, assembler->Int32Constant(kMaxLinear)),
-                      &below_max, &call_runtime);
-    assembler->Bind(&below_max);
-  }
-  Node* descriptors = assembler->LoadMapDescriptors(map);
-
-  Variable var_descriptor(assembler, MachineRepresentation::kWord32);
-  Label loop(assembler, &var_descriptor);
-  var_descriptor.Bind(assembler->Int32Constant(0));
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    Node* index = var_descriptor.value();
-    Node* offset = assembler->Int32Constant(DescriptorArray::ToKeyIndex(0));
-    Node* factor = assembler->Int32Constant(DescriptorArray::kDescriptorSize);
-    Label if_notdone(assembler);
-    assembler->Branch(assembler->Word32Equal(index, nof), &return_false,
-                      &if_notdone);
-    assembler->Bind(&if_notdone);
-    {
-      Node* array_index =
-          assembler->Int32Add(offset, assembler->Int32Mul(index, factor));
-      Node* current =
-          assembler->LoadFixedArrayElementInt32Index(descriptors, array_index);
-      Label if_unequal(assembler);
-      assembler->Branch(assembler->WordEqual(current, key), &return_true,
-                        &if_unequal);
-      assembler->Bind(&if_unequal);
-
-      var_descriptor.Bind(
-          assembler->Int32Add(index, assembler->Int32Constant(1)));
-      assembler->Goto(&loop);
-    }
-  }
+  assembler->TryLookupProperty(object, map, instance_type, key, &return_true,
+                               &return_false, &call_runtime);
 
   assembler->Bind(&keyisindex);
-  {
-    Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type, assembler->Int32Constant(
-                                             LAST_CUSTOM_ELEMENTS_RECEIVER)),
-                      &call_runtime, &if_objectissimple);
-    assembler->Bind(&if_objectissimple);
-  }
-
-  Node* index = var_index.value();
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
-
-  // TODO(verwaest): Support other elements kinds as well.
-  Label if_isobjectorsmi(assembler);
-  assembler->Branch(
-      assembler->Int32LessThanOrEqual(
-          elements_kind, assembler->Int32Constant(FAST_HOLEY_ELEMENTS)),
-      &if_isobjectorsmi, &call_runtime);
-  assembler->Bind(&if_isobjectorsmi);
-  {
-    Node* elements = assembler->LoadElements(object);
-    Node* length = assembler->LoadFixedArrayBaseLength(elements);
-
-    Label if_iskeyinrange(assembler);
-    assembler->Branch(
-        assembler->Int32LessThan(index, assembler->SmiToWord32(length)),
-        &if_iskeyinrange, &return_false);
-
-    assembler->Bind(&if_iskeyinrange);
-    Node* element = assembler->LoadFixedArrayElementInt32Index(elements, index);
-    Node* the_hole = assembler->LoadRoot(Heap::kTheHoleValueRootIndex);
-    assembler->Branch(assembler->WordEqual(element, the_hole), &return_false,
-                      &return_true);
-  }
+  assembler->TryLookupElement(object, map, instance_type, var_index.value(),
+                              &return_true, &return_false, &call_runtime);
 
   assembler->Bind(&return_true);
   assembler->Return(assembler->BooleanConstant(true));
@@ -694,11 +558,11 @@ BUILTIN(ArraySlice) {
   if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
     JSArray* array = JSArray::cast(*receiver);
-    if (!array->HasFastElements() ||
-        !IsJSArrayFastElementMovingAllowed(isolate, array) ||
-        !isolate->IsArraySpeciesLookupChainIntact() ||
-        // If this is a subclass of Array, then call out to JS
-        !array->map()->new_target_is_base()) {
+    if (V8_UNLIKELY(!array->HasFastElements() ||
+                    !IsJSArrayFastElementMovingAllowed(isolate, array) ||
+                    !isolate->IsArraySpeciesLookupChainIntact() ||
+                    // If this is a subclass of Array, then call out to JS
+                    !array->HasArrayPrototype(isolate))) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
@@ -757,11 +621,12 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
-      // If this is a subclass of Array, then call out to JS.
-      !JSArray::cast(*receiver)->map()->new_target_is_base() ||
-      // If anything with @@species has been messed with, call out to JS.
-      !isolate->IsArraySpeciesLookupChainIntact()) {
+  if (V8_UNLIKELY(
+          !EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
+          // If this is a subclass of Array, then call out to JS.
+          !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
+          // If anything with @@species has been messed with, call out to JS.
+          !isolate->IsArraySpeciesLookupChainIntact())) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -1358,23 +1223,18 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
   return true;
 }
 
-
-bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
-  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-  Maybe<bool> maybe = JSReceiver::HasProperty(obj, key);
-  return maybe.FromMaybe(false);
-}
-
-
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-  Handle<Object> value;
-  MaybeHandle<Object> maybeValue =
-      i::Runtime::GetObjectProperty(isolate, obj, key);
-  if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-  if (!value->IsUndefined()) return Just(value->BooleanValue());
+  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+    // Slow path if @@isConcatSpreadable has been used.
+    Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
+    Handle<Object> value;
+    MaybeHandle<Object> maybeValue =
+        i::Runtime::GetObjectProperty(isolate, obj, key);
+    if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
+    if (!value->IsUndefined()) return Just(value->BooleanValue());
+  }
   return Object::IsArray(obj);
 }
 
@@ -1562,8 +1422,24 @@ Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
   }
 }
 
+bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
+  DisallowHeapAllocation no_gc;
+  Map* map = obj->map();
+  // If there is only the 'length' property we are fine.
+  if (map->prototype() ==
+          isolate->native_context()->initial_array_prototype() &&
+      map->NumberOfOwnDescriptors() == 1) {
+    return true;
+  }
+  // TODO(cbruni): slower lookup for array subclasses and support slow
+  // @@IsConcatSpreadable lookup.
+  return false;
+}
 
 MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
+  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+    return MaybeHandle<JSArray>();
+  }
   // We shouldn't overflow when adding another len.
   const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
   STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
@@ -1579,14 +1455,15 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
     for (int i = 0; i < n_arguments; i++) {
       Object* arg = (*args)[i];
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
-      if (!JSObject::cast(arg)->HasFastElements()) {
-        return MaybeHandle<JSArray>();
-      }
       if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
         return MaybeHandle<JSArray>();
       }
+      // TODO(cbruni): support fast concatenation of DICTIONARY_ELEMENTS.
+      if (!JSObject::cast(arg)->HasFastElements()) {
+        return MaybeHandle<JSArray>();
+      }
       Handle<JSArray> array(JSArray::cast(arg), isolate);
-      if (HasConcatSpreadableModifier(isolate, array)) {
+      if (!IsSimpleArray(isolate, array)) {
         return MaybeHandle<JSArray>();
       }
       // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
@@ -1594,16 +1471,15 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
       result_len += Smi::cast(array->length())->value();
       DCHECK(result_len >= 0);
       // Throw an Error if we overflow the FixedArray limits
-      if (FixedDoubleArray::kMaxLength < result_len ||
-          FixedArray::kMaxLength < result_len) {
-        AllowHeapAllocation allow_gc;
+      if (FixedArray::kMaxLength < result_len) {
+        AllowHeapAllocation gc;
         THROW_NEW_ERROR(isolate,
                         NewRangeError(MessageTemplate::kInvalidArrayLength),
                         JSArray);
       }
     }
   }
-  return ElementsAccessor::Concat(isolate, args, n_arguments);
+  return ElementsAccessor::Concat(isolate, args, n_arguments, result_len);
 }
 
 }  // namespace
@@ -1627,12 +1503,21 @@ BUILTIN(ArrayConcat) {
 
   Handle<JSArray> result_array;
 
+  // Avoid a real species read to avoid extra lookups to the array constructor
+  if (V8_LIKELY(receiver->IsJSArray() &&
+                Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
+                isolate->IsArraySpeciesLookupChainIntact())) {
+    if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
+      return *result_array;
+    }
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  }
   // Reading @@species happens before anything else with a side effect, so
   // we can do it here to determine whether to take the fast path.
   Handle<Object> species;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
-  if (*species == isolate->context()->native_context()->array_function()) {
+  if (*species == *isolate->array_function()) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
@@ -2222,6 +2107,26 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+// ES6 section 18.2.6.4 encodeURI (uri)
+BUILTIN(GlobalEncodeURI) {
+  HandleScope scope(isolate);
+  Handle<String> uri;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uri, Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  return Uri::EncodeUri(isolate, uri);
+}
+
+// ES6 section 18.2.6.5 encodeURIComponenet (uriComponent)
+BUILTIN(GlobalEncodeURIComponent) {
+  HandleScope scope(isolate);
+  Handle<String> uriComponent;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uriComponent,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  return Uri::EncodeUriComponent(isolate, uriComponent);
+}
 
 namespace {
 
@@ -2507,6 +2412,21 @@ void Builtins::Generate_MathSqrt(CodeStubAssembler* assembler) {
 // ES6 section 20.2.2.35 Math.trunc ( x )
 void Builtins::Generate_MathTrunc(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Trunc);
+}
+
+// -----------------------------------------------------------------------------
+// ES6 section 19.2 Function Objects
+
+// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
+void Builtins::Generate_FunctionPrototypeHasInstance(
+    CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* f = assembler->Parameter(0);
+  Node* v = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* result = assembler->OrdinaryHasInstance(context, f, v);
+  assembler->Return(result);
 }
 
 // -----------------------------------------------------------------------------
@@ -4253,7 +4173,7 @@ BUILTIN(FunctionPrototypeBind) {
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
   LookupIterator length_lookup(target, isolate->factory()->length_string(),
-                               target, LookupIterator::HIDDEN);
+                               target, LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
@@ -4286,7 +4206,7 @@ BUILTIN(FunctionPrototypeBind) {
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
   LookupIterator name_lookup(target, isolate->factory()->name_string(), target,
-                             LookupIterator::HIDDEN);
+                             LookupIterator::OWN);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors()->IsAccessorInfo()) {
@@ -4313,7 +4233,6 @@ BUILTIN(FunctionPrototypeBind) {
   return *function;
 }
 
-
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
@@ -4339,6 +4258,13 @@ BUILTIN(GeneratorFunctionConstructor) {
   return *result;
 }
 
+BUILTIN(AsyncFunctionConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, CreateDynamicFunction(isolate, args, "async function"));
+  return *result;
+}
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
@@ -4698,9 +4624,11 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
     Handle<ObjectTemplateInfo> instance_template(
         ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                               ApiNatives::InstantiateObject(instance_template),
-                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, receiver,
+        ApiNatives::InstantiateObject(instance_template,
+                                      Handle<JSReceiver>::cast(new_target)),
+        Object);
     args[0] = *receiver;
     DCHECK_EQ(*receiver, *args.receiver());
   } else {
@@ -5506,6 +5434,58 @@ void Builtins::Generate_AtomicsLoad(CodeStubAssembler* a) {
   a->Bind(&u32);
   a->Return(a->ChangeUint32ToTagged(a->AtomicLoad(
       MachineType::Uint32(), backing_store, a->WordShl(index_word, 2))));
+
+  // This shouldn't happen, we've already validated the type.
+  a->Bind(&other);
+  a->Return(a->Int32Constant(0));
+}
+
+void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
+  using namespace compiler;
+  Node* array = a->Parameter(1);
+  Node* index = a->Parameter(2);
+  Node* value = a->Parameter(3);
+  Node* context = a->Parameter(4 + 2);
+
+  Node* instance_type;
+  Node* backing_store;
+  ValidateSharedTypedArray(a, array, context, &instance_type, &backing_store);
+
+  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(a, index, context);
+  Node* array_length_word32 = a->TruncateTaggedToWord32(
+      context, a->LoadObjectField(array, JSTypedArray::kLengthOffset));
+  ValidateAtomicIndex(a, index_word32, array_length_word32, context);
+  Node* index_word = a->ChangeUint32ToWord(index_word32);
+
+  Callable to_integer = CodeFactory::ToInteger(a->isolate());
+  Node* value_integer = a->CallStub(to_integer, context, value);
+  Node* value_word32 = a->TruncateTaggedToWord32(context, value_integer);
+
+  CodeStubAssembler::Label u8(a), u16(a), u32(a), other(a);
+  int32_t case_values[] = {
+      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
+      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
+  };
+  CodeStubAssembler::Label* case_labels[] = {
+      &u8, &u8, &u16, &u16, &u32, &u32,
+  };
+  a->Switch(instance_type, &other, case_values, case_labels,
+            arraysize(case_labels));
+
+  a->Bind(&u8);
+  a->AtomicStore(MachineRepresentation::kWord8, backing_store, index_word,
+                 value_word32);
+  a->Return(value_integer);
+
+  a->Bind(&u16);
+  a->SmiTag(a->AtomicStore(MachineRepresentation::kWord16, backing_store,
+                           a->WordShl(index_word, 1), value_word32));
+  a->Return(value_integer);
+
+  a->Bind(&u32);
+  a->AtomicStore(MachineRepresentation::kWord32, backing_store,
+                 a->WordShl(index_word, 2), value_word32);
+  a->Return(value_integer);
 
   // This shouldn't happen, we've already validated the type.
   a->Bind(&other);

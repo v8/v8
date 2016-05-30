@@ -165,8 +165,14 @@ class ModuleDecoder : public Decoder {
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
           for (uint32_t i = 0; i < functions_count; i++) {
-            module->functions.push_back(
-                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
+            module->functions.push_back({nullptr,  // sig
+                                         i,        // func_index
+                                         0,        // sig_index
+                                         0,        // name_offset
+                                         0,        // name_length
+                                         0,        // code_start_offset
+                                         0,        // code_end_offset
+                                         false});  // exported
             WasmFunction* function = &module->functions.back();
             function->sig_index = consume_sig_index(module, &function->sig);
           }
@@ -213,8 +219,14 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeFunction[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->functions.push_back(
-                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
+            module->functions.push_back({nullptr,  // sig
+                                         i,        // func_index
+                                         0,        // sig_index
+                                         0,        // name_offset
+                                         0,        // name_length
+                                         0,        // code_start_offset
+                                         0,        // code_end_offset
+                                         false});  // exported
             WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
           }
@@ -222,10 +234,9 @@ class ModuleDecoder : public Decoder {
             for (uint32_t i = 0; i < functions_count; i++) {
               if (failed()) break;
               WasmFunction* function = &module->functions[i];
-              if (!function->external) {
-                VerifyFunctionBody(i, &menv, function);
-                if (result_.failed())
-                  error(result_.error_pc, result_.error_msg.get());
+              VerifyFunctionBody(i, &menv, function);
+              if (result_.failed()) {
+                error(result_.error_pc, result_.error_msg.get());
               }
             }
           }
@@ -245,13 +256,13 @@ class ModuleDecoder : public Decoder {
           for (uint32_t i = 0; i < functions_count; i++) {
             WasmFunction* function = &module->functions[i];
             function->name_offset =
-                consume_string(&function->name_length, "function name");
+                consume_string(&function->name_length, false);
 
             uint32_t local_names_count =
                 consume_u32v(&length, "local names count");
             for (uint32_t j = 0; j < local_names_count; j++) {
               uint32_t unused = 0;
-              uint32_t offset = consume_string(&unused, "local name");
+              uint32_t offset = consume_string(&unused, false);
               USE(unused);
               USE(offset);
             }
@@ -283,7 +294,10 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->data_segments.push_back({0, 0, 0});
+            module->data_segments.push_back({0,        // dest_addr
+                                             0,        // source_offset
+                                             0,        // source_size
+                                             false});  // init
             WasmDataSegment* segment = &module->data_segments.back();
             DecodeDataSegmentInModule(module, segment);
           }
@@ -337,18 +351,23 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->import_table.push_back({nullptr, 0, 0});
+            module->import_table.push_back({nullptr,  // sig
+                                            0,        // sig_index
+                                            0,        // module_name_offset
+                                            0,        // module_name_length
+                                            0,        // function_name_offset
+                                            0});      // function_name_length
             WasmImport* import = &module->import_table.back();
 
             import->sig_index = consume_sig_index(module, &import->sig);
             const byte* pos = pc_;
-            import->module_name_offset = consume_string(
-                &import->module_name_length, "import module name");
+            import->module_name_offset =
+                consume_string(&import->module_name_length, true);
             if (import->module_name_length == 0) {
               error(pos, "import module name cannot be NULL");
             }
-            import->function_name_offset = consume_string(
-                &import->function_name_length, "import function name");
+            import->function_name_offset =
+                consume_string(&import->function_name_length, true);
           }
           break;
         }
@@ -365,12 +384,14 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeExportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->export_table.push_back({0, 0});
+            module->export_table.push_back({0,    // func_index
+                                            0,    // name_offset
+                                            0});  // name_length
             WasmExport* exp = &module->export_table.back();
 
             WasmFunction* func;
             exp->func_index = consume_func_index(module, &func);
-            exp->name_offset = consume_string(&exp->name_length, "export name");
+            exp->name_offset = consume_string(&exp->name_length, true);
           }
           break;
         }
@@ -442,7 +463,6 @@ class ModuleDecoder : public Decoder {
     function->code_start_offset = off(pc_);   // ---- code start
     function->code_end_offset = off(limit_);  // ---- code end
     function->exported = false;               // ---- exported
-    function->external = false;               // ---- external
 
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
@@ -468,7 +488,9 @@ class ModuleDecoder : public Decoder {
 
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmGlobal* global) {
-    global->name_offset = consume_string(&global->name_length, "global name");
+    global->name_offset = consume_string(&global->name_length, false);
+    DCHECK(unibrow::Utf8::Validate(start_ + global->name_offset,
+                                   global->name_length));
     global->type = mem_type();
     global->offset = 0;
     global->exported = consume_u8("exported") != 0;
@@ -489,32 +511,15 @@ class ModuleDecoder : public Decoder {
       function->sig = module->signatures[function->sig_index];
     }
 
-    TRACE("  +%d  <function attributes:%s%s%s%s%s>\n",
-          static_cast<int>(pc_ - start_),
+    TRACE("  +%d  <function attributes:%s%s>\n", static_cast<int>(pc_ - start_),
           decl_bits & kDeclFunctionName ? " name" : "",
-          decl_bits & kDeclFunctionImport ? " imported" : "",
-          decl_bits & kDeclFunctionLocals ? " locals" : "",
-          decl_bits & kDeclFunctionExport ? " exported" : "",
-          (decl_bits & kDeclFunctionImport) == 0 ? " body" : "");
-
-    if (decl_bits & kDeclFunctionName) {
-      function->name_offset =
-          consume_string(&function->name_length, "function name");
-    }
+          decl_bits & kDeclFunctionExport ? " exported" : "");
 
     function->exported = decl_bits & kDeclFunctionExport;
 
-    // Imported functions have no locals or body.
-    if (decl_bits & kDeclFunctionImport) {
-      function->external = true;
-      return;
-    }
-
-    if (decl_bits & kDeclFunctionLocals) {
-      function->local_i32_count = consume_u16("i32 count");
-      function->local_i64_count = consume_u16("i64 count");
-      function->local_f32_count = consume_u16("f32 count");
-      function->local_f64_count = consume_u16("f64 count");
+    if (decl_bits & kDeclFunctionName) {
+      function->name_offset =
+          consume_string(&function->name_length, function->exported);
     }
 
     uint16_t size = consume_u16("body size");
@@ -607,11 +612,14 @@ class ModuleDecoder : public Decoder {
 
   // Reads a length-prefixed string, checking that it is within bounds. Returns
   // the offset of the string, and the length as an out parameter.
-  uint32_t consume_string(uint32_t* length, const char* name = nullptr) {
+  uint32_t consume_string(uint32_t* length, bool validate_utf8) {
     int varint_length;
     *length = consume_u32v(&varint_length, "string length");
     uint32_t offset = pc_offset();
     TRACE("  +%u  %-20s: (%u bytes)\n", offset, "string", *length);
+    if (validate_utf8 && !unibrow::Utf8::Validate(pc_, *length)) {
+      error(pc_, "no valid UTF-8 string");
+    }
     consume_bytes(*length);
     return offset;
   }
@@ -741,7 +749,6 @@ class ModuleDecoder : public Decoder {
   }
 };
 
-
 // Helpers for nice error messages.
 class ModuleError : public ModuleResult {
  public:
@@ -754,7 +761,6 @@ class ModuleError : public ModuleResult {
     error_msg.Reset(result);
   }
 };
-
 
 // Helpers for nice error messages.
 class FunctionError : public FunctionResult {
@@ -795,7 +801,6 @@ FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
   ModuleDecoder decoder(zone, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(start);
 }
-
 
 FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
                                   ModuleEnv* module_env,

@@ -356,7 +356,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
   // v8::Task overrides.
   void Run() override {
     unmapper_->PerformFreeMemoryOnQueuedChunks();
-    unmapper_->pending_unmapping_tasks_semaphore_.Signal();
+    unmapper_->pending_unmapping_tasks_semaphore_.Signal(
+        "Unmapper::UnmapFreeMemoryTask::Run");
   }
 
   Unmapper* unmapper_;
@@ -879,7 +880,9 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
-  CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE);
+  if (!CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE)) {
+    return nullptr;
+  }
   base::VirtualMemory reservation(start, size);
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
                           NOT_EXECUTABLE, owner, &reservation);
@@ -2444,7 +2447,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == nullptr) return nullptr;
-  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   int bytes_left = new_node_size - size_in_bytes;
   DCHECK(bytes_left >= 0);
@@ -2471,7 +2473,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // Keep the linear allocation area empty if requested to do so, just
     // return area back to the free list instead.
     owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    DCHECK(owner_->top() == NULL && owner_->limit() == NULL);
+    owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
+                           new_node->address() + size_in_bytes);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
              FLAG_incremental_marking) {
@@ -2483,12 +2486,15 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
                  new_node_size - size_in_bytes - linear_size);
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + size_in_bytes + linear_size);
-  } else if (bytes_left > 0) {
+  } else {
+    DCHECK(bytes_left >= 0);
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + new_node_size);
   }
+
+  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   return new_node;
 }

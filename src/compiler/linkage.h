@@ -162,7 +162,9 @@ class CallDescriptor final : public ZoneObject {
     kRestoreJSSP = 1u << 6,
     kRestoreCSP = 1u << 7,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 8
+    kInitializeRootRegister = 1u << 8,
+    // Does not ever try to allocate space on our heap.
+    kNoAllocate = 1u << 9
   };
   typedef base::Flags<Flag> Flags;
 

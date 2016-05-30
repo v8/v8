@@ -1220,7 +1220,7 @@ void Heap::ClearNormalizedMapCaches() {
     if (!cache->IsUndefined()) {
       NormalizedMapCache::cast(cache)->Clear();
     }
-    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+    context = Context::cast(context)->next_context_link();
   }
 }
 
@@ -2189,6 +2189,7 @@ bool Heap::CreateInitialMaps() {
   }
 
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
+    fixed_array_map()->set_elements_kind(FAST_HOLEY_ELEMENTS);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
@@ -2263,7 +2264,8 @@ bool Heap::CreateInitialMaps() {
   }
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, fixed_cow_array)
-    DCHECK(fixed_array_map() != fixed_cow_array_map());
+    fixed_cow_array_map()->set_elements_kind(FAST_HOLEY_ELEMENTS);
+    DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
@@ -2313,6 +2315,7 @@ bool Heap::CreateInitialMaps() {
     }
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
+    fixed_double_array_map()->set_elements_kind(FAST_HOLEY_DOUBLE_ELEMENTS);
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
@@ -2694,14 +2697,6 @@ void Heap::CreateInitialObjects() {
 #undef SYMBOL_INIT
   }
 
-  // The {hidden_properties_symbol} is special because it is the only name with
-  // hash code zero. This ensures that it will always be the first entry as
-  // sorted by hash code in descriptor arrays. It is used to identify the hidden
-  // properties in JSObjects.
-  // kIsNotArrayIndexMask is a computed hash with value zero.
-  Symbol::cast(roots_[khidden_properties_symbolRootIndex])
-      ->set_hash_field(Name::kIsNotArrayIndexMask);
-
   {
     HandleScope scope(isolate());
 #define SYMBOL_INIT(name, description)                                      \
@@ -2844,8 +2839,16 @@ void Heap::CreateInitialObjects() {
   cell->set_value(the_hole_value());
   set_empty_property_cell(*cell);
 
-  Handle<PropertyCell> species_cell = factory->NewPropertyCell();
-  species_cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  cell = factory->NewPropertyCell();
+  cell->set_value(Smi::FromInt(Isolate::kArrayProtectorValid));
+  set_has_instance_protector(*cell);
+
+  Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
+  set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
+
+  Handle<Cell> species_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kArrayProtectorValid), isolate()));
   set_species_protector(*species_cell);
 
   set_weak_stack_trace_list(Smi::FromInt(0));
@@ -3086,9 +3089,11 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
   // the heap using HeapIterator, we can update the live byte count. We cannot
   // update while using HeapIterator because the iterator is temporarily
   // marking the whole object graph, without updating live bytes.
-  if (!in_heap_iterator() &&
-      !mark_compact_collector()->sweeping_in_progress() &&
-      Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
+  if (lo_space()->Contains(object)) {
+    lo_space()->AdjustLiveBytes(by);
+  } else if (!in_heap_iterator() &&
+             !mark_compact_collector()->sweeping_in_progress() &&
+             Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
     if (mode == SEQUENTIAL_TO_SWEEPER) {
       MemoryChunk::IncrementLiveBytesFromGC(object, by);
     } else {
@@ -3143,9 +3148,9 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
   // Remove recorded slots for the new map and length offset.
-  ClearRecordedSlot(new_object, HeapObject::RawField(object, 0));
-  ClearRecordedSlot(
-      new_object, HeapObject::RawField(object, FixedArrayBase::kLengthOffset));
+  ClearRecordedSlot(new_object, HeapObject::RawField(new_object, 0));
+  ClearRecordedSlot(new_object, HeapObject::RawField(
+                                    new_object, FixedArrayBase::kLengthOffset));
 
   // Maintain consistency of live bytes during incremental marking
   Marking::TransferMark(this, object->address(), new_start);

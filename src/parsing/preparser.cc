@@ -51,6 +51,8 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
     return PreParserIdentifier::Static();
   } else if (scanner->current_token() == Token::YIELD) {
     return PreParserIdentifier::Yield();
+  } else if (scanner->current_token() == Token::ASYNC) {
+    return PreParserIdentifier::Async();
   }
   if (scanner->UnescapedLiteralMatches("eval", 4)) {
     return PreParserIdentifier::Eval();
@@ -138,6 +140,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
     if (is_strict(scope_->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(start_position, end_pos, &ok);
+      CheckDecimalLiteralWithLeadingZero(use_counts, start_position, end_pos);
       if (!ok) return kPreParseSuccess;
     }
   }
@@ -220,6 +223,13 @@ PreParser::Statement PreParser::ParseStatementListItem(bool* ok) {
       }
       break;
     }
+    case Token::ASYNC:
+      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+          !scanner()->HasAnyLineTerminatorAfterNext()) {
+        Consume(Token::ASYNC);
+        return ParseAsyncFunctionDeclaration(ambient, ok);
+      }
+    /* falls through */
     default:
       break;
   }
@@ -427,26 +437,47 @@ PreParser::Statement PreParser::ParseSubStatement(
   }
 }
 
+PreParser::Statement PreParser::ParseHoistableDeclaration(
+    int pos, ParseFunctionFlags flags, bool ambient, bool* ok) {
+  const bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
+  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
+  DCHECK(!is_generator || !is_async);
 
-PreParser::Statement PreParser::ParseHoistableDeclaration(int pos,
-                                                          bool is_generator,
-                                                          bool ambient,
-                                                          bool* ok) {
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
   typesystem::TypeFlags type_flags =
       ambient ? typesystem::kAmbient : typesystem::kAllowSignature;
+
+  if (V8_UNLIKELY(is_async_function() && this->IsAwait(name))) {
+    ReportMessageAt(scanner()->location(),
+                    MessageTemplate::kAwaitBindingIdentifier);
+    *ok = false;
+    return Statement::Default();
+  }
+
   ParseFunctionLiteral(name, scanner()->location(),
                        is_strict_reserved ? kFunctionNameIsStrictReserved
                                           : kFunctionNameValidityUnknown,
                        is_generator ? FunctionKind::kGeneratorFunction
-                                    : FunctionKind::kNormalFunction,
+                                    : is_async ? FunctionKind::kAsyncFunction
+                                               : FunctionKind::kNormalFunction,
                        pos, FunctionLiteral::kDeclaration, language_mode(),
                        typed(), type_flags, CHECK_OK);
   return Statement::FunctionDeclaration();
 }
 
+PreParser::Statement PreParser::ParseAsyncFunctionDeclaration(bool ambient,
+                                                              bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
+  return ParseHoistableDeclaration(pos, flags, ambient, ok);
+}
 
 PreParser::Statement PreParser::ParseHoistableDeclaration(bool ambient,
                                                           bool* ok) {
@@ -455,10 +486,14 @@ PreParser::Statement PreParser::ParseHoistableDeclaration(bool ambient,
   // GeneratorDeclaration ::
   //   'function' '*' Identifier '(' FormalParameterListopt ')'
   //      '{' FunctionBody '}'
+
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  return ParseHoistableDeclaration(pos, is_generator, ambient, CHECK_OK);
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+  }
+  return ParseHoistableDeclaration(pos, flags, ambient, ok);
 }
 
 
@@ -629,14 +664,17 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool ambient,
                                                          bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
-  bool is_generator = Check(Token::MUL);
-  if (allow_harmony_restrictive_declarations() && is_generator) {
-    PreParserTraits::ReportMessageAt(
-        scanner()->location(), MessageTemplate::kGeneratorInLegacyContext);
-    *ok = false;
-    return Statement::Default();
+  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  if (Check(Token::MUL)) {
+    flags |= ParseFunctionFlags::kIsGenerator;
+    if (allow_harmony_restrictive_declarations()) {
+      PreParserTraits::ReportMessageAt(
+          scanner()->location(), MessageTemplate::kGeneratorInLegacyContext);
+      *ok = false;
+      return Statement::Default();
+    }
   }
-  return ParseHoistableDeclaration(pos, is_generator, ambient, ok);
+  return ParseHoistableDeclaration(pos, flags, ambient, ok);
 }
 
 PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(
@@ -769,28 +807,21 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // This is not handled during preparsing.
 
   Token::Value tok = peek();
-  int tail_call_position = -1;
-  if (FLAG_harmony_explicit_tailcalls && tok == Token::CONTINUE) {
-    Consume(Token::CONTINUE);
-    tail_call_position = position();
-    tok = peek();
-  }
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       tok != Token::SEMICOLON &&
       tok != Token::RBRACE &&
       tok != Token::EOS) {
+    // Because of the return code rewriting that happens in case of a subclass
+    // constructor we don't want to accept tail calls, therefore we don't set
+    // ReturnExprScope to kInsideValidReturnStatement here.
+    ReturnExprContext return_expr_context =
+        IsSubclassConstructor(function_state_->kind())
+            ? function_state_->return_expr_context()
+            : ReturnExprContext::kInsideValidReturnStatement;
+
+    ReturnExprScope maybe_allow_tail_calls(function_state_,
+                                           return_expr_context);
     ParseExpression(true, typesystem::kNoCover, CHECK_OK);
-    if (tail_call_position >= 0) {
-      ReturnExprContext return_expr_context =
-          function_state_->return_expr_context();
-      if (return_expr_context != ReturnExprContext::kNormal) {
-        ReportIllegalTailCallAt(tail_call_position, return_expr_context);
-        *ok = false;
-        return Statement::Default();
-      }
-      function_state_->AddExpressionInTailPosition(
-          PreParserExpression::Default(), tail_call_position);
-    }
   }
   ExpectSemicolon(CHECK_OK);
   return Statement::Jump();
@@ -1059,7 +1090,7 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     *ok = false;
     return Statement::Default();
   }
-  List<TailCallExpression> expressions_in_tail_position_in_catch_block;
+  TailCallExpressionList tail_call_expressions_in_catch_block(zone());
   bool catch_block_exists = false;
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
@@ -1071,8 +1102,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
     {
       CollectExpressionsInTailPositionToListScope
-          collect_expressions_in_tail_position_scope(
-              function_state_, &expressions_in_tail_position_in_catch_block);
+          collect_tail_call_expressions_scope(
+              function_state_, &tail_call_expressions_in_catch_block);
       BlockState block_state(&scope_, catch_scope);
       Scope* block_scope = NewScope(scope_, BLOCK_SCOPE);
       {
@@ -1087,12 +1118,11 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
     Consume(Token::FINALLY);
     ParseBlock(CHECK_OK);
     if (FLAG_harmony_explicit_tailcalls && catch_block_exists &&
-        expressions_in_tail_position_in_catch_block.length() > 0) {
+        tail_call_expressions_in_catch_block.has_explicit_tail_calls()) {
       // TODO(ishell): update chapter number.
       // ES8 XX.YY.ZZ
-      int pos = expressions_in_tail_position_in_catch_block[0].pos;
-      ReportMessageAt(Scanner::Location(pos, pos + 1),
-                      MessageTemplate::kTailCallInCatchBlock);
+      ReportMessageAt(tail_call_expressions_in_catch_block.location(),
+                      MessageTemplate::kUnexpectedTailCallInCatchBlock);
       *ok = false;
       return Statement::Default();
     }
@@ -1204,11 +1234,44 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_strict(language_mode)) {
     int end_position = scanner()->location().end_pos;
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
+    CheckDecimalLiteralWithLeadingZero(use_counts_, start_position,
+                                       end_position);
   }
 
   return Expression::Default();
 }
 
+PreParser::Expression PreParser::ParseAsyncFunctionExpression(bool* ok) {
+  // AsyncFunctionDeclaration ::
+  //   async [no LineTerminator here] function ( FormalParameters[Await] )
+  //       { AsyncFunctionBody }
+  //
+  //   async [no LineTerminator here] function BindingIdentifier[Await]
+  //       ( FormalParameters[Await] ) { AsyncFunctionBody }
+  int pos = position();
+  Expect(Token::FUNCTION, CHECK_OK);
+  bool is_strict_reserved = false;
+  Identifier name;
+  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
+
+  if (peek_any_identifier()) {
+    type = FunctionLiteral::kNamedExpression;
+    name = ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+    if (this->IsAwait(name)) {
+      ReportMessageAt(scanner()->location(),
+                      MessageTemplate::kAwaitBindingIdentifier);
+      *ok = false;
+      return Expression::Default();
+    }
+  }
+
+  ParseFunctionLiteral(name, scanner()->location(),
+                       is_strict_reserved ? kFunctionNameIsStrictReserved
+                                          : kFunctionNameValidityUnknown,
+                       FunctionKind::kAsyncFunction, pos, type, language_mode(),
+                       typed(), typesystem::kNormalTypes, CHECK_OK);
+  return Expression::Default();
+}
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
                                              Scanner::BookmarkScope* bookmark) {
@@ -1261,6 +1324,7 @@ PreParserExpression PreParser::ParseClassLiteral(
   if (has_extends) {
     ExpressionClassifier extends_classifier(this);
     ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
+    CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
     ValidateExpression(&extends_classifier, CHECK_OK);
     if (classifier != nullptr) {
       classifier->Accumulate(&extends_classifier,
@@ -1282,15 +1346,18 @@ PreParserExpression PreParser::ParseClassLiteral(
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     const bool in_class = true;
-    const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     Identifier name;
-    ExpressionClassifier classifier(this);
-    ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
+    ExpressionClassifier property_classifier(this);
+    ParsePropertyDefinition(&checker, in_class, has_extends, MethodKind::Normal,
                             &is_computed_name, &has_seen_constructor,
-                            &classifier, &name, ambient, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+                            &property_classifier, &name, ambient, CHECK_OK);
+    ValidateExpression(&property_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&property_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -1330,6 +1397,19 @@ PreParserExpression PreParser::ParseDoExpression(bool* ok) {
   }
   Expect(Token::RBRACE, CHECK_OK);
   return PreParserExpression::Default();
+}
+
+void PreParserTraits::ParseAsyncArrowSingleExpressionBody(
+    PreParserStatementList body, bool accept_IN,
+    Type::ExpressionClassifier* classifier, int pos, bool* ok) {
+  Scope* scope = pre_parser_->scope_;
+  scope->ForceContextAllocation();
+
+  PreParserExpression return_value = pre_parser_->ParseAssignmentExpression(
+      accept_IN, typesystem::kNoCover, classifier, ok);
+  if (!*ok) return;
+
+  body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }
 
 #undef CHECK_OK

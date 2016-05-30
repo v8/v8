@@ -1205,6 +1205,35 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
   VisitRRR(this, kArmVaddF64, node);
 }
 
+namespace {
+void VisitFloat32SubHelper(InstructionSelector* selector, Node* node) {
+  ArmOperandGenerator g(selector);
+  Float32BinopMatcher m(node);
+  if (m.right().IsFloat32Mul() && selector->CanCover(node, m.right().node())) {
+    Float32BinopMatcher mright(m.right().node());
+    selector->Emit(kArmVmlsF32, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseRegister(mright.left().node()),
+                   g.UseRegister(mright.right().node()));
+    return;
+  }
+  VisitRRR(selector, kArmVsubF32, node);
+}
+
+void VisitFloat64SubHelper(InstructionSelector* selector, Node* node) {
+  ArmOperandGenerator g(selector);
+  Float64BinopMatcher m(node);
+  if (m.right().IsFloat64Mul() && selector->CanCover(node, m.right().node())) {
+    Float64BinopMatcher mright(m.right().node());
+    selector->Emit(kArmVmlsF64, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()),
+                   g.UseRegister(mright.left().node()),
+                   g.UseRegister(mright.right().node()));
+    return;
+  }
+  VisitRRR(selector, kArmVsubF64, node);
+}
+}  // namespace
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
   ArmOperandGenerator g(this);
@@ -1214,16 +1243,12 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
          g.UseRegister(m.right().node()));
     return;
   }
-  if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
-    Float32BinopMatcher mright(m.right().node());
-    Emit(kArmVmlsF32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
-         g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()));
-    return;
-  }
-  VisitRRR(this, kArmVsubF32, node);
+  VisitFloat32SubHelper(this, node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitFloat32SubHelper(this, node);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   ArmOperandGenerator g(this);
@@ -1245,16 +1270,12 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
          g.UseRegister(m.right().node()));
     return;
   }
-  if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    Float64BinopMatcher mright(m.right().node());
-    Emit(kArmVmlsF64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
-         g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()));
-    return;
-  }
-  VisitRRR(this, kArmVsubF64, node);
+  VisitFloat64SubHelper(this, node);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitFloat64SubHelper(this, node);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kArmVmulF32, node);
@@ -1833,6 +1854,38 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
   }
   Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
        g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
+}
+
+void InstructionSelector::VisitAtomicStore(Node* node) {
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kAtomicStoreWord8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kAtomicStoreWord16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicStoreWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+
+  AddressingMode addressing_mode = kMode_Offset_RR;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 0, nullptr, input_count, inputs);
 }
 
 // static

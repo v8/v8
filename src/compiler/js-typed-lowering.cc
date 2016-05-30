@@ -936,27 +936,6 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
-  // Optimize "prototype" property of functions.
-  if (name.is_identical_to(factory()->prototype_string()) &&
-      receiver_type->IsConstant() &&
-      receiver_type->AsConstant()->Value()->IsJSFunction()) {
-    // TODO(turbofan): This lowering might not kick in if we ever lower
-    // the C++ accessor for "prototype" in an earlier optimization pass.
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(receiver_type->AsConstant()->Value());
-    if (function->has_initial_map()) {
-      // We need to add a code dependency on the initial map of the {function}
-      // in order to be notified about changes to the "prototype" of {function},
-      // so it doesn't make sense to continue unless deoptimization is enabled.
-      if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-      Handle<Map> initial_map(function->initial_map(), isolate());
-      dependencies()->AssumeInitialMapCantChange(initial_map);
-      Node* value =
-          jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
-      ReplaceWithValue(node, value);
-      return Replace(value);
-    }
-  }
   return NoChange();
 }
 
@@ -1087,10 +1066,7 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled) ||
-      (flags() & kDisableBinaryOpReduction)) {
-    return NoChange();
-  }
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   // If we are in a try block, don't optimize since the runtime call
   // in the proxy case can throw.
@@ -1109,15 +1085,21 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       Handle<JSFunction>::cast(r.right_type()->AsConstant()->Value());
   Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
-  if (!function->IsConstructor() ||
-      function->map()->has_non_instance_prototype()) {
+  // Make sure the prototype of {function} is the %FunctionPrototype%, and it
+  // already has a meaningful initial map (i.e. we constructed at least one
+  // instance using the constructor {function}).
+  if (function->map()->prototype() != function->native_context()->closure() ||
+      function->map()->has_non_instance_prototype() ||
+      !function->has_initial_map()) {
     return NoChange();
   }
 
-  JSFunction::EnsureHasInitialMap(function);
-  DCHECK(function->has_initial_map());
+  // We can only use the fast case if @@hasInstance was not used so far.
+  if (!isolate()->IsHasInstanceLookupChainIntact()) return NoChange();
+  dependencies()->AssumePropertyCell(factory()->has_instance_protector());
+
   Handle<Map> initial_map(function->initial_map(), isolate());
-  this->dependencies()->AssumeInitialMapCantChange(initial_map);
+  dependencies()->AssumeInitialMapCantChange(initial_map);
   Node* prototype =
       jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 

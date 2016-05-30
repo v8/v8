@@ -21,7 +21,6 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreTransition)                    \
   V(VectorStoreICTrampoline)                  \
   V(VectorStoreIC)                            \
-  V(InstanceOf)                               \
   V(LoadWithVector)                           \
   V(FastArrayPush)                            \
   V(FastNewClosure)                           \
@@ -47,7 +46,6 @@ class PlatformInterfaceDescriptor;
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
-  V(AllocateMutableHeapNumber)                \
   V(AllocateFloat32x4)                        \
   V(AllocateInt32x4)                          \
   V(AllocateUint32x4)                         \
@@ -71,6 +69,7 @@ class PlatformInterfaceDescriptor;
   V(StringCompare)                            \
   V(Keyed)                                    \
   V(Named)                                    \
+  V(HasProperty)                              \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
   V(ApiCallbackWith0Args)                     \
@@ -336,16 +335,6 @@ class VectorStoreTransitionDescriptor : public StoreDescriptor {
 };
 
 
-class InstanceOfDescriptor final : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(InstanceOfDescriptor, CallInterfaceDescriptor)
-
-  enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
-  static const Register LeftRegister();
-  static const Register RightRegister();
-};
-
-
 class VectorStoreICTrampolineDescriptor : public StoreDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
@@ -432,6 +421,15 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   static const Register ArgumentRegister();
 };
 
+class HasPropertyDescriptor final : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kKeyIndex, kObjectIndex };
+
+  DECLARE_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor)
+
+  static const Register KeyRegister();
+  static const Register ObjectRegister();
+};
 
 class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
@@ -571,12 +569,6 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
   };
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
-
-class AllocateMutableHeapNumberDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(AllocateMutableHeapNumberDescriptor,
-                     CallInterfaceDescriptor)
-};
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:

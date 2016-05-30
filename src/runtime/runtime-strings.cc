@@ -5,10 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/conversions-inl.h"
-#include "src/isolate-inl.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 
@@ -1080,7 +1077,7 @@ MUST_USE_RESULT static Object* ConvertCase(
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_lower_mapping());
 }
@@ -1088,7 +1085,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_upper_mapping());
 }
@@ -1153,6 +1150,7 @@ RUNTIME_FUNCTION(Runtime_NewString) {
   }
   return *result;
 }
+
 
 RUNTIME_FUNCTION(Runtime_StringLessThan) {
   HandleScope handle_scope(isolate);

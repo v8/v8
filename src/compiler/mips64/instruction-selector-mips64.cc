@@ -158,7 +158,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = kMips64Lw;
+      opcode = load_rep.IsUnsigned() ? kMips64Lwu : kMips64Lw;
       break;
     case MachineRepresentation::kTagged:  // Fall through.
     case MachineRepresentation::kWord64:
@@ -1159,6 +1159,9 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRRR(this, kMips64SubS, node);
 }
 
+void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
+  VisitRRR(this, kMips64SubS, node);
+}
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   Mips64OperandGenerator g(this);
@@ -1178,6 +1181,9 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
   VisitRRR(this, kMips64SubD, node);
 }
 
+void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
+  VisitRRR(this, kMips64SubD, node);
+}
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kMips64MulS, node);
@@ -1989,6 +1995,41 @@ void InstructionSelector::VisitAtomicLoad(Node* node) {
     // Emit desired load opcode, using temp addr_reg.
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
+void InstructionSelector::VisitAtomicStore(Node* node) {
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kAtomicStoreWord8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kAtomicStoreWord16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicStoreWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMips64Dadd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired store opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
   }
 }
 

@@ -56,6 +56,7 @@ class Schedule;
   V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
+  V(UintPtrLessThan)                             \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
   V(WordNotEqual)                                \
@@ -232,6 +233,11 @@ class CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
                             Node* value);
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+                    Node* value);
+
+  // Store a value to the root array.
+  Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name) Node* name(Node* a, Node* b);

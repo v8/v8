@@ -97,8 +97,6 @@ Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
 Matcher<Node*> IsEffectPhi(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher,
                            const Matcher<Node*>& merge_matcher);
-Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
-                           const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
@@ -211,6 +209,8 @@ Matcher<Node*> IsNumberShiftRight(const Matcher<Node*>& lhs_matcher,
                                   const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
@@ -387,9 +387,9 @@ Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsStackSlot();
-Matcher<Node*> IsGuard(const Matcher<Type*>& type_matcher,
-                       const Matcher<Node*>& value_matcher,
-                       const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
+                           const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

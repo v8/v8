@@ -71,11 +71,6 @@ static void InitializeInternalArrayConstructorDescriptor(
 }
 
 
-void InternalArrayNoArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 0);
-}
-
 void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   Address deopt_handler = Runtime::FunctionForId(Runtime::kArrayPush)->entry;
   descriptor->Initialize(x0, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
@@ -1506,123 +1501,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   __ Bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
-void InstanceOfStub::Generate(MacroAssembler* masm) {
-  Register const object = x1;              // Object (lhs).
-  Register const function = x0;            // Function (rhs).
-  Register const object_map = x2;          // Map of {object}.
-  Register const function_map = x3;        // Map of {function}.
-  Register const function_prototype = x4;  // Prototype of {function}.
-  Register const scratch = x5;
-
-  DCHECK(object.is(InstanceOfDescriptor::LeftRegister()));
-  DCHECK(function.is(InstanceOfDescriptor::RightRegister()));
-
-  // Check if {object} is a smi.
-  Label object_is_smi;
-  __ JumpIfSmi(object, &object_is_smi);
-
-  // Lookup the {function} and the {object} map in the global instanceof cache.
-  // Note: This is safe because we clear the global instanceof cache whenever
-  // we change the prototype of any object.
-  Label fast_case, slow_case;
-  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ JumpIfNotRoot(function, Heap::kInstanceofCacheFunctionRootIndex,
-                   &fast_case);
-  __ JumpIfNotRoot(object_map, Heap::kInstanceofCacheMapRootIndex, &fast_case);
-  __ LoadRoot(x0, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret();
-
-  // If {object} is a smi we can safely return false if {function} is a JS
-  // function, otherwise we have to miss to the runtime and throw an exception.
-  __ Bind(&object_is_smi);
-  __ JumpIfSmi(function, &slow_case);
-  __ JumpIfNotObjectType(function, function_map, scratch, JS_FUNCTION_TYPE,
-                         &slow_case);
-  __ LoadRoot(x0, Heap::kFalseValueRootIndex);
-  __ Ret();
-
-  // Fast-case: The {function} must be a valid JSFunction.
-  __ Bind(&fast_case);
-  __ JumpIfSmi(function, &slow_case);
-  __ JumpIfNotObjectType(function, function_map, scratch, JS_FUNCTION_TYPE,
-                         &slow_case);
-
-  // Go to the runtime if the function is not a constructor.
-  __ Ldrb(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
-  __ Tbz(scratch, Map::kIsConstructor, &slow_case);
-
-  // Ensure that {function} has an instance prototype.
-  __ Tbnz(scratch, Map::kHasNonInstancePrototype, &slow_case);
-
-  // Get the "prototype" (or initial map) of the {function}.
-  __ Ldr(function_prototype,
-         FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  __ AssertNotSmi(function_prototype);
-
-  // Resolve the prototype if the {function} has an initial map.  Afterwards the
-  // {function_prototype} will be either the JSReceiver prototype object or the
-  // hole value, which means that no instances of the {function} were created so
-  // far and hence we should return false.
-  Label function_prototype_valid;
-  __ JumpIfNotObjectType(function_prototype, scratch, scratch, MAP_TYPE,
-                         &function_prototype_valid);
-  __ Ldr(function_prototype,
-         FieldMemOperand(function_prototype, Map::kPrototypeOffset));
-  __ Bind(&function_prototype_valid);
-  __ AssertNotSmi(function_prototype);
-
-  // Update the global instanceof cache with the current {object} map and
-  // {function}.  The cached answer will be set when it is known below.
-  __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
-  __ StoreRoot(object_map, Heap::kInstanceofCacheMapRootIndex);
-
-  // Loop through the prototype chain looking for the {function} prototype.
-  // Assume true, and change to false if not found.
-  Register const object_instance_type = function_map;
-  Register const map_bit_field = function_map;
-  Register const null = scratch;
-  Register const result = x0;
-
-  Label done, loop, fast_runtime_fallback;
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ LoadRoot(null, Heap::kNullValueRootIndex);
-  __ Bind(&loop);
-
-  // Check if the object needs to be access checked.
-  __ Ldrb(map_bit_field, FieldMemOperand(object_map, Map::kBitFieldOffset));
-  __ TestAndBranchIfAnySet(map_bit_field, 1 << Map::kIsAccessCheckNeeded,
-                           &fast_runtime_fallback);
-  // Check if the current object is a Proxy.
-  __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
-  __ B(eq, &fast_runtime_fallback);
-
-  __ Ldr(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ Cmp(object, function_prototype);
-  __ B(eq, &done);
-  __ Cmp(object, null);
-  __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ B(ne, &loop);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ Bind(&done);
-  __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
-  __ Ret();
-
-  // Found Proxy or access check needed: Call the runtime
-  __ Bind(&fast_runtime_fallback);
-  __ Push(object, function_prototype);
-  // Invalidate the instanceof cache.
-  __ Move(scratch, Smi::FromInt(0));
-  __ StoreRoot(scratch, Heap::kInstanceofCacheFunctionRootIndex);
-  __ TailCallRuntime(Runtime::kHasInPrototypeChain);
-
-  // Slow-case: Call the %InstanceOf runtime function.
-  __ bind(&slow_case);
-  __ Push(object, function);
-  __ TailCallRuntime(is_es6_instanceof() ? Runtime::kOrdinaryHasInstance
-                                         : Runtime::kInstanceOf);
 }
 
 
@@ -4916,20 +4794,20 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make x2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Mov(x2, fp);
-    __ B(&loop_entry);
-    __ Bind(&loop);
+  // Make x2 point to the JavaScript frame.
+  __ Mov(x2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ Ldr(x3, MemOperand(x2, StandardFrameConstants::kFunctionOffset));
     __ Cmp(x3, x1);
-    __ B(ne, &loop);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
   }
 
   // Check if we have rest parameters (only possible if we have an
@@ -5063,20 +4941,20 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make x6 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Mov(x6, fp);
-    __ B(&loop_entry);
-    __ Bind(&loop);
+  // Make x6 point to the JavaScript frame.
+  __ Mov(x6, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ Ldr(x6, MemOperand(x6, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ Ldr(x3, MemOperand(x6, StandardFrameConstants::kFunctionOffset));
     __ Cmp(x3, x1);
-    __ B(ne, &loop);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
   }
 
   // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
@@ -5363,20 +5241,20 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // -----------------------------------
   __ AssertFunction(x1);
 
-  // For Ignition we need to skip all possible handler/stub frames until
-  // we reach the JavaScript frame for the function (similar to what the
-  // runtime fallback implementation does). So make x2 point to that
-  // JavaScript frame.
-  {
-    Label loop, loop_entry;
-    __ Mov(x2, fp);
-    __ B(&loop_entry);
-    __ Bind(&loop);
+  // Make x2 point to the JavaScript frame.
+  __ Mov(x2, fp);
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
     __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&loop_entry);
+  }
+  if (FLAG_debug_code) {
+    Label ok;
     __ Ldr(x3, MemOperand(x2, StandardFrameConstants::kFunctionOffset));
     __ Cmp(x3, x1);
-    __ B(ne, &loop);
+    __ B(eq, &ok);
+    __ Abort(kInvalidFrameForFastNewRestArgumentsStub);
+    __ Bind(&ok);
   }
 
   // Check if we have an arguments adaptor frame below the function frame.

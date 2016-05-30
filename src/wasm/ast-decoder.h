@@ -224,6 +224,9 @@ TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
                         TFBuilder* builder, FunctionBody& body);
 void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body);
 
+// A simplified form of AST printing, e.g. from a debugger.
+void PrintAstForDebugging(const byte* start, const byte* end);
+
 inline TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
                                  ModuleEnv* module, FunctionSig* sig,
                                  const byte* start, const byte* end) {

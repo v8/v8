@@ -15,7 +15,7 @@ namespace internal {
 
 // Forward declarations.
 class BitVector;
-
+class CompilationInfo;
 
 namespace compiler {
 

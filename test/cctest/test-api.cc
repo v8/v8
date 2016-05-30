@@ -2142,6 +2142,95 @@ THREADED_TEST(TestObjectTemplateInheritedWithPrototype2) {
       Constructor_GetFunction_New);
 }
 
+THREADED_TEST(TestObjectTemplateClassInheritance) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_A = v8::FunctionTemplate::New(isolate);
+  fun_A->SetClassName(v8_str("A"));
+
+  Local<ObjectTemplate> templ_A = fun_A->InstanceTemplate();
+  templ_A->SetNativeDataProperty(v8_str("nirk"), GetNirk);
+  templ_A->SetNativeDataProperty(v8_str("rino"), GetRino);
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+  fun_B->Inherit(fun_A);
+
+  v8::Local<v8::String> subclass_name = v8_str("C");
+  v8::Local<v8::Object> b_proto;
+  v8::Local<v8::Object> c_proto;
+  // Perform several iterations to make sure the cache doesn't break
+  // subclassing.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Function> function_B =
+        fun_B->GetFunction(env.local()).ToLocalChecked();
+    if (i == 0) {
+      CHECK(env->Global()->Set(env.local(), class_name, function_B).FromJust());
+      CompileRun("class C extends B {}");
+      b_proto =
+          CompileRun("B.prototype")->ToObject(env.local()).ToLocalChecked();
+      c_proto =
+          CompileRun("C.prototype")->ToObject(env.local()).ToLocalChecked();
+      CHECK(b_proto->Equals(env.local(), c_proto->GetPrototype()).FromJust());
+    }
+    Local<v8::Object> instance =
+        CompileRun("new C()")->ToObject(env.local()).ToLocalChecked();
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
+
+    CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(900, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(560, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+  }
+}
+
+static void NamedPropertyGetterWhichReturns42(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_num(42));
+}
+
+THREADED_TEST(TestObjectTemplateReflectConstruct) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  fun_B->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(NamedPropertyGetterWhichReturns42));
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+
+  v8::Local<v8::String> subclass_name = v8_str("C");
+  v8::Local<v8::Object> b_proto;
+  v8::Local<v8::Object> c_proto;
+  // Perform several iterations to make sure the cache doesn't break
+  // subclassing.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Function> function_B =
+        fun_B->GetFunction(env.local()).ToLocalChecked();
+    if (i == 0) {
+      CHECK(env->Global()->Set(env.local(), class_name, function_B).FromJust());
+      CompileRun("function C() {}");
+      c_proto =
+          CompileRun("C.prototype")->ToObject(env.local()).ToLocalChecked();
+    }
+    Local<v8::Object> instance = CompileRun("Reflect.construct(B, [], C)")
+                                     ->ToObject(env.local())
+                                     .ToLocalChecked();
+    CHECK(c_proto->Equals(env.local(), instance->GetPrototype()).FromJust());
+
+    CHECK(subclass_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(42, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(42, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+  }
+}
+
 static void GetFlabby(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   args.GetReturnValue().Set(v8_num(17.2));
@@ -4687,126 +4776,6 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 }
 
 
-// TODO(mstarzinger): This should be a THREADED_TEST but causes failures
-// on the buildbots, so was made non-threaded for the time being.
-TEST(ApiObjectGroupsCycleForScavenger) {
-  i::FLAG_stress_compaction = false;
-  i::FLAG_gc_global = false;
-  LocalContext env;
-  v8::Isolate* iso = env->GetIsolate();
-  HandleScope scope(iso);
-
-  WeakCallCounter counter(1234);
-
-  WeakCallCounterAndPersistent<Value> g1s1(&counter);
-  WeakCallCounterAndPersistent<Value> g1s2(&counter);
-  WeakCallCounterAndPersistent<Value> g2s1(&counter);
-  WeakCallCounterAndPersistent<Value> g2s2(&counter);
-  WeakCallCounterAndPersistent<Value> g3s1(&counter);
-  WeakCallCounterAndPersistent<Value> g3s2(&counter);
-
-  {
-    HandleScope scope(iso);
-    g1s1.handle.Reset(iso, Object::New(iso));
-    g1s2.handle.Reset(iso, Object::New(iso));
-    g1s1.handle.SetWeak(&g1s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1s2.handle.SetWeak(&g1s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-
-    g2s1.handle.Reset(iso, Object::New(iso));
-    g2s2.handle.Reset(iso, Object::New(iso));
-    g2s1.handle.SetWeak(&g2s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2s2.handle.SetWeak(&g2s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-
-    g3s1.handle.Reset(iso, Object::New(iso));
-    g3s2.handle.Reset(iso, Object::New(iso));
-    g3s1.handle.SetWeak(&g3s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g3s2.handle.SetWeak(&g3s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-  }
-
-  // Make a root.
-  WeakCallCounterAndPersistent<Value> root(&counter);
-  root.handle.Reset(iso, g1s1.handle);
-  root.handle.MarkPartiallyDependent();
-
-  // Connect groups.  We're building the following cycle:
-  // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
-  // groups.
-  {
-    HandleScope handle_scope(iso);
-    g1s1.handle.MarkPartiallyDependent();
-    g1s2.handle.MarkPartiallyDependent();
-    g2s1.handle.MarkPartiallyDependent();
-    g2s2.handle.MarkPartiallyDependent();
-    g3s1.handle.MarkPartiallyDependent();
-    g3s2.handle.MarkPartiallyDependent();
-    iso->SetObjectGroupId(g1s1.handle, UniqueId(1));
-    iso->SetObjectGroupId(g1s2.handle, UniqueId(1));
-    Local<Object>::New(iso, g1s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g2s1.handle))
-        .FromJust();
-    iso->SetObjectGroupId(g2s1.handle, UniqueId(2));
-    iso->SetObjectGroupId(g2s2.handle, UniqueId(2));
-    Local<Object>::New(iso, g2s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g3s1.handle))
-        .FromJust();
-    iso->SetObjectGroupId(g3s1.handle, UniqueId(3));
-    iso->SetObjectGroupId(g3s2.handle, UniqueId(3));
-    Local<Object>::New(iso, g3s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g1s1.handle))
-        .FromJust();
-  }
-
-  v8::internal::Heap* heap =
-      reinterpret_cast<v8::internal::Isolate*>(iso)->heap();
-  heap->CollectAllGarbage();
-
-  // All objects should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
-
-  // Weaken the root.
-  root.handle.SetWeak(&root, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-  root.handle.MarkPartiallyDependent();
-
-  // Groups are deleted, rebuild groups.
-  {
-    HandleScope handle_scope(iso);
-    g1s1.handle.MarkPartiallyDependent();
-    g1s2.handle.MarkPartiallyDependent();
-    g2s1.handle.MarkPartiallyDependent();
-    g2s2.handle.MarkPartiallyDependent();
-    g3s1.handle.MarkPartiallyDependent();
-    g3s2.handle.MarkPartiallyDependent();
-    iso->SetObjectGroupId(g1s1.handle, UniqueId(1));
-    iso->SetObjectGroupId(g1s2.handle, UniqueId(1));
-    Local<Object>::New(iso, g1s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g2s1.handle))
-        .FromJust();
-    iso->SetObjectGroupId(g2s1.handle, UniqueId(2));
-    iso->SetObjectGroupId(g2s2.handle, UniqueId(2));
-    Local<Object>::New(iso, g2s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g3s1.handle))
-        .FromJust();
-    iso->SetObjectGroupId(g3s1.handle, UniqueId(3));
-    iso->SetObjectGroupId(g3s2.handle, UniqueId(3));
-    Local<Object>::New(iso, g3s1.handle.As<Object>())
-        ->Set(env.local(), v8_str("x"), Local<Value>::New(iso, g1s1.handle))
-        .FromJust();
-  }
-
-  heap->CollectAllGarbage();
-
-  // All objects should be gone. 7 global handles in total.
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
-}
-
-
 THREADED_TEST(ScriptException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -6511,6 +6480,46 @@ THREADED_TEST(Equality) {
   CHECK(!v8::False(isolate)->SameValue(v8::Undefined(isolate)));
 }
 
+THREADED_TEST(TypeOf) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(context->GetIsolate());
+
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
+  Local<v8::Function> fun = t1->GetFunction(context.local()).ToLocalChecked();
+
+  CHECK(v8::Undefined(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("undefined"))
+            .FromJust());
+  CHECK(v8::Null(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("object"))
+            .FromJust());
+  CHECK(v8_str("str")
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("string"))
+            .FromJust());
+  CHECK(v8_num(0.0)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("number"))
+            .FromJust());
+  CHECK(v8_num(1)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("number"))
+            .FromJust());
+  CHECK(v8::Object::New(isolate)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("object"))
+            .FromJust());
+  CHECK(v8::Boolean::New(isolate, true)
+            ->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("boolean"))
+            .FromJust());
+  CHECK(fun->TypeOf(isolate)
+            ->Equals(context.local(), v8_str("function"))
+            .FromJust());
+}
 
 THREADED_TEST(MultiRun) {
   LocalContext context;
@@ -10514,6 +10523,69 @@ THREADED_TEST(GlobalObjectInstanceProperties) {
   }
 }
 
+THREADED_TEST(ObjectGetOwnPropertyNames) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Object> value =
+      v8::Local<v8::Object>::Cast(v8::StringObject::New(v8_str("test")));
+  v8::Local<v8::Array> properties;
+
+  CHECK(value
+            ->GetOwnPropertyNames(context.local(),
+                                  static_cast<v8::PropertyFilter>(
+                                      v8::PropertyFilter::ALL_PROPERTIES |
+                                      v8::PropertyFilter::SKIP_SYMBOLS))
+            .ToLocal(&properties));
+  CHECK_EQ(5, properties->Length());
+  v8::Local<v8::Value> property;
+  CHECK(properties->Get(context.local(), 4).ToLocal(&property) &&
+        property->IsString());
+  CHECK(property.As<v8::String>()
+            ->Equals(context.local(), v8_str("length"))
+            .FromMaybe(false));
+  for (int i = 0; i < 4; ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
+          property->IsInt32());
+    CHECK_EQ(property.As<v8::Int32>()->Value(), i);
+  }
+
+  CHECK(value->GetOwnPropertyNames(context.local(), v8::ONLY_ENUMERABLE)
+            .ToLocal(&properties));
+  CHECK_EQ(4, properties->Length());
+  for (int i = 0; i < 4; ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property) &&
+          property->IsInt32());
+    CHECK_EQ(property.As<v8::Int32>()->Value(), i);
+  }
+
+  value = value->GetPrototype().As<v8::Object>();
+  CHECK(value
+            ->GetOwnPropertyNames(context.local(),
+                                  static_cast<v8::PropertyFilter>(
+                                      v8::PropertyFilter::ALL_PROPERTIES |
+                                      v8::PropertyFilter::SKIP_SYMBOLS))
+            .ToLocal(&properties));
+  bool concat_found = false;
+  bool starts_with_found = false;
+  for (uint32_t i = 0; i < properties->Length(); ++i) {
+    v8::Local<v8::Value> property;
+    CHECK(properties->Get(context.local(), i).ToLocal(&property));
+    if (!property->IsString()) continue;
+    if (!concat_found)
+      concat_found = property.As<v8::String>()
+                         ->Equals(context.local(), v8_str("concat"))
+                         .FromMaybe(false);
+    if (!starts_with_found)
+      starts_with_found = property.As<v8::String>()
+                              ->Equals(context.local(), v8_str("startsWith"))
+                              .FromMaybe(false);
+  }
+  CHECK(concat_found && starts_with_found);
+}
 
 THREADED_TEST(CallKnownGlobalReceiver) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -11158,6 +11230,7 @@ THREADED_TEST(FunctionRemovePrototype) {
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
   t1->RemovePrototype();
   Local<v8::Function> fun = t1->GetFunction(context.local()).ToLocalChecked();
+  CHECK(!fun->IsConstructor());
   CHECK(context->Global()->Set(context.local(), v8_str("fun"), fun).FromJust());
   CHECK(!CompileRun("'prototype' in fun")
              ->BooleanValue(context.local())
@@ -18746,12 +18819,6 @@ TEST(SetterOnConstructorPrototype) {
 }
 
 
-static void NamedPropertyGetterWhichReturns42(
-    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_num(42));
-}
-
-
 static void NamedPropertySetterWhichSetsYOnThisTo23(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -24170,6 +24237,7 @@ TEST(StringConcatOverflow) {
 
 
 TEST(TurboAsmDisablesNeuter) {
+  i::FLAG_allow_natives_syntax = true;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
@@ -24182,10 +24250,11 @@ TEST(TurboAsmDisablesNeuter) {
       "  return { load: load };"
       "}"
       "var buffer = new ArrayBuffer(4);"
-      "Module(this, {}, buffer).load();"
+      "var module = Module(this, {}, buffer);"
+      "%OptimizeFunctionOnNextCall(module.load);"
+      "module.load();"
       "buffer";
 
-  i::FLAG_turbo_osr = false;  // TODO(titzer): test requires eager TF.
   v8::Local<v8::ArrayBuffer> result = CompileRun(load).As<v8::ArrayBuffer>();
   CHECK_EQ(should_be_neuterable, result->IsNeuterable());
 
@@ -24197,10 +24266,11 @@ TEST(TurboAsmDisablesNeuter) {
       "  return { store: store };"
       "}"
       "var buffer = new ArrayBuffer(4);"
-      "Module(this, {}, buffer).store();"
+      "var module = Module(this, {}, buffer);"
+      "%OptimizeFunctionOnNextCall(module.store);"
+      "module.store();"
       "buffer";
 
-  i::FLAG_turbo_osr = false;  // TODO(titzer): test requires eager TF.
   result = CompileRun(store).As<v8::ArrayBuffer>();
   CHECK_EQ(should_be_neuterable, result->IsNeuterable());
 }
@@ -24631,6 +24701,60 @@ TEST(Set) {
   CHECK_EQ(0U, set->Size());
 }
 
+TEST(SetDeleteThenAsArray) {
+  // https://bugs.chromium.org/p/v8/issues/detail?id=4946
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  // make a Set
+  v8::Local<v8::Value> val = CompileRun("new Set([1, 2, 3])");
+  v8::Local<v8::Set> set = v8::Local<v8::Set>::Cast(val);
+  CHECK_EQ(3U, set->Size());
+
+  // delete the "middle" element (using AsArray to
+  // determine which element is the "middle" element)
+  v8::Local<v8::Array> array1 = set->AsArray();
+  CHECK_EQ(3U, array1->Length());
+  CHECK(set->Delete(env.local(), array1->Get(env.local(), 1).ToLocalChecked())
+            .FromJust());
+
+  // make sure there are no undefined values when we convert to an array again.
+  v8::Local<v8::Array> array2 = set->AsArray();
+  uint32_t length = array2->Length();
+  CHECK_EQ(2U, length);
+  for (uint32_t i = 0; i < length; i++) {
+    CHECK(!array2->Get(env.local(), i).ToLocalChecked()->IsUndefined());
+  }
+}
+
+TEST(MapDeleteThenAsArray) {
+  // https://bugs.chromium.org/p/v8/issues/detail?id=4946
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext env;
+
+  // make a Map
+  v8::Local<v8::Value> val = CompileRun("new Map([[1, 2], [3, 4], [5, 6]])");
+  v8::Local<v8::Map> map = v8::Local<v8::Map>::Cast(val);
+  CHECK_EQ(3U, map->Size());
+
+  // delete the "middle" element (using AsArray to
+  // determine which element is the "middle" element)
+  v8::Local<v8::Array> array1 = map->AsArray();
+  CHECK_EQ(6U, array1->Length());
+  // Map::AsArray returns a flat array, so the second key is at index 2.
+  v8::Local<v8::Value> key = array1->Get(env.local(), 2).ToLocalChecked();
+  CHECK(map->Delete(env.local(), key).FromJust());
+
+  // make sure there are no undefined values when we convert to an array again.
+  v8::Local<v8::Array> array2 = map->AsArray();
+  uint32_t length = array2->Length();
+  CHECK_EQ(4U, length);
+  for (uint32_t i = 0; i < length; i++) {
+    CHECK(!array2->Get(env.local(), i).ToLocalChecked()->IsUndefined());
+  }
+}
 
 TEST(CompatibleReceiverCheckOnCachedICHandler) {
   v8::Isolate* isolate = CcTest::isolate();

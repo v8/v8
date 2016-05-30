@@ -168,8 +168,7 @@ class TestingModule : public ModuleEnv {
       module->functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module->functions.push_back(
-        {sig, index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false});
+    module->functions.push_back({sig, index, 0, 0, 0, 0, 0, false});
     instance->function_code.push_back(code);
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -423,6 +422,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
         descriptor_(nullptr),
         testing_module_(module),
         debug_name_(debug_name),
+        local_decls(main_zone(), sig),
         source_position_table_(this->graph()) {
     if (module) {
       // Get a new function from the testing module.
@@ -472,7 +472,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   }
 
   byte AllocateLocal(LocalType type) {
-    uint32_t index = local_decls.AddLocals(1, type, sig);
+    uint32_t index = local_decls.AddLocals(1, type);
     byte result = static_cast<byte>(index);
     DCHECK_EQ(index, result);
     return result;
@@ -495,17 +495,12 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     Handle<Code> code = info.code();
 
     // Length is always 2, since usually <wasm_obj, func_index> is stored in the
-    // deopt data. Here, we store <func_name, undef> instead.
+    // deopt data. Here, we only store the function index.
     DCHECK(code->deoptimization_data() == nullptr ||
            code->deoptimization_data()->length() == 0);
     Handle<FixedArray> deopt_data =
         isolate()->factory()->NewFixedArray(2, TENURED);
-    if (debug_name_.start() != nullptr) {
-      MaybeHandle<String> maybe_name =
-          isolate()->factory()->NewStringFromUtf8(debug_name_, TENURED);
-      if (!maybe_name.is_null())
-        deopt_data->set(0, *maybe_name.ToHandleChecked());
-    }
+    deopt_data->set(1, Smi::FromInt(function_index_));
     deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
 
