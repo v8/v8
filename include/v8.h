@@ -330,6 +330,8 @@ class Local {
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
   template<class F1, class F2> friend class PersistentValueVector;
+  template <class F>
+  friend class ReturnValue;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
@@ -3136,11 +3138,16 @@ class ReturnValue {
   V8_INLINE void SetUndefined();
   V8_INLINE void SetEmptyString();
   // Convenience getter for Isolate
-  V8_INLINE Isolate* GetIsolate();
+  V8_INLINE Isolate* GetIsolate() const;
 
   // Pointer setter: Uncompilable to prevent inadvertent misuse.
   template <typename S>
   V8_INLINE void Set(S* whatever);
+
+  // Getter. Creates a new Local<> so it comes with a certain performance
+  // hit. If the ReturnValue was not yet set, this will return the undefined
+  // value.
+  V8_INLINE Local<Value> Get() const;
 
  private:
   template<class F> friend class ReturnValue;
@@ -7343,6 +7350,7 @@ class Internals {
       kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset + kApiInt64Size +
       kApiPointerSize;
   static const int kUndefinedValueRootIndex = 4;
+  static const int kTheHoleValueRootIndex = 5;
   static const int kNullValueRootIndex = 6;
   static const int kTrueValueRootIndex = 7;
   static const int kFalseValueRootIndex = 8;
@@ -7822,14 +7830,22 @@ void ReturnValue<T>::SetEmptyString() {
   *value_ = *I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
 }
 
-template<typename T>
-Isolate* ReturnValue<T>::GetIsolate() {
+template <typename T>
+Isolate* ReturnValue<T>::GetIsolate() const {
   // Isolate is always the pointer below the default value on the stack.
   return *reinterpret_cast<Isolate**>(&value_[-2]);
 }
 
-template<typename T>
-template<typename S>
+template <typename T>
+Local<Value> ReturnValue<T>::Get() const {
+  typedef internal::Internals I;
+  if (*value_ == *I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex))
+    return Local<Value>(*Undefined(GetIsolate()));
+  return Local<Value>::New(GetIsolate(), reinterpret_cast<Value*>(value_));
+}
+
+template <typename T>
+template <typename S>
 void ReturnValue<T>::Set(S* whatever) {
   // Uncompilable to prevent inadvertent misuse.
   TYPE_CHECK(S*, Primitive);
