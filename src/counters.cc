@@ -200,14 +200,14 @@ class RuntimeCallStatEntries {
   void Print(std::ostream& os) {
     if (total_call_count == 0) return;
     std::sort(entries.rbegin(), entries.rend());
-    os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(10)
+    os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(12)
        << "Time" << std::setw(18) << "Count" << std::endl
-       << std::string(86, '=') << std::endl;
+       << std::string(88, '=') << std::endl;
     for (Entry& entry : entries) {
       entry.SetTotal(total_time, total_call_count);
       entry.Print(os);
     }
-    os << std::string(86, '-') << std::endl;
+    os << std::string(88, '-') << std::endl;
     Entry("Total", total_time, total_call_count).Print(os);
   }
 
@@ -223,7 +223,7 @@ class RuntimeCallStatEntries {
    public:
     Entry(const char* name, base::TimeDelta time, uint64_t count)
         : name_(name),
-          time_(time.InMilliseconds()),
+          time_(time.InMicroseconds()),
           count_(count),
           time_percent_(100),
           count_percent_(100) {}
@@ -236,9 +236,9 @@ class RuntimeCallStatEntries {
 
     void Print(std::ostream& os) {
       os.precision(2);
-      os << std::fixed;
+      os << std::fixed << std::setprecision(2);
       os << std::setw(50) << name_;
-      os << std::setw(8) << time_ << "ms ";
+      os << std::setw(10) << static_cast<double>(time_) / 1000 << "ms ";
       os << std::setw(6) << time_percent_ << "%";
       os << std::setw(10) << count_ << " ";
       os << std::setw(6) << count_percent_ << "%";
@@ -246,10 +246,10 @@ class RuntimeCallStatEntries {
     }
 
     void SetTotal(base::TimeDelta total_time, uint64_t total_count) {
-      if (total_time.InMilliseconds() == 0) {
+      if (total_time.InMicroseconds() == 0) {
         time_percent_ = 0;
       } else {
-        time_percent_ = 100.0 * time_ / total_time.InMilliseconds();
+        time_percent_ = 100.0 * time_ / total_time.InMicroseconds();
       }
       count_percent_ = 100.0 * count_ / total_count;
     }
