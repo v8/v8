@@ -1680,7 +1680,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
     if (frame->is_java_script()) {
       SharedFunctionInfo* shared =
           JavaScriptFrame::cast(frame)->function()->shared();
-      if (shared->is_generator()) {
+      if (shared->is_resumable()) {
         non_droppable_frame_found = true;
         non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR;
         break;

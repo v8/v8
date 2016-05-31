@@ -1298,7 +1298,10 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? FAST_SMI_ELEMENTS : FAST_HOLEY_SMI_ELEMENTS;
   Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
-  if (!function->shared()->is_generator()) {
+  // TODO(littledan): Why do we have this is_generator test when
+  // NewFunctionPrototype already handles finding an appropriately
+  // shared prototype?
+  if (!function->shared()->is_resumable()) {
     if (prototype->IsTheHole()) {
       prototype = NewFunctionPrototype(function);
     } else if (install_constructor) {
@@ -1327,11 +1330,12 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // can be from a different context.
   Handle<Context> native_context(function->context()->native_context());
   Handle<Map> new_map;
-  if (function->shared()->is_generator()) {
-    // Generator prototypes can share maps since they don't have "constructor"
-    // properties.
+  if (function->shared()->is_resumable()) {
+    // Generator and async function prototypes can share maps since they
+    // don't have "constructor" properties.
     new_map = handle(native_context->generator_object_prototype_map());
   } else {
+    CHECK(!function->shared()->is_async());
     // Each function prototype gets a fresh map to avoid unwanted sharing of
     // maps between prototypes of different constructors.
     Handle<JSFunction> object_function(native_context->object_function());
@@ -1342,7 +1346,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   DCHECK(!new_map->is_prototype_map());
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
-  if (!function->shared()->is_generator()) {
+  if (!function->shared()->is_resumable()) {
     JSObject::AddProperty(prototype, constructor_string(), function, DONT_ENUM);
   }
 

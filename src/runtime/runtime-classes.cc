@@ -94,13 +94,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
     if (super_class->IsNull()) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsConstructor()) {
-      if (super_class->IsJSFunction() &&
-          Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class),
-            Object);
-      }
+      DCHECK(!super_class->IsJSFunction() ||
+             !Handle<JSFunction>::cast(super_class)->shared()->is_resumable());
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
@@ -114,10 +109,10 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
       }
       constructor_parent = super_class;
     } else {
-      THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class),
-          Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
+                                   super_class),
+                      Object);
     }
   }
 

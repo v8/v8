@@ -121,10 +121,8 @@ class CallSite {
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
-  T(ExtendsValueGenerator,                                                     \
-    "Class extends value % may not be a generator function")                   \
-  T(ExtendsValueNotFunction,                                                   \
-    "Class extends value % is not a function or null")                         \
+  T(ExtendsValueNotConstructor,                                                \
+    "Class extends value % is not a constructor or null")                      \
   T(FirstArgumentNotRegExp,                                                    \
     "First argument to % must not be a regular expression")                    \
   T(FunctionBind, "Bind must be called on a function")                         \

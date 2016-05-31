@@ -874,10 +874,11 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
     return MaybeHandle<Code>();
   }
 
-  // TODO(4280): For now we do not switch generators to baseline code because
-  // there might be suspended activations stored in generator objects on the
-  // heap. We could eventually go directly to TurboFan in this case.
-  if (function->shared()->is_generator()) {
+  // TODO(4280): For now we do not switch generators or async functions to
+  // baseline code because there might be suspended activations stored in
+  // generator objects on the heap. We could eventually go directly to
+  // TurboFan in this case.
+  if (function->shared()->is_resumable()) {
     return MaybeHandle<Code>();
   }
 
@@ -1308,10 +1309,11 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     CompilationInfo unoptimized(info->parse_info(), info->closure());
     unoptimized.EnableDeoptimizationSupport();
 
-    // TODO(4280): For now we do not switch generators to baseline code because
-    // there might be suspended activations stored in generator objects on the
-    // heap. We could eventually go directly to TurboFan in this case.
-    if (shared->is_generator()) return false;
+    // TODO(4280): For now we do not switch generators or async functions to
+    // baseline code because there might be suspended activations stored in
+    // generator objects on the heap. We could eventually go directly to
+    // TurboFan in this case.
+    if (shared->is_resumable()) return false;
 
     // TODO(4280): For now we disable switching to baseline code in the presence
     // of interpreter activations of the given function. The reasons are:

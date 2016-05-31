@@ -1325,7 +1325,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     // smarter here and avoid the heap walk.
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
-    bool include_generators = !is_interpreted && shared->is_generator();
+    bool find_resumables = !is_interpreted && shared->is_resumable();
 
     while ((obj = iterator.next())) {
       if (obj->IsJSFunction()) {
@@ -1336,7 +1336,9 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         }
         if (is_interpreted) continue;
         if (function->shared() == *shared) functions.Add(handle(function));
-      } else if (include_generators && obj->IsJSGeneratorObject()) {
+      } else if (find_resumables && obj->IsJSGeneratorObject()) {
+        // This case handles async functions as well, as they use generator
+        // objects for in-progress async function execution.
         JSGeneratorObject* generator_obj = JSGeneratorObject::cast(obj);
         if (!generator_obj->is_suspended()) continue;
         JSFunction* function = generator_obj->function();
