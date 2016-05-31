@@ -215,6 +215,7 @@ Type* TypeOf(const Operator* op) {
   V(ChangeTaggedToBit, Operator::kNoProperties, 1)         \
   V(ChangeBitToTagged, Operator::kNoProperties, 1)         \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1)    \
+  V(TruncateTaggedToFloat64, Operator::kNoProperties, 1)   \
   V(ObjectIsCallable, Operator::kNoProperties, 1)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1)            \
   V(ObjectIsReceiver, Operator::kNoProperties, 1)          \

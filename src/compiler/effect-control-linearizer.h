@@ -62,6 +62,8 @@ class EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
+  ValueEffectControl LowerTruncateTaggedToFloat64(Node* node, Node* effect,
+                                                  Node* control);
   ValueEffectControl LowerTruncateTaggedToWord32(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl LowerObjectIsCallable(Node* node, Node* effect,

@@ -175,6 +175,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateTaggedToWord32();
+  const Operator* TruncateTaggedToFloat64();
 
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();

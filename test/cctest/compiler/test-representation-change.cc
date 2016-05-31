@@ -473,7 +473,10 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
               Type::Number(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
-              Type::NumberOrUndefined(), MachineRepresentation::kFloat64);
+              Type::Number(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kTruncateTaggedToFloat64,
+              MachineRepresentation::kTagged, Type::NumberOrUndefined(),
+              MachineRepresentation::kFloat64);
   CheckTwoChanges(IrOpcode::kChangeTaggedSignedToInt32,
                   IrOpcode::kChangeInt32ToFloat64,
                   MachineRepresentation::kTagged, Type::TaggedSigned(),

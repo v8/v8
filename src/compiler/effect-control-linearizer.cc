@@ -384,6 +384,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
     case IrOpcode::kChangeTaggedToFloat64:
       state = LowerChangeTaggedToFloat64(node, *effect, *control);
       break;
+    case IrOpcode::kTruncateTaggedToFloat64:
+      state = LowerTruncateTaggedToFloat64(node, *effect, *control);
+      break;
     case IrOpcode::kTruncateTaggedToWord32:
       state = LowerTruncateTaggedToWord32(node, *effect, *control);
       break;
@@ -661,6 +664,12 @@ EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node, Node* effect,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                     Node* control) {
+  return LowerTruncateTaggedToFloat64(node, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node, Node* effect,
+                                                      Node* control) {
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);

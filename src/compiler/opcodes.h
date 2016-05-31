@@ -209,6 +209,7 @@
   V(ChangeTaggedToBit)             \
   V(ChangeBitToTagged)             \
   V(TruncateTaggedToWord32)        \
+  V(TruncateTaggedToFloat64)       \
   V(Allocate)                      \
   V(LoadField)                     \
   V(LoadBuffer)                    \

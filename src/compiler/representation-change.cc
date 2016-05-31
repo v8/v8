@@ -271,8 +271,12 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::NumberOrUndefined())) {
-      op = simplified()
-               ->ChangeTaggedToFloat64();  // tagged -> float64 -> float32
+      // tagged -> float64 -> float32
+      if (output_type->Is(Type::Number())) {
+        op = simplified()->ChangeTaggedToFloat64();
+      } else {
+        op = simplified()->TruncateTaggedToFloat64();
+      }
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     }
@@ -328,8 +332,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (output_type->Is(Type::TaggedSigned())) {
       node = InsertChangeTaggedSignedToInt32(node);
       op = machine()->ChangeInt32ToFloat64();
-    } else if (output_type->Is(Type::NumberOrUndefined())) {
+    } else if (output_type->Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
+    } else if (output_type->Is(Type::NumberOrUndefined())) {
+      op = simplified()->TruncateTaggedToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();

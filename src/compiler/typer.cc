@@ -1853,6 +1853,12 @@ Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 
+Type* Typer::Visitor::TypeTruncateTaggedToFloat64(Node* node) {
+  Type* arg = Operand(node, 0);
+  // TODO(neis): DCHECK(arg->Is(Type::NumberOrUndefined()));
+  return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
+}
+
 Type* Typer::Visitor::TypeChangeInt31ToTaggedSigned(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg->Is(Type::Signed31()));
