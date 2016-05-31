@@ -11593,18 +11593,22 @@ void HOptimizedGraphBuilder::HandleLiteralCompareTypeof(CompareOperation* expr,
   return ast_context()->ReturnControl(instr, expr->id());
 }
 
+namespace {
 
-static bool IsLiteralCompareBool(Isolate* isolate,
-                                 HValue* left,
-                                 Token::Value op,
-                                 HValue* right) {
+bool IsLiteralCompareStrict(Isolate* isolate, HValue* left, Token::Value op,
+                            HValue* right) {
   return op == Token::EQ_STRICT &&
-      ((left->IsConstant() &&
-          HConstant::cast(left)->handle(isolate)->IsBoolean()) ||
-       (right->IsConstant() &&
-           HConstant::cast(right)->handle(isolate)->IsBoolean()));
+         ((left->IsConstant() &&
+           !HConstant::cast(left)->handle(isolate)->IsNumber() &&
+           !HConstant::cast(left)->handle(isolate)->IsSimd128Value() &&
+           !HConstant::cast(left)->handle(isolate)->IsString()) ||
+          (right->IsConstant() &&
+           !HConstant::cast(right)->handle(isolate)->IsNumber() &&
+           !HConstant::cast(right)->handle(isolate)->IsSimd128Value() &&
+           !HConstant::cast(right)->handle(isolate)->IsString()));
 }
 
+}  // namespace
 
 void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   DCHECK(!HasStackOverflow());
@@ -11650,7 +11654,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   HValue* left = Pop();
   Token::Value op = expr->op();
 
-  if (IsLiteralCompareBool(isolate(), left, op, right)) {
+  if (IsLiteralCompareStrict(isolate(), left, op, right)) {
     HCompareObjectEqAndBranch* result =
         New<HCompareObjectEqAndBranch>(left, right);
     return ast_context()->ReturnControl(result, expr->id());
