@@ -2068,7 +2068,6 @@ group("gn_all") {
   if (host_os != "mac" || !is_android) {
     # These items don't compile for Android on Mac.
     deps += [
-      "test/cctest:cctest",
       "test/unittests:unittests",
     ]
   }
