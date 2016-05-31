@@ -13,19 +13,45 @@ namespace internal {
 
 enum ParseElementResult { kElementFound, kElementNotFound, kNullHandle };
 
+class JsonParseInternalizer BASE_EMBEDDED {
+ public:
+  static MaybeHandle<Object> Internalize(Isolate* isolate,
+                                         Handle<Object> object,
+                                         Handle<Object> reviver);
+
+ private:
+  JsonParseInternalizer(Isolate* isolate, Handle<JSReceiver> reviver)
+      : isolate_(isolate), reviver_(reviver) {}
+
+  MaybeHandle<Object> InternalizeJsonProperty(Handle<JSReceiver> holder,
+                                              Handle<String> key);
+
+  bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name);
+
+  Isolate* isolate_;
+  Handle<JSReceiver> reviver_;
+};
 
 // A simple json parser.
 template <bool seq_one_byte>
 class JsonParser BASE_EMBEDDED {
  public:
-  MUST_USE_RESULT static MaybeHandle<Object> Parse(Handle<String> source) {
-    return JsonParser(source).ParseJson();
+  MUST_USE_RESULT static MaybeHandle<Object> Parse(Isolate* isolate,
+                                                   Handle<String> source,
+                                                   Handle<Object> reviver) {
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               JsonParser(isolate, source).ParseJson(), Object);
+    if (reviver->IsCallable()) {
+      return JsonParseInternalizer::Internalize(isolate, result, reviver);
+    }
+    return result;
   }
 
   static const int kEndOfString = -1;
 
  private:
-  explicit JsonParser(Handle<String> source);
+  JsonParser(Isolate* isolate, Handle<String> source);
 
   // Parse a string containing a single JSON value.
   MaybeHandle<Object> ParseJson();

@@ -534,33 +534,20 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
         KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS),
+                                ENUMERABLE_STRINGS,
+                                GetKeysConversion::kConvertToString),
         EXCEPTION);
   }
   builder_.AppendCharacter('{');
   Indent();
   bool comma = false;
   for (int i = 0; i < contents->length(); i++) {
-    Object* key = contents->get(i);
-    Handle<String> key_handle;
-    MaybeHandle<Object> maybe_property;
-    if (key->IsString()) {
-      key_handle = Handle<String>(String::cast(key), isolate_);
-      maybe_property = Object::GetPropertyOrElement(object, key_handle);
-    } else {
-      DCHECK(key->IsNumber());
-      key_handle = factory()->NumberToString(Handle<Object>(key, isolate_));
-      if (key->IsSmi()) {
-        maybe_property =
-            JSReceiver::GetElement(isolate_, object, Smi::cast(key)->value());
-      } else {
-        maybe_property = Object::GetPropertyOrElement(object, key_handle);
-      }
-    }
+    Handle<String> key(String::cast(contents->get(i)), isolate_);
     Handle<Object> property;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, property, maybe_property,
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, property,
+                                     Object::GetPropertyOrElement(object, key),
                                      EXCEPTION);
-    Result result = SerializeProperty(property, comma, key_handle);
+    Result result = SerializeProperty(property, comma, key);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION) return result;
   }
@@ -572,6 +559,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
 
 JsonStringifier::Result JsonStringifier::SerializeJSProxy(
     Handle<JSProxy> object) {
+  HandleScope scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
   Maybe<bool> is_array = Object::IsArray(object);

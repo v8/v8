@@ -13,16 +13,96 @@
 #include "src/objects-inl.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
+#include "src/property-descriptor.h"
 #include "src/transitions.h"
 
 namespace v8 {
 namespace internal {
 
+MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
+                                                       Handle<Object> object,
+                                                       Handle<Object> reviver) {
+  DCHECK(reviver->IsCallable());
+  JsonParseInternalizer internalizer(isolate,
+                                     Handle<JSReceiver>::cast(reviver));
+  Handle<JSObject> holder =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  Handle<String> name = isolate->factory()->empty_string();
+  JSObject::AddProperty(holder, name, object, NONE);
+  return internalizer.InternalizeJsonProperty(holder, name);
+}
+
+MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
+    Handle<JSReceiver> holder, Handle<String> name) {
+  HandleScope outer_scope(isolate_);
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, value, Object::GetPropertyOrElement(holder, name), Object);
+  if (value->IsJSReceiver()) {
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
+    Maybe<bool> is_array = Object::IsArray(object);
+    if (is_array.IsNothing()) return MaybeHandle<Object>();
+    if (is_array.FromJust()) {
+      Handle<Object> length_object;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate_, length_object,
+          Object::GetLengthFromArrayLike(isolate_, object), Object);
+      double length = length_object->Number();
+      for (double i = 0; i < length; i++) {
+        HandleScope inner_scope(isolate_);
+        Handle<Object> index = isolate_->factory()->NewNumber(i);
+        Handle<String> name = isolate_->factory()->NumberToString(index);
+        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+      }
+    } else {
+      Handle<FixedArray> contents;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate_, contents,
+          KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+                                  ENUMERABLE_STRINGS,
+                                  GetKeysConversion::kConvertToString),
+          Object);
+      for (int i = 0; i < contents->length(); i++) {
+        HandleScope inner_scope(isolate_);
+        Handle<String> name(String::cast(contents->get(i)), isolate_);
+        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+      }
+    }
+  }
+  Handle<Object> argv[] = {name, value};
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, result, Execution::Call(isolate_, reviver_, holder, 2, argv),
+      Object);
+  return outer_scope.CloseAndEscape(result);
+}
+
+bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
+                                            Handle<String> name) {
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, result, InternalizeJsonProperty(holder, name), false);
+  Maybe<bool> change_result = Nothing<bool>();
+  if (result->IsUndefined()) {
+    change_result = JSReceiver::DeletePropertyOrElement(holder, name, SLOPPY);
+  } else {
+    PropertyDescriptor desc;
+    desc.set_value(result);
+    desc.set_configurable(true);
+    desc.set_enumerable(true);
+    desc.set_writable(true);
+    change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
+                                                  Object::DONT_THROW);
+  }
+  MAYBE_RETURN(change_result, false);
+  return true;
+}
+
 template <bool seq_one_byte>
-JsonParser<seq_one_byte>::JsonParser(Handle<String> source)
+JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
     : source_(source),
       source_length_(source->length()),
-      isolate_(source->map()->GetHeap()->isolate()),
+      isolate_(isolate),
       factory_(isolate_->factory()),
       zone_(isolate_->allocator()),
       object_constructor_(isolate_->native_context()->object_function(),
@@ -89,6 +169,9 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
   }
   return result;
 }
+
+MaybeHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
+                                            Handle<String> key);
 
 template <bool seq_one_byte>
 void JsonParser<seq_one_byte>::Advance() {

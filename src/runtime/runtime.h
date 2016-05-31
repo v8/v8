@@ -327,8 +327,7 @@ namespace internal {
   F(OrdinaryHasInstance, 2, 1)                      \
   F(IsWasmObject, 1, 1)
 
-#define FOR_EACH_INTRINSIC_JSON(F) \
-  F(ParseJson, 1, 1)
+#define FOR_EACH_INTRINSIC_JSON(F) F(ParseJson, 2, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \

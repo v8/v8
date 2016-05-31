@@ -16,16 +16,18 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_ParseJson) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, reviver, 1);
   Handle<String> source;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, source,
                                      Object::ToString(isolate, object));
   source = String::Flatten(source);
   // Optimized fast case where we only have Latin1 characters.
-  RETURN_RESULT_OR_FAILURE(isolate, source->IsSeqOneByteString()
-                                        ? JsonParser<true>::Parse(source)
-                                        : JsonParser<false>::Parse(source));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, source->IsSeqOneByteString()
+                   ? JsonParser<true>::Parse(isolate, source, reviver)
+                   : JsonParser<false>::Parse(isolate, source, reviver));
 }
 
 }  // namespace internal
