@@ -14,7 +14,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 #include "src/hashmap.h"
-#include "src/heap/array-buffer-tracker.h"
 #include "src/list.h"
 #include "src/objects.h"
 #include "src/utils.h"
@@ -469,8 +468,6 @@ class MemoryChunk {
     kSweepingInProgress,
   };
 
-  enum ArrayBufferTrackerAccessMode { kDontCreate, kCreateIfNotPresent };
-
   // Every n write barrier invocations we go to runtime even though
   // we could have handled it in generated code.  This lets us check
   // whether we have hit the limit and should do some more marking.
@@ -526,8 +523,7 @@ class MemoryChunk {
       + kPointerSize      // AtomicValue next_chunk_
       + kPointerSize      // AtomicValue prev_chunk_
       // FreeListCategory categories_[kNumberOfCategories]
-      + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize;  // LocalArrayBufferTracker tracker_
+      + FreeListCategory::kSize * kNumberOfCategories;
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -645,21 +641,6 @@ class MemoryChunk {
   void ReleaseTypedOldToNewSlots();
   void AllocateTypedOldToOldSlots();
   void ReleaseTypedOldToOldSlots();
-
-  template <ArrayBufferTrackerAccessMode tracker_access>
-  inline LocalArrayBufferTracker* local_tracker() {
-    LocalArrayBufferTracker* tracker = local_tracker_.Value();
-    if (tracker == nullptr && tracker_access == kCreateIfNotPresent) {
-      tracker = new LocalArrayBufferTracker(heap_);
-      if (!local_tracker_.TrySetValue(nullptr, tracker)) {
-        tracker = local_tracker_.Value();
-      }
-      DCHECK_NOT_NULL(tracker);
-    }
-    return tracker;
-  }
-
-  void ReleaseLocalTracker();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -845,8 +826,6 @@ class MemoryChunk {
   base::AtomicValue<MemoryChunk*> prev_chunk_;
 
   FreeListCategory categories_[kNumberOfCategories];
-
-  base::AtomicValue<LocalArrayBufferTracker*> local_tracker_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
@@ -2300,16 +2279,6 @@ class PagedSpace : public Space {
 
   inline void UnlinkFreeListCategories(Page* page);
   inline intptr_t RelinkFreeListCategories(Page* page);
-
-  // Callback signature:
-  //   void Callback(Page*);
-  template <typename Callback>
-  void ForAllPages(Callback callback) {
-    PageIterator it(this);
-    while (it.has_next()) {
-      callback(it.next());
-    }
-  }
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
