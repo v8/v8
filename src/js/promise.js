@@ -115,7 +115,18 @@ function PromiseSet(promise, status, value) {
   // therefore we can just push the new callback to the existing array.
   SET_PRIVATE(promise, promiseFulfillReactionsSymbol, UNDEFINED);
   SET_PRIVATE(promise, promiseRejectReactionsSymbol, UNDEFINED);
+
+  // There are 2 possible states for this symbol --
+  // 1) UNDEFINED -- This is the zero state, no deferred object is
+  // attached to this symbol. When we want to add a new deferred we
+  // directly attach it to this symbol.
+  // 2) symbol with attached deferred object -- New deferred objects
+  // are not attached to this symbol, but instead they are directly
+  // attached to the resolve, reject callback arrays. At this point,
+  // the deferred symbol's state is stale, and the deferreds should be
+  // read from the reject, resolve callbacks.
   SET_PRIVATE(promise, promiseDeferredReactionsSymbol, UNDEFINED);
+
   return promise;
 }
 
@@ -162,8 +173,8 @@ function PromiseEnqueue(value, tasks, deferreds, status) {
       %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
     }
     if (IS_ARRAY(tasks)) {
-      for (var i = 0; i < tasks.length; i += 1) {
-        PromiseHandle(value, tasks[i], deferreds[i]);
+      for (var i = 0; i < tasks.length; i += 2) {
+        PromiseHandle(value, tasks[i], tasks[i + 1]);
       }
     } else {
       PromiseHandle(value, tasks, deferreds);
@@ -189,23 +200,20 @@ function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
   } else if (!IS_ARRAY(maybeResolveCallbacks)) {
     var resolveCallbacks = new InternalArray();
     var rejectCallbacks = new InternalArray();
-    var deferreds = new InternalArray();
+    var existingDeferred = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
 
-    resolveCallbacks.push(maybeResolveCallbacks);
-    rejectCallbacks.push(GET_PRIVATE(promise, promiseRejectReactionsSymbol));
-    deferreds.push(GET_PRIVATE(promise, promiseDeferredReactionsSymbol));
-
-    resolveCallbacks.push(onResolve);
-    rejectCallbacks.push(onReject);
-    deferreds.push(deferred);
+    resolveCallbacks.push(
+        maybeResolveCallbacks, existingDeferred, onResolve, deferred);
+    rejectCallbacks.push(GET_PRIVATE(promise, promiseRejectReactionsSymbol),
+                         existingDeferred,
+                         onReject,
+                         deferred);
 
     SET_PRIVATE(promise, promiseFulfillReactionsSymbol, resolveCallbacks);
     SET_PRIVATE(promise, promiseRejectReactionsSymbol, rejectCallbacks);
-    SET_PRIVATE(promise, promiseDeferredReactionsSymbol, deferreds);
   } else {
-    maybeResolveCallbacks.push(onResolve);
-    GET_PRIVATE(promise, promiseRejectReactionsSymbol).push(onReject);
-    GET_PRIVATE(promise, promiseDeferredReactionsSymbol).push(deferred);
+    maybeResolveCallbacks.push(onResolve, deferred);
+    GET_PRIVATE(promise, promiseRejectReactionsSymbol).push(onReject, deferred);
   }
 }
 
@@ -511,8 +519,8 @@ function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
   if (!IS_ARRAY(queue)) {
     return PromiseHasUserDefinedRejectHandlerCheck(queue, deferreds);
   } else {
-    for (var i = 0; i < queue.length; i += 1) {
-      if (PromiseHasUserDefinedRejectHandlerCheck(queue[i], deferreds[i])) {
+    for (var i = 0; i < queue.length; i += 2) {
+      if (PromiseHasUserDefinedRejectHandlerCheck(queue[i], queue[i + 1])) {
         return true;
       }
     }
