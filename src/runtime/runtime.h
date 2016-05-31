@@ -300,6 +300,8 @@ namespace internal {
   F(Interrupt, 0, 1)                                \
   F(AllocateInNewSpace, 1, 1)                       \
   F(AllocateInTargetSpace, 2, 1)                    \
+  F(AllocateSeqOneByteString, 1, 1)                 \
+  F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CollectStackTrace, 2, 1)                        \
   F(MessageGetStartPosition, 1, 1)                  \
   F(MessageGetScript, 1, 1)                         \

@@ -637,6 +637,47 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length) {
   return result;
 }
 
+Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  // Compute the SeqOneByteString size and check if it fits into new space.
+  Label if_sizeissmall(this), if_notsizeissmall(this, Label::kDeferred),
+      if_join(this);
+  Node* size = WordAnd(
+      IntPtrAdd(
+          IntPtrAdd(length, IntPtrConstant(SeqOneByteString::kHeaderSize)),
+          IntPtrConstant(kObjectAlignmentMask)),
+      IntPtrConstant(~kObjectAlignmentMask));
+  Branch(IntPtrLessThanOrEqual(size,
+                               IntPtrConstant(Page::kMaxRegularHeapObjectSize)),
+         &if_sizeissmall, &if_notsizeissmall);
+
+  Bind(&if_sizeissmall);
+  {
+    // Just allocate the SeqOneByteString in new space.
+    Node* result = Allocate(size);
+    StoreMapNoWriteBarrier(result, LoadRoot(Heap::kOneByteStringMapRootIndex));
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
+                                   SmiFromWord(length));
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
+                                   IntPtrConstant(String::kEmptyHashField));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  Bind(&if_notsizeissmall);
+  {
+    // We might need to allocate in large object space, go to the runtime.
+    Node* result = CallRuntime(Runtime::kAllocateSeqOneByteString, context,
+                               SmiFromWord(length));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  Bind(&if_join);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   Node* result = Allocate(SeqTwoByteString::SizeFor(length));
   StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
@@ -645,6 +686,47 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField));
   return result;
+}
+
+Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+
+  // Compute the SeqTwoByteString size and check if it fits into new space.
+  Label if_sizeissmall(this), if_notsizeissmall(this, Label::kDeferred),
+      if_join(this);
+  Node* size = WordAnd(
+      IntPtrAdd(IntPtrAdd(WordShl(length, 1),
+                          IntPtrConstant(SeqTwoByteString::kHeaderSize)),
+                IntPtrConstant(kObjectAlignmentMask)),
+      IntPtrConstant(~kObjectAlignmentMask));
+  Branch(IntPtrLessThanOrEqual(size,
+                               IntPtrConstant(Page::kMaxRegularHeapObjectSize)),
+         &if_sizeissmall, &if_notsizeissmall);
+
+  Bind(&if_sizeissmall);
+  {
+    // Just allocate the SeqTwoByteString in new space.
+    Node* result = Allocate(size);
+    StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
+    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
+                                   SmiFromWord(length));
+    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
+                                   IntPtrConstant(String::kEmptyHashField));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  Bind(&if_notsizeissmall);
+  {
+    // We might need to allocate in large object space, go to the runtime.
+    Node* result = CallRuntime(Runtime::kAllocateSeqTwoByteString, context,
+                               SmiFromWord(length));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  Bind(&if_join);
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,

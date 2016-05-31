@@ -55,6 +55,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi conversions.
   compiler::Node* SmiToFloat64(compiler::Node* value);
+  compiler::Node* SmiFromWord(compiler::Node* value) { return SmiTag(value); }
   compiler::Node* SmiFromWord32(compiler::Node* value);
   compiler::Node* SmiToWord(compiler::Node* value) { return SmiUntag(value); }
   compiler::Node* SmiToWord32(compiler::Node* value);
@@ -175,8 +176,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value);
   // Allocate a SeqOneByteString with the given length.
   compiler::Node* AllocateSeqOneByteString(int length);
+  compiler::Node* AllocateSeqOneByteString(compiler::Node* context,
+                                           compiler::Node* length);
   // Allocate a SeqTwoByteString with the given length.
   compiler::Node* AllocateSeqTwoByteString(int length);
+  compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
+                                           compiler::Node* length);
   // Allocated an JSArray
   compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
                                   compiler::Node* capacity,

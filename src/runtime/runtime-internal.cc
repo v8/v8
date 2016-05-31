@@ -325,6 +325,25 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 
+RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  Handle<SeqOneByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, isolate->factory()->NewRawOneByteString(length));
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, isolate->factory()->NewRawTwoByteString(length));
+  return *result;
+}
 
 // Collect the raw data for a stack trace.  Returns an array of 4
 // element segments each containing a receiver, function, code and

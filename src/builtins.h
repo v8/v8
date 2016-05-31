@@ -173,7 +173,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ReflectSet, kNone)                                         \
   V(ReflectSetPrototypeOf, kNone)                              \
                                                                \
-  V(StringFromCharCode, kNone)                                 \
   V(StringPrototypeTrim, kNone)                                \
   V(StringPrototypeTrimLeft, kNone)                            \
   V(StringPrototypeTrimRight, kNone)                           \
@@ -332,6 +331,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathTrunc, 2)                    \
   V(ObjectHasOwnProperty, 2)         \
   V(ArrayIsArray, 2)                 \
+  V(StringFromCharCode, 2)           \
   V(StringPrototypeCharAt, 2)        \
   V(StringPrototypeCharCodeAt, 2)    \
   V(AtomicsLoad, 3)                  \
@@ -656,6 +656,8 @@ class Builtins {
   // ES6 section 22.1.2.2 Array.isArray
   static void Generate_ArrayIsArray(CodeStubAssembler* assembler);
 
+  // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+  static void Generate_StringFromCharCode(CodeStubAssembler* assembler);
   // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
   static void Generate_StringPrototypeCharAt(CodeStubAssembler* assembler);
   // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
