@@ -893,8 +893,7 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
     isolate()->optimizing_compile_dispatcher()->Flush();
   }
   isolate()->ClearSerializerData();
-  set_current_gc_flags(kAbortIncrementalMarkingMask |
-                       kReduceMemoryFootprintMask);
+  set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
@@ -4072,10 +4071,22 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 }
 
 
+bool Heap::IsHeapIterable() {
+  // TODO(hpayer): This function is not correct. Allocation folding in old
+  // space breaks the iterability.
+  return new_space_top_after_last_gc_ == new_space()->top();
+}
+
+
 void Heap::MakeHeapIterable() {
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  if (!IsHeapIterable()) {
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
+  }
   if (mark_compact_collector()->sweeping_in_progress()) {
     mark_compact_collector()->EnsureSweepingCompleted();
   }
+  DCHECK(IsHeapIterable());
 }
 
 
@@ -4625,7 +4636,10 @@ void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
 
-  MakeHeapIterable();
+  if (mark_compact_collector()->sweeping_in_progress()) {
+    // We have to wait here for the sweeper threads to have an iterable heap.
+    mark_compact_collector()->EnsureSweepingCompleted();
+  }
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
@@ -5819,35 +5833,118 @@ ObjectIterator* SpaceIterator::CreateIterator() {
   return iterator_;
 }
 
-HeapIterator::HeapIterator(Heap* heap, HeapObjectsFiltering filtering)
-    : heap_(heap), space_iterator_(nullptr), object_iterator_(nullptr) {
+
+class HeapObjectsFilter {
+ public:
+  virtual ~HeapObjectsFilter() {}
+  virtual bool SkipObject(HeapObject* object) = 0;
+};
+
+
+class UnreachableObjectsFilter : public HeapObjectsFilter {
+ public:
+  explicit UnreachableObjectsFilter(Heap* heap) : heap_(heap) {
+    MarkReachableObjects();
+  }
+
+  ~UnreachableObjectsFilter() {
+    heap_->mark_compact_collector()->ClearMarkbits();
+  }
+
+  bool SkipObject(HeapObject* object) {
+    if (object->IsFiller()) return true;
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    return Marking::IsWhite(mark_bit);
+  }
+
+ private:
+  class MarkingVisitor : public ObjectVisitor {
+   public:
+    MarkingVisitor() : marking_stack_(10) {}
+
+    void VisitPointers(Object** start, Object** end) override {
+      for (Object** p = start; p < end; p++) {
+        if (!(*p)->IsHeapObject()) continue;
+        HeapObject* obj = HeapObject::cast(*p);
+        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        if (Marking::IsWhite(mark_bit)) {
+          Marking::WhiteToBlack(mark_bit);
+          marking_stack_.Add(obj);
+        }
+      }
+    }
+
+    void TransitiveClosure() {
+      while (!marking_stack_.is_empty()) {
+        HeapObject* obj = marking_stack_.RemoveLast();
+        obj->Iterate(this);
+      }
+    }
+
+   private:
+    List<HeapObject*> marking_stack_;
+  };
+
+  void MarkReachableObjects() {
+    MarkingVisitor visitor;
+    heap_->IterateRoots(&visitor, VISIT_ALL);
+    visitor.TransitiveClosure();
+  }
+
+  Heap* heap_;
+  DisallowHeapAllocation no_allocation_;
+};
+
+
+HeapIterator::HeapIterator(Heap* heap,
+                           HeapIterator::HeapObjectsFiltering filtering)
+    : make_heap_iterable_helper_(heap),
+      no_heap_allocation_(),
+      heap_(heap),
+      filtering_(filtering),
+      filter_(nullptr),
+      space_iterator_(nullptr),
+      object_iterator_(nullptr) {
   heap_->heap_iterator_start();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
-  switch (filtering) {
-    case HeapObjectsFiltering::kFilterUnreachable:
-      heap_->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
-                               "filter unreachable objects");
+  switch (filtering_) {
+    case kFilterUnreachable:
+      filter_ = new UnreachableObjectsFilter(heap_);
       break;
     default:
       break;
   }
-  heap_->MakeHeapIterable();
-  disallow_heap_allocation_ = new DisallowHeapAllocation();
   object_iterator_ = space_iterator_->next();
 }
 
 
 HeapIterator::~HeapIterator() {
   heap_->heap_iterator_end();
+#ifdef DEBUG
+  // Assert that in filtering mode we have iterated through all
+  // objects. Otherwise, heap will be left in an inconsistent state.
+  if (filtering_ != kNoFiltering) {
+    DCHECK(object_iterator_ == nullptr);
+  }
+#endif
   // Make sure the last iterator is deallocated.
   delete object_iterator_;
   delete space_iterator_;
-  delete disallow_heap_allocation_;
+  delete filter_;
 }
 
 
 HeapObject* HeapIterator::next() {
+  if (filter_ == nullptr) return NextObject();
+
+  HeapObject* obj = NextObject();
+  while ((obj != nullptr) && (filter_->SkipObject(obj))) obj = NextObject();
+  return obj;
+}
+
+
+HeapObject* HeapIterator::NextObject() {
   // No iterator means we are done.
   if (object_iterator_ == nullptr) return nullptr;
 

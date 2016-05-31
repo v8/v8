@@ -398,7 +398,7 @@ StartupData SerializeIsolateAndContext(
   // GC may have cleared weak cells, so compact any WeakFixedArrays
   // found on the heap.
   i::HeapIterator iterator(internal_isolate->heap(),
-                           i::HeapObjectsFiltering::kFilterUnreachable);
+                           i::HeapIterator::kFilterUnreachable);
   for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
     if (o->IsPrototypeInfo()) {
       i::Object* prototype_users = i::PrototypeInfo::cast(o)->prototype_users();

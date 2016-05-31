@@ -14001,7 +14001,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
   CcTest::heap()->CollectAllGarbage();
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
   if (count != expected) CcTest::heap()->TracePathToGlobal();

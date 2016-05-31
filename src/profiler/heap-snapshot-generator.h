@@ -19,7 +19,6 @@ class HeapEntry;
 class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
-enum class HeapObjectsFiltering;
 class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {
@@ -364,8 +363,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   const char* GetSystemEntryName(HeapObject* object);
 
-  template <V8HeapExplorer::ExtractReferencesMethod extractor>
-  bool IterateAndExtractSinglePass(HeapObjectsFiltering filtering);
+  template<V8HeapExplorer::ExtractReferencesMethod extractor>
+  bool IterateAndExtractSinglePass();
 
   bool ExtractReferencesPass1(int entry, HeapObject* obj);
   bool ExtractReferencesPass2(int entry, HeapObject* obj);

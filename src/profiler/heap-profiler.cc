@@ -198,7 +198,7 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   HeapObject* object = NULL;
-  HeapIterator iterator(heap(), HeapObjectsFiltering::kFilterUnreachable);
+  HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
