@@ -1475,6 +1475,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           0, true);
     SimpleInstallFunction(prototype, "setYear", Builtins::kDatePrototypeSetYear,
                           1, false);
+    SimpleInstallFunction(prototype, "toJSON", Builtins::kDatePrototypeToJson,
+                          1, false);
 
     // Install i18n fallback functions.
     SimpleInstallFunction(prototype, "toLocaleString",
@@ -1601,8 +1603,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
+    SimpleInstallFunction(json_object, "parse", Builtins::kJsonParse, 2, true);
     SimpleInstallFunction(json_object, "stringify", Builtins::kJsonStringify, 3,
                           true);
+    JSObject::AddProperty(
+        json_object, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("JSON"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- M a t h

@@ -108,6 +108,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(DatePrototypeValueOf, kNone)                               \
   V(DatePrototypeGetYear, kNone)                               \
   V(DatePrototypeSetYear, kNone)                               \
+  V(DatePrototypeToJson, kNone)                                \
                                                                \
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \
@@ -123,6 +124,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(GlobalEval, kTarget)                                       \
                                                                \
+  V(JsonParse, kNone)                                          \
   V(JsonStringify, kNone)                                      \
                                                                \
   V(MathAcos, kNone)                                           \

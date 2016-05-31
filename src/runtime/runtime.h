@@ -327,8 +327,6 @@ namespace internal {
   F(OrdinaryHasInstance, 2, 1)                      \
   F(IsWasmObject, 1, 1)
 
-#define FOR_EACH_INTRINSIC_JSON(F) F(ParseJson, 2, 1)
-
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
   F(CreateObjectLiteral, 4, 1)         \
@@ -989,7 +987,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
   FOR_EACH_INTRINSIC_I18N(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
-  FOR_EACH_INTRINSIC_JSON(F)                \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \
   FOR_EACH_INTRINSIC_MATHS(F)               \

@@ -18,6 +18,7 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
+#include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"
@@ -2220,6 +2221,20 @@ BUILTIN(GlobalEval) {
       Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
 }
 
+// ES6 section 24.3.1 JSON.parse.
+BUILTIN(JsonParse) {
+  HandleScope scope(isolate);
+  Handle<Object> source = args.atOrUndefined(isolate, 1);
+  Handle<Object> reviver = args.atOrUndefined(isolate, 2);
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
+                                     Object::ToString(isolate, source));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, string->IsSeqOneByteString()
+                   ? JsonParser<true>::Parse(isolate, string, reviver)
+                   : JsonParser<false>::Parse(isolate, string, reviver));
+}
+
 // ES6 section 24.3.2 JSON.stringify.
 BUILTIN(JsonStringify) {
   HandleScope scope(isolate);
@@ -3927,6 +3942,33 @@ BUILTIN(DatePrototypeSetYear) {
   return SetLocalDateValue(date, time_val);
 }
 
+// ES6 section 20.3.4.37 Date.prototype.toJSON ( key )
+BUILTIN(DatePrototypeToJson) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.atOrUndefined(isolate, 0);
+  Handle<JSReceiver> receiver_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver_obj,
+                                     Object::ToObject(isolate, receiver));
+  Handle<Object> primitive;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, primitive,
+      Object::ToPrimitive(receiver_obj, ToPrimitiveHint::kNumber));
+  if (primitive->IsNumber() && !std::isfinite(primitive->Number())) {
+    return isolate->heap()->null_value();
+  } else {
+    Handle<String> name =
+        isolate->factory()->NewStringFromAsciiChecked("toISOString");
+    Handle<Object> function;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, function,
+                                       Object::GetProperty(receiver_obj, name));
+    if (!function->IsCallable()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kCalledNonCallable, name));
+    }
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Execution::Call(isolate, function, receiver_obj, 0, NULL));
+  }
+}
 
 // static
 void Builtins::Generate_DatePrototypeGetDate(MacroAssembler* masm) {
