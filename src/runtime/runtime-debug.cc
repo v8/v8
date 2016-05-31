@@ -1218,7 +1218,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   List<Handle<JSObject> > instances;
   Heap* heap = isolate->heap();
   {
-    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
+    HeapIterator iterator(heap, HeapObjectsFiltering::kFilterUnreachable);
     // Get the constructor function for context extension and arguments array.
     Object* arguments_fun = isolate->sloppy_arguments_map()->GetConstructor();
     HeapObject* heap_obj;
@@ -1273,7 +1273,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   List<Handle<JSObject> > instances;
   Heap* heap = isolate->heap();
   {
-    HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
+    HeapIterator iterator(heap, HeapObjectsFiltering::kFilterUnreachable);
     HeapObject* heap_obj;
     while ((heap_obj = iterator.next())) {
       if (!heap_obj->IsJSObject()) continue;

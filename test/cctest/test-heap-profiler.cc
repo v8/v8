@@ -705,7 +705,6 @@ TEST(HeapSnapshotAddressReuse) {
   CcTest::heap()->CollectAllGarbage();
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot2));
   const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
 
   const v8::HeapGraphNode* array_node =

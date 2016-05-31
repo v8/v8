@@ -546,9 +546,6 @@ class Heap {
   static const int kAbortIncrementalMarkingMask = 2;
   static const int kFinalizeIncrementalMarkingMask = 4;
 
-  // Making the heap iterable requires us to abort incremental marking.
-  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
-
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
 
@@ -668,9 +665,6 @@ class Heap {
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
-
-  // Check whether the heap is currently iterable.
-  bool IsHeapIterable();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
@@ -1038,9 +1032,7 @@ class Heap {
       AllocationSpace space, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
-  // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
-  // non-zero, then the slower precise sweeper is used, which leaves the heap
-  // in a state where we can iterate over the heap visiting all objects.
+  // Performs a full garbage collection.
   void CollectAllGarbage(
       int flags = kFinalizeIncrementalMarkingMask, const char* gc_reason = NULL,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
@@ -1549,7 +1541,7 @@ class Heap {
   void EnsureFillerObjectAtTop();
 
   // Ensure that we have swept all spaces in such a way that we can iterate
-  // over all objects.  May cause a GC.
+  // over all objects.
   void MakeHeapIterable();
 
   // Performs garbage collection operation.
@@ -2388,6 +2380,7 @@ class SpaceIterator : public Malloced {
   ObjectIterator* iterator_;  // object iterator for the current space.
 };
 
+enum class HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
 
 // A HeapIterator provides iteration over the whole heap. It
 // aggregates the specific iterators for the different spaces as
@@ -2403,31 +2396,16 @@ class SpaceIterator : public Malloced {
 // as this will leave heap objects marked (and thus, unusable).
 class HeapIterator BASE_EMBEDDED {
  public:
-  enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
-
-  explicit HeapIterator(Heap* heap,
-                        HeapObjectsFiltering filtering = kNoFiltering);
+  explicit HeapIterator(Heap* heap, HeapObjectsFiltering filtering =
+                                        HeapObjectsFiltering::kNoFiltering);
   ~HeapIterator();
 
   HeapObject* next();
 
  private:
-  struct MakeHeapIterableHelper {
-    explicit MakeHeapIterableHelper(Heap* heap) { heap->MakeHeapIterable(); }
-  };
-
-  HeapObject* NextObject();
-
-  // The following two fields need to be declared in this order. Initialization
-  // order guarantees that we first make the heap iterable (which may involve
-  // allocations) and only then lock it down by not allowing further
-  // allocations.
-  MakeHeapIterableHelper make_heap_iterable_helper_;
-  DisallowHeapAllocation no_heap_allocation_;
+  DisallowHeapAllocation* disallow_heap_allocation_;
 
   Heap* heap_;
-  HeapObjectsFiltering filtering_;
-  HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.

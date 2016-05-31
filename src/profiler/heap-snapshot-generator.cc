@@ -474,8 +474,8 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
     PrintF("Begin HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
            entries_map_.occupancy());
   }
-  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "HeapObjectsMap::UpdateHeapObjectsMap");
+  heap_->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+                           "HeapObjectsMap::UpdateHeapObjectsMap");
   HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -1775,8 +1775,10 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   // to weakly hold their items, and it's impossible to distinguish
   // between these cases without processing the array owner first.
   bool interrupted =
-      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass1>() ||
-      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass2>();
+      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass1>(
+          HeapObjectsFiltering::kFilterUnreachable) ||
+      IterateAndExtractSinglePass<&V8HeapExplorer::ExtractReferencesPass2>(
+          HeapObjectsFiltering::kNoFiltering);
 
   if (interrupted) {
     filler_ = NULL;
@@ -1787,12 +1789,12 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   return progress_->ProgressReport(true);
 }
 
-
-template<V8HeapExplorer::ExtractReferencesMethod extractor>
-bool V8HeapExplorer::IterateAndExtractSinglePass() {
+template <V8HeapExplorer::ExtractReferencesMethod extractor>
+bool V8HeapExplorer::IterateAndExtractSinglePass(
+    HeapObjectsFiltering filtering) {
   // Now iterate the whole heap.
   bool interrupted = false;
-  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap_, filtering);
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -2496,12 +2498,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  heap_->CollectAllGarbage(
-      Heap::kMakeHeapIterableMask,
-      "HeapSnapshotGenerator::GenerateSnapshot");
-  heap_->CollectAllGarbage(
-      Heap::kMakeHeapIterableMask,
-      "HeapSnapshotGenerator::GenerateSnapshot");
+  heap_->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+                           "HeapSnapshotGenerator::GenerateSnapshot");
+  heap_->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+                           "HeapSnapshotGenerator::GenerateSnapshot");
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
@@ -2550,7 +2550,7 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 
 void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == NULL) return;
-  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap_, HeapObjectsFiltering::kFilterUnreachable);
   progress_total_ = iterations_count * (
       v8_heap_explorer_.EstimateObjectsCount(&iterator) +
       dom_explorer_.EstimateObjectsCount());

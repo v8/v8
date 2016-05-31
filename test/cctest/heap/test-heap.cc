@@ -5494,7 +5494,7 @@ TEST(Regress507979) {
   CHECK(heap->InNewSpace(*o1));
   CHECK(heap->InNewSpace(*o2));
 
-  HeapIterator it(heap, i::HeapIterator::kFilterUnreachable);
+  HeapIterator it(heap, i::HeapObjectsFiltering::kFilterUnreachable);
 
   // Replace parts of an object placed before a live object with a filler. This
   // way the filler object shares the mark bits with the following live object.

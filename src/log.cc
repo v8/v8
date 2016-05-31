@@ -1617,8 +1617,6 @@ void Logger::LogCodeObject(Object* object) {
 
 void Logger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogCodeObjects");
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
@@ -1702,13 +1700,12 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 void Logger::LogCompiledFunctions() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogCompiledFunctions");
   HandleScope scope(isolate_);
-  const int compiled_funcs_count = EnumerateCompiledFunctions(heap, NULL, NULL);
+  int compiled_funcs_count = EnumerateCompiledFunctions(heap, NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
   ScopedVector<Handle<AbstractCode> > code_objects(compiled_funcs_count);
-  EnumerateCompiledFunctions(heap, sfis.start(), code_objects.start());
+  compiled_funcs_count =
+      EnumerateCompiledFunctions(heap, sfis.start(), code_objects.start());
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
@@ -1722,8 +1719,6 @@ void Logger::LogCompiledFunctions() {
 
 void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Logger::LogAccessorCallbacks");
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
