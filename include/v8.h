@@ -7417,7 +7417,7 @@ class Internals {
       kAmountOfExternalAllocatedMemoryOffset + kApiInt64Size;
   static const int kIsolateRootsOffset =
       kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset + kApiInt64Size +
-      kApiPointerSize;
+      kApiPointerSize + kApiPointerSize;
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
   static const int kNullValueRootIndex = 6;
