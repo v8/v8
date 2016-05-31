@@ -2018,7 +2018,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ SmiToPtrArrayOffset(r8, r6);
   __ add(r5, r5, r8);
   __ LoadP(r6, FieldMemOperand(r5, count_offset));
-  __ AddSmiLiteral(r6, r6, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
+  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
   __ StoreP(r6, FieldMemOperand(r5, count_offset), r0);
 
   __ mr(r5, r7);
@@ -2066,7 +2066,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   const int count_offset = FixedArray::kHeaderSize + kPointerSize;
   __ LoadP(r6, FieldMemOperand(r9, count_offset));
-  __ AddSmiLiteral(r6, r6, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
+  __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
   __ StoreP(r6, FieldMemOperand(r9, count_offset), r0);
 
   __ bind(&call_function);
@@ -2136,7 +2136,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bne(&miss);
 
   // Initialize the call counter.
-  __ LoadSmiLiteral(r8, Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ LoadSmiLiteral(r8, Smi::FromInt(1));
   __ StoreP(r8, FieldMemOperand(r9, count_offset), r0);
 
   // Store the function. Use a stub since we need a frame for allocation.
