@@ -450,6 +450,11 @@ class MemoryChunk {
     //   has been aborted and needs special handling by the sweeper.
     COMPACTION_WAS_ABORTED,
 
+    // |COMPACTION_WAS_ABORTED_FOR_TESTING|: During stress testing evacuation
+    // on pages is sometimes aborted. The flag is used to avoid repeatedly
+    // triggering on the same page.
+    COMPACTION_WAS_ABORTED_FOR_TESTING,
+
     // |ANCHOR|: Flag is set if page is an anchor.
     ANCHOR,
 

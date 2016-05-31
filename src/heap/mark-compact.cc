@@ -1641,6 +1641,9 @@ class MarkCompactCollector::EvacuateVisitorBase
 
   inline bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
                                 HeapObject** target_object) {
+#ifdef VERIFY_HEAP
+    if (AbortCompactionForTesting(object)) return false;
+#endif  // VERIFY_HEAP
     int size = object->Size();
     AllocationAlignment alignment = object->RequiredAlignment();
     AllocationResult allocation = target_space->AllocateRaw(size, alignment);
@@ -1697,6 +1700,26 @@ class MarkCompactCollector::EvacuateVisitorBase
     }
     Memory::Address_at(src_addr) = dst_addr;
   }
+
+#ifdef VERIFY_HEAP
+  bool AbortCompactionForTesting(HeapObject* object) {
+    if (FLAG_stress_compaction) {
+      const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
+                             Page::kPageAlignmentMask & ~kPointerAlignmentMask;
+      if ((reinterpret_cast<uintptr_t>(object->address()) &
+           Page::kPageAlignmentMask) == mask) {
+        Page* page = Page::FromAddress(object->address());
+        if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED_FOR_TESTING)) {
+          page->ClearFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
+        } else {
+          page->SetFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+#endif  // VERIFY_HEAP
 
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
