@@ -231,7 +231,11 @@ struct WasmModuleInstance {
   byte* globals_start;  // start of the globals area.
 
   explicit WasmModuleInstance(const WasmModule* m)
-      : module(m), mem_start(nullptr), mem_size(0), globals_start(nullptr) {}
+      : module(m),
+        function_code(m->functions.size()),
+        mem_start(nullptr),
+        mem_size(0),
+        globals_start(nullptr) {}
 };
 
 // forward declaration.
@@ -248,7 +252,7 @@ struct ModuleEnv {
   bool IsValidGlobal(uint32_t index) {
     return module && index < module->globals.size();
   }
-  bool IsValidFunction(uint32_t index) {
+  bool IsValidFunction(uint32_t index) const {
     return module && index < module->functions.size();
   }
   bool IsValidSignature(uint32_t index) {
@@ -279,7 +283,7 @@ struct ModuleEnv {
 
   bool asm_js() { return origin == kAsmJsOrigin; }
 
-  Handle<Code> GetFunctionCode(uint32_t index);
+  Handle<Code> GetCodeOrPlaceholder(uint32_t index) const;
   Handle<Code> GetImportCode(uint32_t index);
   Handle<FixedArray> GetFunctionTable();
 

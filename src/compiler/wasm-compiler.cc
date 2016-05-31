@@ -1908,7 +1908,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args,
   DCHECK_NULL(args[0]);
 
   // Add code object as constant.
-  args[0] = HeapConstant(module_->GetFunctionCode(index));
+  args[0] = HeapConstant(module_->GetCodeOrPlaceholder(index));
   wasm::FunctionSig* sig = module_->GetFunctionSignature(index);
 
   return BuildWasmCall(sig, args, position);
@@ -3292,16 +3292,6 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
   }
   Handle<Code> code = info_.code();
   DCHECK(!code.is_null());
-  DCHECK(code->deoptimization_data() == nullptr ||
-         code->deoptimization_data()->length() == 0);
-  Handle<FixedArray> deopt_data =
-      isolate_->factory()->NewFixedArray(2, TENURED);
-  if (!module_env_->instance->js_object.is_null()) {
-    deopt_data->set(0, *module_env_->instance->js_object);
-  }
-  deopt_data->set(1, Smi::FromInt(function_->func_index));
-  deopt_data->set_length(2);
-  code->set_deoptimization_data(*deopt_data);
 
   RecordFunctionCompilation(
       Logger::FUNCTION_TAG, &info_, "WASM_function", function_->func_index,
