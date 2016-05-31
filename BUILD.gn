@@ -69,6 +69,15 @@ declare_args() {
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
+if (v8_use_snapshot && v8_use_external_startup_data) {
+  snapshot_target = ":v8_external_snapshot"
+} else if (v8_use_snapshot) {
+  snapshot_target = ":v8_snapshot"
+} else {
+  assert(!v8_use_external_startup_data)
+  snapshot_target = ":v8_nosnapshot"
+}
+
 ###############################################################################
 # Configurations
 #
@@ -632,17 +641,6 @@ action("run_mksnapshot") {
 ###############################################################################
 # Source Sets (aka static libraries)
 #
-
-source_set("v8_maybe_snapshot") {
-  if (v8_use_snapshot && v8_use_external_startup_data) {
-    public_deps = [ ":v8_external_snapshot" ]
-  } else if (v8_use_snapshot) {
-    public_deps = [ ":v8_snapshot" ]
-  } else {
-    assert(!v8_use_external_startup_data)
-    public_deps = [ ":v8_nosnapshot" ]
-  }
-}
 
 v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
@@ -2004,7 +2002,7 @@ v8_source_set("fuzzer_support") {
   configs = [ ":internal_config_base" ]
 
   deps = [
-    ":v8_maybe_snapshot",
+    snapshot_target,
   ]
 
   public_deps = [
@@ -2046,33 +2044,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
 # Public targets
 #
 
-want_v8_shell = (
-    (current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
-    (current_toolchain == v8_snapshot_toolchain &&
-     v8_toolset_for_shell == "host") ||
-    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target"))
-
-group("gn_all") {
-  testonly = true
-
-  deps = [
-    ":d8",
-  ]
-
-  if (want_v8_shell) {
-    deps += [
-      ":v8_shell",
-    ]
-  }
-
-  if (host_os != "mac" || !is_android) {
-    # These items don't compile for Android on Mac.
-    deps += [
-      "test/unittests:unittests",
-    ]
-  }
-}
-
 if (is_component_build) {
   component("v8") {
     sources = [
@@ -2081,7 +2052,7 @@ if (is_component_build) {
 
     public_deps = [
       ":v8_base",
-      ":v8_maybe_snapshot",
+      snapshot_target,
     ]
 
     configs -= [ "//build/config/compiler:chromium_code" ]
@@ -2098,7 +2069,7 @@ if (is_component_build) {
   group("v8") {
     public_deps = [
       ":v8_base",
-      ":v8_maybe_snapshot",
+      snapshot_target,
     ]
     public_configs = [ ":external_config" ]
   }
@@ -2145,7 +2116,10 @@ executable("d8") {
   }
 }
 
-if (want_v8_shell) {
+if ((current_toolchain == host_toolchain && v8_toolset_for_shell == "host") ||
+    (current_toolchain == v8_snapshot_toolchain &&
+     v8_toolset_for_shell == "host") ||
+    (current_toolchain != host_toolchain && v8_toolset_for_shell == "target")) {
   executable("v8_shell") {
     sources = [
       "samples/shell.cc",
