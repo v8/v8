@@ -4423,6 +4423,7 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   Label allocate, done_allocate;
   __ ldrb(r4, FieldMemOperand(r2, Map::kInstanceSizeOffset));
   __ Allocate(r4, r0, r5, r6, &allocate, SIZE_IN_WORDS);
+  __ sub(r5, r5, Operand(kHeapObjectTag));  // Untag result end.
   __ bind(&done_allocate);
 
   // Initialize the JSObject fields.
@@ -4563,6 +4564,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
     __ Allocate(JSArray::kSize, r0, r1, r2, &allocate, NO_ALLOCATION_FLAGS);
+    __ sub(r1, r1, Operand(kHeapObjectTag));  // Untag result end.
     __ bind(&done_allocate);
 
     // Setup the rest parameter array in r0.

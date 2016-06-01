@@ -1635,51 +1635,39 @@ class PageIterator BASE_EMBEDDED {
 // space.
 class AllocationInfo {
  public:
-  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
+  AllocationInfo() { Reset(nullptr, nullptr); }
+  AllocationInfo(Address top, Address limit) { Reset(top, limit); }
 
   void Reset(Address top, Address limit) {
     set_top(top);
     set_limit(limit);
   }
 
-  INLINE(void set_top(Address top)) {
-    SLOW_DCHECK(top == NULL ||
-                (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
-    top_ = top;
+  inline void set_top(Address top) {
+    SLOW_DCHECK((reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
+    top_ = reinterpret_cast<intptr_t>(top) + kHeapObjectTag;
   }
 
-  INLINE(Address top()) const {
-    SLOW_DCHECK(top_ == NULL ||
-                (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
-    return top_;
+  inline Address top() const {
+    SLOW_DCHECK((top_ & kHeapObjectTagMask) == kHeapObjectTag);
+    return reinterpret_cast<Address>(top_ - kHeapObjectTag);
   }
 
-  Address* top_address() { return &top_; }
+  Address* top_address() { return reinterpret_cast<Address*>(&top_); }
 
-  INLINE(void set_limit(Address limit)) {
-    limit_ = limit;
+  inline void set_limit(Address limit) {
+    limit_ = reinterpret_cast<intptr_t>(limit);
   }
 
-  INLINE(Address limit()) const {
-    return limit_;
-  }
+  inline Address limit() const { return reinterpret_cast<Address>(limit_); }
 
-  Address* limit_address() { return &limit_; }
-
-#ifdef DEBUG
-  bool VerifyPagedAllocation() {
-    return (Page::FromAllocationAreaAddress(top_) ==
-            Page::FromAllocationAreaAddress(limit_)) &&
-           (top_ <= limit_);
-  }
-#endif
+  Address* limit_address() { return reinterpret_cast<Address*>(&limit_); }
 
  private:
-  // Current allocation top.
-  Address top_;
-  // Current allocation limit.
-  Address limit_;
+  // Current tagged allocation top.
+  intptr_t top_;
+  // Current untagged allocation limit.
+  intptr_t limit_;
 };
 
 

@@ -367,9 +367,7 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
   Node* no_runtime_result = top;
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
                       new_top);
-  no_runtime_result = BitcastWordToTagged(
-      IntPtrAdd(no_runtime_result, IntPtrConstant(kHeapObjectTag)));
-  result.Bind(no_runtime_result);
+  result.Bind(BitcastWordToTagged(no_runtime_result));
   Goto(&merge_runtime);
 
   Bind(&merge_runtime);
@@ -387,8 +385,9 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
   if (flags & kDoubleAlignment) {
     // TODO(epertoso): Simd128 alignment.
     Label aligned(this), not_aligned(this), merge(this, &adjusted_size);
-    Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &not_aligned,
-           &aligned);
+    Branch(WordAnd(IntPtrSub(top, IntPtrConstant(kHeapObjectTag)),
+                   IntPtrConstant(kDoubleAlignmentMask)),
+           &not_aligned, &aligned);
 
     Bind(&not_aligned);
     Node* not_aligned_size =
