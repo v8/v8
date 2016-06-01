@@ -45,7 +45,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
   } else {
     heap->new_space()->DisableInlineAllocationSteps();
     int overall_free_memory =
-        static_cast<int>(heap->new_space()->limit() - heap->new_space()->top());
+        static_cast<int>(*heap->new_space()->allocation_limit_address() -
+                         *heap->new_space()->allocation_top_address());
     CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   }
   while (free_memory > 0) {
@@ -58,13 +59,9 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       if (length <= 0) {
         // Not enough room to create another fixed array. Let's create a filler.
         if (free_memory > (2 * kPointerSize)) {
-          if (tenure == i::TENURED) {
-            heap->CreateFillerObjectAt(heap->old_space()->top(), free_memory,
-                                       ClearRecordedSlots::kNo);
-          } else {
-            heap->CreateFillerObjectAt(heap->new_space()->top(), free_memory,
-                                       ClearRecordedSlots::kNo);
-          }
+          heap->CreateFillerObjectAt(
+              *heap->old_space()->allocation_top_address(), free_memory,
+              ClearRecordedSlots::kNo);
         }
         break;
       }
@@ -80,7 +77,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
 void AllocateAllButNBytes(v8::internal::NewSpace* space, int extra_bytes,
                           std::vector<Handle<FixedArray>>* out_handles) {
   space->DisableInlineAllocationSteps();
-  int space_remaining = static_cast<int>(space->limit() - space->top());
+  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return;
@@ -98,7 +96,8 @@ void FillCurrentPage(v8::internal::NewSpace* space,
 bool FillUpOnePage(v8::internal::NewSpace* space,
                    std::vector<Handle<FixedArray>>* out_handles) {
   space->DisableInlineAllocationSteps();
-  int space_remaining = static_cast<int>(space->limit() - space->top());
+  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
   if (space_remaining == 0) return false;
   std::vector<Handle<FixedArray>> handles =
       heap::CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);

@@ -5345,8 +5345,10 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     ExternalReference allocation_top =
         AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
     Register top_address = scratch0();
+    __ Dsubu(v0, v0, Operand(kHeapObjectTag));
     __ li(top_address, Operand(allocation_top));
     __ sd(v0, MemOperand(top_address));
+    __ Daddu(v0, v0, Operand(kHeapObjectTag));
   }
 }
 

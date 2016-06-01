@@ -4816,7 +4816,7 @@ void MacroAssembler::MakeSureDoubleAlignedHelper(Register result,
                                                  AllocationFlags flags) {
   if (kPointerSize == kDoubleSize) {
     if (FLAG_debug_code) {
-      testl(result, Immediate(kDoubleAlignmentMaskTagged));
+      testl(result, Immediate(kDoubleAlignmentMask));
       Check(zero, kAllocationIsNotDoubleAligned);
     }
   } else {
@@ -4828,7 +4828,7 @@ void MacroAssembler::MakeSureDoubleAlignedHelper(Register result,
     // used in UpdateAllocationTopHelper later.
     DCHECK(!scratch.is(kScratchRegister));
     Label aligned;
-    testl(result, Immediate(kDoubleAlignmentMaskTagged));
+    testl(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
     if (((flags & ALLOCATION_FOLDED) == 0) && ((flags & PRETENURE) != 0)) {
       ExternalReference allocation_limit =
@@ -4837,7 +4837,7 @@ void MacroAssembler::MakeSureDoubleAlignedHelper(Register result,
       j(above_equal, gc_required);
     }
     LoadRoot(kScratchRegister, Heap::kOnePointerFillerMapRootIndex);
-    movp(Operand(result, -kHeapObjectTag), kScratchRegister);
+    movp(Operand(result, 0), kScratchRegister);
     addp(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
   }
@@ -4849,7 +4849,7 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                AllocationFlags flags) {
   if (emit_debug_code()) {
     testp(result_end, Immediate(kObjectAlignmentMask));
-    Check(not_zero, kUnalignedAllocationInNewSpace);
+    Check(zero, kUnalignedAllocationInNewSpace);
   }
 
   ExternalReference allocation_top =
@@ -4917,7 +4917,11 @@ void MacroAssembler::Allocate(int object_size,
   }
 
   if (top_reg.is(result)) {
-    subp(result, Immediate(object_size));
+    subp(result, Immediate(object_size - kHeapObjectTag));
+  } else {
+    // Tag the result.
+    DCHECK(kHeapObjectTag == 1);
+    incp(result);
   }
 }
 
@@ -4982,6 +4986,9 @@ void MacroAssembler::Allocate(Register object_size,
     // The top pointer is not updated for allocation folding dominators.
     UpdateAllocationTopHelper(result_end, scratch, flags);
   }
+
+  // Tag the result.
+  addp(result, Immediate(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(int object_size, Register result,
@@ -4997,6 +5004,8 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   leap(result_end, Operand(result, object_size));
 
   UpdateAllocationTopHelper(result_end, no_reg, flags);
+
+  addp(result, Immediate(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -5012,6 +5021,8 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   leap(result_end, Operand(result, object_size, times_1, 0));
 
   UpdateAllocationTopHelper(result_end, no_reg, flags);
+
+  addp(result, Immediate(kHeapObjectTag));
 }
 
 void MacroAssembler::AllocateHeapNumber(Register result,

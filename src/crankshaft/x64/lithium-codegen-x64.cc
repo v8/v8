@@ -5249,7 +5249,9 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     // undo the allocation.
     ExternalReference allocation_top =
         AllocationUtils::GetAllocationTopReference(isolate(), allocation_flags);
+    __ subp(rax, Immediate(kHeapObjectTag));
     __ Store(allocation_top, rax);
+    __ addp(rax, Immediate(kHeapObjectTag));
   }
 }
 
