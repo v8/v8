@@ -393,12 +393,28 @@ bool Heap::OldGenerationAllocationLimitReached() {
   return OldGenerationSpaceAvailable() < 0;
 }
 
-
+template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Page* page = Page::FromAddress(old_address);
   Address age_mark = new_space_.age_mark();
+
+  if (promotion_mode == PROMOTE_MARKED) {
+    MarkBit mark_bit = Marking::MarkBitFrom(old_address);
+    if (!Marking::IsWhite(mark_bit)) {
+      return true;
+    }
+  }
+
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
+}
+
+PromotionMode Heap::CurrentPromotionMode() {
+  if (incremental_marking()->IsMarking()) {
+    return PROMOTE_MARKED;
+  } else {
+    return DEFAULT_PROMOTION;
+  }
 }
 
 void Heap::RecordWrite(Object* object, int offset, Object* o) {

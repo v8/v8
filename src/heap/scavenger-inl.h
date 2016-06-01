@@ -10,8 +10,7 @@
 namespace v8 {
 namespace internal {
 
-void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object,
-                               PromotionMode promotion_mode) {
+void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
   DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
@@ -35,19 +34,18 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object,
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object, promotion_mode);
+  return ScavengeObjectSlow(p, object);
 }
 
-SlotCallbackResult Scavenger::CheckAndScavengeObject(
-    Heap* heap, Address slot_address, PromotionMode promotion_mode) {
+SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
+                                                     Address slot_address) {
   Object** slot = reinterpret_cast<Object**>(slot_address);
   Object* object = *slot;
   if (heap->InFromSpace(object)) {
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
     DCHECK(heap_object->IsHeapObject());
 
-    ScavengeObject(reinterpret_cast<HeapObject**>(slot), heap_object,
-                   promotion_mode);
+    ScavengeObject(reinterpret_cast<HeapObject**>(slot), heap_object);
 
     object = *slot;
     // If the object was in from space before and is after executing the
@@ -64,13 +62,14 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(
 }
 
 // static
-void StaticScavengeVisitor::VisitPointer(Heap* heap, HeapObject* obj,
-                                         Object** p) {
+template <PromotionMode promotion_mode>
+void StaticScavengeVisitor<promotion_mode>::VisitPointer(Heap* heap,
+                                                         HeapObject* obj,
+                                                         Object** p) {
   Object* object = *p;
   if (!heap->InNewSpace(object)) return;
   Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
-                            reinterpret_cast<HeapObject*>(object),
-                            DEFAULT_PROMOTION);
+                            reinterpret_cast<HeapObject*>(object));
 }
 
 }  // namespace internal

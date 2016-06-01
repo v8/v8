@@ -1747,7 +1747,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
                                                local_pretenuring_feedback_);
     int size = object->Size();
     HeapObject* target_object = nullptr;
-    if (heap_->ShouldBePromoted(object->address(), size) &&
+    if (heap_->ShouldBePromoted<DEFAULT_PROMOTION>(object->address(), size) &&
         TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object,
                           &target_object)) {
       // If we end up needing more special cases, we should factor this out.

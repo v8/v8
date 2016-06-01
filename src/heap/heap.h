@@ -303,10 +303,9 @@ class Scavenger;
 class ScavengeJob;
 class WeakObjectRetainer;
 
-enum PromotionMode { FORCE_PROMOTION, DEFAULT_PROMOTION };
+enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
 
-typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to,
-                                   PromotionMode mode);
+typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
 // A queue of objects promoted during scavenge. Each object is accompanied
 // by it's size to avoid dereferencing a map pointer for scanning.
@@ -779,7 +778,10 @@ class Heap {
 
   // An object should be promoted if the object has survived a
   // scavenge operation.
+  template <PromotionMode promotion_mode>
   inline bool ShouldBePromoted(Address old_address, int object_size);
+
+  inline PromotionMode CurrentPromotionMode();
 
   void ClearNormalizedMapCaches();
 
@@ -1698,7 +1700,8 @@ class Heap {
   // Performs a minor collection in new generation.
   void Scavenge();
 
-  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
+  Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front,
+                     PromotionMode promotion_mode);
 
   void UpdateNewSpaceReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
