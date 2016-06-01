@@ -105,7 +105,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 48
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(0),
@@ -126,6 +126,7 @@ bytecodes: [
   /*   72 S> */ B(CreateClosure), U8(1), U8(0),
                 B(PopContext), R(0),
   /*  104 S> */ B(Return),
+                B(PopContext), R(1),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,

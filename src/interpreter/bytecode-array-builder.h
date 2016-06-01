@@ -361,7 +361,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
   SourcePositionTableBuilder source_position_table_builder_;
-  bool exit_seen_in_block_;
+  bool return_seen_in_block_;
   int unbound_jumps_;
   int parameter_count_;
   int local_register_count_;

@@ -13,12 +13,13 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 39
+bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
   /*   40 S> */ B(LdaSmi), U8(1),
   /*   75 S> */ B(Return),
+                B(Jump), U8(34),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
@@ -31,6 +32,7 @@ bytecodes: [
   /*   63 S> */ B(LdaSmi), U8(2),
                 B(PopContext), R(0),
   /*   75 S> */ B(Return),
+                B(PopContext), R(0),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]
@@ -38,7 +40,7 @@ constant pool: [
   "e",
 ]
 handlers: [
-  [4, 7, 7],
+  [4, 7, 9],
 ]
 
 ---

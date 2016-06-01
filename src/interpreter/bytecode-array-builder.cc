@@ -24,7 +24,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
       constant_array_builder_(isolate, zone),
       handler_table_builder_(isolate, zone),
       source_position_table_builder_(isolate, zone),
-      exit_seen_in_block_(false),
+      return_seen_in_block_(false),
       unbound_jumps_(0),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
@@ -79,7 +79,7 @@ bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(0, unbound_jumps_);
   DCHECK_EQ(bytecode_generated_, false);
-  DCHECK(exit_seen_in_block_);
+  DCHECK(return_seen_in_block_);
 
   pipeline()->FlushBasicBlock();
   const ZoneVector<uint8_t>* bytecodes = bytecode_array_writer()->bytecodes();
@@ -117,9 +117,6 @@ void BytecodeArrayBuilder::AttachSourceInfo(BytecodeNode* node) {
 }
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
-
   BytecodeNode node(bytecode);
   AttachSourceInfo(&node);
   pipeline()->Write(&node);
@@ -129,8 +126,6 @@ void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1,
                                         uint32_t operand2, uint32_t operand3) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
   DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
   DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
   DCHECK(OperandIsValid(bytecode, operand_scale, 2, operand2));
@@ -145,8 +140,6 @@ void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1,
                                         uint32_t operand2) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
   DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
   DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
   DCHECK(OperandIsValid(bytecode, operand_scale, 2, operand2));
@@ -158,8 +151,6 @@ void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0, uint32_t operand1) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
   DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
   DCHECK(OperandIsValid(bytecode, operand_scale, 1, operand1));
   BytecodeNode node(bytecode, operand0, operand1, operand_scale);
@@ -170,8 +161,6 @@ void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
 void BytecodeArrayBuilder::OutputScaled(Bytecode bytecode,
                                         OperandScale operand_scale,
                                         uint32_t operand0) {
-  // Don't output dead code.
-  if (exit_seen_in_block_) return;
   DCHECK(OperandIsValid(bytecode, operand_scale, 0, operand0));
   BytecodeNode node(bytecode, operand0, operand_scale);
   AttachSourceInfo(&node);
@@ -666,9 +655,6 @@ void BytecodeArrayBuilder::PatchJump(size_t jump_target, size_t jump_location) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
-  // Don't emit dead code.
-  if (exit_seen_in_block_) return *this;
-
   if (label->is_bound()) {
     // Label has been bound already so this is a backwards jump.
     size_t current_offset = pipeline()->FlushForOffset();
@@ -754,21 +740,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   Output(Bytecode::kThrow);
-  exit_seen_in_block_ = true;
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
   Output(Bytecode::kReThrow);
-  exit_seen_in_block_ = true;
   return *this;
 }
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   Output(Bytecode::kReturn);
-  exit_seen_in_block_ = true;
+  return_seen_in_block_ = true;
   return *this;
 }
 
@@ -863,17 +847,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
 
 
 void BytecodeArrayBuilder::LeaveBasicBlock() {
-  exit_seen_in_block_ = false;
   pipeline()->FlushBasicBlock();
+  return_seen_in_block_ = false;
 }
 
 void BytecodeArrayBuilder::EnsureReturn() {
-  if (!exit_seen_in_block_) {
+  if (!return_seen_in_block_) {
     LoadUndefined();
     SetReturnPosition();
     Return();
   }
-  DCHECK(exit_seen_in_block_);
+  DCHECK(return_seen_in_block_);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
@@ -974,25 +958,21 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 
 void BytecodeArrayBuilder::SetReturnPosition() {
   if (return_position_ == RelocInfo::kNoPosition) return;
-  if (exit_seen_in_block_) return;
   latest_source_info_.Update({return_position_, true});
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
-  if (exit_seen_in_block_) return;
   latest_source_info_.Update({stmt->position(), true});
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  if (exit_seen_in_block_) return;
   latest_source_info_.Update({expr->position(), false});
 }
 
 void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  if (exit_seen_in_block_) return;
   latest_source_info_.Update({expr->position(), true});
 }
 

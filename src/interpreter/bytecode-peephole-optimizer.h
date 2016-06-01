@@ -22,6 +22,7 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   BytecodePeepholeOptimizer(ConstantArrayBuilder* constant_array_builder,
                             BytecodePipelineStage* next_stage);
 
+  // BytecodePipelineStage interface.
   void Write(BytecodeNode* node) override;
   size_t FlushForOffset() override;
   void FlushBasicBlock() override;

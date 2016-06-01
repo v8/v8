@@ -31,7 +31,7 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   void Write(BytecodeNode* node) override;
 
  private:
-  const uint32_t kInvalidEquivalenceId = kMaxUInt32;
+  static const uint32_t kInvalidEquivalenceId = kMaxUInt32;
 
   class RegisterInfo;
 

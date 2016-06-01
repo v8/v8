@@ -150,14 +150,15 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 18
+bytecode array length: 20
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   18 S> */ B(LdaZero),
   /*   24 E> */ B(TestLessThanOrEqual), R(arg0),
-                B(JumpIfFalse), U8(7),
+                B(JumpIfFalse), U8(9),
   /*   36 S> */ B(Wide), B(LdaSmi), U16(200),
   /*   80 S> */ B(Return),
+                B(Jump), U8(7),
   /*   63 S> */ B(Wide), B(LdaSmi), U16(-200),
   /*   80 S> */ B(Return),
                 B(LdaUndefined),
@@ -262,7 +263,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 537
+bytecode array length: 539
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   24 S> */ B(LdaZero),
@@ -530,6 +531,7 @@ bytecodes: [
                 B(Mov), R(1), R(0),
   /* 1081 S> */ B(Wide), B(LdaSmi), U16(200),
   /* 1117 S> */ B(Return),
+                B(Jump), U8(7),
   /* 1102 S> */ B(Wide), B(LdaSmi), U16(-200),
   /* 1117 S> */ B(Return),
                 B(LdaUndefined),
@@ -617,7 +619,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 535
+bytecode array length: 537
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   25 S> */ B(LdaZero),
@@ -884,6 +886,7 @@ bytecodes: [
                 B(Mov), R(1), R(0),
   /* 1076 S> */ B(Wide), B(LdaSmi), U16(200),
   /* 1112 S> */ B(Return),
+                B(Jump), U8(7),
   /* 1097 S> */ B(Wide), B(LdaSmi), U16(-200),
   /* 1112 S> */ B(Return),
                 B(LdaUndefined),
@@ -985,14 +988,15 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 16
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   25 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   30 S> */ B(JumpIfToBooleanFalse), U8(5),
+  /*   30 S> */ B(JumpIfToBooleanFalse), U8(7),
   /*   43 S> */ B(LdaSmi), U8(20),
   /*   85 S> */ B(Return),
+                B(Jump), U8(5),
   /*   69 S> */ B(LdaSmi), U8(-20),
   /*   85 S> */ B(Return),
                 B(LdaUndefined),
