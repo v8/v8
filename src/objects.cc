@@ -11139,8 +11139,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   value |= length << String::ArrayIndexLengthBits::kShift;
 
   DCHECK((value & String::kIsNotArrayIndexMask) == 0);
-  DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
-            (value & String::kContainsCachedArrayIndexMask) == 0);
+  DCHECK((length > String::kMaxCachedArrayIndexLength) ||
+         (value & String::kContainsCachedArrayIndexMask) == 0);
   return value;
 }
 
@@ -15170,11 +15170,6 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
     }
   }
 }
-template <typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::Print() {
-  OFStream os(stdout);
-  Print(os);
-}
 #endif
 
 
@@ -15906,7 +15901,15 @@ int NameDictionaryBase<Derived, Shape>::FindEntry(Handle<Name> key) {
     Object* element = this->get(index);
     if (element->IsUndefined()) break;  // Empty entry.
     if (*key == element) return entry;
-    DCHECK(element->IsTheHole() || element->IsUniqueName());
+    if (!element->IsUniqueName() &&
+        !element->IsTheHole() &&
+        Name::cast(element)->Equals(*key)) {
+      // Replace a key that is a non-internalized string by the equivalent
+      // internalized string for faster further lookups.
+      this->set(index, *key);
+      return entry;
+    }
+    DCHECK(element->IsTheHole() || !Name::cast(element)->Equals(*key));
     entry = Derived::NextProbe(entry, count++, capacity);
   }
   return Derived::kNotFound;

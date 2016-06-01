@@ -42,17 +42,15 @@ class FunctionTester : public InitializedHandleScope {
     CompileGraph(graph);
   }
 
-  FunctionTester(Handle<Code> code, int param_count)
+  FunctionTester(const CallInterfaceDescriptor& descriptor, Handle<Code> code)
       : isolate(main_isolate()),
-        function((FLAG_allow_natives_syntax = true,
-                  NewFunction(BuildFunction(param_count).c_str()))),
+        function(
+            (FLAG_allow_natives_syntax = true,
+             NewFunction(BuildFunctionFromDescriptor(descriptor).c_str()))),
         flags_(0) {
     Compile(function);
     function->ReplaceCode(*code);
   }
-
-  FunctionTester(const CallInterfaceDescriptor& descriptor, Handle<Code> code)
-      : FunctionTester(code, descriptor.GetParameterCount()) {}
 
   Isolate* isolate;
   Handle<JSFunction> function;
@@ -64,12 +62,6 @@ class FunctionTester : public InitializedHandleScope {
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b) {
     Handle<Object> args[] = {a, b};
     return Execution::Call(isolate, function, undefined(), 2, args);
-  }
-
-  MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b,
-                           Handle<Object> c) {
-    Handle<Object> args[] = {a, b, c};
-    return Execution::Call(isolate, function, undefined(), 3, args);
   }
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b, Handle<Object> c,
@@ -99,54 +91,39 @@ class FunctionTester : public InitializedHandleScope {
     return try_catch.Message();
   }
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c, Handle<Object> d) {
-    Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
-    CHECK(expected->SameValue(*result));
-  }
-
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c) {
-    return CheckCall(expected, a, b, c, undefined());
-  }
-
   void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b) {
-    return CheckCall(expected, a, b, undefined());
+    Handle<Object> result = Call(a, b).ToHandleChecked();
+    CHECK(expected->SameValue(*result));
   }
 
   void CheckCall(Handle<Object> expected, Handle<Object> a) {
     CheckCall(expected, a, undefined());
   }
 
-  void CheckCall(Handle<Object> expected) { CheckCall(expected, undefined()); }
+  void CheckCall(Handle<Object> expected) {
+    CheckCall(expected, undefined(), undefined());
+  }
 
   void CheckCall(double expected, double a, double b) {
     CheckCall(Val(expected), Val(a), Val(b));
   }
 
-  void CheckTrue(Handle<Object> a) { CheckCall(true_value(), a); }
-
   void CheckTrue(Handle<Object> a, Handle<Object> b) {
     CheckCall(true_value(), a, b);
   }
 
-  void CheckTrue(Handle<Object> a, Handle<Object> b, Handle<Object> c) {
-    CheckCall(true_value(), a, b, c);
-  }
-
-  void CheckTrue(Handle<Object> a, Handle<Object> b, Handle<Object> c,
-                 Handle<Object> d) {
-    CheckCall(true_value(), a, b, c, d);
-  }
+  void CheckTrue(Handle<Object> a) { CheckCall(true_value(), a, undefined()); }
 
   void CheckTrue(double a, double b) {
     CheckCall(true_value(), Val(a), Val(b));
   }
 
-  void CheckFalse(Handle<Object> a) { CheckCall(false_value(), a); }
-
   void CheckFalse(Handle<Object> a, Handle<Object> b) {
     CheckCall(false_value(), a, b);
+  }
+
+  void CheckFalse(Handle<Object> a) {
+    CheckCall(false_value(), a, undefined());
   }
 
   void CheckFalse(double a, double b) {
@@ -238,6 +215,11 @@ class FunctionTester : public InitializedHandleScope {
     }
     function_string += "){})";
     return function_string;
+  }
+
+  std::string BuildFunctionFromDescriptor(
+      const CallInterfaceDescriptor& descriptor) {
+    return BuildFunction(descriptor.GetParameterCount());
   }
 
   // Compile the given machine graph instead of the source of the function
