@@ -3961,6 +3961,8 @@ void MarkCompactCollector::RecordCodeEntrySlot(HeapObject* host, Address slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(host)) {
+    // TODO(ulan): remove this check after investigating crbug.com/414964.
+    CHECK(target->IsCode());
     RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, CODE_ENTRY_SLOT, slot);
   }
 }
