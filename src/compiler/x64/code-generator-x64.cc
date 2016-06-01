@@ -18,10 +18,6 @@ namespace compiler {
 
 #define __ masm()->
 
-
-#define kScratchDoubleReg xmm0
-
-
 // Adds X64 specific methods for decoding operands.
 class X64OperandConverter : public InstructionOperandConverter {
  public:
@@ -2227,10 +2223,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ Movsd(dst, src);
     } else {
-      // We rely on having xmm0 available as a fixed scratch register.
       Operand dst = g.ToOperand(destination);
-      __ Movsd(xmm0, src);
-      __ Movsd(dst, xmm0);
+      __ Movsd(kScratchDoubleReg, src);
+      __ Movsd(dst, kScratchDoubleReg);
     }
   } else {
     UNREACHABLE();
@@ -2274,21 +2269,19 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     dst = g.ToOperand(destination);
     __ popq(dst);
   } else if (source->IsFPRegister() && destination->IsFPRegister()) {
-    // XMM register-register swap. We rely on having xmm0
-    // available as a fixed scratch register.
+    // XMM register-register swap.
     XMMRegister src = g.ToDoubleRegister(source);
     XMMRegister dst = g.ToDoubleRegister(destination);
-    __ Movapd(xmm0, src);
+    __ Movapd(kScratchDoubleReg, src);
     __ Movapd(src, dst);
-    __ Movapd(dst, xmm0);
+    __ Movapd(dst, kScratchDoubleReg);
   } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
-    // XMM register-memory swap.  We rely on having xmm0
-    // available as a fixed scratch register.
+    // XMM register-memory swap.
     XMMRegister src = g.ToDoubleRegister(source);
     Operand dst = g.ToOperand(destination);
-    __ Movsd(xmm0, src);
+    __ Movsd(kScratchDoubleReg, src);
     __ Movsd(src, dst);
-    __ Movsd(dst, xmm0);
+    __ Movsd(dst, kScratchDoubleReg);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

@@ -451,7 +451,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ JumpIfDictionaryInPrototypeChain(receiver, rdi, kScratchRegister, slow);
 
   __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value, rbx, key, xmm0,
+  __ StoreNumberToDoubleElements(value, rbx, key, kScratchDoubleReg,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.

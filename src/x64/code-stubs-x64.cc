@@ -162,7 +162,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
     bool stash_exponent_copy = !input_reg.is(rsp);
     __ movl(scratch1, mantissa_operand);
-    __ Movsd(xmm0, mantissa_operand);
+    __ Movsd(kScratchDoubleReg, mantissa_operand);
     __ movl(rcx, exponent_operand);
     if (stash_exponent_copy) __ pushq(rcx);
 
@@ -182,7 +182,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ jmp(&check_negative);
 
     __ bind(&process_64_bits);
-    __ Cvttsd2siq(result_reg, xmm0);
+    __ Cvttsd2siq(result_reg, kScratchDoubleReg);
     __ jmp(&done, Label::kNear);
 
     // If the double was negative, negate the integer result.

@@ -186,6 +186,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm0)                               \
   V(xmm1)                               \
   V(xmm2)                               \
   V(xmm3)                               \
@@ -199,8 +200,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm11)                              \
   V(xmm12)                              \
   V(xmm13)                              \
-  V(xmm14)                              \
-  V(xmm15)
+  V(xmm14)
 
 struct XMMRegister {
   enum Code {

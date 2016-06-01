@@ -1887,13 +1887,12 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ Movapd(result, result);
       break;
     case Token::MOD: {
-      XMMRegister xmm_scratch = double_scratch0();
-      __ PrepareCallCFunction(2);
-      __ Movapd(xmm_scratch, left);
+      DCHECK(left.is(xmm0));
       DCHECK(right.is(xmm1));
+      DCHECK(result.is(xmm0));
+      __ PrepareCallCFunction(2);
       __ CallCFunction(
           ExternalReference::mod_two_doubles_operation(isolate()), 2);
-      __ Movapd(result, xmm_scratch);
       break;
     }
     default:
@@ -4768,20 +4767,21 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     __ Set(input_reg, 0);
   } else {
     XMMRegister scratch = ToDoubleRegister(instr->temp());
-    DCHECK(!scratch.is(xmm0));
+    DCHECK(!scratch.is(double_scratch0()));
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
-    __ Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ Cvttsd2si(input_reg, xmm0);
+    __ Movsd(double_scratch0(),
+             FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ Cvttsd2si(input_reg, double_scratch0());
     __ Cvtlsi2sd(scratch, input_reg);
-    __ Ucomisd(xmm0, scratch);
+    __ Ucomisd(double_scratch0(), scratch);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kLostPrecision);
     DeoptimizeIf(parity_even, instr, Deoptimizer::kNaN);
     if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
       __ testl(input_reg, input_reg);
       __ j(not_zero, done);
-      __ Movmskpd(input_reg, xmm0);
+      __ Movmskpd(input_reg, double_scratch0());
       __ andl(input_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
     }

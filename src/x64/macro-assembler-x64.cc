@@ -3259,12 +3259,12 @@ void MacroAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
     pinsrd(dst, src, imm8);
     return;
   }
-  Movd(xmm0, src);
+  Movd(kScratchDoubleReg, src);
   if (imm8 == 1) {
-    punpckldq(dst, xmm0);
+    punpckldq(dst, kScratchDoubleReg);
   } else {
     DCHECK_EQ(0, imm8);
-    Movss(dst, xmm0);
+    Movss(dst, kScratchDoubleReg);
   }
 }
 
@@ -3276,12 +3276,12 @@ void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
     pinsrd(dst, src, imm8);
     return;
   }
-  Movd(xmm0, src);
+  Movd(kScratchDoubleReg, src);
   if (imm8 == 1) {
-    punpckldq(dst, xmm0);
+    punpckldq(dst, kScratchDoubleReg);
   } else {
     DCHECK_EQ(0, imm8);
-    Movss(dst, xmm0);
+    Movss(dst, kScratchDoubleReg);
   }
 }
 
@@ -3743,15 +3743,15 @@ void MacroAssembler::SlowTruncateToI(Register result_reg,
 void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
                                            Register input_reg) {
   Label done;
-  Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  Cvttsd2siq(result_reg, xmm0);
+  Movsd(kScratchDoubleReg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  Cvttsd2siq(result_reg, kScratchDoubleReg);
   cmpq(result_reg, Immediate(1));
   j(no_overflow, &done, Label::kNear);
 
   // Slow case.
   if (input_reg.is(result_reg)) {
     subp(rsp, Immediate(kDoubleSize));
-    Movsd(MemOperand(rsp, 0), xmm0);
+    Movsd(MemOperand(rsp, 0), kScratchDoubleReg);
     SlowTruncateToI(result_reg, rsp, 0);
     addp(rsp, Immediate(kDoubleSize));
   } else {
@@ -3788,8 +3788,8 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                Label* lost_precision, Label* is_nan,
                                Label* minus_zero, Label::Distance dst) {
   Cvttsd2si(result_reg, input_reg);
-  Cvtlsi2sd(xmm0, result_reg);
-  Ucomisd(xmm0, input_reg);
+  Cvtlsi2sd(kScratchDoubleReg, result_reg);
+  Ucomisd(kScratchDoubleReg, input_reg);
   j(not_equal, lost_precision, dst);
   j(parity_even, is_nan, dst);  // NaN.
   if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {

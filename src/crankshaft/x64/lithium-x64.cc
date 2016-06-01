@@ -714,10 +714,10 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   DCHECK(instr->left()->representation().IsDouble());
   DCHECK(instr->right()->representation().IsDouble());
   if (op == Token::MOD) {
-    LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
+    LOperand* left = UseFixedDouble(instr->BetterLeftOperand(), xmm0);
     LOperand* right = UseFixedDouble(instr->BetterRightOperand(), xmm1);
     LArithmeticD* result = new(zone()) LArithmeticD(op, left, right);
-    return MarkAsCall(DefineSameAsFirst(result), instr);
+    return MarkAsCall(DefineFixedDouble(result, xmm0), instr);
   } else {
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
