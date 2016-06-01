@@ -195,6 +195,7 @@ DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
+DEFINE_IMPLICATION(es_staging, harmony_async_await)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                           \
