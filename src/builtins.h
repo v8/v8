@@ -121,6 +121,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(GlobalDecodeURIComponent, kNone)                           \
   V(GlobalEncodeURI, kNone)                                    \
   V(GlobalEncodeURIComponent, kNone)                           \
+  V(GlobalEscape, kNone)                                       \
+  V(GlobalUnescape, kNone)                                     \
                                                                \
   V(GlobalEval, kTarget)                                       \
                                                                \

@@ -8,6 +8,7 @@
 #include "src/handles.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
+#include "src/string-search.h"
 
 namespace v8 {
 namespace internal {
@@ -59,14 +60,14 @@ bool DecodeOctets(const uint8_t* octets, int length, List<uc16>* buffer) {
   return true;
 }
 
-bool TwoDigitHex(int index, String::FlatContent* uri_content, uc16* decoded) {
-  char high = HexValue(uri_content->Get(index + 1));
-  char low = HexValue(uri_content->Get(index + 2));
-  if (high < 0 || low < 0) {
-    return false;
-  }
-  *decoded = (high << 4) | low;
-  return true;
+int TwoDigitHex(uc16 character1, uc16 character2) {
+  if (character1 > 'f') return -1;
+  int high = HexValue(character1);
+  if (high == -1) return -1;
+  if (character2 > 'f') return -1;
+  int low = HexValue(character2);
+  if (low == -1) return -1;
+  return (high << 4) + low;
 }
 
 template <typename T>
@@ -92,7 +93,9 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
     uc16 code = uri_content->Get(k);
     if (code == '%') {
       uc16 decoded;
-      if (k + 2 >= uri_length || !TwoDigitHex(k, uri_content, &decoded)) {
+      if (k + 2 >= uri_length ||
+          (decoded = TwoDigitHex(uri_content->Get(k + 1),
+                                 uri_content->Get(k + 2))) < 0) {
         return false;
       }
       k += 2;
@@ -109,7 +112,8 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
           uc16 continuation_byte;
 
           if (uri_content->Get(++k) != '%' ||
-              !TwoDigitHex(k, uri_content, &continuation_byte)) {
+              (continuation_byte = TwoDigitHex(uri_content->Get(k + 1),
+                                               uri_content->Get(k + 2))) < 0) {
             return false;
           }
           k += 2;
@@ -140,7 +144,9 @@ bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
     uc16 code = uri_content.Get(k);
     if (code == '%') {
       uc16 decoded;
-      if (k + 2 >= uri_length || !TwoDigitHex(k, &uri_content, &decoded)) {
+      if (k + 2 >= uri_length ||
+          (decoded = TwoDigitHex(uri_content.Get(k + 1),
+                                 uri_content.Get(k + 2))) < 0) {
         return false;
       }
 
@@ -234,7 +240,7 @@ bool IsUriSeparator(uc16 c) {
   }
 }
 
-void AddHexEncodedToBuffer(uint8_t octet, List<uint8_t>* buffer) {
+void AddEncodedOctetToBuffer(uint8_t octet, List<uint8_t>* buffer) {
   buffer->Add('%');
   buffer->Add(HexCharOfValue(octet >> 4));
   buffer->Add(HexCharOfValue(octet & 0x0F));
@@ -246,17 +252,17 @@ void EncodeSingle(uc16 c, List<uint8_t>* buffer) {
   number_of_bytes =
       unibrow::Utf8::Encode(s, c, unibrow::Utf16::kNoPreviousCharacter, false);
   for (int k = 0; k < number_of_bytes; k++) {
-    AddHexEncodedToBuffer(s[k], buffer);
+    AddEncodedOctetToBuffer(s[k], buffer);
   }
 }
 
 void EncodePair(uc16 cc1, uc16 cc2, List<uint8_t>* buffer) {
-  char s[4];
+  char s[4] = {};
   int number_of_bytes =
       unibrow::Utf8::Encode(s, unibrow::Utf16::CombineSurrogatePair(cc1, cc2),
                             unibrow::Utf16::kNoPreviousCharacter, false);
   for (int k = 0; k < number_of_bytes; k++) {
-    AddHexEncodedToBuffer(s[k], buffer);
+    AddEncodedOctetToBuffer(s[k], buffer);
   }
 }
 
@@ -299,6 +305,200 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
   }
 
   return isolate->factory()->NewStringFromOneByte(buffer.ToConstVector());
+}
+
+namespace {  // Anonymous namespace for Escape and Unescape
+
+template <typename Char>
+int UnescapeChar(Vector<const Char> vector, int i, int length, int* step) {
+  uint16_t character = vector[i];
+  int32_t hi = 0;
+  int32_t lo = 0;
+  if (character == '%' && i <= length - 6 && vector[i + 1] == 'u' &&
+      (hi = TwoDigitHex(vector[i + 2], vector[i + 3])) > -1 &&
+      (lo = TwoDigitHex(vector[i + 4], vector[i + 5])) > -1) {
+    *step = 6;
+    return (hi << 8) + lo;
+  } else if (character == '%' && i <= length - 3 &&
+             (lo = TwoDigitHex(vector[i + 1], vector[i + 2])) > -1) {
+    *step = 3;
+    return lo;
+  } else {
+    *step = 1;
+    return character;
+  }
+}
+
+template <typename Char>
+MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
+                                 int start_index) {
+  bool one_byte = true;
+  int length = string->length();
+
+  int unescaped_length = 0;
+  {
+    DisallowHeapAllocation no_allocation;
+    Vector<const Char> vector = string->GetCharVector<Char>();
+    for (int i = start_index; i < length; unescaped_length++) {
+      int step;
+      if (UnescapeChar(vector, i, length, &step) >
+          String::kMaxOneByteCharCode) {
+        one_byte = false;
+      }
+      i += step;
+    }
+  }
+
+  DCHECK(start_index < length);
+  Handle<String> first_part =
+      isolate->factory()->NewProperSubString(string, 0, start_index);
+
+  int dest_position = 0;
+  Handle<String> second_part;
+  DCHECK(unescaped_length <= String::kMaxLength);
+  if (one_byte) {
+    Handle<SeqOneByteString> dest = isolate->factory()
+                                        ->NewRawOneByteString(unescaped_length)
+                                        .ToHandleChecked();
+    DisallowHeapAllocation no_allocation;
+    Vector<const Char> vector = string->GetCharVector<Char>();
+    for (int i = start_index; i < length; dest_position++) {
+      int step;
+      dest->SeqOneByteStringSet(dest_position,
+                                UnescapeChar(vector, i, length, &step));
+      i += step;
+    }
+    second_part = dest;
+  } else {
+    Handle<SeqTwoByteString> dest = isolate->factory()
+                                        ->NewRawTwoByteString(unescaped_length)
+                                        .ToHandleChecked();
+    DisallowHeapAllocation no_allocation;
+    Vector<const Char> vector = string->GetCharVector<Char>();
+    for (int i = start_index; i < length; dest_position++) {
+      int step;
+      dest->SeqTwoByteStringSet(dest_position,
+                                UnescapeChar(vector, i, length, &step));
+      i += step;
+    }
+    second_part = dest;
+  }
+  return isolate->factory()->NewConsString(first_part, second_part);
+}
+
+bool IsNotEscaped(uint16_t c) {
+  if (IsAlphaNumeric(c)) {
+    return true;
+  }
+  //  @*_+-./
+  switch (c) {
+    case '@':
+    case '*':
+    case '_':
+    case '+':
+    case '-':
+    case '.':
+    case '/':
+      return true;
+    default:
+      return false;
+  }
+}
+
+template <typename Char>
+static MaybeHandle<String> UnescapePrivate(Isolate* isolate,
+                                           Handle<String> source) {
+  int index;
+  {
+    DisallowHeapAllocation no_allocation;
+    StringSearch<uint8_t, Char> search(isolate, STATIC_CHAR_VECTOR("%"));
+    index = search.Search(source->GetCharVector<Char>(), 0);
+    if (index < 0) return source;
+  }
+  return UnescapeSlow<Char>(isolate, source, index);
+}
+
+template <typename Char>
+static MaybeHandle<String> EscapePrivate(Isolate* isolate,
+                                         Handle<String> string) {
+  DCHECK(string->IsFlat());
+  int escaped_length = 0;
+  int length = string->length();
+
+  {
+    DisallowHeapAllocation no_allocation;
+    Vector<const Char> vector = string->GetCharVector<Char>();
+    for (int i = 0; i < length; i++) {
+      uint16_t c = vector[i];
+      if (c >= 256) {
+        escaped_length += 6;
+      } else if (IsNotEscaped(c)) {
+        escaped_length++;
+      } else {
+        escaped_length += 3;
+      }
+
+      // We don't allow strings that are longer than a maximal length.
+      DCHECK(String::kMaxLength < 0x7fffffff - 6);     // Cannot overflow.
+      if (escaped_length > String::kMaxLength) break;  // Provoke exception.
+    }
+  }
+
+  // No length change implies no change.  Return original string if no change.
+  if (escaped_length == length) return string;
+
+  Handle<SeqOneByteString> dest;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, dest, isolate->factory()->NewRawOneByteString(escaped_length),
+      String);
+  int dest_position = 0;
+
+  {
+    DisallowHeapAllocation no_allocation;
+    Vector<const Char> vector = string->GetCharVector<Char>();
+    for (int i = 0; i < length; i++) {
+      uint16_t c = vector[i];
+      if (c >= 256) {
+        dest->SeqOneByteStringSet(dest_position, '%');
+        dest->SeqOneByteStringSet(dest_position + 1, 'u');
+        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c >> 12));
+        dest->SeqOneByteStringSet(dest_position + 3,
+                                  HexCharOfValue((c >> 8) & 0xf));
+        dest->SeqOneByteStringSet(dest_position + 4,
+                                  HexCharOfValue((c >> 4) & 0xf));
+        dest->SeqOneByteStringSet(dest_position + 5, HexCharOfValue(c & 0xf));
+        dest_position += 6;
+      } else if (IsNotEscaped(c)) {
+        dest->SeqOneByteStringSet(dest_position, c);
+        dest_position++;
+      } else {
+        dest->SeqOneByteStringSet(dest_position, '%');
+        dest->SeqOneByteStringSet(dest_position + 1, HexCharOfValue(c >> 4));
+        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c & 0xf));
+        dest_position += 3;
+      }
+    }
+  }
+
+  return dest;
+}
+
+}  // Anonymous namespace
+
+MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
+  Handle<String> result;
+  string = String::Flatten(string);
+  return string->IsOneByteRepresentationUnderneath()
+             ? EscapePrivate<uint8_t>(isolate, string)
+             : EscapePrivate<uc16>(isolate, string);
+}
+
+MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
+  Handle<String> result;
+  string = String::Flatten(string);
+  return string->IsOneByteRepresentationUnderneath()
+             ? UnescapePrivate<uint8_t>(isolate, string)
+             : UnescapePrivate<uc16>(isolate, string);
 }
 
 }  // namespace internal

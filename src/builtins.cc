@@ -2156,6 +2156,28 @@ BUILTIN(GlobalEncodeURIComponent) {
                            Uri::EncodeUriComponent(isolate, uri_component));
 }
 
+// ES6 section B.2.1.1 escape (string)
+BUILTIN(GlobalEscape) {
+  HandleScope scope(isolate);
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, string,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  RETURN_RESULT_OR_FAILURE(isolate, Uri::Escape(isolate, string));
+}
+
+// ES6 section B.2.1.2 unescape (string)
+BUILTIN(GlobalUnescape) {
+  HandleScope scope(isolate);
+  Handle<String> string;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, string,
+      Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
+
+  RETURN_RESULT_OR_FAILURE(isolate, Uri::Unescape(isolate, string));
+}
+
 namespace {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,

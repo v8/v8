@@ -2854,6 +2854,14 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   SimpleInstallFunction(global_object, "encodeURIComponent",
                         Builtins::kGlobalEncodeURIComponent, 1, false);
 
+  // Install Global.escape.
+  SimpleInstallFunction(global_object, "escape", Builtins::kGlobalEscape, 1,
+                        false);
+
+  // Install Global.unescape.
+  SimpleInstallFunction(global_object, "unescape", Builtins::kGlobalUnescape, 1,
+                        false);
+
   // Install Global.eval.
   {
     Handle<JSFunction> eval =

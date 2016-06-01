@@ -936,10 +936,6 @@ namespace internal {
   F(DataViewSetFloat64, 4, 1)
 
 
-#define FOR_EACH_INTRINSIC_URI(F) \
-  F(URIEscape, 1, 1)              \
-  F(URIUnescape, 1, 1)
-
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
 
@@ -972,7 +968,6 @@ namespace internal {
   F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)
 
-
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_IC(F)                  \
   FOR_EACH_INTRINSIC_ARRAY(F)               \
@@ -1002,8 +997,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_STRINGS(F)             \
   FOR_EACH_INTRINSIC_SYMBOL(F)              \
   FOR_EACH_INTRINSIC_TEST(F)                \
-  FOR_EACH_INTRINSIC_TYPEDARRAY(F)          \
-  FOR_EACH_INTRINSIC_URI(F)
+  FOR_EACH_INTRINSIC_TYPEDARRAY(F)
 
 // FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
 // either returning an object or a pair.

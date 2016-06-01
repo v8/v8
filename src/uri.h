@@ -35,6 +35,12 @@ class Uri : public AllStatic {
     return Encode(isolate, component, false);
   }
 
+  // ES6 section B.2.1.1 escape (string)
+  static MaybeHandle<String> Escape(Isolate* isolate, Handle<String> string);
+
+  // ES6 section B.2.1.2 unescape (string)
+  static MaybeHandle<String> Unescape(Isolate* isolate, Handle<String> string);
+
  private:
   static MaybeHandle<String> Decode(Isolate* isolate, Handle<String> uri,
                                     bool is_uri);
