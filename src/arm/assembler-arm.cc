@@ -848,6 +848,19 @@ void Assembler::target_at_put(int pos, int target_pos) {
     // Load the position of the label relative to the generated code object
     // pointer in a register.
 
+    // The existing code must be a single 24-bit label chain link, followed by
+    // nops encoding the destination register. See mov_label_offset.
+
+    // Extract the destination register from the first nop instructions.
+    Register dst =
+        Register::from_code(Instruction::RmValue(instr_at(pos + kInstrSize)));
+    // In addition to the 24-bit label chain link, we expect to find one nop for
+    // ARMv7 and above, or two nops for ARMv6. See mov_label_offset.
+    DCHECK(IsNop(instr_at(pos + kInstrSize), dst.code()));
+    if (!CpuFeatures::IsSupported(ARMv7)) {
+      DCHECK(IsNop(instr_at(pos + 2 * kInstrSize), dst.code()));
+    }
+
     // Here are the instructions we need to emit:
     //   For ARMv7: target24 => target16_1:target16_0
     //      movw dst, #target16_0
@@ -857,10 +870,6 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_1 << 8
     //      orr dst, dst, #target8_2 << 16
 
-    // We extract the destination register from the emitted nop instruction.
-    Register dst = Register::from_code(
-        Instruction::RmValue(instr_at(pos + kInstrSize)));
-    DCHECK(IsNop(instr_at(pos + kInstrSize), dst.code()));
     uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
     DCHECK(is_uint24(target24));
     if (is_uint8(target24)) {

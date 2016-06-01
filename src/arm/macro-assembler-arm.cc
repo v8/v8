@@ -89,17 +89,6 @@ int MacroAssembler::CallStubSize(
 }
 
 
-int MacroAssembler::CallSizeNotPredictableCodeSize(Isolate* isolate,
-                                                   Address target,
-                                                   RelocInfo::Mode rmode,
-                                                   Condition cond) {
-  Instr mov_instr = cond | MOV | LeaveCC;
-  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
-  return kInstrSize +
-         mov_operand.instructions_required(NULL, mov_instr) * kInstrSize;
-}
-
-
 void MacroAssembler::Call(Address target,
                           RelocInfo::Mode rmode,
                           Condition cond,
@@ -173,6 +162,40 @@ void MacroAssembler::Call(Handle<Code> code,
   Call(reinterpret_cast<Address>(code.location()), rmode, cond, mode);
 }
 
+void MacroAssembler::CallDeoptimizer(Address target) {
+  BlockConstPoolScope block_const_pool(this);
+
+  uintptr_t target_raw = reinterpret_cast<uintptr_t>(target);
+
+  // We use blx, like a call, but it does not return here. The link register is
+  // used by the deoptimizer to work out what called it.
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(this, ARMv7);
+    movw(ip, target_raw & 0xffff);
+    movt(ip, (target_raw >> 16) & 0xffff);
+    blx(ip);
+  } else {
+    // We need to load a literal, but we can't use the usual constant pool
+    // because we call this from a patcher, and cannot afford the guard
+    // instruction and other administrative overhead.
+    ldr(ip, MemOperand(pc, (2 * kInstrSize) - kPcLoadDelta));
+    blx(ip);
+    dd(target_raw);
+  }
+}
+
+int MacroAssembler::CallDeoptimizerSize() {
+  // ARMv7+:
+  //    movw    ip, ...
+  //    movt    ip, ...
+  //    blx     ip              @ This never returns.
+  //
+  // ARMv6:
+  //    ldr     ip, =address
+  //    blx     ip              @ This never returns.
+  //    .word   address
+  return 3 * kInstrSize;
+}
 
 void MacroAssembler::Ret(Condition cond) {
   bx(lr, cond);
@@ -3957,6 +3980,10 @@ CodePatcher::~CodePatcher() {
   if (flush_cache_ == FLUSH) {
     Assembler::FlushICache(masm_.isolate(), address_, size_);
   }
+
+  // Check that we don't have any pending constant pools.
+  DCHECK(masm_.num_pending_32_bit_constants_ == 0);
+  DCHECK(masm_.num_pending_64_bit_constants_ == 0);
 
   // Check that the code was patched as expected.
   DCHECK(masm_.pc_ == address_ + size_);
