@@ -418,6 +418,11 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
     frame_state_before_ = id_before == BailoutId::None()
                               ? builder_->GetEmptyFrameState()
                               : builder_->environment()->Checkpoint(id_before);
+    // Create an explicit checkpoint node for before the operation.
+    Node* node = builder_->NewNode(builder_->common()->Checkpoint());
+    DCHECK_EQ(IrOpcode::kDead,
+              NodeProperties::GetFrameStateInput(node, 0)->opcode());
+    NodeProperties::ReplaceFrameStateInput(node, 0, frame_state_before_);
   }
 
   void AddToNode(
@@ -444,6 +449,7 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 
     if (count >= 2) {
       // Add the frame state for before the operation.
+      // TODO(mstarzinger): Get rid of frame state input before!
       DCHECK_EQ(IrOpcode::kDead,
                 NodeProperties::GetFrameStateInput(node, 1)->opcode());
       NodeProperties::ReplaceFrameStateInput(node, 1, frame_state_before_);

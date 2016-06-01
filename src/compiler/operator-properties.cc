@@ -22,6 +22,7 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 // static
 int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
   switch (op->opcode()) {
+    case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
       return 1;
     case IrOpcode::kJSCallRuntime: {

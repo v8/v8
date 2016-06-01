@@ -298,7 +298,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
   if (node->opcode() == IrOpcode::kCheckpoint) {
     // Unlink the check point; effect uses will be updated to the incoming
     // effect that is passed.
-    node->Kill();
+    node->TrimInputCount(0);
     return;
   }
 

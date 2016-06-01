@@ -179,7 +179,7 @@ std::ostream& operator<<(std::ostream& os,
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
-  V(Checkpoint, Operator::kKontrol, 1, 1, 1, 0, 1, 0)        \
+  V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)        \
   V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
   V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
 
