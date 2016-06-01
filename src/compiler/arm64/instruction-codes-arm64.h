@@ -78,6 +78,7 @@ namespace compiler {
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \
   V(Arm64CompareAndBranch32)       \
+  V(Arm64CompareAndBranch)         \
   V(Arm64ClaimCSP)                 \
   V(Arm64ClaimJSSP)                \
   V(Arm64PokeCSP)                  \

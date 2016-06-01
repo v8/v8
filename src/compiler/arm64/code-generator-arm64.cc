@@ -1038,6 +1038,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Pseudo instructions turned into tbz/tbnz in AssembleArchBranch.
       break;
     case kArm64CompareAndBranch32:
+    case kArm64CompareAndBranch:
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
     case kArm64ClaimCSP: {
@@ -1499,6 +1500,17 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         break;
       case kNotEqual:
         __ Cbnz(i.InputRegister32(0), tlabel);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else if (opcode == kArm64CompareAndBranch) {
+    switch (condition) {
+      case kEqual:
+        __ Cbz(i.InputRegister64(0), tlabel);
+        break;
+      case kNotEqual:
+        __ Cbnz(i.InputRegister64(0), tlabel);
         break;
       default:
         UNREACHABLE();

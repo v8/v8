@@ -111,7 +111,6 @@ T ReverseBits(T value) {
   return result;
 }
 
-
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.
@@ -147,6 +146,14 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #endif
 }
 
+// Overloaded versions of CountTrailingZeros32/64.
+inline unsigned CountTrailingZeros(uint32_t value) {
+  return CountTrailingZeros32(value);
+}
+
+inline unsigned CountTrailingZeros(uint64_t value) {
+  return CountTrailingZeros64(value);
+}
 
 // Returns true iff |value| is a power of 2.
 inline bool IsPowerOfTwo32(uint32_t value) {
