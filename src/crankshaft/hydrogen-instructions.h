@@ -2161,8 +2161,6 @@ class HCall : public HTemplateInstruction<V> {
     this->SetAllSideEffects();
   }
 
-  HType CalculateInferredType() final { return HType::Tagged(); }
-
   virtual int argument_count() const {
     return argument_count_;
   }
@@ -2239,8 +2237,6 @@ class HCallWithDescriptor final : public HInstruction {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor)
-
-  HType CalculateInferredType() final { return HType::Tagged(); }
 
   // Defines whether this instruction corresponds to a JS call at tail position.
   TailCallMode syntactic_tail_call_mode() const {
