@@ -14,6 +14,7 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
+#include "src/compiler/checkpoint-elimination.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
@@ -891,6 +892,7 @@ struct TypedLoweringPhase {
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -902,6 +904,7 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }

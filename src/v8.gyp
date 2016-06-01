@@ -505,6 +505,8 @@
         'compiler/bytecode-graph-builder.cc',
         'compiler/bytecode-graph-builder.h',
         'compiler/c-linkage.cc',
+        'compiler/checkpoint-elimination.cc',
+        'compiler/checkpoint-elimination.h',
         'compiler/coalesced-live-ranges.cc',
         'compiler/coalesced-live-ranges.h',
         'compiler/code-generator-impl.h',

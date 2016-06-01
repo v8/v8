@@ -840,6 +840,8 @@ v8_source_set("v8_base") {
     "src/compiler/bytecode-graph-builder.cc",
     "src/compiler/bytecode-graph-builder.h",
     "src/compiler/c-linkage.cc",
+    "src/compiler/checkpoint-elimination.cc",
+    "src/compiler/checkpoint-elimination.h",
     "src/compiler/coalesced-live-ranges.cc",
     "src/compiler/coalesced-live-ranges.h",
     "src/compiler/code-assembler.cc",
