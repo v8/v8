@@ -293,9 +293,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
     return RemoveRegionNode(node);
   }
 
-  // Special treatment for CheckPoint nodes.
+  // Special treatment for checkpoint nodes.
   // TODO(epertoso): Pickup the current frame state.
-  if (node->opcode() == IrOpcode::kCheckPoint) {
+  if (node->opcode() == IrOpcode::kCheckpoint) {
     // Unlink the check point; effect uses will be updated to the incoming
     // effect that is passed.
     node->Kill();

@@ -705,7 +705,7 @@ Type* Typer::Visitor::TypeTypeGuard(Node* node) {
   return Type::Intersect(input_type, guard_type, zone());
 }
 
-Type* Typer::Visitor::TypeCheckPoint(Node* node) {
+Type* Typer::Visitor::TypeCheckpoint(Node* node) {
   UNREACHABLE();
   return nullptr;
 }

@@ -39,15 +39,15 @@ const Operator kOpNoWrite(0, Operator::kNoWrite, "OpNoWrite", 0, 1, 0, 0, 1, 0);
 }  // namespace
 
 // -----------------------------------------------------------------------------
-// CheckPoint
+// Checkpoint
 
-TEST_F(CheckpointEliminationTest, CheckPointChain) {
+TEST_F(CheckpointEliminationTest, CheckpointChain) {
   Node* const control = graph()->start();
   Node* frame_state = EmptyFrameState();
-  Node* checkpoint1 = graph()->NewNode(common()->CheckPoint(), frame_state,
+  Node* checkpoint1 = graph()->NewNode(common()->Checkpoint(), frame_state,
                                        graph()->start(), control);
   Node* effect_link = graph()->NewNode(&kOpNoWrite, checkpoint1);
-  Node* checkpoint2 = graph()->NewNode(common()->CheckPoint(), frame_state,
+  Node* checkpoint2 = graph()->NewNode(common()->Checkpoint(), frame_state,
                                        effect_link, control);
   Reduction r = Reduce(checkpoint2);
   ASSERT_TRUE(r.Changed());

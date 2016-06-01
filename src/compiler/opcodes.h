@@ -47,7 +47,7 @@
   V(Select)              \
   V(Phi)                 \
   V(EffectPhi)           \
-  V(CheckPoint)          \
+  V(Checkpoint)          \
   V(BeginRegion)         \
   V(FinishRegion)        \
   V(FrameState)          \

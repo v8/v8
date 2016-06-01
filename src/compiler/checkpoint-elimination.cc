@@ -18,11 +18,11 @@ namespace {
 // The given checkpoint is redundant if it is effect-wise dominated by another
 // checkpoint and there is no observable write in between. For now we consider
 // a linear effect chain only instead of true effect-wise dominance.
-bool IsRedundantCheckPoint(Node* node) {
+bool IsRedundantCheckpoint(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   while (effect->op()->HasProperty(Operator::kNoWrite) &&
          effect->op()->EffectInputCount() == 1) {
-    if (effect->opcode() == IrOpcode::kCheckPoint) return true;
+    if (effect->opcode() == IrOpcode::kCheckpoint) return true;
     effect = NodeProperties::GetEffectInput(effect);
   }
   return false;
@@ -31,8 +31,8 @@ bool IsRedundantCheckPoint(Node* node) {
 }  // namespace
 
 Reduction CheckpointElimination::Reduce(Node* node) {
-  if (node->opcode() != IrOpcode::kCheckPoint) return NoChange();
-  if (IsRedundantCheckPoint(node)) {
+  if (node->opcode() != IrOpcode::kCheckpoint) return NoChange();
+  if (IsRedundantCheckpoint(node)) {
     return Replace(NodeProperties::GetEffectInput(node));
   }
   return NoChange();
