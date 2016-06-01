@@ -2988,14 +2988,10 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
 
 size_t LargeObjectSpace::CommittedPhysicalMemory() {
-  if (!base::VirtualMemory::HasLazyCommits()) return CommittedMemory();
-  size_t size = 0;
-  LargePage* current = first_page_;
-  while (current != NULL) {
-    size += current->CommittedPhysicalMemory();
-    current = current->next_page();
-  }
-  return size;
+  // On a platform that provides lazy committing of memory, we over-account
+  // the actually committed memory. There is no easy way right now to support
+  // precise accounting of committed memory in large object space.
+  return CommittedMemory();
 }
 
 
