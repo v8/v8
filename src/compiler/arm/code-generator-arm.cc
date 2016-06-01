@@ -1204,8 +1204,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmPush:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ vpush(i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ vpush(i.InputFloat64Register(0));
+          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ vpush(i.InputFloat32Register(0));
+          frame_access_state()->IncreaseSPDelta(1);
+        }
       } else {
         __ push(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);

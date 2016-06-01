@@ -1230,9 +1230,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32PushFloat32:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kDoubleSize));
+        __ sub(esp, Immediate(kFloatSize));
         __ movss(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputDouble(0));
         __ sub(esp, Immediate(kDoubleSize));
@@ -1264,9 +1264,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32Push:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kDoubleSize));
+        __ sub(esp, Immediate(kFloatSize));
         __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);

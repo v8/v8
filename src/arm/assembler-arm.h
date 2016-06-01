@@ -1320,6 +1320,10 @@ class Assembler : public AssemblerBase {
     vstm(db_w, sp, src, src, cond);
   }
 
+  void vpush(SwVfpRegister src, Condition cond = al) {
+    vstm(db_w, sp, src, src, cond);
+  }
+
   void vpop(DwVfpRegister dst, Condition cond = al) {
     vldm(ia_w, sp, dst, dst, cond);
   }

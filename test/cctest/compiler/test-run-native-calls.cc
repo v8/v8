@@ -154,10 +154,7 @@ struct Allocator {
     }
   }
   int StackWords(MachineType type) {
-    // TODO(titzer): hack. float32 occupies 8 bytes on stack.
-    int size = IsFloatingPoint(type.representation())
-                   ? kDoubleSize
-                   : (1 << ElementSizeLog2Of(type.representation()));
+    int size = 1 << ElementSizeLog2Of(type.representation());
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
