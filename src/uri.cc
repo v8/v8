@@ -241,7 +241,7 @@ void AddHexEncodedToBuffer(uint8_t octet, List<uint8_t>* buffer) {
 }
 
 void EncodeSingle(uc16 c, List<uint8_t>* buffer) {
-  char s[4];
+  char s[4] = {};
   int number_of_bytes;
   number_of_bytes =
       unibrow::Utf8::Encode(s, c, unibrow::Utf16::kNoPreviousCharacter, false);
