@@ -40,6 +40,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* NoContextConstant();
   compiler::Node* NullConstant();
   compiler::Node* UndefinedConstant();
+  compiler::Node* TheHoleConstant();
+  compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
   // Float64 operations.
@@ -112,6 +114,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMap(compiler::Node* object);
   // Load the instance type of an HeapObject.
   compiler::Node* LoadInstanceType(compiler::Node* object);
+  // Load the properties backing store of a JSObject.
+  compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
   // Load the length of a fixed array base instance.
@@ -128,11 +132,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
   // Load the prototype of a map.
   compiler::Node* LoadMapPrototype(compiler::Node* map);
-
-  // Load the hash field of a name.
-  compiler::Node* LoadNameHash(compiler::Node* name);
   // Load the instance size of a Map.
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
+
+  // Load the hash field of a name.
+  compiler::Node* LoadNameHashField(compiler::Node* name);
+  // Load the hash value of a name. If {if_hash_not_computed} label
+  // is specified then it also checks if hash is actually computed.
+  compiler::Node* LoadNameHash(compiler::Node* name,
+                               Label* if_hash_not_computed = nullptr);
+
+  // Load length field of a String object.
+  compiler::Node* LoadStringLength(compiler::Node* object);
+  // Load value field of a JSValue object.
+  compiler::Node* LoadJSValueValue(compiler::Node* object);
 
   compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
@@ -140,6 +153,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadFixedArrayElement(
       compiler::Node* object, compiler::Node* int32_index,
       int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  // Load an array element from a FixedDoubleArray.
+  compiler::Node* LoadFixedDoubleArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      MachineType machine_type, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Context manipulation
@@ -230,17 +248,31 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Various building blocks for stubs doing property lookups.
   void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Label* call_runtime);
+                 Label* if_keyisunique, Label* if_bailout);
+
+  static const int kInlinedDictionaryProbes = 4;
+  template <typename Dictionary>
+  void NameDictionaryLookup(compiler::Node* dictionary,
+                            compiler::Node* unique_name, Label* if_found,
+                            Variable* var_entry, Label* if_not_found,
+                            int inlined_probes = kInlinedDictionaryProbes);
+
+  compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
+
+  template <typename Dictionary>
+  void NumberDictionaryLookup(compiler::Node* dictionary, compiler::Node* key,
+                              Label* if_found, Variable* var_entry,
+                              Label* if_not_found);
 
   void TryLookupProperty(compiler::Node* object, compiler::Node* map,
-                         compiler::Node* instance_type, compiler::Node* name,
-                         Label* if_found, Label* if_not_found,
-                         Label* call_runtime);
+                         compiler::Node* instance_type,
+                         compiler::Node* unique_name, Label* if_found,
+                         Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,
                         compiler::Node* instance_type, compiler::Node* index,
                         Label* if_found, Label* if_not_found,
-                        Label* call_runtime);
+                        Label* if_bailout);
 
   // Instanceof helpers.
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)

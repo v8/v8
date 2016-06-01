@@ -644,6 +644,15 @@ union IeeeDoubleBigEndianArchType {
   } bits;
 };
 
+#if V8_TARGET_LITTLE_ENDIAN
+typedef IeeeDoubleLittleEndianArchType IeeeDoubleArchType;
+const int kIeeeDoubleMantissaWordOffset = 0;
+const int kIeeeDoubleExponentWordOffset = 4;
+#else
+typedef IeeeDoubleBigEndianArchType IeeeDoubleArchType;
+const int kIeeeDoubleMantissaWordOffset = 4;
+const int kIeeeDoubleExponentWordOffset = 0;
+#endif
 
 // AccessorCallback
 struct AccessorDescriptor {
