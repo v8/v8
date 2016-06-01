@@ -270,7 +270,6 @@ template <Page::InitializationMode mode>
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  page->mutex_ = new base::Mutex();
   DCHECK(page->area_size() <= kAllocatableMemory);
   DCHECK(chunk->owner() == owner);
 

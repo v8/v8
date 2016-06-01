@@ -160,7 +160,6 @@ Heap::Heap()
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
       strong_roots_list_(NULL),
-      array_buffer_tracker_(NULL),
       heap_iterator_depth_(0),
       force_oom_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -1626,8 +1625,6 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  array_buffer_tracker()->PrepareDiscoveryInNewSpace();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();
@@ -1752,7 +1749,7 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
 
-  array_buffer_tracker()->FreeDead(true);
+  ArrayBufferTracker::FreeDeadInNewSpace(this);
 
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
@@ -2038,12 +2035,12 @@ HeapObject* Heap::DoubleAlignForDeserialization(HeapObject* object, int size) {
 
 
 void Heap::RegisterNewArrayBuffer(JSArrayBuffer* buffer) {
-  return array_buffer_tracker()->RegisterNew(buffer);
+  ArrayBufferTracker::RegisterNew(this, buffer);
 }
 
 
 void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
-  return array_buffer_tracker()->Unregister(buffer);
+  ArrayBufferTracker::Unregister(this, buffer);
 }
 
 
@@ -5337,8 +5334,6 @@ bool Heap::SetUp() {
 
   scavenge_job_ = new ScavengeJob();
 
-  array_buffer_tracker_ = new ArrayBufferTracker(this);
-
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
@@ -5497,9 +5492,6 @@ void Heap::TearDown() {
 
   delete scavenge_job_;
   scavenge_job_ = nullptr;
-
-  delete array_buffer_tracker_;
-  array_buffer_tracker_ = nullptr;
 
   isolate_->global_handles()->TearDown();
 

@@ -872,6 +872,7 @@ void MarkCompactCollector::Prepare() {
        space = spaces.next()) {
     space->PrepareForMarkCompact();
   }
+  heap()->account_amount_of_external_allocated_freed_memory();
 
 #ifdef VERIFY_HEAP
   if (!was_marked_incrementally_ && FLAG_verify_heap) {
@@ -1750,20 +1751,12 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     if (heap_->ShouldBePromoted<DEFAULT_PROMOTION>(object->address(), size) &&
         TryEvacuateObject(compaction_spaces_->Get(OLD_SPACE), object,
                           &target_object)) {
-      // If we end up needing more special cases, we should factor this out.
-      if (V8_UNLIKELY(target_object->IsJSArrayBuffer())) {
-        heap_->array_buffer_tracker()->Promote(
-            JSArrayBuffer::cast(target_object));
-      }
       promoted_size_ += size;
       return true;
     }
     HeapObject* target = nullptr;
     AllocationSpace space = AllocateTargetObject(object, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
-    if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-      heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
-    }
     semispace_copied_size_ += size;
     return true;
   }
@@ -1888,10 +1881,6 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
   }
 
   inline bool Visit(HeapObject* object) {
-    if (V8_UNLIKELY(object->IsJSArrayBuffer())) {
-      object->GetHeap()->array_buffer_tracker()->Promote(
-          JSArrayBuffer::cast(object));
-    }
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBodyFast(&visitor);
     promoted_size_ += object->Size();
@@ -3150,11 +3139,14 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
   switch (ComputeEvacuationMode(page)) {
     case kObjectsNewToOld:
       result = EvacuateSinglePage<kClearMarkbits>(page, &new_space_visitor_);
+      ArrayBufferTracker::ProcessBuffers(
+          page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
       DCHECK(result);
       USE(result);
       break;
     case kPageNewToOld:
       result = EvacuateSinglePage<kKeepMarking>(page, &new_space_page_visitor);
+      // ArrayBufferTracker will be updated during sweeping.
       DCHECK(result);
       USE(result);
       break;
@@ -3168,12 +3160,17 @@ bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
         page->SetFlag(Page::COMPACTION_WAS_ABORTED);
         EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
         result = EvacuateSinglePage<kKeepMarking>(page, &record_visitor);
+        ArrayBufferTracker::ProcessBuffers(
+            page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
         DCHECK(result);
         USE(result);
         // We need to return failure here to indicate that we want this page
         // added to the sweeper.
         return false;
       }
+      ArrayBufferTracker::ProcessBuffers(
+          page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+
       break;
     default:
       UNREACHABLE();
@@ -3352,6 +3349,10 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
             space->identity() == CODE_SPACE);
   DCHECK((p->skip_list() == NULL) || (skip_list_mode == REBUILD_SKIP_LIST));
   DCHECK(parallelism == SWEEP_ON_MAIN_THREAD || sweeping_mode == SWEEP_ONLY);
+
+  // Before we sweep objects on the page, we free dead array buffers which
+  // requires valid mark bits.
+  ArrayBufferTracker::FreeDead(p);
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
@@ -3551,11 +3552,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
-
-    // EvacuateNewSpaceAndCandidates iterates over new space objects and for
-    // ArrayBuffers either re-registers them as live or promotes them. This is
-    // needed to properly free them.
-    heap()->array_buffer_tracker()->FreeDead(false);
 
     // Deallocate evacuated candidate pages.
     ReleaseEvacuationCandidates();
