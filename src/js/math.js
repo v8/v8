@@ -62,7 +62,11 @@ function MathRandom() {
   // first two elements are reserved for the PRNG state.
   if (nextRandomIndex <= kRandomNumberStart) {
     randomNumbers = %GenerateRandomNumbers(randomNumbers);
-    nextRandomIndex = randomNumbers.length;
+    if (%_IsTypedArray(randomNumbers)) {
+      nextRandomIndex = %_TypedArrayGetLength(randomNumbers);
+    } else {
+      nextRandomIndex = randomNumbers.length;
+    }
   }
   return randomNumbers[--nextRandomIndex];
 }
@@ -70,7 +74,7 @@ function MathRandom() {
 function MathRandomRaw() {
   if (nextRandomIndex <= kRandomNumberStart) {
     randomNumbers = %GenerateRandomNumbers(randomNumbers);
-    nextRandomIndex = randomNumbers.length;
+    nextRandomIndex = %_TypedArrayGetLength(randomNumbers);
   }
   return %_DoubleLo(randomNumbers[--nextRandomIndex]) & 0x3FFFFFFF;
 }
