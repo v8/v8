@@ -12,18 +12,31 @@ namespace internal {
 using compiler::FunctionTester;
 using compiler::Node;
 
-class CodeStubAssemblerTester : public CodeStubAssembler {
+class ZoneHolder {
+ public:
+  explicit ZoneHolder(Isolate* isolate) : zone_(isolate->allocator()) {}
+  Zone* zone() { return &zone_; }
+
+ private:
+  Zone zone_;
+};
+
+// Inherit from ZoneHolder in order to create a zone that can be passed to
+// CodeStubAssembler base class constructor.
+class CodeStubAssemblerTester : private ZoneHolder, public CodeStubAssembler {
  public:
   // Test generating code for a stub.
   CodeStubAssemblerTester(Isolate* isolate,
                           const CallInterfaceDescriptor& descriptor)
-      : CodeStubAssembler(isolate, isolate->runtime_zone(), descriptor,
+      : ZoneHolder(isolate),
+        CodeStubAssembler(isolate, ZoneHolder::zone(), descriptor,
                           Code::ComputeFlags(Code::STUB), "test"),
         scope_(isolate) {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeStubAssemblerTester(Isolate* isolate, int parameter_count)
-      : CodeStubAssembler(isolate, isolate->runtime_zone(), parameter_count,
+      : ZoneHolder(isolate),
+        CodeStubAssembler(isolate, ZoneHolder::zone(), parameter_count,
                           Code::ComputeFlags(Code::FUNCTION), "test"),
         scope_(isolate) {}
 
