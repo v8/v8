@@ -166,6 +166,7 @@ class CodeAssembler {
   class Variable {
    public:
     explicit Variable(CodeAssembler* assembler, MachineRepresentation rep);
+    ~Variable();
     void Bind(Node* value);
     Node* value() const;
     MachineRepresentation rep() const;
@@ -175,6 +176,7 @@ class CodeAssembler {
     friend class CodeAssembler;
     class Impl;
     Impl* impl_;
+    CodeAssembler* assembler_;
   };
 
   enum AllocationFlag : uint8_t {
@@ -362,7 +364,7 @@ class CodeAssembler {
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;
-  ZoneVector<Variable::Impl*> variables_;
+  ZoneSet<Variable::Impl*> variables_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };

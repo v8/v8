@@ -1090,5 +1090,34 @@ TEST(DeferredCodePhiHints) {
   CHECK(!m.GenerateCode().is_null());
 }
 
+TEST(TestOutOfScopeVariable) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  Label block1(&m);
+  Label block2(&m);
+  Label block3(&m);
+  Label block4(&m);
+  m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block1, &block4);
+  m.Bind(&block4);
+  {
+    Variable var_object(&m, MachineRepresentation::kTagged);
+    m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block2,
+             &block3);
+
+    m.Bind(&block2);
+    var_object.Bind(m.IntPtrConstant(55));
+    m.Goto(&block1);
+
+    m.Bind(&block3);
+    var_object.Bind(m.IntPtrConstant(66));
+    m.Goto(&block1);
+  }
+  m.Bind(&block1);
+  CHECK(!m.GenerateCode().is_null());
+}
+
 }  // namespace internal
 }  // namespace v8

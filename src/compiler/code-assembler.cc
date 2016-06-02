@@ -600,9 +600,11 @@ class CodeAssembler::Variable::Impl : public ZoneObject {
 
 CodeAssembler::Variable::Variable(CodeAssembler* assembler,
                                   MachineRepresentation rep)
-    : impl_(new (assembler->zone()) Impl(rep)) {
-  assembler->variables_.push_back(impl_);
+    : impl_(new (assembler->zone()) Impl(rep)), assembler_(assembler) {
+  assembler->variables_.insert(impl_);
 }
+
+CodeAssembler::Variable::~Variable() { assembler_->variables_.erase(impl_); }
 
 void CodeAssembler::Variable::Bind(Node* value) { impl_->value_ = value; }
 
