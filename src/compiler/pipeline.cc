@@ -1417,10 +1417,6 @@ bool PipelineImpl::CreateGraph() {
     // Select representations.
     Run<RepresentationSelectionPhase>();
     RunPrintAndVerify("Representations selected");
-
-    // Run early optimization pass.
-    Run<EarlyOptimizationPhase>();
-    RunPrintAndVerify("Early optimized", true);
   }
 
 #ifdef DEBUG
@@ -1439,6 +1435,10 @@ bool PipelineImpl::CreateGraph() {
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif
+
+  // Run early optimization pass.
+  Run<EarlyOptimizationPhase>();
+  RunPrintAndVerify("Early optimized", true);
 
   data->EndPhaseKind();
 
