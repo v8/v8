@@ -300,6 +300,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return FreeSpace::cast(object)->size();
   }
 
+  INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
   INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object));
 
   class DataObjectVisitor {
@@ -378,6 +379,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
   INLINE(static void VisitJSRegExp(Map* map, HeapObject* object));
+  INLINE(static void VisitJSArrayBuffer(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
   INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 

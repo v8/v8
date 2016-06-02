@@ -36,8 +36,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
     table_.Register(kVisitFixedTypedArray, &EvacuateFixedTypedArray);
     table_.Register(kVisitFixedFloat64Array, &EvacuateFixedFloat64Array);
-    table_.Register(kVisitJSArrayBuffer,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
+    table_.Register(kVisitJSArrayBuffer, &EvacuateJSArrayBuffer);
 
     table_.Register(
         kVisitNativeContext,
@@ -280,6 +279,19 @@ class ScavengingVisitor : public StaticVisitorBase {
     int object_size = reinterpret_cast<FixedFloat64Array*>(object)->size();
     EvacuateObject<POINTER_OBJECT, kDoubleAligned>(map, slot, object,
                                                    object_size);
+  }
+
+  static inline void EvacuateJSArrayBuffer(Map* map, HeapObject** slot,
+                                           HeapObject* object) {
+    ObjectEvacuationStrategy<POINTER_OBJECT>::Visit(map, slot, object);
+
+    Heap* heap = map->GetHeap();
+    MapWord map_word = object->map_word();
+    DCHECK(map_word.IsForwardingAddress());
+    HeapObject* target = map_word.ToForwardingAddress();
+    if (!heap->InNewSpace(target)) {
+      heap->array_buffer_tracker()->Promote(JSArrayBuffer::cast(target));
+    }
   }
 
   static inline void EvacuateByteArray(Map* map, HeapObject** slot,

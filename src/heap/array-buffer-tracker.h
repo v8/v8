@@ -7,88 +7,69 @@
 
 #include <map>
 
-#include "src/allocation.h"
 #include "src/base/platform/mutex.h"
 #include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class Heap;
 class JSArrayBuffer;
-class Page;
 
-class ArrayBufferTracker : public AllStatic {
+class ArrayBufferTracker {
  public:
-  enum ProcessingMode {
-    kUpdateForwardedRemoveOthers,
-    kUpdateForwardedKeepOthers,
-  };
+  explicit ArrayBufferTracker(Heap* heap) : heap_(heap) {}
+  ~ArrayBufferTracker();
+
+  inline Heap* heap() { return heap_; }
 
   // The following methods are used to track raw C++ pointers to externally
   // allocated memory used as backing store in live array buffers.
 
-  // Register/unregister a new JSArrayBuffer |buffer| for tracking.
-  static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
-  static void Unregister(Heap* heap, JSArrayBuffer* buffer);
+  // A new ArrayBuffer was created with |data| as backing store.
+  void RegisterNew(JSArrayBuffer* buffer);
 
-  // Frees all backing store pointers for dead JSArrayBuffers in new space.
-  static void FreeDeadInNewSpace(Heap* heap);
+  // The backing store |data| is no longer owned by V8.
+  void Unregister(JSArrayBuffer* buffer);
 
-  // Frees all backing store pointers for dead JSArrayBuffer on a given page.
-  // Requires marking information to be present.
-  static void FreeDead(Page* page);
+  // A live ArrayBuffer was discovered during marking/scavenge.
+  void MarkLive(JSArrayBuffer* buffer);
 
-  // Processes all array buffers on a given page. |mode| specifies the action
-  // to perform on the buffers.
-  static void ProcessBuffers(Page* page, ProcessingMode mode);
+  // Frees all backing store pointers that weren't discovered in the previous
+  // marking or scavenge phase.
+  void FreeDead(bool from_scavenge);
 
-  // Returns whether a buffer is currently tracked.
-  static bool IsTracked(JSArrayBuffer* buffer);
-};
+  // Prepare for a new scavenge phase. A new marking phase is implicitly
+  // prepared by finishing the previous one.
+  void PrepareDiscoveryInNewSpace();
 
-// LocalArrayBufferTracker tracks internalized array buffers.
-//
-// Never use directly but instead always call through |ArrayBufferTracker|.
-class LocalArrayBufferTracker {
- public:
-  typedef std::pair<void*, size_t> Value;
-  typedef JSArrayBuffer* Key;
-
-  enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
-
-  explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
-  ~LocalArrayBufferTracker();
-
-  void Add(Key key, const Value& value);
-  Value Remove(Key key);
-
-  // Frees up any buffers that are currently not marked.
-  void FreeDead();
-
-  // Processes buffers one by one. The CallbackResult of the callback decides
-  // what action to take on the buffer.
-  //
-  // Callback should be of type:
-  //   CallbackResult fn(JSArrayBuffer* buffer, JSArrayBuffer** new_buffer);
-  template <typename Callback>
-  inline void Process(Callback callback);
-
-  bool IsEmpty() { return array_buffers_.empty(); }
-
-  bool IsTracked(Key key) {
-    return array_buffers_.find(key) != array_buffers_.end();
-  }
+  // An ArrayBuffer moved from new space to old space.
+  void Promote(JSArrayBuffer* buffer);
 
  private:
-  // TODO(mlippautz): Switch to unordered_map once it is supported on all
-  // platforms.
-  typedef std::map<Key, Value> TrackingMap;
-
+  base::Mutex mutex_;
   Heap* heap_;
-  TrackingMap array_buffers_;
-};
 
+  // |live_array_buffers_| maps externally allocated memory used as backing
+  // store for ArrayBuffers to the length of the respective memory blocks.
+  //
+  // At the beginning of mark/compact, |not_yet_discovered_array_buffers_| is
+  // a copy of |live_array_buffers_| and we remove pointers as we discover live
+  // ArrayBuffer objects during marking. At the end of mark/compact, the
+  // remaining memory blocks can be freed.
+  std::map<void*, size_t> live_array_buffers_;
+  std::map<void*, size_t> not_yet_discovered_array_buffers_;
+
+  // To be able to free memory held by ArrayBuffers during scavenge as well, we
+  // have a separate list of allocated memory held by ArrayBuffers in new space.
+  //
+  // Since mark/compact also evacuates the new space, all pointers in the
+  // |live_array_buffers_for_scavenge_| list are also in the
+  // |live_array_buffers_| list.
+  std::map<void*, size_t> live_array_buffers_for_scavenge_;
+  std::map<void*, size_t> not_yet_discovered_array_buffers_for_scavenge_;
+};
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_HEAP_ARRAY_BUFFER_TRACKER_H_

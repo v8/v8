@@ -77,10 +77,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
       &FlexibleBodyVisitor<StaticVisitor, JSFunction::BodyDescriptorWeakCode,
                            int>::Visit);
 
-  table_.Register(
-      kVisitJSArrayBuffer,
-      &FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
-                           int>::Visit);
+  table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
 
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 
@@ -101,6 +98,21 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   table_.template RegisterSpecializations<StructVisitor, kVisitStruct,
                                           kVisitStructGeneric>();
 }
+
+
+template <typename StaticVisitor>
+int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
+    Map* map, HeapObject* object) {
+  typedef FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor, int>
+      JSArrayBufferBodyVisitor;
+
+  if (!JSArrayBuffer::cast(object)->is_external()) {
+    Heap* heap = map->GetHeap();
+    heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
+  }
+  return JSArrayBufferBodyVisitor::Visit(map, object);
+}
+
 
 template <typename StaticVisitor>
 int StaticNewSpaceVisitor<StaticVisitor>::VisitBytecodeArray(
@@ -173,10 +185,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitJSFunction, &VisitJSFunction);
 
-  table_.Register(
-      kVisitJSArrayBuffer,
-      &FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
-                           void>::Visit);
+  table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
 
   // Registration for kVisitJSRegExp is done by StaticVisitor.
 
@@ -510,6 +519,24 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(Map* map,
                                                         HeapObject* object) {
   JSObjectVisitor::Visit(map, object);
 }
+
+
+template <typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitJSArrayBuffer(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+
+  typedef FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
+                              void> JSArrayBufferBodyVisitor;
+
+  JSArrayBufferBodyVisitor::Visit(map, object);
+
+  if (!JSArrayBuffer::cast(object)->is_external() &&
+      !heap->InNewSpace(object)) {
+    heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
+  }
+}
+
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
