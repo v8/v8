@@ -1089,6 +1089,7 @@
         'defines': [
           # Support for malloc(0)
           '_LINUX_SOURCE_COMPAT=1',
+          '__STDC_FORMAT_MACROS',
           '_ALL_SOURCE=1'],
         'conditions': [
           [ 'v8_target_arch=="ppc"', {
