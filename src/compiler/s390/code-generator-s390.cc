@@ -1318,8 +1318,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int num_slots = i.InputInt32(1);
       __ lay(sp, MemOperand(sp, -num_slots * kPointerSize));
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ StoreDouble(i.InputDoubleRegister(0),
-                 MemOperand(sp));
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
+        } else {
+          DCHECK(op->representation() == MachineRepresentation::kFloat32);
+          __ StoreFloat32(i.InputDoubleRegister(0), MemOperand(sp));
+        }
       } else {
         __ StoreP(i.InputRegister(0),
                   MemOperand(sp));
@@ -1329,8 +1334,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_StoreToStackSlot: {
       int slot = i.InputInt32(1);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ StoreDouble(i.InputDoubleRegister(0),
-                       MemOperand(sp, slot * kPointerSize));
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDouble(i.InputDoubleRegister(0),
+                         MemOperand(sp, slot * kPointerSize));
+        } else {
+          DCHECK(op->representation() == MachineRepresentation::kFloat32);
+          __ StoreFloat32(i.InputDoubleRegister(0),
+                          MemOperand(sp, slot * kPointerSize));
+        }
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize));
       }
@@ -2017,17 +2029,33 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Move(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      __ StoreDouble(src, g.ToMemOperand(destination));
+      LocationOperand* op = LocationOperand::cast(source);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ StoreDouble(src, g.ToMemOperand(destination));
+      } else {
+        __ StoreFloat32(src, g.ToMemOperand(destination));
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsFPRegister()) {
-      __ LoadDouble(g.ToDoubleRegister(destination), src);
+      LocationOperand* op = LocationOperand::cast(source);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ LoadDouble(g.ToDoubleRegister(destination), src);
+      } else {
+        __ LoadFloat32(g.ToDoubleRegister(destination), src);
+      }
     } else {
+      LocationOperand* op = LocationOperand::cast(source);
       DoubleRegister temp = kScratchDoubleReg;
-      __ LoadDouble(temp, src);
-      __ StoreDouble(temp, g.ToMemOperand(destination));
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ LoadDouble(temp, src);
+        __ StoreDouble(temp, g.ToMemOperand(destination));
+      } else {
+        __ LoadFloat32(temp, src);
+        __ StoreFloat32(temp, g.ToMemOperand(destination));
+      }
     }
   } else {
     UNREACHABLE();
