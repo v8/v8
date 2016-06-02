@@ -131,7 +131,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 
 
 // static
-int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
+bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
   // Most runtime functions need a FrameState. A few chosen ones that we know
   // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
   // are blacklisted here and can be called without a FrameState.
@@ -163,13 +163,15 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kToFastProperties:  // TODO(conradw): Is it safe?
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
-      return 0;
+      return false;
     case Runtime::kInlineCall:
+    case Runtime::kInlineDeoptimizeNow:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineNewObject:
     case Runtime::kInlineRegExpConstructResult:
     case Runtime::kInlineRegExpExec:
     case Runtime::kInlineSubString:
+    case Runtime::kInlineThrowNotDateError:
     case Runtime::kInlineToInteger:
     case Runtime::kInlineToLength:
     case Runtime::kInlineToName:
@@ -179,10 +181,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineToPrimitive_Number:
     case Runtime::kInlineToPrimitive_String:
     case Runtime::kInlineToString:
-      return 1;
-    case Runtime::kInlineDeoptimizeNow:
-    case Runtime::kInlineThrowNotDateError:
-      return 2;
+      return true;
     default:
       break;
   }
@@ -190,9 +189,9 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // Most inlined runtime functions (except the ones listed above) can be called
   // without a FrameState or will be lowered by JSIntrinsicLowering internally.
   const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return 0;
+  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
 
-  return 1;
+  return true;
 }
 
 
@@ -255,7 +254,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(MachineType::AnyTagged());
 
-  if (Linkage::FrameStateInputCount(function_id) == 0) {
+  if (!Linkage::NeedsFrameStateInput(function_id)) {
     flags = static_cast<CallDescriptor::Flags>(
         flags & ~CallDescriptor::kNeedsFrameState);
   }
