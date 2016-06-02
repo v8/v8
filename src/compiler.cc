@@ -1170,6 +1170,7 @@ bool Compiler::CompileBaseline(Handle<JSFunction> function) {
 
   // Install code on closure.
   function->ReplaceCode(*code);
+  JSFunction::EnsureLiterals(function);
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
