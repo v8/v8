@@ -112,9 +112,6 @@
       'use_goma%': 0,
       'gomadir%': '',
 
-      # Check if valgrind directories are present.
-      'has_valgrind%': 0,
-
       'test_isolation_mode%': 'noop',
 
       'conditions': [
@@ -164,7 +161,6 @@
     'test_isolation_mode%': '<(test_isolation_mode)',
     'fastbuild%': '<(fastbuild)',
     'coverage%': '<(coverage)',
-    'has_valgrind%': '<(has_valgrind)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],

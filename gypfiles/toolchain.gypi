@@ -37,6 +37,8 @@
     'tsan%': 0,
     'ubsan%': 0,
     'ubsan_vptr%': 0,
+    'has_valgrind%': 0,
+    'coverage%': 0,
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     # Native Client builds currently use the V8 ARM JIT and
