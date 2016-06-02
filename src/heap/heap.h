@@ -2254,7 +2254,7 @@ class Heap {
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
-  friend class ObjectStatsVisitor;
+  friend class ObjectStatsCollector;
   friend class Page;
   friend class Scavenger;
   friend class StoreBuffer;

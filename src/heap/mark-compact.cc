@@ -1299,7 +1299,7 @@ void MarkCompactMarkingVisitor::Initialize() {
   table_.Register(kVisitJSRegExp, &VisitRegExpAndFlushCode);
 
   if (FLAG_track_gc_object_stats) {
-    ObjectStatsVisitor::Initialize(&table_);
+    MarkCompactObjectStatsVisitor::Initialize(&table_);
   }
 }
 
@@ -2280,6 +2280,10 @@ void MarkCompactCollector::MarkLiveObjects() {
     } else {
       // Abort any pending incremental activities e.g. incremental sweeping.
       incremental_marking->Stop();
+      if (FLAG_track_gc_object_stats) {
+        // Clear object stats collected during incremental marking.
+        heap()->object_stats_->ClearObjectStats();
+      }
       if (marking_deque_.in_use()) {
         marking_deque_.Uninitialize(true);
       }
