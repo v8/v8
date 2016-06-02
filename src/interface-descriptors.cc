@@ -43,9 +43,8 @@ FunctionType* CallInterfaceDescriptor::BuildDefaultFunctionType(
   return function;
 }
 
-
 void CallInterfaceDescriptorData::InitializePlatformSpecific(
-    int register_parameter_count, Register* registers,
+    int register_parameter_count, const Register* registers,
     PlatformInterfaceDescriptor* platform_descriptor) {
   platform_specific_descriptor_ = platform_descriptor;
   register_param_count_ = register_parameter_count;
@@ -187,12 +186,6 @@ void StringCompareDescriptor::InitializePlatformSpecific(
 void TypeConversionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ArgumentRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void HasPropertyDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {KeyRegister(), ObjectRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
