@@ -29,19 +29,6 @@
 
 {
   'variables': {
-    'variables': {
-      'variables': {
-        # Instrument for code coverage and use coverage wrapper to exclude some
-        # files. Uses gcov if clang=0 is set explicitly. Otherwise,
-        # sanitizer_coverage must be set too.
-        'coverage%': 0,
-      },
-
-      'coverage%': '<(coverage)',
-
-      # Check if valgrind directories are present.
-      'has_valgrind%': '<!pymod_do_main(has_valgrind)',
-    },
     'msvs_use_common_release': 0,
     'clang%': 0,
     'asan%': 0,
@@ -50,8 +37,6 @@
     'tsan%': 0,
     'ubsan%': 0,
     'ubsan_vptr%': 0,
-    'has_valgrind%': '<(has_valgrind)',
-    'coverage%': '<(coverage)',
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     # Native Client builds currently use the V8 ARM JIT and
