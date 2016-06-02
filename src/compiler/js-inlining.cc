@@ -356,6 +356,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   ParseInfo parse_info(&zone, function);
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
+  if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
 
   if (!Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",

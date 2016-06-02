@@ -107,6 +107,16 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSLessThanOrEqual:
       return 2;
 
+    // Simplified operators with type feedback.
+    case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeNumberSubtract:
+    // Checked conversions.
+    case IrOpcode::kCheckedUint32ToInt32:
+    case IrOpcode::kCheckedFloat64ToInt32:
+    case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kCheckedTaggedToFloat64:
+      return 1;
+
     default:
       return 0;
   }

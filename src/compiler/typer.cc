@@ -1702,7 +1702,6 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
 
 Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
-
 // Simplified operators.
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }
@@ -1722,6 +1721,14 @@ Type* Typer::Visitor::TypeNumberLessThanOrEqual(Node* node) {
 Type* Typer::Visitor::TypeNumberAdd(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberSubtract(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeSpeculativeNumberAdd(Node* node) {
+  return Type::Number();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberSubtract(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeNumberMultiply(Node* node) { return Type::Number(); }
 
@@ -1917,6 +1924,22 @@ Type* Typer::Visitor::TypeChangeBitToTagged(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return ChangeRepresentation(arg, Type::TaggedPointer(), zone());
+}
+
+Type* Typer::Visitor::TypeCheckedUint32ToInt32(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeCheckedFloat64ToInt32(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeCheckedTaggedToInt32(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeCheckedTaggedToFloat64(Node* node) {
+  return Type::Number();
 }
 
 Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {

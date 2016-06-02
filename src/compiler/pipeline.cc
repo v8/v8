@@ -597,6 +597,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
   }
+  if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
+    info()->MarkAsTypeFeedbackEnabled();
+  }
   if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
@@ -883,6 +886,9 @@ struct TypedLoweringPhase {
     if (data->info()->shared_info()->HasBytecodeArray()) {
       typed_lowering_flags |= JSTypedLowering::kDisableBinaryOpReduction;
     }
+    if (data->info()->is_type_feedback_enabled()) {
+      typed_lowering_flags |= JSTypedLowering::kTypeFeedbackEnabled;
+    }
     JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
                                    typed_lowering_flags, data->jsgraph(),
                                    temp_zone);
@@ -947,8 +953,12 @@ struct RepresentationSelectionPhase {
   static const char* phase_name() { return "representation selection"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    SimplifiedLowering::Flags flags =
+        data->info()->is_type_feedback_enabled()
+            ? SimplifiedLowering::kTypeFeedbackEnabled
+            : SimplifiedLowering::kNoFlag;
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
-                                data->source_positions());
+                                data->source_positions(), flags);
     lowering.LowerAllNodes();
   }
 };
@@ -1416,7 +1426,7 @@ bool PipelineImpl::CreateGraph() {
 
     // Select representations.
     Run<RepresentationSelectionPhase>();
-    RunPrintAndVerify("Representations selected");
+    RunPrintAndVerify("Representations selected", true);
   }
 
 #ifdef DEBUG

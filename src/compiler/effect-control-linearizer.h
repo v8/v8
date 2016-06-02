@@ -60,6 +60,14 @@ class EffectControlLinearizer {
                                               Node* control);
   ValueEffectControl LowerChangeTaggedToUint32(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* effect,
+                                               Node* control);
+  ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* effect,
+                                                Node* control);
+  ValueEffectControl LowerCheckedTaggedToInt32(Node* node, Node* effect,
+                                               Node* control);
+  ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* effect,
+                                                 Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
   ValueEffectControl LowerTruncateTaggedToFloat64(Node* node, Node* effect,
@@ -81,7 +89,12 @@ class EffectControlLinearizer {
                                              Node* control);
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
-
+  ValueEffectControl BuildCheckedFloat64ToInt32(Node* value, Node* frame_state,
+                                                Node* effect, Node* control);
+  ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(Node* value,
+                                                              Node* frame_state,
+                                                              Node* effect,
+                                                              Node* control);
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeInt32ToFloat64(Node* value);

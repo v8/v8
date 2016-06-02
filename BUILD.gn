@@ -964,6 +964,8 @@ v8_source_set("v8_base") {
     "src/compiler/node.h",
     "src/compiler/opcodes.cc",
     "src/compiler/opcodes.h",
+    "src/compiler/operation-typer.cc",
+    "src/compiler/operation-typer.h",
     "src/compiler/operator-properties.cc",
     "src/compiler/operator-properties.h",
     "src/compiler/operator.cc",

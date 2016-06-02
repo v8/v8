@@ -628,6 +628,8 @@
         'compiler/node.h',
         'compiler/opcodes.cc',
         'compiler/opcodes.h',
+        'compiler/operation-typer.cc',
+        'compiler/operation-typer.h',
         'compiler/operator-properties.cc',
         'compiler/operator-properties.h',
         'compiler/operator.cc',

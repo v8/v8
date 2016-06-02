@@ -27,6 +27,24 @@ class JSBinopReduction final {
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}
 
+  BinaryOperationHints::Hint GetUsableNumberFeedback() {
+    if (!(lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) ||
+        !(lowering_->flags() & JSTypedLowering::kTypeFeedbackEnabled)) {
+      return BinaryOperationHints::kAny;
+    }
+    DCHECK_NE(0, node_->op()->ControlOutputCount());
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
+    BinaryOperationHints::Hint combined = hints.combined();
+    if (combined == BinaryOperationHints::kSignedSmall ||
+        combined == BinaryOperationHints::kSigned32 ||
+        combined == BinaryOperationHints::kNumberOrUndefined) {
+      return combined;
+    }
+    return BinaryOperationHints::kAny;
+  }
+
   void ConvertInputsToNumberOrUndefined(Node* frame_state) {
     // To convert the inputs to numbers, we have to provide frame states
     // for lazy bailouts in the ToNumber conversions.
@@ -104,6 +122,52 @@ class JSBinopReduction final {
       value->ReplaceInput(0, node_);
       return lowering_->Replace(value);
     }
+    return lowering_->Changed(node_);
+  }
+
+  Reduction ChangeToSpeculativeOperator(const Operator* op) {
+    DCHECK_EQ(1, op->EffectInputCount());
+    DCHECK_EQ(1, op->EffectOutputCount());
+    DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
+    DCHECK_EQ(1, op->ControlInputCount());
+    DCHECK_EQ(1, op->ControlOutputCount());
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(op));
+    DCHECK_EQ(2, op->ValueInputCount());
+
+    DCHECK_EQ(1, node_->op()->EffectInputCount());
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    DCHECK_EQ(1, node_->op()->ControlInputCount());
+    DCHECK_LT(1, node_->op()->ControlOutputCount());
+    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    DCHECK_EQ(2, node_->op()->ValueInputCount());
+
+    // Reconnect the control output to bypass the IfSuccess node and
+    // possibly disconnect from the IfException node.
+    for (Edge edge : node_->use_edges()) {
+      Node* const user = edge.from();
+      DCHECK(!user->IsDead());
+      if (NodeProperties::IsControlEdge(edge)) {
+        if (user->opcode() == IrOpcode::kIfSuccess) {
+          user->ReplaceUses(node_);
+          user->Kill();
+        } else {
+          DCHECK_EQ(user->opcode(), IrOpcode::kIfException);
+          edge.UpdateTo(jsgraph()->Dead());
+        }
+      }
+    }
+
+    // Remove the lazy bailout frame state and the context.
+    node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
+    node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
+
+    NodeProperties::ChangeOp(node_, op);
+
+    // Update the type to number.
+    Type* node_type = NodeProperties::GetType(node_);
+    NodeProperties::SetType(node_,
+                            Type::Intersect(node_type, Type::Number(), zone()));
+
     return lowering_->Changed(node_);
   }
 
@@ -340,9 +404,18 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
+
+  BinaryOperationHints::Hint feedback = r.GetUsableNumberFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    // Lower to the optimistic number binop.
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberAdd(feedback));
+  }
   if (r.BothInputsAre(Type::NumberOrUndefined())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
-    return ReduceNumberBinop(node, simplified()->NumberAdd());
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+    r.ConvertInputsToNumberOrUndefined(frame_state);
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
@@ -387,21 +460,34 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   return NoChange();
 }
 
-
-Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
-                                             const Operator* numberOp) {
+Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
-  if (numberOp == simplified()->NumberModulus()) {
-    if (r.BothInputsAre(Type::NumberOrUndefined())) {
-      return r.ChangeToPureOperator(numberOp, Type::Number());
-    }
-    return NoChange();
+  BinaryOperationHints::Hint feedback = r.GetUsableNumberFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    // Lower to the optimistic number binop.
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberSubtract(feedback));
   }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumberOrUndefined(frame_state);
-  return r.ChangeToPureOperator(numberOp, Type::Number());
+  return r.ChangeToPureOperator(simplified()->NumberSubtract(), Type::Number());
+}
+
+Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+  JSBinopReduction r(this, node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  r.ConvertInputsToNumberOrUndefined(frame_state);
+  return r.ChangeToPureOperator(simplified()->NumberMultiply(), Type::Number());
+}
+
+Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+  JSBinopReduction r(this, node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  r.ConvertInputsToNumberOrUndefined(frame_state);
+  return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
 }
 
 
@@ -1785,11 +1871,11 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
     case IrOpcode::kJSSubtract:
-      return ReduceNumberBinop(node, simplified()->NumberSubtract());
+      return ReduceJSSubtract(node);
     case IrOpcode::kJSMultiply:
-      return ReduceNumberBinop(node, simplified()->NumberMultiply());
+      return ReduceJSMultiply(node);
     case IrOpcode::kJSDivide:
-      return ReduceNumberBinop(node, simplified()->NumberDivide());
+      return ReduceJSDivide(node);
     case IrOpcode::kJSModulus:
       return ReduceJSModulus(node);
     case IrOpcode::kJSToBoolean:

@@ -177,6 +177,8 @@
   SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(BooleanNot)                    \
   V(BooleanToNumber)               \
+  V(SpeculativeNumberAdd)          \
+  V(SpeculativeNumberSubtract)     \
   V(NumberAdd)                     \
   V(NumberSubtract)                \
   V(NumberMultiply)                \
@@ -209,6 +211,10 @@
   V(ChangeFloat64ToTagged)         \
   V(ChangeTaggedToBit)             \
   V(ChangeBitToTagged)             \
+  V(CheckedUint32ToInt32)          \
+  V(CheckedFloat64ToInt32)         \
+  V(CheckedTaggedToInt32)          \
+  V(CheckedTaggedToFloat64)        \
   V(TruncateTaggedToWord32)        \
   V(TruncateTaggedToFloat64)       \
   V(Allocate)                      \

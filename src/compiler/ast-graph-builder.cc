@@ -2735,6 +2735,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   // Create a proper eager frame state for the stores.
   environment()->Push(old_value);
   FrameStateBeforeAndAfter store_states(this, expr->ToNumberId());
+  FrameStateBeforeAndAfter binop_states(this, expr->ToNumberId());
   old_value = environment()->Pop();
 
   // Save result for postfix expressions at correct stack depth.
@@ -2747,16 +2748,12 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Create node to perform +1/-1 operation.
-  Node* value;
-  {
-    // TODO(bmeurer): Cleanup this feedback/bailout mess!
-    FrameStateBeforeAndAfter states(this, BailoutId::None());
-    value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
-                          expr->binary_op(), expr->CountBinOpFeedbackId());
-    // This should never deoptimize because we have converted to number before.
-    states.AddToNode(value, BailoutId::None(),
-                     OutputFrameStateCombine::Ignore());
-  }
+  // TODO(bmeurer): Cleanup this feedback/bailout mess!
+  Node* value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
+                              expr->binary_op(), expr->CountBinOpFeedbackId());
+  // This should never deoptimize because we have converted to number before.
+  binop_states.AddToNode(value, BailoutId::None(),
+                         OutputFrameStateCombine::Ignore());
 
   // Store the value.
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CountSlot());

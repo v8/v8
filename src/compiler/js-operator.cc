@@ -376,6 +376,12 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
+const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSAdd ||
+         op->opcode() == IrOpcode::kJSSubtract);
+  return OpParameter<BinaryOperationHints>(op);
+}
+
 #define CACHED_OP_LIST(V)                                   \
   V(Equal, Operator::kNoProperties, 2, 1)                   \
   V(NotEqual, Operator::kNoProperties, 2, 1)                \

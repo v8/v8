@@ -682,6 +682,9 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::NumberOrUndefined());
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeNumberSubtract:
+      break;
     case IrOpcode::kNumberAdd:
     case IrOpcode::kNumberSubtract:
     case IrOpcode::kNumberMultiply:
@@ -900,6 +903,12 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
+
+    case IrOpcode::kCheckedUint32ToInt32:
+    case IrOpcode::kCheckedFloat64ToInt32:
+    case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kCheckedTaggedToFloat64:
+      break;
 
     case IrOpcode::kLoadField:
       // Object -> fieldtype

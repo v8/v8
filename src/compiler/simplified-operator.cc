@@ -177,6 +177,12 @@ Type* TypeOf(const Operator* op) {
   return OpParameter<Type*>(op);
 }
 
+BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
+         op->opcode() == IrOpcode::kSpeculativeNumberSubtract);
+  return OpParameter<BinaryOperationHints::Hint>(op);
+}
+
 #define PURE_OP_LIST(V)                                    \
   V(BooleanNot, Operator::kNoProperties, 1)                \
   V(BooleanToNumber, Operator::kNoProperties, 1)           \
@@ -227,6 +233,12 @@ Type* TypeOf(const Operator* op) {
   V(StringLessThan, Operator::kNoProperties, 2)            \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2)
 
+#define CHECKED_OP_LIST(V) \
+  V(CheckedUint32ToInt32)  \
+  V(CheckedFloat64ToInt32) \
+  V(CheckedTaggedToInt32)  \
+  V(CheckedTaggedToFloat64)
+
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
   struct Name##Operator final : public Operator {                          \
@@ -237,6 +249,16 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
+
+#define CHECKED(Name)                                                        \
+  struct Name##Operator final : public Operator {                            \
+    Name##Operator()                                                         \
+        : Operator(IrOpcode::k##Name, Operator::kNoThrow, #Name, 1, 1, 1, 1, \
+                   1, 1) {}                                                  \
+  };                                                                         \
+  Name##Operator k##Name;
+  CHECKED_OP_LIST(CHECKED)
+#undef CHECKED
 
   template <PretenureFlag kPretenure>
   struct AllocateOperator final : public Operator1<PretenureFlag> {
@@ -276,12 +298,15 @@ static base::LazyInstance<SimplifiedOperatorGlobalCache>::type kCache =
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
     : cache_(kCache.Get()), zone_(zone) {}
 
-
 #define GET_FROM_CACHE(Name, properties, input_count) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 
+#define GET_FROM_CACHE(Name) \
+  const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
+CHECKED_OP_LIST(GET_FROM_CACHE)
+#undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
@@ -343,6 +368,19 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
   return nullptr;
 }
 
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberAdd(
+    BinaryOperationHints::Hint hint) {
+  return new (zone()) Operator1<BinaryOperationHints::Hint>(
+      IrOpcode::kSpeculativeNumberAdd, Operator::kNoThrow,
+      "SpeculativeNumberAdd", 2, 1, 1, 1, 1, 1, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberSubtract(
+    BinaryOperationHints::Hint hint) {
+  return new (zone()) Operator1<BinaryOperationHints::Hint>(
+      IrOpcode::kSpeculativeNumberSubtract, Operator::kNoThrow,
+      "SpeculativeNumberSubtract", 2, 1, 1, 1, 1, 1, hint);
+}
 
 #define ACCESS_OP_LIST(V)                                    \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_SIMPLIFIED_LOWERING_H_
 #define V8_COMPILER_SIMPLIFIED_LOWERING_H_
 
+#include "src/base/flags.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -26,8 +27,11 @@ class SourcePositionTable;
 
 class SimplifiedLowering final {
  public:
+  enum Flag { kNoFlag = 0u, kTypeFeedbackEnabled = 1u << 0 };
+  typedef base::Flags<Flag> Flags;
   SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
-                     SourcePositionTable* source_positions);
+                     SourcePositionTable* source_positions,
+                     Flags flags = kNoFlag);
   ~SimplifiedLowering() {}
 
   void LowerAllNodes();
@@ -43,12 +47,15 @@ class SimplifiedLowering final {
   void DoStoreBuffer(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
 
+  Flags flags() const { return flags_; }
+
  private:
   JSGraph* const jsgraph_;
   Zone* const zone_;
   TypeCache const& type_cache_;
   SetOncePointer<Node> to_number_code_;
   SetOncePointer<Operator const> to_number_operator_;
+  Flags flags_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
   // positions table, but must for now since there currently is no other way to

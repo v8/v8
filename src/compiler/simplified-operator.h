@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "src/compiler/type-hints.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -104,6 +105,8 @@ ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
 Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
+BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -157,6 +160,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberToUint32();
   const Operator* NumberIsHoleNaN();
 
+  const Operator* SpeculativeNumberAdd(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberSubtract(BinaryOperationHints::Hint hint);
+
   const Operator* ReferenceEqual(Type* type);
 
   const Operator* StringEqual();
@@ -177,6 +183,11 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ChangeBitToTagged();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
+
+  const Operator* CheckedUint32ToInt32();
+  const Operator* CheckedFloat64ToInt32();
+  const Operator* CheckedTaggedToInt32();
+  const Operator* CheckedTaggedToFloat64();
 
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();

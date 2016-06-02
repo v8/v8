@@ -344,7 +344,6 @@ std::ostream& operator<<(std::ostream&, CreateClosureParameters const&);
 
 const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
-
 // Defines shared information for the literal that should be created. This is
 // used as parameter by JSCreateLiteralArray, JSCreateLiteralObject and
 // JSCreateLiteralRegExp operators.
@@ -375,6 +374,7 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op);
 
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
