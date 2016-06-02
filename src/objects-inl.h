@@ -4697,7 +4697,7 @@ bool Map::is_stable() {
 bool Map::has_code_cache() {
   // Code caches are always fixed arrays. The empty fixed array is used as a
   // sentinel for an absent code cache.
-  return FixedArray::cast(code_cache())->length() != 0;
+  return code_cache()->length() != 0;
 }
 
 
@@ -5431,8 +5431,7 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   set_constructor_or_backpointer(value, mode);
 }
 
-
-ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
+ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,

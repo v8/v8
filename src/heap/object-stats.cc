@@ -197,7 +197,7 @@ void ObjectStatsCollector::RecordMapStats(Map* map, HeapObject* obj) {
                                                       fixed_array_size);
   }
   if (map_obj->has_code_cache()) {
-    FixedArray* cache = FixedArray::cast(map_obj->code_cache());
+    FixedArray* cache = map_obj->code_cache();
     heap->object_stats_->RecordFixedArraySubTypeStats(MAP_CODE_CACHE_SUB_TYPE,
                                                       cache->Size());
   }

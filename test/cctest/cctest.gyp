@@ -128,6 +128,7 @@
         'test-bignum-dtoa.cc',
         'test-bit-vector.cc',
         'test-circular-queue.cc',
+        'test-code-cache.cc',
         'test-compiler.cc',
         'test-constantpool.cc',
         'test-conversions.cc',
