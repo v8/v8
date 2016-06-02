@@ -216,7 +216,7 @@ TEST_F(JSBuiltinReducerTest, StringFromCharCode) {
     Node* p0 = Parameter(t0, 0);
     Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
                                   UndefinedConstant(), p0, context, frame_state,
-                                  frame_state, effect, control);
+                                  effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
