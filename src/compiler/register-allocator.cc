@@ -2184,23 +2184,24 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     // block.
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
-    InstructionOperand* hint = nullptr;
+    // Select the hint from the first predecessor block that preceeds this block
+    // in the rpo ordering. Prefer non-deferred blocks. The enforcement of
+    // hinting in rpo order is required because hint resolution that happens
+    // later in the compiler pipeline visits instructions in reverse rpo,
+    // relying on the fact that phis are encountered before their hints.
+    const Instruction* instr = nullptr;
     const InstructionBlock::Predecessors& predecessors = block->predecessors();
-    const InstructionBlock* predecessor_block =
-        code()->InstructionBlockAt(predecessors[0]);
-    const Instruction* instr = GetLastInstruction(code(), predecessor_block);
-    if (predecessor_block->IsDeferred()) {
-      // "Prefer the hint from the first non-deferred predecessor, if any.
-      for (size_t i = 1; i < predecessors.size(); ++i) {
-        predecessor_block = code()->InstructionBlockAt(predecessors[i]);
-        if (!predecessor_block->IsDeferred()) {
-          instr = GetLastInstruction(code(), predecessor_block);
-          break;
-        }
+    for (size_t i = 0; i < predecessors.size(); ++i) {
+      const InstructionBlock* predecessor_block =
+          code()->InstructionBlockAt(predecessors[i]);
+      if (predecessor_block->rpo_number() < block->rpo_number()) {
+        instr = GetLastInstruction(code(), predecessor_block);
+        if (!predecessor_block->IsDeferred()) break;
       }
     }
     DCHECK_NOT_NULL(instr);
 
+    InstructionOperand* hint = nullptr;
     for (MoveOperands* move : *instr->GetParallelMove(Instruction::END)) {
       InstructionOperand& to = move->destination();
       if (to.IsUnallocated() &&

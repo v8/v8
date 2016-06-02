@@ -1065,5 +1065,30 @@ TEST(TryLookupElement) {
   }
 }
 
+TEST(DeferredCodePhiHints) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  Label block1(&m, Label::kDeferred);
+  m.Goto(&block1);
+  m.Bind(&block1);
+  {
+    Variable var_object(&m, MachineRepresentation::kTagged);
+    Label loop(&m, &var_object);
+    var_object.Bind(m.IntPtrConstant(0));
+    m.Goto(&loop);
+    m.Bind(&loop);
+    {
+      Node* map = m.LoadMap(var_object.value());
+      var_object.Bind(map);
+      m.Goto(&loop);
+    }
+  }
+  CHECK(!m.GenerateCode().is_null());
+}
+
 }  // namespace internal
 }  // namespace v8
