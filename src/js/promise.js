@@ -149,7 +149,8 @@ function FulfillPromise(promise, status, value, promiseQueue) {
       var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
       PromiseEnqueue(value, tasks, deferreds, status);
     }
-    PromiseSet(promise, status, value);
+    SET_PRIVATE(promise, promiseStateSymbol, status);
+    SET_PRIVATE(promise, promiseResultSymbol, value);
   }
 }
 
