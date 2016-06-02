@@ -8,8 +8,9 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
+using compiler::FunctionTester;
+using compiler::Node;
 
 class CodeStubAssemblerTester : public CodeStubAssembler {
  public:
@@ -31,7 +32,6 @@ class CodeStubAssemblerTester : public CodeStubAssembler {
   LocalContext context_;
 };
 
-
 TEST(SimpleSmiReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
@@ -42,7 +42,6 @@ TEST(SimpleSmiReturn) {
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(37, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
-
 
 TEST(SimpleIntPtrReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -57,7 +56,6 @@ TEST(SimpleIntPtrReturn) {
            reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
 }
 
-
 TEST(SimpleDoubleReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
@@ -68,7 +66,6 @@ TEST(SimpleDoubleReturn) {
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(0.5, Handle<HeapNumber>::cast(result.ToHandleChecked())->value());
 }
-
 
 TEST(SimpleCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -83,7 +80,6 @@ TEST(SimpleCallRuntime1Arg) {
   CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
-
 TEST(SimpleTailCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
@@ -96,7 +92,6 @@ TEST(SimpleTailCallRuntime1Arg) {
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
-
 
 TEST(SimpleCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -111,7 +106,6 @@ TEST(SimpleCallRuntime2Arg) {
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
-
 
 TEST(SimpleTailCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -389,6 +383,5 @@ TEST(TestToConstant) {
   CHECK(!m.ToInt64Constant(a, value64));
 }
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
