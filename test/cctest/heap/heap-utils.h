@@ -40,10 +40,6 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion = true);
 // Helper function that simulates a full old-space in the heap.
 void SimulateFullSpace(v8::internal::PagedSpace* space);
 
-void AbandonCurrentlyFreeMemory(PagedSpace* space);
-
-void GcAndSweep(Heap* heap, AllocationSpace space);
-
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
