@@ -6421,12 +6421,18 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
   // following code:
   //
   //   let iteratorReturn = iterator.return;
-  //   if (IS_NULL_OR_UNDEFINED(iteratorReturn) return |input|;
-  //   output = %_Call(iteratorReturn, iterator|, input|);
+  //   if (IS_NULL_OR_UNDEFINED(iteratorReturn) {
+  //     return {value: input, done: true};
+  //   }
+  //   output = %_Call(iteratorReturn, iterator, input);
   //   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
   //
-  // Here, |...| denotes optional parts, depending on the presence of the
-  // input variable.  The reason for allowing input is that BuildIteratorClose
+  // When the input variable is not given, the return statement becomes
+  //   return {value: undefined, done: true};
+  // and %_Call has only two arguments:
+  //   output = %_Call(iteratorReturn, iterator);
+  //
+  // The reason for allowing input is that BuildIteratorClose
   // can then be reused to handle the return case in yield*.
   //
 
@@ -6450,7 +6456,9 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
     get_return = factory->NewExpressionStatement(assignment, nopos);
   }
 
-  // if (IS_NULL_OR_UNDEFINED(iteratorReturn) return |input|;
+  // if (IS_NULL_OR_UNDEFINED(iteratorReturn) {
+  //   return {value: input, done: true};
+  // }
   Statement* check_return;
   {
     Expression* condition = factory->NewCompareOperation(
@@ -6462,13 +6470,14 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
                                   factory->NewVariableProxy(input.FromJust()))
                             : factory->NewUndefinedLiteral(nopos);
 
-    Statement* return_input = factory->NewReturnStatement(value, nopos);
+    Statement* return_input =
+        factory->NewReturnStatement(BuildIteratorResult(value, true), nopos);
 
     check_return = factory->NewIfStatement(
         condition, return_input, factory->NewEmptyStatement(nopos), nopos);
   }
 
-  // output = %_Call(iteratorReturn, iterator, |input|);
+  // output = %_Call(iteratorReturn, iterator, input);
   Statement* call_return;
   {
     auto args = new (zone) ZoneList<Expression*>(3, zone);

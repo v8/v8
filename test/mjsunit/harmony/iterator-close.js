@@ -1298,3 +1298,75 @@ function* g() { yield 42; return 88 };
   }, 5);
   assertEquals([1], log);
 }
+
+
+// yield*, argument's return method is "undefined".
+function TestYieldStarWithoutReturn(get_iterable) {
+  assertTrue(get_iterable().return == undefined);
+
+  function* g() { yield* get_iterable() }
+
+  {
+    let gen = g();
+    assertEquals({value: 1, done: false}, gen.next());
+    assertEquals({value: undefined, done: true}, gen.return());
+  }
+
+  assertEquals(42, (() => {
+    for (let x of g()) break;
+    return 42;
+  })());
+
+  assertEquals(42, (() => {
+    for (let x of g()) return 42;
+  })());
+
+  assertThrowsEquals(() => {
+    for (let x of g()) throw 42;
+  }, 42);
+}
+{
+  let get_iterable1 = () => [1, 2];
+  let get_iterable2 = function*() { yield 1; yield 2 };
+  get_iterable2.prototype.return = null;
+  TestYieldStarWithoutReturn(get_iterable1);
+  TestYieldStarWithoutReturn(get_iterable2);
+}
+
+
+// yield*, argument's return method is defined.
+{
+  let get_iterable = function*() { yield 1; yield 2 };
+  const obj = {};
+  get_iterable.prototype.return = (...args) => obj;
+
+  function* g() { yield* get_iterable() }
+
+  {
+    let gen = g();
+    assertEquals({value: 1, done: false}, gen.next());
+    assertSame(obj, gen.return());
+    assertSame(obj, gen.return());
+    assertSame(obj, gen.return());
+    assertEquals({value: 2, done: false}, gen.next());
+    assertSame(obj, gen.return());
+    assertSame(obj, gen.return());
+    assertSame(obj, gen.return());
+    assertEquals({value: undefined, done: true}, gen.next());
+    assertEquals({value: undefined, done: true}, gen.return());
+    assertEquals({value: undefined, done: true}, gen.return());
+  }
+
+  assertEquals(42, (() => {
+    for (let x of g()) break;
+    return 42;
+  })());
+
+  assertEquals(42, (() => {
+    for (let x of g()) return 42;
+  })());
+
+  assertThrowsEquals(() => {
+    for (let x of g()) throw 42;
+  }, 42);
+}
