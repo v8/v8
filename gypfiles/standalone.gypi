@@ -113,7 +113,7 @@
       'gomadir%': '',
 
       # Check if valgrind directories are present.
-      'has_valgrind%': '<!pymod_do_main(has_valgrind)',
+      'has_valgrind%': 0,
 
       'test_isolation_mode%': 'noop',
 
