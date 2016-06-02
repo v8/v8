@@ -7938,6 +7938,11 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       return false;
     }
 
+    // Make sure we visit the arguments object so that the liveness analysis
+    // still records the access.
+    CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
+    Drop(1);
+
     if (function_state()->outer() == NULL) {
       HInstruction* elements = Add<HArgumentsElements>(false);
       result = New<HArgumentsLength>(elements);
