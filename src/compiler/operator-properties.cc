@@ -35,12 +35,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStrictNotEqual:
       return 0;
 
-    // We record the frame state immediately before and immediately after every
-    // construct/function call.
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallFunction:
-      return 2;
-
     // Compare operations
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
@@ -65,6 +59,10 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
+
+    // Call operations
+    case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSCallFunction:
 
     // Misc operations
     case IrOpcode::kJSConvertReceiver:

@@ -180,13 +180,6 @@ void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
 
 
 // static
-void NodeProperties::RemoveFrameStateInput(Node* node, int index) {
-  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
-  node->RemoveInput(FirstFrameStateIndex(node) + index);
-}
-
-
-// static
 void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(node->op()->ValueInputCount());
 }
@@ -241,6 +234,17 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
+
+// static
+Node* NodeProperties::FindFrameStateBefore(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  while (effect->opcode() != IrOpcode::kCheckpoint) {
+    DCHECK_EQ(1, effect->op()->EffectInputCount());
+    effect = NodeProperties::GetEffectInput(effect);
+  }
+  Node* frame_state = GetFrameStateInput(effect, 0);
+  return frame_state;
+}
 
 // static
 Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {

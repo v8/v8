@@ -99,7 +99,7 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
   Node* frame_state = graph()->start();
   Node* call = graph()->NewNode(javascript()->CallFunction(2), function,
                                 UndefinedConstant(), context, frame_state,
-                                frame_state, effect, control);
+                                effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -118,7 +118,7 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
     Node* p0 = Parameter(t0, 0);
     Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
                                   UndefinedConstant(), p0, context, frame_state,
-                                  frame_state, effect, control);
+                                  effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -140,7 +140,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
       Node* p1 = Parameter(t1, 1);
       Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
                                     UndefinedConstant(), p0, p1, context,
-                                    frame_state, frame_state, effect, control);
+                                    frame_state, effect, control);
       Reduction r = Reduce(call);
 
       ASSERT_TRUE(r.Changed());
@@ -168,7 +168,7 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
       Node* p1 = Parameter(t1, 1);
       Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
                                     UndefinedConstant(), p0, p1, context,
-                                    frame_state, frame_state, effect, control);
+                                    frame_state, effect, control);
       Reduction r = Reduce(call);
 
       ASSERT_TRUE(r.Changed());
@@ -194,7 +194,7 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
     Node* p0 = Parameter(t0, 0);
     Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
                                   UndefinedConstant(), p0, context, frame_state,
-                                  frame_state, effect, control);
+                                  effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());

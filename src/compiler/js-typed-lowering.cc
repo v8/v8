@@ -1388,9 +1388,6 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
-    // Remove the eager bailout frame state.
-    NodeProperties::RemoveFrameStateInput(node, 1);
-
     // Patch {node} to an indirect call via the {function}s construct stub.
     Callable callable(handle(shared->construct_stub(), isolate()),
                       ConstructStubDescriptor(isolate()));
@@ -1410,9 +1407,6 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
 
   // Check if {target} is a JSFunction.
   if (target_type->Is(Type::Function())) {
-    // Remove the eager bailout frame state.
-    NodeProperties::RemoveFrameStateInput(node, 1);
-
     // Patch {node} to an indirect call via the ConstructFunction builtin.
     Callable callable = CodeFactory::ConstructFunction(isolate());
     node->RemoveInput(arity + 1);
@@ -1441,9 +1435,9 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   Type* target_type = NodeProperties::GetType(target);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Type* receiver_type = NodeProperties::GetType(receiver);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Try to infer receiver {convert_mode} from {receiver} type.
   if (receiver_type->Is(Type::NullOrUndefined())) {
@@ -1480,9 +1474,6 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
     // Update the effect dependency for the {node}.
     NodeProperties::ReplaceEffectInput(node, effect);
-
-    // Remove the eager bailout frame state.
-    NodeProperties::RemoveFrameStateInput(node, 1);
 
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
@@ -1521,9 +1512,6 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
 
   // Check if {target} is a JSFunction.
   if (target_type->Is(Type::Function())) {
-    // Remove the eager bailout frame state.
-    NodeProperties::RemoveFrameStateInput(node, 1);
-
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     if (p.tail_call_mode() == TailCallMode::kAllow) {
