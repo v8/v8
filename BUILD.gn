@@ -23,7 +23,7 @@ declare_args() {
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
-  v8_use_external_startup_data = true
+  v8_use_external_startup_data = !is_ios
 
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = false
