@@ -632,7 +632,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length) {
   StoreMapNoWriteBarrier(result, LoadRoot(Heap::kOneByteStringMapRootIndex));
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
-  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
+  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
                                  IntPtrConstant(String::kEmptyHashField));
   return result;
 }
@@ -659,7 +659,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length) {
     StoreMapNoWriteBarrier(result, LoadRoot(Heap::kOneByteStringMapRootIndex));
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                    SmiFromWord(length));
-    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
                                    IntPtrConstant(String::kEmptyHashField));
     var_result.Bind(result);
     Goto(&if_join);
@@ -683,7 +683,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
-  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
+  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
                                  IntPtrConstant(String::kEmptyHashField));
   return result;
 }
@@ -710,7 +710,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length) {
     StoreMapNoWriteBarrier(result, LoadRoot(Heap::kStringMapRootIndex));
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                    SmiFromWord(length));
-    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
+    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
                                    IntPtrConstant(String::kEmptyHashField));
     var_result.Bind(result);
     Goto(&if_join);

@@ -162,6 +162,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringFromCharCode();
   const Operator* StringToNumber();
 
   const Operator* ChangeTaggedSignedToInt32();

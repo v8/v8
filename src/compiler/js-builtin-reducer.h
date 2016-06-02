@@ -40,6 +40,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathRound(Node* node);
   Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathTrunc(Node* node);
+  Reduction ReduceStringFromCharCode(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

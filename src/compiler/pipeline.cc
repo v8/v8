@@ -1420,7 +1420,7 @@ bool PipelineImpl::CreateGraph() {
 
     // Run early optimization pass.
     Run<EarlyOptimizationPhase>();
-    RunPrintAndVerify("Early optimized");
+    RunPrintAndVerify("Early optimized", true);
   }
 
 #ifdef DEBUG

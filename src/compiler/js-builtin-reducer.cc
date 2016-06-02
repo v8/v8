@@ -216,6 +216,18 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   return NoChange();
 }
 
+// ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // String.fromCharCode(a:number) -> StringFromCharCode(a)
+    Node* value =
+        graph()->NewNode(simplified()->StringFromCharCode(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -249,6 +261,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);
+      break;
+    case kStringFromCharCode:
+      reduction = ReduceStringFromCharCode(node);
       break;
     default:
       break;

@@ -77,6 +77,8 @@ class EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerObjectIsUndetectable(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
+                                             Node* control);
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
 
@@ -90,6 +92,8 @@ class EffectControlLinearizer {
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
 
+  Factory* factory() const;
+  Isolate* isolate() const;
   JSGraph* jsgraph() const { return js_graph_; }
   Graph* graph() const;
   Schedule* schedule() const { return schedule_; }

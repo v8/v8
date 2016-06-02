@@ -118,6 +118,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to Map::prototype() field.
   static FieldAccess ForMapPrototype();
 
+  // Provides access to Name::hash_field() field.
+  static FieldAccess ForNameHashField();
+
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();
 

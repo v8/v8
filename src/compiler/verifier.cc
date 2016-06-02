@@ -761,6 +761,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::String());
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringFromCharCode:
+      // Number -> String
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckUpperIs(node, Type::String());
+      break;
     case IrOpcode::kStringToNumber:
       // String -> Number
       CheckValueInputIs(node, 0, Type::String());

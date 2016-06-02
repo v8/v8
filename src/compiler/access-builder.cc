@@ -365,6 +365,14 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 
 
 // static
+FieldAccess AccessBuilder::ForNameHashField() {
+  FieldAccess access = {
+      kTaggedBase,      Name::kHashFieldOffset, Handle<Name>(),
+      Type::Internal(), MachineType::Pointer(), kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase,
                         String::kLengthOffset,

@@ -1170,6 +1170,11 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kStringFromCharCode: {
+        VisitUnop(node, UseInfo::TruncatingWord32(),
+                  MachineRepresentation::kTagged);
+        break;
+      }
       case IrOpcode::kStringToNumber: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         if (lower()) {

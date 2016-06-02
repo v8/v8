@@ -272,6 +272,7 @@ class Typer::Visitor : public Reducer {
   static Type* JSCallFunctionTyper(Type*, Typer*);
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
+  static Type* StringFromCharCodeTyper(Type*, Typer*);
 
   Reduction UpdateType(Node* node, Type* current) {
     if (NodeProperties::IsTyped(node)) {
@@ -1812,6 +1813,23 @@ Type* Typer::Visitor::TypeStringLessThan(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
+}
+
+Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
+  type = NumberToUint32(ToNumber(type, t), t);
+  Factory* f = t->isolate()->factory();
+  double min = type->Min();
+  double max = type->Max();
+  if (min == max) {
+    uint32_t code = static_cast<uint32_t>(min) & String::kMaxUtf16CodeUnitU;
+    Handle<String> string = f->LookupSingleCharacterStringFromCode(code);
+    return Type::Constant(string, t->zone());
+  }
+  return Type::String();
+}
+
+Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
+  return TypeUnaryOp(node, StringFromCharCodeTyper);
 }
 
 Type* Typer::Visitor::TypeStringToNumber(Node* node) {

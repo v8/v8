@@ -203,6 +203,7 @@ Type* TypeOf(const Operator* op) {
   V(NumberToInt32, Operator::kNoProperties, 1)             \
   V(NumberToUint32, Operator::kNoProperties, 1)            \
   V(NumberIsHoleNaN, Operator::kNoProperties, 1)           \
+  V(StringFromCharCode, Operator::kNoProperties, 1)        \
   V(StringToNumber, Operator::kNoProperties, 1)            \
   V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1) \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)       \
