@@ -5656,6 +5656,9 @@ void Simulator::Execute() {
 }
 
 void Simulator::CallInternal(byte* entry, int reg_arg_count) {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
@@ -5738,6 +5741,9 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
 }
 
 intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
+  // Adjust JS-based stack limit to C-based stack limit.
+  isolate_->stack_guard()->AdjustStackLimitForSimulator();
+
   // Remember the values of non-volatile registers.
   int64_t r6_val = get_register(r6);
   int64_t r7_val = get_register(r7);
