@@ -2451,6 +2451,10 @@ void Translation::StoreBoolRegister(Register reg) {
   buffer_->Add(reg.code(), zone());
 }
 
+void Translation::StoreFloatRegister(FloatRegister reg) {
+  buffer_->Add(FLOAT_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
@@ -2481,6 +2485,10 @@ void Translation::StoreBoolStackSlot(int index) {
   buffer_->Add(index, zone());
 }
 
+void Translation::StoreFloatStackSlot(int index) {
+  buffer_->Add(FLOAT_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
 
 void Translation::StoreDoubleStackSlot(int index) {
   buffer_->Add(DOUBLE_STACK_SLOT, zone());
@@ -2521,11 +2529,13 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case INT32_REGISTER:
     case UINT32_REGISTER:
     case BOOL_REGISTER:
+    case FLOAT_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
     case UINT32_STACK_SLOT:
     case BOOL_STACK_SLOT:
+    case FLOAT_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
@@ -2816,6 +2826,14 @@ TranslatedValue TranslatedValue::NewDuplicateObject(TranslatedState* container,
 
 
 // static
+TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
+                                          float value) {
+  TranslatedValue slot(container, kFloat);
+  slot.float_value_ = value;
+  return slot;
+}
+
+// static
 TranslatedValue TranslatedValue::NewDouble(TranslatedState* container,
                                            double value) {
   TranslatedValue slot(container, kDouble);
@@ -2886,6 +2904,10 @@ uint32_t TranslatedValue::uint32_value() const {
   return uint32_value_;
 }
 
+float TranslatedValue::float_value() const {
+  DCHECK_EQ(kFloat, kind());
+  return float_value_;
+}
 
 double TranslatedValue::double_value() const {
   DCHECK_EQ(kDouble, kind());
@@ -2964,6 +2986,7 @@ Handle<Object> TranslatedValue::GetValue() {
     case TranslatedValue::kInt32:
     case TranslatedValue::kUInt32:
     case TranslatedValue::kBoolBit:
+    case TranslatedValue::kFloat:
     case TranslatedValue::kDouble: {
       MaterializeSimple();
       return value_.ToHandleChecked();
@@ -3003,6 +3026,10 @@ void TranslatedValue::MaterializeSimple() {
 
     case kUInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(uint32_value()));
+      return;
+
+    case kFloat:
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(float_value()));
       return;
 
     case kDouble:
@@ -3281,11 +3308,13 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::BOOL_REGISTER:
+    case Translation::FLOAT_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::STACK_SLOT:
     case Translation::INT32_STACK_SLOT:
     case Translation::UINT32_STACK_SLOT:
     case Translation::BOOL_STACK_SLOT:
+    case Translation::FLOAT_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL:
       break;
@@ -3412,12 +3441,23 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       return TranslatedValue::NewBool(this, static_cast<uint32_t>(value));
     }
 
+    case Translation::FLOAT_REGISTER: {
+      int input_reg = iterator->Next();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
+      float value = registers->GetFloatRegister(input_reg);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%e ; %s (float)", value,
+               FloatRegister::from_code(input_reg).ToString());
+      }
+      return TranslatedValue::NewFloat(this, value);
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       double value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (bool)", value,
+        PrintF(trace_file, "%e ; %s (double)", value,
                DoubleRegister::from_code(input_reg).ToString());
       }
       return TranslatedValue::NewDouble(this, value);
@@ -3467,6 +3507,17 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewBool(this, value);
+    }
+
+    case Translation::FLOAT_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
+      float value = ReadFloatValue(fp + slot_offset);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value,
+               slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
+      }
+      return TranslatedValue::NewFloat(this, value);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
@@ -3616,6 +3667,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
     case TranslatedValue::kInt32:
     case TranslatedValue::kUInt32:
     case TranslatedValue::kBoolBit:
+    case TranslatedValue::kFloat:
     case TranslatedValue::kDouble: {
       slot->MaterializeSimple();
       Handle<Object> value = slot->GetValue();

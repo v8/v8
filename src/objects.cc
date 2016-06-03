@@ -13974,6 +13974,13 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::FLOAT_REGISTER: {
+          int reg_code = iterator.Next();
+          os << "{input=" << FloatRegister::from_code(reg_code).ToString()
+             << "}";
+          break;
+        }
+
         case Translation::DOUBLE_REGISTER: {
           int reg_code = iterator.Next();
           os << "{input=" << DoubleRegister::from_code(reg_code).ToString()
@@ -14005,6 +14012,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::FLOAT_STACK_SLOT:
         case Translation::DOUBLE_STACK_SLOT: {
           int input_slot_index = iterator.Next();
           os << "{input=" << input_slot_index << "}";

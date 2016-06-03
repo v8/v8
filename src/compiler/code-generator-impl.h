@@ -31,6 +31,10 @@ class InstructionOperandConverter {
     return ToRegister(instr_->InputAt(index));
   }
 
+  FloatRegister InputFloatRegister(size_t index) {
+    return ToFloatRegister(instr_->InputAt(index));
+  }
+
   DoubleRegister InputDoubleRegister(size_t index) {
     return ToDoubleRegister(instr_->InputAt(index));
   }
@@ -89,6 +93,10 @@ class InstructionOperandConverter {
     return ToRegister(instr_->TempAt(index));
   }
 
+  FloatRegister OutputFloatRegister() {
+    return ToFloatRegister(instr_->Output());
+  }
+
   DoubleRegister OutputDoubleRegister() {
     return ToDoubleRegister(instr_->Output());
   }
@@ -109,6 +117,10 @@ class InstructionOperandConverter {
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
     return LocationOperand::cast(op)->GetDoubleRegister();
+  }
+
+  FloatRegister ToFloatRegister(InstructionOperand* op) {
+    return LocationOperand::cast(op)->GetFloatRegister();
   }
 
   Constant ToConstant(InstructionOperand* op) {

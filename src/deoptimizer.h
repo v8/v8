@@ -39,6 +39,7 @@ class TranslatedValue {
     kInt32,
     kUInt32,
     kBoolBit,
+    kFloat,
     kDouble,
     kCapturedObject,    // Object captured by the escape analysis.
                         // The number of nested objects can be obtained
@@ -61,6 +62,7 @@ class TranslatedValue {
   static TranslatedValue NewDeferredObject(TranslatedState* container,
                                            int length, int object_index);
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
+  static TranslatedValue NewFloat(TranslatedState* container, float value);
   static TranslatedValue NewDouble(TranslatedState* container, double value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
@@ -93,6 +95,8 @@ class TranslatedValue {
     uint32_t uint32_value_;
     // kind is kInt32.
     int32_t int32_value_;
+    // kind is kFloat
+    float float_value_;
     // kind is kDouble
     double double_value_;
     // kind is kDuplicatedObject or kArgumentsObject or kCapturedObject.
@@ -103,6 +107,7 @@ class TranslatedValue {
   Object* raw_literal() const;
   int32_t int32_value() const;
   uint32_t uint32_value() const;
+  float float_value() const;
   double double_value() const;
   int object_length() const;
   int object_index() const;
@@ -738,6 +743,11 @@ class RegisterValues {
     return registers_[n];
   }
 
+  float GetFloatRegister(unsigned n) const {
+    DCHECK(n < arraysize(float_registers_));
+    return float_registers_[n];
+  }
+
   double GetDoubleRegister(unsigned n) const {
     DCHECK(n < arraysize(double_registers_));
     return double_registers_[n];
@@ -748,12 +758,18 @@ class RegisterValues {
     registers_[n] = value;
   }
 
+  void SetFloatRegister(unsigned n, float value) {
+    DCHECK(n < arraysize(float_registers_));
+    float_registers_[n] = value;
+  }
+
   void SetDoubleRegister(unsigned n, double value) {
     DCHECK(n < arraysize(double_registers_));
     double_registers_[n] = value;
   }
 
   intptr_t registers_[Register::kNumRegisters];
+  float float_registers_[FloatRegister::kMaxNumRegisters];
   double double_registers_[DoubleRegister::kMaxNumRegisters];
 };
 
@@ -977,11 +993,13 @@ class TranslationIterator BASE_EMBEDDED {
   V(INT32_REGISTER)                \
   V(UINT32_REGISTER)               \
   V(BOOL_REGISTER)                 \
+  V(FLOAT_REGISTER)                \
   V(DOUBLE_REGISTER)               \
   V(STACK_SLOT)                    \
   V(INT32_STACK_SLOT)              \
   V(UINT32_STACK_SLOT)             \
   V(BOOL_STACK_SLOT)               \
+  V(FLOAT_STACK_SLOT)              \
   V(DOUBLE_STACK_SLOT)             \
   V(LITERAL)
 
@@ -1023,11 +1041,13 @@ class Translation BASE_EMBEDDED {
   void StoreInt32Register(Register reg);
   void StoreUint32Register(Register reg);
   void StoreBoolRegister(Register reg);
+  void StoreFloatRegister(FloatRegister reg);
   void StoreDoubleRegister(DoubleRegister reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
   void StoreUint32StackSlot(int index);
   void StoreBoolStackSlot(int index);
+  void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject(bool args_known, int args_index, int args_length);
