@@ -815,6 +815,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kX87Float64Log:
+      __ sub(esp, Immediate(kDoubleSize));
+      __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
+      __ fldln2();
+      __ fld_d(Operand(esp, 0));
+      __ fyl2x();
+      __ fstp_d(Operand(esp, 0));
+      __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
+      __ add(esp, Immediate(kDoubleSize));
+      break;
     case kSSEFloat32Cmp:
       __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       break;

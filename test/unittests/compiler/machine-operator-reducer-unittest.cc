@@ -16,6 +16,7 @@ using testing::AllOf;
 using testing::BitEq;
 using testing::Capture;
 using testing::CaptureEq;
+using testing::NanSensitiveDoubleEq;
 
 namespace v8 {
 namespace internal {
@@ -1399,8 +1400,20 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
 
 
 // -----------------------------------------------------------------------------
-// Float64InsertLowWord32
+// Float64Log
 
+TEST_F(MachineOperatorReducerTest, Float64LogWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Log(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsFloat64Constant(NanSensitiveDoubleEq(std::log(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64InsertLowWord32
 
 TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {
   TRACED_FOREACH(double, x, kFloat64Values) {

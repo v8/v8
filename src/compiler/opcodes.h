@@ -194,6 +194,7 @@
   V(NumberClz32)                   \
   V(NumberCeil)                    \
   V(NumberFloor)                   \
+  V(NumberLog)                     \
   V(NumberRound)                   \
   V(NumberTrunc)                   \
   V(NumberToInt32)                 \
@@ -349,6 +350,7 @@
   V(Float64Max)                 \
   V(Float64Min)                 \
   V(Float64Abs)                 \
+  V(Float64Log)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \

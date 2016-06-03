@@ -60,6 +60,7 @@ namespace compiler {
   V(MipsDivD)                      \
   V(MipsModD)                      \
   V(MipsAbsD)                      \
+  V(MipsLogD)                      \
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \

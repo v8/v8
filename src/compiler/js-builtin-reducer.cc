@@ -183,6 +183,17 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.20 Math.log ( x )
+Reduction JSBuiltinReducer::ReduceMathLog(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.log(a:number) -> NumberLog(a)
+    Node* value = graph()->NewNode(simplified()->NumberLog(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
@@ -252,6 +263,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathFround:
       reduction = ReduceMathFround(node);
+      break;
+    case kMathLog:
+      reduction = ReduceMathLog(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);

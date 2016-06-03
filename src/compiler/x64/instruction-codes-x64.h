@@ -56,6 +56,7 @@ namespace compiler {
   V(X64Tzcnt32)                    \
   V(X64Popcnt)                     \
   V(X64Popcnt32)                   \
+  V(X87Float64Log)                 \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \

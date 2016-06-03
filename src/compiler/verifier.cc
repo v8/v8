@@ -735,6 +735,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
+    case IrOpcode::kNumberLog:
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       // Number -> Number
@@ -1021,6 +1022,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Max:
     case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Abs:
+    case IrOpcode::kFloat64Log:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat32RoundDown:
     case IrOpcode::kFloat64RoundDown:

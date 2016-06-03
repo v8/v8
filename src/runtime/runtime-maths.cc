@@ -14,19 +14,6 @@
 namespace v8 {
 namespace internal {
 
-#define RUNTIME_UNARY_MATH(Name, name)                         \
-  RUNTIME_FUNCTION(Runtime_Math##Name) {                       \
-    HandleScope scope(isolate);                                \
-    DCHECK(args.length() == 1);                                \
-    isolate->counters()->math_##name##_runtime()->Increment(); \
-    CONVERT_DOUBLE_ARG_CHECKED(x, 0);                          \
-    return *isolate->factory()->NewHeapNumber(std::name(x));   \
-  }
-
-RUNTIME_UNARY_MATH(LogRT, log)
-#undef RUNTIME_UNARY_MATH
-
-
 RUNTIME_FUNCTION(Runtime_DoubleHi) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

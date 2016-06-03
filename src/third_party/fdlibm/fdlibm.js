@@ -974,7 +974,7 @@ function MathLog10(x) {
   var y = k + i;
   x = %_ConstructDouble(hx, lx);
 
-  var z = y * LOG10_2LO + IVLN10 * %_MathLogRT(x);
+  var z = y * LOG10_2LO + IVLN10 * %math_log(x);
   return z + y * LOG10_2HI;
 }
 

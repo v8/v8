@@ -1355,6 +1355,9 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
 }
 
+void InstructionSelector::VisitFloat64Log(Node* node) {
+  VisitRR(this, node, kX87Float64Log);
+}
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
   VisitRO(this, node, kSSEFloat64Sqrt);

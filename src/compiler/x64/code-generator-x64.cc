@@ -1003,6 +1003,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Popcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kX87Float64Log:
+      __ subq(rsp, Immediate(kDoubleSize));
+      __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
+      __ fldln2();
+      __ fld_d(Operand(rsp, 0));
+      __ fyl2x();
+      __ fstp_d(Operand(rsp, 0));
+      __ Movsd(i.OutputDoubleRegister(), Operand(rsp, 0));
+      __ addq(rsp, Immediate(kDoubleSize));
+      break;
     case kSSEFloat32Cmp:
       ASSEMBLE_SSE_BINOP(Ucomiss);
       break;

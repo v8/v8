@@ -1282,6 +1282,12 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kMips64AbsD, node);
 }
 
+void InstructionSelector::VisitFloat64Log(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64LogD, g.DefineAsFixed(node, f0),
+       g.UseFixed(node->InputAt(0), f12))
+      ->MarkAsCall();
+}
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kMips64SqrtS, node);

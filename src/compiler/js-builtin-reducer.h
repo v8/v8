@@ -37,6 +37,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathFloor(Node* node);
   Reduction ReduceMathFround(Node* node);
+  Reduction ReduceMathLog(Node* node);
   Reduction ReduceMathRound(Node* node);
   Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathTrunc(Node* node);

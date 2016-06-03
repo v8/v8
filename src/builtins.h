@@ -328,6 +328,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathCeil, 2)                     \
   V(MathClz32, 2)                    \
   V(MathFloor, 2)                    \
+  V(MathLog, 2)                      \
   V(MathRound, 2)                    \
   V(MathSqrt, 2)                     \
   V(MathTrunc, 2)                    \
@@ -619,6 +620,8 @@ class Builtins {
   static void Generate_MathClz32(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
   static void Generate_MathFloor(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.20 Math.log ( x )
+  static void Generate_MathLog(CodeStubAssembler* assembler);
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
   // ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values )

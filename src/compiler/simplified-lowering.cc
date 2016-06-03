@@ -1394,6 +1394,12 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, lowering->Float64Floor(node));
         return;
       }
+      case IrOpcode::kNumberLog: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
+        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        return;
+      }
       case IrOpcode::kNumberRound: {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);

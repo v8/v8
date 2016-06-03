@@ -58,6 +58,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Tzcnt32:
     case kX64Popcnt:
     case kX64Popcnt32:
+    case kX87Float64Log:
     case kSSEFloat32Cmp:
     case kSSEFloat32Add:
     case kSSEFloat32Sub:

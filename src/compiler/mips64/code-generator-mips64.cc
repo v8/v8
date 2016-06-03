@@ -1180,6 +1180,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64AbsD:
       __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kMips64LogD: {
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      __ PrepareCallCFunction(0, 1, kScratchReg);
+      __ MovToFloatParameter(i.InputDoubleRegister(0));
+      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
+                       0, 1);
+      // Move the result in the double result register.
+      __ MovFromFloatResult(i.OutputDoubleRegister());
+      break;
+    }
     case kMips64SqrtD: {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

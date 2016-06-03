@@ -75,6 +75,7 @@ namespace compiler {
   V(Mips64DivD)                     \
   V(Mips64ModD)                     \
   V(Mips64AbsD)                     \
+  V(Mips64LogD)                     \
   V(Mips64SqrtD)                    \
   V(Mips64MaxD)                     \
   V(Mips64MinD)                     \

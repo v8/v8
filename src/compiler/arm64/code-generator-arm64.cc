@@ -1242,6 +1242,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64Abs:
       __ Fabs(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float64Log: {
+      // TODO(dcarney): implement directly. See note in lithium-codegen-arm64.cc
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      DCHECK(d0.is(i.InputDoubleRegister(0)));
+      DCHECK(d0.is(i.OutputDoubleRegister()));
+      // TODO(dcarney): make sure this saves all relevant registers.
+      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
+                       0, 1);
+      break;
+    }
     case kArm64Float64Neg:
       __ Fneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

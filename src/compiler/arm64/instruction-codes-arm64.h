@@ -104,6 +104,7 @@ namespace compiler {
   V(Arm64Float64Max)               \
   V(Arm64Float64Min)               \
   V(Arm64Float64Abs)               \
+  V(Arm64Float64Log)               \
   V(Arm64Float64Neg)               \
   V(Arm64Float64Sqrt)              \
   V(Arm64Float64RoundDown)         \

@@ -106,6 +106,7 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Log)                         \
   V(Float64Neg)                         \
   V(Float64Sqrt)                        \
   V(Float64ExtractLowWord32)            \

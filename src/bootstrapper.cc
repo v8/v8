@@ -1631,6 +1631,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_math_floor(*math_floor);
     SimpleInstallFunction(math, "fround", Builtins::kMathFround, 1, true);
     SimpleInstallFunction(math, "imul", Builtins::kMathImul, 2, true);
+    Handle<JSFunction> math_log =
+        SimpleInstallFunction(math, "log", Builtins::kMathLog, 1, true);
+    native_context()->set_math_log(*math_log);
     SimpleInstallFunction(math, "max", Builtins::kMathMax, 2, false);
     SimpleInstallFunction(math, "min", Builtins::kMathMin, 2, false);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
