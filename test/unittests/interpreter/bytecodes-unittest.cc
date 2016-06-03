@@ -205,7 +205,7 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
        2,
        3,
        "            Ldar a1"},
-      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U16(165)},
+      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U8(165)},
        7,
        0,
        "CreateObjectLiteral.Wide [513], [1027], #165"},
