@@ -12,19 +12,12 @@ if (is_android) {
 }
 
 import("gni/v8.gni")
+import("gni/isolate.gni")
 import("//build_overrides/v8.gni")
 
 import("snapshot_toolchain.gni")
 
 declare_args() {
-  # Enable the snapshot feature, for fast context creation.
-  # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
-  v8_use_snapshot = true
-
-  # Use external files for startup data blobs:
-  # the JS builtins sources and the start snapshot.
-  v8_use_external_startup_data = !is_ios
-
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = false
 
@@ -2146,6 +2139,14 @@ executable("d8") {
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
   }
+}
+
+v8_isolate_run("d8") {
+  deps = [
+    ":d8",
+  ]
+
+  isolate = "//src/d8.isolate"
 }
 
 if (want_v8_shell) {
