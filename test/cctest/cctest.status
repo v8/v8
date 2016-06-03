@@ -177,8 +177,8 @@
   'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
   'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
 
-  # BUG(4751). Flaky with ignition and tsan.
-  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', NO_IGNITION]],
+  # BUG(4751). Flaky with ignition.
+  'test-cpu-profiler/JsNativeJsSample': [PASS, NO_IGNITION],
 }],  # ALWAYS
 
 ##############################################################################
@@ -572,8 +572,8 @@
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
 
-  # BUG(4751). Flaky with ignition and tsan.
-  'test-cpu-profiler/JsNativeJsSample': [PASS, ['tsan', SKIP]],
+  # BUG(4751). Flaky with Ignition.
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
 }],  # ignition or ignition_turbofan
 
 ]
