@@ -158,8 +158,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_tan_wrapper");
   Add(ExternalReference::f64_exp_wrapper_function(isolate).address(),
       "f64_exp_wrapper");
-  Add(ExternalReference::f64_log_wrapper_function(isolate).address(),
-      "f64_log_wrapper");
   Add(ExternalReference::f64_pow_wrapper_function(isolate).address(),
       "f64_pow_wrapper");
   Add(ExternalReference::f64_atan2_wrapper_function(isolate).address(),

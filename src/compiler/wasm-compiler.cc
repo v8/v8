@@ -796,9 +796,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprF64Exp: {
       return BuildF64Exp(input);
     }
-    case wasm::kExprF64Log: {
-      return BuildF64Log(input);
-    }
+    case wasm::kExprF64Log:
+      op = m->Float64Log();
+      break;
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
       break;
@@ -1380,13 +1380,6 @@ Node* WasmGraphBuilder::BuildF64Exp(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
       ExternalReference::f64_exp_wrapper_function(jsgraph()->isolate());
-  return BuildCFuncInstruction(ref, type, input);
-}
-
-Node* WasmGraphBuilder::BuildF64Log(Node* input) {
-  MachineType type = MachineType::Float64();
-  ExternalReference ref =
-      ExternalReference::f64_log_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
 }
 

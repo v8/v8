@@ -1351,15 +1351,6 @@ ExternalReference ExternalReference::f64_exp_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
 }
 
-static void f64_log_wrapper(double* param) {
-  WriteDoubleValue(param, std::log(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_log_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_log_wrapper)));
-}
-
 static void f64_pow_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0, power_double_double(ReadDoubleValue(param0),
                                                ReadDoubleValue(param1)));

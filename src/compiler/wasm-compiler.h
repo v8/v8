@@ -280,7 +280,6 @@ class WasmGraphBuilder {
   Node* BuildF64Sin(Node* input);
   Node* BuildF64Tan(Node* input);
   Node* BuildF64Exp(Node* input);
-  Node* BuildF64Log(Node* input);
   Node* BuildF64Pow(Node* left, Node* right);
   Node* BuildF64Atan2(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
