@@ -1307,7 +1307,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMipsStoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ swc1(i.InputSingleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        }
       } else {
         __ sw(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
