@@ -603,9 +603,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadProperty(feedback), base, key, vector, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
+                                          base, key, vector, context,
+                                          EmptyFrameState(), effect, control));
 
     Matcher<Node*> offset_matcher =
         element_size == 1
@@ -644,9 +644,9 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->LoadProperty(feedback), base, key, vector, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
+                                          base, key, vector, context,
+                                          EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
@@ -685,8 +685,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
       Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+                                    EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -726,11 +725,14 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
+      // TODO(mstarzinger): Once the effect-control-linearizer provides a frame
+      // state we can get rid of this checkpoint again. The reducer won't care.
+      Node* checkpoint = graph()->NewNode(common()->Checkpoint(),
+                                          EmptyFrameState(), effect, control);
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
       Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+                                    EmptyFrameState(), checkpoint, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -739,7 +741,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
               : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
 
       Matcher<Node*> value_matcher =
-          IsToNumber(value, context, effect, control);
+          IsToNumber(value, context, checkpoint, control);
       Matcher<Node*> effect_matcher = value_matcher;
 
       ASSERT_TRUE(r.Changed());
@@ -779,8 +781,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
       Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), EmptyFrameState(),
-                                    effect, control);
+                                    EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
       ASSERT_TRUE(r.Changed());
@@ -806,9 +807,9 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->LoadNamed(name, feedback), receiver, vector, context,
-      EmptyFrameState(), EmptyFrameState(), effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
+                       vector, context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
                                            receiver, effect, control));

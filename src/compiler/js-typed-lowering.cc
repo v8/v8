@@ -1106,7 +1106,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
             value = number_reduction.replacement();
           } else {
             Node* frame_state_for_to_number =
-                NodeProperties::GetFrameStateInput(node, 1);
+                NodeProperties::FindFrameStateBefore(node);
             value = effect =
                 graph()->NewNode(javascript()->ToNumber(), value, context,
                                  frame_state_for_to_number, effect, control);

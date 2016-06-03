@@ -418,11 +418,13 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
     frame_state_before_ = id_before == BailoutId::None()
                               ? builder_->GetEmptyFrameState()
                               : builder_->environment()->Checkpoint(id_before);
-    // Create an explicit checkpoint node for before the operation.
-    Node* node = builder_->NewNode(builder_->common()->Checkpoint());
-    DCHECK_EQ(IrOpcode::kDead,
-              NodeProperties::GetFrameStateInput(node, 0)->opcode());
-    NodeProperties::ReplaceFrameStateInput(node, 0, frame_state_before_);
+    if (id_before != BailoutId::None()) {
+      // Create an explicit checkpoint node for before the operation.
+      Node* node = builder_->NewNode(builder_->common()->Checkpoint());
+      DCHECK_EQ(IrOpcode::kDead,
+                NodeProperties::GetFrameStateInput(node, 0)->opcode());
+      NodeProperties::ReplaceFrameStateInput(node, 0, frame_state_before_);
+    }
   }
 
   void AddToNode(
