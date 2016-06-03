@@ -11,7 +11,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -297,8 +296,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
   static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
-  static Bytecode GetJumpWithConstantOperand(Bytecode jump_smi8_operand);
-
   void Output(Bytecode bytecode);
   void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
                     uint32_t operand0, uint32_t operand1, uint32_t operand2,
@@ -312,15 +309,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
-  void PatchJump(size_t jump_target, size_t jump_location);
-  void PatchJumpWith8BitOperand(ZoneVector<uint8_t>* bytecodes,
-                                size_t jump_location, int delta);
-  void PatchJumpWith16BitOperand(ZoneVector<uint8_t>* bytecodes,
-                                 size_t jump_location, int delta);
-  void PatchJumpWith32BitOperand(ZoneVector<uint8_t>* bytecodes,
-                                 size_t jump_location, int delta);
 
-  void LeaveBasicBlock();
 
   bool OperandIsValid(Bytecode bytecode, OperandScale operand_scale,
                       int operand_index, uint32_t operand_value) const;
@@ -337,6 +326,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
+  void LeaveBasicBlock() { return_seen_in_block_ = false; }
+
   Isolate* isolate() const { return isolate_; }
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
@@ -351,18 +342,13 @@ class BytecodeArrayBuilder final : public ZoneObject {
   HandlerTableBuilder* handler_table_builder() {
     return &handler_table_builder_;
   }
-  SourcePositionTableBuilder* source_position_table_builder() {
-    return &source_position_table_builder_;
-  }
 
   Isolate* isolate_;
   Zone* zone_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  SourcePositionTableBuilder source_position_table_builder_;
   bool return_seen_in_block_;
-  int unbound_jumps_;
   int parameter_count_;
   int local_register_count_;
   int context_register_count_;
@@ -373,47 +359,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeSourceInfo latest_source_info_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
-};
-
-
-// A label representing a branch target in a bytecode array. When a
-// label is bound, it represents a known position in the bytecode
-// array. For labels that are forward references there can be at most
-// one reference whilst it is unbound.
-class BytecodeLabel final {
- public:
-  BytecodeLabel() : bound_(false), offset_(kInvalidOffset) {}
-
-  bool is_bound() const { return bound_; }
-  size_t offset() const { return offset_; }
-
- private:
-  static const size_t kInvalidOffset = static_cast<size_t>(-1);
-
-  void bind_to(size_t offset) {
-    DCHECK(!bound_ && offset != kInvalidOffset);
-    offset_ = offset;
-    bound_ = true;
-  }
-
-  void set_referrer(size_t offset) {
-    DCHECK(!bound_ && offset != kInvalidOffset && offset_ == kInvalidOffset);
-    offset_ = offset;
-  }
-
-  bool is_forward_target() const {
-    return offset() != kInvalidOffset && !is_bound();
-  }
-
-  // There are three states for a label:
-  //                    bound_   offset_
-  //  UNSET             false    kInvalidOffset
-  //  FORWARD_TARGET    false    Offset of referring jump
-  //  BACKWARD_TARGET    true    Offset of label in bytecode array when bound
-  bool bound_;
-  size_t offset_;
-
-  friend class BytecodeArrayBuilder;
 };
 
 }  // namespace interpreter

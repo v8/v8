@@ -198,44 +198,13 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   DCHECK(accumulator_info_->register_value() == accumulator_);
 }
 
-void BytecodeRegisterOptimizer::FlushState() {
-  if (flushed_) {
-    return;
-  }
-
-  // Materialize all live registers.
-  size_t count = register_info_table_.size();
-  for (size_t i = 0; i < count; ++i) {
-    RegisterInfo* reg_info = register_info_table_[i];
-    if (!reg_info->IsOnlyMemberOfEquivalenceSet() &&
-        !reg_info->materialized()) {
-      DCHECK(RegisterIsTemporary(reg_info->register_value()) ||
-             reg_info->register_value() == accumulator_);
-      Materialize(reg_info);
-    }
-  }
-
-  // Break all existing equivalences.
-  for (size_t i = 0; i < count; ++i) {
-    RegisterInfo* reg_info = register_info_table_[i];
-    if (!reg_info->IsOnlyMemberOfEquivalenceSet()) {
-      reg_info->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
-    }
-  }
-
-  flushed_ = true;
-}
-
 // override
-void BytecodeRegisterOptimizer::FlushBasicBlock() {
+Handle<BytecodeArray> BytecodeRegisterOptimizer::ToBytecodeArray(
+    int fixed_register_count, int parameter_count,
+    Handle<FixedArray> handler_table) {
   FlushState();
-  next_stage_->FlushBasicBlock();
-}
-
-// override
-size_t BytecodeRegisterOptimizer::FlushForOffset() {
-  FlushState();
-  return next_stage_->FlushForOffset();
+  return next_stage_->ToBytecodeArray(fixed_register_count, parameter_count,
+                                      handler_table);
 }
 
 // override
@@ -281,6 +250,55 @@ void BytecodeRegisterOptimizer::Write(BytecodeNode* node) {
 
   PrepareOperands(node);
   WriteToNextStage(node);
+}
+
+// override
+void BytecodeRegisterOptimizer::WriteJump(BytecodeNode* node,
+                                          BytecodeLabel* label) {
+  FlushState();
+  next_stage_->WriteJump(node, label);
+}
+
+// override
+void BytecodeRegisterOptimizer::BindLabel(BytecodeLabel* label) {
+  FlushState();
+  next_stage_->BindLabel(label);
+}
+
+// override
+void BytecodeRegisterOptimizer::BindLabel(const BytecodeLabel& target,
+                                          BytecodeLabel* label) {
+  // There is no need to flush here, it will have been flushed when |target|
+  // was bound.
+  next_stage_->BindLabel(target, label);
+}
+
+void BytecodeRegisterOptimizer::FlushState() {
+  if (flushed_) {
+    return;
+  }
+
+  // Materialize all live registers.
+  size_t count = register_info_table_.size();
+  for (size_t i = 0; i < count; ++i) {
+    RegisterInfo* reg_info = register_info_table_[i];
+    if (!reg_info->IsOnlyMemberOfEquivalenceSet() &&
+        !reg_info->materialized()) {
+      DCHECK(RegisterIsTemporary(reg_info->register_value()) ||
+             reg_info->register_value() == accumulator_);
+      Materialize(reg_info);
+    }
+  }
+
+  // Break all existing equivalences.
+  for (size_t i = 0; i < count; ++i) {
+    RegisterInfo* reg_info = register_info_table_[i];
+    if (!reg_info->IsOnlyMemberOfEquivalenceSet()) {
+      reg_info->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
+    }
+  }
+
+  flushed_ = true;
 }
 
 void BytecodeRegisterOptimizer::WriteToNextStage(BytecodeNode* node) const {

@@ -15,10 +15,55 @@ namespace interpreter {
 BytecodePeepholeOptimizer::BytecodePeepholeOptimizer(
     ConstantArrayBuilder* constant_array_builder,
     BytecodePipelineStage* next_stage)
-    : constant_array_builder_(constant_array_builder),
-      next_stage_(next_stage),
-      last_is_discardable_(false) {
+    : constant_array_builder_(constant_array_builder), next_stage_(next_stage) {
   InvalidateLast();
+}
+
+// override
+Handle<BytecodeArray> BytecodePeepholeOptimizer::ToBytecodeArray(
+    int fixed_register_count, int parameter_count,
+    Handle<FixedArray> handler_table) {
+  Flush();
+  return next_stage_->ToBytecodeArray(fixed_register_count, parameter_count,
+                                      handler_table);
+}
+
+// override
+void BytecodePeepholeOptimizer::Write(BytecodeNode* node) {
+  node = OptimizeAndEmitLast(node);
+  if (node != nullptr) {
+    SetLast(node);
+  }
+}
+
+// override
+void BytecodePeepholeOptimizer::WriteJump(BytecodeNode* node,
+                                          BytecodeLabel* label) {
+  node = OptimizeAndEmitLast(node);
+  next_stage_->WriteJump(node, label);
+}
+
+// override
+void BytecodePeepholeOptimizer::BindLabel(BytecodeLabel* label) {
+  Flush();
+  next_stage_->BindLabel(label);
+}
+
+// override
+void BytecodePeepholeOptimizer::BindLabel(const BytecodeLabel& target,
+                                          BytecodeLabel* label) {
+  // There is no need to flush here, it will have been flushed when |target|
+  // was bound.
+  next_stage_->BindLabel(target, label);
+}
+
+void BytecodePeepholeOptimizer::Flush() {
+  // TODO(oth/rmcilroy): We could check CanElideLast() here to potentially
+  // eliminate last rather than writing it.
+  if (LastIsValid()) {
+    next_stage_->Write(&last_);
+    InvalidateLast();
+  }
 }
 
 void BytecodePeepholeOptimizer::InvalidateLast() {
@@ -31,51 +76,6 @@ bool BytecodePeepholeOptimizer::LastIsValid() const {
 
 void BytecodePeepholeOptimizer::SetLast(const BytecodeNode* const node) {
   last_.Clone(node);
-  last_is_discardable_ = true;
-}
-
-// override
-size_t BytecodePeepholeOptimizer::FlushForOffset() {
-  size_t buffered_size = next_stage_->FlushForOffset();
-  if (LastIsValid()) {
-    if (last_.bytecode() == Bytecode::kNop &&
-        !last_.source_info().is_statement()) {
-      // The Nop can be dropped as it doesn't have a statement
-      // position for the debugger and doesn't have any effects by
-      // definition.
-      InvalidateLast();
-    } else {
-      buffered_size += last_.Size();
-      last_is_discardable_ = false;
-    }
-  }
-  return buffered_size;
-}
-
-// override
-void BytecodePeepholeOptimizer::FlushBasicBlock() {
-  if (LastIsValid()) {
-    next_stage_->Write(&last_);
-    InvalidateLast();
-  }
-  next_stage_->FlushBasicBlock();
-}
-
-// override
-void BytecodePeepholeOptimizer::Write(BytecodeNode* node) {
-  // Attempt optimization if there is an earlier node to optimize with.
-  if (LastIsValid()) {
-    node = Optimize(node);
-    // Only output the last node if it wasn't invalidated by the optimization.
-    if (LastIsValid()) {
-      next_stage_->Write(&last_);
-      InvalidateLast();
-    }
-  }
-
-  if (node != nullptr) {
-    SetLast(node);
-  }
 }
 
 Handle<Object> BytecodePeepholeOptimizer::GetConstantForIndexOperand(
@@ -260,10 +260,6 @@ bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
 
 bool BytecodePeepholeOptimizer::CanElideLast(
     const BytecodeNode* const current) const {
-  if (!last_is_discardable_) {
-    return false;
-  }
-
   if (last_.bytecode() == Bytecode::kNop) {
     // Nop are placeholders for holding source position information.
     return true;
@@ -308,6 +304,20 @@ BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
     return current;
   }
 
+  return current;
+}
+
+BytecodeNode* BytecodePeepholeOptimizer::OptimizeAndEmitLast(
+    BytecodeNode* current) {
+  // Attempt optimization if there is an earlier node to optimize with.
+  if (LastIsValid()) {
+    current = Optimize(current);
+    // Only output the last node if it wasn't invalidated by the optimization.
+    if (LastIsValid()) {
+      next_stage_->Write(&last_);
+      InvalidateLast();
+    }
+  }
   return current;
 }
 

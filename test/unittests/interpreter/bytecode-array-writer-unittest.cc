@@ -4,7 +4,11 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
+#include "src/factory.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/source-position-table.h"
 #include "src/isolate.h"
 #include "src/utils.h"
@@ -18,8 +22,8 @@ namespace interpreter {
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
-      : source_position_builder_(isolate(), zone()),
-        bytecode_array_writer_(zone(), &source_position_builder_) {}
+      : constant_array_builder_(isolate(), zone()),
+        bytecode_array_writer_(isolate(), zone(), &constant_array_builder_) {}
   ~BytecodeArrayWriterUnittest() override {}
 
   void Write(BytecodeNode* node, const BytecodeSourceInfo& info);
@@ -37,13 +41,19 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
              uint32_t operand2, uint32_t operand3, OperandScale operand_scale,
              const BytecodeSourceInfo& info = BytecodeSourceInfo());
 
-  SourcePositionTableBuilder* source_position_builder() {
-    return &source_position_builder_;
-  }
+  void WriteJump(Bytecode bytecode, BytecodeLabel* label,
+                 OperandScale operand_scale,
+                 const BytecodeSourceInfo& info = BytecodeSourceInfo());
+
   BytecodeArrayWriter* writer() { return &bytecode_array_writer_; }
+  ZoneVector<unsigned char>* bytecodes() { return writer()->bytecodes(); }
+  SourcePositionTableBuilder* source_position_table_builder() {
+    return writer()->source_position_table_builder();
+  }
+  int max_register_count() { return writer()->max_register_count(); }
 
  private:
-  SourcePositionTableBuilder source_position_builder_;
+  ConstantArrayBuilder constant_array_builder_;
   BytecodeArrayWriter bytecode_array_writer_;
 };
 
@@ -94,40 +104,50 @@ void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
   Write(&node, info);
 }
 
+void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
+                                            BytecodeLabel* label,
+                                            OperandScale operand_scale,
+                                            const BytecodeSourceInfo& info) {
+  BytecodeNode node(bytecode, 0, operand_scale);
+  if (info.is_valid()) {
+    node.source_info().Update(info);
+  }
+  writer()->WriteJump(&node, label);
+}
+
 TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
-  CHECK_EQ(writer()->bytecodes()->size(), 0);
+  CHECK_EQ(bytecodes()->size(), 0);
 
   Write(Bytecode::kStackCheck, {10, false});
-  CHECK_EQ(writer()->bytecodes()->size(), 1);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 0);
+  CHECK_EQ(bytecodes()->size(), 1);
+  CHECK_EQ(max_register_count(), 0);
 
   Write(Bytecode::kLdaSmi, 0xff, OperandScale::kSingle, {55, true});
-  CHECK_EQ(writer()->bytecodes()->size(), 3);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 0);
+  CHECK_EQ(bytecodes()->size(), 3);
+  CHECK_EQ(max_register_count(), 0);
 
   Write(Bytecode::kLdar, Register(1).ToOperand(), OperandScale::kDouble);
-  CHECK_EQ(writer()->bytecodes()->size(), 7);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 2 * kPointerSize);
+  CHECK_EQ(bytecodes()->size(), 7);
+  CHECK_EQ(max_register_count(), 2);
 
   Write(Bytecode::kReturn, {70, true});
-  CHECK_EQ(writer()->bytecodes()->size(), 8);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 2 * kPointerSize);
+  CHECK_EQ(bytecodes()->size(), 8);
+  CHECK_EQ(max_register_count(), 2);
 
   static const uint8_t bytes[] = {B(StackCheck), B(LdaSmi), U8(0xff), B(Wide),
                                   B(Ldar),       R16(1),    B(Return)};
-  CHECK_EQ(writer()->bytecodes()->size(), arraysize(bytes));
+  CHECK_EQ(bytecodes()->size(), arraysize(bytes));
   for (size_t i = 0; i < arraysize(bytes); ++i) {
-    CHECK_EQ(writer()->bytecodes()->at(i), bytes[i]);
+    CHECK_EQ(bytecodes()->at(i), bytes[i]);
   }
 
-  CHECK_EQ(writer()->FlushForOffset(), arraysize(bytes));
-  writer()->FlushBasicBlock();
-  CHECK_EQ(writer()->bytecodes()->size(), arraysize(bytes));
+  writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  CHECK_EQ(bytecodes()->size(), arraysize(bytes));
 
   PositionTableEntry expected_positions[] = {
       {0, 10, false}, {1, 55, true}, {7, 70, true}};
   Handle<ByteArray> source_positions =
-      source_position_builder()->ToSourcePositionTable();
+      source_position_table_builder()->ToSourcePositionTable();
   SourcePositionTableIterator source_iterator(*source_positions);
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
@@ -173,50 +193,58 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       {0, 30, false}, {1, 42, true},   {3, 42, false}, {5, 68, true},
       {17, 63, true}, {31, 54, false}, {36, 85, true}, {44, 85, true}};
 
+  BytecodeLabel back_jump, jump_for_in, jump_end_1, jump_end_2, jump_end_3;
+
 #define R(i) static_cast<uint32_t>(Register(i).ToOperand())
   Write(Bytecode::kStackCheck, {30, false});
   Write(Bytecode::kLdaConstant, U8(0), OperandScale::kSingle, {42, true});
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 0 * kPointerSize);
+  CHECK_EQ(max_register_count(), 0);
   Write(Bytecode::kStar, R(1), OperandScale::kSingle, {42, false});
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 2 * kPointerSize);
-  Write(Bytecode::kJumpIfUndefined, U8(38), OperandScale::kSingle, {68, true});
-  Write(Bytecode::kJumpIfNull, U8(36), OperandScale::kSingle);
+  CHECK_EQ(max_register_count(), 2);
+  WriteJump(Bytecode::kJumpIfUndefined, &jump_end_1, OperandScale::kSingle,
+            {68, true});
+  WriteJump(Bytecode::kJumpIfNull, &jump_end_2, OperandScale::kSingle);
   Write(Bytecode::kToObject);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 2 * kPointerSize);
+  CHECK_EQ(max_register_count(), 2);
   Write(Bytecode::kStar, R(3), OperandScale::kSingle);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 4 * kPointerSize);
+  CHECK_EQ(max_register_count(), 4);
   Write(Bytecode::kForInPrepare, R(4), OperandScale::kSingle);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 7 * kPointerSize);
+  CHECK_EQ(max_register_count(), 7);
   Write(Bytecode::kLdaZero);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 7 * kPointerSize);
+  CHECK_EQ(max_register_count(), 7);
   Write(Bytecode::kStar, R(7), OperandScale::kSingle);
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 8 * kPointerSize);
+  CHECK_EQ(max_register_count(), 8);
+  writer()->BindLabel(&back_jump);
   Write(Bytecode::kForInDone, R(7), R(6), OperandScale::kSingle, {63, true});
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 8 * kPointerSize);
-  Write(Bytecode::kJumpIfTrue, U8(23), OperandScale::kSingle);
+  CHECK_EQ(max_register_count(), 8);
+  WriteJump(Bytecode::kJumpIfTrue, &jump_end_3, OperandScale::kSingle);
   Write(Bytecode::kForInNext, R(3), R(7), R(4), U8(1), OperandScale::kSingle);
-  Write(Bytecode::kJumpIfUndefined, U8(10), OperandScale::kSingle);
+  WriteJump(Bytecode::kJumpIfUndefined, &jump_for_in, OperandScale::kSingle);
   Write(Bytecode::kStar, R(0), OperandScale::kSingle);
   Write(Bytecode::kStackCheck, {54, false});
   Write(Bytecode::kLdar, R(0), OperandScale::kSingle);
   Write(Bytecode::kStar, R(2), OperandScale::kSingle);
   Write(Bytecode::kReturn, {85, true});
+  writer()->BindLabel(&jump_for_in);
   Write(Bytecode::kForInStep, R(7), OperandScale::kSingle);
   Write(Bytecode::kStar, R(7), OperandScale::kSingle);
-  Write(Bytecode::kJump, U8(-24), OperandScale::kSingle);
+  WriteJump(Bytecode::kJump, &back_jump, OperandScale::kSingle);
+  writer()->BindLabel(&jump_end_1);
+  writer()->BindLabel(&jump_end_2);
+  writer()->BindLabel(&jump_end_3);
   Write(Bytecode::kLdaUndefined);
   Write(Bytecode::kReturn, {85, true});
-  CHECK_EQ(writer()->GetMaximumFrameSizeUsed(), 8 * kPointerSize);
+  CHECK_EQ(max_register_count(), 8);
 #undef R
 
-  CHECK_EQ(writer()->bytecodes()->size(), arraysize(expected_bytes));
+  CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
   for (size_t i = 0; i < arraysize(expected_bytes); ++i) {
-    CHECK_EQ(static_cast<int>(writer()->bytecodes()->at(i)),
+    CHECK_EQ(static_cast<int>(bytecodes()->at(i)),
              static_cast<int>(expected_bytes[i]));
   }
 
   Handle<ByteArray> source_positions =
-      source_position_builder()->ToSourcePositionTable();
+      source_position_table_builder()->ToSourcePositionTable();
   SourcePositionTableIterator source_iterator(*source_positions);
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];

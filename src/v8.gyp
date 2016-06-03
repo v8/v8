@@ -902,6 +902,7 @@
         'interpreter/bytecode-array-iterator.h',
         'interpreter/bytecode-array-writer.cc',
         'interpreter/bytecode-array-writer.h',
+        'interpreter/bytecode-label.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
         'interpreter/bytecode-pipeline.cc',

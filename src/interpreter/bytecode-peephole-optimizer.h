@@ -24,11 +24,17 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
 
   // BytecodePipelineStage interface.
   void Write(BytecodeNode* node) override;
-  size_t FlushForOffset() override;
-  void FlushBasicBlock() override;
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override;
+  void BindLabel(BytecodeLabel* label) override;
+  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
+  Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handler_table) override;
 
  private:
+  BytecodeNode* OptimizeAndEmitLast(BytecodeNode* current);
   BytecodeNode* Optimize(BytecodeNode* current);
+  void Flush();
 
   void TryToRemoveLastExpressionPosition(const BytecodeNode* const current);
   bool TransformLastAndCurrentBytecodes(BytecodeNode* const current);
@@ -54,7 +60,6 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   ConstantArrayBuilder* constant_array_builder_;
   BytecodePipelineStage* next_stage_;
   BytecodeNode last_;
-  bool last_is_discardable_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodePeepholeOptimizer);
 };

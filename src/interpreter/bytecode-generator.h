@@ -7,6 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {

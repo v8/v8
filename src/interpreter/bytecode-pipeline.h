@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+class BytecodeLabel;
 class BytecodeNode;
 class BytecodeSourceInfo;
 
@@ -26,12 +27,26 @@ class BytecodePipelineStage {
   // deferring Write() to the next stage.
   virtual void Write(BytecodeNode* node) = 0;
 
-  // Flush state for bytecode array offset calculation. Returns the
-  // current size of bytecode array.
-  virtual size_t FlushForOffset() = 0;
+  // Write jump bytecode node |node| which jumps to |label| into pipeline.
+  // The node and label are only valid for the duration of the call. This call
+  // implicitly ends the current basic block so should always write to the next
+  // stage.
+  virtual void WriteJump(BytecodeNode* node, BytecodeLabel* label) = 0;
 
-  // Flush state to terminate basic block.
-  virtual void FlushBasicBlock() = 0;
+  // Binds |label| to the current bytecode location. This call implicitly
+  // ends the current basic block and so any deferred bytecodes should be
+  // written to the next stage.
+  virtual void BindLabel(BytecodeLabel* label) = 0;
+
+  // Binds |label| to the location of |target|. This call implicitly
+  // ends the current basic block and so any deferred bytecodes should be
+  // written to the next stage.
+  virtual void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) = 0;
+
+  // Flush the pipeline and generate a bytecode array.
+  virtual Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handler_table) = 0;
 };
 
 // Source code position information.

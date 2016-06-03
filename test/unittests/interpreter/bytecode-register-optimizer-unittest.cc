@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/factory.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -27,14 +28,17 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
         zone(), register_allocator_, number_of_parameters, this);
   }
 
-  size_t FlushForOffset() override {
-    flush_for_offset_count_++;
-    return 0;
-  };
-
-  void FlushBasicBlock() override { flush_basic_block_count_++; }
-
   void Write(BytecodeNode* node) override { output_.push_back(*node); }
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override {
+    output_.push_back(*node);
+  }
+  void BindLabel(BytecodeLabel* label) override {}
+  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override {}
+  Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handle_table) override {
+    return Handle<BytecodeArray>();
+  }
 
   TemporaryRegisterAllocator* allocator() { return register_allocator_; }
   BytecodeRegisterOptimizer* optimizer() { return register_optimizer_; }
@@ -47,8 +51,6 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
     allocator()->ReturnTemporaryRegister(reg.index());
   }
 
-  int flush_for_offset_count() const { return flush_for_offset_count_; }
-  int flush_basic_block_count() const { return flush_basic_block_count_; }
   size_t write_count() const { return output_.size(); }
   const BytecodeNode& last_written() const { return output_.back(); }
   const std::vector<BytecodeNode>* output() { return &output_; }
@@ -57,76 +59,65 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
   TemporaryRegisterAllocator* register_allocator_;
   BytecodeRegisterOptimizer* register_optimizer_;
 
-  int flush_for_offset_count_ = 0;
-  int flush_basic_block_count_ = 0;
   std::vector<BytecodeNode> output_;
 };
 
 // Sanity tests.
 
-TEST_F(BytecodeRegisterOptimizerTest, FlushForOffsetPassThrough) {
-  Initialize(1, 1);
-  CHECK_EQ(flush_for_offset_count(), 0);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
-}
-
-TEST_F(BytecodeRegisterOptimizerTest, FlushForOffsetRightSize) {
-  Initialize(1, 1);
-  BytecodeNode node(Bytecode::kAdd, Register(0).ToOperand(),
-                    OperandScale::kQuadruple);
-  optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
-  CHECK_EQ(write_count(), 1);
-}
-
-TEST_F(BytecodeRegisterOptimizerTest, FlushForOffsetNop) {
+TEST_F(BytecodeRegisterOptimizerTest, WriteNop) {
   Initialize(1, 1);
   BytecodeNode node(Bytecode::kNop);
   optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(node, last_written());
 }
 
-TEST_F(BytecodeRegisterOptimizerTest, FlushForOffsetNopExpression) {
+TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
   Initialize(1, 1);
   BytecodeNode node(Bytecode::kNop);
   node.source_info().Update({3, false});
   optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(node, last_written());
 }
 
-TEST_F(BytecodeRegisterOptimizerTest, FlushForOffsetNopStatement) {
+TEST_F(BytecodeRegisterOptimizerTest, WriteNopStatement) {
   Initialize(1, 1);
   BytecodeNode node(Bytecode::kNop);
   node.source_info().Update({3, true});
   optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
-  CHECK_EQ(write_count(), 1);
-}
-
-TEST_F(BytecodeRegisterOptimizerTest, FlushBasicBlockPassThrough) {
-  Initialize(1, 1);
-  CHECK_EQ(flush_basic_block_count(), 0);
-  optimizer()->FlushBasicBlock();
-  CHECK_EQ(flush_basic_block_count(), 1);
-  CHECK_EQ(write_count(), 0);
-}
-
-TEST_F(BytecodeRegisterOptimizerTest, WriteOneFlushBasicBlock) {
-  Initialize(1, 1);
-  BytecodeNode node(Bytecode::kAdd, Register(0).ToOperand(),
-                    OperandScale::kQuadruple);
-  optimizer()->Write(&node);
-  CHECK_EQ(write_count(), 1);
-  optimizer()->FlushBasicBlock();
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
+}
+
+TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
+  Initialize(1, 1);
+  Register temp = NewTemporary();
+  BytecodeNode node(Bytecode::kStar, temp.ToOperand(), OperandScale::kSingle);
+  optimizer()->Write(&node);
+  CHECK_EQ(write_count(), 0);
+  BytecodeLabel label;
+  BytecodeNode jump(Bytecode::kJump, 0, OperandScale::kSingle);
+  optimizer()->WriteJump(&jump, &label);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
+  CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
+  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
+  CHECK_EQ(output()->at(1).bytecode(), Bytecode::kJump);
+}
+
+TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForBind) {
+  Initialize(1, 1);
+  Register temp = NewTemporary();
+  BytecodeNode node(Bytecode::kStar, temp.ToOperand(), OperandScale::kSingle);
+  optimizer()->Write(&node);
+  CHECK_EQ(write_count(), 0);
+  BytecodeLabel label;
+  optimizer()->BindLabel(&label);
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
+  CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
+  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
 }
 
 // Basic Register Optimizations

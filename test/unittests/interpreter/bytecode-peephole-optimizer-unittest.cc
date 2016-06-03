@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/factory.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/objects-inl.h"
@@ -23,23 +24,31 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
         peephole_optimizer_(&constant_array_builder_, this) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
-  size_t FlushForOffset() override {
-    flush_for_offset_count_++;
-    return 0;
-  };
-
-  void FlushBasicBlock() override { flush_basic_block_count_++; }
-
   void Write(BytecodeNode* node) override {
     write_count_++;
     last_written_.Clone(node);
   }
 
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override {
+    write_count_++;
+    last_written_.Clone(node);
+  }
+
+  void BindLabel(BytecodeLabel* label) override {}
+  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override {}
+  Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handle_table) override {
+    return Handle<BytecodeArray>();
+  }
+
+  void Flush() {
+    optimizer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  }
+
   BytecodePeepholeOptimizer* optimizer() { return &peephole_optimizer_; }
   ConstantArrayBuilder* constant_array() { return &constant_array_builder_; }
 
-  int flush_for_offset_count() const { return flush_for_offset_count_; }
-  int flush_basic_block_count() const { return flush_basic_block_count_; }
   int write_count() const { return write_count_; }
   const BytecodeNode& last_written() const { return last_written_; }
 
@@ -47,70 +56,77 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
   ConstantArrayBuilder constant_array_builder_;
   BytecodePeepholeOptimizer peephole_optimizer_;
 
-  int flush_for_offset_count_ = 0;
-  int flush_basic_block_count_ = 0;
   int write_count_ = 0;
   BytecodeNode last_written_;
 };
 
 // Sanity tests.
 
-TEST_F(BytecodePeepholeOptimizerTest, FlushForOffsetPassThrough) {
-  CHECK_EQ(flush_for_offset_count(), 0);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
+TEST_F(BytecodePeepholeOptimizerTest, FlushOnJump) {
+  CHECK_EQ(write_count(), 0);
+
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(),
+                   OperandScale::kSingle);
+  optimizer()->Write(&add);
+  CHECK_EQ(write_count(), 0);
+
+  BytecodeLabel target;
+  BytecodeNode jump(Bytecode::kJump, 0, OperandScale::kSingle);
+  optimizer()->WriteJump(&jump, &target);
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(jump, last_written());
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, FlushForOffsetRightSize) {
-  BytecodeNode node(Bytecode::kAdd, Register(0).ToOperand(),
-                    OperandScale::kQuadruple);
-  optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), node.Size());
-  CHECK_EQ(flush_for_offset_count(), 1);
+TEST_F(BytecodePeepholeOptimizerTest, FlushOnBind) {
   CHECK_EQ(write_count(), 0);
-}
 
-TEST_F(BytecodePeepholeOptimizerTest, FlushForOffsetNop) {
-  BytecodeNode node(Bytecode::kNop);
-  optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(),
+                   OperandScale::kSingle);
+  optimizer()->Write(&add);
   CHECK_EQ(write_count(), 0);
-}
 
-TEST_F(BytecodePeepholeOptimizerTest, FlushForOffsetNopExpression) {
-  BytecodeNode node(Bytecode::kNop);
-  node.source_info().Update({3, false});
-  optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), 0);
-  CHECK_EQ(flush_for_offset_count(), 1);
-  CHECK_EQ(write_count(), 0);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, FlushForOffsetNopStatement) {
-  BytecodeNode node(Bytecode::kNop);
-  node.source_info().Update({3, true});
-  optimizer()->Write(&node);
-  CHECK_EQ(optimizer()->FlushForOffset(), node.Size());
-  CHECK_EQ(flush_for_offset_count(), 1);
-  CHECK_EQ(write_count(), 0);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, FlushBasicBlockPassThrough) {
-  CHECK_EQ(flush_basic_block_count(), 0);
-  optimizer()->FlushBasicBlock();
-  CHECK_EQ(flush_basic_block_count(), 1);
-  CHECK_EQ(write_count(), 0);
-}
-
-TEST_F(BytecodePeepholeOptimizerTest, WriteOneFlushBasicBlock) {
-  BytecodeNode node(Bytecode::kAdd, Register(0).ToOperand(),
-                    OperandScale::kQuadruple);
-  optimizer()->Write(&node);
-  CHECK_EQ(write_count(), 0);
-  optimizer()->FlushBasicBlock();
+  BytecodeLabel target;
+  optimizer()->BindLabel(&target);
   CHECK_EQ(write_count(), 1);
-  CHECK_EQ(node, last_written());
+  CHECK_EQ(add, last_written());
+}
+
+// Nop elimination tests.
+
+TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
+  BytecodeNode nop(Bytecode::kNop);
+  optimizer()->Write(&nop);
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(),
+                   OperandScale::kSingle);
+  optimizer()->Write(&add);
+  Flush();
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(add, last_written());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
+  BytecodeNode nop(Bytecode::kNop);
+  nop.source_info().Update({3, false});
+  optimizer()->Write(&nop);
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(),
+                   OperandScale::kSingle);
+  optimizer()->Write(&add);
+  Flush();
+  CHECK_EQ(write_count(), 1);
+  CHECK_EQ(add, last_written());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
+  BytecodeNode nop(Bytecode::kNop);
+  nop.source_info().Update({3, true});
+  optimizer()->Write(&nop);
+  BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand(),
+                   OperandScale::kSingle);
+  add.source_info().Update({3, false});
+  optimizer()->Write(&add);
+  Flush();
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(add, last_written());
 }
 
 // Tests covering BytecodePeepholeOptimizer::UpdateCurrentBytecode().
@@ -123,7 +139,7 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
@@ -136,7 +152,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideJumpIfToBooleanTrue) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kJumpIfTrue);
   CHECK_EQ(last_written().operand(0), second.operand(0));
@@ -150,7 +166,7 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepToBooleanLogicalNot) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
@@ -163,64 +179,63 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideToBooleanLogicalNot) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLogicalNot);
 }
 
 // Tests covering BytecodePeepholeOptimizer::CanElideCurrent().
 
-TEST_F(BytecodePeepholeOptimizerTest, LdarRxLdarRy) {
-  BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand(),
+TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRy) {
+  BytecodeNode first(Bytecode::kStar, Register(0).ToOperand(),
                      OperandScale::kSingle);
   BytecodeNode second(Bytecode::kLdar, Register(1).ToOperand(),
                       OperandScale::kSingle);
   optimizer()->Write(&first);
-  optimizer()->FlushForOffset();  // Prevent CanElideLast removing |first|.
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, LdarRxLdarRx) {
-  BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand(),
+TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRx) {
+  BytecodeLabel label;
+  BytecodeNode first(Bytecode::kStar, Register(0).ToOperand(),
                      OperandScale::kSingle);
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand(),
                       OperandScale::kSingle);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushForOffset();  // Prevent CanElideLast removing |first|.
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, LdarRxLdarRxStatement) {
-  BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand(),
+TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatement) {
+  BytecodeNode first(Bytecode::kStar, Register(0).ToOperand(),
                      OperandScale::kSingle);
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand(),
                       OperandScale::kSingle);
   second.source_info().Update({0, true});
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushForOffset();  // Prevent CanElideLast removing |first|.
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kNop);
   CHECK_EQ(last_written().source_info(), second.source_info());
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, LdarRxLdarRxStatementStarRy) {
-  BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand(),
+TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
+  BytecodeLabel label;
+  BytecodeNode first(Bytecode::kStar, Register(0).ToOperand(),
                      OperandScale::kSingle);
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand(),
                       OperandScale::kSingle);
@@ -229,13 +244,12 @@ TEST_F(BytecodePeepholeOptimizerTest, LdarRxLdarRxStatementStarRy) {
   second.source_info().Update({0, true});
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushForOffset();  // Prevent CanElideLast removing |first|.
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
   optimizer()->Write(&third);
   CHECK_EQ(write_count(), 1);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   // Source position should move |second| to |third| when |second| is elided.
   third.source_info().Update(second.source_info());
@@ -251,7 +265,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
@@ -264,7 +278,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ToNameToName) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
 }
 
@@ -276,7 +290,7 @@ TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
 }
 
@@ -292,7 +306,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
 }
 
@@ -307,26 +321,12 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
 
 // Tests covering BytecodePeepholeOptimizer::CanElideLast().
-
-TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalseNotDiscardable) {
-  BytecodeNode first(Bytecode::kLdaTrue);
-  BytecodeNode second(Bytecode::kLdaFalse);
-  optimizer()->Write(&first);
-  optimizer()->FlushForOffset();  // Prevent discarding of |first|.
-  CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  optimizer()->FlushBasicBlock();
-  CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written(), second);
-}
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {
   BytecodeNode first(Bytecode::kLdaTrue);
@@ -335,7 +335,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), second);
 }
@@ -348,7 +348,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
   second.source_info().Update(first.source_info());
   CHECK_EQ(last_written(), second);
@@ -361,7 +361,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), second);
 }
@@ -374,7 +374,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(write_count(), 1);
   second.source_info().Update(first.source_info());
   CHECK_EQ(last_written(), second);
@@ -406,7 +406,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLoadICStar) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 
@@ -434,7 +434,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaKeyedPropertyStar) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 
@@ -461,7 +461,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 
@@ -489,7 +489,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaContextSlotStar) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 
@@ -515,7 +515,7 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaUndefinedStar) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written().bytecode(), Bytecode::kLdar);
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
-  optimizer()->FlushBasicBlock();
+  Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
 }
 

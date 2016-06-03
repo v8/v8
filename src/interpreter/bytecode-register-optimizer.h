@@ -26,9 +26,13 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   virtual ~BytecodeRegisterOptimizer() {}
 
   // BytecodePipelineStage interface.
-  size_t FlushForOffset() override;
-  void FlushBasicBlock() override;
   void Write(BytecodeNode* node) override;
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override;
+  void BindLabel(BytecodeLabel* label) override;
+  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
+  Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handler_table) override;
 
  private:
   static const uint32_t kInvalidEquivalenceId = kMaxUInt32;

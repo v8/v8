@@ -6,40 +6,61 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
 #include "src/interpreter/bytecode-pipeline.h"
+#include "src/interpreter/source-position-table.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
+class BytecodeLabel;
 class SourcePositionTableBuilder;
+class ConstantArrayBuilder;
 
 // Class for emitting bytecode as the final stage of the bytecode
 // generation pipeline.
 class BytecodeArrayWriter final : public BytecodePipelineStage {
  public:
-  BytecodeArrayWriter(
-      Zone* zone, SourcePositionTableBuilder* source_position_table_builder);
+  BytecodeArrayWriter(Isolate* isolate, Zone* zone,
+                      ConstantArrayBuilder* constant_array_builder);
   virtual ~BytecodeArrayWriter();
 
+  // BytecodePipelineStage interface.
   void Write(BytecodeNode* node) override;
-  size_t FlushForOffset() override;
-  void FlushBasicBlock() override;
-
-  // Get the bytecode vector.
-  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
-
-  // Returns the size in bytes of the frame associated with the
-  // bytecode written.
-  int GetMaximumFrameSizeUsed();
+  void WriteJump(BytecodeNode* node, BytecodeLabel* label) override;
+  void BindLabel(BytecodeLabel* label) override;
+  void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
+  Handle<BytecodeArray> ToBytecodeArray(
+      int fixed_register_count, int parameter_count,
+      Handle<FixedArray> handler_table) override;
 
  private:
+  void PatchJump(size_t jump_target, size_t jump_location);
+  void PatchJumpWith8BitOperand(size_t jump_location, int delta);
+  void PatchJumpWith16BitOperand(size_t jump_location, int delta);
+  void PatchJumpWith32BitOperand(size_t jump_location, int delta);
+
   void EmitBytecode(const BytecodeNode* const node);
+  void EmitJump(BytecodeNode* node, BytecodeLabel* label);
   void UpdateSourcePositionTable(const BytecodeNode* const node);
 
+  Isolate* isolate() { return isolate_; }
+  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
+  SourcePositionTableBuilder* source_position_table_builder() {
+    return &source_position_table_builder_;
+  }
+  ConstantArrayBuilder* constant_array_builder() {
+    return constant_array_builder_;
+  }
+  int max_register_count() { return max_register_count_; }
+
+  Isolate* isolate_;
   ZoneVector<uint8_t> bytecodes_;
   int max_register_count_;
-  SourcePositionTableBuilder* source_position_table_builder_;
+  int unbound_jumps_;
+  SourcePositionTableBuilder source_position_table_builder_;
+  ConstantArrayBuilder* constant_array_builder_;
 
+  friend class BytecodeArrayWriterUnittest;
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayWriter);
 };
 
