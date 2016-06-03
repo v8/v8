@@ -37,6 +37,7 @@ namespace {
 struct BlockEffectControlData {
   Node* current_effect = nullptr;  // New effect.
   Node* current_control = nullptr;  // New control.
+  Node* current_frame_state = nullptr;  // New frame state.
 };
 
 // Effect phis that need to be updated after the first pass.
@@ -222,10 +223,30 @@ void EffectControlLinearizer::Run() {
       NodeProperties::ReplaceEffectInput(terminate, effect);
     }
 
+    // The frame state at block entry is determined by the frame states leaving
+    // all predecessors. In case there is no frame state dominating this block,
+    // we can rely on a checkpoint being present before the next deoptimization.
+    // TODO(mstarzinger): Eventually we will need to go hunt for a frame state
+    // once deoptimizing nodes roam freely through the schedule.
+    Node* frame_state = nullptr;
+    if (block != schedule()->start()) {
+      // If all the predecessors have the same effect, we can use it
+      // as our current effect.
+      int rpo_number = block->PredecessorAt(0)->rpo_number();
+      frame_state = block_effects[rpo_number].current_frame_state;
+      for (size_t i = 1; i < block->PredecessorCount(); i++) {
+        int rpo_number = block->PredecessorAt(i)->rpo_number();
+        if (block_effects[rpo_number].current_frame_state != frame_state) {
+          frame_state = nullptr;
+          break;
+        }
+      }
+    }
+
     // Process the ordinary instructions.
     for (; instr < block->NodeCount(); instr++) {
       Node* node = block->NodeAt(instr);
-      ProcessNode(node, &effect, &control);
+      ProcessNode(node, &frame_state, &effect, &control);
     }
 
     switch (block->control()) {
@@ -240,13 +261,14 @@ void EffectControlLinearizer::Run() {
       case BasicBlock::kReturn:
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
-        ProcessNode(block->control_input(), &effect, &control);
+        ProcessNode(block->control_input(), &frame_state, &effect, &control);
         break;
     }
 
     // Store the effect for later use.
     block_effects[block->rpo_number()].current_effect = effect;
     block_effects[block->rpo_number()].current_control = control;
+    block_effects[block->rpo_number()].current_frame_state = frame_state;
   }
 
   // Update the incoming edges of the effect phis that could not be processed
@@ -276,13 +298,18 @@ void TryScheduleCallIfSuccess(Node* node, Node** control) {
 
 }  // namespace
 
-void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
-                                          Node** control) {
+void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
+                                          Node** effect, Node** control) {
   // If the node needs to be wired into the effect/control chain, do this
-  // here.
-  if (TryWireInStateEffect(node, effect, control)) {
+  // here. Pass current frame state for lowering to eager deoptimization.
+  if (TryWireInStateEffect(node, *frame_state, effect, control)) {
     return;
   }
+
+  // If the node has a visible effect, then there must be a checkpoint in the
+  // effect chain before we are allowed to place another eager deoptimization
+  // point. We zap the frame state to ensure this invariant is maintained.
+  if (!node->op()->HasProperty(Operator::kNoWrite)) *frame_state = nullptr;
 
   // Remove the end markers of 'atomic' allocation region because the
   // region should be wired-in now.
@@ -294,10 +321,10 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
   }
 
   // Special treatment for checkpoint nodes.
-  // TODO(epertoso): Pickup the current frame state.
   if (node->opcode() == IrOpcode::kCheckpoint) {
     // Unlink the check point; effect uses will be updated to the incoming
-    // effect that is passed.
+    // effect that is passed. The frame state is preserved for lowering.
+    *frame_state = NodeProperties::GetFrameStateInput(node, 0);
     node->TrimInputCount(0);
     return;
   }
@@ -347,7 +374,9 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** effect,
   }
 }
 
-bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
+bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
+                                                   Node* frame_state,
+                                                   Node** effect,
                                                    Node** control) {
   ValueEffectControl state(nullptr, nullptr, nullptr);
   switch (node->opcode()) {
@@ -388,16 +417,16 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node, Node** effect,
       state = LowerTruncateTaggedToFloat64(node, *effect, *control);
       break;
     case IrOpcode::kCheckedUint32ToInt32:
-      state = LowerCheckedUint32ToInt32(node, *effect, *control);
+      state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckedFloat64ToInt32:
-      state = LowerCheckedFloat64ToInt32(node, *effect, *control);
+      state = LowerCheckedFloat64ToInt32(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckedTaggedToInt32:
-      state = LowerCheckedTaggedToInt32(node, *effect, *control);
+      state = LowerCheckedTaggedToInt32(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckedTaggedToFloat64:
-      state = LowerCheckedTaggedToFloat64(node, *effect, *control);
+      state = LowerCheckedTaggedToFloat64(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
       state = LowerTruncateTaggedToWord32(node, *effect, *control);
@@ -718,10 +747,11 @@ EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node, Node* effect,
+EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
+                                                   Node* frame_state,
+                                                   Node* effect,
                                                    Node* control) {
   Node* value = node->InputAt(0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
   Node* max_int = jsgraph()->Int32Constant(std::numeric_limits<int32_t>::max());
   Node* is_safe =
       graph()->NewNode(machine()->Uint32LessThanOrEqual(), value, max_int);
@@ -774,10 +804,11 @@ EffectControlLinearizer::BuildCheckedFloat64ToInt32(Node* value,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node, Node* effect,
+EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
+                                                    Node* frame_state,
+                                                    Node* effect,
                                                     Node* control) {
   Node* value = node->InputAt(0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   // Make sure the lowered node does not appear in any use lists.
   node->TrimInputCount(0);
@@ -786,10 +817,11 @@ EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node, Node* effect,
+EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
+                                                   Node* frame_state,
+                                                   Node* effect,
                                                    Node* control) {
   Node* value = node->InputAt(0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   Node* check = ObjectIsSmi(value);
   Node* branch =
@@ -863,10 +895,11 @@ EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node, Node* effect,
+EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
+                                                     Node* frame_state,
+                                                     Node* effect,
                                                      Node* control) {
   Node* value = node->InputAt(0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   Node* check = ObjectIsSmi(value);
   Node* branch =

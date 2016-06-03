@@ -30,7 +30,8 @@ class EffectControlLinearizer {
   void Run();
 
  private:
-  void ProcessNode(Node* node, Node** current_effect, Node** control);
+  void ProcessNode(Node* node, Node** frame_state, Node** effect,
+                   Node** control);
 
   struct ValueEffectControl {
     Node* value;
@@ -40,7 +41,8 @@ class EffectControlLinearizer {
         : value(value), effect(effect), control(control) {}
   };
 
-  bool TryWireInStateEffect(Node* node, Node** effect, Node** control);
+  bool TryWireInStateEffect(Node* node, Node* frame_state, Node** effect,
+                            Node** control);
   ValueEffectControl LowerTypeGuard(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerChangeBitToTagged(Node* node, Node* effect,
                                             Node* control);
@@ -60,14 +62,14 @@ class EffectControlLinearizer {
                                               Node* control);
   ValueEffectControl LowerChangeTaggedToUint32(Node* node, Node* effect,
                                                Node* control);
-  ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* effect,
-                                               Node* control);
-  ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* effect,
-                                                Node* control);
-  ValueEffectControl LowerCheckedTaggedToInt32(Node* node, Node* effect,
-                                               Node* control);
-  ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* effect,
-                                                 Node* control);
+  ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
+                                               Node* effect, Node* control);
+  ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
+                                                Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToInt32(Node* node, Node* frame_state,
+                                               Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* frame_state,
+                                                 Node* effect, Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
   ValueEffectControl LowerTruncateTaggedToFloat64(Node* node, Node* effect,

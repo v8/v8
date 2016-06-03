@@ -447,13 +447,10 @@ Node* RepresentationChanger::InsertConversion(Node* node, const Operator* op,
                                               Node* use_node) {
   if (op->ControlInputCount() > 0) {
     // If the operator can deoptimize (which means it has control
-    // input), we need to connect it to the effect and control chains
-    // and also provide it with a frame state.
+    // input), we need to connect it to the effect and control chains.
     Node* effect = NodeProperties::GetEffectInput(use_node);
     Node* control = NodeProperties::GetControlInput(use_node);
-    Node* frame_state = NodeProperties::FindFrameStateBefore(use_node);
-    Node* conversion =
-        jsgraph()->graph()->NewNode(op, node, frame_state, effect, control);
+    Node* conversion = jsgraph()->graph()->NewNode(op, node, effect, control);
     NodeProperties::ReplaceControlInput(use_node, control);
     NodeProperties::ReplaceEffectInput(use_node, effect);
     return conversion;
@@ -559,8 +556,7 @@ Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
   }
   if (op->ControlInputCount() > 0) {
     // If the operator can deoptimize (which means it has control
-    // input), we need to connect it to the effect and control chains
-    // and also provide it with a frame state.
+    // input), we need to connect it to the effect and control chains.
     UNIMPLEMENTED();
   }
   return jsgraph()->graph()->NewNode(op, node);
