@@ -1288,56 +1288,72 @@ ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
 }
 
-static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
+static void f64_acos_wrapper(double* param) {
+  WriteDoubleValue(param, std::acos(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_acos_wrapper)));
 }
 
-static void f64_asin_wrapper(double* param) { *param = std::asin(*param); }
+static void f64_asin_wrapper(double* param) {
+  WriteDoubleValue(param, std::asin(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_asin_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
-static void f64_atan_wrapper(double* param) { *param = std::atan(*param); }
+static void f64_atan_wrapper(double* param) {
+  WriteDoubleValue(param, std::atan(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_atan_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan_wrapper)));
 }
 
-static void f64_cos_wrapper(double* param) { *param = std::cos(*param); }
+static void f64_cos_wrapper(double* param) {
+  WriteDoubleValue(param, std::cos(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_cos_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_cos_wrapper)));
 }
 
-static void f64_sin_wrapper(double* param) { *param = std::sin(*param); }
+static void f64_sin_wrapper(double* param) {
+  WriteDoubleValue(param, std::sin(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_sin_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_sin_wrapper)));
 }
 
-static void f64_tan_wrapper(double* param) { *param = std::tan(*param); }
+static void f64_tan_wrapper(double* param) {
+  WriteDoubleValue(param, std::tan(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_tan_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_tan_wrapper)));
 }
 
-static void f64_exp_wrapper(double* param) { *param = std::exp(*param); }
+static void f64_exp_wrapper(double* param) {
+  WriteDoubleValue(param, std::exp(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_exp_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
 }
 
-static void f64_log_wrapper(double* param) { *param = std::log(*param); }
+static void f64_log_wrapper(double* param) {
+  WriteDoubleValue(param, std::log(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_log_wrapper_function(
     Isolate* isolate) {
@@ -1345,7 +1361,8 @@ ExternalReference ExternalReference::f64_log_wrapper_function(
 }
 
 static void f64_pow_wrapper(double* param0, double* param1) {
-  *param0 = power_double_double(*param0, *param1);
+  WriteDoubleValue(param0, power_double_double(ReadDoubleValue(param0),
+                                               ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_pow_wrapper_function(
@@ -1354,8 +1371,8 @@ ExternalReference ExternalReference::f64_pow_wrapper_function(
 }
 
 static void f64_atan2_wrapper(double* param0, double* param1) {
-  double x = *param0;
-  double y = *param1;
+  double x = ReadDoubleValue(param0);
+  double y = ReadDoubleValue(param1);
   // TODO(bradnelson): Find a good place to put this to share
   // with the same code in src/runtime/runtime-math.cc
   static const double kPiDividedBy4 = 0.78539816339744830962;
@@ -1366,9 +1383,9 @@ static void f64_atan2_wrapper(double* param0, double* param1) {
     // determines the multiplier: one or three.
     int multiplier = (x < 0) ? -1 : 1;
     if (y < 0) multiplier *= 3;
-    *param0 = multiplier * kPiDividedBy4;
+    WriteDoubleValue(param0, multiplier * kPiDividedBy4);
   } else {
-    *param0 = std::atan2(x, y);
+    WriteDoubleValue(param0, std::atan2(x, y));
   }
 }
 
@@ -1378,7 +1395,8 @@ ExternalReference ExternalReference::f64_atan2_wrapper_function(
 }
 
 static void f64_mod_wrapper(double* param0, double* param1) {
-  *param0 = modulo(*param0, *param1);
+  WriteDoubleValue(param0,
+                   modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(
