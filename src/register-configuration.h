@@ -34,6 +34,7 @@ class RegisterConfiguration {
                         const int* allocatable_general_codes,
                         const int* allocatable_double_codes,
                         char const* const* general_names,
+                        char const* const* float_names,
                         char const* const* double_names);
 
   int num_general_registers() const { return num_general_registers_; }
@@ -65,6 +66,9 @@ class RegisterConfiguration {
   const char* GetGeneralRegisterName(int code) const {
     return general_register_names_[code];
   }
+  const char* GetFloatRegisterName(int code) const {
+    return float_register_names_[code];
+  }
   const char* GetDoubleRegisterName(int code) const {
     return double_register_names_[code];
   }
@@ -86,6 +90,7 @@ class RegisterConfiguration {
   const int* allocatable_general_codes_;
   const int* allocatable_double_codes_;
   char const* const* general_register_names_;
+  char const* const* float_register_names_;
   char const* const* double_register_names_;
 };
 

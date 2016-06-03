@@ -33,6 +33,12 @@ static const char* const kGeneralRegisterNames[] = {
 #undef REGISTER_NAME
 };
 
+static const char* const kFloatRegisterNames[] = {
+#define REGISTER_NAME(R) #R,
+    FLOAT_REGISTERS(REGISTER_NAME)
+#undef REGISTER_NAME
+};
+
 static const char* const kDoubleRegisterNames[] = {
 #define REGISTER_NAME(R) #R,
     DOUBLE_REGISTERS(REGISTER_NAME)
@@ -47,59 +53,53 @@ STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
 class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
  public:
   explicit ArchDefaultRegisterConfiguration(CompilerSelector compiler)
-      : RegisterConfiguration(Register::kNumRegisters,
-                              DoubleRegister::kMaxNumRegisters,
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
 #if V8_TARGET_ARCH_IA32
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X87
-                              kMaxAllocatableGeneralRegisterCount,
-                              compiler == TURBOFAN
-                                  ? 1
-                                  : kMaxAllocatableDoubleRegisterCount,
-                              compiler == TURBOFAN
-                                  ? 1
-                                  : kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
+            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X64
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_ARM
-                              FLAG_enable_embedded_constant_pool
-                                  ? (kMaxAllocatableGeneralRegisterCount - 1)
-                                  : kMaxAllocatableGeneralRegisterCount,
-                              CpuFeatures::IsSupported(VFP32DREGS)
-                                  ? kMaxAllocatableDoubleRegisterCount
-                                  : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(
-                                        REGISTER_COUNT)0),
-                              ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(
-                                  REGISTER_COUNT)0,
+            FLAG_enable_embedded_constant_pool
+                ? (kMaxAllocatableGeneralRegisterCount - 1)
+                : kMaxAllocatableGeneralRegisterCount,
+            CpuFeatures::IsSupported(VFP32DREGS)
+                ? kMaxAllocatableDoubleRegisterCount
+                : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
+            ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0,
 #elif V8_TARGET_ARCH_ARM64
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS64
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_PPC
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_S390
-                              kMaxAllocatableGeneralRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
-                              kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount,
 #else
 #error Unsupported target architecture.
 #endif
-                              kAllocatableGeneralCodes, kAllocatableDoubleCodes,
-                              kGeneralRegisterNames, kDoubleRegisterNames) {
+            kAllocatableGeneralCodes, kAllocatableDoubleCodes,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames) {
   }
 };
 
@@ -132,13 +132,13 @@ const RegisterConfiguration* RegisterConfiguration::ArchDefault(
              : &kDefaultRegisterConfigurationForCrankshaft.Get();
 }
 
-
 RegisterConfiguration::RegisterConfiguration(
     int num_general_registers, int num_double_registers,
     int num_allocatable_general_registers, int num_allocatable_double_registers,
     int num_allocatable_aliased_double_registers,
     const int* allocatable_general_codes, const int* allocatable_double_codes,
     const char* const* general_register_names,
+    const char* const* float_register_names,
     const char* const* double_register_names)
     : num_general_registers_(num_general_registers),
       num_double_registers_(num_double_registers),
@@ -151,6 +151,7 @@ RegisterConfiguration::RegisterConfiguration(
       allocatable_general_codes_(allocatable_general_codes),
       allocatable_double_codes_(allocatable_double_codes),
       general_register_names_(general_register_names),
+      float_register_names_(float_register_names),
       double_register_names_(double_register_names) {
   DCHECK(num_general_registers_ <= RegisterConfiguration::kMaxGeneralRegisters);
   DCHECK(num_double_registers_ <= RegisterConfiguration::kMaxFPRegisters);

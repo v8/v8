@@ -69,6 +69,7 @@ RegisterConfiguration* InstructionSequenceTest::config() {
         num_general_registers_, num_double_registers_, num_general_registers_,
         num_double_registers_, num_double_registers_, allocatable_codes,
         allocatable_double_codes, general_register_names_,
+        double_register_names_,  // float register names
         double_register_names_));
   }
   return config_.get();

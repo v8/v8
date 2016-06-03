@@ -126,15 +126,16 @@ std::ostream& operator<<(std::ostream& os,
     case InstructionOperand::ALLOCATED: {
       LocationOperand allocated = LocationOperand::cast(op);
       if (op.IsStackSlot()) {
-        os << "[stack:" << LocationOperand::cast(op).index();
+        os << "[stack:" << allocated.index();
       } else if (op.IsFPStackSlot()) {
-        os << "[fp_stack:" << LocationOperand::cast(op).index();
+        os << "[fp_stack:" << allocated.index();
       } else if (op.IsRegister()) {
-        os << "[" << LocationOperand::cast(op).GetRegister().ToString() << "|R";
+        os << "[" << allocated.GetRegister().ToString() << "|R";
+      } else if (op.IsDoubleRegister()) {
+        os << "[" << allocated.GetDoubleRegister().ToString() << "|R";
       } else {
-        DCHECK(op.IsFPRegister());
-        os << "[" << LocationOperand::cast(op).GetDoubleRegister().ToString()
-           << "|R";
+        DCHECK(op.IsFloatRegister());
+        os << "[" << allocated.GetFloatRegister().ToString() << "|R";
       }
       if (allocated.IsExplicit()) {
         os << "|E";
@@ -247,7 +248,9 @@ ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
     : LocationOperand(EXPLICIT, kind, rep, index) {
   DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(rep),
                  Register::from_code(index).IsAllocatable());
-  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(rep),
+  DCHECK_IMPLIES(kind == REGISTER && (rep == MachineRepresentation::kFloat32),
+                 FloatRegister::from_code(index).IsAllocatable());
+  DCHECK_IMPLIES(kind == REGISTER && (rep == MachineRepresentation::kFloat64),
                  DoubleRegister::from_code(index).IsAllocatable());
 }
 

@@ -149,7 +149,20 @@ const Register no_reg = {Register::kCode_no_reg};
 
 // Single word VFP register.
 struct SwVfpRegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    FLOAT_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
+
+  static const int kMaxNumRegisters = Code::kAfterLast;
+
   static const int kSizeInBytes = 4;
+
+  const char* ToString();
+  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < 32; }
   bool is(SwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {

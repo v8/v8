@@ -130,7 +130,6 @@ bool Register::IsAllocatable() const {
               ->allocatable_general_codes_mask()) != 0;
 }
 
-
 const char* DoubleRegister::ToString() {
   // This is the mapping of allocation indices to registers.
   DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
@@ -145,6 +144,23 @@ bool DoubleRegister::IsAllocatable() const {
               ->allocatable_double_codes_mask()) != 0;
 }
 
+// FloatRegister is only a distinct type on ARM. On all other platforms it's
+// typedef'ed to DoubleRegister.
+#if V8_TARGET_ARCH_ARM
+const char* FloatRegister::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetFloatRegisterName(reg_code);
+}
+
+bool FloatRegister::IsAllocatable() const {
+  // TODO(bbudge) Update this once RegisterConfigutation handles aliasing.
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_double_codes_mask()) != 0;
+}
+#endif  // V8_TARGET_ARCH_ARM
 
 // -----------------------------------------------------------------------------
 // Common double constants.
