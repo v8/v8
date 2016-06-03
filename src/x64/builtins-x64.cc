@@ -480,23 +480,22 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
 
   // Flood function if we are stepping.
-  Label skip_flooding;
+  Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
+  Label stepping_prepared;
   ExternalReference step_in_enabled =
       ExternalReference::debug_step_in_enabled_address(masm->isolate());
   Operand step_in_enabled_operand = masm->ExternalOperand(step_in_enabled);
   __ cmpb(step_in_enabled_operand, Immediate(0));
-  __ j(equal, &skip_flooding);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(rbx);
-    __ Push(rdx);
-    __ Push(rdi);
-    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
-    __ Pop(rdx);
-    __ Pop(rbx);
-    __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
-  }
-  __ bind(&skip_flooding);
+  __ j(not_equal, &prepare_step_in_if_stepping);
+
+  // Flood function if we need to continue stepping in the suspended generator.
+  ExternalReference debug_suspended_generator =
+      ExternalReference::debug_suspended_generator_address(masm->isolate());
+  Operand debug_suspended_generator_operand =
+      masm->ExternalOperand(debug_suspended_generator);
+  __ cmpp(rbx, debug_suspended_generator_operand);
+  __ j(equal, &prepare_step_in_suspended_generator);
+  __ bind(&stepping_prepared);
 
   // Pop return address.
   __ PopReturnAddressTo(rax);
@@ -596,6 +595,31 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ movp(rax, rbx);  // Continuation expects generator object in rax.
     __ jmp(rdx);
   }
+
+  __ bind(&prepare_step_in_if_stepping);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(rbx);
+    __ Push(rdx);
+    __ Push(rdi);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(rdx);
+    __ Pop(rbx);
+    __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
+  }
+  __ jmp(&stepping_prepared);
+
+  __ bind(&prepare_step_in_suspended_generator);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(rbx);
+    __ Push(rdx);
+    __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
+    __ Pop(rdx);
+    __ Pop(rbx);
+    __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));
+  }
+  __ jmp(&stepping_prepared);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,

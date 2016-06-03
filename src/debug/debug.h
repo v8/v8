@@ -456,12 +456,15 @@ class Debug {
   // Stepping handling.
   void PrepareStep(StepAction step_action);
   void PrepareStepIn(Handle<JSFunction> function);
+  void PrepareStepInSuspendedGenerator();
   void PrepareStepOnThrow();
   void ClearStepping();
   void ClearStepOut();
   void EnableStepIn();
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+
+  void RecordAsyncFunction(Handle<JSGeneratorObject> generator_object);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -497,6 +500,7 @@ class Debug {
   char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
   void FreeThreadResources() { }
+  void Iterate(ObjectVisitor* v);
 
   bool CheckExecutionState(int id) {
     return is_active() && !debug_context().is_null() && break_id() != 0 &&
@@ -544,6 +548,10 @@ class Debug {
     return reinterpret_cast<Address>(&thread_local_.step_in_enabled_);
   }
 
+  Address suspended_generator_address() {
+    return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
+  }
+
   StepAction last_step_action() { return thread_local_.last_step_action_; }
 
   DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
@@ -562,6 +570,14 @@ class Debug {
   inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
   inline bool break_disabled() const {
     return break_disabled_ || in_debug_event_listener_;
+  }
+
+  void clear_suspended_generator() {
+    thread_local_.suspended_generator_ = Smi::FromInt(0);
+  }
+
+  bool has_suspended_generator() const {
+    return thread_local_.suspended_generator_ != Smi::FromInt(0);
   }
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
@@ -687,6 +703,8 @@ class Debug {
     // Value of accumulator in interpreter frames. In non-interpreter frames
     // this value will be the hole.
     Handle<Object> return_value_;
+
+    Object* suspended_generator_;
   };
 
   // Storage location for registers when handling debug break calls

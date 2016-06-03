@@ -5598,7 +5598,8 @@ void ParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
   parser_->RewriteNonPattern(classifier, ok);
 }
 
-Expression* ParserTraits::RewriteAwaitExpression(Expression* value, int pos) {
+Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
+                                                 int await_pos) {
   // yield %AsyncFunctionAwait(.generator_object, <operand>)
   Variable* generator_object_variable =
       parser_->function_state_->generator_object_variable();
@@ -5606,21 +5607,38 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value, int pos) {
   // If generator_object_variable is null,
   if (!generator_object_variable) return value;
 
-  Expression* generator_object =
-      parser_->factory()->NewVariableProxy(generator_object_variable);
+  auto factory = parser_->factory();
+  const int nopos = RelocInfo::kNoPosition;
+
+  Variable* temp_var = parser_->scope_->NewTemporary(
+      parser_->ast_value_factory()->empty_string());
+  VariableProxy* temp_proxy = factory->NewVariableProxy(temp_var);
+  Block* do_block = factory->NewBlock(nullptr, 2, false, nopos);
+
+  // Wrap value evaluation to provide a break location.
+  Expression* value_assignment =
+      factory->NewAssignment(Token::ASSIGN, temp_proxy, value, nopos);
+  do_block->statements()->Add(
+      factory->NewExpressionStatement(value_assignment, value->position()),
+      zone());
 
   ZoneList<Expression*>* async_function_await_args =
       new (zone()) ZoneList<Expression*>(2, zone());
+  Expression* generator_object =
+      factory->NewVariableProxy(generator_object_variable);
   async_function_await_args->Add(generator_object, zone());
-  async_function_await_args->Add(value, zone());
+  async_function_await_args->Add(temp_proxy, zone());
   Expression* async_function_await = parser_->factory()->NewCallRuntime(
-      Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args,
-      RelocInfo::kNoPosition);
+      Context::ASYNC_FUNCTION_AWAIT_INDEX, async_function_await_args, nopos);
+  // Wrap await to provide a break location between value evaluation and yield.
+  Expression* await_assignment = factory->NewAssignment(
+      Token::ASSIGN, temp_proxy, async_function_await, nopos);
+  do_block->statements()->Add(
+      factory->NewExpressionStatement(await_assignment, await_pos), zone());
+  Expression* do_expr = factory->NewDoExpression(do_block, temp_var, nopos);
 
-  generator_object =
-      parser_->factory()->NewVariableProxy(generator_object_variable);
-  return parser_->factory()->NewYield(generator_object, async_function_await,
-                                      pos);
+  generator_object = factory->NewVariableProxy(generator_object_variable);
+  return factory->NewYield(generator_object, do_expr, nopos);
 }
 
 Zone* ParserTraits::zone() const {

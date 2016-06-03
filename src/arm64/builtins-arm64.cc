@@ -727,20 +727,22 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
 
   // Flood function if we are stepping.
-  Label skip_flooding;
+  Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
+  Label stepping_prepared;
   ExternalReference step_in_enabled =
       ExternalReference::debug_step_in_enabled_address(masm->isolate());
   __ Mov(x10, Operand(step_in_enabled));
   __ Ldrb(x10, MemOperand(x10));
-  __ CompareAndBranch(x10, Operand(0), eq, &skip_flooding);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(x1, x2, x4);
-    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
-    __ Pop(x2, x1);
-    __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
-  }
-  __ bind(&skip_flooding);
+  __ CompareAndBranch(x10, Operand(0), ne, &prepare_step_in_if_stepping);
+
+  // Flood function if we need to continue stepping in the suspended generator.
+  ExternalReference debug_suspended_generator =
+      ExternalReference::debug_suspended_generator_address(masm->isolate());
+  __ Mov(x10, Operand(debug_suspended_generator));
+  __ Ldr(x10, MemOperand(x10));
+  __ CompareAndBranch(x10, Operand(x1), eq,
+                      &prepare_step_in_suspended_generator);
+  __ Bind(&stepping_prepared);
 
   // Push receiver.
   __ Ldr(x5, FieldMemOperand(x1, JSGeneratorObject::kReceiverOffset));
@@ -828,6 +830,26 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Move(x0, x1);  // Continuation expects generator object in x0.
     __ Br(x10);
   }
+
+  __ Bind(&prepare_step_in_if_stepping);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x1, x2, x4);
+    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ Pop(x2, x1);
+    __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+  }
+  __ B(&stepping_prepared);
+
+  __ Bind(&prepare_step_in_suspended_generator);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x1, x2);
+    __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
+    __ Pop(x2, x1);
+    __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+  }
+  __ B(&stepping_prepared);
 }
 
 enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };

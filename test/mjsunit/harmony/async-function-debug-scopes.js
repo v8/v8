@@ -501,7 +501,6 @@ function CheckFastAllScopes(scopes, exec_state) {
 // Check that the scope chain contains the expected types of scopes.
 function CheckScopeChain(scopes, exec_state) {
   var all_scopes = exec_state.frame().allScopes();
-  assertEquals(scopes.length, exec_state.frame().scopeCount());
   assertEquals(
       scopes.length, all_scopes.length, "FrameMirror.allScopes length");
   for (var i = 0; i < scopes.length; i++) {

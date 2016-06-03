@@ -479,6 +479,7 @@ void Debug::ThreadInit() {
   thread_local_.target_fp_ = 0;
   thread_local_.step_in_enabled_ = false;
   thread_local_.return_value_ = Handle<Object>();
+  clear_suspended_generator();
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
@@ -486,24 +487,23 @@ void Debug::ThreadInit() {
 
 
 char* Debug::ArchiveDebug(char* storage) {
-  char* to = storage;
-  MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
+  // Simply reset state. Don't archive anything.
   ThreadInit();
   return storage + ArchiveSpacePerThread();
 }
 
 
 char* Debug::RestoreDebug(char* storage) {
-  char* from = storage;
-  MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  // Simply reset state. Don't restore anything.
+  ThreadInit();
   return storage + ArchiveSpacePerThread();
 }
 
+int Debug::ArchiveSpacePerThread() { return 0; }
 
-int Debug::ArchiveSpacePerThread() {
-  return sizeof(ThreadLocal);
+void Debug::Iterate(ObjectVisitor* v) {
+  v->VisitPointer(&thread_local_.suspended_generator_);
 }
-
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
@@ -940,6 +940,17 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   }
 }
 
+void Debug::PrepareStepInSuspendedGenerator() {
+  if (!is_active()) return;
+  if (in_debug_scope()) return;
+  DCHECK(has_suspended_generator());
+  thread_local_.last_step_action_ = StepIn;
+  thread_local_.step_in_enabled_ = true;
+  Handle<JSFunction> function(
+      JSGeneratorObject::cast(thread_local_.suspended_generator_)->function());
+  FloodWithOneShot(function);
+  clear_suspended_generator();
+}
 
 void Debug::PrepareStepOnThrow() {
   if (!is_active()) return;
@@ -1041,6 +1052,8 @@ void Debug::PrepareStep(StepAction step_action) {
       debug_info->abstract_code()->SourceStatementPosition(
           summary.code_offset());
   thread_local_.last_fp_ = frame->UnpaddedFP();
+  // No longer perform the current async step.
+  clear_suspended_generator();
 
   switch (step_action) {
     case StepNone:
@@ -1385,6 +1398,13 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   return true;
 }
 
+void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
+  if (last_step_action() <= StepOut) return;
+  DCHECK(!has_suspended_generator());
+  DCHECK(generator_object->function()->shared()->is_async());
+  thread_local_.suspended_generator_ = *generator_object;
+  ClearStepping();
+}
 
 class SharedFunctionInfoFinder {
  public:

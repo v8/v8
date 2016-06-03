@@ -1799,6 +1799,10 @@ ExternalReference ExternalReference::debug_step_in_enabled_address(
   return ExternalReference(isolate->debug()->step_in_enabled_address());
 }
 
+ExternalReference ExternalReference::debug_suspended_generator_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->suspended_generator_address());
+}
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(

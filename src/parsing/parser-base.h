@@ -2670,6 +2670,8 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
       default:
         break;
     }
+
+    int await_pos = peek_position();
     Consume(Token::AWAIT);
 
     ExpressionT value = ParseUnaryExpression(classifier, CHECK_OK);
@@ -2677,7 +2679,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     classifier->RecordFormalParameterInitializerError(
         Scanner::Location(beg_pos, scanner()->location().end_pos),
         MessageTemplate::kAwaitExpressionFormalParameter);
-    return Traits::RewriteAwaitExpression(value, beg_pos);
+    return Traits::RewriteAwaitExpression(value, await_pos);
   } else {
     return this->ParsePostfixExpression(classifier, ok);
   }

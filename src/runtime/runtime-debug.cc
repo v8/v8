@@ -1698,6 +1698,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   return isolate->heap()->undefined_value();
 }
 
+// Set one shot breakpoints for the suspended generator object.
+RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->debug()->PrepareStepInSuspendedGenerator();
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 2);

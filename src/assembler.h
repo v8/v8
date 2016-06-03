@@ -1066,6 +1066,9 @@ class ExternalReference BASE_EMBEDDED {
   // Used to check if single stepping is enabled in generated code.
   static ExternalReference debug_step_in_enabled_address(Isolate* isolate);
 
+  // Used to check for suspended generator, used for stepping across await call.
+  static ExternalReference debug_suspended_generator_address(Isolate* isolate);
+
 #ifndef V8_INTERPRETED_REGEXP
   // C functions called from RegExp generated code.
 

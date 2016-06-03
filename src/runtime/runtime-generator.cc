@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/frames-inl.h"
 #include "src/objects-inl.h"
@@ -50,6 +51,10 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   DCHECK_EQ(frame->function(), generator_object->function());
   DCHECK(frame->function()->shared()->is_compiled());
   DCHECK(!frame->function()->IsOptimized());
+
+  if (generator_object->function()->shared()->is_async()) {
+    isolate->debug()->RecordAsyncFunction(generator_object);
+  }
 
   // The caller should have saved the context and continuation already.
   DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));

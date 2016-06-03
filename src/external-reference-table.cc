@@ -189,6 +189,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Debug::is_active_address()");
   Add(ExternalReference::debug_step_in_enabled_address(isolate).address(),
       "Debug::step_in_enabled_address()");
+  Add(ExternalReference::debug_suspended_generator_address(isolate).address(),
+      "Debug::step_suspended_generator_address()");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
