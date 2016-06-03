@@ -1553,7 +1553,8 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     Address code_entry = Memory::Address_at(code_entry_slot);
     if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
       RememberedSet<OLD_TO_OLD>::InsertTyped(Page::FromAddress(code_entry_slot),
-                                             CODE_ENTRY_SLOT, code_entry_slot);
+                                             nullptr, CODE_ENTRY_SLOT,
+                                             code_entry_slot);
     }
   }
 
@@ -2824,7 +2825,8 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
         slot_type = OBJECT_SLOT;
       }
     }
-    RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, slot_type, addr);
+    RememberedSet<OLD_TO_OLD>::InsertTyped(
+        source_page, reinterpret_cast<Address>(host), slot_type, addr);
   }
 }
 
@@ -3605,14 +3607,15 @@ class PointerUpdateJobTraits {
     if (direction == OLD_TO_OLD) {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk, [isolate](SlotType type, Address slot) {
+          chunk, [isolate](SlotType type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, type, slot,
                                                           UpdateSlot);
           });
     } else {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk, [isolate, heap](SlotType type, Address slot) {
+          chunk,
+          [isolate, heap](SlotType type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 isolate, type, slot, [heap](Object** slot) {
                   return CheckAndUpdateOldToNewSlot(
@@ -3967,7 +3970,8 @@ void MarkCompactCollector::RecordCodeEntrySlot(HeapObject* host, Address slot,
       !ShouldSkipEvacuationSlotRecording(host)) {
     // TODO(ulan): remove this check after investigating crbug.com/414964.
     CHECK(target->IsCode());
-    RememberedSet<OLD_TO_OLD>::InsertTyped(source_page, CODE_ENTRY_SLOT, slot);
+    RememberedSet<OLD_TO_OLD>::InsertTyped(
+        source_page, reinterpret_cast<Address>(host), CODE_ENTRY_SLOT, slot);
   }
 }
 

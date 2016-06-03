@@ -1675,7 +1675,7 @@ void Heap::Scavenge() {
     });
 
     RememberedSet<OLD_TO_NEW>::IterateTyped(
-        this, [this](SlotType type, Address addr) {
+        this, [this](SlotType type, Address host_addr, Address addr) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
               isolate(), type, addr, [this](Object** addr) {
                 // We expect that objects referenced by code are long living.

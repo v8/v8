@@ -100,15 +100,22 @@ class RememberedSet {
 
   // Given a page and a typed slot in that page, this function adds the slot
   // to the remembered set.
-  static void InsertTyped(Page* page, SlotType slot_type, Address slot_addr) {
+  static void InsertTyped(Page* page, Address host_addr, SlotType slot_type,
+                          Address slot_addr) {
     TypedSlotSet* slot_set = GetTypedSlotSet(page);
     if (slot_set == nullptr) {
       AllocateTypedSlotSet(page);
       slot_set = GetTypedSlotSet(page);
     }
+    if (host_addr == nullptr) {
+      host_addr = page->address();
+    }
     uintptr_t offset = slot_addr - page->address();
+    uintptr_t host_offset = host_addr - page->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    slot_set->Insert(slot_type, static_cast<uint32_t>(offset));
+    DCHECK_LT(host_offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+    slot_set->Insert(slot_type, static_cast<uint32_t>(host_offset),
+                     static_cast<uint32_t>(offset));
   }
 
   // Given a page and a range of typed slots in that page, this function removes
@@ -116,7 +123,8 @@ class RememberedSet {
   static void RemoveRangeTyped(Page* page, Address start, Address end) {
     TypedSlotSet* slots = GetTypedSlotSet(page);
     if (slots != nullptr) {
-      slots->Iterate([start, end](SlotType slot_type, Address slot_addr) {
+      slots->Iterate([start, end](SlotType slot_type, Address host_addr,
+                                  Address slot_addr) {
         return start <= slot_addr && slot_addr < end ? REMOVE_SLOT : KEEP_SLOT;
       });
     }
@@ -142,7 +150,6 @@ class RememberedSet {
       int new_count = slots->Iterate(callback);
       if (new_count == 0) {
         ReleaseTypedSlotSet(chunk);
-        chunk->ReleaseTypedOldToOldSlots();
       }
     }
   }
