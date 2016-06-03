@@ -330,7 +330,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    if (HAS_INDEX(array, index)) {
+    if (index in array) {
       var current = array[index];
       %CreateDataProperty(deleted_elements, i, current);
     }
@@ -346,7 +346,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = len - del_count; i > start_i; i--) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
-        if (HAS_INDEX(array, from_index)) {
+        if (from_index in array) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -356,7 +356,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       for (var i = start_i; i < len - del_count; i++) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
-        if (HAS_INDEX(array, from_index)) {
+        if (from_index in array) {
           array[to_index] = array[from_index];
         } else {
           delete array[to_index];
@@ -1054,7 +1054,7 @@ function ArraySort(comparefn) {
 function InnerArrayFilter(f, receiver, array, length, result) {
   var result_length = 0;
   for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       if (%_Call(f, receiver, element, i, array)) {
         %CreateDataProperty(result, result_length, element);
@@ -1085,14 +1085,14 @@ function InnerArrayForEach(f, receiver, array, length) {
 
   if (IS_UNDEFINED(receiver)) {
     for (var i = 0; i < length; i++) {
-      if (HAS_INDEX(array, i)) {
+      if (i in array) {
         var element = array[i];
         f(element, i, array);
       }
     }
   } else {
     for (var i = 0; i < length; i++) {
-      if (HAS_INDEX(array, i)) {
+      if (i in array) {
         var element = array[i];
         %_Call(f, receiver, element, i, array);
       }
@@ -1116,7 +1116,7 @@ function InnerArraySome(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       if (%_Call(f, receiver, element, i, array)) return true;
     }
@@ -1142,7 +1142,7 @@ function InnerArrayEvery(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       if (!%_Call(f, receiver, element, i, array)) return false;
     }
@@ -1171,7 +1171,7 @@ function ArrayMap(f, receiver) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var result = ArraySpeciesCreate(array, length);
   for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       %CreateDataProperty(result, i, %_Call(f, receiver, element, i, array));
     }
@@ -1313,7 +1313,7 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
   var i = 0;
   find_initial: if (argumentsLength < 2) {
     for (; i < length; i++) {
-      if (HAS_INDEX(array, i)) {
+      if (i in array) {
         current = array[i++];
         break find_initial;
       }
@@ -1322,7 +1322,7 @@ function InnerArrayReduce(callback, current, array, length, argumentsLength) {
   }
 
   for (; i < length; i++) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       current = callback(current, element, i, array);
     }
@@ -1352,7 +1352,7 @@ function InnerArrayReduceRight(callback, current, array, length,
   var i = length - 1;
   find_initial: if (argumentsLength < 2) {
     for (; i >= 0; i--) {
-      if (HAS_INDEX(array, i)) {
+      if (i in array) {
         current = array[i--];
         break find_initial;
       }
@@ -1361,7 +1361,7 @@ function InnerArrayReduceRight(callback, current, array, length,
   }
 
   for (; i >= 0; i--) {
-    if (HAS_INDEX(array, i)) {
+    if (i in array) {
       var element = array[i];
       current = callback(current, element, i, array);
     }

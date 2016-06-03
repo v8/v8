@@ -123,7 +123,6 @@ macro TO_PRIMITIVE_STRING(arg) = (%_ToPrimitive_String(arg));
 macro TO_NAME(arg) = (%_ToName(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
-macro HAS_INDEX(array, index) = (index in array);
 
 # Private names.
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
