@@ -1310,6 +1310,11 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kPPC_AbsDouble, node);
 }
 
+void InstructionSelector::VisitFloat64Log(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_LogDouble, g.DefineAsFixed(node, d1),
+       g.UseFixed(node->InputAt(0), d1))->MarkAsCall();
+}
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kPPC_SqrtDouble | MiscField::encode(1), node);

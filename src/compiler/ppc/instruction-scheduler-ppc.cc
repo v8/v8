@@ -59,6 +59,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_ModU32:
     case kPPC_ModU64:
     case kPPC_ModDouble:
+    case kPPC_LogDouble:
     case kPPC_Neg:
     case kPPC_NegDouble:
     case kPPC_SqrtDouble:

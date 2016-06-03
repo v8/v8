@@ -437,6 +437,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   } while (0)
 
 
+#define ASSEMBLE_FLOAT_LOG()                                                  \
+  do {                                                                        \
+    FrameScope scope(masm(), StackFrame::MANUAL);                             \
+    __ PrepareCallCFunction(0, 1, kScratchReg);                               \
+    __ MovToFloatParameter(i.InputDoubleRegister(0));                        \
+    __ CallCFunction(ExternalReference::math_log_double_function(isolate()),  \
+                     0, 1);                                                   \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                          \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                      \
+  } while (0)
+
 #define ASSEMBLE_FLOAT_MAX(scratch_reg)                                       \
   do {                                                                        \
     __ fsub(scratch_reg, i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
@@ -1228,6 +1239,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // TODO(bmeurer): We should really get rid of this special instruction,
       // and generate a CallAddress instruction instead.
       ASSEMBLE_FLOAT_MODULO();
+      break;
+    case kPPC_LogDouble:
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      ASSEMBLE_FLOAT_LOG();
       break;
     case kPPC_Neg:
       __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
