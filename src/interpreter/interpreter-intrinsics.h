@@ -24,8 +24,12 @@ class Node;
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)           \
   V(Call, call, -1)                  \
+  V(IsArray, is_array, 1)            \
+  V(IsJSProxy, is_js_proxy, 1)       \
   V(IsJSReceiver, is_js_receiver, 1) \
-  V(IsArray, is_array, 1)
+  V(IsRegExp, is_regexp, 1)          \
+  V(IsSmi, is_smi, 1)                \
+  V(IsTypedArray, is_typed_array, 1)
 
 namespace interpreter {
 
@@ -45,16 +49,19 @@ class IntrinsicsHelper {
     kInstanceTypeEqual,
     kInstanceTypeGreaterThanOrEqual
   };
+
+  compiler::Node* IsInstanceType(compiler::Node* input, int type);
   compiler::Node* CompareInstanceType(compiler::Node* map, int type,
                                       InstanceTypeCompareMode mode);
   void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
-  InterpreterAssembler* assembler_;
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count)                \
   compiler::Node* name(compiler::Node* input, compiler::Node* arg_count, \
                        compiler::Node* context);
   INTRINSICS_LIST(DECLARE_INTRINSIC_HELPER)
 #undef DECLARE_INTRINSIC_HELPER
+
+  InterpreterAssembler* assembler_;
 
   DISALLOW_COPY_AND_ASSIGN(IntrinsicsHelper);
 };

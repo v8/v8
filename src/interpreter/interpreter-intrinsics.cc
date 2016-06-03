@@ -58,9 +58,11 @@ Node* IntrinsicsHelper::InvokeIntrinsic(Node* function_id, Node* context,
 #undef HANDLE_CASE
 
   __ Bind(&abort);
-  __ Abort(BailoutReason::kUnexpectedFunctionIDForInvokeIntrinsic);
-  result.Bind(__ UndefinedConstant());
-  __ Goto(&end);
+  {
+    __ Abort(BailoutReason::kUnexpectedFunctionIDForInvokeIntrinsic);
+    result.Bind(__ UndefinedConstant());
+    __ Goto(&end);
+  }
 
   __ Bind(&end);
   return result.value();
@@ -85,12 +87,40 @@ Node* IntrinsicsHelper::CompareInstanceType(Node* map, int type,
   __ Branch(condition, &if_true, &if_false);
 
   __ Bind(&if_true);
-  return_value.Bind(__ BooleanConstant(true));
-  __ Goto(&end);
+  {
+    return_value.Bind(__ BooleanConstant(true));
+    __ Goto(&end);
+  }
 
   __ Bind(&if_false);
-  return_value.Bind(__ BooleanConstant(false));
-  __ Goto(&end);
+  {
+    return_value.Bind(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
+
+  __ Bind(&end);
+  return return_value.value();
+}
+
+Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+  InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
+      end(assembler_);
+  Node* arg = __ LoadRegister(input);
+  __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
+
+  __ Bind(&if_smi);
+  {
+    return_value.Bind(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
+
+  __ Bind(&if_not_smi);
+  {
+    return_value.Bind(CompareInstanceType(arg, type, kInstanceTypeEqual));
+    __ Goto(&end);
+  }
 
   __ Bind(&end);
   return return_value.value();
@@ -100,43 +130,67 @@ Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
                                      Node* context) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
-
   InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
       end(assembler_);
-  Node* arg = __ LoadRegister(input);
 
+  Node* arg = __ LoadRegister(input);
   __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
+
   __ Bind(&if_smi);
-  return_value.Bind(__ BooleanConstant(false));
-  __ Goto(&end);
+  {
+    return_value.Bind(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  return_value.Bind(CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
-                                        kInstanceTypeGreaterThanOrEqual));
-  __ Goto(&end);
+  {
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    return_value.Bind(CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
+                                          kInstanceTypeGreaterThanOrEqual));
+    __ Goto(&end);
+  }
 
   __ Bind(&end);
   return return_value.value();
 }
 
 Node* IntrinsicsHelper::IsArray(Node* input, Node* arg_count, Node* context) {
+  return IsInstanceType(input, JS_ARRAY_TYPE);
+}
+
+Node* IntrinsicsHelper::IsJSProxy(Node* input, Node* arg_count, Node* context) {
+  return IsInstanceType(input, JS_PROXY_TYPE);
+}
+
+Node* IntrinsicsHelper::IsRegExp(Node* input, Node* arg_count, Node* context) {
+  return IsInstanceType(input, JS_REGEXP_TYPE);
+}
+
+Node* IntrinsicsHelper::IsTypedArray(Node* input, Node* arg_count,
+                                     Node* context) {
+  return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
+}
+
+Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
-
   InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
       end(assembler_);
+
   Node* arg = __ LoadRegister(input);
 
   __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
   __ Bind(&if_smi);
-  return_value.Bind(__ BooleanConstant(false));
-  __ Goto(&end);
+  {
+    return_value.Bind(__ BooleanConstant(true));
+    __ Goto(&end);
+  }
 
   __ Bind(&if_not_smi);
-  return_value.Bind(
-      CompareInstanceType(arg, JS_ARRAY_TYPE, kInstanceTypeEqual));
-  __ Goto(&end);
+  {
+    return_value.Bind(__ BooleanConstant(false));
+    __ Goto(&end);
+  }
 
   __ Bind(&end);
   return return_value.value();
