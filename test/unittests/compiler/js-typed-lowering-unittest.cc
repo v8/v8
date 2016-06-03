@@ -858,7 +858,7 @@ TEST_F(JSTypedLoweringTest, JSAddSmis) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsSpeculativeNumberAdd(BinaryOperationHints::kSignedSmall, lhs,
-                                       rhs, frame_state1, effect, control));
+                                       rhs, effect, control));
   }
 }
 
@@ -881,9 +881,9 @@ TEST_F(JSTypedLoweringTest, JSSubtractSmis) {
                                           rhs, context, frame_state0,
                                           frame_state1, effect, control));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsSpeculativeNumberSubtract(
-                                     BinaryOperationHints::kSignedSmall, lhs,
-                                     rhs, frame_state1, effect, control));
+    EXPECT_THAT(r.replacement(),
+                IsSpeculativeNumberSubtract(BinaryOperationHints::kSignedSmall,
+                                            lhs, rhs, effect, control));
   }
 }
 

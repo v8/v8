@@ -131,7 +131,7 @@ class JSBinopReduction final {
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(1, op->ControlInputCount());
     DCHECK_EQ(1, op->ControlOutputCount());
-    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(op));
+    DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
     DCHECK_EQ(2, op->ValueInputCount());
 
     DCHECK_EQ(1, node_->op()->EffectInputCount());
@@ -157,7 +157,8 @@ class JSBinopReduction final {
       }
     }
 
-    // Remove the lazy bailout frame state and the context.
+    // Remove both bailout frame states and the context.
+    node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_) + 1);
     node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 

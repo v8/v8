@@ -205,13 +205,11 @@ Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsSpeculativeNumberAdd(
     const Matcher<BinaryOperationHints::Hint>& hint_matcher,
     const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& frame_state_matcher,
     const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsSpeculativeNumberSubtract(
     const Matcher<BinaryOperationHints::Hint>& hint_matcher,
     const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& frame_state_matcher,
     const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,

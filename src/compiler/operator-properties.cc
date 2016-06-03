@@ -80,11 +80,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStackCheck:
       return 1;
 
-    // We record the frame state immediately before and immediately after
-    // every property or global variable access.
-
-      return 2;
-
     // Binary operators that can deopt in the middle the operation (e.g.,
     // as a result of lazy deopt in ToNumber conversion) need a second frame
     // state so that we can resume before the operation.
@@ -110,9 +105,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSLessThanOrEqual:
       return 2;
 
-    // Simplified operators with type feedback.
-    case IrOpcode::kSpeculativeNumberAdd:
-    case IrOpcode::kSpeculativeNumberSubtract:
     // Checked conversions.
     case IrOpcode::kCheckedUint32ToInt32:
     case IrOpcode::kCheckedFloat64ToInt32:

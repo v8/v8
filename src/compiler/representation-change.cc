@@ -451,7 +451,7 @@ Node* RepresentationChanger::InsertConversion(Node* node, const Operator* op,
     // and also provide it with a frame state.
     Node* effect = NodeProperties::GetEffectInput(use_node);
     Node* control = NodeProperties::GetControlInput(use_node);
-    Node* frame_state = NodeProperties::GetFrameStateInput(use_node, 0);
+    Node* frame_state = NodeProperties::FindFrameStateBefore(use_node);
     Node* conversion =
         jsgraph()->graph()->NewNode(op, node, frame_state, effect, control);
     NodeProperties::ReplaceControlInput(use_node, control);
