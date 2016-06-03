@@ -1657,6 +1657,7 @@ var unscopables = {
   fill: true,
   find: true,
   findIndex: true,
+  includes: true,
   keys: true,
 };
 
