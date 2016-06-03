@@ -165,4 +165,16 @@ executable("unittests") {
   } else {
     deps += [ "../..:v8" ]
   }
+
+  if (is_win) {
+    # This warning is benignly triggered by the U16 and U32 macros in
+    # bytecode-utils.h.
+    # C4309: 'static_cast': truncation of constant value
+    cflags = [ "/wd4309" ]
+
+    # Suppress warnings about importing locally defined symbols.
+    if (is_component_build) {
+      ldflags = [ "/ignore:4049", "/ignore:4217" ]
+    }
+  }
 }
