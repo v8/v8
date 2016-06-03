@@ -9,7 +9,7 @@
   'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
   'targets': [
     {
-      'target_name': 'json_fuzzer',
+      'target_name': 'v8_simple_json_fuzzer',
       'type': 'executable',
       'dependencies': [
         'json_fuzzer_lib',
@@ -35,7 +35,7 @@
       ],
     },
     {
-      'target_name': 'parser_fuzzer',
+      'target_name': 'v8_simple_parser_fuzzer',
       'type': 'executable',
       'dependencies': [
         'parser_fuzzer_lib',
@@ -61,7 +61,7 @@
       ],
     },
     {
-      'target_name': 'regexp_fuzzer',
+      'target_name': 'v8_simple_regexp_fuzzer',
       'type': 'executable',
       'dependencies': [
         'regexp_fuzzer_lib',
@@ -87,7 +87,7 @@
       ],
     },
     {
-      'target_name': 'wasm_fuzzer',
+      'target_name': 'v8_simple_wasm_fuzzer',
       'type': 'executable',
       'dependencies': [
         'wasm_fuzzer_lib',
@@ -113,7 +113,7 @@
       ],
     },
     {
-      'target_name': 'wasm_asmjs_fuzzer',
+      'target_name': 'v8_simple_wasm_asmjs_fuzzer',
       'type': 'executable',
       'dependencies': [
         'wasm_asmjs_fuzzer_lib',
@@ -169,9 +169,11 @@
           'target_name': 'fuzzer_run',
           'type': 'none',
           'dependencies': [
-            'json_fuzzer',
-            'parser_fuzzer',
-            'regexp_fuzzer',
+            'v8_simple_json_fuzzer',
+            'v8_simple_parser_fuzzer',
+            'v8_simple_regexp_fuzzer',
+            'v8_simple_wasm_fuzzer',
+            'v8_simple_wasm_asmjs_fuzzer',
           ],
           'includes': [
             '../../gypfiles/isolate.gypi',

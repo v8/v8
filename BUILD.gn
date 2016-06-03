@@ -2007,6 +2007,14 @@ v8_source_set("fuzzer_support") {
   ]
 }
 
+v8_source_set("simple_fuzzer") {
+  sources = [
+    "test/fuzzer/fuzzer.cc",
+  ]
+
+  configs = [ ":internal_config_base" ]
+}
+
 ###############################################################################
 # Executables
 #
@@ -2052,6 +2060,11 @@ group("gn_all") {
 
   deps = [
     ":d8",
+    ":v8_simple_json_fuzzer",
+    ":v8_simple_parser_fuzzer",
+    ":v8_simple_regexp_fuzzer",
+    ":v8_simple_wasm_fuzzer",
+    ":v8_simple_wasm_asmjs_fuzzer",
   ]
 
   if (want_v8_shell) {
@@ -2179,6 +2192,19 @@ if (want_v8_shell) {
   }
 }
 
+template("v8_fuzzer") {
+  name = target_name
+  forward_variables_from(invoker, "*")
+  executable("v8_simple_" + name) {
+    deps = [
+      ":" + name,
+      ":simple_fuzzer",
+    ]
+
+    configs += [ ":external_config" ]
+  }
+}
+
 v8_source_set("json_fuzzer") {
   sources = [
     "test/fuzzer/json.cc",
@@ -2190,6 +2216,8 @@ v8_source_set("json_fuzzer") {
 
   configs = [ ":internal_config" ]
 }
+
+v8_fuzzer("json_fuzzer") {}
 
 v8_source_set("parser_fuzzer") {
   sources = [
@@ -2203,6 +2231,8 @@ v8_source_set("parser_fuzzer") {
   configs = [ ":internal_config" ]
 }
 
+v8_fuzzer("parser_fuzzer") {}
+
 v8_source_set("regexp_fuzzer") {
   sources = [
     "test/fuzzer/regexp.cc",
@@ -2214,6 +2244,8 @@ v8_source_set("regexp_fuzzer") {
 
   configs = [ ":internal_config" ]
 }
+
+v8_fuzzer("regexp_fuzzer") {}
 
 v8_source_set("wasm_fuzzer") {
   sources = [
@@ -2227,6 +2259,8 @@ v8_source_set("wasm_fuzzer") {
   configs = [ ":internal_config" ]
 }
 
+v8_fuzzer("wasm_fuzzer") {}
+
 v8_source_set("wasm_asmjs_fuzzer") {
   sources = [
     "test/fuzzer/wasm-asmjs.cc",
@@ -2238,3 +2272,5 @@ v8_source_set("wasm_asmjs_fuzzer") {
 
   configs = [ ":internal_config" ]
 }
+
+v8_fuzzer("wasm_asmjs_fuzzer") {}
