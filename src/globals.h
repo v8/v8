@@ -812,8 +812,14 @@ enum ScopeType {
 };
 
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
-#if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6)) || \
-    (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6))
+// The x87 FPU convert the sNaN to qNaN automatically when loading sNaN from
+// memmory.
+// Use mips sNaN which is a not used qNaN in x87 port as sNaN to workaround this
+// issue
+// for some test cases.
+#if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6)) ||   \
+    (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6)) || \
+    (V8_TARGET_ARCH_X87)
 const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
 #else

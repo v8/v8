@@ -2362,9 +2362,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 
   __ add(esp, Immediate(kDoubleSize));
   int offset = sizeof(kHoleNanUpper32);
-  // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-  // so we check the upper with 0xffffffff for hole as a temporary fix.
-  __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+  __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 
@@ -4105,9 +4103,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     __ fst_d(MemOperand(esp, 0));
     __ lea(esp, Operand(esp, kDoubleSize));
     int offset = sizeof(kHoleNanUpper32);
-    // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-    // so we check the upper with 0xffffffff for hole as a temporary fix.
-    __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+    __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
     __ j(not_equal, &no_special_nan_handling, Label::kNear);
     __ mov(operand, Immediate(lower));
     __ mov(operand2, Immediate(upper));
@@ -4193,9 +4189,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ fst_d(MemOperand(esp, 0));
       __ lea(esp, Operand(esp, kDoubleSize));
       int offset = sizeof(kHoleNanUpper32);
-      // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-      // so we check the upper with 0xffffffff for hole as a temporary fix.
-      __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+      __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
       __ j(not_equal, &no_special_nan_handling, Label::kNear);
       __ mov(double_store_operand, Immediate(lower));
       __ mov(double_store_operand2, Immediate(upper));
