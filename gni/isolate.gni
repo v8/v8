@@ -17,9 +17,11 @@ template("v8_isolate_run") {
   if (name != "" && invoker.isolate != "" && invoker.deps != [] &&
       v8_test_isolation_mode != "noop") {
     action(name + "_run") {
+      testonly = true
+
       deps = invoker.deps
 
-      script = "tools/isolate_driver.py"
+      script = "//tools/isolate_driver.py"
 
       sources = [
         invoker.isolate,
@@ -27,13 +29,20 @@ template("v8_isolate_run") {
 
       inputs = [
         # Files that are known to be involved in this step.
-        "tools/swarming_client/isolate.py",
-        "tools/swarming_client/run_isolated.py",
+        "//tools/swarming_client/isolate.py",
+        "//tools/swarming_client/run_isolated.py",
       ]
 
-      outputs = [
-        "$root_out_dir/$name.isolated",
-      ]
+      if (v8_test_isolation_mode == "prepare") {
+        outputs = [
+          "$root_out_dir/$name.isolated.gen.json",
+        ]
+      } else if (v8_test_isolation_mode == "check") {
+        outputs = [
+          "$root_out_dir/$name.isolated",
+          "$root_out_dir/$name.isolated.state",
+        ]
+      }
 
       # Translate gn to gyp variables.
       if (is_asan) {

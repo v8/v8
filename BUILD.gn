@@ -2065,6 +2065,8 @@ group("gn_all") {
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_fuzzer",
     ":v8_simple_wasm_asmjs_fuzzer",
+    "test:gn_all",
+    "tools:gn_all",
   ]
 
   if (want_v8_shell) {
@@ -2073,11 +2075,9 @@ group("gn_all") {
     ]
   }
 
-  if (host_os != "mac" || !is_android) {
-    # These items don't compile for Android on Mac.
+  if (v8_test_isolation_mode != "noop") {
     deps += [
-      "test/cctest:cctest",
-      "test/unittests:unittests",
+      ":d8_run",
     ]
   }
 }
