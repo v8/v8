@@ -48,6 +48,9 @@ class BytecodeRegisterOptimizer::RegisterInfo final : public ZoneObject {
   // exists.
   RegisterInfo* GetEquivalentToMaterialize();
 
+  // Get an equivalent register. Returns this if none exists.
+  RegisterInfo* GetEquivalent();
+
   Register register_value() const { return register_; }
   bool materialized() const { return materialized_; }
   void set_materialized(bool materialized) { materialized_ = materialized; }
@@ -161,6 +164,11 @@ BytecodeRegisterOptimizer::RegisterInfo::GetEquivalentToMaterialize() {
   return best_info;
 }
 
+BytecodeRegisterOptimizer::RegisterInfo*
+BytecodeRegisterOptimizer::RegisterInfo::GetEquivalent() {
+  return next_;
+}
+
 BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
     Zone* zone, TemporaryRegisterAllocator* register_allocator,
     int parameter_count, BytecodePipelineStage* next_stage)
@@ -169,7 +177,7 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
       register_info_table_(zone),
       equivalence_id_(0),
       next_stage_(next_stage),
-      flushed_(false),
+      flush_required_(false),
       zone_(zone) {
   register_allocator->set_observer(this);
 
@@ -209,8 +217,6 @@ Handle<BytecodeArray> BytecodeRegisterOptimizer::ToBytecodeArray(
 
 // override
 void BytecodeRegisterOptimizer::Write(BytecodeNode* node) {
-  flushed_ = false;
-
   //
   // Transfers with observable registers as the destination will be
   // immediately materialized so the source position information will
@@ -274,31 +280,29 @@ void BytecodeRegisterOptimizer::BindLabel(const BytecodeLabel& target,
 }
 
 void BytecodeRegisterOptimizer::FlushState() {
-  if (flushed_) {
+  if (!flush_required_) {
     return;
   }
 
-  // Materialize all live registers.
+  // Materialize all live registers and break equivalences.
   size_t count = register_info_table_.size();
   for (size_t i = 0; i < count; ++i) {
     RegisterInfo* reg_info = register_info_table_[i];
-    if (!reg_info->IsOnlyMemberOfEquivalenceSet() &&
-        !reg_info->materialized()) {
-      DCHECK(RegisterIsTemporary(reg_info->register_value()) ||
-             reg_info->register_value() == accumulator_);
-      Materialize(reg_info);
+    if (reg_info->materialized()) {
+      // Walk equivalents of materialized registers, materializing
+      // each equivalent register as necessary and placing in their
+      // own equivalence set.
+      RegisterInfo* equivalent;
+      while ((equivalent = reg_info->GetEquivalent()) != reg_info) {
+        if (!equivalent->materialized()) {
+          OutputRegisterTransfer(reg_info, equivalent);
+        }
+        equivalent->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
+      }
     }
   }
 
-  // Break all existing equivalences.
-  for (size_t i = 0; i < count; ++i) {
-    RegisterInfo* reg_info = register_info_table_[i];
-    if (!reg_info->IsOnlyMemberOfEquivalenceSet()) {
-      reg_info->MoveToNewEquivalenceSet(NextEquivalenceId(), true);
-    }
-  }
-
-  flushed_ = true;
+  flush_required_ = false;
 }
 
 void BytecodeRegisterOptimizer::WriteToNextStage(BytecodeNode* node) const {
@@ -376,6 +380,14 @@ void BytecodeRegisterOptimizer::Materialize(RegisterInfo* info) {
   }
 }
 
+void BytecodeRegisterOptimizer::AddToEquivalenceSet(
+    RegisterInfo* set_member, RegisterInfo* non_set_member) {
+  non_set_member->AddToEquivalenceSetOf(set_member);
+  // Flushing is only required when two or more registers are placed
+  // in the same equivalence set.
+  flush_required_ = true;
+}
+
 void BytecodeRegisterOptimizer::RegisterTransfer(
     RegisterInfo* input_info, RegisterInfo* output_info,
     const BytecodeSourceInfo& source_info) {
@@ -387,7 +399,7 @@ void BytecodeRegisterOptimizer::RegisterTransfer(
 
   // Add |output_info| to new equivalence set.
   if (!output_info->IsInSameEquivalenceSet(input_info)) {
-    output_info->AddToEquivalenceSetOf(input_info);
+    AddToEquivalenceSet(input_info, output_info);
   }
 
   bool output_is_observable =

@@ -707,17 +707,17 @@ snippet: "
 "
 frame size: 157
 parameter count: 1
-bytecode array length: 39
+bytecode array length: 37
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(LdaZero),
                 B(Star), R(0),
   /* 1506 S> */ B(LdaSmi), U8(3),
   /* 1515 E> */ B(Wide), B(TestEqual), R16(129),
-                B(JumpIfFalse), U8(13),
+                B(JumpIfFalse), U8(11),
   /* 1534 S> */ B(Nop),
   /* 1534 E> */ B(Wide), B(Mov), R16(0), R16(129),
-                B(Wide), B(Ldar), R16(129),
+                B(Ldar), R(0),
   /* 1540 S> */ B(LdaSmi), U8(3),
   /* 1547 E> */ B(Wide), B(TestGreaterThan), R16(2),
                 B(JumpIfFalse), U8(5),

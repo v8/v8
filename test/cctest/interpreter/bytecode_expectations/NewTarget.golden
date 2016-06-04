@@ -17,7 +17,7 @@ bytecode array length: 18
 bytecodes: [
                 B(Mov), R(new_target), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(Ldar), R(0),
+  /*   34 S> */ B(Ldar), R(new_target),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -40,7 +40,7 @@ bytecode array length: 19
 bytecodes: [
                 B(Mov), R(new_target), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(Ldar), R(0),
+  /*   34 S> */ B(Ldar), R(new_target),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),

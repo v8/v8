@@ -93,6 +93,8 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   RegisterInfo* GetMaterializedEquivalent(RegisterInfo* info);
   RegisterInfo* GetMaterializedEquivalentNotAccumulator(RegisterInfo* info);
   void Materialize(RegisterInfo* info);
+  void AddToEquivalenceSet(RegisterInfo* set_member,
+                           RegisterInfo* non_set_member);
 
   // Methods for finding and creating metadata for each register.
   RegisterInfo* GetOrCreateRegisterInfo(Register reg);
@@ -140,7 +142,7 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   int equivalence_id_;
 
   BytecodePipelineStage* next_stage_;
-  bool flushed_;
+  bool flush_required_;
   Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeRegisterOptimizer);
