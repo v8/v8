@@ -2200,6 +2200,7 @@ template("v8_fuzzer") {
     deps = [
       ":" + name,
       ":simple_fuzzer",
+      "//build/win:default_exe_manifest",
     ]
 
     configs += [ ":external_config" ]
