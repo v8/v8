@@ -3097,9 +3097,6 @@ void MacroAssembler::Allocate(int object_size,
     // The top pointer is not updated for allocation folding dominators.
     Str(result_end, MemOperand(top_address));
   }
-
-  // Tag the object.
-  ObjectTag(result, result);
 }
 
 
@@ -3169,7 +3166,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
 
   if (emit_debug_code()) {
     Tst(result_end, kObjectAlignmentMask);
-    Check(eq, kUnalignedAllocationInNewSpace);
+    Check(ne, kUnalignedAllocationInNewSpace);
   }
 
   Ccmp(result_end, alloc_limit, NoFlag, cc);
@@ -3179,9 +3176,6 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     // The top pointer is not updated for allocation folding dominators.
     Str(result_end, MemOperand(top_address));
   }
-
-  // Tag the object.
-  ObjectTag(result, result);
 }
 
 void MacroAssembler::FastAllocate(int object_size, Register result,
@@ -3214,8 +3208,6 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   // Calculate new top and write it back.
   Adds(result_end, result, object_size);
   Str(result_end, MemOperand(top_address));
-
-  ObjectTag(result, result);
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -3249,10 +3241,8 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
 
   if (emit_debug_code()) {
     Tst(result_end, kObjectAlignmentMask);
-    Check(eq, kUnalignedAllocationInNewSpace);
+    Check(ne, kUnalignedAllocationInNewSpace);
   }
-
-  ObjectTag(result, result);
 }
 
 void MacroAssembler::AllocateTwoByteString(Register result,

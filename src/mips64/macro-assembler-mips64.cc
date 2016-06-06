@@ -4318,11 +4318,11 @@ void MacroAssembler::Allocate(int object_size,
   }
 
   // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on ARM64.
+  // the same alignment on MIPS64.
   STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
 
   if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
+    And(at, result, Operand(kDoubleAlignmentMaskTagged));
     Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
   }
 
@@ -4335,9 +4335,6 @@ void MacroAssembler::Allocate(int object_size,
     // The top pointer is not updated for allocation folding dominators.
     sd(result_end, MemOperand(top_address));
   }
-
-  // Tag object.
-  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
 
@@ -4391,11 +4388,11 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   }
 
   // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on ARM64.
+  // the same alignment on MIPS64.
   STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
 
   if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
+    And(at, result, Operand(kDoubleAlignmentMaskTagged));
     Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
   }
 
@@ -4413,16 +4410,13 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
     And(at, result_end, Operand(kObjectAlignmentMask));
-    Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
+    Check(ne, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
   }
 
   if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
     // The top pointer is not updated for allocation folding dominators.
     sd(result_end, MemOperand(top_address));
   }
-
-  // Tag object if.
-  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(int object_size, Register result,
@@ -4450,15 +4444,13 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
 
   if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
+    And(at, result, Operand(kDoubleAlignmentMaskTagged));
     Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
   }
 
   // Calculate new top and write it back.
   Daddu(result_end, result, Operand(object_size));
   sd(result_end, MemOperand(top_address));
-
-  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -4481,7 +4473,7 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
 
   if (emit_debug_code()) {
-    And(at, result, Operand(kDoubleAlignmentMask));
+    And(at, result, Operand(kDoubleAlignmentMaskTagged));
     Check(eq, kAllocationIsNotDoubleAligned, at, Operand(zero_reg));
   }
 
@@ -4495,10 +4487,8 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
     And(at, result_end, Operand(kObjectAlignmentMask));
-    Check(eq, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
+    Check(ne, kUnalignedAllocationInNewSpace, at, Operand(zero_reg));
   }
-
-  Daddu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::AllocateTwoByteString(Register result,

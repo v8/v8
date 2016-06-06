@@ -4142,14 +4142,14 @@ void MacroAssembler::Allocate(int object_size,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
-    And(result_end, result, Operand(kDoubleAlignmentMask));
+    And(result_end, result, Operand(kDoubleAlignmentMaskTagged));
     Label aligned;
     Branch(&aligned, eq, result_end, Operand(zero_reg));
     if ((flags & PRETENURE) != 0) {
       Branch(gc_required, Ugreater_equal, result, Operand(alloc_limit));
     }
     li(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
-    sw(result_end, MemOperand(result));
+    sw(result_end, FieldMemOperand(result, 0));
     Addu(result, result, Operand(kDoubleSize / 2));
     bind(&aligned);
   }
@@ -4163,9 +4163,6 @@ void MacroAssembler::Allocate(int object_size,
     // The top pointer is not updated for allocation folding dominators.
     sw(result_end, MemOperand(top_address));
   }
-
-  // Tag object.
-  Addu(result, result, Operand(kHeapObjectTag));
 }
 
 
@@ -4225,14 +4222,14 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
-    And(result_end, result, Operand(kDoubleAlignmentMask));
+    And(result_end, result, Operand(kDoubleAlignmentMaskTagged));
     Label aligned;
     Branch(&aligned, eq, result_end, Operand(zero_reg));
     if ((flags & PRETENURE) != 0) {
       Branch(gc_required, Ugreater_equal, result, Operand(alloc_limit));
     }
     li(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
-    sw(result_end, MemOperand(result));
+    sw(result_end, FieldMemOperand(result, 0));
     Addu(result, result, Operand(kDoubleSize / 2));
     bind(&aligned);
   }
@@ -4251,16 +4248,13 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
     And(alloc_limit, result_end, Operand(kObjectAlignmentMask));
-    Check(eq, kUnalignedAllocationInNewSpace, alloc_limit, Operand(zero_reg));
+    Check(ne, kUnalignedAllocationInNewSpace, alloc_limit, Operand(zero_reg));
   }
 
   if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
     // The top pointer is not updated for allocation folding dominators.
     sw(result_end, MemOperand(top_address));
   }
-
-  // Tag object.
-  Addu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(int object_size, Register result,
@@ -4289,11 +4283,11 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
-    And(result_end, result, Operand(kDoubleAlignmentMask));
+    And(result_end, result, Operand(kDoubleAlignmentMaskTagged));
     Label aligned;
     Branch(&aligned, eq, result_end, Operand(zero_reg));
     li(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
-    sw(result_end, MemOperand(result));
+    sw(result_end, FieldMemOperand(result, 0));
     Addu(result, result, Operand(kDoubleSize / 2));
     bind(&aligned);
   }
@@ -4302,8 +4296,6 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
 
   // The top pointer is not updated for allocation folding dominators.
   sw(result_end, MemOperand(top_address));
-
-  Addu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -4328,11 +4320,11 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
     // Align the next allocation. Storing the filler map without checking top is
     // safe in new-space because the limit of the heap is aligned there.
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
-    And(result_end, result, Operand(kDoubleAlignmentMask));
+    And(result_end, result, Operand(kDoubleAlignmentMaskTagged));
     Label aligned;
     Branch(&aligned, eq, result_end, Operand(zero_reg));
     li(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
-    sw(result_end, MemOperand(result));
+    sw(result_end, FieldMemOperand(result, 0));
     Addu(result, result, Operand(kDoubleSize / 2));
     bind(&aligned);
   }
@@ -4348,8 +4340,6 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
 
   // The top pointer is not updated for allocation folding dominators.
   sw(result_end, MemOperand(top_address));
-
-  Addu(result, result, Operand(kHeapObjectTag));
 }
 
 void MacroAssembler::AllocateTwoByteString(Register result,
