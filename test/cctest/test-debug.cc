@@ -7180,6 +7180,40 @@ TEST(NoDebugContextWhenDebuggerDisabled) {
   CHECK(context.IsEmpty());
 }
 
+static void DebugEventCheckContext(
+    const v8::Debug::EventDetails& event_details) {
+  if (event_details.GetEvent() == v8::Break) {
+    v8::Isolate* isolate = event_details.GetIsolate();
+    CHECK(v8::Debug::GetDebuggedContext(isolate)
+              .ToLocalChecked()
+              ->Global()
+              ->Equals(isolate->GetCurrentContext(),
+                       event_details.GetEventContext()->Global())
+              .FromJust());
+  }
+}
+
+static void CheckContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CHECK(v8::Debug::GetDebuggedContext(args.GetIsolate()).IsEmpty());
+}
+
+TEST(DebuggedContext) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+
+  v8::Debug::SetDebugEventListener(isolate, DebugEventCheckContext);
+
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo(){bar=0;}", "foo");
+
+  SetBreakPoint(foo, 0);
+  foo->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+
+  v8::Local<v8::Function> fun = v8::FunctionTemplate::New(isolate, CheckContext)
+                                    ->GetFunction(env.context())
+                                    .ToLocalChecked();
+  fun->Call(env.context(), env->Global(), 0, nullptr).ToLocalChecked();
+}
 
 static v8::Local<v8::Value> expected_callback_data;
 static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {

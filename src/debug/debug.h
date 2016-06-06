@@ -305,6 +305,8 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
   virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Local<v8::Value> GetCallbackData() const;
   virtual v8::Debug::ClientData* GetClientData() const;
+  virtual v8::Isolate* GetIsolate() const;
+
  private:
   DebugEvent event_;  // Debug event causing the break.
   Handle<JSObject> exec_state_;         // Current execution state.

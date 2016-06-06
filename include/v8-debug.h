@@ -125,6 +125,8 @@ class V8_EXPORT Debug {
      */
     virtual ClientData* GetClientData() const = 0;
 
+    virtual Isolate* GetIsolate() const = 0;
+
     virtual ~EventDetails() {}
   };
 
@@ -259,6 +261,11 @@ class V8_EXPORT Debug {
   V8_DEPRECATED("Use version with an Isolate",
                 static Local<Context> GetDebugContext());
 
+  /**
+   * While in the debug context, this method returns the top-most non-debug
+   * context, if it exists.
+   */
+  static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate);
 
   /**
    * Enable/disable LiveEdit functionality for the given Isolate
