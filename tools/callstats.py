@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import operator
 
 import numpy
 import scipy
@@ -50,10 +51,12 @@ def start_replay_server(args, sites):
                                    mode='wt', delete=False) as f:
     injection = f.name
     generate_injection(f, sites, args.refresh)
+  http_port = 4080 + args.port_offset
+  https_port = 4443 + args.port_offset
   cmd_args = [
       args.replay_bin,
-      "--port=4080",
-      "--ssl_port=4443",
+      "--port=%s" % http_port,
+      "--ssl_port=%s" % https_port,
       "--no-dns_forwarding",
       "--use_closest_match",
       "--no-diff_unknown_requests",
@@ -78,38 +81,36 @@ def stop_replay_server(server):
 def generate_injection(f, sites, refreshes=0):
   print >> f, """\
 (function() {
-  let s = window.sessionStorage.getItem("refreshCounter");
-  let refreshTotal = """, refreshes, """;
-  let refreshCounter = s ? parseInt(s) : refreshTotal;
-  let refreshId = refreshTotal - refreshCounter;
+  var s = window.sessionStorage.getItem("refreshCounter");
+  var refreshTotal = """, refreshes, """;
+  var refreshCounter = s ? parseInt(s) : refreshTotal;
+  var refreshId = refreshTotal - refreshCounter;
   if (refreshCounter > 0) {
     window.sessionStorage.setItem("refreshCounter", refreshCounter-1);
   }
-
   function match(url, item) {
-    if ('regexp' in item) return url.match(item.regexp) !== null;
-    let url_wanted = item.url;
-    // Allow automatic redirections from http to https.
+    if ('regexp' in item) { return url.match(item.regexp) !== null };
+    var url_wanted = item.url;
+    /* Allow automatic redirections from http to https. */
     if (url_wanted.startsWith("http://") && url.startsWith("https://")) {
       url_wanted = "https://" + url_wanted.substr(7);
     }
     return url.startsWith(url_wanted);
   };
-
-  function onLoad(e) {
-    let url = e.target.URL;
-    for (let item of sites) {
+  function onLoad(url) {
+    for (var item of sites) {
       if (!match(url, item)) continue;
-      let timeout = 'timeline' in item ? 2500 * item.timeline
+      var timeout = 'timeline' in item ? 2000 * item.timeline
                   : 'timeout'  in item ? 1000 * (item.timeout - 3)
                   : 10000;
       console.log("Setting time out of " + timeout + " for: " + url);
       window.setTimeout(function() {
         console.log("Time is out for: " + url);
-        let msg = "STATS: (" + refreshId + ") " + url;
+        var msg = "STATS: (" + refreshId + ") " + url;
         %GetAndResetRuntimeCallStats(1, msg);
         if (refreshCounter > 0) {
-          console.log("Refresh counter is " + refreshCounter + ", refreshing: " + url);
+          console.log(
+              "Refresh counter is " + refreshCounter + ", refreshing: " + url);
           window.location.reload();
         }
       }, timeout);
@@ -117,12 +118,9 @@ def generate_injection(f, sites, refreshes=0):
     }
     console.log("Ignoring: " + url);
   };
-
-  let sites =
+  var sites =
     """, json.dumps(sites), """;
-
-  console.log("Event listenner added for: " + window.location.href);
-  window.addEventListener("load", onLoad);
+  onLoad(window.location.href);
 })();"""
 
 
@@ -136,6 +134,7 @@ def run_site(site, domain, args, timeout=None):
   if args.replay_wpr:
     timeout *= 1 + args.refresh
     timeout += 1
+  retries_since_good_run = 0
   while count == 0 or args.repeat is not None and count < args.repeat:
     count += 1
     result = result_template.format(domain=domain, count=count)
@@ -152,16 +151,20 @@ def run_site(site, domain, args, timeout=None):
         if args.js_flags: js_flags += " " + args.js_flags
         chrome_flags = [
             "--no-default-browser-check",
+            "--no-sandbox",
             "--disable-translate",
             "--js-flags={}".format(js_flags),
             "--no-first-run",
             "--user-data-dir={}".format(user_data_dir),
         ]
         if args.replay_wpr:
+          http_port = 4080 + args.port_offset
+          https_port = 4443 + args.port_offset
           chrome_flags += [
-              "--host-resolver-rules=MAP *:80 localhost:4080, "  \
-                                    "MAP *:443 localhost:4443, " \
-                                    "EXCLUDE localhost",
+              "--host-resolver-rules=MAP *:80 localhost:%s, "  \
+                                    "MAP *:443 localhost:%s, " \
+                                    "EXCLUDE localhost" % (
+                                        http_port, https_port),
               "--ignore-certificate-errors",
               "--disable-seccomp-sandbox",
               "--disable-web-security",
@@ -182,7 +185,8 @@ def run_site(site, domain, args, timeout=None):
         print_command(cmd_args)
         print "- " * 40
         with open(result, "wt") as f:
-          status = subprocess.call(cmd_args, stdout=f)
+          with open(args.log_stderr or os.devnull, 'at') as err:
+            status = subprocess.call(cmd_args, stdout=f, stderr=err)
         # 124 means timeout killed chrome, 0 means the user was bored first!
         # If none of these two happened, then chrome apparently crashed, so
         # it must be called again.
@@ -195,9 +199,13 @@ def run_site(site, domain, args, timeout=None):
             with open(result, "at") as f:
               print >> f
               print >> f, "URL: {}".format(site)
+          retries_since_good_run = 0
           break
-        if retries <= 6: timeout += 2 ** (retries-1)
-        print("EMPTY RESULT, REPEATING RUN");
+        if retries_since_good_run < 6:
+          timeout += 2 ** retries_since_good_run
+          retries_since_good_run += 1
+        print("EMPTY RESULT, REPEATING RUN ({})".format(
+            retries_since_good_run));
       finally:
         if not args.user_data_dir:
           shutil.rmtree(user_data_dir)
@@ -211,7 +219,7 @@ def read_sites_file(args):
         for item in json.load(f):
           if 'timeout' not in item:
             # This is more-or-less arbitrary.
-            item['timeout'] = int(2.5 * item['timeline'] + 3)
+            item['timeout'] = int(1.5 * item['timeline'] + 7)
           if item['timeout'] > args.timeout: item['timeout'] = args.timeout
           sites.append(item)
     except ValueError:
@@ -237,11 +245,17 @@ def do_run(args):
   domains = {}
   for item in sites:
     site = item['url']
-    m = re.match(r'^(https?://)?([^/]+)(/.*)?$', site)
-    if not m:
-      args.error("Invalid URL {}.".format(site))
-      continue
-    domain = m.group(2)
+    domain = None
+    if args.domain:
+      domain = args.domain
+    elif 'domain' in item:
+      domain = item['domain']
+    else:
+      m = re.match(r'^(https?://)?([^/]+)(/.*)?$', site)
+      if not m:
+        args.error("Invalid URL {}.".format(site))
+        continue
+      domain = m.group(2)
     entry = [site, domain, None, item['timeout']]
     if domain not in domains:
       domains[domain] = entry
@@ -296,10 +310,25 @@ def statistics(data):
            'stddev': stddev, 'min': low, 'max': high, 'ci': ci }
 
 
-def read_stats(path, S):
+def read_stats(path, domain, args):
+  groups = [];
+  if args.aggregate:
+    groups = [
+        ('Group-IC', re.compile(".*IC.*")),
+        ('Group-Optimize',
+         re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
+        ('Group-Compile', re.compile("Compile.*")),
+        ('Group-Parse', re.compile("Parse.*")),
+        ('Group-Callback', re.compile("Callback$")),
+        ('Group-API', re.compile("API.*")),
+        ('Group-GC', re.compile("GC|AllocateInTargetSpace")),
+        ('Group-JavaScript', re.compile("JS_Execution")),
+        ('Group-Runtime', re.compile(".*"))]
   with open(path, "rt") as f:
     # Process the whole file and sum repeating entries.
-    D = { 'Sum': {'time': 0, 'count': 0} }
+    entries = { 'Sum': {'time': 0, 'count': 0} }
+    for group_name, regexp in groups:
+      entries[group_name] = { 'time': 0, 'count': 0 }
     for line in f:
       line = line.strip()
       # Discard headers and footers.
@@ -314,18 +343,23 @@ def read_stats(path, S):
       key = fields[0]
       time = float(fields[1].replace("ms", ""))
       count = int(fields[3])
-      if key not in D: D[key] = { 'time': 0, 'count': 0 }
-      D[key]['time'] += time
-      D[key]['count'] += count
+      if key not in entries: entries[key] = { 'time': 0, 'count': 0 }
+      entries[key]['time'] += time
+      entries[key]['count'] += count
       # We calculate the sum, if it's not the "total" line.
       if key != "Total":
-        D['Sum']['time'] += time
-        D['Sum']['count'] += count
-    # Append the sums as single entries to S.
-    for key in D:
-      if key not in S: S[key] = { 'time_list': [], 'count_list': [] }
-      S[key]['time_list'].append(D[key]['time'])
-      S[key]['count_list'].append(D[key]['count'])
+        entries['Sum']['time'] += time
+        entries['Sum']['count'] += count
+        for group_name, regexp in groups:
+          if not regexp.match(key): continue
+          entries[group_name]['time'] += time
+          entries[group_name]['count'] += count
+          break
+    # Append the sums as single entries to domain.
+    for key in entries :
+      if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
+      domain[key]['time_list'].append(entries[key]['time'])
+      domain[key]['count_list'].append(entries[key]['count'])
 
 
 def print_stats(S, args):
@@ -364,7 +398,7 @@ def print_stats(S, args):
   # Print and calculate partial sums, if necessary.
   for i in range(low, high):
     print_entry(*L[i])
-    if args.totals and args.limit != 0:
+    if args.totals and args.limit != 0 and not args.aggregate:
       if i == low:
         partial = { 'time_list': [0] * len(L[i][1]['time_list']),
                     'count_list': [0] * len(L[i][1]['count_list']) }
@@ -377,7 +411,7 @@ def print_stats(S, args):
   # Print totals, if necessary.
   if args.totals:
     print '-' * 80
-    if args.limit != 0:
+    if args.limit != 0 and not args.aggregate:
       partial['time_stat'] = statistics(partial['time_list'])
       partial['count_stat'] = statistics(partial['count_list'])
       print_entry("Partial", partial)
@@ -386,55 +420,86 @@ def print_stats(S, args):
 
 
 def do_stats(args):
-  T = {}
+  domains = {}
   for path in args.logfiles:
     filename = os.path.basename(path)
     m = re.match(r'^([^#]+)(#.*)?$', filename)
     domain = m.group(1)
-    if domain not in T: T[domain] = {}
-    read_stats(path, T[domain])
-  for i, domain in enumerate(sorted(T)):
-    if len(T) > 1:
+    if domain not in domains: domains[domain] = {}
+    read_stats(path, domains[domain], args)
+  if args.aggregate:
+    create_total_page_stats(domains, args)
+  for i, domain in enumerate(sorted(domains)):
+    if len(domains) > 1:
       if i > 0: print
       print "{}:".format(domain)
       print '=' * 80
-    S = T[domain]
-    for key in S:
-      S[key]['time_stat'] = statistics(S[key]['time_list'])
-      S[key]['count_stat'] = statistics(S[key]['count_list'])
-    print_stats(S, args)
+    domain_stats = domains[domain]
+    for key in domain_stats:
+      domain_stats[key]['time_stat'] = \
+          statistics(domain_stats[key]['time_list'])
+      domain_stats[key]['count_stat'] = \
+          statistics(domain_stats[key]['count_list'])
+    print_stats(domain_stats, args)
+
+
+# Create a Total page with all entries summed up.
+def create_total_page_stats(domains, args):
+  total = {}
+  def sum_up(parent, key, other):
+    sums = parent[key]
+    for i, item in enumerate(other[key]):
+      if i >= len(sums):
+        sums.extend([0] * (i - len(sums) + 1))
+      if item is not None:
+        sums[i] += item
+  # Sum up all the entries/metrics from all domains
+  for domain, entries in domains.items():
+    for key, domain_stats in entries.items():
+      if key not in total:
+        total[key] = {}
+        total[key]['time_list'] = list(domain_stats['time_list'])
+        total[key]['count_list'] = list(domain_stats['count_list'])
+      else:
+        sum_up(total[key], 'time_list', domain_stats)
+        sum_up(total[key], 'count_list', domain_stats)
+  # Add a new "Total" page containing the summed up metrics.
+  domains['Total'] = total
 
 
 # Generate JSON file.
 
 def do_json(args):
-  J = {}
+  versions = {}
   for path in args.logdirs:
     if os.path.isdir(path):
       for root, dirs, files in os.walk(path):
         version = os.path.basename(root)
-        if version not in J: J[version] = {}
+        if version not in versions: versions[version] = {}
         for filename in files:
           if filename.endswith(".txt"):
             m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
             domain = m.group(1)
-            if domain not in J[version]: J[version][domain] = {}
-            read_stats(os.path.join(root, filename), J[version][domain])
-  for version, T in J.items():
-    for domain, S in T.items():
-      A = []
-      for name, value in S.items():
+            if domain not in versions[version]: versions[version][domain] = {}
+            read_stats(os.path.join(root, filename),
+                       versions[version][domain], args)
+  for version, domains in versions.items():
+    if args.aggregate:
+      create_total_page_stats(domains, args)
+    for domain, entries in domains.items():
+      stats = []
+      for name, value in entries.items():
         # We don't want the calculated sum in the JSON file.
         if name == "Sum": continue
         entry = [name]
         for x in ['time_list', 'count_list']:
-          s = statistics(S[name][x])
+          s = statistics(entries[name][x])
           entry.append(round(s['average'], 1))
           entry.append(round(s['ci']['abs'], 1))
           entry.append(round(s['ci']['perc'], 2))
-        A.append(entry)
-      T[domain] = A
-  print json.dumps(J, separators=(',', ':'))
+        stats.append(entry)
+      domains[domain] = stats
+  print json.dumps(versions, separators=(',', ':'))
 
 
 # Help.
@@ -472,6 +537,9 @@ def main():
       "--js-flags", type=str, default="",
       help="specify additional V8 flags")
   subparsers["run"].add_argument(
+      "--domain", type=str, default="",
+      help="specify the output file domain name")
+  subparsers["run"].add_argument(
       "--no-url", dest="print_url", action="store_false", default=True,
       help="do not include url in statistics file")
   subparsers["run"].add_argument(
@@ -497,12 +565,18 @@ def main():
       "-t", "--timeout", type=int, metavar="<seconds>", default=60,
       help="specify seconds before chrome is killed")
   subparsers["run"].add_argument(
+      "-p", "--port-offset", type=int, metavar="<offset>", default=0,
+      help="specify the offset for the replay server's default ports")
+  subparsers["run"].add_argument(
       "-u", "--user-data-dir", type=str, metavar="<path>",
       help="specify user data dir (default is temporary)")
   subparsers["run"].add_argument(
       "-c", "--with-chrome", type=str, metavar="<path>",
       default="/usr/bin/google-chrome",
       help="specify chrome executable to use")
+  subparsers["run"].add_argument(
+      "-l", "--log-stderr", type=str, metavar="<path>",
+      help="specify where chrome's stderr should go (default: /dev/null)")
   subparsers["run"].add_argument(
       "sites", type=str, metavar="<URL>", nargs="*",
       help="specify benchmark website")
@@ -523,6 +597,10 @@ def main():
   subparsers["stats"].add_argument(
       "logfiles", type=str, metavar="<logfile>", nargs="*",
       help="specify log files to parse")
+  subparsers["stats"].add_argument(
+      "--aggregate", dest="aggregate", action="store_true", default=False,
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " +
+      "Additionally creates a Total page with all entries.")
   # Command: json.
   subparsers["json"] = subparser_adder.add_parser(
       "json", help="json --help")
@@ -531,6 +609,10 @@ def main():
   subparsers["json"].add_argument(
       "logdirs", type=str, metavar="<logdir>", nargs="*",
       help="specify directories with log files to parse")
+  subparsers["json"].add_argument(
+      "--aggregate", dest="aggregate", action="store_true", default=False,
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " +
+      "Additionally creates a Total page with all entries.")
   # Command: help.
   subparsers["help"] = subparser_adder.add_parser(
       "help", help="help information")
