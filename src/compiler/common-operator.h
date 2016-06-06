@@ -136,6 +136,8 @@ bool operator!=(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs);
 std::ostream& operator<<(std::ostream&, RelocatablePtrConstantInfo const&);
 size_t hash_value(RelocatablePtrConstantInfo const& p);
+std::ostream& operator<<(std::ostream& os,
+                         const ZoneVector<MachineType>* types);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.

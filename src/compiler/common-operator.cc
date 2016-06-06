@@ -167,6 +167,20 @@ std::ostream& operator<<(std::ostream& os,
   return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const ZoneVector<MachineType>* types) {
+  // Print all the MachineTypes, separated by commas.
+  bool first = true;
+  for (MachineType elem : *types) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << elem;
+  }
+  return os;
+}
+
 #define CACHED_OP_LIST(V)                                    \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)             \
   V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 1, 1)     \
