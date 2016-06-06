@@ -250,6 +250,33 @@ function ResolvePromise(promise, resolution) {
     } catch (e) {
       return RejectPromise(promise, e);
     }
+
+    // Resolution is a native promise and if it's already resolved or
+    // rejected, shortcircuit the resolution procedure by directly
+    // reusing the value from the promise.
+    if (IsPromise(resolution) && then === PromiseThen) {
+      var thenableState = GET_PRIVATE(resolution, promiseStateSymbol);
+      if (thenableState === kFulfilled) {
+        // This goes inside the if-else to save one symbol lookup in
+        // the slow path.
+        var thenableValue = GET_PRIVATE(resolution, promiseResultSymbol);
+        FulfillPromise(promise, kFulfilled, thenableValue,
+                       promiseFulfillReactionsSymbol);
+        SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+        return;
+      } else if (thenableState === kRejected) {
+        var thenableValue = GET_PRIVATE(resolution, promiseResultSymbol);
+        if (!HAS_DEFINED_PRIVATE(resolution, promiseHasHandlerSymbol)) {
+          // Promise has already been rejected, but had no handler.
+          // Revoke previously triggered reject event.
+          %PromiseRevokeReject(resolution);
+        }
+        RejectPromise(promise, thenableValue);
+        SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
+        return;
+      }
+    }
+
     if (IS_CALLABLE(then)) {
       // PromiseResolveThenableJob
       var id, name, instrumenting = DEBUG_IS_ACTIVE;
