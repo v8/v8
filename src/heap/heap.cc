@@ -1628,6 +1628,13 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
+  if (UsingEmbedderHeapTracer()) {
+    // Register found wrappers with embedder so he can add them to his marking
+    // deque and correctly manage the case when v8 scavenger collects the
+    // wrappers by either keeping wrappables alive, or cleaning marking deque.
+    mark_compact_collector()->RegisterWrappersWithEmbedderHeapTracer();
+  }
+
   array_buffer_tracker()->PrepareDiscoveryInNewSpace();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has

@@ -2123,8 +2123,10 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   bool work_to_do = true;
   while (work_to_do) {
     if (UsingEmbedderHeapTracer()) {
-      embedder_heap_tracer()->TraceWrappersFrom(wrappers_to_trace_);
-      wrappers_to_trace_.clear();
+      RegisterWrappersWithEmbedderHeapTracer();
+      embedder_heap_tracer()->AdvanceTracing(
+          0, EmbedderHeapTracer::AdvanceTracingActions(
+                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
     if (!only_process_harmony_weak_collections) {
       isolate()->global_handles()->IterateObjectGroups(
@@ -2241,6 +2243,15 @@ void MarkCompactCollector::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   embedder_heap_tracer_ = tracer;
 }
 
+void MarkCompactCollector::RegisterWrappersWithEmbedderHeapTracer() {
+  DCHECK(UsingEmbedderHeapTracer());
+  if (wrappers_to_trace_.empty()) {
+    return;
+  }
+  embedder_heap_tracer()->RegisterV8References(wrappers_to_trace_);
+  wrappers_to_trace_.clear();
+}
+
 void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->WasConstructedFromApiFunction());
   if (js_object->GetInternalFieldCount() >= 2 &&
@@ -2248,7 +2259,7 @@ void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
       js_object->GetInternalField(0) != heap_->undefined_value() &&
       js_object->GetInternalField(1) != heap_->undefined_value()) {
     DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
-    wrappers_to_trace().push_back(std::pair<void*, void*>(
+    wrappers_to_trace_.push_back(std::pair<void*, void*>(
         reinterpret_cast<void*>(js_object->GetInternalField(0)),
         reinterpret_cast<void*>(js_object->GetInternalField(1))));
   }

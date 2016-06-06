@@ -613,9 +613,7 @@ class MarkCompactCollector {
 
   Sweeper& sweeper() { return sweeper_; }
 
-  std::vector<std::pair<void*, void*>>& wrappers_to_trace() {
-    return wrappers_to_trace_;
-  }
+  void RegisterWrappersWithEmbedderHeapTracer();
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 

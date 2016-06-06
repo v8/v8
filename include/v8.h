@@ -5468,18 +5468,44 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  */
 class V8_EXPORT EmbedderHeapTracer {
  public:
+  enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
+  struct AdvanceTracingActions {
+    explicit AdvanceTracingActions(ForceCompletionAction force_completion_)
+        : force_completion(force_completion_) {}
+
+    ForceCompletionAction force_completion;
+  };
+  /**
+   * V8 will call this method with internal fields of found wrappers.
+   * Embedder is expected to store them in it's marking deque and trace
+   * reachable wrappers from them when asked by AdvanceTracing method.
+   */
+  // TODO(hlopko): Make pure virtual after migration
+  virtual void RegisterV8References(
+      const std::vector<std::pair<void*, void*> >& internal_fields) {}
+  /**
+   * **Deprecated**
+   */
+  // TODO(hlopko): Remove after migration
+  virtual void TraceWrappersFrom(
+      const std::vector<std::pair<void*, void*> >& internal_fields) {}
   /**
    * V8 will call this method at the beginning of the gc cycle.
    */
   virtual void TracePrologue() = 0;
   /**
-   * V8 will call this method with internal fields of a potential wrappers.
-   * Embedder is expected to trace its heap (synchronously) and call
-   * PersistentBase::RegisterExternalReference() on all wrappers reachable from
-   * any of the given wrappers.
+   * Embedder is expected to trace its heap starting from wrappers reported by
+   * RegisterV8References method, and call
+   * PersistentBase::RegisterExternalReference() on all reachable wrappers.
+   * Embedder is expected to stop tracing by the given deadline.
+   *
+   * Returns true if there is still work to do.
    */
-  virtual void TraceWrappersFrom(
-      const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
+  // TODO(hlopko): Make pure virtual after migration
+  virtual bool AdvanceTracing(double deadline_in_ms,
+                              AdvanceTracingActions actions) {
+    return false;
+  }
   /**
    * V8 will call this method at the end of the gc cycle. Allocation is *not*
    * allowed in the TraceEpilogue.
