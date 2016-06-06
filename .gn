@@ -38,4 +38,5 @@ exec_script_whitelist = [
   "//build/toolchain/gcc_toolchain.gni",
   "//build/toolchain/mac/BUILD.gn",
   "//build/toolchain/win/BUILD.gn",
+  "//test/test262/BUILD.gn",
 ]
