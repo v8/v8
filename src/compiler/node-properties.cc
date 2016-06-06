@@ -239,6 +239,7 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
 Node* NodeProperties::FindFrameStateBefore(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   while (effect->opcode() != IrOpcode::kCheckpoint) {
+    if (effect->opcode() == IrOpcode::kDead) return effect;
     DCHECK_EQ(1, effect->op()->EffectInputCount());
     effect = NodeProperties::GetEffectInput(effect);
   }
