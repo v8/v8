@@ -13,6 +13,10 @@ namespace internal {
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode) {
+  if (FLAG_tf_load_ic_stub) {
+    LoadICTrampolineTFStub stub(isolate, LoadICState(typeof_mode));
+    return Callable(stub.GetCode(), LoadDescriptor(isolate));
+  }
   LoadICTrampolineStub stub(isolate, LoadICState(typeof_mode));
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }

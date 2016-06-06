@@ -529,6 +529,25 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   return raw_assembler_->TailCallN(call_descriptor, target, args);
 }
 
+Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, Node* arg3, Node* arg4,
+                                  size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(5);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = context;
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
+}
+
 Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& interface_descriptor,
     Node* code_target_address, Node** args) {

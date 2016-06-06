@@ -12,6 +12,8 @@ namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
+class StatsCounter;
+class StubCache;
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -102,6 +104,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
 
+  // Load value from current frame by given offset in bytes.
+  compiler::Node* LoadFromFrame(int offset,
+                                MachineType rep = MachineType::AnyTagged());
+  // Load value from current parent frame by given offset in bytes.
+  compiler::Node* LoadFromParentFrame(
+      int offset, MachineType rep = MachineType::AnyTagged());
+
   // Load an object pointer from a buffer that isn't in the heap.
   compiler::Node* LoadBufferObject(compiler::Node* buffer, int offset,
                                    MachineType rep = MachineType::AnyTagged());
@@ -146,6 +155,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadStringLength(compiler::Node* object);
   // Load value field of a JSValue object.
   compiler::Node* LoadJSValueValue(compiler::Node* object);
+  // Load value field of a WeakCell object.
+  compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell);
 
   compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
@@ -280,6 +291,65 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
+  // LoadIC helpers.
+  struct LoadICParameters {
+    LoadICParameters(compiler::Node* context, compiler::Node* receiver,
+                     compiler::Node* name, compiler::Node* slot,
+                     compiler::Node* vector)
+        : context(context),
+          receiver(receiver),
+          name(name),
+          slot(slot),
+          vector(vector) {}
+
+    compiler::Node* context;
+    compiler::Node* receiver;
+    compiler::Node* name;
+    compiler::Node* slot;
+    compiler::Node* vector;
+  };
+
+  // Load type feedback vector from the stub caller's frame.
+  compiler::Node* LoadTypeFeedbackVectorForStub();
+
+  compiler::Node* LoadReceiverMap(compiler::Node* receiver);
+
+  // Checks monomorphic case. Returns {feedback} entry of the vector.
+  compiler::Node* TryMonomorphicCase(const LoadICParameters* p,
+                                     compiler::Node* receiver_map,
+                                     Label* if_handler, Variable* var_handler,
+                                     Label* if_miss);
+  void HandlePolymorphicCase(const LoadICParameters* p,
+                             compiler::Node* receiver_map,
+                             compiler::Node* feedback, Label* if_handler,
+                             Variable* var_handler, Label* if_miss,
+                             int unroll_count);
+
+  compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
+                                         Code::Flags flags,
+                                         compiler::Node* map);
+
+  compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
+                                           Code::Flags flags,
+                                           compiler::Node* seed);
+
+  // This enum is used here as a replacement for StubCache::Table to avoid
+  // including stub cache header.
+  enum StubCacheTable : int;
+
+  void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
+                              compiler::Node* entry_offset,
+                              compiler::Node* name, Code::Flags flags,
+                              compiler::Node* map, Label* if_handler,
+                              Variable* var_handler, Label* if_miss);
+
+  void TryProbeStubCache(StubCache* stub_cache, Code::Flags flags,
+                         compiler::Node* receiver, compiler::Node* name,
+                         Label* if_handler, Variable* var_handler,
+                         Label* if_miss);
+
+  void LoadIC(const LoadICParameters* p, Label* if_miss);
+
  private:
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,
@@ -299,5 +369,4 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
 }  // namespace internal
 }  // namespace v8
-
 #endif  // V8_CODE_STUB_ASSEMBLER_H_

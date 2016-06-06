@@ -75,12 +75,14 @@ Code* StubCache::Get(Name* name, Map* map, Code::Flags flags) {
   flags = CommonStubCacheChecks(name, map, flags);
   int primary_offset = PrimaryOffset(name, flags, map);
   Entry* primary = entry(primary_, primary_offset);
-  if (primary->key == name && primary->map == map) {
+  if (primary->key == name && primary->map == map &&
+      flags == Code::RemoveHolderFromFlags(primary->value->flags())) {
     return primary->value;
   }
   int secondary_offset = SecondaryOffset(name, flags, primary_offset);
   Entry* secondary = entry(secondary_, secondary_offset);
-  if (secondary->key == name && secondary->map == map) {
+  if (secondary->key == name && secondary->map == map &&
+      flags == Code::RemoveHolderFromFlags(secondary->value->flags())) {
     return secondary->value;
   }
   return NULL;

@@ -92,9 +92,24 @@ class StubCache {
   // automatically discards the hash bit field.
   static const int kCacheIndexShift = Name::kHashShift;
 
- private:
+  static const int kPrimaryTableBits = 11;
+  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
+  static const int kSecondaryTableBits = 9;
+  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
+
+  static int PrimaryOffsetForTesting(Name* name, Code::Flags flags, Map* map) {
+    return PrimaryOffset(name, flags, map);
+  }
+
+  static int SecondaryOffsetForTesting(Name* name, Code::Flags flags,
+                                       int seed) {
+    return SecondaryOffset(name, flags, seed);
+  }
+
+  // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
 
+ private:
   // The stub cache has a primary and secondary level.  The two levels have
   // different hashing algorithms in order to avoid simultaneous collisions
   // in both caches.  Unlike a probing strategy (quadratic or otherwise) the
@@ -149,11 +164,6 @@ class StubCache {
     return reinterpret_cast<Entry*>(reinterpret_cast<Address>(table) +
                                     offset * multiplier);
   }
-
-  static const int kPrimaryTableBits = 11;
-  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
-  static const int kSecondaryTableBits = 9;
-  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
  private:
   Entry primary_[kPrimaryTableSize];

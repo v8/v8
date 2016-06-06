@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/ic/stub-cache.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -40,6 +41,17 @@ class CodeStubAssemblerTester : private ZoneHolder, public CodeStubAssembler {
         CodeStubAssembler(isolate, ZoneHolder::zone(), parameter_count,
                           Code::ComputeFlags(Code::FUNCTION), "test"),
         scope_(isolate) {}
+
+  // This constructor is intended to be used for creating code objects with
+  // specific flags.
+  CodeStubAssemblerTester(Isolate* isolate, Code::Flags flags)
+      : ZoneHolder(isolate),
+        CodeStubAssembler(isolate, ZoneHolder::zone(), 0, flags, "test"),
+        scope_(isolate) {}
+
+  Handle<Code> GenerateCodeCloseAndEscape() {
+    return scope_.CloseAndEscape(GenerateCode());
+  }
 
  private:
   HandleScope scope_;
@@ -1117,6 +1129,276 @@ TEST(TestOutOfScopeVariable) {
   }
   m.Bind(&block1);
   CHECK(!m.GenerateCode().is_null());
+}
+
+namespace {
+
+void TestStubCacheOffsetCalculation(StubCache::Table table,
+                                    Code::Kind handler_kind) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int param_count = 2;
+  CodeStubAssemblerTester m(isolate, param_count);
+
+  Code::Flags code_flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(handler_kind));
+  {
+    Node* name = m.Parameter(0);
+    Node* map = m.Parameter(1);
+    Node* primary_offset = m.StubCachePrimaryOffset(name, code_flags, map);
+    Node* result;
+    if (table == StubCache::kPrimary) {
+      result = primary_offset;
+    } else {
+      CHECK_EQ(StubCache::kSecondary, table);
+      result = m.StubCacheSecondaryOffset(name, code_flags, primary_offset);
+    }
+    m.Return(m.SmiFromWord32(result));
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, param_count);
+
+  Factory* factory = isolate->factory();
+  Handle<Name> names[] = {
+      factory->NewSymbol(),
+      factory->InternalizeUtf8String("a"),
+      factory->InternalizeUtf8String("bb"),
+      factory->InternalizeUtf8String("ccc"),
+      factory->NewPrivateSymbol(),
+      factory->InternalizeUtf8String("dddd"),
+      factory->InternalizeUtf8String("eeeee"),
+      factory->InternalizeUtf8String("name"),
+      factory->NewSymbol(),
+      factory->NewPrivateSymbol(),
+  };
+
+  Handle<Map> maps[] = {
+      Handle<Map>(nullptr, isolate),
+      factory->cell_map(),
+      Map::Create(isolate, 0),
+      factory->meta_map(),
+      factory->code_map(),
+      Map::Create(isolate, 0),
+      factory->hash_table_map(),
+      factory->symbol_map(),
+      factory->string_map(),
+      Map::Create(isolate, 0),
+      factory->sloppy_arguments_elements_map(),
+  };
+
+  for (int name_index = 0; name_index < arraysize(names); name_index++) {
+    Handle<Name> name = names[name_index];
+    for (int map_index = 0; map_index < arraysize(maps); map_index++) {
+      Handle<Map> map = maps[map_index];
+
+      int expected_result;
+      {
+        int primary_offset =
+            StubCache::PrimaryOffsetForTesting(*name, code_flags, *map);
+        if (table == StubCache::kPrimary) {
+          expected_result = primary_offset;
+        } else {
+          expected_result = StubCache::SecondaryOffsetForTesting(
+              *name, code_flags, primary_offset);
+        }
+      }
+      Handle<Object> result = ft.Call(name, map).ToHandleChecked();
+
+      Smi* expected = Smi::FromInt(expected_result & Smi::kMaxValue);
+      CHECK_EQ(expected, Smi::cast(*result));
+    }
+  }
+}
+
+}  // namespace
+
+TEST(StubCachePrimaryOffsetLoadIC) {
+  TestStubCacheOffsetCalculation(StubCache::kPrimary, Code::LOAD_IC);
+}
+
+TEST(StubCachePrimaryOffsetStoreIC) {
+  TestStubCacheOffsetCalculation(StubCache::kPrimary, Code::STORE_IC);
+}
+
+TEST(StubCacheSecondaryOffsetLoadIC) {
+  TestStubCacheOffsetCalculation(StubCache::kSecondary, Code::LOAD_IC);
+}
+
+TEST(StubCacheSecondaryOffsetStoreIC) {
+  TestStubCacheOffsetCalculation(StubCache::kSecondary, Code::STORE_IC);
+}
+
+namespace {
+
+Handle<Code> CreateCodeWithFlags(Code::Flags flags) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeStubAssemblerTester m(isolate, flags);
+  m.Return(m.UndefinedConstant());
+  return m.GenerateCodeCloseAndEscape();
+}
+
+}  // namespace
+
+TEST(TryProbeStubCache) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int param_count = 3;
+  CodeStubAssemblerTester m(isolate, param_count);
+
+  Code::Flags flags_to_query =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
+
+  StubCache stub_cache(isolate);
+  stub_cache.Clear();
+
+  {
+    Node* receiver = m.Parameter(0);
+    Node* name = m.Parameter(1);
+    Node* expected_handler = m.Parameter(2);
+
+    Label passed(&m), failed(&m);
+
+    Variable var_handler(&m, MachineRepresentation::kTagged);
+    Label if_handler(&m), if_miss(&m);
+
+    m.TryProbeStubCache(&stub_cache, flags_to_query, receiver, name,
+                        &if_handler, &var_handler, &if_miss);
+    m.Bind(&if_handler);
+    m.BranchIfWordEqual(expected_handler, var_handler.value(), &passed,
+                        &failed);
+
+    m.Bind(&if_miss);
+    m.BranchIfWordEqual(expected_handler, m.IntPtrConstant(0), &passed,
+                        &failed);
+
+    m.Bind(&passed);
+    m.Return(m.BooleanConstant(true));
+
+    m.Bind(&failed);
+    m.Return(m.BooleanConstant(false));
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, param_count);
+
+  std::vector<Handle<Name>> names;
+  std::vector<Handle<JSObject>> receivers;
+  std::vector<Handle<Code>> handlers;
+
+  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+
+  Factory* factory = isolate->factory();
+
+  // Generate some number of names.
+  for (int i = 0; i < StubCache::kPrimaryTableSize / 7; i++) {
+    Handle<Name> name;
+    switch (rand_gen.NextInt(3)) {
+      case 0: {
+        // Generate string.
+        std::stringstream ss;
+        ss << "s" << std::hex
+           << (rand_gen.NextInt(Smi::kMaxValue) % StubCache::kPrimaryTableSize);
+        name = factory->InternalizeUtf8String(ss.str().c_str());
+        break;
+      }
+      case 1: {
+        // Generate number string.
+        std::stringstream ss;
+        ss << (rand_gen.NextInt(Smi::kMaxValue) % StubCache::kPrimaryTableSize);
+        name = factory->InternalizeUtf8String(ss.str().c_str());
+        break;
+      }
+      case 2: {
+        // Generate symbol.
+        name = factory->NewSymbol();
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    names.push_back(name);
+  }
+
+  // Generate some number of receiver maps and receivers.
+  for (int i = 0; i < StubCache::kSecondaryTableSize / 2; i++) {
+    Handle<Map> map = Map::Create(isolate, 0);
+    receivers.push_back(factory->NewJSObjectFromMap(map));
+  }
+
+  // Generate some number of handlers.
+  for (int i = 0; i < StubCache::kSecondaryTableSize; i++) {
+    Code::Kind code_kind;
+    switch (rand_gen.NextInt(4)) {
+      case 0:
+        code_kind = Code::LOAD_IC;
+        break;
+      case 1:
+        code_kind = Code::KEYED_LOAD_IC;
+        break;
+      case 2:
+        code_kind = Code::STORE_IC;
+        break;
+      case 3:
+        code_kind = Code::KEYED_STORE_IC;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    Code::Flags flags =
+        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(code_kind));
+    handlers.push_back(CreateCodeWithFlags(flags));
+  }
+
+  // Ensure that GC does happen because from now on we are going to fill our
+  // own stub cache instance with raw values.
+  DisallowHeapAllocation no_gc;
+
+  // Populate {stub_cache}.
+  const int N = StubCache::kPrimaryTableSize + StubCache::kSecondaryTableSize;
+  for (int i = 0; i < N; i++) {
+    int index = rand_gen.NextInt();
+    Handle<Name> name = names[index % names.size()];
+    Handle<JSObject> receiver = receivers[index % receivers.size()];
+    Handle<Code> handler = handlers[index % handlers.size()];
+    stub_cache.Set(*name, receiver->map(), *handler);
+  }
+
+  // Perform some queries.
+  bool queried_existing = false;
+  bool queried_non_existing = false;
+  for (int i = 0; i < N; i++) {
+    int index = rand_gen.NextInt();
+    Handle<Name> name = names[index % names.size()];
+    Handle<JSObject> receiver = receivers[index % receivers.size()];
+    Code* handler = stub_cache.Get(*name, receiver->map(), flags_to_query);
+    if (handler == nullptr) {
+      queried_non_existing = true;
+    } else {
+      queried_existing = true;
+    }
+
+    Handle<Code> expected_handler(handler, isolate);
+    ft.CheckTrue(receiver, name, expected_handler);
+  }
+
+  for (int i = 0; i < N; i++) {
+    int index1 = rand_gen.NextInt();
+    int index2 = rand_gen.NextInt();
+    Handle<Name> name = names[index1 % names.size()];
+    Handle<JSObject> receiver = receivers[index2 % receivers.size()];
+    Code* handler = stub_cache.Get(*name, receiver->map(), flags_to_query);
+    if (handler == nullptr) {
+      queried_non_existing = true;
+    } else {
+      queried_existing = true;
+    }
+
+    Handle<Code> expected_handler(handler, isolate);
+    ft.CheckTrue(receiver, name, expected_handler);
+  }
+  // Ensure we performed both kind of queries.
+  CHECK(queried_existing && queried_non_existing);
 }
 
 }  // namespace internal

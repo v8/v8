@@ -443,7 +443,6 @@ void CompareICStub::Generate(MacroAssembler* masm) {
   }
 }
 
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator());
@@ -452,6 +451,45 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
                               name);
   GenerateAssembly(&assembler);
   return assembler.GenerateCode();
+}
+
+void LoadICTrampolineTFStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* slot = assembler->Parameter(2);
+  Node* context = assembler->Parameter(3);
+  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+
+  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
+  Label miss(assembler);
+  assembler->LoadIC(&p, &miss);
+
+  assembler->Bind(&miss);
+  assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
+                             slot, vector);
+}
+
+void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* slot = assembler->Parameter(2);
+  Node* vector = assembler->Parameter(3);
+  Node* context = assembler->Parameter(4);
+
+  CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
+  Label miss(assembler);
+  assembler->LoadIC(&p, &miss);
+
+  assembler->Bind(&miss);
+  assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
+                             slot, vector);
 }
 
 void AllocateHeapNumberStub::GenerateAssembly(

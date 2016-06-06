@@ -139,6 +139,8 @@ namespace internal {
   V(ToInteger)                              \
   V(ToLength)                               \
   V(HasProperty)                            \
+  V(LoadICTrampolineTF)                     \
+  V(LoadICTF)                               \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(KeyedLoadSloppyArguments)               \
@@ -2384,6 +2386,31 @@ class LoadICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(LoadICTrampoline, PlatformCodeStub);
 };
 
+class LoadICTrampolineTFStub : public TurboFanCodeStub {
+ public:
+  LoadICTrampolineTFStub(Isolate* isolate, const LoadICState& state)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
+
+  InlineCacheState GetICState() const final { return GENERIC; }
+
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ protected:
+  LoadICState state() const {
+    return LoadICState(static_cast<ExtraICState>(minor_key_));
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  DEFINE_CODE_STUB(LoadICTrampolineTF, TurboFanCodeStub);
+};
 
 class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
  public:
@@ -2481,6 +2508,24 @@ class LoadICStub : public PlatformCodeStub {
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
+class LoadICTFStub : public TurboFanCodeStub {
+ public:
+  explicit LoadICTFStub(Isolate* isolate, const LoadICState& state)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
+  InlineCacheState GetICState() const final { return GENERIC; }
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  DEFINE_CODE_STUB(LoadICTF, TurboFanCodeStub);
+};
 
 class KeyedLoadICStub : public PlatformCodeStub {
  public:

@@ -807,6 +807,9 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
 
 Handle<Code> LoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state) {
+  if (FLAG_tf_load_ic_stub) {
+    return LoadICTFStub(isolate, LoadICState(extra_state)).GetCode();
+  }
   return LoadICStub(isolate, LoadICState(extra_state)).GetCode();
 }
 
@@ -2245,7 +2248,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
 
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());

@@ -4,6 +4,9 @@
 
 #include "src/code-stub-assembler.h"
 #include "src/code-factory.h"
+#include "src/frames-inl.h"
+#include "src/frames.h"
+#include "src/ic/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -470,6 +473,17 @@ Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
   return InnerAllocate(previous, IntPtrConstant(offset));
 }
 
+compiler::Node* CodeStubAssembler::LoadFromFrame(int offset, MachineType rep) {
+  Node* frame_pointer = LoadFramePointer();
+  return Load(rep, frame_pointer, IntPtrConstant(offset));
+}
+
+compiler::Node* CodeStubAssembler::LoadFromParentFrame(int offset,
+                                                       MachineType rep) {
+  Node* frame_pointer = LoadParentFramePointer();
+  return Load(rep, frame_pointer, IntPtrConstant(offset));
+}
+
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
                                           MachineType rep) {
   return Load(rep, buffer, IntPtrConstant(offset));
@@ -554,6 +568,10 @@ Node* CodeStubAssembler::LoadStringLength(Node* object) {
 
 Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
   return LoadObjectField(object, JSValue::kValueOffset);
+}
+
+Node* CodeStubAssembler::LoadWeakCellValue(Node* weak_cell) {
+  return LoadObjectField(weak_cell, WeakCell::kValueOffset);
 }
 
 Node* CodeStubAssembler::AllocateUninitializedFixedArray(Node* length) {
@@ -1472,15 +1490,12 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
 }
 
 template <typename Dictionary>
-void CodeStubAssembler::NameDictionaryLookup(
-    Node* dictionary, Node* unique_name, Label* if_found_, Variable* var_entry,
-    Label* if_not_found, int inlined_probes) {
+void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
+                                             Node* unique_name, Label* if_found,
+                                             Variable* var_entry,
+                                             Label* if_not_found,
+                                             int inlined_probes) {
   DCHECK_EQ(MachineRepresentation::kWord32, var_entry->rep());
-
-  // TODO(ishell): Remove this trampoline block once crbug/615621 is fixed.
-  // This trampoline block is currently necessary here to generate a correct
-  // phi for |var_entry|.
-  Label if_found(this, var_entry);
 
   const int kElementsStartOffset =
       Dictionary::kElementsStartIndex * kPointerSize;
@@ -1500,7 +1515,7 @@ void CodeStubAssembler::NameDictionaryLookup(
     Node* current =
         LoadFixedArrayElement(dictionary, index, kElementsStartOffset);
     var_entry->Bind(entry);
-    GotoIf(WordEqual(current, unique_name), &if_found);
+    GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
     count = Int32Constant(i + 1);
@@ -1525,7 +1540,7 @@ void CodeStubAssembler::NameDictionaryLookup(
     Node* current =
         LoadFixedArrayElement(dictionary, index, kElementsStartOffset);
     GotoIf(WordEqual(current, undefined), if_not_found);
-    GotoIf(WordEqual(current, unique_name), &if_found);
+    GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
     count = Int32Add(count, Int32Constant(1));
@@ -1535,8 +1550,6 @@ void CodeStubAssembler::NameDictionaryLookup(
     var_entry->Bind(entry);
     Goto(&loop);
   }
-  Bind(&if_found);
-  Goto(if_found_);
 }
 
 // Instantiate template methods to workaround GCC compilation issue.
@@ -1981,6 +1994,278 @@ compiler::Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
       (element_size_shift >= 0)
           ? WordShl(index_node, IntPtrConstant(element_size_shift))
           : WordShr(index_node, IntPtrConstant(-element_size_shift)));
+}
+
+compiler::Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
+  Node* function =
+      LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
+  Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
+  return LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
+}
+
+compiler::Node* CodeStubAssembler::LoadReceiverMap(compiler::Node* receiver) {
+  Variable var_receiver_map(this, MachineRepresentation::kTagged);
+  // TODO(ishell): defer blocks when it works.
+  Label load_smi_map(this /*, Label::kDeferred*/), load_receiver_map(this),
+      if_result(this);
+
+  Branch(WordIsSmi(receiver), &load_smi_map, &load_receiver_map);
+  Bind(&load_smi_map);
+  {
+    var_receiver_map.Bind(LoadRoot(Heap::kHeapNumberMapRootIndex));
+    Goto(&if_result);
+  }
+  Bind(&load_receiver_map);
+  {
+    var_receiver_map.Bind(LoadMap(receiver));
+    Goto(&if_result);
+  }
+  Bind(&if_result);
+  return var_receiver_map.value();
+}
+
+compiler::Node* CodeStubAssembler::TryMonomorphicCase(
+    const LoadICParameters* p, compiler::Node* receiver_map, Label* if_handler,
+    Variable* var_handler, Label* if_miss) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
+
+  // TODO(ishell): add helper class that hides offset computations for a series
+  // of loads.
+  int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
+  Node* offset = ElementOffsetFromIndex(p->slot, FAST_HOLEY_ELEMENTS,
+                                        SMI_PARAMETERS, header_size);
+  Node* feedback = Load(MachineType::AnyTagged(), p->vector, offset);
+
+  // Try to quickly handle the monomorphic case without knowing for sure
+  // if we have a weak cell in feedback. We do know it's safe to look
+  // at WeakCell::kValueOffset.
+  GotoUnless(WordEqual(receiver_map, LoadWeakCellValue(feedback)), if_miss);
+
+  Node* handler = Load(MachineType::AnyTagged(), p->vector,
+                       IntPtrAdd(offset, IntPtrConstant(kPointerSize)));
+
+  var_handler->Bind(handler);
+  Goto(if_handler);
+  return feedback;
+}
+
+void CodeStubAssembler::HandlePolymorphicCase(
+    const LoadICParameters* p, compiler::Node* receiver_map,
+    compiler::Node* feedback, Label* if_handler, Variable* var_handler,
+    Label* if_miss, int unroll_count) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
+
+  // Iterate {feedback} array.
+  const int kEntrySize = 2;
+
+  for (int i = 0; i < unroll_count; i++) {
+    Label next_entry(this);
+    Node* cached_map = LoadWeakCellValue(
+        LoadFixedArrayElement(feedback, Int32Constant(i * kEntrySize)));
+    GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
+
+    // Found, now call handler.
+    Node* handler =
+        LoadFixedArrayElement(feedback, Int32Constant(i * kEntrySize + 1));
+    var_handler->Bind(handler);
+    Goto(if_handler);
+
+    Bind(&next_entry);
+  }
+  Node* length = SmiToWord32(LoadFixedArrayBaseLength(feedback));
+
+  // Loop from {unroll_count}*kEntrySize to {length}.
+  Variable var_index(this, MachineRepresentation::kWord32);
+  Label loop(this, &var_index);
+  var_index.Bind(Int32Constant(unroll_count * kEntrySize));
+  Goto(&loop);
+  Bind(&loop);
+  {
+    Node* index = var_index.value();
+    GotoIf(Int32GreaterThanOrEqual(index, length), if_miss);
+
+    Node* cached_map =
+        LoadWeakCellValue(LoadFixedArrayElement(feedback, index));
+
+    Label next_entry(this);
+    GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
+
+    // Found, now call handler.
+    Node* handler = LoadFixedArrayElement(feedback, index, kPointerSize);
+    var_handler->Bind(handler);
+    Goto(if_handler);
+
+    Bind(&next_entry);
+    var_index.Bind(Int32Add(index, Int32Constant(kEntrySize)));
+    Goto(&loop);
+  }
+}
+
+compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
+                                                          Code::Flags flags,
+                                                          compiler::Node* map) {
+  // See v8::internal::StubCache::PrimaryOffset().
+  STATIC_ASSERT(StubCache::kCacheIndexShift == Name::kHashShift);
+  // Compute the hash of the name (use entire hash field).
+  Node* hash_field = LoadNameHashField(name);
+  Assert(WordEqual(
+      Word32And(hash_field, Int32Constant(Name::kHashNotComputedMask)),
+      Int32Constant(0)));
+
+  // Using only the low bits in 64-bit mode is unlikely to increase the
+  // risk of collision even if the heap is spread over an area larger than
+  // 4Gb (and not at all if it isn't).
+  Node* hash = Int32Add(hash_field, map);
+  // We always set the in_loop bit to zero when generating the lookup code
+  // so do it here too so the hash codes match.
+  uint32_t iflags =
+      (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
+  // Base the offset on a simple combination of name, flags, and map.
+  hash = Word32Xor(hash, Int32Constant(iflags));
+  uint32_t mask = (StubCache::kPrimaryTableSize - 1)
+                  << StubCache::kCacheIndexShift;
+  return Word32And(hash, Int32Constant(mask));
+}
+
+compiler::Node* CodeStubAssembler::StubCacheSecondaryOffset(
+    compiler::Node* name, Code::Flags flags, compiler::Node* seed) {
+  // See v8::internal::StubCache::SecondaryOffset().
+
+  // Use the seed from the primary cache in the secondary cache.
+  Node* hash = Int32Sub(seed, name);
+  // We always set the in_loop bit to zero when generating the lookup code
+  // so do it here too so the hash codes match.
+  uint32_t iflags =
+      (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
+  hash = Int32Add(hash, Int32Constant(iflags));
+  int32_t mask = (StubCache::kSecondaryTableSize - 1)
+                 << StubCache::kCacheIndexShift;
+  return Word32And(hash, Int32Constant(mask));
+}
+
+enum CodeStubAssembler::StubCacheTable : int {
+  kPrimary = static_cast<int>(StubCache::kPrimary),
+  kSecondary = static_cast<int>(StubCache::kSecondary)
+};
+
+void CodeStubAssembler::TryProbeStubCacheTable(
+    StubCache* stub_cache, StubCacheTable table_id,
+    compiler::Node* entry_offset, compiler::Node* name, Code::Flags flags,
+    compiler::Node* map, Label* if_handler, Variable* var_handler,
+    Label* if_miss) {
+  StubCache::Table table = static_cast<StubCache::Table>(table_id);
+#ifdef DEBUG
+  if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
+    Goto(if_miss);
+  } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
+    Goto(if_miss);
+  }
+#endif
+  // The {table_offset} holds the entry offset times four (due to masking
+  // and shifting optimizations).
+  const int kMultiplier = sizeof(StubCache::Entry) >> Name::kHashShift;
+  entry_offset = Int32Mul(entry_offset, Int32Constant(kMultiplier));
+
+  // Check that the key in the entry matches the name.
+  Node* key_base =
+      ExternalConstant(ExternalReference(stub_cache->key_reference(table)));
+  Node* entry_key = Load(MachineType::Pointer(), key_base, entry_offset);
+  GotoIf(WordNotEqual(name, entry_key), if_miss);
+
+  // Get the map entry from the cache.
+  DCHECK_EQ(kPointerSize * 2, stub_cache->map_reference(table).address() -
+                                  stub_cache->key_reference(table).address());
+  Node* entry_map =
+      Load(MachineType::Pointer(), key_base,
+           Int32Add(entry_offset, Int32Constant(kPointerSize * 2)));
+  GotoIf(WordNotEqual(map, entry_map), if_miss);
+
+  // Check that the flags match what we're looking for.
+  DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
+                              stub_cache->key_reference(table).address());
+  Node* code = Load(MachineType::Pointer(), key_base,
+                    Int32Add(entry_offset, Int32Constant(kPointerSize)));
+
+  Node* code_flags =
+      LoadObjectField(code, Code::kFlagsOffset, MachineType::Uint32());
+  GotoIf(Word32NotEqual(Int32Constant(flags),
+                        Word32And(code_flags,
+                                  Int32Constant(~Code::kFlagsNotUsedInLookup))),
+         if_miss);
+
+  // We found the handler.
+  var_handler->Bind(code);
+  Goto(if_handler);
+}
+
+void CodeStubAssembler::TryProbeStubCache(
+    StubCache* stub_cache, Code::Flags flags, compiler::Node* receiver,
+    compiler::Node* name, Label* if_handler, Variable* var_handler,
+    Label* if_miss) {
+  Label try_secondary(this);
+
+  // Check that the {receiver} isn't a smi.
+  GotoIf(WordIsSmi(receiver), if_miss);
+
+  Node* receiver_map = LoadMap(receiver);
+
+  // Probe the primary table.
+  Node* primary_offset = StubCachePrimaryOffset(name, flags, receiver_map);
+  TryProbeStubCacheTable(stub_cache, kPrimary, primary_offset, name, flags,
+                         receiver_map, if_handler, var_handler, &try_secondary);
+
+  Bind(&try_secondary);
+  {
+    // Probe the secondary table.
+    Node* secondary_offset =
+        StubCacheSecondaryOffset(name, flags, primary_offset);
+    TryProbeStubCacheTable(stub_cache, kSecondary, secondary_offset, name,
+                           flags, receiver_map, if_handler, var_handler,
+                           if_miss);
+  }
+}
+
+void CodeStubAssembler::LoadIC(const LoadICParameters* p, Label* if_miss) {
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  // TODO(ishell): defer blocks when it works.
+  Label if_handler(this, &var_handler), try_polymorphic(this),
+      try_megamorphic(this /*, Label::kDeferred*/);
+
+  Node* receiver_map = LoadReceiverMap(p->receiver);
+
+  // Check monomorphic case.
+  Node* feedback = TryMonomorphicCase(p, receiver_map, &if_handler,
+                                      &var_handler, &try_polymorphic);
+  Bind(&if_handler);
+  {
+    LoadWithVectorDescriptor descriptor(isolate());
+    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
+                 p->name, p->slot, p->vector);
+  }
+
+  Bind(&try_polymorphic);
+  {
+    // Check polymorphic case.
+    GotoUnless(
+        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+        &try_megamorphic);
+    HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
+                          if_miss, 2);
+  }
+
+  Bind(&try_megamorphic);
+  {
+    // Check megamorphic case.
+    GotoUnless(
+        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+        if_miss);
+
+    Code::Flags code_flags =
+        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
+
+    TryProbeStubCache(isolate()->stub_cache(), code_flags, p->receiver, p->name,
+                      &if_handler, &var_handler, if_miss);
+  }
 }
 
 }  // namespace internal
