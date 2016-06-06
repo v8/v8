@@ -4572,7 +4572,6 @@ void FastNewObjectStub::Generate(MacroAssembler* masm) {
   __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
   __ lea(ebx, Operand(ebx, times_pointer_size, 0));
   __ Allocate(ebx, eax, edi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
-  __ dec(edi);  // Untag result end.
   __ bind(&done_allocate);
 
   // Initialize the JSObject fields.
@@ -4723,7 +4722,6 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Allocate an empty rest parameter array.
     Label allocate, done_allocate;
     __ Allocate(JSArray::kSize, eax, edx, ecx, &allocate, NO_ALLOCATION_FLAGS);
-    __ dec(edx);  // Untag result end.
     __ bind(&done_allocate);
 
     // Setup the rest parameter array in rax.

@@ -1504,7 +1504,7 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                AllocationFlags flags) {
   if (emit_debug_code()) {
     test(result_end, Immediate(kObjectAlignmentMask));
-    Check(not_zero, kUnalignedAllocationInNewSpace);
+    Check(zero, kUnalignedAllocationInNewSpace);
   }
 
   ExternalReference allocation_top =
@@ -1555,7 +1555,7 @@ void MacroAssembler::Allocate(int object_size,
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
-    test(result, Immediate(kDoubleAlignmentMaskTagged));
+    test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       cmp(result, Operand::StaticVariable(allocation_limit));
@@ -1583,7 +1583,11 @@ void MacroAssembler::Allocate(int object_size,
   }
 
   if (top_reg.is(result)) {
-    sub(result, Immediate(object_size));
+    sub(result, Immediate(object_size - kHeapObjectTag));
+  } else {
+    // Tag the result.
+    DCHECK(kHeapObjectTag == 1);
+    inc(result);
   }
 }
 
@@ -1626,13 +1630,13 @@ void MacroAssembler::Allocate(int header_size,
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
-    test(result, Immediate(kDoubleAlignmentMaskTagged));
+    test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       cmp(result, Operand::StaticVariable(allocation_limit));
       j(above_equal, gc_required);
     }
-    mov(Operand(result, -kHeapObjectTag),
+    mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
@@ -1656,6 +1660,10 @@ void MacroAssembler::Allocate(int header_size,
   add(result_end, result);
   cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
+
+  // Tag result.
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 
   UpdateAllocationTopHelper(result_end, scratch, flags);
 }
@@ -1695,13 +1703,13 @@ void MacroAssembler::Allocate(Register object_size,
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
-    test(result, Immediate(kDoubleAlignmentMaskTagged));
+    test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
       cmp(result, Operand::StaticVariable(allocation_limit));
       j(above_equal, gc_required);
     }
-    mov(Operand(result, -kHeapObjectTag),
+    mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
@@ -1714,6 +1722,10 @@ void MacroAssembler::Allocate(Register object_size,
   add(result_end, result);
   cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
+
+  // Tag result.
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 
   if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
     // The top pointer is not updated for allocation folding dominators.
@@ -1730,9 +1742,9 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
-    test(result, Immediate(kDoubleAlignmentMaskTagged));
+    test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
-    mov(Operand(result, -kHeapObjectTag),
+    mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
@@ -1740,6 +1752,9 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
 
   lea(result_end, Operand(result, object_size));
   UpdateAllocationTopHelper(result_end, no_reg, flags);
+
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -1751,9 +1766,9 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
     DCHECK(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
-    test(result, Immediate(kDoubleAlignmentMaskTagged));
+    test(result, Immediate(kDoubleAlignmentMask));
     j(zero, &aligned, Label::kNear);
-    mov(Operand(result, -kHeapObjectTag),
+    mov(Operand(result, 0),
         Immediate(isolate()->factory()->one_pointer_filler_map()));
     add(result, Immediate(kDoubleSize / 2));
     bind(&aligned);
@@ -1761,6 +1776,9 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
 
   lea(result_end, Operand(result, object_size, times_1, 0));
   UpdateAllocationTopHelper(result_end, no_reg, flags);
+
+  DCHECK(kHeapObjectTag == 1);
+  inc(result);
 }
 
 

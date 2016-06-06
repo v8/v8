@@ -146,7 +146,10 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
           top_address, jsgraph()->IntPtrConstant(0), top, effect, control);
 
       // Compute the effective inner allocated address.
-      value = graph()->NewNode(machine()->BitcastWordToTagged(), state->top());
+      value = graph()->NewNode(
+          machine()->BitcastWordToTagged(),
+          graph()->NewNode(machine()->IntAdd(), state->top(),
+                           jsgraph()->IntPtrConstant(kHeapObjectTag)));
 
       // Extend the allocation {group}.
       group->Add(value);
@@ -195,6 +198,8 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
         }
         vfalse = efalse = graph()->NewNode(allocate_operator_.get(), target,
                                            size, efalse, if_false);
+        vfalse = graph()->NewNode(machine()->IntSub(), vfalse,
+                                  jsgraph()->IntPtrConstant(kHeapObjectTag));
       }
 
       control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -212,7 +217,10 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
           top_address, jsgraph()->IntPtrConstant(0), top, effect, control);
 
       // Compute the initial object address.
-      value = graph()->NewNode(machine()->BitcastWordToTagged(), value);
+      value = graph()->NewNode(
+          machine()->BitcastWordToTagged(),
+          graph()->NewNode(machine()->IntAdd(), value,
+                           jsgraph()->IntPtrConstant(kHeapObjectTag)));
 
       // Start a new allocation group.
       AllocationGroup* group =
@@ -248,7 +256,10 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
           machine()->Store(StoreRepresentation(
               MachineType::PointerRepresentation(), kNoWriteBarrier)),
           top_address, jsgraph()->IntPtrConstant(0), new_top, etrue, if_true);
-      vtrue = graph()->NewNode(machine()->BitcastWordToTagged(), top);
+      vtrue = graph()->NewNode(
+          machine()->BitcastWordToTagged(),
+          graph()->NewNode(machine()->IntAdd(), top,
+                           jsgraph()->IntPtrConstant(kHeapObjectTag)));
     }
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

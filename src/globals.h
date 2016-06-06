@@ -304,7 +304,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 // Desired alignment for double values.
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
-const intptr_t kDoubleAlignmentMaskTagged = kDoubleAlignmentMask - 1;
 
 // Desired alignment for 128 bit SIMD values.
 const intptr_t kSimd128Alignment = 16;
