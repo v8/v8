@@ -1167,7 +1167,7 @@ TEST(InsertBasicChanges) {
                        Type::Unsigned32());
 
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToTagged, MachineType::Float64(),
-                       MachineType::AnyTagged());
+                       MachineType::AnyTagged(), Type::Number());
   CheckChangeInsertion(IrOpcode::kChangeTaggedToFloat64,
                        MachineType::AnyTagged(), MachineType::Float64(),
                        Type::Number());
@@ -1258,7 +1258,7 @@ TEST(InsertChangesAroundFloat64Binops) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToFloat64,
-                            IrOpcode::kChangeFloat64ToTagged);
+                            IrOpcode::kChangeFloat64ToTagged, Type::Number());
   }
 }
 
@@ -1488,8 +1488,9 @@ TEST(InsertChangeForStoreElementIndex) {
 TEST(InsertChangeForLoadElement) {
   // TODO(titzer): test all load/store representation change insertions.
   TestingGraph t(Type::Any(), Type::Signed32(), Type::Any());
-  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
-                          MachineType::Float64(), kNoWriteBarrier};
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Type::Number(), MachineType::Float64(),
+                          kNoWriteBarrier};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
                                   t.p1, t.start, t.start);
@@ -1505,8 +1506,8 @@ TEST(InsertChangeForLoadField) {
   // TODO(titzer): test all load/store representation change insertions.
   TestingGraph t(Type::Any(), Type::Signed32());
   FieldAccess access = {
-      kTaggedBase, FixedArrayBase::kHeaderSize, Handle<Name>::null(),
-      Type::Any(), MachineType::Float64(),      kNoWriteBarrier};
+      kTaggedBase,    FixedArrayBase::kHeaderSize, Handle<Name>::null(),
+      Type::Number(), MachineType::Float64(),      kNoWriteBarrier};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadField(access), t.p0,
                                   t.start, t.start);

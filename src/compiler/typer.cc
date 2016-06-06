@@ -43,8 +43,8 @@ Typer::Typer(Isolate* isolate, Graph* graph, Flags flags,
 
   Type* infinity = Type::Constant(factory->infinity_value(), zone);
   Type* minus_infinity = Type::Constant(factory->minus_infinity_value(), zone);
-  // TODO(neis): Unfortunately, the infinities created in other places might
-  // be different ones (eg the result of NewNumber in TypeNumberConstant).
+  // Unfortunately, the infinities created in other places might be different
+  // ones (eg the result of NewNumber in TypeNumberConstant).
   Type* truncating_to_zero =
       Type::Union(Type::Union(infinity, minus_infinity, zone),
                   Type::MinusZeroOrNaN(), zone);
@@ -534,7 +534,6 @@ Type* Typer::Visitor::NumberTrunc(Type* type, Typer* t) {
 }
 
 Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
-  // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Signed32())) return type;
   if (type->Is(t->cache_.kZeroish)) return t->cache_.kSingletonZero;
   if (type->Is(t->signed32ish_)) {
@@ -547,7 +546,6 @@ Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
 
 
 Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
-  // TODO(neis): DCHECK(type->Is(Type::Number()));
   if (type->Is(Type::Unsigned32())) return type;
   if (type->Is(t->cache_.kZeroish)) return t->cache_.kSingletonZero;
   if (type->Is(t->unsigned32ish_)) {
@@ -766,7 +764,6 @@ Type* Typer::Visitor::JSEqualTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->IsConstant() && rhs->Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
-    // TODO(neis): Extend this to Range(x,x), MinusZero, ...?
     return t->singleton_true_;
   }
   return Type::Boolean();
@@ -910,7 +907,6 @@ Type* Typer::Visitor::JSBitwiseOrTyper(Type* lhs, Type* rhs, Typer* t) {
     max = std::min(max, -1.0);
   }
   return Type::Range(min, max, t->zone());
-  // TODO(neis): Be precise for singleton inputs, here and elsewhere.
 }
 
 
@@ -1085,7 +1081,6 @@ Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->IsRange() && rhs->IsRange()) {
     return JSAddRanger(lhs->AsRange(), rhs->AsRange(), t);
   }
-  // TODO(neis): Deal with numeric bitsets here and elsewhere.
   return Type::Number();
 }
 
@@ -1169,7 +1164,6 @@ Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
   rhs = ToNumber(rhs, t);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
   // Division is tricky, so all we do is try ruling out nan.
-  // TODO(neis): try ruling out -0 as well?
   bool maybe_nan =
       lhs->Maybe(Type::NaN()) || rhs->Maybe(t->cache_.kZeroish) ||
       ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
@@ -1856,39 +1850,43 @@ Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
 
 Type* Typer::Visitor::TypeChangeTaggedSignedToInt32(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Signed32()));
+  // TODO(jarin): DCHECK(arg->Is(Type::Signed32()));
+  // Many tests fail this check.
   return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 Type* Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Signed32()));
+  DCHECK(arg->Is(Type::Signed32()));
   return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 
 Type* Typer::Visitor::TypeChangeTaggedToUint32(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Unsigned32()));
+  DCHECK(arg->Is(Type::Unsigned32()));
   return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 
 Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Number()));
+  DCHECK(arg->Is(Type::Number()));
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 
 Type* Typer::Visitor::TypeTruncateTaggedToFloat64(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::NumberOrUndefined()));
+  DCHECK(arg->Is(Type::NumberOrUndefined()));
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 
 Type* Typer::Visitor::TypeChangeInt31ToTaggedSigned(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Signed31()));
+  // TODO(jarin): DCHECK(arg->Is(Type::Signed31()));
+  // Some mjsunit/asm and mjsunit/wasm tests fail this check.
+  // For instance, asm/int32-umod fails with Signed32/UntaggedIntegral32 in
+  // simplified-lowering (after propagation).
   Type* rep =
       arg->Is(Type::SignedSmall()) ? Type::TaggedSigned() : Type::Tagged();
   return ChangeRepresentation(arg, rep, zone());
@@ -1896,35 +1894,38 @@ Type* Typer::Visitor::TypeChangeInt31ToTaggedSigned(Node* node) {
 
 Type* Typer::Visitor::TypeChangeInt32ToTagged(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Signed32()));
+  // TODO(jarin): DCHECK(arg->Is(Type::Signed32()));
+  // Two tests fail this check: mjsunit/asm/sqlite3/sqlite-safe-heap and
+  // mjsunit/wasm/embenchen/lua_binarytrees. The first one fails with Any/Any in
+  // simplified-lowering (after propagation).
   Type* rep =
       arg->Is(Type::SignedSmall()) ? Type::TaggedSigned() : Type::Tagged();
   return ChangeRepresentation(arg, rep, zone());
 }
 
-
 Type* Typer::Visitor::TypeChangeUint32ToTagged(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Unsigned32()));
+  // TODO(jarin): DCHECK(arg->Is(Type::Unsigned32()));
+  // This fails in benchmarks/octane/mandreel (--turbo).
   return ChangeRepresentation(arg, Type::Tagged(), zone());
 }
 
-
 Type* Typer::Visitor::TypeChangeFloat64ToTagged(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): CHECK(arg.upper->Is(Type::Number()));
+  // TODO(jarin): DCHECK(arg->Is(Type::Number()));
+  // Some (or all) mjsunit/wasm/embenchen/ tests fail this check when run with
+  // --turbo and --always-opt.
   return ChangeRepresentation(arg, Type::Tagged(), zone());
 }
 
 Type* Typer::Visitor::TypeChangeTaggedToBit(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
+  DCHECK(arg->Is(Type::Boolean()));
   return ChangeRepresentation(arg, Type::UntaggedBit(), zone());
 }
 
 Type* Typer::Visitor::TypeChangeBitToTagged(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg.upper->Is(Type::Boolean()));
   return ChangeRepresentation(arg, Type::TaggedPointer(), zone());
 }
 
@@ -1946,7 +1947,10 @@ Type* Typer::Visitor::TypeCheckedTaggedToFloat64(Node* node) {
 
 Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {
   Type* arg = Operand(node, 0);
-  // TODO(neis): DCHECK(arg->Is(Type::Number()));
+  // TODO(jarin): DCHECK(arg->Is(Type::NumberOrUndefined()));
+  // Several mjsunit and cctest tests fail this check. For instance,
+  // mjsunit/compiler/regress-607493 fails with Any/Any in simplified-lowering
+  // (after propagation).
   return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
