@@ -33,13 +33,6 @@
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
-// TODO(titzer): pull WASM_64 up to a common header.
-#if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
-#define WASM_64 1
-#else
-#define WASM_64 0
-#endif
-
 static const uint32_t kMaxFunctions = 10;
 
 enum WasmExecutionMode { kExecuteInterpreted, kExecuteCompiled };

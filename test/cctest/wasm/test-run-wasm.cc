@@ -1499,18 +1499,11 @@ WASM_EXEC_TEST(StoreMem_offset_oob) {
   TestingModule module(execution_mode);
   byte* memory = module.AddMemoryElems<byte>(32);
 
-#if WASM_64
-  static const MachineType machineTypes[] = {
-      MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
-      MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
-      MachineType::Int64(),  MachineType::Uint64(), MachineType::Float32(),
-      MachineType::Float64()};
-#else
+  // 64-bit cases are handled in test-run-wasm-64.cc
   static const MachineType machineTypes[] = {
       MachineType::Int8(),    MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(),  MachineType::Int32(),  MachineType::Uint32(),
       MachineType::Float32(), MachineType::Float64()};
-#endif
 
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     module.RandomizeMemory(1119 + static_cast<int>(m));
@@ -2145,20 +2138,12 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kElemSize = 8;
   TestSignatures sigs;
 
-#if WASM_64
-  static MachineType mixed[] = {
-      MachineType::Int32(),   MachineType::Float32(), MachineType::Int64(),
-      MachineType::Float64(), MachineType::Float32(), MachineType::Int64(),
-      MachineType::Int32(),   MachineType::Float64(), MachineType::Float32(),
-      MachineType::Float64(), MachineType::Int32(),   MachineType::Int64(),
-      MachineType::Int32(),   MachineType::Int32()};
-#else
+  // 64-bit cases handled in test-run-wasm-64.cc.
   static MachineType mixed[] = {
       MachineType::Int32(),   MachineType::Float32(), MachineType::Float64(),
       MachineType::Float32(), MachineType::Int32(),   MachineType::Float64(),
       MachineType::Float32(), MachineType::Float64(), MachineType::Int32(),
       MachineType::Int32(),   MachineType::Int32()};
-#endif
 
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; which++) {
@@ -2789,7 +2774,7 @@ WASM_EXEC_TEST(F32CopySign) {
   }
 }
 
-void CompileCallIndirectMany(LocalType param) {
+static void CompileCallIndirectMany(LocalType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
@@ -2819,10 +2804,6 @@ void CompileCallIndirectMany(LocalType param) {
 }
 
 TEST(Compile_Wasm_CallIndirect_Many_i32) { CompileCallIndirectMany(kAstI32); }
-
-#if WASM_64
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kAstI64); }
-#endif
 
 TEST(Compile_Wasm_CallIndirect_Many_f32) { CompileCallIndirectMany(kAstF32); }
 

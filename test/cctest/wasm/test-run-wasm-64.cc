@@ -14,6 +14,13 @@
 #include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 
+// If the target architecture is 64-bit, enable all tests.
+#if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
+#define WASM_64 1
+#else
+#define WASM_64 0
+#endif
+
 #define CHECK_TRAP32(x) \
   CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
 #define CHECK_TRAP64(x) \
@@ -1416,3 +1423,153 @@ WASM_EXEC_TEST(I64Rol) {
     }
   }
 }
+
+WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
+  TestingModule module(execution_mode);
+  byte* memory = module.AddMemoryElems<byte>(32);
+
+  static const MachineType machineTypes[] = {
+      MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
+      MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
+      MachineType::Int64(),  MachineType::Uint64(), MachineType::Float32(),
+      MachineType::Float64()};
+
+  for (size_t m = 0; m < arraysize(machineTypes); m++) {
+    module.RandomizeMemory(1119 + static_cast<int>(m));
+    WasmRunner<int32_t> r(&module, MachineType::Uint32());
+
+    BUILD(r, WASM_STORE_MEM_OFFSET(machineTypes[m], 8, WASM_GET_LOCAL(0),
+                                   WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
+          WASM_ZERO);
+
+    byte memsize = WasmOpcodes::MemSize(machineTypes[m]);
+    uint32_t boundary = 24 - memsize;
+    CHECK_EQ(0, r.Call(boundary));  // in bounds.
+    CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
+
+    for (uint32_t offset = boundary + 1; offset < boundary + 19; offset++) {
+      CHECK_TRAP(r.Call(offset));  // out of bounds.
+    }
+  }
+}
+
+#define ADD_CODE(vec, ...)                                              \
+  do {                                                                  \
+    byte __buf[] = {__VA_ARGS__};                                       \
+    for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
+  } while (false)
+
+static void CompileCallIndirectMany(LocalType param) {
+  // Make sure we don't run out of registers when compiling indirect calls
+  // with many many parameters.
+  TestSignatures sigs;
+  for (byte num_params = 0; num_params < 40; num_params++) {
+    v8::base::AccountingAllocator allocator;
+    Zone zone(&allocator);
+    HandleScope scope(CcTest::InitIsolateOnce());
+    TestingModule module(kExecuteCompiled);
+    FunctionSig* sig = sigs.many(&zone, kAstStmt, param, num_params);
+
+    module.AddSignature(sig);
+    module.AddSignature(sig);
+    module.AddIndirectFunctionTable(nullptr, 0);
+
+    WasmFunctionCompiler t(sig, &module);
+
+    std::vector<byte> code;
+    ADD_CODE(code, kExprI8Const, 0);
+    for (byte p = 0; p < num_params; p++) {
+      ADD_CODE(code, kExprGetLocal, p);
+    }
+    ADD_CODE(code, kExprCallIndirect, static_cast<byte>(num_params), 1);
+
+    t.Build(&code[0], &code[0] + code.size());
+    t.Compile();
+  }
+}
+
+TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kAstI64); }
+
+static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
+  const int kExpected = 6333;
+  const int kElemSize = 8;
+  TestSignatures sigs;
+
+  static MachineType mixed[] = {
+      MachineType::Int32(),   MachineType::Float32(), MachineType::Int64(),
+      MachineType::Float64(), MachineType::Float32(), MachineType::Int64(),
+      MachineType::Int32(),   MachineType::Float64(), MachineType::Float32(),
+      MachineType::Float64(), MachineType::Int32(),   MachineType::Int64(),
+      MachineType::Int32(),   MachineType::Int32()};
+
+  int num_params = static_cast<int>(arraysize(mixed)) - start;
+  for (int which = 0; which < num_params; which++) {
+    v8::base::AccountingAllocator allocator;
+    Zone zone(&allocator);
+    TestingModule module(execution_mode);
+    module.AddMemory(1024);
+    MachineType* memtypes = &mixed[start];
+    MachineType result = memtypes[which];
+
+    // =========================================================================
+    // Build the selector function.
+    // =========================================================================
+    uint32_t index;
+    FunctionSig::Builder b(&zone, 1, num_params);
+    b.AddReturn(WasmOpcodes::LocalTypeFor(result));
+    for (int i = 0; i < num_params; i++) {
+      b.AddParam(WasmOpcodes::LocalTypeFor(memtypes[i]));
+    }
+    WasmFunctionCompiler t(b.Build(), &module);
+    BUILD(t, WASM_GET_LOCAL(which));
+    index = t.CompileAndAdd();
+
+    // =========================================================================
+    // Build the calling function.
+    // =========================================================================
+    WasmRunner<int32_t> r(&module);
+    std::vector<byte> code;
+
+    // Load the offset for the store.
+    ADD_CODE(code, WASM_ZERO);
+
+    // Load the arguments.
+    for (int i = 0; i < num_params; i++) {
+      int offset = (i + 1) * kElemSize;
+      ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I8(offset)));
+    }
+
+    // Call the selector function.
+    ADD_CODE(code, kExprCallFunction, static_cast<byte>(num_params),
+             static_cast<byte>(index));
+
+    // Store the result in memory.
+    ADD_CODE(code,
+             static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
+             ZERO_ALIGNMENT, ZERO_OFFSET);
+
+    // Return the expected value.
+    ADD_CODE(code, WASM_I32V_2(kExpected));
+
+    r.Build(&code[0], &code[0] + code.size());
+
+    // Run the code.
+    for (int t = 0; t < 10; t++) {
+      module.RandomizeMemory();
+      CHECK_EQ(kExpected, r.Call());
+
+      int size = WasmOpcodes::MemSize(result);
+      for (int i = 0; i < size; i++) {
+        int base = (which + 1) * kElemSize;
+        byte expected = module.raw_mem_at<byte>(base + i);
+        byte result = module.raw_mem_at<byte>(i);
+        CHECK_EQ(expected, result);
+      }
+    }
+  }
+}
+
+WASM_EXEC_TEST(MixedCall_i64_0) { Run_WasmMixedCall_N(execution_mode, 0); }
+WASM_EXEC_TEST(MixedCall_i64_1) { Run_WasmMixedCall_N(execution_mode, 1); }
+WASM_EXEC_TEST(MixedCall_i64_2) { Run_WasmMixedCall_N(execution_mode, 2); }
+WASM_EXEC_TEST(MixedCall_i64_3) { Run_WasmMixedCall_N(execution_mode, 3); }
