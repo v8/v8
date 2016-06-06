@@ -239,6 +239,10 @@ bool VirtualMemory::UncommitRegion(void* address, size_t size) {
               kMmapFdOffset) != MAP_FAILED;
 }
 
+bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
+                                         void* free_start, size_t free_size) {
+  return munmap(free_start, free_size) == 0;
+}
 
 bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
   return munmap(address, size) == 0;
