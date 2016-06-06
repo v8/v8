@@ -101,6 +101,8 @@ template("v8_isolate_run") {
         use_snapshot = "0"
       }
 
+      # Note, all paths will be rebased in isolate_driver.py to be relative to
+      # the isolate file.
       args = [
         v8_test_isolation_mode,
         "--isolated",
