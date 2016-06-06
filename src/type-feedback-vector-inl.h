@@ -78,12 +78,6 @@ TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
 }
 
 
-FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
-    FeedbackVectorSlot slot) const {
-  DCHECK(!is_empty());
-  return metadata()->GetKind(slot);
-}
-
 // static
 int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) {
   return kReservedIndexCount + slot.ToInt();
@@ -153,6 +147,21 @@ Symbol* TypeFeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return isolate->heap()->uninitialized_symbol();
 }
 
+bool TypeFeedbackMetadataIterator::HasNext() const {
+  return slot_.ToInt() < metadata()->slot_count();
+}
+
+FeedbackVectorSlot TypeFeedbackMetadataIterator::Next() {
+  DCHECK(HasNext());
+  FeedbackVectorSlot slot = slot_;
+  slot_kind_ = metadata()->GetKind(slot);
+  slot_ = FeedbackVectorSlot(slot_.ToInt() + entry_size());
+  return slot;
+}
+
+int TypeFeedbackMetadataIterator::entry_size() const {
+  return TypeFeedbackMetadata::GetSlotSize(kind());
+}
 
 Object* FeedbackNexus::GetFeedback() const { return vector()->Get(slot()); }
 

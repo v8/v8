@@ -154,6 +154,11 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
   return "?";
 }
 
+FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
+    FeedbackVectorSlot slot) const {
+  DCHECK(!is_empty());
+  return metadata()->GetKind(slot);
+}
 
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::New(

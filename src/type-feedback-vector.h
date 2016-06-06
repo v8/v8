@@ -209,7 +209,7 @@ class TypeFeedbackVector : public FixedArray {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns slot kind for given slot.
-  inline FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
 
   static Handle<TypeFeedbackVector> New(Isolate* isolate,
                                         Handle<TypeFeedbackMetadata> metadata);
@@ -292,15 +292,9 @@ class TypeFeedbackMetadataIterator {
         slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
-  bool HasNext() const { return slot_.ToInt() < metadata()->slot_count(); }
+  inline bool HasNext() const;
 
-  FeedbackVectorSlot Next() {
-    DCHECK(HasNext());
-    FeedbackVectorSlot slot = slot_;
-    slot_kind_ = metadata()->GetKind(slot);
-    slot_ = FeedbackVectorSlot(slot_.ToInt() + entry_size());
-    return slot;
-  }
+  inline FeedbackVectorSlot Next();
 
   // Returns slot kind of the last slot returned by Next().
   FeedbackVectorSlotKind kind() const {
@@ -310,7 +304,7 @@ class TypeFeedbackMetadataIterator {
   }
 
   // Returns entry size of the last slot returned by Next().
-  int entry_size() const { return TypeFeedbackMetadata::GetSlotSize(kind()); }
+  inline int entry_size() const;
 
  private:
   TypeFeedbackMetadata* metadata() const {
