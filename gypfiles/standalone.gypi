@@ -49,20 +49,24 @@
     'variables': {
       'variables': {
         'variables': {
-          'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
-              # This handles the Unix platforms we generally deal with.
-              # Anything else gets passed through, which probably won't work
-              # very well; such hosts should pass an explicit target_arch
-              # to gyp.
-              'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
-            }, {
-              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac" and OS!="aix"
-              'host_arch%': 'ia32',
-            }],
-          ],
+          'variables': {
+            'conditions': [
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
+                 OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
+                # This handles the Unix platforms we generally deal with.
+                # Anything else gets passed through, which probably won't work
+                # very well; such hosts should pass an explicit target_arch
+                # to gyp.
+                'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
+              }, {
+                # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
+                # OS!="netbsd" and OS!="mac" and OS!="aix"
+                'host_arch%': 'ia32',
+              }],
+            ],
+          },
+          'host_arch%': '<(host_arch)',
+          'target_arch%': '<(host_arch)',
 
           # By default we build against a stable sysroot image to avoid
           # depending on the packages installed on the local machine. Set this
@@ -71,7 +75,7 @@
           'use_sysroot%': 1,
         },
         'host_arch%': '<(host_arch)',
-        'target_arch%': '<(host_arch)',
+        'target_arch%': '<(target_arch)',
         'use_sysroot%': '<(use_sysroot)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
 
