@@ -682,6 +682,9 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
     if (intish_ != 0) {
       FAIL(expr, "intish or floatish assignment");
     }
+    if (in_function_ && target_type->IsArray()) {
+      FAIL(expr, "assignment to array variable");
+    }
     expected_type_ = target_type;
     Variable* var = proxy->var();
     VariableInfo* info = GetVariableInfo(var);
