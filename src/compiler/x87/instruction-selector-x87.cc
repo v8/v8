@@ -1009,6 +1009,11 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   Emit(kX87Float64Abs, g.DefineAsFixed(node, stX_0), 0, nullptr);
 }
 
+void InstructionSelector::VisitFloat64Log(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87Float64Log, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   X87OperandGenerator g(this);

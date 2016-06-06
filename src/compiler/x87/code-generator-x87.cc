@@ -898,6 +898,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX87Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kX87Float64Log:
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ X87SetFPUCW(0x027F);
+      __ fstp(0);
+      __ fldln2();
+      __ fld_d(MemOperand(esp, 0));
+      __ fyl2x();
+      __ lea(esp, Operand(esp, kDoubleSize));
+      __ X87SetFPUCW(0x037F);
+      break;
     case kX87LoadFloat64Constant: {
       InstructionOperand* source = instr->InputAt(0);
       InstructionOperand* destination = instr->Output();
