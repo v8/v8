@@ -145,7 +145,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
-  RUNTIME_ASSERT_HANDLIFIED(iterator->kind()->IsSmi(), JSArray);
+  CHECK(iterator->kind()->IsSmi());
   const char* kind = NULL;
   switch (Smi::cast(iterator->kind())->value()) {
     case IteratorType::kKindKeys:
@@ -158,7 +158,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
       kind = "entries";
       break;
     default:
-      RUNTIME_ASSERT_HANDLIFIED(false, JSArray);
+      UNREACHABLE();
   }
 
   Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
@@ -248,7 +248,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
     Handle<Object> status_obj =
         DebugGetProperty(promise, isolate->factory()->promise_state_symbol());
-    RUNTIME_ASSERT_HANDLIFIED(status_obj->IsSmi(), JSArray);
+    CHECK(status_obj->IsSmi());
     const char* status = "rejected";
     int status_val = Handle<Smi>::cast(status_obj)->value();
     switch (status_val) {

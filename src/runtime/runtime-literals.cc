@@ -300,9 +300,7 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
 static MaybeHandle<JSObject> CreateArrayLiteralImpl(
     Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
     Handle<FixedArray> elements, int flags) {
-  RUNTIME_ASSERT_HANDLIFIED(
-      literals_index >= 0 && literals_index < literals->literals_count(),
-      JSObject);
+  CHECK(literals_index >= 0 && literals_index < literals->literals_count());
   Handle<AllocationSite> site;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, site,
