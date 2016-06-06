@@ -166,6 +166,10 @@ void AsmTyper::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   // Set function type so global references to functions have some type
   // (so they can give a more useful error).
   Variable* var = decl->proxy()->var();
+  if (GetVariableInfo(var)) {
+    // Detect previously-seen functions.
+    FAIL(decl->fun(), "function repeated in module");
+  }
   SetType(var, Type::Function());
 }
 
