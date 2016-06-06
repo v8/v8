@@ -192,18 +192,6 @@ hooks = [
     ],
   },
   {
-    # Downloads the current stable linux sysroot to build/linux/ if needed.
-    # This sysroot updates at about the same rate that the chrome build deps
-    # change.
-    'name': 'sysroot',
-    'pattern': '.',
-    'action': [
-        'python',
-        'v8/build/linux/sysroot_scripts/install-sysroot.py',
-        '--running-as-hook',
-    ],
-  },
-  {
     # Update the Windows toolchain if necessary.
     'name': 'win_toolchain',
     'pattern': '.',
