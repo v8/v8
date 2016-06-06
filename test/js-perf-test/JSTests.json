@@ -14,7 +14,7 @@
       "main": "run.js",
       "resources": ["generators.js"],
       "flags": ["--harmony-function-sent"],
-      "results_regexp": "^%s\\-Generators\\(Score\\): (.+)$"
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
       "name": "GeneratorsIgnition",
@@ -26,7 +26,7 @@
         "--ignition",
         "--ignition-generators"
       ],
-      "results_regexp": "^%s\\-Generators\\(Score\\): (.+)$"
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
       "name": "GeneratorsIgnitionTurbofan",
@@ -40,7 +40,7 @@
         "--turbo",
         "--turbo-from-bytecode"
       ],
-      "results_regexp": "^%s\\-Generators\\(Score\\): (.+)$"
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
       "name": "RestParameters",
