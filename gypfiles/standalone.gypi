@@ -286,12 +286,15 @@
             # because it is used at different levels in the GYP files.
             'android_ndk_root%': '<(base_dir)/third_party/android_tools/ndk/',
             'android_host_arch%': "<!(uname -m | sed -e 's/i[3456]86/x86/')",
+            # Version of the NDK. Used to ensure full rebuilds on NDK rolls.
+            'android_ndk_version%': 'r11c',
             'host_os%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')",
             'os_folder_name%': "<!(uname -s | sed -e 's/Linux/linux/;s/Darwin/darwin/')",
           },
 
           # Copy conditionally-set variables out one scope.
           'android_ndk_root%': '<(android_ndk_root)',
+          'android_ndk_version%': '<(android_ndk_version)',
           'host_os%': '<(host_os)',
           'os_folder_name%': '<(os_folder_name)',
 
@@ -336,6 +339,7 @@
         },
 
         # Copy conditionally-set variables out one scope.
+        'android_ndk_version%': '<(android_ndk_version)',
         'android_target_arch%': '<(android_target_arch)',
         'android_target_platform%': '<(android_target_platform)',
         'android_toolchain%': '<(android_toolchain)',
@@ -1116,6 +1120,7 @@
               'HAVE_OFF64_T',
               'HAVE_SYS_UIO_H',
               'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
+              'ANDROID_NDK_VERSION=<(android_ndk_version)',
             ],
             'ldflags!': [
               '-pthread',  # Not supported by Android toolchain.

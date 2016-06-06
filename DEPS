@@ -37,13 +37,15 @@ deps = {
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "5b5f2f60b78198eaef25d442ac60f823142a8a6e",
+      Var("git_url") + "/android_tools.git" + "@" + "04c2c06fe3ef3d93343feb6e83cd932725740d7f",
   },
   "win": {
     "v8/third_party/cygwin":
       Var("git_url") + "/chromium/deps/cygwin.git" + "@" + "c89e446b273697fadf3a10ff1007a97c0b7de6df",
   }
 }
+
+recursedeps = [ 'v8/third_party/android_tools' ]
 
 include_rules = [
   # Everybody can use some things.
