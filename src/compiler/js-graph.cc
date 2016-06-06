@@ -161,7 +161,8 @@ Node* JSGraph::Int64Constant(int64_t value) {
 }
 
 Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt32Constant(value);
+  Node** loc = cache_.FindRelocatableInt32Constant(
+      value, static_cast<RelocInfoMode>(rmode));
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->RelocatableInt32Constant(value, rmode));
   }
@@ -169,7 +170,8 @@ Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
 }
 
 Node* JSGraph::RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt64Constant(value);
+  Node** loc = cache_.FindRelocatableInt64Constant(
+      value, static_cast<RelocInfoMode>(rmode));
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->RelocatableInt64Constant(value, rmode));
   }
