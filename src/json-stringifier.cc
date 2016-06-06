@@ -91,7 +91,9 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
                                                Handle<Object> replacer,
                                                Handle<Object> gap) {
   if (!InitializeReplacer(replacer)) return MaybeHandle<Object>();
-  if (!gap->IsUndefined() && !InitializeGap(gap)) return MaybeHandle<Object>();
+  if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
+    return MaybeHandle<Object>();
+  }
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();

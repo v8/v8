@@ -363,8 +363,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
 #endif
 
   Handle<AllocationSite> site;
-  if (!type_info.is_null() &&
-      *type_info != isolate->heap()->undefined_value()) {
+  if (!type_info.is_null() && !type_info->IsUndefined(isolate)) {
     site = Handle<AllocationSite>::cast(type_info);
     DCHECK(!site->SitePointsToLiteral());
   }
@@ -399,8 +398,8 @@ RUNTIME_FUNCTION(Runtime_ArraySingleArgumentConstructor) {
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, raw_site, 3);
   Handle<AllocationSite> casted_site =
-      raw_site->IsUndefined() ? Handle<AllocationSite>::null()
-                              : Handle<AllocationSite>::cast(raw_site);
+      raw_site->IsUndefined(isolate) ? Handle<AllocationSite>::null()
+                                     : Handle<AllocationSite>::cast(raw_site);
   Arguments constructor_args(argument_count, argument_base);
   return ArrayConstructorCommon(isolate, constructor, constructor, casted_site,
                                 &constructor_args);

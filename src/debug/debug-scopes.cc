@@ -34,7 +34,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   Handle<JSFunction> function = GetFunction();
   Handle<SharedFunctionInfo> shared_info(function->shared());
   Handle<ScopeInfo> scope_info(shared_info->scope_info());
-  if (shared_info->script() == isolate->heap()->undefined_value()) {
+  if (shared_info->script()->IsUndefined(isolate)) {
     while (context_->closure() == *function) {
       context_ = Handle<Context>(context_->previous(), isolate_);
     }
@@ -756,7 +756,7 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
     int context_index = Context::MIN_CONTEXT_SLOTS + i;
     Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
     // Reflect variables under TDZ as undefined in scope object.
-    if (value->IsTheHole()) continue;
+    if (value->IsTheHole(isolate)) continue;
     // This should always succeed.
     // TODO(verwaest): Use AddDataProperty instead.
     JSObject::SetOwnPropertyIgnoreAttributes(scope_object, name, value, NONE)

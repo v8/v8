@@ -854,7 +854,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
         isolate, &module_env, name, code, instance.js_object, index);
 
     // Call the JS function.
-    Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+    Handle<Object> undefined = isolate->factory()->undefined_value();
     MaybeHandle<Object> retval =
         Execution::Call(isolate, jsfunc, undefined, 0, nullptr);
 
@@ -963,7 +963,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
       isolate, &module_env, name, main_code, module_object, main_index);
 
   // Call the JS function.
-  Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+  Handle<Object> undefined = isolate->factory()->undefined_value();
   MaybeHandle<Object> retval =
       Execution::Call(isolate, jsfunc, undefined, 0, nullptr);
 
@@ -987,9 +987,10 @@ MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
                                         uint32_t func_index) {
   DCHECK(IsWasmObject(wasm));
   Object* func_names_arr_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
-  if (func_names_arr_obj->IsUndefined()) return Handle<String>::null();
+  Isolate* isolate = wasm->GetIsolate();
+  if (func_names_arr_obj->IsUndefined(isolate)) return Handle<String>::null();
   return GetWasmFunctionNameFromTable(
-      handle(ByteArray::cast(func_names_arr_obj)), func_index);
+      handle(ByteArray::cast(func_names_arr_obj), isolate), func_index);
 }
 
 bool IsWasmObject(Handle<JSObject> object) {
@@ -998,7 +999,8 @@ bool IsWasmObject(Handle<JSObject> object) {
          object->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() &&
          object->GetInternalField(kWasmMemArrayBuffer)->IsJSArrayBuffer() &&
          (object->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
-          object->GetInternalField(kWasmFunctionNamesArray)->IsUndefined());
+          object->GetInternalField(kWasmFunctionNamesArray)
+              ->IsUndefined(object->GetIsolate()));
 }
 
 }  // namespace wasm

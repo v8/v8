@@ -109,8 +109,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     // We have to declare a global const property. To capture we only
     // assign to it when evaluating the assignment for "const x =
     // <expr>" the initial value is the hole.
-    bool is_var = initial_value->IsUndefined();
-    bool is_const = initial_value->IsTheHole();
+    bool is_var = initial_value->IsUndefined(isolate);
+    bool is_const = initial_value->IsTheHole(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
     DCHECK_EQ(1,
               BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
@@ -220,7 +220,7 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
 
   // TODO(verwaest): Unify the encoding indicating "var" with DeclareGlobals.
   bool is_var = *initial_value == NULL;
-  bool is_const = initial_value->IsTheHole();
+  bool is_const = initial_value->IsTheHole(isolate);
   bool is_function = initial_value->IsJSFunction();
   DCHECK_EQ(1,
             BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
@@ -775,7 +775,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
     Handle<JSModule> module(context->module());
 
     for (int j = 0; j < description->length(); ++j) {
-      Handle<String> name(description->name(j));
+      Handle<String> name(description->name(j), isolate);
       VariableMode mode = description->mode(j);
       int index = description->index(j);
       switch (mode) {
@@ -789,7 +789,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
               Accessors::MakeModuleExport(name, index, attr);
           Handle<Object> result =
               JSObject::SetAccessor(module, info).ToHandleChecked();
-          DCHECK(!result->IsUndefined());
+          DCHECK(!result->IsUndefined(isolate));
           USE(result);
           break;
         }
@@ -868,14 +868,14 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
     // Check for uninitialized bindings.
     switch (flags) {
       case BINDING_CHECK_INITIALIZED:
-        if (value->IsTheHole()) {
+        if (value->IsTheHole(isolate)) {
           THROW_NEW_ERROR(isolate,
                           NewReferenceError(MessageTemplate::kNotDefined, name),
                           Object);
         }
       // FALLTHROUGH
       case BINDING_IS_INITIALIZED:
-        DCHECK(!value->IsTheHole());
+        DCHECK(!value->IsTheHole(isolate));
         if (receiver_return) *receiver_return = receiver;
         return value;
       case MISSING_BINDING:

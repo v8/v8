@@ -34,7 +34,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   TRACE_EVENT0("v8", "V8.CompileFullCode");
 
   Handle<Script> script = info->script();
-  if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+  if (!script->IsUndefined(isolate) &&
+      !script->source()->IsUndefined(isolate)) {
     int len = String::cast(script->source())->length();
     isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }

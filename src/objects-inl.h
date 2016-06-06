@@ -155,6 +155,7 @@ TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
 SIMD128_TYPES(SIMD128_TYPE_CHECKER)
 #undef SIMD128_TYPE_CHECKER
 
+// TODO(cbruni): remove once all the isolate-based versions are in place.
 #define IS_TYPE_FUNCTION_DEF(type_)                               \
   bool Object::Is##type_() const {                                \
     return IsHeapObject() && HeapObject::cast(this)->Is##type_(); \
@@ -162,6 +163,22 @@ SIMD128_TYPES(SIMD128_TYPE_CHECKER)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
+
+bool HeapObject::IsTheHole(Isolate* isolate) const {
+  return this == isolate->heap()->the_hole_value();
+}
+
+bool HeapObject::IsUndefined(Isolate* isolate) const {
+  return this == isolate->heap()->undefined_value();
+}
+
+bool Object::IsTheHole(Isolate* isolate) const {
+  return this == isolate->heap()->the_hole_value();
+}
+
+bool Object::IsUndefined(Isolate* isolate) const {
+  return this == isolate->heap()->undefined_value();
+}
 
 bool HeapObject::IsString() const {
   return map()->instance_type() < FIRST_NONSTRING_TYPE;
@@ -244,7 +261,6 @@ bool HeapObject::IsExternalTwoByteString() const {
   return StringShape(String::cast(this)).IsExternal() &&
          String::cast(this)->IsTwoByteRepresentation();
 }
-
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -1802,8 +1818,7 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsFastHoleyElementsKind(current_kind);
     if (current_kind == FAST_HOLEY_ELEMENTS) return;
-    Heap* heap = object->GetHeap();
-    Object* the_hole = heap->the_hole_value();
+    Object* the_hole = object->GetHeap()->the_hole_value();
     for (uint32_t i = 0; i < count; ++i) {
       Object* current = *objects++;
       if (current == the_hole) {
@@ -2009,9 +2024,7 @@ void WeakCell::clear_next(Object* the_hole_value) {
   set_next(the_hole_value, SKIP_WRITE_BARRIER);
 }
 
-
-bool WeakCell::next_cleared() { return next()->IsTheHole(); }
-
+bool WeakCell::next_cleared() { return next()->IsTheHole(GetIsolate()); }
 
 int JSObject::GetHeaderSize() { return GetHeaderSize(map()->instance_type()); }
 
@@ -2281,9 +2294,12 @@ bool Object::ToArrayIndex(uint32_t* index) {
 
 void Object::VerifyApiCallResultType() {
 #if DEBUG
-  if (!(IsSmi() || IsString() || IsSymbol() || IsJSReceiver() ||
-        IsHeapNumber() || IsSimd128Value() || IsUndefined() || IsTrue() ||
-        IsFalse() || IsNull())) {
+  if (IsSmi()) return;
+  DCHECK(IsHeapObject());
+  Isolate* isolate = HeapObject::cast(this)->GetIsolate();
+  if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
+        IsSimd128Value() || IsUndefined(isolate) || IsTrue() || IsFalse() ||
+        IsNull())) {
     FATAL("API call returned invalid object");
   }
 #endif  // DEBUG
@@ -2466,7 +2482,7 @@ void ArrayList::Set(int index, Object* obj) {
 
 
 void ArrayList::Clear(int index, Object* undefined) {
-  DCHECK(undefined->IsUndefined());
+  DCHECK(undefined->IsUndefined(GetIsolate()));
   FixedArray::cast(this)
       ->set(kFirstIndex + index, undefined, SKIP_WRITE_BARRIER);
 }
@@ -3041,7 +3057,8 @@ bool HashTableBase::IsKey(Heap* heap, Object* k) {
 }
 
 bool HashTableBase::IsKey(Object* k) {
-  return !k->IsTheHole() && !k->IsUndefined();
+  Isolate* isolate = this->GetIsolate();
+  return !k->IsTheHole(isolate) && !k->IsUndefined(isolate);
 }
 
 
@@ -4241,7 +4258,7 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   } else {
     // Clamp undefined to the default value. All other types have been
     // converted to a number type further up in the call chain.
-    DCHECK(value->IsUndefined());
+    DCHECK(value->IsUndefined(GetIsolate()));
   }
   set(index, cast_value);
 }
@@ -5425,7 +5442,8 @@ void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   DCHECK(instance_type() >= FIRST_JS_RECEIVER_TYPE);
-  DCHECK((value->IsMap() && GetBackPointer()->IsUndefined()));
+  DCHECK(value->IsMap());
+  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
   DCHECK(!value->IsMap() ||
          Map::cast(value)->GetConstructor() == constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
@@ -5964,7 +5982,7 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
 }
 
 void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
-  DCHECK(function_data()->IsUndefined());
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
   set_function_data(data);
 }
 
@@ -5978,12 +5996,12 @@ BytecodeArray* SharedFunctionInfo::bytecode_array() {
 }
 
 void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
-  DCHECK(function_data()->IsUndefined());
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
   set_function_data(bytecode);
 }
 
 void SharedFunctionInfo::ClearBytecodeArray() {
-  DCHECK(function_data()->IsUndefined() || HasBytecodeArray());
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasBytecodeArray());
   set_function_data(GetHeap()->undefined_value());
 }
 
@@ -6009,12 +6027,13 @@ String* SharedFunctionInfo::inferred_name() {
   if (HasInferredName()) {
     return String::cast(function_identifier());
   }
-  DCHECK(function_identifier()->IsUndefined() || HasBuiltinFunctionId());
-  return GetIsolate()->heap()->empty_string();
+  Isolate* isolate = GetIsolate();
+  DCHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId());
+  return isolate->heap()->empty_string();
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
-  DCHECK(function_identifier()->IsUndefined() || HasInferredName());
+  DCHECK(function_identifier()->IsUndefined(GetIsolate()) || HasInferredName());
   set_function_identifier(inferred_name);
 }
 
@@ -6100,7 +6119,7 @@ void SharedFunctionInfo::set_disable_optimization_reason(BailoutReason reason) {
 
 bool SharedFunctionInfo::IsBuiltin() {
   Object* script_obj = script();
-  if (script_obj->IsUndefined()) return true;
+  if (script_obj->IsUndefined(GetIsolate())) return true;
   Script* script = Script::cast(script_obj);
   Script::Type type = static_cast<Script::Type>(script->type());
   return type != Script::TYPE_NORMAL;
@@ -6233,7 +6252,7 @@ Context* JSFunction::native_context() { return context()->native_context(); }
 
 
 void JSFunction::set_context(Object* value) {
-  DCHECK(value->IsUndefined() || value->IsContext());
+  DCHECK(value->IsUndefined(GetIsolate()) || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
   WRITE_BARRIER(GetHeap(), this, kContextOffset, value);
 }
@@ -6253,7 +6272,8 @@ bool JSFunction::has_initial_map() {
 
 
 bool JSFunction::has_instance_prototype() {
-  return has_initial_map() || !prototype_or_initial_map()->IsTheHole();
+  return has_initial_map() ||
+         !prototype_or_initial_map()->IsTheHole(GetIsolate());
 }
 
 
@@ -6649,7 +6669,7 @@ ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() {
   Object* data = this->data();
-  if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
+  if (data->IsUndefined(GetIsolate())) return JSRegExp::NOT_COMPILED;
   Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi->value());
 }
@@ -7338,7 +7358,7 @@ bool AccessorPair::ContainsAccessor() {
 
 
 bool AccessorPair::IsJSAccessor(Object* obj) {
-  return obj->IsCallable() || obj->IsUndefined();
+  return obj->IsCallable() || obj->IsUndefined(GetIsolate());
 }
 
 
@@ -7483,7 +7503,8 @@ void GlobalDictionaryShape::DetailsAtPut(Dictionary* dict, int entry,
 template <typename Dictionary>
 bool GlobalDictionaryShape::IsDeleted(Dictionary* dict, int entry) {
   DCHECK(dict->ValueAt(entry)->IsPropertyCell());
-  return PropertyCell::cast(dict->ValueAt(entry))->value()->IsTheHole();
+  Isolate* isolate = dict->GetIsolate();
+  return PropertyCell::cast(dict->ValueAt(entry))->value()->IsTheHole(isolate);
 }
 
 
@@ -7757,7 +7778,7 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   TableType* table(TableType::cast(this->table()));
   int index = Smi::cast(this->index())->value();
   Object* key = table->KeyAt(index);
-  DCHECK(!key->IsTheHole());
+  DCHECK(!key->IsTheHole(table->GetIsolate()));
   return key;
 }
 
@@ -7777,7 +7798,7 @@ Object* JSMapIterator::CurrentValue() {
   OrderedHashMap* table(OrderedHashMap::cast(this->table()));
   int index = Smi::cast(this->index())->value();
   Object* value = table->ValueAt(index);
-  DCHECK(!value->IsTheHole());
+  DCHECK(!value->IsTheHole(table->GetIsolate()));
   return value;
 }
 

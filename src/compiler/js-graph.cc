@@ -113,7 +113,7 @@ Node* JSGraph::Constant(Handle<Object> value) {
   // canonicalized node can be used.
   if (value->IsNumber()) {
     return Constant(value->Number());
-  } else if (value->IsUndefined()) {
+  } else if (value->IsUndefined(isolate())) {
     return UndefinedConstant();
   } else if (value->IsTrue()) {
     return TrueConstant();
@@ -121,7 +121,7 @@ Node* JSGraph::Constant(Handle<Object> value) {
     return FalseConstant();
   } else if (value->IsNull()) {
     return NullConstant();
-  } else if (value->IsTheHole()) {
+  } else if (value->IsTheHole(isolate())) {
     return TheHoleConstant();
   } else {
     return HeapConstant(Handle<HeapObject>::cast(value));

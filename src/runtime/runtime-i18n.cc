@@ -259,7 +259,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
   Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
-  return isolate->heap()->ToBoolean(!tag->IsUndefined());
+  return isolate->heap()->ToBoolean(!tag->IsUndefined(isolate));
 }
 
 
@@ -317,7 +317,7 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
   Handle<Symbol> marker = isolate->factory()->intl_impl_object_symbol();
 
   Handle<Object> impl = JSReceiver::GetDataProperty(obj, marker);
-  if (impl->IsTheHole()) {
+  if (impl->IsTheHole(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotIntlObject, obj));
   }

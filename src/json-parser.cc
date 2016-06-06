@@ -83,7 +83,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result, InternalizeJsonProperty(holder, name), false);
   Maybe<bool> change_result = Nothing<bool>();
-  if (result->IsUndefined()) {
+  if (result->IsUndefined(isolate_)) {
     change_result = JSReceiver::DeletePropertyOrElement(holder, name, SLOPPY);
   } else {
     PropertyDescriptor desc;
@@ -751,13 +751,13 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     Handle<String> result;
     while (true) {
       Object* element = string_table->KeyAt(entry);
-      if (element == isolate()->heap()->undefined_value()) {
+      if (element->IsUndefined(isolate())) {
         // Lookup failure.
         result =
             factory()->InternalizeOneByteString(seq_source_, position_, length);
         break;
       }
-      if (element != isolate()->heap()->the_hole_value() &&
+      if (!element->IsTheHole(isolate()) &&
           String::cast(element)->IsOneByteEqualTo(string_vector)) {
         result = Handle<String>(String::cast(element), isolate());
 #ifdef DEBUG

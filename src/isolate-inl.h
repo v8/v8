@@ -39,7 +39,7 @@ void Isolate::clear_pending_exception() {
 
 bool Isolate::has_pending_exception() {
   DCHECK(!thread_local_top_.pending_exception_->IsException());
-  return !thread_local_top_.pending_exception_->IsTheHole();
+  return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
 

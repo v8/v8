@@ -299,7 +299,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       // Install a property cell.
       auto cell = JSGlobalObject::EnsurePropertyCell(
           Handle<JSGlobalObject>::cast(receiver), name());
-      DCHECK(cell->value()->IsTheHole());
+      DCHECK(cell->value()->IsTheHole(isolate_));
       transition_ = cell;
     } else {
       transition_ = map;
@@ -693,7 +693,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         number_ = static_cast<uint32_t>(number);
         DCHECK(dict->ValueAt(number_)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
-        if (cell->value()->IsTheHole()) return NOT_FOUND;
+        if (cell->value()->IsTheHole(isolate_)) return NOT_FOUND;
         property_details_ = cell->property_details();
         has_property_ = true;
         switch (property_details_.kind()) {

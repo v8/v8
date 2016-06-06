@@ -1348,7 +1348,7 @@ uint32_t WasmFrame::function_index() {
   FixedArray* deopt_data = LookupCode()->deoptimization_data();
   DCHECK(deopt_data->length() == 2);
   Object* func_index_obj = deopt_data->get(1);
-  if (func_index_obj->IsUndefined()) return static_cast<uint32_t>(-1);
+  if (func_index_obj->IsUndefined(isolate())) return static_cast<uint32_t>(-1);
   if (func_index_obj->IsSmi()) return Smi::cast(func_index_obj)->value();
   DCHECK(func_index_obj->IsHeapNumber());
   uint32_t val = static_cast<uint32_t>(-1);

@@ -205,7 +205,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
-  DCHECK(target->next_function_link()->IsUndefined());
+  DCHECK(target->next_function_link()->IsUndefined(isolate));
 
   Handle<Context> context(source->context());
   target->set_context(*context);

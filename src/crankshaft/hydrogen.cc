@@ -1375,10 +1375,11 @@ int HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
 
   int inline_id = static_cast<int>(graph()->inlined_function_infos().size());
   HInlinedFunctionInfo info(shared->start_position());
-  if (!shared->script()->IsUndefined()) {
-    Handle<Script> script(Script::cast(shared->script()));
+  if (!shared->script()->IsUndefined(isolate())) {
+    Handle<Script> script(Script::cast(shared->script()), isolate());
 
-    if (FLAG_hydrogen_track_positions && !script->source()->IsUndefined()) {
+    if (FLAG_hydrogen_track_positions &&
+        !script->source()->IsUndefined(isolate())) {
       CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
       Object* source_name = script->name();
       OFStream os(tracing_scope.file());
@@ -5832,7 +5833,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
           // If the values is not the hole, it will stay initialized,
           // so no need to generate a check.
-          if (*current_value == *isolate()->factory()->the_hole_value()) {
+          if (current_value->IsTheHole(isolate())) {
             return Bailout(kReferenceToUninitializedVariable);
           }
           HInstruction* result = New<HLoadNamedField>(
@@ -6055,7 +6056,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       closure->literals()->literal(expr->literal_index()), isolate());
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
-  if (!literals_cell->IsUndefined()) {
+  if (!literals_cell->IsUndefined(isolate())) {
     // Retrieve the boilerplate
     site = Handle<AllocationSite>::cast(literals_cell);
     boilerplate = Handle<JSObject>(JSObject::cast(site->transition_info()),
@@ -6173,7 +6174,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<Object> literals_cell(literals->literal(expr->literal_index()),
                                isolate());
   Handle<JSObject> boilerplate_object;
-  if (!literals_cell->IsUndefined()) {
+  if (!literals_cell->IsUndefined(isolate())) {
     DCHECK(literals_cell->IsAllocationSite());
     site = Handle<AllocationSite>::cast(literals_cell);
     boilerplate_object = Handle<JSObject>(
@@ -7014,7 +7015,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
 
       // If the values is not the hole, it will stay initialized,
       // so no need to generate a check.
-      if (*current_value == *isolate()->factory()->the_hole_value()) {
+      if (current_value->IsTheHole(isolate())) {
         return Bailout(kReferenceToUninitializedVariable);
       }
 
@@ -9461,7 +9462,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
   }
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data_obj(api_call_info->data(), isolate());
-  bool call_data_undefined = call_data_obj->IsUndefined();
+  bool call_data_undefined = call_data_obj->IsUndefined(isolate());
   HValue* call_data = Add<HConstant>(call_data_obj);
   ApiFunction fun(v8::ToCData<Address>(api_call_info->callback()));
   ExternalReference ref = ExternalReference(&fun,

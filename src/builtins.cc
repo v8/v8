@@ -184,7 +184,7 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (args.receiver()->IsNull() || args.receiver()->IsUndefined()) {          \
+  if (args.receiver()->IsNull() || args.receiver()->IsUndefined(isolate)) {   \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \
@@ -194,7 +194,7 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
       isolate, name, Object::ToString(isolate, args.receiver()))
 
-inline bool ClampedToInteger(Object* object, int* out) {
+inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
   // This is an extended version of ECMA-262 7.1.11 handling signed values
   // Try to convert object to a number and clamp values to [kMinInt, kMaxInt]
   if (object->IsSmi()) {
@@ -212,7 +212,7 @@ inline bool ClampedToInteger(Object* object, int* out) {
       *out = static_cast<int>(value);
     }
     return true;
-  } else if (object->IsUndefined() || object->IsNull()) {
+  } else if (object->IsUndefined(isolate) || object->IsNull()) {
     *out = 0;
     return true;
   } else if (object->IsBoolean()) {
@@ -597,16 +597,16 @@ BUILTIN(ArraySlice) {
   relative_end = len;
   if (argument_count > 0) {
     DisallowHeapAllocation no_gc;
-    if (!ClampedToInteger(args[1], &relative_start)) {
+    if (!ClampedToInteger(isolate, args[1], &relative_start)) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
     if (argument_count > 1) {
       Object* end_arg = args[2];
       // slice handles the end_arg specially
-      if (end_arg->IsUndefined()) {
+      if (end_arg->IsUndefined(isolate)) {
         relative_end = len;
-      } else if (!ClampedToInteger(end_arg, &relative_end)) {
+      } else if (!ClampedToInteger(isolate, end_arg, &relative_end)) {
         AllowHeapAllocation allow_allocation;
         return CallJsIntrinsic(isolate, isolate->array_slice(), args);
       }
@@ -644,7 +644,7 @@ BUILTIN(ArraySplice) {
   int relative_start = 0;
   if (argument_count > 0) {
     DisallowHeapAllocation no_gc;
-    if (!ClampedToInteger(args[1], &relative_start)) {
+    if (!ClampedToInteger(isolate, args[1], &relative_start)) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_splice(), args);
     }
@@ -666,7 +666,7 @@ BUILTIN(ArraySplice) {
     int delete_count = 0;
     DisallowHeapAllocation no_gc;
     if (argument_count > 1) {
-      if (!ClampedToInteger(args[2], &delete_count)) {
+      if (!ClampedToInteger(isolate, args[2], &delete_count)) {
         AllowHeapAllocation allow_allocation;
         return CallJsIntrinsic(isolate, isolate->array_splice(), args);
       }
@@ -819,7 +819,7 @@ class ArrayConcatVisitor {
     FOR_WITH_HANDLE_SCOPE(
         isolate_, uint32_t, i = 0, i, i < current_length, i++, {
           Handle<Object> element(current_storage->get(i), isolate_);
-          if (!element->IsTheHole()) {
+          if (!element->IsTheHole(isolate_)) {
             // The object holding this backing store has just been allocated, so
             // it cannot yet be used as a prototype.
             Handle<SeededNumberDictionary> new_storage =
@@ -876,9 +876,10 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       // a 32-bit signed integer.
       DCHECK(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
-      Handle<FixedArray> elements(FixedArray::cast(array->elements()));
+      Isolate* isolate = array->GetIsolate();
+      Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
       for (int i = 0; i < fast_length; i++) {
-        if (!elements->get(i)->IsTheHole()) element_count++;
+        if (!elements->get(i)->IsTheHole(isolate)) element_count++;
       }
       break;
     }
@@ -954,7 +955,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
-        if (!elements->get(i)->IsTheHole()) {
+        if (!elements->get(i)->IsTheHole(isolate)) {
           indices->Add(i);
         }
       }
@@ -1124,7 +1125,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
         Handle<Object> element_value(elements->get(j), isolate);
-        if (!element_value->IsTheHole()) {
+        if (!element_value->IsTheHole(isolate)) {
           if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
@@ -1238,7 +1239,7 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
     MaybeHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, obj, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!value->IsUndefined()) return Just(value->BooleanValue());
+    if (!value->IsUndefined(isolate)) return Just(value->BooleanValue());
   }
   return Object::IsArray(obj);
 }
@@ -1497,7 +1498,7 @@ BUILTIN(ArrayConcat) {
 
   Handle<Object> receiver = args.receiver();
   // TODO(bmeurer): Do we really care about the exact exception message here?
-  if (receiver->IsNull() || receiver->IsUndefined()) {
+  if (receiver->IsNull() || receiver->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1697,7 +1698,7 @@ BUILTIN(ObjectCreate) {
 
   // Define the properties if properties was specified and is not undefined.
   Handle<Object> properties = args.atOrUndefined(isolate, 2);
-  if (!properties->IsUndefined()) {
+  if (!properties->IsUndefined(isolate)) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, JSReceiver::DefineProperties(isolate, object, properties));
   }
@@ -2986,7 +2987,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
 
   // 4. Let numberOffset be ? ToNumber(byteOffset).
   Handle<Object> number_offset;
-  if (byte_offset->IsUndefined()) {
+  if (byte_offset->IsUndefined(isolate)) {
     // We intentionally violate the specification at this point to allow
     // for new DataView(buffer) invocations to be equivalent to the full
     // new DataView(buffer, 0) invocation.
@@ -3021,7 +3022,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   }
 
   Handle<Object> view_byte_length;
-  if (byte_length->IsUndefined()) {
+  if (byte_length->IsUndefined(isolate)) {
     // 10. If byteLength is undefined, then
     //       a. Let viewByteLength be bufferByteLength - offset.
     view_byte_length =
@@ -4205,7 +4206,7 @@ MaybeHandle<JSFunction> CreateDynamicFunction(
   // function has wrong initial map. To fix that we create a new
   // function object with correct initial map.
   Handle<Object> unchecked_new_target = args.new_target();
-  if (!unchecked_new_target->IsUndefined() &&
+  if (!unchecked_new_target->IsUndefined(isolate) &&
       !unchecked_new_target.is_identical_to(target)) {
     Handle<JSReceiver> new_target =
         Handle<JSReceiver>::cast(unchecked_new_target);
@@ -4357,7 +4358,7 @@ BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);
   Handle<Symbol> result = isolate->factory()->NewSymbol();
   Handle<Object> description = args.atOrUndefined(isolate, 1);
-  if (!description->IsUndefined()) {
+  if (!description->IsUndefined(isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, description,
                                        Object::ToString(isolate, description));
     result->set_name(*description);
@@ -4893,7 +4894,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
   HandleScope scope(isolate);
   Handle<HeapObject> function = args.target<HeapObject>();
   Handle<HeapObject> new_target = args.new_target();
-  bool is_construct = !new_target->IsUndefined();
+  bool is_construct = !new_target->IsUndefined(isolate);
   Handle<JSReceiver> receiver;
 
   DCHECK(function->IsFunctionTemplateInfo() ||
@@ -4904,8 +4905,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
           ? Handle<FunctionTemplateInfo>::cast(function)
           : handle(JSFunction::cast(*function)->shared()->get_api_func_data());
   if (is_construct) {
-    DCHECK(args.receiver()->IsTheHole());
-    if (fun_data->instance_template()->IsUndefined()) {
+    DCHECK(args.receiver()->IsTheHole(isolate));
+    if (fun_data->instance_template()->IsUndefined(isolate)) {
       v8::Local<ObjectTemplate> templ =
           ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
                               ToApiHandle<v8::FunctionTemplate>(fun_data));
@@ -4944,7 +4945,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
   }
 
   Object* raw_call_data = fun_data->call_code();
-  if (!raw_call_data->IsUndefined()) {
+  if (!raw_call_data->IsUndefined(isolate)) {
     DCHECK(raw_call_data->IsCallHandlerInfo());
     CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
     Object* callback_obj = call_data->callback();
@@ -5154,7 +5155,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   CHECK(constructor->shared()->IsApiFunction());
   Object* handler =
       constructor->shared()->get_api_func_data()->instance_call_handler();
-  DCHECK(!handler->IsUndefined());
+  DCHECK(!handler->IsUndefined(isolate));
   // TODO(ishell): remove this debugging code.
   CHECK(handler->IsCallHandlerInfo());
   CallHandlerInfo* call_data = CallHandlerInfo::cast(handler);

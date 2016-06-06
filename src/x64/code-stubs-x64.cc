@@ -2664,7 +2664,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // Load rcx with the allocation site.  We stick an undefined dummy value here
   // and replace it with the real allocation site later when we instantiate this
   // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
-  __ Move(rcx, handle(isolate()->heap()->undefined_value()));
+  __ Move(rcx, isolate()->factory()->undefined_value());
 
   // Make sure that we actually patched the allocation site.
   if (FLAG_debug_code) {
@@ -3962,9 +3962,6 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   // rdi - constructor?
   // rsp[0] - return address
   // rsp[8] - last argument
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(),
-      masm->isolate());
 
   Label normal_sequence;
   if (mode == DONT_OVERRIDE) {

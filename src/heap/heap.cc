@@ -1111,9 +1111,11 @@ class StringTableVerifier : public ObjectVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*p);
+        Isolate* isolate = object->GetIsolate();
         // Check that the string is actually internalized.
-        CHECK((*p)->IsTheHole() || (*p)->IsUndefined() ||
-              (*p)->IsInternalizedString());
+        CHECK(object->IsTheHole(isolate) || object->IsUndefined(isolate) ||
+              object->IsInternalizedString());
       }
     }
   }
@@ -1212,12 +1214,12 @@ void Heap::ClearNormalizedMapCaches() {
   }
 
   Object* context = native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(isolate())) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
     Object* cache =
         Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-    if (!cache->IsUndefined()) {
+    if (!cache->IsUndefined(isolate())) {
       NormalizedMapCache::cast(cache)->Clear();
     }
     context = Context::cast(context)->next_context_link();
@@ -6261,8 +6263,9 @@ void DescriptorLookupCache::Clear() {
 
 void Heap::ExternalStringTable::CleanUp() {
   int last = 0;
+  Isolate* isolate = heap_->isolate();
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i] == heap_->the_hole_value()) {
+    if (new_space_strings_[i]->IsTheHole(isolate)) {
       continue;
     }
     DCHECK(new_space_strings_[i]->IsExternalString());
@@ -6277,7 +6280,7 @@ void Heap::ExternalStringTable::CleanUp() {
 
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i] == heap_->the_hole_value()) {
+    if (old_space_strings_[i]->IsTheHole(isolate)) {
       continue;
     }
     DCHECK(old_space_strings_[i]->IsExternalString());

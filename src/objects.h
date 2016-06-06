@@ -1064,6 +1064,9 @@ class Object {
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
 
+  INLINE(bool IsTheHole(Isolate* isolate) const);
+  INLINE(bool IsUndefined(Isolate* isolate) const);
+
   // ES6, section 7.2.2 IsArray.  NOT to be confused with %_IsArray.
   MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
@@ -1551,6 +1554,7 @@ class HeapObject: public Object {
   // Convenience method to get current isolate.
   inline Isolate* GetIsolate() const;
 
+// TODO(cbruni): clean up once isolate-based versions are in place.
 #define IS_TYPE_FUNCTION_DECL(type_) INLINE(bool Is##type_() const);
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
@@ -1559,6 +1563,9 @@ class HeapObject: public Object {
   INLINE(bool Is##Name() const);
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
+
+  INLINE(bool IsTheHole(Isolate* isolate) const);
+  INLINE(bool IsUndefined(Isolate* isolate) const);
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address) {
@@ -3875,7 +3882,7 @@ class OrderedHashTable: public FixedArray {
   int KeyToFirstEntry(Object* key) {
     Object* hash = key->GetHash();
     // If the object does not have an identity hash, it was never used as a key
-    if (hash->IsUndefined()) return kNotFound;
+    if (hash->IsUndefined(GetIsolate())) return kNotFound;
     return HashToEntry(Smi::cast(hash)->value());
   }
 
@@ -3884,7 +3891,7 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(next_entry)->value();
   }
 
-  // use KeyAt(i)->IsTheHole() to determine if this is a deleted entry.
+  // use KeyAt(i)->IsTheHole(isolate) to determine if this is a deleted entry.
   Object* KeyAt(int entry) {
     DCHECK_LT(entry, this->UsedCapacity());
     return get(EntryToIndex(entry));

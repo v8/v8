@@ -259,7 +259,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined()) {
+  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
@@ -273,7 +273,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // At this point, no revocation has been issued before
-  RUNTIME_ASSERT(JSReceiver::GetDataProperty(promise, key)->IsUndefined());
+  RUNTIME_ASSERT(
+      JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();
@@ -451,8 +452,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     JSFunction* fun = frame->function();
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined())) {
-      Handle<Script> casted_script(Script::cast(script));
+        !(Script::cast(script)->source()->IsUndefined(isolate))) {
+      Handle<Script> casted_script(Script::cast(script), isolate);
       // Compute the location from the function and the relocation info of the
       // baseline code. For optimized code this will use the deoptimization
       // information to get canonical location information.

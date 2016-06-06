@@ -668,9 +668,10 @@ bool Serializer::ObjectSerializer::SerializeExternalNativeSourceString(
     int builtin_count,
     v8::String::ExternalOneByteStringResource** resource_pointer,
     FixedArray* source_cache, int resource_index) {
+  Isolate* isolate = serializer_->isolate();
   for (int i = 0; i < builtin_count; i++) {
     Object* source = source_cache->get(i);
-    if (!source->IsUndefined()) {
+    if (!source->IsUndefined(isolate)) {
       ExternalOneByteString* string = ExternalOneByteString::cast(source);
       typedef v8::String::ExternalOneByteStringResource Resource;
       const Resource* resource = string->resource();

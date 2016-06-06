@@ -235,7 +235,8 @@ static void LookupForRead(LookupIterator* it) {
       case LookupIterator::INTERCEPTOR: {
         // If there is a getter, return; otherwise loop to perform the lookup.
         Handle<JSObject> holder = it->GetHolder<JSObject>();
-        if (!holder->GetNamedInterceptor()->getter()->IsUndefined()) {
+        if (!holder->GetNamedInterceptor()->getter()->IsUndefined(
+                it->isolate())) {
           return;
         }
         break;
@@ -304,7 +305,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   update_receiver_map(receiver);
   if (!name->IsString()) return;
   if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
-  if (receiver->IsUndefined() || receiver->IsNull()) return;
+  if (receiver->IsUndefined(isolate()) || receiver->IsNull()) return;
 
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
@@ -588,7 +589,7 @@ void IC::ConfigureVectorState(MapHandleList* maps,
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate()) || object->IsNull()) {
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
@@ -625,7 +626,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
           FixedArray::get(*ScriptContextTable::GetContext(
                               script_contexts, lookup_result.context_index),
                           lookup_result.slot_index, isolate());
-      if (*result == *isolate()->factory()->the_hole_value()) {
+      if (result->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
         return ReferenceError(name);
@@ -1152,7 +1153,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   Handle<Map> map = receiver_map();
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
-      DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
+      DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadInterceptor);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
       // Perform a lookup behind the interceptor. Copy the LookupIterator since
@@ -1265,7 +1266,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
         key = handle(Smi::FromInt(int_value), isolate);
       }
     }
-  } else if (key->IsUndefined()) {
+  } else if (key->IsUndefined(isolate)) {
     key = isolate->factory()->undefined_string();
   }
   return key;
@@ -1405,9 +1406,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         InterceptorInfo* info = holder->GetNamedInterceptor();
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return !info->non_masking() && receiver.is_identical_to(holder) &&
-                 !info->setter()->IsUndefined();
-        } else if (!info->getter()->IsUndefined() ||
-                   !info->query()->IsUndefined()) {
+                 !info->setter()->IsUndefined(it->isolate());
+        } else if (!info->getter()->IsUndefined(it->isolate()) ||
+                   !info->query()->IsUndefined(it->isolate())) {
           return false;
         }
         break;
@@ -1492,7 +1493,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       Handle<Object> previous_value =
           FixedArray::get(*script_context, lookup_result.slot_index, isolate());
 
-      if (*previous_value == *isolate()->factory()->the_hole_value()) {
+      if (previous_value->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
         return ReferenceError(name);
@@ -1522,7 +1523,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate()) || object->IsNull()) {
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
@@ -1615,7 +1616,7 @@ Handle<Code> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::INTERCEPTOR: {
-      DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined());
+      DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined(isolate()));
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorStub);
       StoreInterceptorStub stub(isolate());
       return stub.GetCode();
@@ -2647,7 +2648,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   CompareICState::State new_right =
       CompareICState::NewInputState(old_stub.right(), y);
   CompareICState::State state = CompareICState::TargetState(
-      old_stub.state(), old_stub.left(), old_stub.right(), op_,
+      isolate(), old_stub.state(), old_stub.left(), old_stub.right(), op_,
       HasInlinedSmiCode(address()), x, y);
   CompareICStub stub(isolate(), op_, new_left, new_right, state);
   if (state == CompareICState::KNOWN_RECEIVER) {

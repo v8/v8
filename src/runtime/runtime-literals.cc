@@ -209,7 +209,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(closure->literals()->literal(index), isolate);
-  if (boilerplate->IsUndefined()) {
+  if (boilerplate->IsUndefined(isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
     closure->literals()->set_literal(index, *boilerplate);
@@ -236,7 +236,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
-  if (*literal_site == isolate->heap()->undefined_value()) {
+  if (literal_site->IsUndefined(isolate)) {
     Handle<Object> raw_boilerplate;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, raw_boilerplate,
@@ -272,7 +272,7 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
-  if (*literal_site == isolate->heap()->undefined_value()) {
+  if (literal_site->IsUndefined(isolate)) {
     DCHECK(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate;
     ASSIGN_RETURN_ON_EXCEPTION(

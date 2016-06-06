@@ -147,11 +147,12 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
   AllowDeferredHandleDereference allow_deference_for_print_code;
-  bool print_code = info->isolate()->bootstrapper()->IsActive()
-      ? FLAG_print_builtin_code
-      : (FLAG_print_code ||
-         (info->IsStub() && FLAG_print_code_stubs) ||
-         (info->IsOptimizing() && FLAG_print_opt_code));
+  Isolate* isolate = info->isolate();
+  bool print_code =
+      isolate->bootstrapper()->IsActive()
+          ? FLAG_print_builtin_code
+          : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
+             (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     base::SmartArrayPointer<char> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
@@ -164,7 +165,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       Handle<Script> script = info->script();
-      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+      if (!script->IsUndefined(isolate) &&
+          !script->source()->IsUndefined(isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(String::cast(script->source()),
                                      shared->start_position());

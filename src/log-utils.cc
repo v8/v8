@@ -171,7 +171,7 @@ void Log::MessageBuilder::AppendAddress(Address addr) {
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   Append("symbol(");
-  if (!symbol->name()->IsUndefined()) {
+  if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
     Append("\"");
     AppendDetailed(String::cast(symbol->name()), false);
     Append("\" ");

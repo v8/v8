@@ -4476,7 +4476,7 @@ std::ostream& ArrayConstructorStubBase::BasePrintName(
 bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
   Types new_types = types();
   Types old_types = new_types;
-  bool to_boolean_value = new_types.UpdateStatus(object);
+  bool to_boolean_value = new_types.UpdateStatus(isolate(), object);
   TraceTransition(old_types, new_types);
   set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToIntegral()));
   return to_boolean_value;
@@ -4502,8 +4502,9 @@ std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& s) {
   return os << ")";
 }
 
-bool ToBooleanICStub::Types::UpdateStatus(Handle<Object> object) {
-  if (object->IsUndefined()) {
+bool ToBooleanICStub::Types::UpdateStatus(Isolate* isolate,
+                                          Handle<Object> object) {
+  if (object->IsUndefined(isolate)) {
     Add(UNDEFINED);
     return false;
   } else if (object->IsBoolean()) {

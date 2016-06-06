@@ -235,7 +235,7 @@ class IncrementalMarkingMarkingVisitor
     // Note that GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
     Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-    if (!cache->IsUndefined()) {
+    if (!cache->IsUndefined(map->GetIsolate())) {
       MarkObjectGreyDoNotEnqueue(cache);
     }
     VisitNativeContext(map, context);
@@ -934,12 +934,12 @@ void IncrementalMarking::Hurry() {
   }
 
   Object* context = heap_->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(heap_->isolate())) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
     HeapObject* cache = HeapObject::cast(
         Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
-    if (!cache->IsUndefined()) {
+    if (!cache->IsUndefined(heap_->isolate())) {
       MarkBit mark_bit = Marking::MarkBitFrom(cache);
       if (Marking::IsGrey(mark_bit)) {
         Marking::GreyToBlack(mark_bit);

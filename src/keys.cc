@@ -439,7 +439,7 @@ Maybe<bool> GetKeysFromInterceptor(Handle<JSReceiver> receiver,
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *object, Object::DONT_THROW);
   Handle<JSObject> result;
-  if (!interceptor->enumerator()->IsUndefined()) {
+  if (!interceptor->enumerator()->IsUndefined(isolate)) {
     Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
     const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
                                            : "interceptor-named-enum";
@@ -598,7 +598,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                         isolate_->factory()->ownKeys_string()),
       Nothing<bool>());
   // 6. If trap is undefined, then
-  if (trap->IsUndefined()) {
+  if (trap->IsUndefined(isolate_)) {
     // 6a. Return target.[[OwnPropertyKeys]]().
     return CollectOwnJSProxyTargetKeys(proxy, target);
   }

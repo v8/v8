@@ -593,7 +593,8 @@ void ElementHandlerCompiler::CompileElementHandlers(
            *receiver_map == isolate()->get_initial_js_array_map(elements_kind));
 
       if (receiver_map->has_indexed_interceptor() &&
-          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined() &&
+          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
+              isolate()) &&
           !receiver_map->GetIndexedInterceptor()->non_masking()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
       } else if (IsSloppyArgumentsElements(elements_kind)) {

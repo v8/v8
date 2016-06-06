@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
-  RUNTIME_ASSERT(args[0]->IsJSFunction() || args[0]->IsUndefined() ||
+  RUNTIME_ASSERT(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
                  args[0]->IsNull());
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
@@ -963,7 +963,9 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   // Find the number of break points
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(shared, alignment);
-  if (break_locations->IsUndefined()) return isolate->heap()->undefined_value();
+  if (break_locations->IsUndefined(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(break_locations));
@@ -1211,7 +1213,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
-  RUNTIME_ASSERT(filter->IsUndefined() || filter->IsJSObject());
+  RUNTIME_ASSERT(filter->IsUndefined(isolate) || filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
   RUNTIME_ASSERT(max_references >= 0);
 
@@ -1230,7 +1232,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
       if (!obj->ReferencesObject(*target)) continue;
       // Check filter if supplied. This is normally used to avoid
       // references from mirror objects.
-      if (!filter->IsUndefined() &&
+      if (!filter->IsUndefined(isolate) &&
           HasInPrototypeChainIgnoringProxies(isolate, obj, *filter)) {
         continue;
       }
@@ -1590,7 +1592,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   // additionally subtracting corresponding offsets.
 
   int32_t line;
-  if (args[1]->IsNull() || args[1]->IsUndefined()) {
+  if (args[1]->IsNull() || args[1]->IsUndefined(isolate)) {
     line = 0;
   } else {
     RUNTIME_ASSERT(args[1]->IsNumber());
@@ -1598,7 +1600,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   }
 
   int32_t column;
-  if (args[2]->IsNull() || args[2]->IsUndefined()) {
+  if (args[2]->IsNull() || args[2]->IsUndefined(isolate)) {
     column = 0;
   } else {
     RUNTIME_ASSERT(args[2]->IsNumber());

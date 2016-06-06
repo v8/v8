@@ -41,7 +41,7 @@ CompilationCache::~CompilationCache() {}
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   DCHECK(generation < generations_);
   Handle<CompilationCacheTable> result;
-  if (tables_[generation]->IsUndefined()) {
+  if (tables_[generation]->IsUndefined(isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
@@ -56,7 +56,7 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 void CompilationSubCache::Age() {
   // Don't directly age single-generation caches.
   if (generations_ == 1) {
-    if (tables_[0] != isolate()->heap()->undefined_value()) {
+    if (!tables_[0]->IsUndefined(isolate())) {
       CompilationCacheTable::cast(tables_[0])->Age();
     }
     return;
@@ -121,7 +121,7 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   if (name.is_null()) {
-    return script->name()->IsUndefined();
+    return script->name()->IsUndefined(isolate());
   }
   // Do the fast bailout checks first.
   if (line_offset != script->line_offset()) return false;

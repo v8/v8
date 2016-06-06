@@ -193,9 +193,10 @@ class CompareICState {
 
   static const char* GetStateName(CompareICState::State state);
 
-  static State TargetState(State old_state, State old_left, State old_right,
-                           Token::Value op, bool has_inlined_smi_code,
-                           Handle<Object> x, Handle<Object> y);
+  static State TargetState(Isolate* isolate, State old_state, State old_left,
+                           State old_right, Token::Value op,
+                           bool has_inlined_smi_code, Handle<Object> x,
+                           Handle<Object> y);
 };
 
 

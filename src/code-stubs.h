@@ -3037,7 +3037,7 @@ class ToBooleanICStub : public HydrogenCodeStub {
     Types() : EnumSet<Type, uint16_t>(0) {}
     explicit Types(uint16_t bits) : EnumSet<Type, uint16_t>(bits) {}
 
-    bool UpdateStatus(Handle<Object> object);
+    bool UpdateStatus(Isolate* isolate, Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const {
       return Contains(ToBooleanICStub::SPEC_OBJECT);

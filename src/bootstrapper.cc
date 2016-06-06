@@ -31,7 +31,7 @@ template <class Source>
 Handle<String> Bootstrapper::SourceLookup(int index) {
   DCHECK(0 <= index && index < Source::GetBuiltinsCount());
   Heap* heap = isolate_->heap();
-  if (Source::GetSourceCache(heap)->get(index)->IsUndefined()) {
+  if (Source::GetSourceCache(heap)->get(index)->IsUndefined(isolate_)) {
     // We can use external strings for the natives.
     Vector<const char> source = Source::GetScriptSource(index);
     NativesExternalStringResource* resource =
@@ -109,9 +109,10 @@ void Bootstrapper::TearDownExtensions() {
 void DeleteNativeSources(Object* maybe_array) {
   if (maybe_array->IsFixedArray()) {
     FixedArray* array = FixedArray::cast(maybe_array);
+    Isolate* isolate = array->GetIsolate();
     for (int i = 0; i < array->length(); i++) {
       Object* natives_source = array->get(i);
-      if (!natives_source->IsUndefined()) {
+      if (!natives_source->IsUndefined(isolate)) {
         const NativesExternalStringResource* resource =
             reinterpret_cast<const NativesExternalStringResource*>(
                 ExternalOneByteString::cast(natives_source)->resource());
@@ -884,13 +885,14 @@ void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
 
 static void AddToWeakNativeContextList(Context* context) {
   DCHECK(context->IsNativeContext());
-  Heap* heap = context->GetIsolate()->heap();
+  Isolate* isolate = context->GetIsolate();
+  Heap* heap = isolate->heap();
 #ifdef DEBUG
   { // NOLINT
-    DCHECK(context->next_context_link()->IsUndefined());
+    DCHECK(context->next_context_link()->IsUndefined(isolate));
     // Check that context is not in the list yet.
     for (Object* current = heap->native_contexts_list();
-         !current->IsUndefined();
+         !current->IsUndefined(isolate);
          current = Context::cast(current)->next_context_link()) {
       DCHECK(current != context);
     }
@@ -965,7 +967,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
             FunctionTemplateInfo::cast(data->constructor()));
     Handle<Object> proto_template(global_constructor->prototype_template(),
                                   isolate());
-    if (!proto_template->IsUndefined()) {
+    if (!proto_template->IsUndefined(isolate())) {
       js_global_object_template =
           Handle<ObjectTemplateInfo>::cast(proto_template);
     }
@@ -1035,7 +1037,9 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
   global_proxy->set_native_context(*native_context());
   // If we deserialized the context, the global proxy is already
   // correctly set up. Otherwise it's undefined.
-  DCHECK(native_context()->get(Context::GLOBAL_PROXY_INDEX)->IsUndefined() ||
+  DCHECK(native_context()
+             ->get(Context::GLOBAL_PROXY_INDEX)
+             ->IsUndefined(isolate()) ||
          native_context()->global_proxy() == *global_proxy);
   native_context()->set_global_proxy(*global_proxy);
 }
@@ -3470,7 +3474,7 @@ bool Genesis::ConfigureGlobalObjects(
     // Configure the global object.
     Handle<FunctionTemplateInfo> proxy_constructor(
         FunctionTemplateInfo::cast(global_proxy_data->constructor()));
-    if (!proxy_constructor->prototype_template()->IsUndefined()) {
+    if (!proxy_constructor->prototype_template()->IsUndefined(isolate())) {
       Handle<ObjectTemplateInfo> global_object_data(
           ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
       if (!ConfigureApiObject(global_object, global_object_data)) return false;
@@ -3577,7 +3581,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         DCHECK(properties->ValueAt(i)->IsPropertyCell());
         Handle<PropertyCell> cell(PropertyCell::cast(properties->ValueAt(i)));
         Handle<Object> value(cell->value(), isolate());
-        if (value->IsTheHole()) continue;
+        if (value->IsTheHole(isolate())) continue;
         PropertyDetails details = cell->property_details();
         DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());
@@ -3600,7 +3604,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
         DCHECK(!value->IsCell());
-        DCHECK(!value->IsTheHole());
+        DCHECK(!value->IsTheHole(isolate()));
         PropertyDetails details = properties->DetailsAt(i);
         DCHECK_EQ(kData, details.kind());
         JSObject::AddProperty(to, key, value, details.attributes());

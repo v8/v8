@@ -58,7 +58,7 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
   Object** handle = &this->begin()[kReturnValueOffset];
   // Nothing was set, return empty handle as per previous behaviour.
-  if ((*handle)->IsTheHole()) return Handle<V>();
+  if ((*handle)->IsTheHole(isolate)) return Handle<V>();
   Handle<V> result = Handle<V>::cast(Handle<Object>(handle));
   result->VerifyApiCallResultType();
   return result;

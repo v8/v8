@@ -32,6 +32,7 @@ class CallPrinter : public AstVisitor {
 
  private:
   void Init();
+  Isolate* isolate_;
   char* output_;  // output string buffer
   int size_;      // output_ size
   int pos_;       // current printing position
@@ -74,6 +75,7 @@ class PrettyPrinter: public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
+  Isolate* isolate_;
   char* output_;  // output string buffer
   int size_;  // output_ size
   int pos_;  // current printing position

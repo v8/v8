@@ -250,7 +250,7 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     // referenced by the current function, so it can be correctly resolved.
     return;
   } else if (local_function->shared()->scope_info()->HasReceiver() &&
-             !frame_->receiver()->IsTheHole()) {
+             !frame_->receiver()->IsTheHole(isolate_)) {
     recv = handle(frame_->receiver(), isolate_);
   }
   JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();

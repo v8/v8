@@ -16,7 +16,7 @@ RUNTIME_FUNCTION(Runtime_CreateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  RUNTIME_ASSERT(name->IsString() || name->IsUndefined(isolate));
   Handle<Symbol> symbol = isolate->factory()->NewSymbol();
   if (name->IsString()) symbol->set_name(*name);
   return *symbol;
@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  RUNTIME_ASSERT(name->IsString() || name->IsUndefined(isolate));
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (name->IsString()) symbol->set_name(*name);
   return *symbol;

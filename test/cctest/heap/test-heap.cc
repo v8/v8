@@ -6154,7 +6154,7 @@ static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = CcTest::i_isolate();
   Object* message =
       *reinterpret_cast<Object**>(isolate->pending_message_obj_address());
-  CHECK(message->IsTheHole());
+  CHECK(message->IsTheHole(isolate));
 }
 
 

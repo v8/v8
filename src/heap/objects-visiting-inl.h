@@ -385,7 +385,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitTransitionArray(
   }
   // Enqueue the array in linked list of encountered transition arrays if it is
   // not already in the list.
-  if (array->next_link()->IsUndefined()) {
+  if (array->next_link()->IsUndefined(heap->isolate())) {
     Heap* heap = map->GetHeap();
     array->set_next_link(heap->encountered_transition_arrays(),
                          UPDATE_WEAK_WRITE_BARRIER);

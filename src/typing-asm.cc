@@ -603,7 +603,7 @@ void AsmTyper::VisitLiteral(Literal* expr, bool is_return) {
     }
   } else if (!is_return && value->IsString()) {
     RECURSE(IntersectResult(expr, Type::String()));
-  } else if (value->IsUndefined()) {
+  } else if (value->IsUndefined(isolate_)) {
     RECURSE(IntersectResult(expr, Type::Undefined()));
   } else {
     FAIL(expr, "illegal literal");

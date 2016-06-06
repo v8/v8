@@ -189,7 +189,7 @@ static void CopyDictionaryToObjectElements(
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
-      DCHECK(!value->IsTheHole());
+      DCHECK(!value->IsTheHole(from->GetIsolate()));
       to->set(i + to_start, value, write_barrier_mode);
     } else {
       to->set_the_hole(i + to_start);
@@ -352,7 +352,7 @@ static void CopyPackedSmiToDoubleElements(FixedArrayBase* from_base,
   for (uint32_t from_end = from_start + static_cast<uint32_t>(packed_size);
        from_start < from_end; from_start++, to_start++) {
     Object* smi = from->get(from_start);
-    DCHECK(!smi->IsTheHole());
+    DCHECK(!smi->IsTheHole(from->GetIsolate()));
     to->set(to_start, Smi::cast(smi)->value());
   }
 }
@@ -1256,7 +1256,7 @@ class DictionaryElementsAccessor
     DisallowHeapAllocation no_gc;
     SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
     Object* index = dict->KeyAt(entry);
-    return !index->IsTheHole();
+    return !index->IsTheHole(dict->GetIsolate());
   }
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* store, uint32_t entry) {
@@ -1389,7 +1389,7 @@ class DictionaryElementsAccessor
       if (k == *the_hole) continue;
       if (dictionary->IsDeleted(i)) continue;
       Object* value = dictionary->ValueAt(i);
-      DCHECK(!value->IsTheHole());
+      DCHECK(!value->IsTheHole(isolate));
       DCHECK(!value->IsAccessorPair());
       DCHECK(!value->IsAccessorInfo());
       accumulator->AddKey(value, convert);
@@ -1820,7 +1820,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     Subclass::SetLengthImpl(isolate, receiver, new_length, backing_store);
 
-    if (IsHoleyElementsKind(kind) && result->IsTheHole()) {
+    if (IsHoleyElementsKind(kind) && result->IsTheHole(isolate)) {
       return isolate->factory()->undefined_value();
     }
     return result;
@@ -1872,7 +1872,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     WriteBarrierMode mode = raw_backing_store->GetWriteBarrierMode(no_gc);
     for (uint32_t i = 0; i < copy_size; i++) {
       Object* argument = (*args)[src_index + i];
-      DCHECK(!argument->IsTheHole());
+      DCHECK(!argument->IsTheHole(raw_backing_store->GetIsolate()));
       Subclass::SetImpl(raw_backing_store, dst_index + i, argument, mode);
     }
   }
@@ -2249,7 +2249,7 @@ class SloppyArgumentsElementsAccessor
       Object* probe = parameter_map->get(entry + 2);
       Context* context = Context::cast(parameter_map->get(0));
       int context_entry = Smi::cast(probe)->value();
-      DCHECK(!context->get(context_entry)->IsTheHole());
+      DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       return handle(context->get(context_entry), isolate);
     } else {
       // Object is not mapped, defer to the arguments.
@@ -2261,7 +2261,7 @@ class SloppyArgumentsElementsAccessor
         AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(*result);
         Context* context = Context::cast(parameter_map->get(0));
         int context_entry = alias->aliased_context_slot();
-        DCHECK(!context->get(context_entry)->IsTheHole());
+        DCHECK(!context->get(context_entry)->IsTheHole(isolate));
         return handle(context->get(context_entry), isolate);
       }
       return result;
@@ -2286,7 +2286,7 @@ class SloppyArgumentsElementsAccessor
       Object* probe = parameter_map->get(entry + 2);
       Context* context = Context::cast(parameter_map->get(0));
       int context_entry = Smi::cast(probe)->value();
-      DCHECK(!context->get(context_entry)->IsTheHole());
+      DCHECK(!context->get(context_entry)->IsTheHole(store->GetIsolate()));
       context->set(context_entry, value);
     } else {
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
@@ -2295,7 +2295,7 @@ class SloppyArgumentsElementsAccessor
         AliasedArgumentsEntry* alias = AliasedArgumentsEntry::cast(current);
         Context* context = Context::cast(parameter_map->get(0));
         int context_entry = alias->aliased_context_slot();
-        DCHECK(!context->get(context_entry)->IsTheHole());
+        DCHECK(!context->get(context_entry)->IsTheHole(store->GetIsolate()));
         context->set(context_entry, value);
       } else {
         ArgumentsAccessor::SetImpl(arguments, entry - length, value);
@@ -2334,7 +2334,8 @@ class SloppyArgumentsElementsAccessor
     FixedArray* parameter_map = FixedArray::cast(parameters);
     uint32_t length = parameter_map->length() - 2;
     if (entry < length) {
-      return !GetParameterMapArg(parameter_map, entry)->IsTheHole();
+      return !GetParameterMapArg(parameter_map, entry)
+                  ->IsTheHole(parameter_map->GetIsolate());
     }
 
     FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
@@ -2363,7 +2364,7 @@ class SloppyArgumentsElementsAccessor
                                        uint32_t index, PropertyFilter filter) {
     FixedArray* parameter_map = FixedArray::cast(parameters);
     Object* probe = GetParameterMapArg(parameter_map, index);
-    if (!probe->IsTheHole()) return index;
+    if (!probe->IsTheHole(holder->GetIsolate())) return index;
 
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
     uint32_t entry = ArgumentsAccessor::GetEntryForIndexImpl(holder, arguments,
@@ -2427,7 +2428,7 @@ class SloppyArgumentsElementsAccessor
     uint32_t length = parameter_map->length() - 2;
 
     for (uint32_t i = 0; i < length; ++i) {
-      if (parameter_map->get(i + 2)->IsTheHole()) continue;
+      if (parameter_map->get(i + 2)->IsTheHole(isolate)) continue;
       if (convert == GetKeysConversion::kConvertToString) {
         Handle<String> index_string = isolate->factory()->Uint32ToString(i);
         list->set(insertion_index, *index_string);
@@ -2496,25 +2497,25 @@ class SlowSloppyArgumentsElementsAccessor
                               PropertyAttributes attributes) {
     Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(store);
     uint32_t length = parameter_map->length() - 2;
+    Isolate* isolate = store->GetIsolate();
     if (entry < length) {
       Object* probe = parameter_map->get(entry + 2);
-      DCHECK(!probe->IsTheHole());
+      DCHECK(!probe->IsTheHole(isolate));
       Context* context = Context::cast(parameter_map->get(0));
       int context_entry = Smi::cast(probe)->value();
-      DCHECK(!context->get(context_entry)->IsTheHole());
+      DCHECK(!context->get(context_entry)->IsTheHole(isolate));
       context->set(context_entry, *value);
 
       // Redefining attributes of an aliased element destroys fast aliasing.
       parameter_map->set_the_hole(entry + 2);
       // For elements that are still writable we re-establish slow aliasing.
       if ((attributes & READ_ONLY) == 0) {
-        Isolate* isolate = store->GetIsolate();
         value = isolate->factory()->NewAliasedArgumentsEntry(context_entry);
       }
 
       PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
       Handle<SeededNumberDictionary> arguments(
-          SeededNumberDictionary::cast(parameter_map->get(1)));
+          SeededNumberDictionary::cast(parameter_map->get(1)), isolate);
       arguments = SeededNumberDictionary::AddNumberEntry(
           arguments, entry, value, details, object->map()->is_prototype_map());
       // If the attributes were NONE, we would have called set rather than
@@ -2524,7 +2525,7 @@ class SlowSloppyArgumentsElementsAccessor
       parameter_map->set(1, *arguments);
     } else {
       Handle<FixedArrayBase> arguments(
-          FixedArrayBase::cast(parameter_map->get(1)));
+          FixedArrayBase::cast(parameter_map->get(1)), isolate);
       DictionaryElementsAccessor::ReconfigureImpl(
           object, arguments, entry - length, value, attributes);
     }

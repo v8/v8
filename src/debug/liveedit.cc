@@ -1071,7 +1071,8 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
                                  Handle<Object> script_handle) {
   Handle<SharedFunctionInfo> shared_info =
       UnwrapSharedFunctionInfoFromJSValue(function_wrapper);
-  CHECK(script_handle->IsScript() || script_handle->IsUndefined());
+  Isolate* isolate = function_wrapper->GetIsolate();
+  CHECK(script_handle->IsScript() || script_handle->IsUndefined(isolate));
   SharedFunctionInfo::SetScript(shared_info, script_handle);
   shared_info->DisableOptimization(kLiveEdit);
 
@@ -1609,7 +1610,7 @@ class MultipleFunctionTarget {
       Handle<Object> new_element =
           JSReceiver::GetElement(isolate, new_shared_array_, i)
               .ToHandleChecked();
-      if (new_element->IsUndefined()) return false;
+      if (new_element->IsUndefined(isolate)) return false;
       Handle<SharedFunctionInfo> new_shared =
           UnwrapSharedFunctionInfoFromJSValue(
               Handle<JSValue>::cast(new_element));

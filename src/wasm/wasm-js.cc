@@ -244,7 +244,7 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK(!maybe_init.is_null());
 
   i::Handle<i::Object> init = maybe_init.ToHandleChecked();
-  i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
+  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
   i::Handle<i::Object>* foreign_args_array =
       new i::Handle<i::Object>[foreign_args->length()];
   for (int j = 0; j < foreign_args->length(); j++) {

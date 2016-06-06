@@ -291,7 +291,8 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
-  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
+  return lookup->IsTheHole(isolate) ? isolate->heap()->undefined_value()
+                                    : *lookup;
 }
 
 
@@ -306,7 +307,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole(isolate));
 }
 
 

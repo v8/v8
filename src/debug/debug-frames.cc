@@ -123,7 +123,7 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
         i < GetParametersCount()
             ? GetParameter(i)
             : Handle<Object>::cast(isolate_->factory()->undefined_value());
-    DCHECK(!value->IsTheHole());
+    DCHECK(!value->IsTheHole(isolate_));
 
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
@@ -135,7 +135,9 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
     Handle<Object> value = GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
-    if (value->IsTheHole()) value = isolate_->factory()->undefined_value();
+    if (value->IsTheHole(isolate_)) {
+      value = isolate_->factory()->undefined_value();
+    }
     if (value->IsOptimizedOut()) value = isolate_->factory()->undefined_value();
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
@@ -166,7 +168,7 @@ void FrameInspector::UpdateStackLocalsFromMaterializedObject(
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 
-    DCHECK(!frame_->GetParameter(i)->IsTheHole());
+    DCHECK(!frame_->GetParameter(i)->IsTheHole(isolate_));
     Handle<Object> value =
         Object::GetPropertyOrElement(target, name).ToHandleChecked();
     frame_->SetParameterValue(i, *value);
@@ -177,7 +179,7 @@ void FrameInspector::UpdateStackLocalsFromMaterializedObject(
     Handle<String> name(scope_info->StackLocalName(i));
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     int index = scope_info->StackLocalIndex(i);
-    if (frame_->GetExpression(index)->IsTheHole()) continue;
+    if (frame_->GetExpression(index)->IsTheHole(isolate_)) continue;
     Handle<Object> value =
         Object::GetPropertyOrElement(target, name).ToHandleChecked();
     frame_->SetExpression(index, *value);

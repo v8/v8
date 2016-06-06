@@ -34,7 +34,7 @@ void PartialSerializer::Serialize(Object** o) {
     if (context->IsNativeContext()) {
       context->set(Context::NEXT_CONTEXT_LINK,
                    isolate_->heap()->undefined_value());
-      DCHECK(!context->global_object()->IsUndefined());
+      DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
     }
   }
   VisitPointer(o);

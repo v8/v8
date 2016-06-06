@@ -40,7 +40,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
       Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name));
   // 6. If trap is undefined, then
   int const arguments_length = args.length() - 2;
-  if (trap->IsUndefined()) {
+  if (trap->IsUndefined(isolate)) {
     // 6.a. Return Call(target, thisArgument, argumentsList).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
@@ -94,7 +94,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
       Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name));
   // 6. If trap is undefined, then
   int const arguments_length = args.length() - 3;
-  if (trap->IsUndefined()) {
+  if (trap->IsUndefined(isolate)) {
     // 6.a. Assert: target has a [[Construct]] internal method.
     DCHECK(target->IsConstructor());
     // 6.b. Return Construct(target, argumentsList, newTarget).

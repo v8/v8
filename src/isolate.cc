@@ -607,7 +607,7 @@ class CaptureStackTraceHelper {
     if (!function_key_.is_null()) {
       Object* wasm_object = frame->wasm_obj();
       Handle<String> name;
-      if (!wasm_object->IsUndefined()) {
+      if (!wasm_object->IsUndefined(isolate_)) {
         Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
         wasm::GetWasmFunctionName(wasm, frame->function_index())
             .ToHandle(&name);
@@ -815,7 +815,7 @@ static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
 
   Object* data_obj =
      constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == isolate->heap()->undefined_value()) return NULL;
+  if (data_obj->IsUndefined(isolate)) return NULL;
 
   return AccessCheckInfo::cast(data_obj);
 }
@@ -1323,7 +1323,7 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
   DCHECK(handler->rethrow_);
   DCHECK(handler->capture_message_);
   Object* message = reinterpret_cast<Object*>(handler->message_obj_);
-  DCHECK(message->IsJSMessageObject() || message->IsTheHole());
+  DCHECK(message->IsJSMessageObject() || message->IsTheHole(this));
   thread_local_top()->pending_message_obj_ = message;
 }
 
@@ -1392,7 +1392,8 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   if (!frame->is_java_script()) return false;
   JSFunction* fun = JavaScriptFrame::cast(frame)->function();
   Object* script = fun->shared()->script();
-  if (!script->IsScript() || (Script::cast(script)->source()->IsUndefined())) {
+  if (!script->IsScript() ||
+      (Script::cast(script)->source()->IsUndefined(this))) {
     return false;
   }
   Handle<Script> casted_script(Script::cast(script));
@@ -1457,7 +1458,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined())) {
+        !(Script::cast(script)->source()->IsUndefined(this))) {
       int pos = PositionFromStackTrace(elements, i);
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);
@@ -1581,7 +1582,7 @@ void Isolate::ReportPendingMessages() {
   }
 
   // Actually report the pending message to all message handlers.
-  if (!message_obj->IsTheHole() && should_report_exception) {
+  if (!message_obj->IsTheHole(this) && should_report_exception) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj));
     Handle<JSValue> script_wrapper(JSValue::cast(message->script()));
@@ -1598,7 +1599,7 @@ MessageLocation Isolate::GetMessageLocation() {
   DCHECK(has_pending_exception());
 
   if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
-      !thread_local_top_.pending_message_obj_->IsTheHole()) {
+      !thread_local_top_.pending_message_obj_->IsTheHole(this)) {
     Handle<JSMessageObject> message_obj(
         JSMessageObject::cast(thread_local_top_.pending_message_obj_));
     Handle<JSValue> script_wrapper(JSValue::cast(message_obj->script()));
@@ -2165,12 +2166,12 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   } else {
     v8::TryCatch* handler = try_catch_handler();
     DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
-           thread_local_top_.pending_message_obj_->IsTheHole());
+           thread_local_top_.pending_message_obj_->IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
     handler->exception_ = pending_exception();
     // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top_.pending_message_obj_->IsTheHole()) return true;
+    if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
 
     handler->message_obj_ = thread_local_top_.pending_message_obj_;
   }
@@ -2512,7 +2513,7 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
     DisallowHeapAllocation no_gc;
     Object* const initial_js_array_map =
         context()->native_context()->get(Context::ArrayMapIndex(kind));
-    if (!initial_js_array_map->IsUndefined()) {
+    if (!initial_js_array_map->IsUndefined(this)) {
       return Map::cast(initial_js_array_map);
     }
   }
@@ -2528,7 +2529,7 @@ bool Isolate::use_crankshaft() const {
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {
   Object* context = heap()->native_contexts_list();
-  while (context != heap()->undefined_value()) {
+  while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object ||
         current_context->initial_array_prototype() == object) {
@@ -2542,7 +2543,7 @@ bool Isolate::IsArrayOrObjectPrototype(Object* object) {
 bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
   DisallowHeapAllocation no_gc;
   Object* context = heap()->native_contexts_list();
-  while (context != heap()->undefined_value()) {
+  while (!context->IsUndefined(this)) {
     Context* current_context = Context::cast(context);
     if (current_context->get(index) == object) {
       return true;
@@ -2626,7 +2627,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   Handle<Symbol> key = factory()->is_concat_spreadable_symbol();
   Handle<Object> value;
   LookupIterator it(array_prototype, key);
-  if (it.IsFound() && !JSReceiver::GetDataProperty(&it)->IsUndefined()) {
+  if (it.IsFound() && !JSReceiver::GetDataProperty(&it)->IsUndefined(this)) {
     // TODO(cbruni): Currently we do not revert if we unset the
     // @@isConcatSpreadable property on Array.prototype or Object.prototype
     // hence the reverse implication doesn't hold.
@@ -2832,7 +2833,7 @@ void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
     queue = factory()->CopyFixedArrayAndGrow(queue, num_tasks);
     heap()->set_microtask_queue(*queue);
   }
-  DCHECK(queue->get(num_tasks)->IsUndefined());
+  DCHECK(queue->get(num_tasks)->IsUndefined(this));
   queue->set(num_tasks, *microtask);
   set_pending_microtask_count(num_tasks + 1);
 }

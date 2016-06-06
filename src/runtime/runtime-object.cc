@@ -18,7 +18,7 @@ namespace internal {
 MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key) {
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate) || object->IsNull()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
@@ -62,7 +62,9 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
           PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
           if (cell->property_details().type() == DATA) {
             Object* value = cell->value();
-            if (!value->IsTheHole()) return Handle<Object>(value, isolate);
+            if (!value->IsTheHole(isolate)) {
+              return Handle<Object>(value, isolate);
+            }
             // If value is the hole (meaning, absent) do the general lookup.
           }
         }
@@ -194,7 +196,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
         key_is_array_index
             ? index < static_cast<uint32_t>(String::cast(*object)->length())
             : key->Equals(isolate->heap()->length_string()));
-  } else if (object->IsNull() || object->IsUndefined()) {
+  } else if (object->IsNull() || object->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
@@ -207,7 +209,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                Handle<Object> value,
                                                LanguageMode language_mode) {
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate) || object->IsNull()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
@@ -670,9 +672,8 @@ RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
   return isolate->heap()->ToBoolean(obj->IsJSGlobalProxy());
 }
 
-
-static bool IsValidAccessor(Handle<Object> obj) {
-  return obj->IsUndefined() || obj->IsCallable() || obj->IsNull();
+static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
+  return obj->IsUndefined(isolate) || obj->IsCallable() || obj->IsNull();
 }
 
 
@@ -689,9 +690,9 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   RUNTIME_ASSERT(!obj->IsNull());
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
-  RUNTIME_ASSERT(IsValidAccessor(getter));
+  RUNTIME_ASSERT(IsValidAccessor(isolate, getter));
   CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
-  RUNTIME_ASSERT(IsValidAccessor(setter));
+  RUNTIME_ASSERT(IsValidAccessor(isolate, setter));
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 4);
 
   RETURN_FAILURE_ON_EXCEPTION(

@@ -534,7 +534,9 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
     int pos = info->shared_info()->start_position();
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+    Isolate* isolate = info->isolate();
+    if (!script->IsUndefined(isolate) &&
+        !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
       int len = info->shared_info()->end_position() - start;

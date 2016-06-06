@@ -89,7 +89,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     }
     for (size_t i = 0; i < reserved; i++) {
       size_t index = k8BitCapacity - reserved + i;
-      CHECK(builder.At(index)->IsTheHole());
+      CHECK(builder.At(index)->IsTheHole(isolate()));
     }
 
     // Now make reservations, and commit them with unique entries.

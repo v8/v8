@@ -130,7 +130,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (global_listeners.get(i)->IsUndefined()) continue;
+      if (global_listeners.get(i)->IsUndefined(isolate)) continue;
       v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
       Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
@@ -139,7 +139,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
       {
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-        callback(api_message_obj, callback_data->IsUndefined()
+        callback(api_message_obj, callback_data->IsUndefined(isolate)
                                       ? api_exception_obj
                                       : v8::Utils::ToLocal(callback_data));
       }
@@ -251,7 +251,8 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  if (!IsJavaScript() || receiver_->IsNull() || receiver_->IsUndefined()) {
+  if (!IsJavaScript() || receiver_->IsNull() ||
+      receiver_->IsUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
   Handle<JSReceiver> receiver =
@@ -344,7 +345,7 @@ bool CallSite::IsNative() {
 bool CallSite::IsToplevel() {
   if (IsWasm()) return false;
   return receiver_->IsJSGlobalProxy() || receiver_->IsNull() ||
-         receiver_->IsUndefined();
+         receiver_->IsUndefined(isolate_);
 }
 
 

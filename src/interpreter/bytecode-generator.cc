@@ -1514,7 +1514,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
     Handle<Object> value = expr->value();
     if (value->IsSmi()) {
       builder()->LoadLiteral(Smi::cast(*value));
-    } else if (value->IsUndefined()) {
+    } else if (value->IsUndefined(isolate())) {
       builder()->LoadUndefined();
     } else if (value->IsTrue()) {
       builder()->LoadTrue();
@@ -1522,7 +1522,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadFalse();
     } else if (value->IsNull()) {
       builder()->LoadNull();
-    } else if (value->IsTheHole()) {
+    } else if (value->IsTheHole(isolate())) {
       builder()->LoadTheHole();
     } else {
       builder()->LoadLiteral(value);

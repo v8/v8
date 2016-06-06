@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin) {
+  isolate_ = isolate;
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
@@ -446,7 +447,7 @@ void CallPrinter::PrintLiteral(Object* value, bool quote) {
     Print("true");
   } else if (object->IsFalse()) {
     Print("false");
-  } else if (object->IsUndefined()) {
+  } else if (object->IsUndefined(isolate_)) {
     Print("undefined");
   } else if (object->IsNumber()) {
     Print("%g", object->Number());
@@ -479,6 +480,7 @@ static int FormatSlotNode(Vector<char>* buf, Expression* node,
 
 
 PrettyPrinter::PrettyPrinter(Isolate* isolate) {
+  isolate_ = isolate;
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
@@ -1073,7 +1075,7 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     Print("true");
   } else if (object->IsFalse()) {
     Print("false");
-  } else if (object->IsUndefined()) {
+  } else if (object->IsUndefined(isolate_)) {
     Print("undefined");
   } else if (object->IsNumber()) {
     Print("%g", object->Number());

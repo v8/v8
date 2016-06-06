@@ -221,7 +221,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
         isolate, new_element,
         JSReceiver::GetElement(isolate, new_shared_array, i));
     RUNTIME_ASSERT(
-        new_element->IsUndefined() ||
+        new_element->IsUndefined(isolate) ||
         (new_element->IsJSValue() &&
          Handle<JSValue>::cast(new_element)->value()->IsSharedFunctionInfo()));
   }

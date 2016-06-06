@@ -1108,7 +1108,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   } else if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
     Object* proto_or_map = js_fun->prototype_or_initial_map();
-    if (!proto_or_map->IsTheHole()) {
+    if (!proto_or_map->IsTheHole(heap_->isolate())) {
       if (!proto_or_map->IsMap()) {
         SetPropertyReference(
             obj, entry,
@@ -1641,7 +1641,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
         Smi::cast(JSArray::cast(js_obj)->length())->value() :
         elements->length();
     for (int i = 0; i < length; ++i) {
-      if (!elements->get(i)->IsTheHole()) {
+      if (!elements->get(i)->IsTheHole(heap_->isolate())) {
         SetElementReference(js_obj, entry, i, elements->get(i));
       }
     }
@@ -1650,7 +1650,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(heap_, k)) {
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         SetElementReference(js_obj, entry, index, dictionary->ValueAt(i));

@@ -1236,7 +1236,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<SharedFunctionInfo> info =
       NewSharedFunctionInfo(name, code, map->is_constructor());
   DCHECK(is_sloppy(info->language_mode()));
-  DCHECK(!map->IsUndefined());
+  DCHECK(!map->IsUndefined(isolate()));
   DCHECK(
       map.is_identical_to(isolate()->sloppy_function_map()) ||
       map.is_identical_to(isolate()->sloppy_function_without_prototype_map()) ||
@@ -1302,7 +1302,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
   // NewFunctionPrototype already handles finding an appropriately
   // shared prototype?
   if (!function->shared()->is_resumable()) {
-    if (prototype->IsTheHole()) {
+    if (prototype->IsTheHole(isolate())) {
       prototype = NewFunctionPrototype(function);
     } else if (install_constructor) {
       JSObject::AddProperty(Handle<JSObject>::cast(prototype),
@@ -2220,7 +2220,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   isolate()->counters()->number_to_string_runtime()->Increment();
   if (check_number_string_cache) {
     Handle<Object> cached = GetNumberStringCache(number);
-    if (!cached->IsUndefined()) return Handle<String>::cast(cached);
+    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
   char arr[100];
@@ -2326,7 +2326,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
 
   int cache_index = number_of_properties - 1;
   Handle<Object> maybe_cache(context->map_cache(), isolate());
-  if (maybe_cache->IsUndefined()) {
+  if (maybe_cache->IsUndefined(isolate())) {
     // Allocate the new map cache for the native context.
     maybe_cache = NewFixedArray(kMapCacheSize, TENURED);
     context->set_map_cache(*maybe_cache);
