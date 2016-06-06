@@ -593,6 +593,17 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+  // If the length is a constant power of two, allow the code generator to
+  // pick a more efficient bounds check sequence by passing the length as an
+  // immediate.
+  if (length->opcode() == IrOpcode::kInt32Constant) {
+    Int32Matcher m(length);
+    if (m.IsPowerOf2()) {
+      Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
+           g.UseRegister(offset), g.UseImmediate(length));
+      return;
+    }
+  }
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(buffer),
        g.UseRegister(offset), g.UseOperand(length, kArithmeticImm));
 }
@@ -631,6 +642,17 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
+  }
+  // If the length is a constant power of two, allow the code generator to
+  // pick a more efficient bounds check sequence by passing the length as an
+  // immediate.
+  if (length->opcode() == IrOpcode::kInt32Constant) {
+    Int32Matcher m(length);
+    if (m.IsPowerOf2()) {
+      Emit(opcode, g.NoOutput(), g.UseRegister(buffer), g.UseRegister(offset),
+           g.UseImmediate(length), g.UseRegisterOrImmediateZero(value));
+      return;
+    }
   }
   Emit(opcode, g.NoOutput(), g.UseRegister(buffer), g.UseRegister(offset),
        g.UseOperand(length, kArithmeticImm),

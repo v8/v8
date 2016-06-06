@@ -400,6 +400,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 }  // namespace
 
+#define ASSEMBLE_BOUNDS_CHECK(offset, length, out_of_bounds)   \
+  do {                                                         \
+    if (length.IsImmediate() &&                                \
+        base::bits::IsPowerOfTwo64(length.ImmediateValue())) { \
+      __ Tst(offset, ~(length.ImmediateValue() - 1));          \
+      __ B(ne, out_of_bounds);                                 \
+    } else {                                                   \
+      __ Cmp(offset, length);                                  \
+      __ B(hs, out_of_bounds);                                 \
+    }                                                          \
+  } while (0)
 
 #define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                         \
   do {                                                             \
@@ -407,13 +418,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto buffer = i.InputRegister(0);                              \
     auto offset = i.InputRegister32(1);                            \
     auto length = i.InputOperand32(2);                             \
-    __ Cmp(offset, length);                                        \
     auto ool = new (zone()) OutOfLineLoadNaN##width(this, result); \
-    __ B(hs, ool->entry());                                        \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());           \
     __ Ldr(result, MemOperand(buffer, offset, UXTW));              \
     __ Bind(ool->exit());                                          \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)             \
   do {                                                       \
@@ -421,13 +430,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto buffer = i.InputRegister(0);                        \
     auto offset = i.InputRegister32(1);                      \
     auto length = i.InputOperand32(2);                       \
-    __ Cmp(offset, length);                                  \
     auto ool = new (zone()) OutOfLineLoadZero(this, result); \
-    __ B(hs, ool->entry());                                  \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());     \
     __ asm_instr(result, MemOperand(buffer, offset, UXTW));  \
     __ Bind(ool->exit());                                    \
   } while (0)
-
 
 #define ASSEMBLE_CHECKED_LOAD_INTEGER_64(asm_instr)          \
   do {                                                       \
@@ -435,9 +442,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto buffer = i.InputRegister(0);                        \
     auto offset = i.InputRegister32(1);                      \
     auto length = i.InputOperand32(2);                       \
-    __ Cmp(offset, length);                                  \
     auto ool = new (zone()) OutOfLineLoadZero(this, result); \
-    __ B(hs, ool->entry());                                  \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());     \
     __ asm_instr(result, MemOperand(buffer, offset, UXTW));  \
     __ Bind(ool->exit());                                    \
   } while (0)
@@ -448,9 +454,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto offset = i.InputRegister32(1);                  \
     auto length = i.InputOperand32(2);                   \
     auto value = i.InputFloat##width##OrZeroRegister(3); \
-    __ Cmp(offset, length);                              \
     Label done;                                          \
-    __ B(hs, &done);                                     \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);        \
     __ Str(value, MemOperand(buffer, offset, UXTW));     \
     __ Bind(&done);                                      \
   } while (0)
@@ -461,9 +466,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
     auto value = i.InputOrZeroRegister32(3);               \
-    __ Cmp(offset, length);                                \
     Label done;                                            \
-    __ B(hs, &done);                                       \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);          \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
@@ -474,9 +478,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     auto offset = i.InputRegister32(1);                    \
     auto length = i.InputOperand32(2);                     \
     auto value = i.InputOrZeroRegister64(3);               \
-    __ Cmp(offset, length);                                \
     Label done;                                            \
-    __ B(hs, &done);                                       \
+    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);          \
     __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
     __ Bind(&done);                                        \
   } while (0)
