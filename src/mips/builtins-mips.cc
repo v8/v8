@@ -854,7 +854,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       ExternalReference::debug_suspended_generator_address(masm->isolate());
   __ li(t1, Operand(debug_suspended_generator));
   __ lw(t1, MemOperand(t1));
-  __ Branch(&prepare_step_in_suspended_generator, eq, t1, Operand(zero_reg));
+  __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(t1));
   __ bind(&stepping_prepared);
 
   // Push receiver.

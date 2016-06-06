@@ -710,16 +710,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference step_in_enabled =
       ExternalReference::debug_step_in_enabled_address(masm->isolate());
-  __ li(t1, Operand(step_in_enabled));
-  __ lb(t1, MemOperand(t1));
-  __ Branch(&prepare_step_in_if_stepping, ne, t1, Operand(zero_reg));
+  __ li(a5, Operand(step_in_enabled));
+  __ lb(a5, MemOperand(a5));
+  __ Branch(&prepare_step_in_if_stepping, ne, a5, Operand(zero_reg));
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ li(t1, Operand(debug_suspended_generator));
-  __ lw(t1, MemOperand(t1));
-  __ Branch(&prepare_step_in_suspended_generator, eq, t1, Operand(zero_reg));
+  __ li(a5, Operand(debug_suspended_generator));
+  __ lw(a5, MemOperand(a5));
+  __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(a5));
   __ bind(&stepping_prepared);
 
   // Push receiver.
