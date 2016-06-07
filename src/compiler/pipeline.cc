@@ -599,10 +599,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
   if (!info()->shared_info()->asm_function() || FLAG_turbo_asm_deoptimization) {
     info()->MarkAsDeoptimizationEnabled();
   }
-  if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
-    info()->MarkAsTypeFeedbackEnabled();
-  }
   if (!info()->is_optimizing_from_bytecode()) {
+    if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
+      info()->MarkAsTypeFeedbackEnabled();
+    }
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
@@ -724,7 +724,7 @@ struct TypeHintAnalysisPhase {
   static const char* phase_name() { return "type hint analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (!data->info()->is_optimizing_from_bytecode()) {
+    if (data->info()->is_type_feedback_enabled()) {
       TypeHintAnalyzer analyzer(data->graph_zone());
       Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
       TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
