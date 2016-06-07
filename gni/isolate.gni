@@ -96,9 +96,9 @@ template("v8_isolate_run") {
         use_external_startup_data = "0"
       }
       if (v8_use_snapshot) {
-        use_snapshot = "1"
+        use_snapshot = "true"
       } else {
-        use_snapshot = "0"
+        use_snapshot = "false"
       }
 
       # Note, all paths will be rebased in isolate_driver.py to be relative to
