@@ -696,6 +696,7 @@ void TestNumberDictionaryLookup() {
   for (int i = 0; i < kKeysCount; i++) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
     keys[i] = static_cast<uint32_t>(random_key);
+    if (dictionary->FindEntry(keys[i]) != Dictionary::kNotFound) continue;
 
     dictionary = Dictionary::Add(dictionary, keys[i], fake_value, fake_details);
   }
