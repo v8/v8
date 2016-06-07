@@ -26,6 +26,7 @@
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
   V(bound__string, "bound ")                                       \
+  V(buffer_string, "buffer")                                       \
   V(byte_length_string, "byteLength")                              \
   V(byte_offset_string, "byteOffset")                              \
   V(call_string, "call")                                           \

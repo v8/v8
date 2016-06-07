@@ -910,7 +910,6 @@ namespace internal {
   F(ArrayBufferViewGetByteLength, 1, 1)      \
   F(ArrayBufferViewGetByteOffset, 1, 1)      \
   F(TypedArrayGetLength, 1, 1)               \
-  F(DataViewGetBuffer, 1, 1)                 \
   F(TypedArrayGetBuffer, 1, 1)               \
   F(TypedArraySetFastCases, 3, 1)            \
   F(TypedArrayMaxSizeInHeap, 0, 1)           \

@@ -2473,8 +2473,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HValue* implicit_return_value);
   bool TryInlineIndirectCall(Handle<JSFunction> function, Call* expr,
                              int arguments_count);
-  bool TryInlineBuiltinMethodCall(Call* expr, Handle<JSFunction> function,
-                                  Handle<Map> receiver_map,
+  bool TryInlineBuiltinGetterCall(Handle<JSFunction> function,
+                                  Handle<Map> receiver_map, BailoutId ast_id);
+  bool TryInlineBuiltinMethodCall(Handle<JSFunction> function,
+                                  Handle<Map> receiver_map, BailoutId ast_id,
                                   int args_count_no_receiver);
   bool TryInlineBuiltinFunctionCall(Call* expr);
   enum ApiCallType {
