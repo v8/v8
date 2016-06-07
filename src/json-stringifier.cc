@@ -272,6 +272,11 @@ template <bool deferred_string_key>
 JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     bool comma,
                                                     Handle<Object> key) {
+  StackLimitCheck interrupt_check(isolate_);
+  if (interrupt_check.InterruptRequested() &&
+      isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+    return EXCEPTION;
+  }
   if (object->IsJSReceiver()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
@@ -399,7 +404,12 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
       case FAST_SMI_ELEMENTS: {
         Handle<FixedArray> elements(FixedArray::cast(object->elements()),
                                     isolate_);
+        StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
+          if (interrupt_check.InterruptRequested() &&
+              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+            return EXCEPTION;
+          }
           Separator(i == 0);
           SerializeSmi(Smi::cast(elements->get(i)));
           i++;
@@ -411,7 +421,12 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         if (length == 0) break;
         Handle<FixedDoubleArray> elements(
             FixedDoubleArray::cast(object->elements()), isolate_);
+        StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
+          if (interrupt_check.InterruptRequested() &&
+              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+            return EXCEPTION;
+          }
           Separator(i == 0);
           SerializeDouble(elements->get_scalar(i));
           i++;
