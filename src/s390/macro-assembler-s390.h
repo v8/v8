@@ -1582,17 +1582,29 @@ class MacroAssembler : public Assembler {
   }
 
   void IndexToArrayOffset(Register dst, Register src, int elementSizeLog2,
-                          bool isSmi) {
+                          bool isSmi, bool keyMaybeNegative) {
     if (isSmi) {
       SmiToArrayOffset(dst, src, elementSizeLog2);
-    } else {
+    } else if (keyMaybeNegative ||
+          !CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
 #if V8_TARGET_ARCH_S390X
+      // If array access is dehoisted, the key, being an int32, can contain
+      // a negative value, as needs to be sign-extended to 64-bit for
+      // memory access.
+      //
       // src (key) is a 32-bit integer.  Sign extension ensures
       // upper 32-bit does not contain garbage before being used to
       // reference memory.
       lgfr(src, src);
 #endif
       ShiftLeftP(dst, src, Operand(elementSizeLog2));
+    } else {
+      // Small optimization to reduce pathlength.  After Bounds Check,
+      // the key is guaranteed to be non-negative.  Leverage RISBG,
+      // which also performs zero-extension.
+      risbg(dst, src, Operand(32 - elementSizeLog2),
+            Operand(63 - elementSizeLog2), Operand(elementSizeLog2),
+            true);
     }
   }
 

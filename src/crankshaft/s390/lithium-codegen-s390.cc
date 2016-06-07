@@ -2870,6 +2870,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
+  bool keyMaybeNegative = instr->hydrogen()->IsDehoisted();
   int base_offset = instr->base_offset();
   bool use_scratch = false;
 
@@ -2883,7 +2884,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
         use_scratch = true;
       }
     } else {
-      __ IndexToArrayOffset(scratch0(), key, element_size_shift, key_is_smi);
+      __ IndexToArrayOffset(scratch0(), key, element_size_shift, key_is_smi,
+                            keyMaybeNegative);
       use_scratch = true;
     }
     if (elements_kind == FLOAT32_ELEMENTS) {
@@ -2903,7 +2905,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     Register result = ToRegister(instr->result());
     MemOperand mem_operand =
         PrepareKeyedOperand(key, external_pointer, key_is_constant, key_is_smi,
-                            constant_key, element_size_shift, base_offset);
+                            constant_key, element_size_shift, base_offset,
+                            keyMaybeNegative);
     switch (elements_kind) {
       case INT8_ELEMENTS:
         __ LoadB(result, mem_operand);
@@ -2957,6 +2960,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
 
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
+  bool keyMaybeNegative = instr->hydrogen()->IsDehoisted();
   int constant_key = 0;
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
@@ -2971,7 +2975,8 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   intptr_t base_offset = instr->base_offset() + constant_key * kDoubleSize;
   if (!key_is_constant) {
     use_scratch = true;
-    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi);
+    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi,
+                          keyMaybeNegative);
   }
 
   // Memory references support up to 20-bits signed displacement in RXY form
@@ -3093,7 +3098,8 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key, Register base,
                                          bool key_is_constant, bool key_is_smi,
                                          int constant_key,
                                          int element_size_shift,
-                                         int base_offset) {
+                                         int base_offset,
+                                         bool keyMaybeNegative) {
   Register scratch = scratch0();
 
   if (key_is_constant) {
@@ -3111,7 +3117,8 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key, Register base,
       (element_size_shift != (key_is_smi ? kSmiTagSize + kSmiShiftSize : 0));
 
   if (needs_shift) {
-    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi);
+    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi,
+                          keyMaybeNegative);
   } else {
     scratch = key;
   }
@@ -4050,6 +4057,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   }
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
+  bool keyMaybeNegative = instr->hydrogen()->IsDehoisted();
   int base_offset = instr->base_offset();
 
   if (elements_kind == FLOAT32_ELEMENTS || elements_kind == FLOAT64_ELEMENTS) {
@@ -4069,7 +4077,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
         address = external_pointer;
       }
     } else {
-      __ IndexToArrayOffset(address, key, element_size_shift, key_is_smi);
+      __ IndexToArrayOffset(address, key, element_size_shift, key_is_smi,
+                            keyMaybeNegative);
       __ AddP(address, external_pointer);
     }
     if (elements_kind == FLOAT32_ELEMENTS) {
@@ -4082,7 +4091,8 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     Register value(ToRegister(instr->value()));
     MemOperand mem_operand =
         PrepareKeyedOperand(key, external_pointer, key_is_constant, key_is_smi,
-                            constant_key, element_size_shift, base_offset);
+                            constant_key, element_size_shift, base_offset,
+                            keyMaybeNegative);
     switch (elements_kind) {
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
@@ -4150,6 +4160,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   }
   int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   bool key_is_smi = instr->hydrogen()->key()->representation().IsSmi();
+  bool keyMaybeNegative = instr->hydrogen()->IsDehoisted();
   int base_offset = instr->base_offset() + constant_key * kDoubleSize;
   bool use_scratch = false;
   intptr_t address_offset = base_offset;
@@ -4163,7 +4174,8 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     }
   } else {
     use_scratch = true;
-    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi);
+    __ IndexToArrayOffset(scratch, key, element_size_shift, key_is_smi,
+                          keyMaybeNegative);
     // Memory references support up to 20-bits signed displacement in RXY form
     if (!is_int20((address_offset))) {
       __ AddP(scratch, Operand(address_offset));
