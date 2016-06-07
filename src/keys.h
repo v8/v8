@@ -40,6 +40,7 @@ class KeyAccumulator final BASE_EMBEDDED {
       Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
       GetKeysConversion keys_conversion = GetKeysConversion::kKeepNumbers,
       bool filter_proxy_keys = true, bool is_for_in = false);
+
   Handle<FixedArray> GetKeys(
       GetKeysConversion convert = GetKeysConversion::kKeepNumbers);
   Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
@@ -64,6 +65,9 @@ class KeyAccumulator final BASE_EMBEDDED {
   void set_filter_proxy_keys(bool filter) { filter_proxy_keys_ = filter; }
   void set_is_for_in(bool value) { is_for_in_ = value; }
   void set_skip_indices(bool value) { skip_indices_ = value; }
+  void set_last_non_empty_prototype(Handle<JSReceiver> object) {
+    last_non_empty_prototype_ = object;
+  }
 
  private:
   Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
@@ -82,6 +86,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy
   // keys a Handle<FixedArray>.
   Handle<FixedArray> keys_;
+  Handle<JSReceiver> last_non_empty_prototype_;
   KeyCollectionMode mode_;
   PropertyFilter filter_;
   bool filter_proxy_keys_ = true;
@@ -117,6 +122,7 @@ class FastKeyAccumulator {
 
   Isolate* isolate_;
   Handle<JSReceiver> receiver_;
+  Handle<JSReceiver> last_non_empty_prototype_;
   KeyCollectionMode mode_;
   PropertyFilter filter_;
   bool filter_proxy_keys_ = true;
