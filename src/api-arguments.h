@@ -7,8 +7,6 @@
 
 #include "src/api.h"
 #include "src/isolate.h"
-#include "src/tracing/trace-event.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -108,92 +106,24 @@ class PropertyCallbackArguments
  */
   Handle<JSObject> Call(IndexedPropertyEnumeratorCallback f);
 
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(F)                  \
-  F(AccessorNameGetterCallback, "get", v8::Value, Object)          \
-  F(GenericNamedPropertyQueryCallback, "has", v8::Integer, Object) \
-  F(GenericNamedPropertyDeleterCallback, "delete", v8::Boolean, Object)
+  inline Handle<Object> Call(AccessorNameGetterCallback f, Handle<Name> name);
+  inline Handle<Object> Call(GenericNamedPropertyQueryCallback f,
+                             Handle<Name> name);
+  inline Handle<Object> Call(GenericNamedPropertyDeleterCallback f,
+                             Handle<Name> name);
 
-#define WRITE_CALL_1_NAME(Function, type, ApiReturn, InternalReturn)         \
-  Handle<InternalReturn> Call(Function f, Handle<Name> name) {               \
-    Isolate* isolate = this->isolate();                                      \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);       \
-    VMState<EXTERNAL> state(isolate);                                        \
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));             \
-    PropertyCallbackInfo<ApiReturn> info(begin());                           \
-    LOG(isolate,                                                             \
-        ApiNamedPropertyAccess("interceptor-named-" type, holder(), *name)); \
-    f(v8::Utils::ToLocal(name), info);                                       \
-    return GetReturnValue<InternalReturn>(isolate);                          \
-  }
+  inline Handle<Object> Call(IndexedPropertyGetterCallback f, uint32_t index);
+  inline Handle<Object> Call(IndexedPropertyQueryCallback f, uint32_t index);
+  inline Handle<Object> Call(IndexedPropertyDeleterCallback f, uint32_t index);
 
-  FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(WRITE_CALL_1_NAME)
+  inline Handle<Object> Call(GenericNamedPropertySetterCallback f,
+                             Handle<Name> name, Handle<Object> value);
 
-#undef FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME
-#undef WRITE_CALL_1_NAME
+  inline Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
+                             Handle<Object> value);
 
-#define FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX(F)            \
-  F(IndexedPropertyGetterCallback, "get", v8::Value, Object)  \
-  F(IndexedPropertyQueryCallback, "has", v8::Integer, Object) \
-  F(IndexedPropertyDeleterCallback, "delete", v8::Boolean, Object)
-
-#define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)  \
-  Handle<InternalReturn> Call(Function f, uint32_t index) {            \
-    Isolate* isolate = this->isolate();                                \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function); \
-    VMState<EXTERNAL> state(isolate);                                  \
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));       \
-    PropertyCallbackInfo<ApiReturn> info(begin());                     \
-    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" type, \
-                                          holder(), index));           \
-    f(index, info);                                                    \
-    return GetReturnValue<InternalReturn>(isolate);                    \
-  }
-
-  FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX(WRITE_CALL_1_INDEX)
-
-#undef FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX
-#undef WRITE_CALL_1_INDEX
-
-  Handle<Object> Call(GenericNamedPropertySetterCallback f, Handle<Name> name,
-                      Handle<Object> value) {
-    Isolate* isolate = this->isolate();
-    RuntimeCallTimerScope timer(
-        isolate, &RuntimeCallStats::GenericNamedPropertySetterCallback);
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-    PropertyCallbackInfo<v8::Value> info(begin());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
-    f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
-    return GetReturnValue<Object>(isolate);
-  }
-
-  Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
-                      Handle<Object> value) {
-    Isolate* isolate = this->isolate();
-    RuntimeCallTimerScope timer(
-        isolate, &RuntimeCallStats::IndexedPropertySetterCallback);
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-    PropertyCallbackInfo<v8::Value> info(begin());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-set", holder(), index));
-    f(index, v8::Utils::ToLocal(value), info);
-    return GetReturnValue<Object>(isolate);
-  }
-
-  void Call(AccessorNameSetterCallback f, Handle<Name> name,
-            Handle<Object> value) {
-    Isolate* isolate = this->isolate();
-    RuntimeCallTimerScope timer(isolate,
-                                &RuntimeCallStats::AccessorNameSetterCallback);
-    VMState<EXTERNAL> state(isolate);
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-    PropertyCallbackInfo<void> info(begin());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
-    f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
-  }
+  inline void Call(AccessorNameSetterCallback f, Handle<Name> name,
+                   Handle<Object> value);
 
  private:
   inline JSObject* holder() {

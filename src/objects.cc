@@ -12,7 +12,7 @@
 
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/base/bits.h"

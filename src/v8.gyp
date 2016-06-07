@@ -413,6 +413,7 @@
         'api-experimental.h',
         'api.cc',
         'api.h',
+        'api-arguments-inl.h',
         'api-arguments.cc',
         'api-arguments.h',
         'api-natives.cc',

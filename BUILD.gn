@@ -737,6 +737,7 @@ v8_source_set("v8_base") {
     "src/allocation-site-scopes.h",
     "src/allocation.cc",
     "src/allocation.h",
+    "src/api-arguments-inl.h",
     "src/api-arguments.cc",
     "src/api-arguments.h",
     "src/api-experimental.cc",

@@ -5,8 +5,8 @@
 #include "src/ic/ic.h"
 
 #include "src/accessors.h"
+#include "src/api-arguments-inl.h"
 #include "src/api.h"
-#include "src/api-arguments.h"
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/codegen.h"
@@ -16,14 +16,14 @@
 #include "src/frames-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
-#include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
+#include "src/ic/ic-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
