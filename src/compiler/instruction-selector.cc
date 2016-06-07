@@ -713,6 +713,12 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     SetEffectLevel(node, effect_level);
   }
 
+  // We visit the control first, then the nodes in the block, so the block's
+  // control input should be on the same effect level as the last node.
+  if (block->control_input() != nullptr) {
+    SetEffectLevel(block->control_input(), effect_level);
+  }
+
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".
   VisitControl(block);
