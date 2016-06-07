@@ -1213,7 +1213,7 @@ void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
-  VisitRR(this, kArmVmovLowU32F64, node);
+  VisitRR(this, kArmVmovU32F32, node);
 }
 
 

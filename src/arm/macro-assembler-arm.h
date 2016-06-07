@@ -170,6 +170,7 @@ class MacroAssembler: public Assembler {
       mov(dst, src, sbit, cond);
     }
   }
+  void Move(SwVfpRegister dst, SwVfpRegister src);
   void Move(DwVfpRegister dst, DwVfpRegister src);
 
   void Load(Register dst, const MemOperand& src, Representation r);

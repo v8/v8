@@ -1108,6 +1108,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmVmovU32F32:
+      __ vmov(i.OutputRegister(), i.InputFloat32Register(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmVmovLowU32F64:
       __ VmovLow(i.OutputRegister(), i.InputFloat64Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1591,23 +1595,50 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DwVfpRegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      DwVfpRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DwVfpRegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        __ vstr(src, g.ToMemOperand(destination));
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      __ vstr(src, g.ToMemOperand(destination));
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      SwVfpRegister src = g.ToFloat32Register(source);
+      if (destination->IsFPRegister()) {
+        SwVfpRegister dst = g.ToFloat32Register(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        __ vstr(src, g.ToMemOperand(destination));
+      }
     }
   } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
+    MachineRepresentation rep =
+        LocationOperand::cast(destination)->representation();
     if (destination->IsFPRegister()) {
-      __ vldr(g.ToDoubleRegister(destination), src);
+      if (rep == MachineRepresentation::kFloat64) {
+        __ vldr(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+        __ vldr(g.ToFloat32Register(destination), src);
+      }
     } else {
-      DwVfpRegister temp = kScratchDoubleReg;
-      __ vldr(temp, src);
-      __ vstr(temp, g.ToMemOperand(destination));
+      DCHECK(destination->IsFPStackSlot());
+      if (rep == MachineRepresentation::kFloat64) {
+        DwVfpRegister temp = kScratchDoubleReg;
+        __ vldr(temp, src);
+        __ vstr(temp, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+        SwVfpRegister temp = kScratchDoubleReg.low();
+        __ vldr(temp, src);
+        __ vstr(temp, g.ToMemOperand(destination));
+      }
     }
   } else {
     UNREACHABLE();
@@ -1647,34 +1678,61 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ str(temp_0, dst);
     __ vstr(temp_1, src);
   } else if (source->IsFPRegister()) {
-    DwVfpRegister temp = kScratchDoubleReg;
-    DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DwVfpRegister dst = g.ToDoubleRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    LowDwVfpRegister temp = kScratchDoubleReg;
+    if (rep == MachineRepresentation::kFloat64) {
+      DwVfpRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DwVfpRegister dst = g.ToDoubleRegister(destination);
+        __ Move(temp, src);
+        __ Move(src, dst);
+        __ Move(dst, temp);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp, src);
+        __ vldr(src, dst);
+        __ vstr(temp, dst);
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ vldr(src, dst);
-      __ vstr(temp, dst);
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      SwVfpRegister src = g.ToFloat32Register(source);
+      if (destination->IsFPRegister()) {
+        SwVfpRegister dst = g.ToFloat32Register(destination);
+        __ Move(temp.low(), src);
+        __ Move(src, dst);
+        __ Move(dst, temp.low());
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp.low(), src);
+        __ vldr(src, dst);
+        __ vstr(temp.low(), dst);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
-    DwVfpRegister temp_1 = kScratchDoubleReg;
+    LowDwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-    __ vldr(temp_1, dst0);  // Save destination in temp_1.
-    __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-    __ str(temp_0, dst0);
-    __ ldr(temp_0, src1);
-    __ str(temp_0, dst1);
-    __ vstr(temp_1, src0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
+      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
+      __ vldr(temp_1, dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ ldr(temp_0, src1);
+      __ str(temp_0, dst1);
+      __ vstr(temp_1, src0);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      __ vldr(temp_1.low(), dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);  // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ vstr(temp_1.low(), src0);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();

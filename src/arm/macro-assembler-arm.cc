@@ -268,13 +268,17 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   }
 }
 
+void MacroAssembler::Move(SwVfpRegister dst, SwVfpRegister src) {
+  if (!dst.is(src)) {
+    vmov(dst, src);
+  }
+}
 
 void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
   if (!dst.is(src)) {
     vmov(dst, src);
   }
 }
-
 
 void MacroAssembler::Mls(Register dst, Register src1, Register src2,
                          Register srcA, Condition cond) {
