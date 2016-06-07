@@ -78,9 +78,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(DataViewConstructor, kNone)                                \
   V(DataViewConstructor_ConstructStub, kTargetAndNewTarget)    \
-  V(DataViewPrototypeGetBuffer, kNone)                         \
-  V(DataViewPrototypeGetByteLength, kNone)                     \
-  V(DataViewPrototypeGetByteOffset, kNone)                     \
                                                                \
   V(DateConstructor, kNone)                                    \
   V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
@@ -184,8 +181,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(SymbolConstructor, kNone)                                  \
   V(SymbolConstructor_ConstructStub, kTarget)                  \
-                                                               \
-  V(TypedArrayPrototypeBuffer, kNone)                          \
                                                                \
   V(HandleApiCall, kTargetAndNewTarget)                        \
   V(HandleApiCallAsFunction, kNone)                            \
@@ -325,27 +320,24 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
-#define BUILTIN_LIST_T(V)             \
-  V(FunctionPrototypeHasInstance, 2)  \
-  V(GeneratorPrototypeNext, 2)        \
-  V(GeneratorPrototypeReturn, 2)      \
-  V(GeneratorPrototypeThrow, 2)       \
-  V(MathCeil, 2)                      \
-  V(MathClz32, 2)                     \
-  V(MathFloor, 2)                     \
-  V(MathLog, 2)                       \
-  V(MathRound, 2)                     \
-  V(MathSqrt, 2)                      \
-  V(MathTrunc, 2)                     \
-  V(ObjectHasOwnProperty, 2)          \
-  V(ArrayIsArray, 2)                  \
-  V(StringFromCharCode, 2)            \
-  V(StringPrototypeCharAt, 2)         \
-  V(StringPrototypeCharCodeAt, 2)     \
-  V(TypedArrayPrototypeByteLength, 1) \
-  V(TypedArrayPrototypeByteOffset, 1) \
-  V(TypedArrayPrototypeLength, 1)     \
-  V(AtomicsLoad, 3)                   \
+#define BUILTIN_LIST_T(V)            \
+  V(FunctionPrototypeHasInstance, 2) \
+  V(GeneratorPrototypeNext, 2)       \
+  V(GeneratorPrototypeReturn, 2)     \
+  V(GeneratorPrototypeThrow, 2)      \
+  V(MathCeil, 2)                     \
+  V(MathClz32, 2)                    \
+  V(MathFloor, 2)                    \
+  V(MathLog, 2)                      \
+  V(MathRound, 2)                    \
+  V(MathSqrt, 2)                     \
+  V(MathTrunc, 2)                    \
+  V(ObjectHasOwnProperty, 2)         \
+  V(ArrayIsArray, 2)                 \
+  V(StringFromCharCode, 2)           \
+  V(StringPrototypeCharAt, 2)        \
+  V(StringPrototypeCharCodeAt, 2)    \
+  V(AtomicsLoad, 3)                  \
   V(AtomicsStore, 4)
 
 // Define list of builtin handlers implemented in assembly.
@@ -678,16 +670,6 @@ class Builtins {
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);
-
-  // ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength
-  static void Generate_TypedArrayPrototypeByteLength(
-      CodeStubAssembler* assembler);
-  // ES6 section 22.2.3.3 get %TypedArray%.prototype.byteOffset
-  static void Generate_TypedArrayPrototypeByteOffset(
-      CodeStubAssembler* assembler);
-  // ES6 section 22.2.3.18 get %TypedArray%.prototype.length
-  static void Generate_TypedArrayPrototypeLength(CodeStubAssembler* assembler);
-
   static void Generate_OnStackReplacement(MacroAssembler* masm);
   static void Generate_InterruptCheck(MacroAssembler* masm);
   static void Generate_StackCheck(MacroAssembler* masm);

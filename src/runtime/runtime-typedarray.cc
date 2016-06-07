@@ -284,6 +284,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
 BUFFER_VIEW_GETTER(ArrayBufferView, ByteLength, byte_length)
 BUFFER_VIEW_GETTER(ArrayBufferView, ByteOffset, byte_offset)
 BUFFER_VIEW_GETTER(TypedArray, Length, length)
+BUFFER_VIEW_GETTER(DataView, Buffer, buffer)
 
 #undef BUFFER_VIEW_GETTER
 

@@ -8820,13 +8820,9 @@ bool HOptimizedGraphBuilder::TryInlineGetter(Handle<Object> getter,
                                              BailoutId ast_id,
                                              BailoutId return_id) {
   if (TryInlineApiGetter(getter, receiver_map, ast_id)) return true;
-  if (getter->IsJSFunction()) {
-    Handle<JSFunction> getter_function = Handle<JSFunction>::cast(getter);
-    return TryInlineBuiltinGetterCall(getter_function, receiver_map, ast_id) ||
-           TryInline(getter_function, 0, NULL, ast_id, return_id,
-                     GETTER_CALL_RETURN, TailCallMode::kDisallow);
-  }
-  return false;
+  return getter->IsJSFunction() &&
+         TryInline(Handle<JSFunction>::cast(getter), 0, NULL, ast_id, return_id,
+                   GETTER_CALL_RETURN, TailCallMode::kDisallow);
 }
 
 bool HOptimizedGraphBuilder::TryInlineSetter(Handle<Object> setter,
@@ -8918,62 +8914,9 @@ bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
 
-bool HOptimizedGraphBuilder::TryInlineBuiltinGetterCall(
-    Handle<JSFunction> function, Handle<Map> receiver_map, BailoutId ast_id) {
-  if (!function->shared()->HasBuiltinFunctionId()) return false;
-  BuiltinFunctionId id = function->shared()->builtin_function_id();
-
-  // Try to inline getter calls like DataView.prototype.byteLength/byteOffset
-  // as operations in the calling function.
-  switch (id) {
-    case kDataViewBuffer: {
-      if (!receiver_map->IsJSDataViewMap()) return false;
-      HObjectAccess access = HObjectAccess::ForMapAndOffset(
-          receiver_map, JSDataView::kBufferOffset);
-      HValue* object = Pop();  // receiver
-      HInstruction* result = New<HLoadNamedField>(object, object, access);
-      ast_context()->ReturnInstruction(result, ast_id);
-      return true;
-    }
-    case kDataViewByteLength:
-    case kDataViewByteOffset: {
-      if (!receiver_map->IsJSDataViewMap()) return false;
-      int offset = (id == kDataViewByteLength) ? JSDataView::kByteLengthOffset
-                                               : JSDataView::kByteOffsetOffset;
-      HObjectAccess access =
-          HObjectAccess::ForMapAndOffset(receiver_map, offset);
-      HValue* object = Pop();  // receiver
-      HValue* checked_object = Add<HCheckArrayBufferNotNeutered>(object);
-      HInstruction* result =
-          New<HLoadNamedField>(object, checked_object, access);
-      ast_context()->ReturnInstruction(result, ast_id);
-      return true;
-    }
-    case kTypedArrayByteLength:
-    case kTypedArrayByteOffset:
-    case kTypedArrayLength: {
-      if (!receiver_map->IsJSTypedArrayMap()) return false;
-      int offset = (id == kTypedArrayLength)
-                       ? JSTypedArray::kLengthOffset
-                       : (id == kTypedArrayByteLength)
-                             ? JSTypedArray::kByteLengthOffset
-                             : JSTypedArray::kByteOffsetOffset;
-      HObjectAccess access =
-          HObjectAccess::ForMapAndOffset(receiver_map, offset);
-      HValue* object = Pop();  // receiver
-      HValue* checked_object = Add<HCheckArrayBufferNotNeutered>(object);
-      HInstruction* result =
-          New<HLoadNamedField>(object, checked_object, access);
-      ast_context()->ReturnInstruction(result, ast_id);
-      return true;
-    }
-    default:
-      return false;
-  }
-}
 
 bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
-    Handle<JSFunction> function, Handle<Map> receiver_map, BailoutId ast_id,
+    Call* expr, Handle<JSFunction> function, Handle<Map> receiver_map,
     int args_count_no_receiver) {
   if (!function->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = function->shared()->builtin_function_id();
@@ -9018,12 +8961,12 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HInstruction* char_code =
             BuildStringCharCodeAt(string, index);
         if (id == kStringCharCodeAt) {
-          ast_context()->ReturnInstruction(char_code, ast_id);
+          ast_context()->ReturnInstruction(char_code, expr->id());
           return true;
         }
         AddInstruction(char_code);
         HInstruction* result = NewUncasted<HStringCharFromCode>(char_code);
-        ast_context()->ReturnInstruction(result, ast_id);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
@@ -9035,7 +8978,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
             argument, Representation::Integer32());
         argument->SetFlag(HValue::kTruncatingToInt32);
         HInstruction* result = NewUncasted<HStringCharFromCode>(argument);
-        ast_context()->ReturnInstruction(result, ast_id);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
@@ -9053,7 +8996,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HValue* argument = Pop();
         Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
-        ast_context()->ReturnInstruction(op, ast_id);
+        ast_context()->ReturnInstruction(op, expr->id());
         return true;
       }
       break;
@@ -9084,7 +9027,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         if (result == NULL) {
           result = NewUncasted<HPower>(left, right);
         }
-        ast_context()->ReturnInstruction(result, ast_id);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
@@ -9097,7 +9040,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         HMathMinMax::Operation op = (id == kMathMin) ? HMathMinMax::kMathMin
                                                      : HMathMinMax::kMathMax;
         HInstruction* result = NewUncasted<HMathMinMax>(left, right, op);
-        ast_context()->ReturnInstruction(result, ast_id);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
@@ -9108,7 +9051,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         Drop(2);  // Receiver and function.
         HInstruction* result =
             HMul::NewImul(isolate(), zone(), context(), left, right);
-        ast_context()->ReturnInstruction(result, ast_id);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
@@ -9164,7 +9107,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         length_checker.End();
       }
       result = ast_context()->IsEffect() ? graph()->GetConstant0() : Top();
-      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) Drop(1);
 
       ast_context()->ReturnValue(result);
@@ -9217,7 +9160,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
             STORE, NEVER_RETURN_HOLE, STORE_AND_GROW_NO_TRANSITION);
 
         if (!ast_context()->IsEffect()) Push(new_size);
-        Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
         if (!ast_context()->IsEffect()) Drop(1);
       }
 
@@ -9331,7 +9274,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         if_lengthiszero.End();
       }
       result = ast_context()->IsEffect() ? graph()->GetConstant0() : Top();
-      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) Drop(1);
       ast_context()->ReturnValue(result);
       return true;
@@ -9368,7 +9311,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       HValue* index = BuildArrayIndexOf(receiver, search_element, kind, mode);
 
       if (!ast_context()->IsEffect()) Push(index);
-      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       if (!ast_context()->IsEffect()) Drop(1);
       ast_context()->ReturnValue(index);
       return true;
@@ -9565,7 +9508,7 @@ void HOptimizedGraphBuilder::HandleIndirectCall(Call* expr, HValue* function,
       HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
     known_function =
         Handle<JSFunction>::cast(HConstant::cast(function)->handle(isolate()));
-    if (TryInlineBuiltinMethodCall(known_function, Handle<Map>(), expr->id(),
+    if (TryInlineBuiltinMethodCall(expr, known_function, Handle<Map>(),
                                    args_count_no_receiver)) {
       if (FLAG_trace_inlining) {
         PrintF("Inlining builtin ");
@@ -9966,7 +9909,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
       Handle<Map> map = maps->length() == 1 ? maps->first() : Handle<Map>();
-      if (TryInlineBuiltinMethodCall(known_function, map, expr->id(),
+      if (TryInlineBuiltinMethodCall(expr, known_function, map,
                                      expr->arguments()->length())) {
         if (FLAG_trace_inlining) {
           PrintF("Inlining builtin ");

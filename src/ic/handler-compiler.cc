@@ -420,6 +420,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
   }
 }
 
+
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);

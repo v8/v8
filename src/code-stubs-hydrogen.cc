@@ -964,6 +964,18 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<ArrayBufferViewLoadFieldStub>::BuildCodeStub() {
+  return BuildArrayBufferViewFieldAccessor(GetParameter(0), nullptr,
+                                           casted_stub()->index());
+}
+
+
+Handle<Code> ArrayBufferViewLoadFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
   HValue* map = AddLoadMap(GetParameter(0), NULL);
   HObjectAccess descriptors_access = HObjectAccess::ForObservableJSObjectOffset(
