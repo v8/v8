@@ -21535,9 +21535,8 @@ void StubCacheHelper(bool primary) {
   i::FLAG_turbo = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-
-  isolate->SetCounterFunction(LookupCounter);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
