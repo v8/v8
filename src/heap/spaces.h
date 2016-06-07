@@ -997,6 +997,8 @@ class LargePage : public MemoryChunk {
   // cannot be shrunk 0 is returned.
   Address GetAddressToShrink();
 
+  void ClearOutOfLiveRangeSlots(Address free_start);
+
   // A limit to guarantee that we do not overflow typed slot offset in
   // the old to old remembered set.
   // Note that this limit is higher than what assembler already imposes on

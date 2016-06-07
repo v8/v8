@@ -2923,6 +2923,19 @@ Address LargePage::GetAddressToShrink() {
   return 0;
 }
 
+void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
+  if (old_to_new_slots() != nullptr) {
+    old_to_new_slots()->RemoveRange(
+        static_cast<int>(free_start - address()),
+        static_cast<int>(free_start + size() - address()));
+  }
+  if (old_to_old_slots() != nullptr) {
+    old_to_old_slots()->RemoveRange(
+        static_cast<int>(free_start - address()),
+        static_cast<int>(free_start + size() - address()));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // LargeObjectIterator
 
@@ -3102,6 +3115,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
         // TODO(hpayer): Perform partial free concurrently.
+        current->ClearOutOfLiveRangeSlots(free_start);
         heap()->memory_allocator()->PartialFreeMemory(current, free_start);
         RemoveChunkMapEntries(current, free_start);
       }
