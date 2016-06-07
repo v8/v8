@@ -2762,6 +2762,16 @@ const char* Representation::Mnemonic() const {
   }
 }
 
+bool Map::InstancesNeedRewriting(Map* target) {
+  int target_number_of_fields = target->NumberOfFields();
+  int target_inobject = target->GetInObjectProperties();
+  int target_unused = target->unused_property_fields();
+  int old_number_of_fields;
+
+  return InstancesNeedRewriting(target, target_number_of_fields,
+                                target_inobject, target_unused,
+                                &old_number_of_fields);
+}
 
 bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
                                  int target_inobject, int target_unused,
@@ -4799,12 +4809,14 @@ Map* Map::FindElementsKindTransitionedMap(MapHandleList* candidates) {
     root_map = root_map->LookupElementsTransitionMap(kind);
     DCHECK_NOT_NULL(root_map);
     // Starting from the next existing elements kind transition try to
-    // replay the property transitions.
+    // replay the property transitions that does not involve instance rewriting
+    // (ElementsTransitionAndStoreStub does not support that).
     for (root_map = root_map->ElementsTransitionMap();
          root_map != nullptr && root_map->has_fast_elements();
          root_map = root_map->ElementsTransitionMap()) {
       Map* current = root_map->TryReplayPropertyTransitions(this);
       if (current == nullptr) continue;
+      if (InstancesNeedRewriting(current)) continue;
 
       if (ContainsMap(candidates, current) &&
           (packed || !IsFastPackedElementsKind(current->elements_kind()))) {

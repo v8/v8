@@ -5770,6 +5770,7 @@ class Map: public HeapObject {
   int NumberOfFields();
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
+  bool InstancesNeedRewriting(Map* target);
   bool InstancesNeedRewriting(Map* target, int target_number_of_fields,
                               int target_inobject, int target_unused,
                               int* old_number_of_fields);
