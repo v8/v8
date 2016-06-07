@@ -2827,16 +2827,15 @@ void GlobalProxyIdentityHash(bool set_in_js) {
   CHECK(env->Global()
             ->Set(env.local(), v8_str("global"), global_proxy)
             .FromJust());
-  i::Handle<i::Object> original_hash;
+  int32_t hash1;
   if (set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
-    original_hash = i::Handle<i::Object>(i_global_proxy->GetHash(), i_isolate);
+    i::Object* original_hash = i_global_proxy->GetHash();
+    CHECK(original_hash->IsSmi());
+    hash1 = i::Smi::cast(original_hash)->value();
   } else {
-    original_hash = i::Handle<i::Object>(
-        i::Object::GetOrCreateHash(i_isolate, i_global_proxy));
+    hash1 = i::Object::GetOrCreateHash(i_isolate, i_global_proxy)->value();
   }
-  CHECK(original_hash->IsSmi());
-  int32_t hash1 = i::Handle<i::Smi>::cast(original_hash)->value();
   // Hash should be retained after being detached.
   env->DetachGlobal();
   int hash2 = global_proxy->GetIdentityHash();

@@ -1518,28 +1518,21 @@ Map* Object::GetRootMap(Isolate* isolate) {
   return isolate->heap()->null_value()->map();
 }
 
+namespace {
 
-Object* Object::GetHash() {
-  DisallowHeapAllocation no_gc;
-  Object* hash = GetSimpleHash();
-  if (hash->IsSmi()) return hash;
-
-  DCHECK(IsJSReceiver());
-  JSReceiver* receiver = JSReceiver::cast(this);
-  Isolate* isolate = receiver->GetIsolate();
-  return *JSReceiver::GetIdentityHash(isolate, handle(receiver, isolate));
-}
-
-
-Object* Object::GetSimpleHash() {
+// Returns a non-SMI for JSObjects, but returns the hash code for simple
+// objects.  This avoids a double lookup in the cases where we know we will
+// add the hash to the JSObject if it does not already exist.
+Object* GetSimpleHash(Object* object) {
   // The object is either a Smi, a HeapNumber, a name, an odd-ball,
   // a SIMD value type, a real JS object, or a Harmony proxy.
-  if (IsSmi()) {
-    uint32_t hash = ComputeIntegerHash(Smi::cast(this)->value(), kZeroHashSeed);
+  if (object->IsSmi()) {
+    uint32_t hash =
+        ComputeIntegerHash(Smi::cast(object)->value(), kZeroHashSeed);
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (IsHeapNumber()) {
-    double num = HeapNumber::cast(this)->value();
+  if (object->IsHeapNumber()) {
+    double num = HeapNumber::cast(object)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     if (i::IsMinusZero(num)) num = 0;
     if (IsSmiDouble(num)) {
@@ -1548,30 +1541,43 @@ Object* Object::GetSimpleHash() {
     uint32_t hash = ComputeLongHash(double_to_uint64(num));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (IsName()) {
-    uint32_t hash = Name::cast(this)->Hash();
+  if (object->IsName()) {
+    uint32_t hash = Name::cast(object)->Hash();
     return Smi::FromInt(hash);
   }
-  if (IsOddball()) {
-    uint32_t hash = Oddball::cast(this)->to_string()->Hash();
+  if (object->IsOddball()) {
+    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
     return Smi::FromInt(hash);
   }
-  if (IsSimd128Value()) {
-    uint32_t hash = Simd128Value::cast(this)->Hash();
+  if (object->IsSimd128Value()) {
+    uint32_t hash = Simd128Value::cast(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  DCHECK(IsJSReceiver());
-  JSReceiver* receiver = JSReceiver::cast(this);
-  return receiver->GetHeap()->undefined_value();
+  DCHECK(object->IsJSReceiver());
+  // Simply return the receiver as it is guaranteed to not be a SMI.
+  return object;
 }
 
+}  // namespace
 
-Handle<Smi> Object::GetOrCreateHash(Isolate* isolate, Handle<Object> object) {
-  Handle<Object> hash(object->GetSimpleHash(), isolate);
-  if (hash->IsSmi()) return Handle<Smi>::cast(hash);
+Object* Object::GetHash() {
+  Object* hash = GetSimpleHash(this);
+  if (hash->IsSmi()) return hash;
+
+  DisallowHeapAllocation no_gc;
+  DCHECK(IsJSReceiver());
+  JSReceiver* receiver = JSReceiver::cast(this);
+  Isolate* isolate = receiver->GetIsolate();
+  return JSReceiver::GetIdentityHash(isolate, handle(receiver, isolate));
+}
+
+Smi* Object::GetOrCreateHash(Isolate* isolate, Handle<Object> object) {
+  Object* hash = GetSimpleHash(*object);
+  if (hash->IsSmi()) return Smi::cast(hash);
 
   DCHECK(object->IsJSReceiver());
-  return JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver>::cast(object));
+  return JSReceiver::GetOrCreateIdentityHash(isolate,
+                                             Handle<JSReceiver>::cast(object));
 }
 
 
@@ -5917,60 +5923,56 @@ static Smi* GenerateIdentityHash(Isolate* isolate) {
   return Smi::FromInt(hash_value);
 }
 
+template <typename ProxyType>
+static Smi* GetOrCreateIdentityHashHelper(Isolate* isolate,
+                                          Handle<ProxyType> proxy) {
+  Object* maybe_hash = proxy->hash();
+  if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
 
-template<typename ProxyType>
-static Handle<Smi> GetOrCreateIdentityHashHelper(Handle<ProxyType> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
-
-  Handle<Object> maybe_hash(proxy->hash(), isolate);
-  if (maybe_hash->IsSmi()) return Handle<Smi>::cast(maybe_hash);
-
-  Handle<Smi> hash(GenerateIdentityHash(isolate), isolate);
-  proxy->set_hash(*hash);
+  Smi* hash = GenerateIdentityHash(isolate);
+  proxy->set_hash(hash);
   return hash;
 }
 
 // static
-Handle<Object> JSObject::GetIdentityHash(Isolate* isolate,
-                                         Handle<JSObject> object) {
+Object* JSObject::GetIdentityHash(Isolate* isolate, Handle<JSObject> object) {
   if (object->IsJSGlobalProxy()) {
-    return handle(JSGlobalProxy::cast(*object)->hash(), isolate);
+    return JSGlobalProxy::cast(*object)->hash();
   }
   Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
-  return JSReceiver::GetDataProperty(object, hash_code_symbol);
+  return *JSReceiver::GetDataProperty(object, hash_code_symbol);
 }
 
 // static
-Handle<Smi> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
+Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate,
+                                       Handle<JSObject> object) {
   if (object->IsJSGlobalProxy()) {
-    return GetOrCreateIdentityHashHelper(Handle<JSGlobalProxy>::cast(object));
+    return GetOrCreateIdentityHashHelper(isolate,
+                                         Handle<JSGlobalProxy>::cast(object));
   }
-  Isolate* isolate = object->GetIsolate();
 
   Handle<Name> hash_code_symbol = isolate->factory()->hash_code_symbol();
   LookupIterator it(object, hash_code_symbol, object, LookupIterator::OWN);
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
-    Handle<Object> maybe_hash = it.GetDataValue();
-    if (maybe_hash->IsSmi()) return Handle<Smi>::cast(maybe_hash);
+    Object* maybe_hash = *it.GetDataValue();
+    if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
   }
 
-  Handle<Smi> hash(GenerateIdentityHash(isolate), isolate);
-  CHECK(AddDataProperty(&it, hash, NONE, THROW_ON_ERROR,
+  Smi* hash = GenerateIdentityHash(isolate);
+  CHECK(AddDataProperty(&it, handle(hash, isolate), NONE, THROW_ON_ERROR,
                         CERTAINLY_NOT_STORE_FROM_KEYED)
             .IsJust());
   return hash;
 }
 
 // static
-Handle<Object> JSProxy::GetIdentityHash(Isolate* isolate,
-                                        Handle<JSProxy> proxy) {
-  return handle(proxy->hash(), isolate);
+Object* JSProxy::GetIdentityHash(Handle<JSProxy> proxy) {
+  return proxy->hash();
 }
 
-
-Handle<Smi> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
-  return GetOrCreateIdentityHashHelper(proxy);
+Smi* JSProxy::GetOrCreateIdentityHash(Isolate* isolate, Handle<JSProxy> proxy) {
+  return GetOrCreateIdentityHashHelper(isolate, proxy);
 }
 
 

@@ -7249,19 +7249,20 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
   return iter.GetCurrent() != global;
 }
 
-
-Handle<Smi> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
-  return object->IsJSProxy()
-      ? JSProxy::GetOrCreateIdentityHash(Handle<JSProxy>::cast(object))
-      : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
+Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate,
+                                         Handle<JSReceiver> object) {
+  return object->IsJSProxy() ? JSProxy::GetOrCreateIdentityHash(
+                                   isolate, Handle<JSProxy>::cast(object))
+                             : JSObject::GetOrCreateIdentityHash(
+                                   isolate, Handle<JSObject>::cast(object));
 }
 
-Handle<Object> JSReceiver::GetIdentityHash(Isolate* isolate,
-                                           Handle<JSReceiver> receiver) {
-  return receiver->IsJSProxy() ? JSProxy::GetIdentityHash(
-                                     isolate, Handle<JSProxy>::cast(receiver))
-                               : JSObject::GetIdentityHash(
-                                     isolate, Handle<JSObject>::cast(receiver));
+Object* JSReceiver::GetIdentityHash(Isolate* isolate,
+                                    Handle<JSReceiver> receiver) {
+  return receiver->IsJSProxy()
+             ? JSProxy::GetIdentityHash(Handle<JSProxy>::cast(receiver))
+             : JSObject::GetIdentityHash(isolate,
+                                         Handle<JSObject>::cast(receiver));
 }
 
 

@@ -89,7 +89,7 @@ static void TestHashMap(Handle<HashMap> table) {
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
+    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
     CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
@@ -100,8 +100,8 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    Handle<Object> identity_hash = JSReceiver::GetIdentityHash(isolate, key);
-    CHECK_EQ(CcTest::heap()->undefined_value(), *identity_hash);
+    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
 

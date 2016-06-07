@@ -4344,7 +4344,7 @@ int v8::Object::GetIdentityHash() {
   auto isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope scope(isolate);
   auto self = Utils::OpenHandle(this);
-  return i::JSReceiver::GetOrCreateIdentityHash(self)->value();
+  return i::JSReceiver::GetOrCreateIdentityHash(isolate, self)->value();
 }
 
 

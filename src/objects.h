@@ -1325,15 +1325,10 @@ class Object {
   // undefined if not yet created.
   Object* GetHash();
 
-  // Returns undefined for JSObjects, but returns the hash code for simple
-  // objects.  This avoids a double lookup in the cases where we know we will
-  // add the hash to the JSObject if it does not already exist.
-  Object* GetSimpleHash();
-
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  static Handle<Smi> GetOrCreateHash(Isolate* isolate, Handle<Object> object);
+  static Smi* GetOrCreateHash(Isolate* isolate, Handle<Object> object);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
@@ -1977,13 +1972,13 @@ class JSReceiver: public HeapObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  static inline Handle<Object> GetIdentityHash(Isolate* isolate,
-                                               Handle<JSReceiver> object);
+  static inline Object* GetIdentityHash(Isolate* isolate,
+                                        Handle<JSReceiver> object);
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  inline static Handle<Smi> GetOrCreateIdentityHash(
-      Handle<JSReceiver> object);
+  inline static Smi* GetOrCreateIdentityHash(Isolate* isolate,
+                                             Handle<JSReceiver> object);
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
   MUST_USE_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
@@ -2493,10 +2488,10 @@ class JSObject: public JSReceiver {
                                     ElementsKind kind,
                                     Object* object);
 
-  static Handle<Object> GetIdentityHash(Isolate* isolate,
-                                        Handle<JSObject> object);
+  static Object* GetIdentityHash(Isolate* isolate, Handle<JSObject> object);
 
-  static Handle<Smi> GetOrCreateIdentityHash(Handle<JSObject> object);
+  static Smi* GetOrCreateIdentityHash(Isolate* isolate,
+                                      Handle<JSObject> object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
@@ -9707,10 +9702,9 @@ class JSProxy: public JSReceiver {
   typedef FixedBodyDescriptor<JSReceiver::kPropertiesOffset, kSize, kSize>
       BodyDescriptor;
 
-  static Handle<Object> GetIdentityHash(Isolate* isolate,
-                                        Handle<JSProxy> receiver);
+  static Object* GetIdentityHash(Handle<JSProxy> receiver);
 
-  static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
+  static Smi* GetOrCreateIdentityHash(Isolate* isolate, Handle<JSProxy> proxy);
 
   static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,

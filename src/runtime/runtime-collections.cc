@@ -40,8 +40,8 @@ RUNTIME_FUNCTION(Runtime_GenericHash) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Handle<Smi> hash = Object::GetOrCreateHash(isolate, object);
-  return *hash;
+  Smi* hash = Object::GetOrCreateHash(isolate, object);
+  return hash;
 }
 
 
