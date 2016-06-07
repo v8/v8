@@ -912,7 +912,6 @@ bool LookupPropertyValueName(UProperty property,
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
   // Parse the property class as follows:
-  // - \pN with a single-character N is equivalent to \p{N}
   // - In \p{name}, 'name' is interpreted
   //   - either as a general category property value name.
   //   - or as a binary property name.
@@ -935,9 +934,6 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
       }
       second_part.Add(0);  // null-terminate string.
     }
-  } else if (current() != kEndMarker) {
-    // Parse \pN, where N is a single-character property name value.
-    first_part.Add(static_cast<char>(current()));
   } else {
     return false;
   }

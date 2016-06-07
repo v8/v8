@@ -9,9 +9,13 @@ assertThrows("/\\p{garbage}/u");
 assertThrows("/\\p{}/u");
 assertThrows("/\\p{/u");
 assertThrows("/\\p}/u");
-assertThrows("/\p{Math}/u");
-assertThrows("/\p{Bidi_M}/u");
-assertThrows("/\p{Hex}/u");
+assertThrows("/\\pL/u");
+assertThrows("/\\P/u");
+assertThrows("/\\P{garbage}/u");
+assertThrows("/\\P{}/u");
+assertThrows("/\\P{/u");
+assertThrows("/\\P}/u");
+assertThrows("/\\PL/u");
 
 assertTrue(/\p{Ll}/u.test("a"));
 assertFalse(/\P{Ll}/u.test("a"));
@@ -54,12 +58,6 @@ assertFalse(/\P{Sm}/u.test("+"));
 assertTrue(/\p{Sm}/u.test("\u{1D6C1}"));
 assertFalse(/\P{Sm}/u.test("\u{1D6C1}"));
 
-assertTrue(/\pL/u.test("a"));
-assertFalse(/\PL/u.test("a"));
-assertFalse(/\pL/u.test("1"));
-assertTrue(/\PL/u.test("1"));
-assertTrue(/\pL/u.test("\u1FAB"));
-assertFalse(/\PL/u.test("\u1FAB"));
 assertFalse(/\p{L}/u.test("\uA6EE"));
 assertTrue(/\P{L}/u.test("\uA6EE"));
 

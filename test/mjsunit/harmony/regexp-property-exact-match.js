@@ -15,7 +15,7 @@ assertThrows("/\\p{InCyrillic_Supplementary}/u");
 assertThrows("/\\p{InCyrillicSupplementary}/u");
 assertThrows("/\\p{InCyrillic_supplementary}/u");
 
-assertDoesNotThrow("/\\pC/u");
+assertDoesNotThrow("/\\p{C}/u");
 assertDoesNotThrow("/\\p{Other}/u");
 assertDoesNotThrow("/\\p{Cc}/u");
 assertDoesNotThrow("/\\p{Control}/u");
