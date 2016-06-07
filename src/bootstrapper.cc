@@ -3570,7 +3570,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));
-      if (properties->IsKey(raw_key)) {
+      if (properties->IsKey(isolate(), raw_key)) {
         DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
         Handle<Name> key(Name::cast(raw_key));
@@ -3593,7 +3593,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));
-      if (properties->IsKey(raw_key)) {
+      if (properties->IsKey(isolate(), raw_key)) {
         DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
         Handle<Name> key(Name::cast(raw_key));

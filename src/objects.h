@@ -3154,7 +3154,7 @@ class HashTableBase : public FixedArray {
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
   inline bool IsKey(Object* k);
-  inline bool IsKey(Heap* heap, Object* k);
+  inline bool IsKey(Isolate* isolate, Object* k);
 
   // Compute the probe offset (quadratic probing).
   INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
@@ -3879,10 +3879,10 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(entry)->value();
   }
 
-  int KeyToFirstEntry(Object* key) {
+  int KeyToFirstEntry(Isolate* isolate, Object* key) {
     Object* hash = key->GetHash();
     // If the object does not have an identity hash, it was never used as a key
-    if (hash->IsUndefined(GetIsolate())) return kNotFound;
+    if (hash->IsUndefined(isolate)) return kNotFound;
     return HashToEntry(Smi::cast(hash)->value());
   }
 

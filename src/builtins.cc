@@ -865,6 +865,7 @@ class ArrayConcatVisitor {
 
 
 uint32_t EstimateElementCount(Handle<JSArray> array) {
+  DisallowHeapAllocation no_gc;
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
@@ -877,7 +878,7 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       DCHECK(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
       Isolate* isolate = array->GetIsolate();
-      Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
+      FixedArray* elements = FixedArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
         if (!elements->get(i)->IsTheHole(isolate)) element_count++;
       }
@@ -893,20 +894,20 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
         DCHECK(FixedArray::cast(array->elements())->length() == 0);
         break;
       }
-      Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(array->elements()));
+      FixedDoubleArray* elements = FixedDoubleArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
         if (!elements->is_the_hole(i)) element_count++;
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> dictionary(
-          SeededNumberDictionary::cast(array->elements()));
+      SeededNumberDictionary* dictionary =
+          SeededNumberDictionary::cast(array->elements());
+      Isolate* isolate = dictionary->GetIsolate();
       int capacity = dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
-        Handle<Object> key(dictionary->KeyAt(i), array->GetIsolate());
-        if (dictionary->IsKey(*key)) {
+        Object* key = dictionary->KeyAt(i);
+        if (dictionary->IsKey(isolate, key)) {
           element_count++;
         }
       }
@@ -983,13 +984,9 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       SeededNumberDictionary* dict =
           SeededNumberDictionary::cast(object->elements());
       uint32_t capacity = dict->Capacity();
-      Heap* heap = isolate->heap();
-      Object* undefined = heap->undefined_value();
-      Object* the_hole = heap->the_hole_value();
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
         Object* k = dict->KeyAt(j);
-        if (k == undefined) continue;
-        if (k == the_hole) continue;
+        if (!dict->IsKey(isolate, k)) continue;
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         if (index < range) {

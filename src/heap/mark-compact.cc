@@ -2464,7 +2464,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization(
   for (uint32_t i = 0; i < capacity; i++) {
     uint32_t key_index = table->EntryToIndex(i);
     Object* key = table->get(key_index);
-    if (!table->IsKey(key)) continue;
+    if (!table->IsKey(isolate, key)) continue;
     uint32_t value_index = table->EntryToValueIndex(i);
     Object* value = table->get(value_index);
     DCHECK(key->IsWeakCell());

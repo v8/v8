@@ -1520,10 +1520,10 @@ Map* Object::GetRootMap(Isolate* isolate) {
 
 
 Object* Object::GetHash() {
+  DisallowHeapAllocation no_gc;
   Object* hash = GetSimpleHash();
   if (hash->IsSmi()) return hash;
 
-  DisallowHeapAllocation no_gc;
   DCHECK(IsJSReceiver());
   JSReceiver* receiver = JSReceiver::cast(this);
   Isolate* isolate = receiver->GetIsolate();
@@ -5701,7 +5701,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   // Compute the length of the instance descriptor.
   for (int i = 0; i < instance_descriptor_length; i++) {
     int index = Smi::cast(iteration_order->get(i))->value();
-    DCHECK(dictionary->IsKey(dictionary->KeyAt(index)));
+    DCHECK(dictionary->IsKey(isolate, dictionary->KeyAt(index)));
 
     Object* value = dictionary->ValueAt(index);
     PropertyType type = dictionary->DetailsAt(index).type();
@@ -7636,9 +7636,10 @@ template <typename Dictionary>
 static void ApplyAttributesToDictionary(Dictionary* dictionary,
                                         const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
+  Isolate* isolate = dictionary->GetIsolate();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(k) &&
+    if (dictionary->IsKey(isolate, k) &&
         !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
       PropertyDetails details = dictionary->DetailsAt(i);
       int attrs = attributes;
@@ -7965,7 +7966,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         int capacity = element_dictionary->Capacity();
         for (int i = 0; i < capacity; i++) {
           Object* k = element_dictionary->KeyAt(i);
-          if (element_dictionary->IsKey(k)) {
+          if (element_dictionary->IsKey(isolate, k)) {
             Handle<Object> value(element_dictionary->ValueAt(i), isolate);
             if (value->IsJSObject()) {
               Handle<JSObject> result;
@@ -15373,10 +15374,11 @@ int JSObject::GetFastElementsUsage() {
 #ifdef OBJECT_PRINT
 template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
+  Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k)) {
+    if (this->IsKey(isolate, k)) {
       os << "\n   ";
       if (k->IsString()) {
         String::cast(k)->StringPrint(os);
@@ -15397,13 +15399,14 @@ void Dictionary<Derived, Shape, Key>::Print() {
 
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CopyValuesTo(FixedArray* elements) {
+  Isolate* isolate = this->GetIsolate();
   int pos = 0;
   int capacity = this->Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k)) {
+    if (this->IsKey(isolate, k)) {
       elements->set(pos++, this->ValueAt(i), mode);
     }
   }
@@ -16208,6 +16211,7 @@ template<typename Derived, typename Shape, typename Key>
 void HashTable<Derived, Shape, Key>::Rehash(Key key) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
+  Isolate* isolate = GetIsolate();
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -16216,7 +16220,7 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
     done = true;
     for (uint32_t current = 0; current < capacity; current++) {
       Object* current_key = get(EntryToIndex(current));
-      if (IsKey(current_key)) {
+      if (IsKey(isolate, current_key)) {
         uint32_t target = EntryForProbe(key, current_key, probe, current);
         if (current == target) continue;
         Object* target_key = get(EntryToIndex(target));
@@ -16235,9 +16239,8 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
     }
   }
   // Wipe deleted entries.
-  Heap* heap = GetHeap();
-  Object* the_hole = heap->the_hole_value();
-  Object* undefined = heap->undefined_value();
+  Object* the_hole = isolate->heap()->the_hole_value();
+  Object* undefined = isolate->heap()->undefined_value();
   for (uint32_t current = 0; current < capacity; current++) {
     if (get(EntryToIndex(current)) == the_hole) {
       set(EntryToIndex(current), undefined);
@@ -16328,12 +16331,10 @@ uint32_t HashTable<Derived, Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  Heap* heap = GetHeap();
-  Object* the_hole = heap->the_hole_value();
-  Object* undefined = heap->undefined_value();
+  Isolate* isolate = GetIsolate();
   while (true) {
     Object* element = KeyAt(entry);
-    if (element == the_hole || element == undefined) break;
+    if (!IsKey(isolate, element)) break;
     entry = NextProbe(entry, count++, capacity);
   }
   return entry;
@@ -16525,7 +16526,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
   DisallowHeapAllocation no_gc;
   for (int i = 0; i < capacity; i++) {
     Object* k = dict->KeyAt(i);
-    if (!dict->IsKey(k)) continue;
+    if (!dict->IsKey(isolate, k)) continue;
 
     DCHECK(k->IsNumber());
     DCHECK(!k->IsSmi() || Smi::cast(k)->value() >= 0);
@@ -17164,7 +17165,8 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::New(
 template <typename Derived, typename Shape, typename Key>
 Handle<FixedArray> Dictionary<Derived, Shape, Key>::BuildIterationIndicesArray(
     Handle<Derived> dictionary) {
-  Factory* factory = dictionary->GetIsolate()->factory();
+  Isolate* isolate = dictionary->GetIsolate();
+  Factory* factory = isolate->factory();
   int length = dictionary->NumberOfElements();
 
   Handle<FixedArray> iteration_order = factory->NewFixedArray(length);
@@ -17175,7 +17177,7 @@ Handle<FixedArray> Dictionary<Derived, Shape, Key>::BuildIterationIndicesArray(
   int capacity = dictionary->Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (dictionary->IsKey(dictionary->KeyAt(i))) {
+    if (dictionary->IsKey(isolate, dictionary->KeyAt(i))) {
       int index = dictionary->DetailsAt(i).dictionary_index();
       iteration_order->set(pos, Smi::FromInt(i));
       enumeration_order->set(pos, Smi::FromInt(index));
@@ -17322,16 +17324,16 @@ void Dictionary<Derived, Shape, Key>::AddEntry(
 
 bool SeededNumberDictionary::HasComplexElements() {
   if (!requires_slow_elements()) return false;
+  Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k)) {
-      DCHECK(!IsDeleted(i));
-      PropertyDetails details = this->DetailsAt(i);
-      if (details.type() == ACCESSOR_CONSTANT) return true;
-      PropertyAttributes attr = details.attributes();
-      if (attr & ALL_ATTRIBUTES_MASK) return true;
-    }
+    if (!this->IsKey(isolate, k)) continue;
+    DCHECK(!IsDeleted(i));
+    PropertyDetails details = this->DetailsAt(i);
+    if (details.type() == ACCESSOR_CONSTANT) return true;
+    PropertyAttributes attr = details.attributes();
+    if (attr & ALL_ATTRIBUTES_MASK) return true;
   }
   return false;
 }
@@ -17427,11 +17429,12 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
 template <typename Derived, typename Shape, typename Key>
 int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
     PropertyFilter filter) {
+  Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !k->FilterKey(filter)) {
+    if (this->IsKey(isolate, k) && !k->FilterKey(filter)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       PropertyAttributes attr = details.attributes();
@@ -17456,12 +17459,13 @@ struct EnumIndexComparator {
 
 template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
+  Isolate* isolate = this->GetIsolate();
   int length = storage->length();
   int capacity = this->Capacity();
   int properties = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !k->IsSymbol()) {
+    if (this->IsKey(isolate, k) && !k->IsSymbol()) {
       PropertyDetails details = this->DetailsAt(i);
       if (details.IsDontEnum() || this->IsDeleted(i)) continue;
       storage->set(properties, Smi::FromInt(i));
@@ -17483,9 +17487,10 @@ template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     Handle<Dictionary<Derived, Shape, Key> > dictionary, KeyAccumulator* keys,
     PropertyFilter filter) {
+  Isolate* isolate = keys->isolate();
   int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
-      keys->isolate()->factory()->NewFixedArray(dictionary->NumberOfElements());
+      isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
   int array_size = 0;
 
   {
@@ -17493,7 +17498,7 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     Dictionary<Derived, Shape, Key>* raw_dict = *dictionary;
     for (int i = 0; i < capacity; i++) {
       Object* k = raw_dict->KeyAt(i);
-      if (!raw_dict->IsKey(k) || k->FilterKey(filter)) continue;
+      if (!raw_dict->IsKey(isolate, k) || k->FilterKey(filter)) continue;
       if (raw_dict->IsDeleted(i)) continue;
       PropertyDetails details = raw_dict->DetailsAt(i);
       if ((details.attributes() & filter) != 0) continue;
@@ -17538,27 +17543,26 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
 // Backwards lookup (slow).
 template<typename Derived, typename Shape, typename Key>
 Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
+  Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k)) {
-      Object* e = this->ValueAt(i);
-      // TODO(dcarney): this should be templatized.
-      if (e->IsPropertyCell()) {
-        e = PropertyCell::cast(e)->value();
-      }
-      if (e == value) return k;
+    if (!this->IsKey(isolate, k)) continue;
+    Object* e = this->ValueAt(i);
+    // TODO(dcarney): this should be templatized.
+    if (e->IsPropertyCell()) {
+      e = PropertyCell::cast(e)->value();
     }
+    if (e == value) return k;
   }
-  Heap* heap = Dictionary::GetHeap();
-  return heap->undefined_value();
+  return isolate->heap()->undefined_value();
 }
 
 
 Object* ObjectHashTable::Lookup(Isolate* isolate, Handle<Object> key,
                                 int32_t hash) {
   DisallowHeapAllocation no_gc;
-  DCHECK(IsKey(*key));
+  DCHECK(IsKey(isolate, *key));
 
   int entry = FindEntry(isolate, key, hash);
   if (entry == kNotFound) return isolate->heap()->the_hole_value();
@@ -17568,9 +17572,9 @@ Object* ObjectHashTable::Lookup(Isolate* isolate, Handle<Object> key,
 
 Object* ObjectHashTable::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
-  DCHECK(IsKey(*key));
 
   Isolate* isolate = GetIsolate();
+  DCHECK(IsKey(isolate, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
   Object* hash = key->GetHash();
@@ -17590,8 +17594,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> key,
                                              Handle<Object> value) {
   Isolate* isolate = table->GetIsolate();
-
-  DCHECK(table->IsKey(*key));
+  DCHECK(table->IsKey(isolate, *key));
   DCHECK(!value->IsTheHole(isolate));
 
   // Make sure the key object has an identity hash code.
@@ -17606,8 +17609,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> value,
                                              int32_t hash) {
   Isolate* isolate = table->GetIsolate();
-
-  DCHECK(table->IsKey(*key));
+  DCHECK(table->IsKey(isolate, *key));
   DCHECK(!value->IsTheHole(isolate));
 
   int entry = table->FindEntry(isolate, key, hash);
@@ -17634,7 +17636,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
 Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
                                                 Handle<Object> key,
                                                 bool* was_present) {
-  DCHECK(table->IsKey(*key));
+  DCHECK(table->IsKey(table->GetIsolate(), *key));
 
   Object* hash = key->GetHash();
   if (hash->IsUndefined(table->GetIsolate())) {
@@ -17650,9 +17652,10 @@ Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
                                                 Handle<Object> key,
                                                 bool* was_present,
                                                 int32_t hash) {
-  DCHECK(table->IsKey(*key));
+  Isolate* isolate = table->GetIsolate();
+  DCHECK(table->IsKey(isolate, *key));
 
-  int entry = table->FindEntry(table->GetIsolate(), key, hash);
+  int entry = table->FindEntry(isolate, key, hash);
   if (entry == kNotFound) {
     *was_present = false;
     return table;
@@ -17680,9 +17683,10 @@ void ObjectHashTable::RemoveEntry(int entry) {
 
 Object* WeakHashTable::Lookup(Handle<HeapObject> key) {
   DisallowHeapAllocation no_gc;
-  DCHECK(IsKey(*key));
+  Isolate* isolate = GetIsolate();
+  DCHECK(IsKey(isolate, *key));
   int entry = FindEntry(key);
-  if (entry == kNotFound) return GetHeap()->the_hole_value();
+  if (entry == kNotFound) return isolate->heap()->the_hole_value();
   return get(EntryToValueIndex(entry));
 }
 
@@ -17690,7 +17694,8 @@ Object* WeakHashTable::Lookup(Handle<HeapObject> key) {
 Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
                                          Handle<HeapObject> key,
                                          Handle<HeapObject> value) {
-  DCHECK(table->IsKey(*key));
+  Isolate* isolate = key->GetIsolate();
+  DCHECK(table->IsKey(isolate, *key));
   int entry = table->FindEntry(key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
@@ -17698,7 +17703,7 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
     return table;
   }
 
-  Handle<WeakCell> key_cell = key->GetIsolate()->factory()->NewWeakCell(key);
+  Handle<WeakCell> key_cell = isolate->factory()->NewWeakCell(key);
 
   // Check whether the hash table should be extended.
   table = EnsureCapacity(table, 1, key, TENURED);
@@ -17792,11 +17797,14 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
 template <class Derived, class Iterator, int entrysize>
 bool OrderedHashTable<Derived, Iterator, entrysize>::HasKey(
     Handle<Derived> table, Handle<Object> key) {
-  int entry = table->KeyToFirstEntry(*key);
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = table->GetIsolate();
+  Object* raw_key = *key;
+  int entry = table->KeyToFirstEntry(isolate, raw_key);
   // Walk the chain in the bucket to find the key.
   while (entry != kNotFound) {
     Object* candidate_key = table->KeyAt(entry);
-    if (candidate_key->SameValueZero(*key)) return true;
+    if (candidate_key->SameValueZero(raw_key)) return true;
     entry = table->NextChainEntry(entry);
   }
   return false;
@@ -17856,11 +17864,11 @@ template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   Isolate* isolate = table->GetIsolate();
-  Heap* heap = isolate->heap();
   DCHECK(!table->IsObsolete());
 
-  Handle<Derived> new_table = Allocate(
-      isolate, new_capacity, heap->InNewSpace(*table) ? NOT_TENURED : TENURED);
+  Handle<Derived> new_table =
+      Allocate(isolate, new_capacity,
+               isolate->heap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
   int new_buckets = new_table->NumberOfBuckets();
@@ -17868,10 +17876,9 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
   int removed_holes_index = 0;
 
   DisallowHeapAllocation no_gc;
-  Object* the_hole = heap->the_hole_value();
   for (int old_entry = 0; old_entry < (nof + nod); ++old_entry) {
     Object* key = table->KeyAt(old_entry);
-    if (key == the_hole) {
+    if (key->IsTheHole(isolate)) {
       table->SetRemovedIndexAt(removed_holes_index++, old_entry);
       continue;
     }

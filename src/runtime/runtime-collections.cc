@@ -250,7 +250,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
     int count = 0;
     for (int i = 0; count / 2 < max_entries && i < table->Capacity(); i++) {
       Handle<Object> key(table->KeyAt(i), isolate);
-      if (table->IsKey(*key)) {
+      if (table->IsKey(isolate, *key)) {
         entries->set(count++, *key);
         Object* value = table->Lookup(key);
         entries->set(count++, value);
@@ -289,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
   RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(*key));
+  RUNTIME_ASSERT(table->IsKey(isolate, *key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
   return lookup->IsTheHole(isolate) ? isolate->heap()->undefined_value()
                                     : *lookup;
@@ -305,7 +305,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
   RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(*key));
+  RUNTIME_ASSERT(table->IsKey(isolate, *key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole(isolate));
 }
@@ -320,7 +320,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(*key));
+  RUNTIME_ASSERT(table->IsKey(isolate, *key));
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
   return isolate->heap()->ToBoolean(was_present);
 }
@@ -336,7 +336,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   CONVERT_SMI_ARG_CHECKED(hash, 3)
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(*key));
+  RUNTIME_ASSERT(table->IsKey(isolate, *key));
   JSWeakCollection::Set(weak_collection, key, value, hash);
   return *weak_collection;
 }
@@ -362,8 +362,8 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
     DisallowHeapAllocation no_gc;
     int count = 0;
     for (int i = 0; count < max_values && i < table->Capacity(); i++) {
-      Handle<Object> key(table->KeyAt(i), isolate);
-      if (table->IsKey(*key)) values->set(count++, *key);
+      Object* key = table->KeyAt(i);
+      if (table->IsKey(isolate, key)) values->set(count++, key);
     }
     DCHECK_EQ(max_values, count);
   }

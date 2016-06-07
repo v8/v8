@@ -1558,6 +1558,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
 
 
 void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
+  Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastProperties()) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
     int real_size = js_obj->map()->NumberOfOwnDescriptors();
@@ -1591,7 +1592,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(isolate, k)) {
         DCHECK(dictionary->ValueAt(i)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(i));
         Object* value = cell->value();
@@ -1605,7 +1606,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(isolate, k)) {
         Object* value = dictionary->ValueAt(i);
         PropertyDetails details = dictionary->DetailsAt(i);
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
@@ -1635,13 +1636,14 @@ void V8HeapExplorer::ExtractAccessorPairProperty(JSObject* js_obj, int entry,
 
 
 void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
+  Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastObjectElements()) {
     FixedArray* elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray() ?
         Smi::cast(JSArray::cast(js_obj)->length())->value() :
         elements->length();
     for (int i = 0; i < length; ++i) {
-      if (!elements->get(i)->IsTheHole(heap_->isolate())) {
+      if (!elements->get(i)->IsTheHole(isolate)) {
         SetElementReference(js_obj, entry, i, elements->get(i));
       }
     }
@@ -1650,7 +1652,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(heap_, k)) {
+      if (dictionary->IsKey(isolate, k)) {
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         SetElementReference(js_obj, entry, index, dictionary->ValueAt(i));

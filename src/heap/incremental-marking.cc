@@ -473,9 +473,10 @@ static void PatchIncrementalMarkingRecordWriteStubs(
   UnseededNumberDictionary* stubs = heap->code_stubs();
 
   int capacity = stubs->Capacity();
+  Isolate* isolate = heap->isolate();
   for (int i = 0; i < capacity; i++) {
     Object* k = stubs->KeyAt(i);
-    if (stubs->IsKey(k)) {
+    if (stubs->IsKey(isolate, k)) {
       uint32_t key = NumberToUint32(k);
 
       if (CodeStub::MajorKeyFromKey(key) == CodeStub::RecordWrite) {

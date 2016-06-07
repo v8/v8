@@ -1186,12 +1186,10 @@ class DictionaryElementsAccessor
     SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
     if (!dict->requires_slow_elements()) return false;
     int capacity = dict->Capacity();
-    Heap* heap = holder->GetHeap();
-    Object* undefined = heap->undefined_value();
-    Object* the_hole = heap->the_hole_value();
+    Isolate* isolate = dict->GetIsolate();
     for (int i = 0; i < capacity; i++) {
       Object* key = dict->KeyAt(i);
-      if (key == the_hole || key == undefined) continue;
+      if (!dict->IsKey(isolate, key)) continue;
       DCHECK(!dict->IsDeleted(i));
       PropertyDetails details = dict->DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
@@ -1301,23 +1299,12 @@ class DictionaryElementsAccessor
     return static_cast<uint32_t>(raw_key->Number());
   }
 
-  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
+  static uint32_t GetKeyForEntryImpl(Isolate* isolate,
+                                     Handle<SeededNumberDictionary> dictionary,
                                      int entry, PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     Object* raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(raw_key)) return kMaxUInt32;
-    return FilterKey(dictionary, entry, raw_key, filter);
-  }
-
-  static uint32_t GetKeyForEntryImpl(Handle<SeededNumberDictionary> dictionary,
-                                     int entry, PropertyFilter filter,
-                                     Object* undefined, Object* the_hole) {
-    DisallowHeapAllocation no_gc;
-    Object* raw_key = dictionary->KeyAt(entry);
-    // Replace the IsKey check with a direct comparison which is much faster.
-    if (raw_key == undefined || raw_key == the_hole) {
-      return kMaxUInt32;
-    }
+    if (!dictionary->IsKey(isolate, raw_key)) return kMaxUInt32;
     return FilterKey(dictionary, entry, raw_key, filter);
   }
 
@@ -1325,21 +1312,18 @@ class DictionaryElementsAccessor
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys) {
     if (keys->filter() & SKIP_STRINGS) return;
-    Factory* factory = keys->isolate()->factory();
-    Handle<Object> undefined = factory->undefined_value();
-    Handle<Object> the_hole = factory->the_hole_value();
+    Isolate* isolate = keys->isolate();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     int capacity = dictionary->Capacity();
-    Handle<FixedArray> elements =
-        factory->NewFixedArray(GetMaxNumberOfEntries(*object, *backing_store));
+    Handle<FixedArray> elements = isolate->factory()->NewFixedArray(
+        GetMaxNumberOfEntries(*object, *backing_store));
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     for (int i = 0; i < capacity; i++) {
-      uint32_t key =
-          GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
+      uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
       if (key == kMaxUInt32) continue;
-      Handle<Object> key_handle = factory->NewNumberFromUint(key);
+      Handle<Object> key_handle = isolate->factory()->NewNumberFromUint(key);
       elements->set(insertion_index, *key_handle);
       insertion_index++;
     }
@@ -1357,14 +1341,11 @@ class DictionaryElementsAccessor
     if (filter & SKIP_STRINGS) return list;
     if (filter & ONLY_ALL_CAN_READ) return list;
 
-    Handle<Object> undefined = isolate->factory()->undefined_value();
-    Handle<Object> the_hole = isolate->factory()->the_hole_value();
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
     uint32_t capacity = dictionary->Capacity();
     for (uint32_t i = 0; i < capacity; i++) {
-      uint32_t key =
-          GetKeyForEntryImpl(dictionary, i, filter, *undefined, *the_hole);
+      uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
       if (key == kMaxUInt32) continue;
       Handle<Object> index = isolate->factory()->NewNumberFromUint(key);
       list->set(insertion_index, *index);

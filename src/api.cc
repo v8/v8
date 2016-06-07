@@ -2661,7 +2661,7 @@ void NativeWeakMap::Set(Local<Value> v8_key, Local<Value> v8_value) {
   }
   i::Handle<i::ObjectHashTable> table(
       i::ObjectHashTable::cast(weak_collection->table()));
-  if (!table->IsKey(*key)) {
+  if (!table->IsKey(isolate, *key)) {
     DCHECK(false);
     return;
   }
@@ -2681,7 +2681,7 @@ Local<Value> NativeWeakMap::Get(Local<Value> v8_key) {
   }
   i::Handle<i::ObjectHashTable> table(
       i::ObjectHashTable::cast(weak_collection->table()));
-  if (!table->IsKey(*key)) {
+  if (!table->IsKey(isolate, *key)) {
     DCHECK(false);
     return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -2704,7 +2704,7 @@ bool NativeWeakMap::Has(Local<Value> v8_key) {
   }
   i::Handle<i::ObjectHashTable> table(
       i::ObjectHashTable::cast(weak_collection->table()));
-  if (!table->IsKey(*key)) {
+  if (!table->IsKey(isolate, *key)) {
     DCHECK(false);
     return false;
   }
@@ -2725,7 +2725,7 @@ bool NativeWeakMap::Delete(Local<Value> v8_key) {
   }
   i::Handle<i::ObjectHashTable> table(
       i::ObjectHashTable::cast(weak_collection->table()));
-  if (!table->IsKey(*key)) {
+  if (!table->IsKey(isolate, *key)) {
     DCHECK(false);
     return false;
   }
