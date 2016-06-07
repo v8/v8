@@ -284,11 +284,19 @@ void TypeFeedbackVector::ClearAllKeyedStoreICs(Isolate* isolate) {
       int length = optimized_code_map->length();
       for (int i = SharedFunctionInfo::kEntriesStart; i < length;
            i += SharedFunctionInfo::kEntryLength) {
-        WeakCell* cell = WeakCell::cast(
-            optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset));
-        if (cell->value()->IsLiteralsArray()) {
-          TypeFeedbackVector* vector =
-              LiteralsArray::cast(cell->value())->feedback_vector();
+        Object* lits =
+            optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset);
+        TypeFeedbackVector* vector = nullptr;
+        if (lits->IsWeakCell()) {
+          WeakCell* cell = WeakCell::cast(lits);
+          if (cell->value()->IsLiteralsArray()) {
+            vector = LiteralsArray::cast(cell->value())->feedback_vector();
+          }
+        } else {
+          DCHECK(lits->IsLiteralsArray());
+          vector = LiteralsArray::cast(lits)->feedback_vector();
+        }
+        if (vector != nullptr) {
           vector->ClearKeyedStoreICs(shared);
         }
       }

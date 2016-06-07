@@ -11610,9 +11610,13 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
             isolate->factory()->NewWeakCell(code.ToHandleChecked());
         old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       }
-      Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(literals);
-      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      if (literals->literals_count() == 0) {
+        old_code_map->set(entry + kLiteralsOffset, *literals);
+      } else {
+        Handle<WeakCell> literals_cell =
+            isolate->factory()->NewWeakCell(literals);
+        old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      }
       return;
     }
 
@@ -11643,12 +11647,18 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   Handle<WeakCell> code_cell =
       code.is_null() ? isolate->factory()->empty_weak_cell()
                      : isolate->factory()->NewWeakCell(code.ToHandleChecked());
-  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
-  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+
+  if (literals->literals_count() == 0) {
+    new_code_map->set(entry + kLiteralsOffset, *literals);
+  } else {
+    Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+    new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+  }
+
   new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
 
 #ifdef DEBUG
@@ -11659,8 +11669,16 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
-    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
-    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
+    Object* lits = new_code_map->get(i + kLiteralsOffset);
+    if (lits->IsWeakCell()) {
+      cell = WeakCell::cast(lits);
+      DCHECK(cell->cleared() ||
+             (cell->value()->IsLiteralsArray() &&
+              LiteralsArray::cast(cell->value())->literals_count() > 0));
+    } else {
+      DCHECK(lits->IsLiteralsArray() &&
+             LiteralsArray::cast(lits)->literals_count() == 0);
+    }
     DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
@@ -13278,13 +13296,18 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
     } else {
       DCHECK_LE(entry + kEntryLength, code_map->length());
       WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-      WeakCell* literals_cell =
-          WeakCell::cast(code_map->get(entry + kLiteralsOffset));
-
+      Object* lits = code_map->get(entry + kLiteralsOffset);
+      LiteralsArray* literals = nullptr;
+      if (lits->IsWeakCell()) {
+        WeakCell* literal_cell = WeakCell::cast(lits);
+        if (!literal_cell->cleared()) {
+          literals = LiteralsArray::cast(literal_cell->value());
+        }
+      } else {
+        literals = LiteralsArray::cast(lits);
+      }
       result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
-                literals_cell->cleared()
-                    ? nullptr
-                    : LiteralsArray::cast(literals_cell->value())};
+                literals};
     }
   }
   return result;
