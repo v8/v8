@@ -2997,16 +2997,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   page->set_next_page(first_page_);
   first_page_ = page;
 
-  // Register all MemoryChunk::kAlignment-aligned chunks covered by
-  // this large page in the chunk map.
-  uintptr_t base = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
-  uintptr_t limit = base + (page->size() - 1) / MemoryChunk::kAlignment;
-  for (uintptr_t key = base; key <= limit; key++) {
-    HashMap::Entry* entry = chunk_map_.LookupOrInsert(
-        reinterpret_cast<void*>(key), static_cast<uint32_t>(key));
-    DCHECK(entry != NULL);
-    entry->value = page;
-  }
+  InsertChunkMapEntries(page);
 
   HeapObject* object = page->GetObject();
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), object_size);
@@ -3072,6 +3063,34 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   }
 }
 
+void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
+  // Register all MemoryChunk::kAlignment-aligned chunks covered by
+  // this large page in the chunk map.
+  uintptr_t start = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
+  uintptr_t limit = start + (page->size() - 1) / MemoryChunk::kAlignment;
+  for (uintptr_t key = start; key <= limit; key++) {
+    HashMap::Entry* entry = chunk_map_.InsertNew(reinterpret_cast<void*>(key),
+                                                 static_cast<uint32_t>(key));
+    DCHECK(entry != NULL);
+    entry->value = page;
+  }
+}
+
+void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
+  RemoveChunkMapEntries(page, page->address());
+}
+
+void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
+                                             Address free_start) {
+  uintptr_t start = RoundUp(reinterpret_cast<uintptr_t>(free_start),
+                            MemoryChunk::kAlignment) /
+                    MemoryChunk::kAlignment;
+  uintptr_t limit = start + (page->size() - 1) / MemoryChunk::kAlignment;
+  for (uintptr_t key = start; key <= limit; key++) {
+    chunk_map_.Remove(reinterpret_cast<void*>(key), static_cast<uint32_t>(key));
+  }
+}
+
 void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* previous = NULL;
   LargePage* current = first_page_;
@@ -3084,6 +3103,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       if ((free_start = current->GetAddressToShrink()) != 0) {
         // TODO(hpayer): Perform partial free concurrently.
         heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        RemoveChunkMapEntries(current, free_start);
       }
       previous = current;
       current = current->next_page();
@@ -3103,17 +3123,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       objects_size_ -= object->Size();
       page_count_--;
 
-      // Remove entries belonging to this page.
-      // Use variable alignment to help pass length check (<= 80 characters)
-      // of single line in tools/presubmit.py.
-      const intptr_t alignment = MemoryChunk::kAlignment;
-      uintptr_t base = reinterpret_cast<uintptr_t>(page) / alignment;
-      uintptr_t limit = base + (page->size() - 1) / alignment;
-      for (uintptr_t key = base; key <= limit; key++) {
-        chunk_map_.Remove(reinterpret_cast<void*>(key),
-                          static_cast<uint32_t>(key));
-      }
-
+      RemoveChunkMapEntries(page);
       heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
     }
   }

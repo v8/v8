@@ -51,6 +51,9 @@ class TemplateHashMapImpl {
   Entry* LookupOrInsert(void* key, uint32_t hash,
                         AllocationPolicy allocator = AllocationPolicy());
 
+  Entry* InsertNew(void* key, uint32_t hash,
+                   AllocationPolicy allocator = AllocationPolicy());
+
   // Removes the entry with matching key.
   // It returns the value of the deleted entry
   // or null if there is no value for such key.
@@ -128,6 +131,17 @@ TemplateHashMapImpl<AllocationPolicy>::LookupOrInsert(
   if (p->key != NULL) {
     return p;
   }
+
+  return InsertNew(key, hash, allocator);
+}
+
+template <class AllocationPolicy>
+typename TemplateHashMapImpl<AllocationPolicy>::Entry*
+TemplateHashMapImpl<AllocationPolicy>::InsertNew(void* key, uint32_t hash,
+                                                 AllocationPolicy allocator) {
+  // Find a matching entry.
+  Entry* p = Probe(key, hash);
+  DCHECK(p->key == NULL);
 
   // No entry found; insert one.
   p->key = key;
