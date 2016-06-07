@@ -201,6 +201,21 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   EXPECT_OFF_END_FAILURE(data, 1, sizeof(data));
 }
 
+TEST_F(WasmModuleVerifyTest, Global_invalid_type) {
+  static const byte data[] = {
+      SECTION(GLOBALS, 5),  // --
+      1,
+      NAME_LENGTH(1),
+      'g',  // name
+      64,   // invalid memory type
+      0,    // exported
+  };
+
+  ModuleResult result = DecodeModuleNoHeader(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+  if (result.val) delete result.val;
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 1),  // --

@@ -384,7 +384,7 @@ class ModuleDecoder : public Decoder {
     }
 
   done:
-    CalculateGlobalsOffsets(module);
+    if (ok()) CalculateGlobalsOffsets(module);
     const WasmModule* finished_module = module;
     ModuleResult result = toResult(finished_module);
     if (FLAG_dump_wasm_module) {
