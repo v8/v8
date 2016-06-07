@@ -27,6 +27,7 @@ def main():
   print 'Switching to pinned msvs toolchain.'
   print 'Clobbering to hopefully resolve problem with mksnapshot'
   print 'Clobber after ICU roll.'
+  print 'Clobber after Android NDK update.'
   return 0
 
 
