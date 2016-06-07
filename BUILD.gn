@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
+import("//build/config/dcheck_always_on.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 
@@ -40,12 +41,18 @@ declare_args() {
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
 
+  # Enable slow dchecks.
+  v8_enable_slow_dchecks = false
+
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
   v8_interpreted_regexp = false
 
   # Sets -dOBJECT_PRINT.
   v8_object_print = false
+
+  # Turns on compiler optimizations in V8 in Debug build.
+  v8_optimized_debug = true
 
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
@@ -287,9 +294,11 @@ config("toolchain") {
       "DEBUG",
       "TRACE_MAPS",
     ]
-    if (!v8_optimized_debug) {
+    if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
     }
+  } else if (dcheck_always_on) {
+    defines += [ "DEBUG" ]
   }
 }
 
@@ -308,7 +317,12 @@ template("v8_source_set") {
       ":toolchain",
     ]
 
-    if (!is_debug || v8_optimized_debug) {
+    # TODO(machenbach): This config doesn't affect executables and components.
+    # It should be moved to a common place.
+    if (is_debug && !v8_optimized_debug) {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:no_optimize" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
       configs += [ "//build/config/compiler:optimize_max" ]
     }
