@@ -1328,7 +1328,7 @@ TEST(TryProbeStubCache) {
   }
 
   // Generate some number of handlers.
-  for (int i = 0; i < StubCache::kSecondaryTableSize; i++) {
+  for (int i = 0; i < 30; i++) {
     Code::Kind code_kind;
     switch (rand_gen.NextInt(4)) {
       case 0:

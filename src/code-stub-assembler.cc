@@ -1444,6 +1444,34 @@ Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                    Int32Constant(shift));
 }
 
+void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address,
+                        Int32Constant(value));
+  }
+}
+
+void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
+  DCHECK(delta > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
+    Node* value = Load(MachineType::Int32(), counter_address);
+    value = Int32Add(value, Int32Constant(delta));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
+  }
+}
+
+void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
+  DCHECK(delta > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Node* counter_address = ExternalConstant(ExternalReference(counter));
+    Node* value = Load(MachineType::Int32(), counter_address);
+    value = Int32Sub(value, Int32Constant(delta));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
+  }
+}
+
 void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
                                   Label* if_bailout) {
@@ -2157,8 +2185,10 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
     Goto(if_miss);
+    return;
   } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
     Goto(if_miss);
+    return;
   }
 #endif
   // The {table_offset} holds the entry offset times four (due to masking
@@ -2202,10 +2232,13 @@ void CodeStubAssembler::TryProbeStubCache(
     StubCache* stub_cache, Code::Flags flags, compiler::Node* receiver,
     compiler::Node* name, Label* if_handler, Variable* var_handler,
     Label* if_miss) {
-  Label try_secondary(this);
+  Label try_secondary(this), miss(this);
+
+  Counters* counters = isolate()->counters();
+  IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
 
   // Check that the {receiver} isn't a smi.
-  GotoIf(WordIsSmi(receiver), if_miss);
+  GotoIf(WordIsSmi(receiver), &miss);
 
   Node* receiver_map = LoadMap(receiver);
 
@@ -2220,8 +2253,13 @@ void CodeStubAssembler::TryProbeStubCache(
     Node* secondary_offset =
         StubCacheSecondaryOffset(name, flags, primary_offset);
     TryProbeStubCacheTable(stub_cache, kSecondary, secondary_offset, name,
-                           flags, receiver_map, if_handler, var_handler,
-                           if_miss);
+                           flags, receiver_map, if_handler, var_handler, &miss);
+  }
+
+  Bind(&miss);
+  {
+    IncrementCounter(counters->megamorphic_stub_cache_misses(), 1);
+    Goto(if_miss);
   }
 }
 

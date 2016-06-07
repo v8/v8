@@ -21481,14 +21481,18 @@ TEST(ScopedMicrotasks) {
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
+#if defined(ENABLE_DISASSEMBLER) && !defined(V8_USE_EXTERNAL_STARTUP_DATA)
+// FLAG_test_primary_stub_cache and FLAG_test_secondary_stub_cache are read
+// only when ENABLE_DISASSEMBLER is not defined.
+// These tests are valid only for no-snapshot mode.
 
-#ifdef ENABLE_DISASSEMBLER
-static int probes_counter = 0;
-static int misses_counter = 0;
-static int updates_counter = 0;
+namespace {
 
+int probes_counter = 0;
+int misses_counter = 0;
+int updates_counter = 0;
 
-static int* LookupCounter(const char* name) {
+int* LookupCounter(const char* name) {
   if (strcmp(name, "c:V8.MegamorphicStubCacheProbes") == 0) {
     return &probes_counter;
   } else if (strcmp(name, "c:V8.MegamorphicStubCacheMisses") == 0) {
@@ -21499,24 +21503,28 @@ static int* LookupCounter(const char* name) {
   return NULL;
 }
 
+const char* kMegamorphicTestProgram =
+    "function CreateClass(name) {\n"
+    "  var src = \n"
+    "    `  function ${name}() {};` +\n"
+    "    `  ${name}.prototype.foo = function() {};` +\n"
+    "    `  ${name};\\n`;\n"
+    "  return (0, eval)(src);\n"
+    "}\n"
+    "function fooify(obj) { obj.foo(); };\n"
+    "var objs = [];\n"
+    "for (var i = 0; i < 6; i++) {\n"
+    "  var Class = CreateClass('Class' + i);\n"
+    "  var obj = new Class();\n"
+    "  objs.push(obj);\n"
+    "}\n"
+    "for (var i = 0; i < 10000; i++) {\n"
+    "  for (var obj of objs) {\n"
+    "    fooify(obj);\n"
+    "  }\n"
+    "}\n";
 
-static const char* kMegamorphicTestProgram =
-    "function ClassA() { };"
-    "function ClassB() { };"
-    "ClassA.prototype.foo = function() { };"
-    "ClassB.prototype.foo = function() { };"
-    "function fooify(obj) { obj.foo(); };"
-    "var a = new ClassA();"
-    "var b = new ClassB();"
-    "for (var i = 0; i < 10000; i++) {"
-    "  fooify(a);"
-    "  fooify(b);"
-    "}";
-#endif
-
-
-static void StubCacheHelper(bool primary) {
-#ifdef ENABLE_DISASSEMBLER
+void StubCacheHelper(bool primary) {
   i::FLAG_native_code_counters = true;
   if (primary) {
     i::FLAG_test_primary_stub_cache = true;
@@ -21524,36 +21532,46 @@ static void StubCacheHelper(bool primary) {
     i::FLAG_test_secondary_stub_cache = true;
   }
   i::FLAG_crankshaft = false;
-  LocalContext env;
-  env->GetIsolate()->SetCounterFunction(LookupCounter);
-  v8::HandleScope scope(env->GetIsolate());
-  int initial_probes = probes_counter;
-  int initial_misses = misses_counter;
-  int initial_updates = updates_counter;
-  CompileRun(kMegamorphicTestProgram);
-  int probes = probes_counter - initial_probes;
-  int misses = misses_counter - initial_misses;
-  int updates = updates_counter - initial_updates;
-  CHECK_LT(updates, 10);
-  CHECK_LT(misses, 10);
-  // TODO(verwaest): Update this test to overflow the degree of polymorphism
-  // before megamorphism. The number of probes will only work once we teach the
-  // serializer to embed references to counters in the stubs, given that the
-  // megamorphic_stub_cache_probes is updated in a snapshot-generated stub.
-  CHECK_GE(probes, 0);
-#endif
+  i::FLAG_turbo = false;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  isolate->SetCounterFunction(LookupCounter);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    LocalContext env(isolate);
+    v8::HandleScope scope(isolate);
+
+    int initial_probes = probes_counter;
+    int initial_misses = misses_counter;
+    int initial_updates = updates_counter;
+    CompileRun(kMegamorphicTestProgram);
+    int probes = probes_counter - initial_probes;
+    int misses = misses_counter - initial_misses;
+    int updates = updates_counter - initial_updates;
+    const int kClassesCount = 6;
+    // Check that updates and misses counts are bounded.
+    CHECK_LE(kClassesCount, updates);
+    CHECK_LT(updates, kClassesCount * 3);
+    CHECK_LE(1, misses);
+    CHECK_LT(misses, kClassesCount * 2);
+    // 2 is for PREMONOMORPHIC and MONOMORPHIC states,
+    // 4 is for POLYMORPHIC states,
+    // and all the others probes are for MEGAMORPHIC state.
+    CHECK_EQ(10000 * kClassesCount - 2 - 4, probes);
+  }
+  isolate->Dispose();
 }
 
+}  // namespace
 
-TEST(SecondaryStubCache) {
-  StubCacheHelper(true);
-}
+UNINITIALIZED_TEST(PrimaryStubCache) { StubCacheHelper(true); }
 
+UNINITIALIZED_TEST(SecondaryStubCache) { StubCacheHelper(false); }
 
-TEST(PrimaryStubCache) {
-  StubCacheHelper(false);
-}
-
+#endif  // ENABLE_DISASSEMBLER && !V8_USE_EXTERNAL_STARTUP_DATA
 
 #ifdef DEBUG
 static int cow_arrays_created_runtime = 0;

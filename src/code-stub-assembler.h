@@ -257,6 +257,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
 
+  void SetCounter(StatsCounter* counter, int value);
+  void IncrementCounter(StatsCounter* counter, int delta);
+  void DecrementCounter(StatsCounter* counter, int delta);
+
   // Various building blocks for stubs doing property lookups.
   void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
                  Label* if_keyisunique, Label* if_bailout);
