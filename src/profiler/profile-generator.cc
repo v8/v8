@@ -608,8 +608,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   int src_line = v8::CpuProfileNode::kNoLineNumberInfo;
   bool src_line_not_found = true;
 
-  if (sample.pc != nullptr) {
-    if (sample.has_external_callback && sample.state == EXTERNAL) {
+  if (sample.pc != NULL) {
+    if (sample.has_external_callback && sample.state == EXTERNAL &&
+        sample.top_frame_type == StackFrame::EXIT) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
@@ -619,7 +620,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
-      if (!pc_entry && !sample.has_external_callback) {
+      if (!pc_entry && (sample.top_frame_type == StackFrame::JAVA_SCRIPT ||
+                        sample.top_frame_type == StackFrame::INTERPRETED ||
+                        sample.top_frame_type == StackFrame::OPTIMIZED)) {
         pc_entry = code_map_.FindEntry(sample.tos);
       }
       // If pc is in the function code before it set up stack frame or after the
@@ -644,7 +647,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           // In the latter case we know the caller for sure but in the
           // former case we don't so we simply replace the frame with
           // 'unresolved' entry.
-          if (!sample.has_external_callback) {
+          if (sample.top_frame_type == StackFrame::JAVA_SCRIPT) {
             entries.push_back(unresolved_entry_);
           }
         }

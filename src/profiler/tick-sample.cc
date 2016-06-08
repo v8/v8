@@ -20,6 +20,7 @@ bool IsSamePage(byte* ptr1, byte* ptr2) {
          (reinterpret_cast<uintptr_t>(ptr2) & mask);
 }
 
+
 // Check if the code at specified address could potentially be a
 // frame setup code.
 bool IsNoFrameRegion(Address address) {
@@ -76,6 +77,7 @@ bool IsNoFrameRegion(Address address) {
 
 }  // namespace
 
+
 //
 // StackTracer implementation
 //
@@ -84,52 +86,21 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
                                    RecordCEntryFrame record_c_entry_frame,
                                    bool update_stats) {
   timestamp = base::TimeTicks::HighResolutionNow();
+  pc = reinterpret_cast<Address>(regs.pc);
+  state = isolate->current_vm_state();
   this->update_stats = update_stats;
 
-  SampleInfo info;
-  if (GetStackSample(isolate, regs, record_c_entry_frame,
-                     reinterpret_cast<void**>(&stack[0]), kMaxFramesCount,
-                     &info)) {
-    state = info.vm_state;
-    pc = static_cast<Address>(regs.pc);
-    frames_count = static_cast<unsigned>(info.frames_count);
-    has_external_callback = info.external_callback_entry != nullptr;
-    if (has_external_callback) {
-      external_callback_entry =
-          static_cast<Address>(info.external_callback_entry);
-    } else if (frames_count) {
-      // sp register may point at an arbitrary place in memory, make
-      // sure MSAN doesn't complain about it.
-      MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(Address));
-      // Sample potential return address value for frameless invocation of
-      // stubs (we'll figure out later, if this value makes sense).
-      tos = Memory::Address_at(reinterpret_cast<Address>(regs.sp));
-    } else {
-      tos = nullptr;
-    }
-  } else {
-    // It is executing JS but failed to collect a stack trace.
-    // Mark the sample as spoiled.
-    timestamp = base::TimeTicks();
-    pc = nullptr;
-  }
-}
-
-bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
-                                RecordCEntryFrame record_c_entry_frame,
-                                void** frames, size_t frames_limit,
-                                v8::SampleInfo* sample_info) {
-  sample_info->frames_count = 0;
-  sample_info->vm_state = isolate->current_vm_state();
-  sample_info->external_callback_entry = nullptr;
-  if (sample_info->vm_state == GC) return true;
+  // Avoid collecting traces while doing GC.
+  if (state == GC) return;
 
   Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) return true;  // Not executing JS now.
+  if (js_entry_sp == 0) return;  // Not executing JS now.
 
-  if (regs.pc && IsNoFrameRegion(static_cast<Address>(regs.pc))) {
-    // Can't collect stack.
-    return false;
+  if (pc && IsNoFrameRegion(pc)) {
+    // Can't collect stack. Mark the sample as spoiled.
+    timestamp = base::TimeTicks();
+    pc = 0;
+    return;
   }
 
   ExternalCallbackScope* scope = isolate->external_callback_scope();
@@ -138,9 +109,45 @@ bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
   // we have already entrered JavaScript again and the external callback
   // is not the top function.
   if (scope && scope->scope_address() < handler) {
-    sample_info->external_callback_entry =
-        *scope->callback_entrypoint_address();
+    external_callback_entry = *scope->callback_entrypoint_address();
+    has_external_callback = true;
+  } else {
+    // sp register may point at an arbitrary place in memory, make
+    // sure MSAN doesn't complain about it.
+    MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(Address));
+    // Sample potential return address value for frameless invocation of
+    // stubs (we'll figure out later, if this value makes sense).
+    tos = Memory::Address_at(reinterpret_cast<Address>(regs.sp));
+    has_external_callback = false;
   }
+
+  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
+                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
+  top_frame_type = it.top_frame_type();
+
+  SampleInfo info;
+  GetStackSample(isolate, regs, record_c_entry_frame,
+                 reinterpret_cast<void**>(&stack[0]), kMaxFramesCount, &info);
+  frames_count = static_cast<unsigned>(info.frames_count);
+  if (!frames_count) {
+    // It is executing JS but failed to collect a stack trace.
+    // Mark the sample as spoiled.
+    timestamp = base::TimeTicks();
+    pc = 0;
+  }
+}
+
+
+void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
+                                RecordCEntryFrame record_c_entry_frame,
+                                void** frames, size_t frames_limit,
+                                v8::SampleInfo* sample_info) {
+  sample_info->frames_count = 0;
+  sample_info->vm_state = isolate->current_vm_state();
+  if (sample_info->vm_state == GC) return;
+
+  Address js_entry_sp = isolate->js_entry_sp();
+  if (js_entry_sp == 0) return;  // Not executing JS now.
 
   SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
                             reinterpret_cast<Address>(regs.sp), js_entry_sp);
@@ -165,8 +172,8 @@ bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
     it.Advance();
   }
   sample_info->frames_count = i;
-  return true;
 }
+
 
 #if defined(USE_SIMULATOR)
 bool SimulatorHelper::FillRegisters(Isolate* isolate,

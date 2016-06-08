@@ -1613,21 +1613,21 @@ class V8_EXPORT StackFrame {
 // A StateTag represents a possible state of the VM.
 enum StateTag { JS, GC, COMPILER, OTHER, EXTERNAL, IDLE };
 
+
 // A RegisterState represents the current state of registers used
 // by the sampling profiler API.
 struct RegisterState {
-  RegisterState() : pc(nullptr), sp(nullptr), fp(nullptr) {}
+  RegisterState() : pc(NULL), sp(NULL), fp(NULL) {}
   void* pc;  // Instruction pointer.
   void* sp;  // Stack pointer.
   void* fp;  // Frame pointer.
 };
 
+
 // The output structure filled up by GetStackSample API function.
 struct SampleInfo {
-  size_t frames_count;            // Number of frames collected.
-  StateTag vm_state;              // Current VM state.
-  void* external_callback_entry;  // External callback address if VM is
-                                  // executing an external callback.
+  size_t frames_count;
+  StateTag vm_state;
 };
 
 /**
