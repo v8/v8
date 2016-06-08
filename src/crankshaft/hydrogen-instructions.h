@@ -4370,6 +4370,11 @@ class HAdd final : public HArithmeticBinaryOperation {
       SetChangesFlag(kNewSpacePromotion);
       ClearFlag(kAllowUndefinedAsNaN);
     }
+    if (!right()->type().IsTaggedNumber() &&
+        !right()->representation().IsDouble() &&
+        !right()->representation().IsSmiOrInteger32()) {
+      ClearFlag(kAllowUndefinedAsNaN);
+    }
   }
 
   Representation RepresentationFromInputs() override;
