@@ -1893,7 +1893,13 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsFPRegister()) {
-      __ ldc1(g.ToDoubleRegister(destination), src);
+      LocationOperand* op = LocationOperand::cast(source);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ ldc1(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        __ lwc1(g.ToDoubleRegister(destination), src);
+      }
     } else {
       FPURegister temp = kScratchDoubleReg;
       __ ldc1(temp, src);
