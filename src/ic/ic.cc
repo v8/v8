@@ -262,12 +262,13 @@ static void LookupForRead(LookupIterator* it) {
 
 bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
-  // This is a contextual access, always just update the handler and stay
-  // monomorphic.
-  if (receiver->IsJSGlobalObject()) return true;
 
   DCHECK(UseVector());
   maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
+
+  // This is a contextual access, always just update the handler and stay
+  // monomorphic.
+  if (receiver->IsJSGlobalObject()) return true;
 
   // The current map wasn't handled yet. There's no reason to stay monomorphic,
   // *unless* we're moving from a deprecated map to its replacement, or
