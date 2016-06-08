@@ -433,7 +433,15 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool UseIgnition(CompilationInfo* info) {
-  if (info->is_debug()) return false;
+  DCHECK(info->has_shared_info());
+
+  // When requesting debug code as a replacement for existing code, we provide
+  // the same kind as the existing code (to prevent implicit tier-change).
+  if (info->is_debug() && info->shared_info()->is_compiled()) {
+    return info->shared_info()->HasBytecodeArray();
+  }
+
+  // For generator or async functions we might avoid Ignition wholesale.
   if (info->shared_info()->is_resumable() && !FLAG_ignition_generators) {
     return false;
   }
@@ -509,6 +517,12 @@ void InstallSharedScopeInfo(CompilationInfo* info,
 
 void InstallSharedCompilationResult(CompilationInfo* info,
                                     Handle<SharedFunctionInfo> shared) {
+  // TODO(mstarzinger): Compiling for debug code might be used to reveal inner
+  // functions via {FindSharedFunctionInfoInScript}, in which case we end up
+  // regenerating existing bytecode. Fix this!
+  if (info->is_debug() && info->has_bytecode_array()) {
+    shared->ClearBytecodeArray();
+  }
   // Assert that we are not overwriting (possibly patched) debug code.
   DCHECK(!shared->HasDebugInfo());
   DCHECK(!info->code().is_null());
