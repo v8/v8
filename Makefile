@@ -250,8 +250,9 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64 \
-		 s390 s390x
+ARCHES = ia32 x64 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64 s390 \
+         s390x
+ARCHES32 = ia32 arm mips mipsel x87 ppc s390
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
@@ -454,7 +455,9 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -Igypfiles/standalone.gypi --depth=. \
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
-	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
+	              -Dtarget_arch=$(V8_TARGET_ARCH), \
+	                  $(if $(shell echo $(ARCHES32) | grep $(V8_TARGET_ARCH)), \
+	                  -Dtarget_arch=ia32,)) \
 	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=1,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
