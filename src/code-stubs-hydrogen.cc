@@ -702,7 +702,7 @@ HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
         can_store.IfNot<HCompareMap>(argument,
                                      isolate()->factory()->heap_number_map());
       }
-      can_store.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+      can_store.ThenDeopt(Deoptimizer::kFastPathFailed);
       can_store.End();
     }
     builder.EndBody();
@@ -753,7 +753,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(
         bits, Add<HConstant>(1 << Map::kIsExtensible), Token::NE);
-    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check.ThenDeopt(Deoptimizer::kFastPathFailed);
     check.End();
   }
 
@@ -766,7 +766,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    check.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check.ThenDeopt(Deoptimizer::kFastPathFailed);
     check.End();
   }
 
@@ -784,7 +784,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, details, mask);
     IfBuilder readonly(this);
     readonly.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    readonly.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    readonly.ThenDeopt(Deoptimizer::kFastPathFailed);
     readonly.End();
   }
 
@@ -812,14 +812,14 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     check_instance_type.If<HCompareNumericAndBranch>(
         instance_type, Add<HConstant>(LAST_CUSTOM_ELEMENTS_RECEIVER),
         Token::LTE);
-    check_instance_type.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    check_instance_type.ThenDeopt(Deoptimizer::kFastPathFailed);
     check_instance_type.End();
 
     HValue* elements = Add<HLoadNamedField>(
         prototype, nullptr, HObjectAccess::ForElementsPointer());
     IfBuilder no_elements(this);
     no_elements.IfNot<HCompareObjectEqAndBranch>(elements, empty);
-    no_elements.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
+    no_elements.ThenDeopt(Deoptimizer::kFastPathFailed);
     no_elements.End();
 
     environment()->Push(prototype_map);
@@ -869,7 +869,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
                                               FAST_HOLEY_DOUBLE_ELEMENTS);
         environment()->Push(new_length);
       }
-      has_double_elements.ElseDeopt(Deoptimizer::kFastArrayPushFailed);
+      has_double_elements.ElseDeopt(Deoptimizer::kFastPathFailed);
       has_double_elements.End();
     }
     has_object_elements.End();
@@ -901,7 +901,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    check.ThenDeopt(Deoptimizer::kFastFunctionBindFailed);
+    check.ThenDeopt(Deoptimizer::kFastPathFailed);
     check.End();
   }
 
@@ -917,7 +917,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     IfBuilder range(this);
     range.If<HCompareNumericAndBranch>(descriptors_length,
                                        graph()->GetConstant1(), Token::LTE);
-    range.ThenDeopt(Deoptimizer::kFastFunctionBindFailed);
+    range.ThenDeopt(Deoptimizer::kFastPathFailed);
     range.End();
 
     // Verify .length.
@@ -994,7 +994,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     IfBuilder equal_prototype(this);
     equal_prototype.IfNot<HCompareObjectEqAndBranch>(prototype,
                                                      expected_prototype);
-    equal_prototype.ThenDeopt(Deoptimizer::kFastFunctionBindFailed);
+    equal_prototype.ThenDeopt(Deoptimizer::kFastPathFailed);
     equal_prototype.End();
   }
 
