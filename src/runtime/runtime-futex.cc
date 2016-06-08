@@ -24,10 +24,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWait) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_INT32_ARG_CHECKED(value, 2);
   CONVERT_DOUBLE_ARG_CHECKED(timeout, 3);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-  RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
-  RUNTIME_ASSERT(timeout == V8_INFINITY || !std::isnan(timeout));
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_EQ(sta->type(), kExternalInt32Array);
+  CHECK(timeout == V8_INFINITY || !std::isnan(timeout));
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
@@ -42,9 +42,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWake) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_INT32_ARG_CHECKED(count, 2);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-  RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
@@ -61,10 +61,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWakeOrRequeue) {
   CONVERT_INT32_ARG_CHECKED(count, 2);
   CONVERT_INT32_ARG_CHECKED(value, 3);
   CONVERT_SIZE_ARG_CHECKED(index2, 4);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index1 < NumberToSize(isolate, sta->length()));
-  RUNTIME_ASSERT(index2 < NumberToSize(isolate, sta->length()));
-  RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index1, NumberToSize(isolate, sta->length()));
+  CHECK_LT(index2, NumberToSize(isolate, sta->length()));
+  CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr1 = (index1 << 2) + NumberToSize(isolate, sta->byte_offset());
@@ -80,9 +80,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexNumWaitersForTesting) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
-  RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
-  RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
-  RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
+  CHECK(sta->GetBuffer()->is_shared());
+  CHECK_LT(index, NumberToSize(isolate, sta->length()));
+  CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
