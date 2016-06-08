@@ -1333,6 +1333,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       "prepare for break points");
 
+  DCHECK(shared->is_compiled());
   bool is_interpreted = shared->HasBytecodeArray();
 
   {

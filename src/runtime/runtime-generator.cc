@@ -146,14 +146,15 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
-  if (generator->is_suspended()) {
-    Handle<Code> code(generator->function()->code(), isolate);
-    int offset = generator->continuation();
-    RUNTIME_ASSERT(0 <= offset && offset < code->instruction_size());
-    return Smi::FromInt(code->SourcePosition(offset));
-  }
+  if (!generator->is_suspended()) return isolate->heap()->undefined_value();
 
-  return isolate->heap()->undefined_value();
+  if (FLAG_ignition && FLAG_ignition_generators) UNIMPLEMENTED();
+
+  DCHECK(!generator->function()->shared()->HasBytecodeArray());
+  Handle<Code> code(generator->function()->code(), isolate);
+  int offset = generator->continuation();
+  RUNTIME_ASSERT(0 <= offset && offset < code->instruction_size());
+  return Smi::FromInt(code->SourcePosition(offset));
 }
 
 }  // namespace internal
