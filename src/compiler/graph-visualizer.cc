@@ -618,6 +618,20 @@ const int kVisited = 2;
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
   base::AccountingAllocator allocator;
   Zone local_zone(&allocator);
+
+  // Do a post-order depth-first search on the RPO graph. For every node,
+  // print:
+  //
+  //   - the node id
+  //   - the operator mnemonic
+  //   - in square brackets its parameter (if present)
+  //   - in parentheses the list of argument ids and their mnemonics
+  //   - the node type (if it is typed)
+
+  // Post-order guarantees that all inputs of a node will be printed before
+  // the node itself, if there are no cycles. Any cycles are broken
+  // arbitrarily.
+
   ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
@@ -638,12 +652,14 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
       state[n->id()] = kVisited;
       stack.pop();
       os << "#" << n->id() << ":" << *n->op() << "(";
+      // Print the inputs.
       int j = 0;
       for (Node* const i : n->inputs()) {
         if (j++ > 0) os << ", ";
         os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
       }
       os << ")";
+      // Print the node type, if any.
       if (NodeProperties::IsTyped(n)) {
         os << "  [Type: ";
         NodeProperties::GetType(n)->PrintTo(os);
