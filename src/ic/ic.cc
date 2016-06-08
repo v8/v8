@@ -258,6 +258,10 @@ static void LookupForRead(LookupIterator* it) {
 
 bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
   if (!RecomputeHandlerForName(name)) return false;
+  // This is a contextual access, always just update the handler and stay
+  // monomorphic.
+  if (receiver->IsJSGlobalObject()) return true;
+
   DCHECK(UseVector());
   maybe_handler_ = nexus()->FindHandlerForMap(receiver_map());
 
@@ -274,15 +278,6 @@ bool IC::ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name) {
     if (old_map->is_deprecated()) return true;
     return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
                                                receiver_map()->elements_kind());
-  }
-
-  if (receiver->IsJSGlobalObject()) {
-    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
-    LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
-    if (it.state() == LookupIterator::ACCESS_CHECK) return false;
-    if (!it.IsFound()) return false;
-    if (!it.GetHolder<JSReceiver>()->IsJSGlobalObject()) return false;
-    return it.property_details().cell_type() == PropertyCellType::kConstant;
   }
 
   return true;
