@@ -1779,7 +1779,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
           : SmiValuesAre31Bits());
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
-      __ movp(left_reg, right_imm);
+      __ movl(left_reg, right_imm);
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
       if (instr->hydrogen_value()->representation().IsSmi()) {
