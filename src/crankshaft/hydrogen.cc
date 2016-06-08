@@ -8097,8 +8097,7 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant) {
 
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                                      Handle<JSObject> holder) {
-  PrototypeIterator iter(isolate(), prototype,
-                         PrototypeIterator::START_AT_RECEIVER);
+  PrototypeIterator iter(isolate(), prototype, kStartAtReceiver);
   while (holder.is_null() ||
          !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
     BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));

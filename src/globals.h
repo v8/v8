@@ -595,6 +595,7 @@ enum CacheHolderFlag {
   kCacheOnReceiver
 };
 
+enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 // The Store Buffer (GC).
 typedef enum {

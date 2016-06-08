@@ -22,6 +22,7 @@ namespace {
 // deletions during a for-in.
 MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   Isolate* const isolate = receiver->GetIsolate();
+  JSObject::MakePrototypesFast(receiver, kStartAtReceiver, isolate);
   FastKeyAccumulator accumulator(isolate, receiver,
                                  KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS);

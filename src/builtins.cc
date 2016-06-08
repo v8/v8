@@ -272,8 +272,7 @@ inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
 
 inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
   DisallowHeapAllocation no_gc;
-  PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER);
+  PrototypeIterator iter(isolate, receiver, kStartAtReceiver);
   for (; !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent()->IsJSProxy()) return false;
     JSObject* current = iter.GetCurrent<JSObject>();

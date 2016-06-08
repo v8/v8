@@ -203,8 +203,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
                              ALL_PROPERTIES);
   // No need to separate prototype levels since we only get element keys.
-  for (PrototypeIterator iter(isolate, array,
-                              PrototypeIterator::START_AT_RECEIVER);
+  for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
         PrototypeIterator::GetCurrent<JSObject>(iter)
@@ -451,8 +450,7 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  for (PrototypeIterator iter(isolate, array,
-                              PrototypeIterator::START_AT_RECEIVER);
+  for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
       return isolate->heap()->true_value();

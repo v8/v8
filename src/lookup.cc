@@ -496,8 +496,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
   if (object->IsJSProxy()) return false;
-  PrototypeIterator iter(isolate(), current,
-                         PrototypeIterator::START_AT_PROTOTYPE,
+  PrototypeIterator iter(isolate(), current, kStartAtPrototype,
                          PrototypeIterator::END_AT_NON_HIDDEN);
   while (!iter.IsAtEnd()) {
     if (iter.GetCurrent<JSReceiver>() == object) return true;

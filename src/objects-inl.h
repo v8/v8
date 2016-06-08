@@ -1112,8 +1112,7 @@ MaybeHandle<Object> JSReceiver::GetPrototype(Isolate* isolate,
                                              Handle<JSReceiver> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
-  PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER,
+  PrototypeIterator iter(isolate, receiver, kStartAtReceiver,
                          PrototypeIterator::END_AT_NON_HIDDEN);
   do {
     if (!iter.AdvanceFollowingProxies()) return MaybeHandle<Object>();
@@ -4576,6 +4575,10 @@ bool Map::is_prototype_map() const {
   return IsPrototypeMapBits::decode(bit_field2());
 }
 
+bool Map::should_be_fast_prototype_map() const {
+  if (!prototype_info()->IsPrototypeInfo()) return false;
+  return PrototypeInfo::cast(prototype_info())->should_be_fast_map();
+}
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
@@ -5511,6 +5514,8 @@ ACCESSORS(Box, value, Object, kValueOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
+SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
+BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
 ACCESSORS(SloppyBlockWithEvalContextExtension, scope_info, ScopeInfo,
           kScopeInfoOffset)

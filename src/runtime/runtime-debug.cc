@@ -1196,7 +1196,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
 static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
                                                JSObject* object,
                                                Object* proto) {
-  PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
+  PrototypeIterator iter(isolate, object, kStartAtReceiver);
   while (true) {
     iter.AdvanceIgnoringProxies();
     if (iter.IsAtEnd()) return false;
