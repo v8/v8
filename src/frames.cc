@@ -602,11 +602,12 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   return EXIT;
 }
 
-
 Address ExitFrame::ComputeStackPointer(Address fp) {
+#if defined(USE_SIMULATOR)
+  MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset, kPointerSize);
+#endif
   return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
-
 
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->sp = sp;
