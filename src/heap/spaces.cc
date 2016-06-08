@@ -3126,8 +3126,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
         // TODO(hpayer): Perform partial free concurrently.
-        RemoveChunkMapEntries(current, free_start);
         heap()->memory_allocator()->PartialFreeMemory(current, free_start);
+        RemoveChunkMapEntries(current, free_start);
       }
       previous = current;
       current = current->next_page();
