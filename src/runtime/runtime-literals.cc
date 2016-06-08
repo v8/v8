@@ -229,8 +229,8 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 
-  RUNTIME_ASSERT(literals_index >= 0 &&
-                 literals_index < literals->literals_count());
+  CHECK(literals_index >= 0);
+  CHECK(literals_index < literals->literals_count());
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(literals->literal(literals_index), isolate);

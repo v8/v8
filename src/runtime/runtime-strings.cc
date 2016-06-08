@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
-  RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
+  CHECK(start_index <= static_cast<uint32_t>(sub->length()));
   int position = StringMatch(isolate, sub, pat, start_index);
   return Smi::FromInt(position);
 }
@@ -320,7 +320,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
@@ -334,7 +334,7 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
 
-  RUNTIME_ASSERT(regexp_info->HasFastObjectElements());
+  CHECK(regexp_info->HasFastObjectElements());
 
   RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return isolate->heap()->exception();
@@ -431,15 +431,14 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
   size_t actual_array_length = 0;
-  RUNTIME_ASSERT(
-      TryNumberToSize(isolate, array->length(), &actual_array_length));
-  RUNTIME_ASSERT(array_length >= 0);
-  RUNTIME_ASSERT(static_cast<size_t>(array_length) <= actual_array_length);
+  CHECK(TryNumberToSize(isolate, array->length(), &actual_array_length));
+  CHECK(array_length >= 0);
+  CHECK(static_cast<size_t>(array_length) <= actual_array_length);
 
   // This assumption is used by the slice encoding in one or two smis.
   DCHECK(Smi::kMaxValue >= String::kMaxLength);
 
-  RUNTIME_ASSERT(array->HasFastElements());
+  CHECK(array->HasFastElements());
   JSObject::EnsureCanContainHeapObjectElements(array);
 
   int special_length = special->length();
@@ -500,8 +499,8 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
-  RUNTIME_ASSERT(array->HasFastObjectElements());
-  RUNTIME_ASSERT(array_length >= 0);
+  CHECK(array->HasFastObjectElements());
+  CHECK(array_length >= 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   if (fixed_array->length() < array_length) {
@@ -512,12 +511,12 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     return isolate->heap()->empty_string();
   } else if (array_length == 1) {
     Object* first = fixed_array->get(0);
-    RUNTIME_ASSERT(first->IsString());
+    CHECK(first->IsString());
     return first;
   }
 
   int separator_length = separator->length();
-  RUNTIME_ASSERT(separator_length > 0);
+  CHECK(separator_length > 0);
   int max_nof_separators =
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
@@ -526,7 +525,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
     Object* element_obj = fixed_array->get(i);
-    RUNTIME_ASSERT(element_obj->IsString());
+    CHECK(element_obj->IsString());
     String* element = String::cast(element_obj);
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
@@ -548,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   uc16* end = sink + length;
 #endif
 
-  RUNTIME_ASSERT(fixed_array->get(0)->IsString());
+  CHECK(fixed_array->get(0)->IsString());
   String* first = String::cast(fixed_array->get(0));
   String* separator_raw = *separator;
 
@@ -561,7 +560,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
     String::WriteToFlat(separator_raw, sink, 0, separator_length);
     sink += separator_length;
 
-    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    CHECK(fixed_array->get(i)->IsString());
     String* element = String::cast(fixed_array->get(i));
     int element_length = element->length();
     DCHECK(sink + element_length <= end);
@@ -640,18 +639,18 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
-  RUNTIME_ASSERT(elements_array->HasFastSmiOrObjectElements());
+  CHECK(elements_array->HasFastSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
-  RUNTIME_ASSERT(array_length > 0);
+  CHECK(array_length > 0);
 
   // Find total length of join result.
   int string_length = 0;
   bool is_one_byte = separator->IsOneByteRepresentation();
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
-  RUNTIME_ASSERT(elements_length <= elements_array->elements()->length());
-  RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
+  CHECK(elements_length <= elements_array->elements()->length());
+  CHECK((elements_length & 1) == 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
   {
     DisallowHeapAllocation no_gc;

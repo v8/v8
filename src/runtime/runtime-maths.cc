@@ -52,7 +52,7 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
   DCHECK(args.length() == 2);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_ARG_CHECKED(JSTypedArray, result, 1);
-  RUNTIME_ASSERT(result->byte_length() == Smi::FromInt(2 * sizeof(double)));
+  CHECK(result->byte_length() == Smi::FromInt(2 * sizeof(double)));
   FixedFloat64Array* array = FixedFloat64Array::cast(result->elements());
   double* y = static_cast<double*>(array->DataPtr());
   return Smi::FromInt(fdlibm::rempio2(x, y));
