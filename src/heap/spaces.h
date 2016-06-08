@@ -3058,10 +3058,6 @@ class LargeObjectSpace : public Space {
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
 
-  void InsertChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page, Address free_start);
-
   // Checks whether a heap object is in this space; O(1).
   bool Contains(HeapObject* obj);
   // Checks whether an address is in the object area in this space. Iterates
