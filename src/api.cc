@@ -385,7 +385,6 @@ bool RunExtraCode(Isolate* isolate, Local<Context> context,
 
 StartupData SerializeIsolateAndContext(
     Isolate* isolate, Persistent<Context>* context,
-    i::Snapshot::Metadata metadata,
     i::StartupSerializer::FunctionCodeHandling function_code_handling) {
   if (context->IsEmpty()) return {NULL, 0};
 
@@ -428,7 +427,7 @@ StartupData SerializeIsolateAndContext(
   context_ser.Serialize(&raw_context);
   ser.SerializeWeakReferencesAndDeferred();
 
-  return i::Snapshot::CreateSnapshotBlob(ser, context_ser, metadata);
+  return i::Snapshot::CreateSnapshotBlob(ser, context_ser);
 }
 
 }  // namespace
@@ -460,11 +459,8 @@ StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
       }
     }
 
-    i::Snapshot::Metadata metadata;
-    metadata.set_embeds_script(embedded_source != NULL);
-
     result = SerializeIsolateAndContext(
-        isolate, &context, metadata, i::StartupSerializer::CLEAR_FUNCTION_CODE);
+        isolate, &context, i::StartupSerializer::CLEAR_FUNCTION_CODE);
     DCHECK(context.IsEmpty());
   }
   isolate->Dispose();
@@ -515,11 +511,8 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
       context.Reset(isolate, new_context);
     }
 
-    i::Snapshot::Metadata metadata;
-    metadata.set_embeds_script(i::Snapshot::EmbedsScript(internal_isolate));
-
     result = SerializeIsolateAndContext(
-        isolate, &context, metadata, i::StartupSerializer::KEEP_FUNCTION_CODE);
+        isolate, &context, i::StartupSerializer::KEEP_FUNCTION_CODE);
     DCHECK(context.IsEmpty());
   }
   isolate->Dispose();
@@ -7274,14 +7267,6 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);
   if (params.entry_hook || !i::Snapshot::Initialize(isolate)) {
-    // If the isolate has a function entry hook, it needs to re-build all its
-    // code stubs with entry hooks embedded, so don't deserialize a snapshot.
-    if (i::Snapshot::EmbedsScript(isolate)) {
-      // If the snapshot embeds a script, we cannot initialize the isolate
-      // without the snapshot as a fallback. This is unlikely to happen though.
-      V8_Fatal(__FILE__, __LINE__,
-               "Initializing isolate from custom startup snapshot failed");
-    }
     isolate->Init(NULL);
   }
   return v8_isolate;

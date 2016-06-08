@@ -31,12 +31,6 @@ bool Snapshot::HaveASnapshotToStartFrom(Isolate* isolate) {
 }
 
 
-bool Snapshot::EmbedsScript(Isolate* isolate) {
-  if (!isolate->snapshot_available()) return false;
-  return ExtractMetadata(isolate->snapshot_blob()).embeds_script();
-}
-
-
 uint32_t Snapshot::SizeOfFirstPage(Isolate* isolate, AllocationSpace space) {
   DCHECK(space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE);
   if (!isolate->snapshot_available()) {
@@ -92,9 +86,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return Handle<Context>::cast(result);
 }
 
-
-void CalculateFirstPageSizes(bool is_default_snapshot,
-                             const SnapshotData& startup_snapshot,
+void CalculateFirstPageSizes(const SnapshotData& startup_snapshot,
                              const SnapshotData& context_snapshot,
                              uint32_t* sizes_out) {
   Vector<const SerializedData::Reservation> startup_reservations =
@@ -142,10 +134,6 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
                  Page::kObjectStartOffset;
       // Add a small allowance to the code space for small scripts.
       if (space == CODE_SPACE) required += 32 * KB;
-    } else if (!FLAG_debug_code) {
-      // We expect the vanilla snapshot to only require one page per space,
-      // unless we are emitting debug code.
-      DCHECK(!is_default_snapshot);
     }
 
     if (space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE) {
@@ -163,10 +151,9 @@ void CalculateFirstPageSizes(bool is_default_snapshot,
   DCHECK_EQ(context_reservations.length(), context_index);
 }
 
-
 v8::StartupData Snapshot::CreateSnapshotBlob(
     const i::StartupSerializer& startup_ser,
-    const i::PartialSerializer& context_ser, Snapshot::Metadata metadata) {
+    const i::PartialSerializer& context_ser) {
   SnapshotData startup_snapshot(startup_ser);
   SnapshotData context_snapshot(context_ser);
   Vector<const byte> startup_data = startup_snapshot.RawData();
@@ -174,8 +161,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 
   uint32_t first_page_sizes[kNumPagedSpaces];
 
-  CalculateFirstPageSizes(!metadata.embeds_script(), startup_snapshot,
-                          context_snapshot, first_page_sizes);
+  CalculateFirstPageSizes(startup_snapshot, context_snapshot, first_page_sizes);
 
   int startup_length = startup_data.length();
   int context_length = context_data.length();
@@ -184,7 +170,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   int length = context_offset + context_length;
   char* data = new char[length];
 
-  memcpy(data + kMetadataOffset, &metadata.RawValue(), kInt32Size);
   memcpy(data + kFirstPageSizesOffset, first_page_sizes,
          kNumPagedSpaces * kInt32Size);
   memcpy(data + kStartupLengthOffset, &startup_length, kInt32Size);
@@ -201,14 +186,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   }
   return result;
 }
-
-
-Snapshot::Metadata Snapshot::ExtractMetadata(const v8::StartupData* data) {
-  uint32_t raw;
-  memcpy(&raw, data->data + kMetadataOffset, kInt32Size);
-  return Metadata(raw);
-}
-
 
 Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
   DCHECK_LT(kIntSize, data->raw_size);

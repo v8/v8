@@ -5543,8 +5543,8 @@ class V8_EXPORT Isolate {
      * The optional entry_hook allows the host application to provide the
      * address of a function that's invoked on entry to every V8-generated
      * function.  Note that entry_hook is invoked at the very start of each
-     * generated function. Furthermore, if an  entry_hook is given, V8 will
-     * always run without a context snapshot.
+     * generated function. Furthermore, if an entry_hook is given, V8 will
+     * not use a snapshot, including custom snapshots.
      */
     FunctionEntryHook entry_hook;
 

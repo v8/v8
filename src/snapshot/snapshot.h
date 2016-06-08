@@ -18,21 +18,6 @@ class StartupSerializer;
 
 class Snapshot : public AllStatic {
  public:
-  class Metadata {
-   public:
-    explicit Metadata(uint32_t data = 0) : data_(data) {}
-    bool embeds_script() { return EmbedsScriptBits::decode(data_); }
-    void set_embeds_script(bool v) {
-      data_ = EmbedsScriptBits::update(data_, v);
-    }
-
-    uint32_t& RawValue() { return data_; }
-
-   private:
-    class EmbedsScriptBits : public BitField<bool, 0, 1> {};
-    uint32_t data_;
-  };
-
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
@@ -52,7 +37,7 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const StartupSerializer& startup_ser,
-      const PartialSerializer& context_ser, Snapshot::Metadata metadata);
+      const PartialSerializer& context_ser);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
@@ -61,19 +46,16 @@ class Snapshot : public AllStatic {
  private:
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data);
-  static Metadata ExtractMetadata(const v8::StartupData* data);
 
   // Snapshot blob layout:
-  // [0] metadata
-  // [1 - 6] pre-calculated first page sizes for paged spaces
-  // [7] serialized start up data length
+  // [0 - 5] pre-calculated first page sizes for paged spaces
+  // [6] serialized start up data length
   // ... serialized start up data
   // ... serialized context data
 
   static const int kNumPagedSpaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
 
-  static const int kMetadataOffset = 0;
-  static const int kFirstPageSizesOffset = kMetadataOffset + kInt32Size;
+  static const int kFirstPageSizesOffset = 0;
   static const int kStartupLengthOffset =
       kFirstPageSizesOffset + kNumPagedSpaces * kInt32Size;
   static const int kStartupDataOffset = kStartupLengthOffset + kInt32Size;

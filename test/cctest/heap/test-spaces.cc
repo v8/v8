@@ -485,7 +485,15 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   if (!isolate->snapshot_available()) return;
-  if (Snapshot::EmbedsScript(isolate)) return;
+  HandleScope scope(isolate);
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  // Skip this test on the custom snapshot builder.
+  if (!CcTest::global()
+           ->Get(context, v8_str("assertEquals"))
+           .ToLocalChecked()
+           ->IsUndefined()) {
+    return;
+  }
 
   // If this test fails due to enabling experimental natives that are not part
   // of the snapshot, we may need to adjust CalculateFirstPageSizes.
@@ -498,7 +506,6 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   }
 
   // Executing the empty script gets by with one page per space.
-  HandleScope scope(isolate);
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
