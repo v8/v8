@@ -87,10 +87,6 @@ Semaphore::Semaphore(int count) {
       0, reinterpret_cast<uintptr_t>(&native_handle_) &
       kSemaphoreAlignmentMask);
   DCHECK(count >= 0);
-#if V8_LIBC_GLIBC
-  // sem_init in glibc prior to 2.1 does not zero out semaphores.
-  memset(&native_handle_, 0, sizeof(native_handle_));
-#endif
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);
   USE(result);
