@@ -49,35 +49,70 @@
     'variables': {
       'variables': {
         'variables': {
-          'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
-              # This handles the Unix platforms we generally deal with.
-              # Anything else gets passed through, which probably won't work
-              # very well; such hosts should pass an explicit target_arch
-              # to gyp.
-              'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
-            }, {
-              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac" and OS!="aix"
-              'host_arch%': 'ia32',
-            }],
-          ],
+          'variables': {
+            'conditions': [
+              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
+                 OS=="netbsd" or OS=="mac" or OS=="qnx" or OS=="aix"', {
+                # This handles the Unix platforms we generally deal with.
+                # Anything else gets passed through, which probably won't work
+                # very well; such hosts should pass an explicit target_arch
+                # to gyp.
+                'host_arch%': '<!pymod_do_main(detect_v8_host_arch)',
+              }, {
+                # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
+                # OS!="netbsd" and OS!="mac" and OS!="aix"
+                'host_arch%': 'ia32',
+              }],
+            ],
+          },
+          'host_arch%': '<(host_arch)',
+          'target_arch%': '<(host_arch)',
+
+          # By default we build against a stable sysroot image to avoid
+          # depending on the packages installed on the local machine. Set this
+          # to 0 to build against locally installed headers and libraries (e.g.
+          # if packaging for a linux distro)
+          'use_sysroot%': 1,
         },
         'host_arch%': '<(host_arch)',
-        'target_arch%': '<(host_arch)',
+        'target_arch%': '<(target_arch)',
+        'use_sysroot%': '<(use_sysroot)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
 
         # Instrument for code coverage and use coverage wrapper to exclude some
         # files. Uses gcov if clang=0 is set explicitly. Otherwise,
         # sanitizer_coverage must be set too.
         'coverage%': 0,
+
+        # Default sysroot if no sysroot can be provided.
+        'sysroot%': '',
+
+        'conditions': [
+          # The system root for linux builds.
+          ['OS=="linux" and use_sysroot==1', {
+            'conditions': [
+              ['target_arch=="arm"', {
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_arm-sysroot',
+              }],
+              ['target_arch=="x64"', {
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_amd64-sysroot',
+              }],
+              ['target_arch=="ia32"', {
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_i386-sysroot',
+              }],
+              ['target_arch=="mipsel"', {
+                'sysroot%': '<!(cd <(DEPTH) && pwd -P)/build/linux/debian_wheezy_mips-sysroot',
+              }],
+            ],
+          }], # OS=="linux" and use_sysroot==1
+        ],
       },
       'base_dir%': '<(base_dir)',
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
       'coverage%': '<(coverage)',
+      'sysroot%': '<(sysroot)',
       'asan%': 0,
       'lsan%': 0,
       'msan%': 0,
@@ -161,6 +196,7 @@
     'test_isolation_mode%': '<(test_isolation_mode)',
     'fastbuild%': '<(fastbuild)',
     'coverage%': '<(coverage)',
+    'sysroot%': '<(sysroot)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -630,6 +666,18 @@
               # x64 in v8.
               '-B<(base_dir)/third_party/binutils/Linux_x64/Release/bin',
             ],
+          }],
+          ['sysroot!="" and clang==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '--sysroot=<(sysroot)',
+                ],
+                'ldflags': [
+                  '--sysroot=<(sysroot)',
+                  '<!(<(DEPTH)/build/linux/sysroot_ld_path.sh <(sysroot))',
+                ],
+              }]]
           }],
         ],
       },
