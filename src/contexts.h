@@ -250,6 +250,8 @@ enum BindingFlags {
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
+  V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
+  V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
   V(UINT16X8_FUNCTION_INDEX, JSFunction, uint16x8_function)                    \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \

@@ -706,7 +706,6 @@ class RuntimeCallTimer {
   V(KeyedStoreIC_StoreElementStub)              \
   V(KeyedStoreIC_Polymorphic)                   \
   V(LoadIC_FunctionPrototypeStub)               \
-  V(LoadIC_ArrayBufferViewLoadFieldStub)        \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
   V(LoadIC_LoadConstant)                        \

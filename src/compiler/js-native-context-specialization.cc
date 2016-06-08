@@ -245,32 +245,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     } else {
       DCHECK(access_info.IsDataField());
       FieldIndex const field_index = access_info.field_index();
-      FieldCheck const field_check = access_info.field_check();
       Type* const field_type = access_info.field_type();
-      switch (field_check) {
-        case FieldCheck::kNone:
-          break;
-        case FieldCheck::kJSArrayBufferViewBufferNotNeutered: {
-          Node* this_buffer = this_effect =
-              graph()->NewNode(simplified()->LoadField(
-                                   AccessBuilder::ForJSArrayBufferViewBuffer()),
-                               this_receiver, this_effect, this_control);
-          Node* this_buffer_bit_field = this_effect =
-              graph()->NewNode(simplified()->LoadField(
-                                   AccessBuilder::ForJSArrayBufferBitField()),
-                               this_buffer, this_effect, this_control);
-          Node* check = graph()->NewNode(
-              machine()->Word32Equal(),
-              graph()->NewNode(machine()->Word32And(), this_buffer_bit_field,
-                               jsgraph()->Int32Constant(
-                                   1 << JSArrayBuffer::WasNeutered::kShift)),
-              jsgraph()->Int32Constant(0));
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
-                               this_effect, this_control);
-          break;
-        }
-      }
       if (access_mode == AccessMode::kLoad &&
           access_info.holder().ToHandle(&holder)) {
         this_receiver = jsgraph()->Constant(holder);

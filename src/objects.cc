@@ -10251,6 +10251,19 @@ MaybeHandle<String> Name::ToFunctionName(Handle<Name> name) {
   return builder.Finish();
 }
 
+// static
+MaybeHandle<String> Name::ToFunctionName(Handle<Name> name,
+                                         Handle<String> prefix) {
+  Handle<String> name_string;
+  Isolate* const isolate = name->GetIsolate();
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name_string, ToFunctionName(name),
+                             String);
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(prefix);
+  builder.AppendCharacter(' ');
+  builder.AppendString(name_string);
+  return builder.Finish();
+}
 
 namespace {
 

@@ -6613,7 +6613,14 @@ enum BuiltinFunctionId {
 #undef DECLARE_FUNCTION_ID
   // Fake id for a special case of Math.pow. Note, it continues the
   // list of math functions.
-  kMathPowHalf
+  kMathPowHalf,
+  // These are manually assigned to special getters during bootstrapping.
+  kDataViewBuffer,
+  kDataViewByteLength,
+  kDataViewByteOffset,
+  kTypedArrayByteLength,
+  kTypedArrayByteOffset,
+  kTypedArrayLength,
 };
 
 
@@ -8538,6 +8545,8 @@ class Name: public HeapObject {
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.
   MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(Handle<Name> name);
+  MUST_USE_RESULT static MaybeHandle<String> ToFunctionName(
+      Handle<Name> name, Handle<String> prefix);
 
   DECLARE_CAST(Name)
 
