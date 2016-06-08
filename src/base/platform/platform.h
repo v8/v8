@@ -337,23 +337,6 @@ class VirtualMemory {
   // Creates a single guard page at the given address.
   bool Guard(void* address);
 
-  // Releases the memory after |free_start|.
-  void ReleasePartial(void* free_start) {
-    DCHECK(IsReserved());
-    // Notice: Order is important here. The VirtualMemory object might live
-    // inside the allocated region.
-    size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
-                           reinterpret_cast<size_t>(address_));
-    CHECK(InVM(free_start, size));
-    DCHECK_LT(address_, free_start);
-    DCHECK_LT(free_start, reinterpret_cast<void*>(
-                              reinterpret_cast<size_t>(address_) + size_));
-    bool result = ReleasePartialRegion(address_, size_, free_start, size);
-    USE(result);
-    DCHECK(result);
-    size_ -= size;
-  }
-
   void Release() {
     DCHECK(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live
@@ -385,12 +368,6 @@ class VirtualMemory {
   // Must be called with a base pointer that has been returned by ReserveRegion
   // and the same size it was reserved with.
   static bool ReleaseRegion(void* base, size_t size);
-
-  // Must be called with a base pointer that has been returned by ReserveRegion
-  // and the same size it was reserved with.
-  // [free_start, free_start + free_size] is the memory that will be released.
-  static bool ReleasePartialRegion(void* base, size_t size, void* free_start,
-                                   size_t free_size);
 
   // Returns true if OS performs lazy commits, i.e. the memory allocation call
   // defers actual physical memory allocation till the first memory access.

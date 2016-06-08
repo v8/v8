@@ -586,11 +586,6 @@ bool MemoryChunk::CommitArea(size_t requested) {
   return true;
 }
 
-size_t MemoryChunk::CommittedPhysicalMemory() {
-  if (!base::VirtualMemory::HasLazyCommits() || owner()->identity() == LO_SPACE)
-    return size();
-  return high_water_mark_.Value();
-}
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
   MemoryChunk* other_next = other->next_chunk();
@@ -756,27 +751,6 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
 void Page::ResetFreeListStatistics() {
   wasted_memory_ = 0;
   available_in_free_list_ = 0;
-}
-
-void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
-                                        Address start_free) {
-  // We do not allow partial shrink for code.
-  DCHECK(chunk->executable() == NOT_EXECUTABLE);
-
-  intptr_t size;
-  base::VirtualMemory* reservation = chunk->reserved_memory();
-  DCHECK(reservation->IsReserved());
-  size = static_cast<intptr_t>(reservation->size());
-
-  size_t to_free_size = size - (start_free - chunk->address());
-
-  DCHECK(size_.Value() >= static_cast<intptr_t>(to_free_size));
-  size_.Increment(-static_cast<intptr_t>(to_free_size));
-  isolate_->counters()->memory_allocated()->Decrement(
-      static_cast<int>(to_free_size));
-  chunk->set_size(size - to_free_size);
-
-  reservation->ReleasePartial(start_free);
 }
 
 void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
@@ -2934,18 +2908,6 @@ void PagedSpace::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
 #endif
 
-Address LargePage::GetAddressToShrink() {
-  HeapObject* object = GetObject();
-  if (executable() == EXECUTABLE) {
-    return 0;
-  }
-  size_t used_size = RoundUp((object->address() - address()) + object->Size(),
-                             base::OS::CommitPageSize());
-  if (used_size < CommittedPhysicalMemory()) {
-    return address() + used_size;
-  }
-  return 0;
-}
 
 // -----------------------------------------------------------------------------
 // LargeObjectIterator
@@ -3096,6 +3058,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   }
 }
 
+
 void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* previous = NULL;
   LargePage* current = first_page_;
@@ -3104,11 +3067,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     DCHECK(!Marking::IsGrey(mark_bit));
     if (Marking::IsBlack(mark_bit)) {
-      Address free_start;
-      if ((free_start = current->GetAddressToShrink()) != 0) {
-        // TODO(hpayer): Perform partial free concurrently.
-        heap()->memory_allocator()->PartialFreeMemory(current, free_start);
-      }
       previous = current;
       current = current->next_page();
     } else {
