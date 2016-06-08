@@ -110,6 +110,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kObjectIsSmi: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceBoolean(IsSmiDouble(m.Value()));
+      if (m.IsChangeBitToTagged()) return ReplaceBoolean(false);
+      if (m.IsChangeInt31ToTaggedSigned()) return ReplaceBoolean(true);
+      if (m.IsHeapConstant()) return ReplaceBoolean(false);
+      break;
+    }
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberRound:
@@ -165,6 +173,9 @@ Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
   return Changed(node);
 }
 
+Reduction SimplifiedOperatorReducer::ReplaceBoolean(bool value) {
+  return Replace(jsgraph()->BooleanConstant(value));
+}
 
 Reduction SimplifiedOperatorReducer::ReplaceFloat64(double value) {
   return Replace(jsgraph()->Float64Constant(value));

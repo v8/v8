@@ -342,6 +342,49 @@ TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// TruncateTaggedToWord32
+
+TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithChangeBitToTagged) {
+  Node* param0 = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->ObjectIsSmi(),
+      graph()->NewNode(simplified()->ChangeBitToTagged(), param0)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_THAT(reduction.replacement(), IsFalseConstant());
+}
+
+TEST_F(SimplifiedOperatorReducerTest,
+       ObjectIsSmiWithChangeInt31ToTaggedSigned) {
+  Node* param0 = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->ObjectIsSmi(),
+      graph()->NewNode(simplified()->ChangeInt31ToTaggedSigned(), param0)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_THAT(reduction.replacement(), IsTrueConstant());
+}
+
+TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithHeapConstant) {
+  Handle<HeapObject> kHeapObjects[] = {
+      factory()->empty_string(), factory()->null_value(),
+      factory()->species_symbol(), factory()->undefined_value()};
+  TRACED_FOREACH(Handle<HeapObject>, o, kHeapObjects) {
+    Reduction reduction =
+        Reduce(graph()->NewNode(simplified()->ObjectIsSmi(), HeapConstant(o)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsFalseConstant());
+  }
+}
+
+TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithNumberConstant) {
+  TRACED_FOREACH(double, n, kFloat64Values) {
+    Reduction reduction = Reduce(
+        graph()->NewNode(simplified()->ObjectIsSmi(), NumberConstant(n)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsBooleanConstant(IsSmiDouble(n)));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
