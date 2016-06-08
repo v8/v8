@@ -1675,6 +1675,8 @@
         'base/cpu.h',
         'base/division-by-constant.cc',
         'base/division-by-constant.h',
+        'base/file-utils.cc',
+        'base/file-utils.h',
         'base/flags.h',
         'base/format-macros.h',
         'base/functional.cc',

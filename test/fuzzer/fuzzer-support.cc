@@ -40,7 +40,7 @@ class FuzzerSupport::ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::internal::FLAG_expose_gc = true;
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICUDefaultLocation((*argv)[0]);
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform_);

@@ -6707,7 +6707,24 @@ class V8_EXPORT V8 {
    * If V8 was compiled with the ICU data in an external file, the location
    * of the data file has to be provided.
    */
-  static bool InitializeICU(const char* icu_data_file = NULL);
+  V8_DEPRECATE_SOON(
+      "Use version with default location.",
+      static bool InitializeICU(const char* icu_data_file = nullptr));
+
+  /**
+   * Initialize the ICU library bundled with V8. The embedder should only
+   * invoke this method when using the bundled ICU. If V8 was compiled with
+   * the ICU data in an external file and when the default location of that
+   * file should be used, a path to the executable must be provided.
+   * Returns true on success.
+   *
+   * The default is a file called icudtl.dat side-by-side with the executable.
+   *
+   * Optionally, the location of the data file can be provided to override the
+   * default.
+   */
+  static bool InitializeICUDefaultLocation(const char* exec_path,
+                                           const char* icu_data_file = nullptr);
 
   /**
    * Initialize the external startup data. The embedder only needs to

@@ -2422,7 +2422,7 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_MSC_VER)
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
-  v8::V8::InitializeICU(options.icu_data_file);
+  v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 #ifndef V8_SHARED
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
