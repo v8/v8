@@ -126,8 +126,12 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
           casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
       modifier = GetTransitionMarkModifier(mode);
     }
-    PrintF(" (%c->%c%s) ", TransitionMarkFromState(old_state),
-           TransitionMarkFromState(new_state), modifier);
+    void* map = nullptr;
+    if (!receiver_map().is_null()) {
+      map = reinterpret_cast<void*>(*receiver_map());
+    }
+    PrintF(" (%c->%c%s) map=%p ", TransitionMarkFromState(old_state),
+           TransitionMarkFromState(new_state), modifier, map);
 #ifdef OBJECT_PRINT
     OFStream os(stdout);
     name->Print(os);

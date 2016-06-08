@@ -51,6 +51,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         if (parts[1] === "patching") return;
         this.type = parts[0].substr(1);
         this.category = "Other";
+        this.map = undefined;
         if (this.type.indexOf("Store") !== -1) {
           this.category = "Store";
         } else if (this.type.indexOf("Load") !== -1) {
@@ -69,6 +70,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           var offset = this.parsePositionAndFile(parts, 2);
           if (offset == -1) return
           this.state = parts[++offset];
+          this.map = parts[offset + 1];
+          if (this.map.startsWith("map=")) {
+            this.map = this.map.substring(4);
+            offset++;
+          } else {
+            this.map = undefined;
+          }
           if (this.type !== "CompareIC") {
             // if there is no address we have a smi key
             var address = parts[++offset];
@@ -135,7 +143,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           next = this.result.indexOf("\n", current);
           if (next === -1) break;
           i++;
-
           line = this.result.substring(current, next);
           current = next + 1;
           entry = new Entry(i, line);
@@ -152,7 +159,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 
     var properties = ['type', 'category', 'file', 'filePosition', 'state',
-      'key', 'isNative'
+      'key', 'isNative', 'map'
     ]
 
     class Group {
@@ -209,6 +216,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 
 
+    function escapeHtml(unsafe) {
+      return unsafe.toString()
+           .replace(/&/g, "&amp;")
+           .replace(/</g, "&lt;")
+           .replace(/>/g, "&gt;")
+           .replace(/"/g, "&quot;")
+           .replace(/'/g, "&#039;");
+    }
 
     function updateTable() {
       var select = document.getElementById("group-key");
@@ -248,7 +263,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         td(tr, '<span onclick="toggleDetails(this)">details</a>', 'details');
         td(tr, entry.percentage + "%", 'percentage');
         td(tr, entry.count, 'count');
-        td(tr, entry.key, 'key');
+        td(tr, escapeHtml(entry.key), 'key');
         fragment.appendChild(tr);
       }
       var omitted = entries.length - max;
@@ -282,7 +297,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var group = entry.groups[key];
       var div = document.createElement("div")
       div.className = 'drilldown-group-title'
-      div.innerHTML = key + ' [top ' + max + ']';
+      div.innerHTML = key + ' [top ' + max + ' out of ' + group.length + ']';
       var table = document.createElement("table");
       display(group.slice(0, max), table, false)
       div.appendChild(table);
