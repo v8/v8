@@ -283,13 +283,11 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildVariableAssignment(Variable* variable, Node* value,
                                 Token::Value op, const VectorSlotPair& slot,
                                 BailoutId bailout_id,
-                                FrameStateBeforeAndAfter& states,
                                 OutputFrameStateCombine framestate_combine =
                                     OutputFrameStateCombine::Ignore());
   Node* BuildVariableDelete(Variable* variable, BailoutId bailout_id,
                             OutputFrameStateCombine framestate_combine);
   Node* BuildVariableLoad(Variable* variable, BailoutId bailout_id,
-                          FrameStateBeforeAndAfter& states,
                           const VectorSlotPair& feedback,
                           OutputFrameStateCombine framestate_combine,
                           TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
@@ -380,7 +378,6 @@ class AstGraphBuilder : public AstVisitor {
   // to resolve to a global slot or context slot (inferred from scope chain).
   Node* TryLoadDynamicVariable(Variable* variable, Handle<String> name,
                                BailoutId bailout_id,
-                               FrameStateBeforeAndAfter& states,
                                const VectorSlotPair& feedback,
                                OutputFrameStateCombine combine,
                                TypeofMode typeof_mode);

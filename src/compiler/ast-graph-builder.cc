@@ -1696,12 +1696,11 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
     Variable* var = expr->class_variable_proxy()->var();
-    FrameStateBeforeAndAfter states(this, BailoutId::None());
     VectorSlotPair feedback = CreateVectorSlotPair(
         expr->NeedsProxySlot() ? expr->ProxySlot()
                                : FeedbackVectorSlot::Invalid());
     BuildVariableAssignment(var, literal, Token::INIT, feedback,
-                            BailoutId::None(), states);
+                            BailoutId::None());
   }
   ast_context()->ProduceValue(literal);
 }
@@ -1736,7 +1735,7 @@ void AstGraphBuilder::VisitConditional(Conditional* expr) {
 void AstGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   VectorSlotPair pair = CreateVectorSlotPair(expr->VariableFeedbackSlot());
   FrameStateBeforeAndAfter states(this, BeforeId(expr));
-  Node* value = BuildVariableLoad(expr->var(), expr->id(), states, pair,
+  Node* value = BuildVariableLoad(expr->var(), expr->id(), pair,
                                   ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
@@ -2034,7 +2033,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
       FrameStateBeforeAndAfter states(this, bailout_id_before);
       value = environment()->Pop();
       BuildVariableAssignment(var, value, Token::ASSIGN, feedback,
-                              bailout_id_after, states);
+                              bailout_id_after);
       break;
     }
     case NAMED_PROPERTY: {
@@ -2143,9 +2142,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         VectorSlotPair pair =
             CreateVectorSlotPair(proxy->VariableFeedbackSlot());
         FrameStateBeforeAndAfter states(this, BeforeId(proxy));
-        old_value =
-            BuildVariableLoad(proxy->var(), expr->target()->id(), states, pair,
-                              OutputFrameStateCombine::Push());
+        old_value = BuildVariableLoad(proxy->var(), expr->target()->id(), pair,
+                                      OutputFrameStateCombine::Push());
         break;
       }
       case NAMED_PROPERTY: {
@@ -2227,7 +2225,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     case VARIABLE: {
       Variable* variable = expr->target()->AsVariableProxy()->var();
       BuildVariableAssignment(variable, value, expr->op(), feedback, expr->id(),
-                              store_states, ast_context()->GetStateCombine());
+                              ast_context()->GetStateCombine());
       break;
     }
     case NAMED_PROPERTY: {
@@ -2355,9 +2353,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       VariableProxy* proxy = callee->AsVariableProxy();
       VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
       FrameStateBeforeAndAfter states(this, BeforeId(proxy));
-      callee_value =
-          BuildVariableLoad(proxy->var(), expr->expression()->id(), states,
-                            pair, OutputFrameStateCombine::Push());
+      callee_value = BuildVariableLoad(proxy->var(), expr->expression()->id(),
+                                       pair, OutputFrameStateCombine::Push());
       receiver_hint = ConvertReceiverMode::kNullOrUndefined;
       receiver_value = jsgraph()->UndefinedConstant();
       break;
@@ -2663,9 +2660,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
       VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
       FrameStateBeforeAndAfter states(this, BeforeId(proxy));
-      old_value =
-          BuildVariableLoad(proxy->var(), expr->expression()->id(), states,
-                            pair, OutputFrameStateCombine::Push());
+      old_value = BuildVariableLoad(proxy->var(), expr->expression()->id(),
+                                    pair, OutputFrameStateCombine::Push());
       stack_depth = 0;
       break;
     }
@@ -2764,7 +2760,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Variable* variable = expr->expression()->AsVariableProxy()->var();
       environment()->Push(value);
       BuildVariableAssignment(variable, value, expr->op(), feedback,
-                              expr->AssignmentId(), store_states);
+                              expr->AssignmentId());
       environment()->Pop();
       break;
     }
@@ -3058,7 +3054,7 @@ void AstGraphBuilder::VisitTypeofExpression(Expression* expr) {
     VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
     FrameStateBeforeAndAfter states(this, BeforeId(proxy));
     Node* load =
-        BuildVariableLoad(proxy->var(), expr->id(), states, pair,
+        BuildVariableLoad(proxy->var(), expr->id(), pair,
                           OutputFrameStateCombine::Push(), INSIDE_TYPEOF);
     environment()->Push(load);
   } else {
@@ -3277,9 +3273,8 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   // Assign the object to the {arguments} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
   DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(arguments, object, Token::ASSIGN, VectorSlotPair(),
-                          BailoutId::None(), states);
+                          BailoutId::None());
   return object;
 }
 
@@ -3296,9 +3291,8 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   // Assign the object to the {rest} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(rest, object, Token::ASSIGN, VectorSlotPair(),
-                          BailoutId::None(), states);
+                          BailoutId::None());
   return object;
 }
 
@@ -3311,9 +3305,8 @@ Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
 
   // Assign the object to the {.this_function} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(this_function_var, this_function, Token::INIT,
-                          VectorSlotPair(), BailoutId::None(), states);
+                          VectorSlotPair(), BailoutId::None());
   return this_function;
 }
 
@@ -3326,9 +3319,8 @@ Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
 
   // Assign the object to the {new.target} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
   BuildVariableAssignment(new_target_var, object, Token::INIT, VectorSlotPair(),
-                          BailoutId::None(), states);
+                          BailoutId::None());
   return object;
 }
 
@@ -3386,7 +3378,6 @@ Node* AstGraphBuilder::BuildThrowIfStaticPrototype(Node* name,
 
 Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          BailoutId bailout_id,
-                                         FrameStateBeforeAndAfter& states,
                                          const VectorSlotPair& feedback,
                                          OutputFrameStateCombine combine,
                                          TypeofMode typeof_mode) {
@@ -3399,7 +3390,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       Handle<Name> name = variable->name();
       if (Node* node = TryLoadGlobalConstant(name)) return node;
       Node* value = BuildGlobalLoad(name, feedback, typeof_mode);
-      states.AddToNode(value, bailout_id, combine);
+      PrepareFrameState(value, bailout_id, combine);
       return value;
     }
     case VariableLocation::PARAMETER:
@@ -3435,13 +3426,12 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case VariableLocation::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Handle<String> name = variable->name();
-      if (Node* node =
-              TryLoadDynamicVariable(variable, name, bailout_id, states,
-                                     feedback, combine, typeof_mode)) {
+      if (Node* node = TryLoadDynamicVariable(variable, name, bailout_id,
+                                              feedback, combine, typeof_mode)) {
         return node;
       }
       Node* value = BuildDynamicLoad(name, typeof_mode);
-      states.AddToNode(value, bailout_id, combine);
+      PrepareFrameState(value, bailout_id, combine);
       return value;
     }
   }
@@ -3484,11 +3474,10 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
   return nullptr;
 }
 
-
 Node* AstGraphBuilder::BuildVariableAssignment(
     Variable* variable, Node* value, Token::Value op,
     const VectorSlotPair& feedback, BailoutId bailout_id,
-    FrameStateBeforeAndAfter& states, OutputFrameStateCombine combine) {
+    OutputFrameStateCombine combine) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
   switch (variable->location()) {
@@ -3497,7 +3486,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
       // Global var, const, or let variable.
       Handle<Name> name = variable->name();
       Node* store = BuildGlobalStore(name, value, feedback);
-      states.AddToNode(store, bailout_id, combine);
+      PrepareFrameState(store, bailout_id, combine);
       return store;
     }
     case VariableLocation::PARAMETER:
@@ -3757,11 +3746,11 @@ Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
   Expression* expr = property->value();
   if (!FunctionLiteral::NeedsHomeObject(expr)) return value;
   Handle<Name> name = isolate()->factory()->home_object_symbol();
-  FrameStateBeforeAndAfter states(this, BailoutId::None());
   VectorSlotPair feedback =
       CreateVectorSlotPair(property->GetSlot(slot_number));
   Node* store = BuildNamedStore(value, name, home_object, feedback);
-  states.AddToNode(store, BailoutId::None(), OutputFrameStateCombine::Ignore());
+  PrepareFrameState(store, BailoutId::None(),
+                    OutputFrameStateCombine::Ignore());
   return store;
 }
 
@@ -3898,11 +3887,12 @@ Node* AstGraphBuilder::TryLoadGlobalConstant(Handle<Name> name) {
   return nullptr;
 }
 
-
-Node* AstGraphBuilder::TryLoadDynamicVariable(
-    Variable* variable, Handle<String> name, BailoutId bailout_id,
-    FrameStateBeforeAndAfter& states, const VectorSlotPair& feedback,
-    OutputFrameStateCombine combine, TypeofMode typeof_mode) {
+Node* AstGraphBuilder::TryLoadDynamicVariable(Variable* variable,
+                                              Handle<String> name,
+                                              BailoutId bailout_id,
+                                              const VectorSlotPair& feedback,
+                                              OutputFrameStateCombine combine,
+                                              TypeofMode typeof_mode) {
   VariableMode mode = variable->mode();
 
   if (mode == DYNAMIC_GLOBAL) {
@@ -3935,7 +3925,7 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
     } else {
       // Perform global slot load.
       Node* fast = BuildGlobalLoad(name, feedback, typeof_mode);
-      states.AddToNode(fast, bailout_id, combine);
+      PrepareFrameState(fast, bailout_id, combine);
       environment()->Push(fast);
     }
     slow_block.Break();
@@ -3944,7 +3934,7 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
 
     // Slow case, because variable potentially shadowed. Perform dynamic lookup.
     Node* slow = BuildDynamicLoad(name, typeof_mode);
-    states.AddToNode(slow, bailout_id, combine);
+    PrepareFrameState(slow, bailout_id, combine);
     environment()->Push(slow);
     slow_block.EndBlock();
 
@@ -3978,8 +3968,8 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
     // Fast case, because variable is not shadowed. Perform context slot load.
     Variable* local = variable->local_if_not_shadowed();
     DCHECK(local->location() == VariableLocation::CONTEXT);  // Must be context.
-    Node* fast = BuildVariableLoad(local, bailout_id, states, feedback, combine,
-                                   typeof_mode);
+    Node* fast =
+        BuildVariableLoad(local, bailout_id, feedback, combine, typeof_mode);
     environment()->Push(fast);
     slow_block.Break();
     environment()->Pop();
@@ -3987,7 +3977,7 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
 
     // Slow case, because variable potentially shadowed. Perform dynamic lookup.
     Node* slow = BuildDynamicLoad(name, typeof_mode);
-    states.AddToNode(slow, bailout_id, combine);
+    PrepareFrameState(slow, bailout_id, combine);
     environment()->Push(slow);
     slow_block.EndBlock();
 
