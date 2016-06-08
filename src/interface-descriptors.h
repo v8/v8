@@ -22,7 +22,7 @@ class PlatformInterfaceDescriptor;
   V(VectorStoreICTrampoline)           \
   V(VectorStoreIC)                     \
   V(LoadWithVector)                    \
-  V(FastArrayPush)                     \
+  V(VarArgFunction)                    \
   V(FastNewClosure)                    \
   V(FastNewContext)                    \
   V(FastNewObject)                     \
@@ -791,9 +791,9 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
-class FastArrayPushDescriptor : public CallInterfaceDescriptor {
+class VarArgFunctionDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastArrayPushDescriptor,
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VarArgFunctionDescriptor,
                                                CallInterfaceDescriptor)
 };
 

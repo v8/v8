@@ -7472,6 +7472,9 @@ class JSFunction: public JSObject {
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
+  static const int kLengthDescriptorIndex = 0;
+  static const int kNameDescriptorIndex = 1;
+
   // [context]: The context for this function.
   inline Context* context();
   inline void set_context(Object* context);

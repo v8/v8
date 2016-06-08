@@ -2786,6 +2786,7 @@ class HCheckInstanceType final : public HUnaryOperation {
   enum Check {
     IS_JS_RECEIVER,
     IS_JS_ARRAY,
+    IS_JS_FUNCTION,
     IS_JS_DATE,
     IS_STRING,
     IS_INTERNALIZED_STRING,
@@ -2804,6 +2805,8 @@ class HCheckInstanceType final : public HUnaryOperation {
     switch (check_) {
       case IS_JS_RECEIVER: return HType::JSReceiver();
       case IS_JS_ARRAY: return HType::JSArray();
+      case IS_JS_FUNCTION:
+        return HType::JSObject();
       case IS_JS_DATE: return HType::JSObject();
       case IS_STRING: return HType::String();
       case IS_INTERNALIZED_STRING: return HType::String();
@@ -5568,6 +5571,19 @@ class HObjectAccess final {
   static HObjectAccess ForExternalUInteger8() {
     return HObjectAccess(kExternalMemory, 0, Representation::UInteger8(),
                          Handle<Name>::null(), false, false);
+  }
+
+  static HObjectAccess ForBoundTargetFunction() {
+    return HObjectAccess(kInobject,
+                         JSBoundFunction::kBoundTargetFunctionOffset);
+  }
+
+  static HObjectAccess ForBoundThis() {
+    return HObjectAccess(kInobject, JSBoundFunction::kBoundThisOffset);
+  }
+
+  static HObjectAccess ForBoundArguments() {
+    return HObjectAccess(kInobject, JSBoundFunction::kBoundArgumentsOffset);
   }
 
   // Create an access to an offset in a fixed array header.

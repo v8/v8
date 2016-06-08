@@ -340,6 +340,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kInsufficientTypeFeedbackForCallWithArguments,                             \
     "Insufficient type feedback for call with arguments")                      \
   V(kFastArrayPushFailed, "Falling off the fast path for FastArrayPush")       \
+  V(kFastFunctionBindFailed, "Falling off the fast path for FastFunctionBind") \
   V(kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                 \
     "Insufficient type feedback for combined type of binary operation")        \
   V(kInsufficientTypeFeedbackForGenericNamedAccess,                            \

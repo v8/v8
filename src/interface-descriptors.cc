@@ -309,7 +309,8 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType* FastArrayPushDescriptor::BuildCallInterfaceDescriptorFunctionType(
+FunctionType*
+VarArgFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =

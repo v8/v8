@@ -499,6 +499,7 @@ void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
   PropertyAttributes roc_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
+  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
   Handle<AccessorInfo> length =
       Accessors::FunctionLengthInfo(isolate(), roc_attribs);
   {  // Add length.
@@ -506,6 +507,8 @@ void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
                                  length, roc_attribs);
     map->AppendDescriptor(&d);
   }
+
+  STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
@@ -660,17 +663,20 @@ void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
          function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
          function_mode == FUNCTION_WITHOUT_PROTOTYPE);
+  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
   {  // Add length.
     Handle<AccessorInfo> length =
         Accessors::FunctionLengthInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, roc_attribs);
+    AccessorConstantDescriptor d(handle(Name::cast(length->name())), length,
+                                 roc_attribs);
     map->AppendDescriptor(&d);
   }
+
+  STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
   {  // Add name.
     Handle<AccessorInfo> name =
         Accessors::FunctionNameInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+    AccessorConstantDescriptor d(handle(Name::cast(name->name())), name,
                                  roc_attribs);
     map->AppendDescriptor(&d);
   }
@@ -1214,8 +1220,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup the methods on the %FunctionPrototype%.
     SimpleInstallFunction(prototype, factory->apply_string(),
                           Builtins::kFunctionPrototypeApply, 2, false);
-    SimpleInstallFunction(prototype, factory->bind_string(),
-                          Builtins::kFunctionPrototypeBind, 1, false);
+
+    FastFunctionBindStub bind_stub(isolate);
+    Handle<JSFunction> bind_function = factory->NewFunctionWithoutPrototype(
+        factory->bind_string(), bind_stub.GetCode(), false);
+    bind_function->shared()->DontAdaptArguments();
+    bind_function->shared()->set_length(1);
+    InstallFunction(prototype, bind_function, factory->bind_string(),
+                    DONT_ENUM);
+
     SimpleInstallFunction(prototype, factory->call_string(),
                           Builtins::kFunctionPrototypeCall, 1, false);
     SimpleInstallFunction(prototype, factory->toString_string(),

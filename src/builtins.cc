@@ -4348,9 +4348,10 @@ BUILTIN(FunctionConstructor) {
   return *result;
 }
 
+namespace {
 
-// ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
-BUILTIN(FunctionPrototypeBind) {
+Object* DoFunctionBind(Isolate* isolate,
+                       BuiltinArguments<BuiltinExtraArguments::kNone> args) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
   if (!args.receiver()->IsCallable()) {
@@ -4432,6 +4433,22 @@ BUILTIN(FunctionPrototypeBind) {
                                     &it, name, it.property_attributes()));
   }
   return *function;
+}
+
+}  // namespace
+
+// ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
+BUILTIN(FunctionPrototypeBind) { return DoFunctionBind(isolate, args); }
+
+// TODO(verwaest): This is a temporary helper until the FastFunctionBind stub
+// can tailcall to the builtin directly.
+RUNTIME_FUNCTION(Runtime_FunctionBind) {
+  DCHECK_EQ(2, args.length());
+  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
+  // Rewrap the arguments as builtins arguments.
+  BuiltinArguments<BuiltinExtraArguments::kNone> caller_args(
+      incoming->length() + 1, incoming->arguments() + 1);
+  return DoFunctionBind(isolate, caller_args);
 }
 
 // ES6 section 19.2.3.5 Function.prototype.toString ( )

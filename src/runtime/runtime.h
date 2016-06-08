@@ -44,6 +44,7 @@ namespace internal {
   F(InternalArrayConstructor, -1, 1)       \
   F(ArraySingleArgumentConstructor, -1, 1) \
   F(ArrayPush, -1, 1)                      \
+  F(FunctionBind, -1, 1)                   \
   F(NormalizeElements, 1, 1)               \
   F(GrowArrayElements, 2, 1)               \
   F(HasComplexElements, 1, 1)              \

@@ -65,6 +65,7 @@ namespace internal {
   V(FastArrayPush)                          \
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
+  V(FastFunctionBind)                       \
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
   V(FastNewObject)                          \
@@ -1267,10 +1268,18 @@ class FastArrayPushStub : public HydrogenCodeStub {
   explicit FastArrayPushStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
  private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastArrayPush);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
   DEFINE_HYDROGEN_CODE_STUB(FastArrayPush, HydrogenCodeStub);
 };
 
+class FastFunctionBindStub : public HydrogenCodeStub {
+ public:
+  explicit FastFunctionBindStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
+  DEFINE_HYDROGEN_CODE_STUB(FastFunctionBind, HydrogenCodeStub);
+};
 
 enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,
