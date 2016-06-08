@@ -10371,8 +10371,6 @@ class AccessorPair: public Struct {
 
 class AccessCheckInfo: public Struct {
  public:
-  DECL_ACCESSORS(named_callback, Object)
-  DECL_ACCESSORS(indexed_callback, Object)
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(data, Object)
 
@@ -10382,9 +10380,7 @@ class AccessCheckInfo: public Struct {
   DECLARE_PRINTER(AccessCheckInfo)
   DECLARE_VERIFIER(AccessCheckInfo)
 
-  static const int kNamedCallbackOffset   = HeapObject::kHeaderSize;
-  static const int kIndexedCallbackOffset = kNamedCallbackOffset + kPointerSize;
-  static const int kCallbackOffset = kIndexedCallbackOffset + kPointerSize;
+  static const int kCallbackOffset = HeapObject::kHeaderSize;
   static const int kDataOffset = kCallbackOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 

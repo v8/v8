@@ -881,18 +881,12 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   HandleScope scope(this);
   Handle<Object> data;
   v8::AccessCheckCallback callback = nullptr;
-  v8::NamedSecurityCallback named_callback = nullptr;
   { DisallowHeapAllocation no_gc;
     AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
     if (!access_check_info) return false;
     Object* fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
     data = handle(access_check_info->data(), this);
-    if (!callback) {
-      fun_obj = access_check_info->named_callback();
-      named_callback = v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
-      if (!named_callback) return false;
-    }
   }
 
   LOG(this, ApiSecurityCheck());
@@ -900,13 +894,8 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   {
     // Leaving JavaScript.
     VMState<EXTERNAL> state(this);
-    if (callback) {
-      return callback(v8::Utils::ToLocal(accessing_context),
-                      v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(data));
-    }
-    Handle<Object> key = factory()->undefined_value();
-    return named_callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),
-                          v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+    return callback(v8::Utils::ToLocal(accessing_context),
+                    v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(data));
   }
 }
 

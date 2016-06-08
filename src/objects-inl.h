@@ -5520,8 +5520,6 @@ ACCESSORS(SloppyBlockWithEvalContextExtension, extension, JSObject,
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
-ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
-ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)
 ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
 ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
 

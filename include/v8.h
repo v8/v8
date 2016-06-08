@@ -4383,28 +4383,6 @@ enum AccessType {
 typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
                                     Local<Object> accessed_object,
                                     Local<Value> data);
-typedef bool (*DeprecatedAccessCheckCallback)(Local<Context> accessing_context,
-                                              Local<Object> accessed_object);
-
-/**
- * Returns true if cross-context access should be allowed to the named
- * property with the given key on the host object.
- */
-typedef bool (*NamedSecurityCallback)(Local<Object> host,
-                                      Local<Value> key,
-                                      AccessType type,
-                                      Local<Value> data);
-
-
-/**
- * Returns true if cross-context access should be allowed to the indexed
- * property with the given index on the host object.
- */
-typedef bool (*IndexedSecurityCallback)(Local<Object> host,
-                                        uint32_t index,
-                                        AccessType type,
-                                        Local<Value> data);
-
 
 /**
  * A FunctionTemplate is used to create functions at runtime. There
@@ -4814,17 +4792,6 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetAccessCheckCallback(AccessCheckCallback callback,
                               Local<Value> data = Local<Value>());
-  V8_DEPRECATED(
-      "Use SetAccessCheckCallback with new AccessCheckCallback signature.",
-      void SetAccessCheckCallback(DeprecatedAccessCheckCallback callback,
-                                  Local<Value> data = Local<Value>()));
-
-  V8_DEPRECATED(
-      "Use SetAccessCheckCallback instead",
-      void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
-                                   IndexedSecurityCallback indexed_handler,
-                                   Local<Value> data = Local<Value>()));
-
   /**
    * Gets the number of internal fields for objects generated from
    * this template.
