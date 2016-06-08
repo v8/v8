@@ -1570,10 +1570,10 @@ class Assembler : public AssemblerBase {
       // Max pool start (if we need a jump and an alignment).
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      DCHECK((num_pending_32_bit_constants_ == 0) ||
-             (start + num_pending_64_bit_constants_ * kDoubleSize <
+      DCHECK(pending_32_bit_constants_.empty() ||
+             (start + pending_64_bit_constants_.size() * kDoubleSize <
               (first_const_pool_32_use_ + kMaxDistToIntPool)));
-      DCHECK((num_pending_64_bit_constants_ == 0) ||
+      DCHECK(pending_64_bit_constants_.empty() ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif
       // Two cases:
@@ -1640,14 +1640,8 @@ class Assembler : public AssemblerBase {
   // pending relocation entry per instruction.
 
   // The buffers of pending constant pool entries.
-  ConstantPoolEntry pending_32_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry pending_64_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry* pending_32_bit_constants_;
-  ConstantPoolEntry* pending_64_bit_constants_;
-  // Number of pending constant pool entries in the 32 bits buffer.
-  int num_pending_32_bit_constants_;
-  // Number of pending constant pool entries in the 64 bits buffer.
-  int num_pending_64_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
   ConstantPoolBuilder constant_pool_builder_;
 

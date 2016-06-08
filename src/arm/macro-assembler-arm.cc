@@ -3992,8 +3992,8 @@ CodePatcher::~CodePatcher() {
   }
 
   // Check that we don't have any pending constant pools.
-  DCHECK(masm_.num_pending_32_bit_constants_ == 0);
-  DCHECK(masm_.num_pending_64_bit_constants_ == 0);
+  DCHECK(masm_.pending_32_bit_constants_.empty());
+  DCHECK(masm_.pending_64_bit_constants_.empty());
 
   // Check that the code was patched as expected.
   DCHECK(masm_.pc_ == address_ + size_);
