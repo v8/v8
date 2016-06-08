@@ -120,9 +120,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     BuildForeignInitFunction();
   }
 
-  void VisitVariableDeclaration(VariableDeclaration* decl) {}
+  void VisitVariableDeclaration(VariableDeclaration* decl) override {}
 
-  void VisitFunctionDeclaration(FunctionDeclaration* decl) {
+  void VisitFunctionDeclaration(FunctionDeclaration* decl) override {
     DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
     uint32_t index = LookupOrInsertFunction(decl->proxy()->var());
@@ -134,11 +134,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
     local_variables_.Clear();
   }
 
-  void VisitImportDeclaration(ImportDeclaration* decl) {}
+  void VisitImportDeclaration(ImportDeclaration* decl) override {}
 
-  void VisitExportDeclaration(ExportDeclaration* decl) {}
+  void VisitExportDeclaration(ExportDeclaration* decl) override {}
 
-  void VisitStatements(ZoneList<Statement*>* stmts) {
+  void VisitStatements(ZoneList<Statement*>* stmts) override {
     for (int i = 0; i < stmts->length(); ++i) {
       Statement* stmt = stmts->at(i);
       ExpressionStatement* e = stmt->AsExpressionStatement();
@@ -150,7 +150,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitBlock(Block* stmt) {
+  void VisitBlock(Block* stmt) override {
     if (stmt->statements()->length() == 1) {
       ExpressionStatement* expr =
           stmt->statements()->at(0)->AsExpressionStatement();
@@ -187,15 +187,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   };
 
-  void VisitExpressionStatement(ExpressionStatement* stmt) {
+  void VisitExpressionStatement(ExpressionStatement* stmt) override {
     RECURSE(Visit(stmt->expression()));
   }
 
-  void VisitEmptyStatement(EmptyStatement* stmt) {}
+  void VisitEmptyStatement(EmptyStatement* stmt) override {}
 
-  void VisitEmptyParentheses(EmptyParentheses* paren) { UNREACHABLE(); }
+  void VisitEmptyParentheses(EmptyParentheses* paren) override {
+    UNREACHABLE();
+  }
 
-  void VisitIfStatement(IfStatement* stmt) {
+  void VisitIfStatement(IfStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));
     current_function_builder_->Emit(kExprIf);
@@ -212,7 +214,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     breakable_blocks_.pop_back();
   }
 
-  void VisitContinueStatement(ContinueStatement* stmt) {
+  void VisitContinueStatement(ContinueStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     DCHECK_NOT_NULL(stmt->target());
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
@@ -233,7 +235,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_->EmitVarInt(block_distance);
   }
 
-  void VisitBreakStatement(BreakStatement* stmt) {
+  void VisitBreakStatement(BreakStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     DCHECK_NOT_NULL(stmt->target());
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
@@ -256,7 +258,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_->EmitVarInt(block_distance);
   }
 
-  void VisitReturnStatement(ReturnStatement* stmt) {
+  void VisitReturnStatement(ReturnStatement* stmt) override {
     if (scope_ == kModuleScope) {
       scope_ = kExportScope;
       RECURSE(Visit(stmt->expression()));
@@ -271,7 +273,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
+  void VisitWithStatement(WithStatement* stmt) override { UNREACHABLE(); }
 
   void HandleCase(CaseNode* node,
                   const ZoneMap<int, unsigned int>& case_to_block,
@@ -339,7 +341,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitSwitchStatement(SwitchStatement* stmt) {
+  void VisitSwitchStatement(SwitchStatement* stmt) override {
     VariableProxy* tag = stmt->tag()->AsVariableProxy();
     DCHECK_NOT_NULL(tag);
     ZoneList<CaseClause*>* clauses = stmt->cases();
@@ -391,9 +393,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
+  void VisitCaseClause(CaseClause* clause) override { UNREACHABLE(); }
 
-  void VisitDoWhileStatement(DoWhileStatement* stmt) {
+  void VisitDoWhileStatement(DoWhileStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     RECURSE(Visit(stmt->body()));
@@ -403,7 +405,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_->Emit(kExprEnd);
   }
 
-  void VisitWhileStatement(WhileStatement* stmt) {
+  void VisitWhileStatement(WhileStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     RECURSE(Visit(stmt->cond()));
@@ -415,7 +417,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     breakable_blocks_.pop_back();
   }
 
-  void VisitForStatement(ForStatement* stmt) {
+  void VisitForStatement(ForStatement* stmt) override {
     DCHECK_EQ(kFuncScope, scope_);
     if (stmt->init() != nullptr) {
       RECURSE(Visit(stmt->init()));
@@ -439,17 +441,23 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_->EmitWithU8U8(kExprBr, ARITY_0, 0);
   }
 
-  void VisitForInStatement(ForInStatement* stmt) { UNREACHABLE(); }
+  void VisitForInStatement(ForInStatement* stmt) override { UNREACHABLE(); }
 
-  void VisitForOfStatement(ForOfStatement* stmt) { UNREACHABLE(); }
+  void VisitForOfStatement(ForOfStatement* stmt) override { UNREACHABLE(); }
 
-  void VisitTryCatchStatement(TryCatchStatement* stmt) { UNREACHABLE(); }
+  void VisitTryCatchStatement(TryCatchStatement* stmt) override {
+    UNREACHABLE();
+  }
 
-  void VisitTryFinallyStatement(TryFinallyStatement* stmt) { UNREACHABLE(); }
+  void VisitTryFinallyStatement(TryFinallyStatement* stmt) override {
+    UNREACHABLE();
+  }
 
-  void VisitDebuggerStatement(DebuggerStatement* stmt) { UNREACHABLE(); }
+  void VisitDebuggerStatement(DebuggerStatement* stmt) override {
+    UNREACHABLE();
+  }
 
-  void VisitFunctionLiteral(FunctionLiteral* expr) {
+  void VisitFunctionLiteral(FunctionLiteral* expr) override {
     Scope* scope = expr->scope();
     if (scope_ == kFuncScope) {
       if (bounds_->get(expr).lower->IsFunction()) {
@@ -474,11 +482,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
     RECURSE(VisitDeclarations(scope->declarations()));
   }
 
-  void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
+  void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) override {
     UNREACHABLE();
   }
 
-  void VisitConditional(Conditional* expr) {
+  void VisitConditional(Conditional* expr) override {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(expr->condition()));
     // WASM ifs come with implicit blocks for both arms.
@@ -543,7 +551,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return true;
   }
 
-  void VisitVariableProxy(VariableProxy* expr) {
+  void VisitVariableProxy(VariableProxy* expr) override {
     if (scope_ == kFuncScope || scope_ == kInitScope) {
       Variable* var = expr->var();
       if (VisitStdlibConstant(var)) {
@@ -561,7 +569,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitLiteral(Literal* expr) {
+  void VisitLiteral(Literal* expr) override {
     Handle<Object> value = expr->value();
     if (!value->IsNumber() || (scope_ != kFuncScope && scope_ != kInitScope)) {
       return;
@@ -591,9 +599,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitRegExpLiteral(RegExpLiteral* expr) { UNREACHABLE(); }
+  void VisitRegExpLiteral(RegExpLiteral* expr) override { UNREACHABLE(); }
 
-  void VisitObjectLiteral(ObjectLiteral* expr) {
+  void VisitObjectLiteral(ObjectLiteral* expr) override {
     ZoneList<ObjectLiteralProperty*>* props = expr->properties();
     for (int i = 0; i < props->length(); ++i) {
       ObjectLiteralProperty* prop = props->at(i);
@@ -615,7 +623,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitArrayLiteral(ArrayLiteral* expr) { UNREACHABLE(); }
+  void VisitArrayLiteral(ArrayLiteral* expr) override { UNREACHABLE(); }
 
   void LoadInitFunction() {
     current_function_builder_ = builder_->FunctionAt(init_function_index_);
@@ -829,7 +837,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitAssignment(Assignment* expr) {
+  void VisitAssignment(Assignment* expr) override {
     bool as_init = false;
     if (scope_ == kModuleScope) {
       Property* prop = expr->value()->AsProperty();
@@ -876,9 +884,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (as_init) UnLoadInitFunction();
   }
 
-  void VisitYield(Yield* expr) { UNREACHABLE(); }
+  void VisitYield(Yield* expr) override { UNREACHABLE(); }
 
-  void VisitThrow(Throw* expr) { UNREACHABLE(); }
+  void VisitThrow(Throw* expr) override { UNREACHABLE(); }
 
   void VisitForeignVariable(bool is_float, Variable* var, Property* expr) {
     DCHECK(expr->obj()->AsVariableProxy());
@@ -966,7 +974,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     UNREACHABLE();
   }
 
-  void VisitProperty(Property* expr) {
+  void VisitProperty(Property* expr) override {
     MachineType type;
     VisitPropertyAndEmitIndex(expr, &type);
     WasmOpcode opcode;
@@ -1254,7 +1262,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitCall(Call* expr) {
+  void VisitCall(Call* expr) override {
     Call::CallType call_type = expr->GetCallType(isolate_);
     switch (call_type) {
       case Call::OTHER_CALL: {
@@ -1315,11 +1323,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitCallNew(CallNew* expr) { UNREACHABLE(); }
+  void VisitCallNew(CallNew* expr) override { UNREACHABLE(); }
 
-  void VisitCallRuntime(CallRuntime* expr) { UNREACHABLE(); }
+  void VisitCallRuntime(CallRuntime* expr) override { UNREACHABLE(); }
 
-  void VisitUnaryOperation(UnaryOperation* expr) {
+  void VisitUnaryOperation(UnaryOperation* expr) override {
     RECURSE(Visit(expr->expression()));
     switch (expr->op()) {
       case Token::NOT: {
@@ -1332,7 +1340,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitCountOperation(CountOperation* expr) { UNREACHABLE(); }
+  void VisitCountOperation(CountOperation* expr) override { UNREACHABLE(); }
 
   bool MatchIntBinaryOperation(BinaryOperation* expr, Token::Value op,
                                int32_t val) {
@@ -1469,7 +1477,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitBinaryOperation(BinaryOperation* expr) {
+  void VisitBinaryOperation(BinaryOperation* expr) override {
     ConvertOperation convertOperation = MatchBinaryOperation(expr);
     if (convertOperation == kToDouble) {
       RECURSE(Visit(expr->left()));
@@ -1547,7 +1555,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitCompareOperation(CompareOperation* expr) {
+  void VisitCompareOperation(CompareOperation* expr) override {
     RECURSE(Visit(expr->left()));
     RECURSE(Visit(expr->right()));
     switch (expr->op()) {
@@ -1618,32 +1626,37 @@ class AsmWasmBuilderImpl : public AstVisitor {
 #undef SIGNED
 #undef NON_SIGNED
 
-  void VisitThisFunction(ThisFunction* expr) { UNREACHABLE(); }
+  void VisitThisFunction(ThisFunction* expr) override { UNREACHABLE(); }
 
-  void VisitDeclarations(ZoneList<Declaration*>* decls) {
+  void VisitDeclarations(ZoneList<Declaration*>* decls) override {
     for (int i = 0; i < decls->length(); ++i) {
       Declaration* decl = decls->at(i);
       RECURSE(Visit(decl));
     }
   }
 
-  void VisitClassLiteral(ClassLiteral* expr) { UNREACHABLE(); }
+  void VisitClassLiteral(ClassLiteral* expr) override { UNREACHABLE(); }
 
-  void VisitSpread(Spread* expr) { UNREACHABLE(); }
+  void VisitSpread(Spread* expr) override { UNREACHABLE(); }
 
-  void VisitSuperPropertyReference(SuperPropertyReference* expr) {
+  void VisitSuperPropertyReference(SuperPropertyReference* expr) override {
     UNREACHABLE();
   }
 
-  void VisitSuperCallReference(SuperCallReference* expr) { UNREACHABLE(); }
-
-  void VisitSloppyBlockFunctionStatement(SloppyBlockFunctionStatement* expr) {
+  void VisitSuperCallReference(SuperCallReference* expr) override {
     UNREACHABLE();
   }
 
-  void VisitDoExpression(DoExpression* expr) { UNREACHABLE(); }
+  void VisitSloppyBlockFunctionStatement(
+      SloppyBlockFunctionStatement* expr) override {
+    UNREACHABLE();
+  }
 
-  void VisitRewritableExpression(RewritableExpression* expr) { UNREACHABLE(); }
+  void VisitDoExpression(DoExpression* expr) override { UNREACHABLE(); }
+
+  void VisitRewritableExpression(RewritableExpression* expr) override {
+    UNREACHABLE();
+  }
 
   struct IndexContainer : public ZoneObject {
     uint32_t index;
