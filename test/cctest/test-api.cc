@@ -21482,10 +21482,9 @@ TEST(ScopedMicrotasks) {
   env->GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
-#if defined(ENABLE_DISASSEMBLER) && !defined(V8_USE_EXTERNAL_STARTUP_DATA)
+#ifdef ENABLE_DISASSEMBLER
 // FLAG_test_primary_stub_cache and FLAG_test_secondary_stub_cache are read
 // only when ENABLE_DISASSEMBLER is not defined.
-// These tests are valid only for no-snapshot mode.
 
 namespace {
 
@@ -21538,8 +21537,10 @@ void StubCacheHelper(bool primary) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  {
+  if (!i_isolate->snapshot_available()) {
+    // The test is valid only for no-snapshot mode.
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
@@ -21571,7 +21572,7 @@ UNINITIALIZED_TEST(PrimaryStubCache) { StubCacheHelper(true); }
 
 UNINITIALIZED_TEST(SecondaryStubCache) { StubCacheHelper(false); }
 
-#endif  // ENABLE_DISASSEMBLER && !V8_USE_EXTERNAL_STARTUP_DATA
+#endif  // ENABLE_DISASSEMBLER
 
 #ifdef DEBUG
 static int cow_arrays_created_runtime = 0;
