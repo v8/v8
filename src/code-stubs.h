@@ -2028,8 +2028,9 @@ class CompareICStub : public PlatformCodeStub {
   bool strict() const { return op() == Token::EQ_STRICT; }
   Condition GetCondition() const;
 
-  void AddToSpecialCache(Handle<Code> new_object) override;
-  bool FindCodeInSpecialCache(Code** code_out) override;
+  // Although we don't cache anything in the special cache we have to define
+  // this predicate to avoid appearance of code stubs with embedded maps in
+  // the global stub cache.
   bool UseSpecialCache() override {
     return state() == CompareICState::KNOWN_RECEIVER;
   }

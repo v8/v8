@@ -373,40 +373,6 @@ Condition CompareICStub::GetCondition() const {
 }
 
 
-void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
-  DCHECK(*known_map_ != NULL);
-  Isolate* isolate = new_object->GetIsolate();
-  Factory* factory = isolate->factory();
-  return Map::UpdateCodeCache(known_map_,
-                              strict() ?
-                                  factory->strict_compare_ic_string() :
-                                  factory->compare_ic_string(),
-                              new_object);
-}
-
-
-bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
-  Code::Flags flags = Code::ComputeFlags(
-      GetCodeKind(),
-      UNINITIALIZED);
-  Name* name = strict() ? isolate()->heap()->strict_compare_ic_string()
-                        : isolate()->heap()->compare_ic_string();
-  Code* code = known_map_->LookupInCodeCache(name, flags);
-  if (code != nullptr) {
-    *code_out = code;
-#ifdef DEBUG
-    CompareICStub decode((*code_out)->stub_key(), isolate());
-    DCHECK(op() == decode.op());
-    DCHECK(left() == decode.left());
-    DCHECK(right() == decode.right());
-    DCHECK(state() == decode.state());
-#endif
-    return true;
-  }
-  return false;
-}
-
-
 void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
     case CompareICState::UNINITIALIZED:
