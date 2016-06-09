@@ -508,7 +508,7 @@ void MarkCompactCollector::Sweeper::StartSweeping() {
 
 void MarkCompactCollector::Sweeper::StartSweepingHelper(
     AllocationSpace space_to_start) {
-  num_sweeping_tasks_++;
+  num_sweeping_tasks_.Increment(1);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
       new SweeperTask(this, &pending_sweeper_tasks_semaphore_, space_to_start),
       v8::Platform::kShortRunningTask);
@@ -555,9 +555,9 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
   }
 
   if (FLAG_concurrent_sweeping) {
-    while (num_sweeping_tasks_ > 0) {
+    while (num_sweeping_tasks_.Value() > 0) {
       pending_sweeper_tasks_semaphore_.Wait();
-      num_sweeping_tasks_--;
+      num_sweeping_tasks_.Increment(-1);
     }
   }
 
@@ -583,12 +583,11 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 }
 
 bool MarkCompactCollector::Sweeper::IsSweepingCompleted() {
-  if (!pending_sweeper_tasks_semaphore_.WaitFor(
-          base::TimeDelta::FromSeconds(0))) {
-    return false;
+  while (pending_sweeper_tasks_semaphore_.WaitFor(
+      base::TimeDelta::FromSeconds(0))) {
+    num_sweeping_tasks_.Increment(-1);
   }
-  pending_sweeper_tasks_semaphore_.Signal();
-  return true;
+  return num_sweeping_tasks_.Value() == 0;
 }
 
 void Marking::TransferMark(Heap* heap, Address old_start, Address new_start) {

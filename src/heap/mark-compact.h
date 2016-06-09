@@ -467,7 +467,7 @@ class MarkCompactCollector {
     SweepingList sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
     bool late_pages_;
-    int num_sweeping_tasks_;
+    base::AtomicNumber<intptr_t> num_sweeping_tasks_;
   };
 
   enum IterationMode {
