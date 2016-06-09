@@ -14,7 +14,7 @@ namespace interpreter {
 // Comparer for PositionTableEntry instances.
 struct PositionTableEntryComparer {
   bool operator()(const PositionTableEntry& lhs,
-                  const PositionTableEntry& rhs) {
+                  const PositionTableEntry& rhs) const {
     int lhs_type_score = type_score(lhs);
     int rhs_type_score = type_score(rhs);
     if (lhs_type_score == rhs_type_score) {
@@ -24,7 +24,7 @@ struct PositionTableEntryComparer {
     }
   }
 
-  int type_score(const PositionTableEntry& entry) {
+  int type_score(const PositionTableEntry& entry) const {
     return entry.is_statement ? 1 : 0;
   }
 };
