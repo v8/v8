@@ -1132,13 +1132,9 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::LOOKUP: {
+      DCHECK(!hole_init);
       Node* name = jsgraph()->Constant(variable->name());
-      // For variables we must not push an initial value (such as 'undefined')
-      // because we may have a (legal) redeclaration and we must not destroy
-      // the current value.
-      Node* value =
-          hole_init ? jsgraph()->TheHoleConstant()
-                    : jsgraph()->ZeroConstant();  // Indicates no initial value.
+      Node* value = jsgraph()->ZeroConstant();  // Indicates no initial value.
       Node* attr =
           jsgraph()->Constant(variable->DeclarationPropertyAttributes());
       const Operator* op =

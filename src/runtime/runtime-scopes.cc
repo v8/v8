@@ -34,7 +34,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
 static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
                               Handle<String> name, Handle<Object> value,
                               PropertyAttributes attr, bool is_var,
-                              bool is_const, bool is_function) {
+                              bool is_function) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
   ScriptContextTable::LookupResult lookup;
@@ -51,7 +51,6 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
   if (it.IsFound()) {
     PropertyAttributes old_attributes = maybe.FromJust();
     // The name was declared before; check for conflicting re-declarations.
-    if (is_const) return ThrowRedeclarationError(isolate, name);
 
     // Skip var re-declarations.
     if (is_var) return isolate->heap()->undefined_value();
@@ -106,14 +105,9 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     Handle<String> name(String::cast(pairs->get(i)));
     Handle<Object> initial_value(pairs->get(i + 1), isolate);
 
-    // We have to declare a global const property. To capture we only
-    // assign to it when evaluating the assignment for "const x =
-    // <expr>" the initial value is the hole.
     bool is_var = initial_value->IsUndefined(isolate);
-    bool is_const = initial_value->IsTheHole(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
-    DCHECK_EQ(1,
-              BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
+    DCHECK_EQ(1, BoolToInt(is_var) + BoolToInt(is_function));
 
     Handle<Object> value;
     if (is_function) {
@@ -133,13 +127,12 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     bool is_native = DeclareGlobalsNativeFlag::decode(flags);
     bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
     int attr = NONE;
-    if (is_const) attr |= READ_ONLY;
     if (is_function && is_native) attr |= READ_ONLY;
-    if (!is_const && !is_eval) attr |= DONT_DELETE;
+    if (!is_eval) attr |= DONT_DELETE;
 
     Object* result = DeclareGlobals(isolate, global, name, value,
                                     static_cast<PropertyAttributes>(attr),
-                                    is_var, is_const, is_function);
+                                    is_var, is_function);
     if (isolate->has_pending_exception()) return result;
   });
 
@@ -210,10 +203,8 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
 
   // TODO(verwaest): Unify the encoding indicating "var" with DeclareGlobals.
   bool is_var = *initial_value == NULL;
-  bool is_const = initial_value->IsTheHole(isolate);
   bool is_function = initial_value->IsJSFunction();
-  DCHECK_EQ(1,
-            BoolToInt(is_var) + BoolToInt(is_const) + BoolToInt(is_function));
+  DCHECK_EQ(1, BoolToInt(is_var) + BoolToInt(is_function));
 
   int index;
   PropertyAttributes attributes;
@@ -245,24 +236,24 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
   // but by DeclareGlobals instead.
   if (attributes != ABSENT && holder->IsJSGlobalObject()) {
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
-                          value, attr, is_var, is_const, is_function);
+                          value, attr, is_var, is_function);
   }
   if (context_arg->extension()->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context_arg->extension()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
+    return DeclareGlobals(isolate, global, name, value, attr, is_var,
                           is_function);
   } else if (context->IsScriptContext()) {
     DCHECK(context->global_object()->IsJSGlobalObject());
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context->global_object()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var, is_const,
+    return DeclareGlobals(isolate, global, name, value, attr, is_var,
                           is_function);
   }
 
   if (attributes != ABSENT) {
     // The name was declared before; check for conflicting re-declarations.
-    if (is_const || (attributes & READ_ONLY) != 0) {
+    if ((attributes & READ_ONLY) != 0) {
       return ThrowRedeclarationError(isolate, name);
     }
 

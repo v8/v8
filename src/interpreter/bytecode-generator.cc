@@ -759,6 +759,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       break;
     case VariableLocation::LOOKUP: {
       DCHECK(IsDeclaredVariableMode(mode));
+      DCHECK(!hole_init);
 
       register_allocator()->PrepareForConsecutiveAllocations(3);
       Register name = register_allocator()->NextConsecutiveRegister();
@@ -766,16 +767,9 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       Register attributes = register_allocator()->NextConsecutiveRegister();
 
       builder()->LoadLiteral(variable->name()).StoreAccumulatorInRegister(name);
-      if (hole_init) {
-        builder()->LoadTheHole().StoreAccumulatorInRegister(init_value);
-      } else {
-        // For variables, we must not use an initial value (such as 'undefined')
-        // because we may have a (legal) redeclaration and we must not destroy
-        // the current value.
-        builder()
-            ->LoadLiteral(Smi::FromInt(0))
-            .StoreAccumulatorInRegister(init_value);
-      }
+      builder()
+          ->LoadLiteral(Smi::FromInt(0))
+          .StoreAccumulatorInRegister(init_value);
       builder()
           ->LoadLiteral(Smi::FromInt(variable->DeclarationPropertyAttributes()))
           .StoreAccumulatorInRegister(attributes)

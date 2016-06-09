@@ -762,15 +762,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ Push(variable->name());
       // Declaration nodes are always introduced in one of four modes.
       DCHECK(IsDeclaredVariableMode(mode));
-      // Push initial value, if any.
-      // Note: For variables we must not push an initial value (such as
-      // 'undefined') because we may have a (legal) redeclaration and we
-      // must not destroy the current value.
-      if (hole_init) {
-        __ PushRoot(Heap::kTheHoleValueRootIndex);
-      } else {
-        __ Push(Smi::FromInt(0));  // Indicates no initial value.
-      }
+      DCHECK(!hole_init);
+      __ Push(Smi::FromInt(0));  // Indicates no initial value.
       __ Push(Smi::FromInt(variable->DeclarationPropertyAttributes()));
       __ CallRuntime(Runtime::kDeclareLookupSlot);
       PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
