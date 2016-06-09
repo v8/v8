@@ -231,6 +231,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
                                                                                \
   V(StringToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
+  V(NonNumberToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(ToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                         \
                                                                                \
   V(Apply, BUILTIN, UNINITIALIZED, kNoExtraICState)                            \
                                                                                \
@@ -494,6 +496,8 @@ class Builtins {
   static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
   static void Generate_StringToNumber(MacroAssembler* masm);
+  static void Generate_NonNumberToNumber(MacroAssembler* masm);
+  static void Generate_ToNumber(MacroAssembler* masm);
 
   static void Generate_Apply(MacroAssembler* masm);
 

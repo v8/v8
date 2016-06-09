@@ -2388,50 +2388,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   generator.SkipSlow(masm, &runtime);
 }
 
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in rax.
-  Label not_smi;
-  __ JumpIfNotSmi(rax, &not_smi, Label::kNear);
-  __ Ret();
-  __ bind(&not_smi);
-
-  Label not_heap_number;
-  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &not_heap_number, Label::kNear);
-  __ Ret();
-  __ bind(&not_heap_number);
-
-  NonNumberToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes one argument in rax.
-  __ AssertNotNumber(rax);
-
-  Label not_string;
-  __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdi);
-  // rax: object
-  // rdi: object map
-  __ j(above_equal, &not_string, Label::kNear);
-  __ Jump(isolate()->builtins()->StringToNumber(), RelocInfo::CODE_TARGET);
-  __ bind(&not_string);
-
-  Label not_oddball;
-  __ CmpInstanceType(rdi, ODDBALL_TYPE);
-  __ j(not_equal, &not_oddball, Label::kNear);
-  __ movp(rax, FieldOperand(rax, Oddball::kToNumberOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ PopReturnAddressTo(rcx);     // Pop return address.
-  __ Push(rax);                   // Push argument.
-  __ PushReturnAddressFrom(rcx);  // Push return address.
-  __ TailCallRuntime(Runtime::kToNumber);
-}
-
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in rax.
   Label is_number;
@@ -2465,7 +2421,6 @@ void ToStringStub::Generate(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);  // Push return address.
   __ TailCallRuntime(Runtime::kToString);
 }
-
 
 void ToNameStub::Generate(MacroAssembler* masm) {
   // The ToName stub takes one argument in rax.

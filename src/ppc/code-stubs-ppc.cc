@@ -2568,42 +2568,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   generator.SkipSlow(masm, &runtime);
 }
 
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in r3.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ TestIfSmi(r3, r0);
-  __ Ret(eq, cr0);
-
-  __ CompareObjectType(r3, r4, r4, HEAP_NUMBER_TYPE);
-  // r3: receiver
-  // r4: receiver instance type
-  __ Ret(eq);
-
-  NonNumberToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes one argument in r3.
-  __ AssertNotNumber(r3);
-
-  __ CompareObjectType(r3, r4, r4, FIRST_NONSTRING_TYPE);
-  // r3: receiver
-  // r4: receiver instance type
-  __ Jump(isolate()->builtins()->StringToNumber(), RelocInfo::CODE_TARGET, lt);
-
-  Label not_oddball;
-  __ cmpi(r4, Operand(ODDBALL_TYPE));
-  __ bne(&not_oddball);
-  __ LoadP(r3, FieldMemOperand(r3, Oddball::kToNumberOffset));
-  __ blr();
-  __ bind(&not_oddball);
-
-  __ push(r3);  // Push argument.
-  __ TailCallRuntime(Runtime::kToNumber);
-}
-
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes one argument in r3.
   Label is_number;

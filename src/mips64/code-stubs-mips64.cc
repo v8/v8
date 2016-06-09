@@ -2638,50 +2638,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   generator.SkipSlow(masm, &runtime);
 }
 
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in a0.
-  Label not_smi;
-  __ JumpIfNotSmi(a0, &not_smi);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&not_smi);
-
-  Label not_heap_number;
-  __ GetObjectType(a0, a1, a1);
-  // a0: receiver
-  // a1: receiver instance type
-  __ Branch(&not_heap_number, ne, a1, Operand(HEAP_NUMBER_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);
-  __ bind(&not_heap_number);
-
-  NonNumberToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes on argument in a0.
-  __ AssertNotNumber(a0);
-
-  Label not_string;
-  __ GetObjectType(a0, a1, a1);
-  // a0: receiver
-  // a1: receiver instance type
-  __ Branch(&not_string, hs, a1, Operand(FIRST_NONSTRING_TYPE));
-  __ Jump(isolate()->builtins()->StringToNumber(), RelocInfo::CODE_TARGET);
-  __ bind(&not_string);
-
-  Label not_oddball;
-  __ Branch(&not_oddball, ne, a1, Operand(ODDBALL_TYPE));
-  __ Ret(USE_DELAY_SLOT);
-  __ ld(v0, FieldMemOperand(a0, Oddball::kToNumberOffset));  // In delay slot.
-  __ bind(&not_oddball);
-
-  __ Push(a0);  // Push argument.
-  __ TailCallRuntime(Runtime::kToNumber);
-}
-
 void ToStringStub::Generate(MacroAssembler* masm) {
   // The ToString stub takes on argument in a0.
   Label is_number;

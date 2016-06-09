@@ -45,8 +45,6 @@ namespace internal {
   V(StoreElement)                           \
   V(StubFailureTrampoline)                  \
   V(SubString)                              \
-  V(ToNumber)                               \
-  V(NonNumberToNumber)                      \
   V(ToString)                               \
   V(ToName)                                 \
   V(ToObject)                               \
@@ -3215,24 +3213,6 @@ class SubStringStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(SubString, PlatformCodeStub);
 };
 
-
-class ToNumberStub final : public PlatformCodeStub {
- public:
-  explicit ToNumberStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(ToNumber, PlatformCodeStub);
-};
-
-class NonNumberToNumberStub final : public PlatformCodeStub {
- public:
-  explicit NonNumberToNumberStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(NonNumberToNumber, PlatformCodeStub);
-};
-
 class ToStringStub final : public PlatformCodeStub {
  public:
   explicit ToStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
@@ -3240,7 +3220,6 @@ class ToStringStub final : public PlatformCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(ToString, PlatformCodeStub);
 };
-
 
 class ToNameStub final : public PlatformCodeStub {
  public:

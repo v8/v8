@@ -135,15 +135,15 @@ Callable CodeFactory::ToBoolean(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToNumber(Isolate* isolate) {
-  ToNumberStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+  return Callable(isolate->builtins()->ToNumber(),
+                  TypeConversionDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::NonNumberToNumber(Isolate* isolate) {
-  NonNumberToNumberStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+  return Callable(isolate->builtins()->NonNumberToNumber(),
+                  TypeConversionDescriptor(isolate));
 }
 
 // static

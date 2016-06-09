@@ -172,19 +172,18 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ LoadPU(r3, MemOperand(r5, -kPointerSize));
 
     // Load the double value of the parameter into d2, maybe converting the
-    // parameter to a number first using the ToNumberStub if necessary.
+    // parameter to a number first using the ToNumber builtin if necessary.
     Label convert, convert_smi, convert_number, done_convert;
     __ bind(&convert);
     __ JumpIfSmi(r3, &convert_smi);
     __ LoadP(r7, FieldMemOperand(r3, HeapObject::kMapOffset));
     __ JumpIfRoot(r7, Heap::kHeapNumberMapRootIndex, &convert_number);
     {
-      // Parameter is not a Number, use the ToNumberStub to convert it.
+      // Parameter is not a Number, use the ToNumber builtin to convert it.
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ SmiTag(r6);
       __ Push(r4, r5, r6);
-      ToNumberStub stub(masm->isolate());
-      __ CallStub(&stub);
+      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ Pop(r4, r5, r6);
       __ SmiUntag(r6);
       {
@@ -259,8 +258,7 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   }
 
   // 2a. Convert the first argument to a number.
-  ToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
@@ -310,8 +308,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ Push(r4, r6);
       __ mr(r3, r5);
-      ToNumberStub stub(masm->isolate());
-      __ CallStub(&stub);
+      __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ mr(r5, r3);
       __ Pop(r4, r6);
     }
@@ -2766,6 +2763,44 @@ void Builtins::Generate_StringToNumber(MacroAssembler* masm) {
   __ bind(&runtime);
   __ push(r3);  // Push argument.
   __ TailCallRuntime(Runtime::kStringToNumber);
+}
+
+// static
+void Builtins::Generate_ToNumber(MacroAssembler* masm) {
+  // The ToNumber stub takes one argument in r3.
+  STATIC_ASSERT(kSmiTag == 0);
+  __ TestIfSmi(r3, r0);
+  __ Ret(eq, cr0);
+
+  __ CompareObjectType(r3, r4, r4, HEAP_NUMBER_TYPE);
+  // r3: receiver
+  // r4: receiver instance type
+  __ Ret(eq);
+
+  __ Jump(masm->isolate()->builtins()->NonNumberToNumber(),
+          RelocInfo::CODE_TARGET);
+}
+
+// static
+void Builtins::Generate_NonNumberToNumber(MacroAssembler* masm) {
+  // The NonNumberToNumber stub takes one argument in r3.
+  __ AssertNotNumber(r3);
+
+  __ CompareObjectType(r3, r4, r4, FIRST_NONSTRING_TYPE);
+  // r3: receiver
+  // r4: receiver instance type
+  __ Jump(masm->isolate()->builtins()->StringToNumber(), RelocInfo::CODE_TARGET,
+          lt);
+
+  Label not_oddball;
+  __ cmpi(r4, Operand(ODDBALL_TYPE));
+  __ bne(&not_oddball);
+  __ LoadP(r3, FieldMemOperand(r3, Oddball::kToNumberOffset));
+  __ blr();
+  __ bind(&not_oddball);
+
+  __ push(r3);  // Push argument.
+  __ TailCallRuntime(Runtime::kToNumber);
 }
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
