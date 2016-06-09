@@ -289,7 +289,6 @@ class CodeStub BASE_EMBEDDED {
   // BinaryOpStub needs to override this.
   virtual Code::Kind GetCodeKind() const;
 
-  virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
 
   Code::Flags GetCodeFlags() const;
@@ -691,7 +690,6 @@ class StringLengthStub : public TurboFanCodeStub {
   explicit StringLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
   ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
@@ -960,7 +958,6 @@ class StoreInterceptorStub : public TurboFanCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
@@ -973,7 +970,6 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::KEYED_LOAD_IC; }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
@@ -1361,8 +1357,6 @@ class CallICStub: public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
 
-  InlineCacheState GetICState() const override { return GENERIC; }
-
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -1372,9 +1366,7 @@ class CallICStub: public PlatformCodeStub {
   ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
   TailCallMode tail_call_mode() const { return state().tail_call_mode(); }
 
-  CallICState state() const {
-    return CallICState(static_cast<ExtraICState>(minor_key_));
-  }
+  CallICState state() const { return CallICState(GetExtraICState()); }
 
   // Code generation helpers.
   void GenerateMiss(MacroAssembler* masm);
@@ -1423,7 +1415,6 @@ class HandlerStub : public HydrogenCodeStub {
  public:
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return kind(); }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
 
@@ -1524,7 +1515,6 @@ class LoadApiGetterStub : public TurboFanCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
-  InlineCacheState GetICState() const override { return MONOMORPHIC; }
 
   int index() const { return IndexBits::decode(minor_key_); }
   bool receiver_is_holder() const {
@@ -1864,8 +1854,6 @@ class BinaryOpICStub : public HydrogenCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::BINARY_OP_IC; }
 
-  InlineCacheState GetICState() const final { return state().GetICState(); }
-
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(sub_minor_key());
   }
@@ -1909,8 +1897,6 @@ class BinaryOpICWithAllocationSiteStub final : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::BINARY_OP_IC; }
 
-  InlineCacheState GetICState() const override { return state().GetICState(); }
-
   ExtraICState GetExtraICState() const override {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -1919,7 +1905,7 @@ class BinaryOpICWithAllocationSiteStub final : public PlatformCodeStub {
 
  private:
   BinaryOpICState state() const {
-    return BinaryOpICState(isolate(), static_cast<ExtraICState>(minor_key_));
+    return BinaryOpICState(isolate(), GetExtraICState());
   }
 
   static void GenerateAheadOfTime(Isolate* isolate,
@@ -1988,14 +1974,19 @@ class CompareICStub : public PlatformCodeStub {
                 CompareICState::State right, CompareICState::State state)
       : PlatformCodeStub(isolate) {
     DCHECK(Token::IsCompareOp(op));
+    DCHECK(OpBits::is_valid(op - Token::EQ));
     minor_key_ = OpBits::encode(op - Token::EQ) |
                  LeftStateBits::encode(left) | RightStateBits::encode(right) |
                  StateBits::encode(state);
   }
+  CompareICStub(Isolate* isolate, ExtraICState extra_ic_state)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = extra_ic_state;
+  }
 
   void set_known_map(Handle<Map> map) { known_map_ = map; }
 
-  InlineCacheState GetICState() const override;
+  InlineCacheState GetICState() const;
 
   Token::Value op() const {
     return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
@@ -2335,7 +2326,6 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-  InlineCacheState GetICState() const override { return GENERIC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
 
@@ -2351,8 +2341,6 @@ class LoadICTrampolineStub : public PlatformCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2377,8 +2365,6 @@ class LoadICTrampolineTFStub : public TurboFanCodeStub {
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2412,8 +2398,6 @@ class VectorStoreICTrampolineStub : public PlatformCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
-
-  InlineCacheState GetICState() const final { return GENERIC; }
 
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
@@ -2451,8 +2435,6 @@ class CallICTrampolineStub : public PlatformCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
 
-  InlineCacheState GetICState() const final { return GENERIC; }
-
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2477,7 +2459,7 @@ class LoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-  InlineCacheState GetICState() const final { return GENERIC; }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2499,7 +2481,7 @@ class LoadICTFStub : public TurboFanCodeStub {
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-  InlineCacheState GetICState() const final { return GENERIC; }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2518,7 +2500,7 @@ class KeyedLoadICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-  InlineCacheState GetICState() const final { return GENERIC; }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2541,7 +2523,7 @@ class VectorStoreICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const final { return Code::STORE_IC; }
-  InlineCacheState GetICState() const final { return GENERIC; }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -2564,7 +2546,7 @@ class VectorKeyedStoreICStub : public PlatformCodeStub {
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
-  InlineCacheState GetICState() const final { return GENERIC; }
+
   ExtraICState GetExtraICState() const final {
     return static_cast<ExtraICState>(minor_key_);
   }
@@ -3092,7 +3074,7 @@ class ToBooleanICStub : public HydrogenCodeStub {
 
   ExtraICState GetExtraICState() const override { return types().ToIntegral(); }
 
-  InlineCacheState GetICState() const override {
+  InlineCacheState GetICState() const {
     if (types().IsEmpty()) {
       return ::v8::internal::UNINITIALIZED;
     } else {

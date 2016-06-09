@@ -20,8 +20,8 @@ static Handle<Code> GetDummyCode(Isolate* isolate) {
                    0,         // reloc_size
                    0,         // constant_pool_size
                    nullptr};  // origin
-  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC,
-                                         kNoExtraICState, kCacheOnReceiver);
+  Code::Flags flags =
+      Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState, kCacheOnReceiver);
   Handle<Code> self_ref;
   return isolate->factory()->NewCode(desc, flags, self_ref);
 }
@@ -49,8 +49,8 @@ TEST(CodeCache) {
     codes.Add(GetDummyCode(isolate));
   }
   Handle<Name> bad_name = isolate->factory()->NewSymbol();
-  Code::Flags bad_flags = Code::ComputeFlags(
-      Code::LOAD_IC, MONOMORPHIC, kNoExtraICState, kCacheOnPrototype);
+  Code::Flags bad_flags =
+      Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState, kCacheOnPrototype);
   DCHECK(bad_flags != codes[0]->flags());
 
   // Cache name/code pairs.

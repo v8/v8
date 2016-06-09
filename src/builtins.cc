@@ -5546,27 +5546,26 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->argc = 0;                                        \
   ++functions;
 
-#define DEF_FUNCTION_PTR_A(aname, kind, state, extra)              \
-  functions->builder = &MacroAssemblerBuilder;                     \
-  functions->generator = FUNCTION_ADDR(Generate_##aname);          \
-  functions->c_code = NULL;                                        \
-  functions->s_name = #aname;                                      \
-  functions->name = k##aname;                                      \
-  functions->flags = Code::ComputeFlags(Code::kind, state, extra); \
-  functions->extra_args = BuiltinExtraArguments::kNone;            \
-  functions->argc = 0;                                             \
+#define DEF_FUNCTION_PTR_A(aname, kind, extra)              \
+  functions->builder = &MacroAssemblerBuilder;              \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);   \
+  functions->c_code = NULL;                                 \
+  functions->s_name = #aname;                               \
+  functions->name = k##aname;                               \
+  functions->flags = Code::ComputeFlags(Code::kind, extra); \
+  functions->extra_args = BuiltinExtraArguments::kNone;     \
+  functions->argc = 0;                                      \
   ++functions;
 
-#define DEF_FUNCTION_PTR_T(aname, aargc)                                 \
-  functions->builder = &CodeStubAssemblerBuilder;                        \
-  functions->generator = FUNCTION_ADDR(Generate_##aname);                \
-  functions->c_code = NULL;                                              \
-  functions->s_name = #aname;                                            \
-  functions->name = k##aname;                                            \
-  functions->flags =                                                     \
-      Code::ComputeFlags(Code::BUILTIN, UNINITIALIZED, kNoExtraICState); \
-  functions->extra_args = BuiltinExtraArguments::kNone;                  \
-  functions->argc = aargc;                                               \
+#define DEF_FUNCTION_PTR_T(aname, aargc)                  \
+  functions->builder = &CodeStubAssemblerBuilder;         \
+  functions->generator = FUNCTION_ADDR(Generate_##aname); \
+  functions->c_code = NULL;                               \
+  functions->s_name = #aname;                             \
+  functions->name = k##aname;                             \
+  functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
+  functions->extra_args = BuiltinExtraArguments::kNone;   \
+  functions->argc = aargc;                                \
   ++functions;
 
 #define DEF_FUNCTION_PTR_H(aname, kind)                     \
@@ -5909,12 +5908,11 @@ Handle<Code> Builtins::name() {                               \
       reinterpret_cast<Code**>(builtin_address(k##name));     \
   return Handle<Code>(code_address);                          \
 }
-#define DEFINE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
-Handle<Code> Builtins::name() {                             \
-  Code** code_address =                                     \
-      reinterpret_cast<Code**>(builtin_address(k##name));   \
-  return Handle<Code>(code_address);                        \
-}
+#define DEFINE_BUILTIN_ACCESSOR_A(name, kind, extra)                          \
+  Handle<Code> Builtins::name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+    return Handle<Code>(code_address);                                        \
+  }
 #define DEFINE_BUILTIN_ACCESSOR_T(name, argc)                                 \
   Handle<Code> Builtins::name() {                                             \
     Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \

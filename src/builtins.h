@@ -46,12 +46,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(NoAge)                                         \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define DECLARE_CODE_AGE_BUILTIN(C, V)             \
-  V(Make##C##CodeYoungAgainOddMarking, BUILTIN,    \
-    UNINITIALIZED, kNoExtraICState)                \
-  V(Make##C##CodeYoungAgainEvenMarking, BUILTIN,   \
-    UNINITIALIZED, kNoExtraICState)
-
+#define DECLARE_CODE_AGE_BUILTIN(C, V)                           \
+  V(Make##C##CodeYoungAgainOddMarking, BUILTIN, kNoExtraICState) \
+  V(Make##C##CodeYoungAgainEvenMarking, BUILTIN, kNoExtraICState)
 
 // Define list of builtins implemented in C++.
 #define BUILTIN_LIST_C(V)                                      \
@@ -195,137 +192,127 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(RestrictedStrictArgumentsPropertiesThrower, kNone)
 
 // Define list of builtins implemented in assembly.
-#define BUILTIN_LIST_A(V)                                                      \
-  V(AllocateInNewSpace, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(AllocateInOldSpace, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-                                                                               \
-  V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-                                                                               \
-  V(ConstructedNonConstructable, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-                                                                               \
-  V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,            \
-    kNoExtraICState)                                                           \
-  V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,         \
-    kNoExtraICState)                                                           \
-  V(CallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(TailCallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,        \
-    kNoExtraICState)                                                           \
-  V(TailCallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,     \
-    kNoExtraICState)                                                           \
-  V(TailCallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
-  V(CallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(TailCallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-  V(Call_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
-  V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,                 \
-    kNoExtraICState)                                                           \
-  V(Call_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(TailCall_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,                \
-    kNoExtraICState)                                                           \
-  V(TailCall_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,             \
-    kNoExtraICState)                                                           \
-  V(TailCall_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-                                                                               \
-  V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(ConstructBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
-  V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
-                                                                               \
-  V(StringToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
-  V(NonNumberToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(ToNumber, BUILTIN, UNINITIALIZED, kNoExtraICState)                         \
-                                                                               \
-  V(Apply, BUILTIN, UNINITIALIZED, kNoExtraICState)                            \
-                                                                               \
-  V(HandleFastApiCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-                                                                               \
-  V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-  V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(JSBuiltinsConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(JSBuiltinsConstructStubForDerived, BUILTIN, UNINITIALIZED,                 \
-    kNoExtraICState)                                                           \
-  V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(ResumeGeneratorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
-  V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
-  V(CompileBaseline, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
-  V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
-  V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(NotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(NotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-  V(NotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-  V(NotifyStubFailure, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(NotifyStubFailureSaveDoubles, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
-                                                                               \
-  V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(InterpreterMarkBaselineOnReturn, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-  V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(InterpreterPushArgsAndTailCall, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
-  V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-  V(InterpreterEnterBytecodeDispatch, BUILTIN, UNINITIALIZED, kNoExtraICState) \
-                                                                               \
-  V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
-  V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
-  V(StoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
-  V(KeyedStoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(LoadIC_Getter_ForDeopt, LOAD_IC, MONOMORPHIC, kNoExtraICState)             \
-  V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)      \
-                                                                               \
-  V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                            \
-    StoreICState::kStrictModeState)                                            \
-                                                                               \
-  V(StoreIC_Megamorphic, STORE_IC, MEGAMORPHIC, kNoExtraICState)               \
-  V(StoreIC_Megamorphic_Strict, STORE_IC, MEGAMORPHIC,                         \
-    StoreICState::kStrictModeState)                                            \
-                                                                               \
-  V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, MEGAMORPHIC, kNoExtraICState)    \
-  V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, MEGAMORPHIC,              \
-    StoreICState::kStrictModeState)                                            \
-                                                                               \
-  V(DatePrototypeGetDate, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
-  V(DatePrototypeGetDay, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-  V(DatePrototypeGetFullYear, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
-  V(DatePrototypeGetHours, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-  V(DatePrototypeGetMilliseconds, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
-  V(DatePrototypeGetMinutes, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(DatePrototypeGetMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-  V(DatePrototypeGetSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(DatePrototypeGetTime, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
-  V(DatePrototypeGetTimezoneOffset, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
-  V(DatePrototypeGetUTCDate, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(DatePrototypeGetUTCDay, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(DatePrototypeGetUTCFullYear, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(DatePrototypeGetUTCHours, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
-  V(DatePrototypeGetUTCMilliseconds, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-  V(DatePrototypeGetUTCMinutes, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(DatePrototypeGetUTCMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
-  V(DatePrototypeGetUTCSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-                                                                               \
-  V(FunctionPrototypeApply, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(FunctionPrototypeCall, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
-                                                                               \
-  V(ReflectApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
-  V(ReflectConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
-                                                                               \
-  V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
-                                                                               \
-  V(MathMax, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
-  V(MathMin, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
-                                                                               \
-  V(NumberConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(NumberConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-                                                                               \
-  V(StringConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(StringConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-                                                                               \
-  V(OnStackReplacement, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(InterruptCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
-  V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
-                                                                               \
-  V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(MarkCodeAsExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+#define BUILTIN_LIST_A(V)                                                    \
+  V(AllocateInNewSpace, BUILTIN, kNoExtraICState)                            \
+  V(AllocateInOldSpace, BUILTIN, kNoExtraICState)                            \
+                                                                             \
+  V(ArgumentsAdaptorTrampoline, BUILTIN, kNoExtraICState)                    \
+                                                                             \
+  V(ConstructedNonConstructable, BUILTIN, kNoExtraICState)                   \
+                                                                             \
+  V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)        \
+  V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)     \
+  V(CallFunction_ReceiverIsAny, BUILTIN, kNoExtraICState)                    \
+  V(TailCallFunction_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)    \
+  V(TailCallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState) \
+  V(TailCallFunction_ReceiverIsAny, BUILTIN, kNoExtraICState)                \
+  V(CallBoundFunction, BUILTIN, kNoExtraICState)                             \
+  V(TailCallBoundFunction, BUILTIN, kNoExtraICState)                         \
+  V(Call_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)                \
+  V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)             \
+  V(Call_ReceiverIsAny, BUILTIN, kNoExtraICState)                            \
+  V(TailCall_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)            \
+  V(TailCall_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)         \
+  V(TailCall_ReceiverIsAny, BUILTIN, kNoExtraICState)                        \
+                                                                             \
+  V(ConstructFunction, BUILTIN, kNoExtraICState)                             \
+  V(ConstructBoundFunction, BUILTIN, kNoExtraICState)                        \
+  V(ConstructProxy, BUILTIN, kNoExtraICState)                                \
+  V(Construct, BUILTIN, kNoExtraICState)                                     \
+                                                                             \
+  V(StringToNumber, BUILTIN, kNoExtraICState)                                \
+  V(NonNumberToNumber, BUILTIN, kNoExtraICState)                             \
+  V(ToNumber, BUILTIN, kNoExtraICState)                                      \
+                                                                             \
+  V(Apply, BUILTIN, kNoExtraICState)                                         \
+                                                                             \
+  V(HandleFastApiCall, BUILTIN, kNoExtraICState)                             \
+                                                                             \
+  V(InOptimizationQueue, BUILTIN, kNoExtraICState)                           \
+  V(JSConstructStubGeneric, BUILTIN, kNoExtraICState)                        \
+  V(JSBuiltinsConstructStub, BUILTIN, kNoExtraICState)                       \
+  V(JSBuiltinsConstructStubForDerived, BUILTIN, kNoExtraICState)             \
+  V(JSConstructStubApi, BUILTIN, kNoExtraICState)                            \
+  V(JSEntryTrampoline, BUILTIN, kNoExtraICState)                             \
+  V(JSConstructEntryTrampoline, BUILTIN, kNoExtraICState)                    \
+  V(ResumeGeneratorTrampoline, BUILTIN, kNoExtraICState)                     \
+  V(CompileLazy, BUILTIN, kNoExtraICState)                                   \
+  V(CompileBaseline, BUILTIN, kNoExtraICState)                               \
+  V(CompileOptimized, BUILTIN, kNoExtraICState)                              \
+  V(CompileOptimizedConcurrent, BUILTIN, kNoExtraICState)                    \
+  V(NotifyDeoptimized, BUILTIN, kNoExtraICState)                             \
+  V(NotifySoftDeoptimized, BUILTIN, kNoExtraICState)                         \
+  V(NotifyLazyDeoptimized, BUILTIN, kNoExtraICState)                         \
+  V(NotifyStubFailure, BUILTIN, kNoExtraICState)                             \
+  V(NotifyStubFailureSaveDoubles, BUILTIN, kNoExtraICState)                  \
+                                                                             \
+  V(InterpreterEntryTrampoline, BUILTIN, kNoExtraICState)                    \
+  V(InterpreterMarkBaselineOnReturn, BUILTIN, kNoExtraICState)               \
+  V(InterpreterPushArgsAndCall, BUILTIN, kNoExtraICState)                    \
+  V(InterpreterPushArgsAndTailCall, BUILTIN, kNoExtraICState)                \
+  V(InterpreterPushArgsAndConstruct, BUILTIN, kNoExtraICState)               \
+  V(InterpreterEnterBytecodeDispatch, BUILTIN, kNoExtraICState)              \
+                                                                             \
+  V(LoadIC_Miss, BUILTIN, kNoExtraICState)                                   \
+  V(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState)                              \
+  V(StoreIC_Miss, BUILTIN, kNoExtraICState)                                  \
+  V(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState)                             \
+  V(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
+  V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                 \
+                                                                             \
+  V(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
+                                                                             \
+  V(StoreIC_Megamorphic, STORE_IC, kNoExtraICState)                          \
+  V(StoreIC_Megamorphic_Strict, STORE_IC, StoreICState::kStrictModeState)    \
+                                                                             \
+  V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)               \
+  V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
+    StoreICState::kStrictModeState)                                          \
+                                                                             \
+  V(DatePrototypeGetDate, BUILTIN, kNoExtraICState)                          \
+  V(DatePrototypeGetDay, BUILTIN, kNoExtraICState)                           \
+  V(DatePrototypeGetFullYear, BUILTIN, kNoExtraICState)                      \
+  V(DatePrototypeGetHours, BUILTIN, kNoExtraICState)                         \
+  V(DatePrototypeGetMilliseconds, BUILTIN, kNoExtraICState)                  \
+  V(DatePrototypeGetMinutes, BUILTIN, kNoExtraICState)                       \
+  V(DatePrototypeGetMonth, BUILTIN, kNoExtraICState)                         \
+  V(DatePrototypeGetSeconds, BUILTIN, kNoExtraICState)                       \
+  V(DatePrototypeGetTime, BUILTIN, kNoExtraICState)                          \
+  V(DatePrototypeGetTimezoneOffset, BUILTIN, kNoExtraICState)                \
+  V(DatePrototypeGetUTCDate, BUILTIN, kNoExtraICState)                       \
+  V(DatePrototypeGetUTCDay, BUILTIN, kNoExtraICState)                        \
+  V(DatePrototypeGetUTCFullYear, BUILTIN, kNoExtraICState)                   \
+  V(DatePrototypeGetUTCHours, BUILTIN, kNoExtraICState)                      \
+  V(DatePrototypeGetUTCMilliseconds, BUILTIN, kNoExtraICState)               \
+  V(DatePrototypeGetUTCMinutes, BUILTIN, kNoExtraICState)                    \
+  V(DatePrototypeGetUTCMonth, BUILTIN, kNoExtraICState)                      \
+  V(DatePrototypeGetUTCSeconds, BUILTIN, kNoExtraICState)                    \
+                                                                             \
+  V(FunctionPrototypeApply, BUILTIN, kNoExtraICState)                        \
+  V(FunctionPrototypeCall, BUILTIN, kNoExtraICState)                         \
+                                                                             \
+  V(ReflectApply, BUILTIN, kNoExtraICState)                                  \
+  V(ReflectConstruct, BUILTIN, kNoExtraICState)                              \
+                                                                             \
+  V(InternalArrayCode, BUILTIN, kNoExtraICState)                             \
+  V(ArrayCode, BUILTIN, kNoExtraICState)                                     \
+                                                                             \
+  V(MathMax, BUILTIN, kNoExtraICState)                                       \
+  V(MathMin, BUILTIN, kNoExtraICState)                                       \
+                                                                             \
+  V(NumberConstructor, BUILTIN, kNoExtraICState)                             \
+  V(NumberConstructor_ConstructStub, BUILTIN, kNoExtraICState)               \
+                                                                             \
+  V(StringConstructor, BUILTIN, kNoExtraICState)                             \
+  V(StringConstructor_ConstructStub, BUILTIN, kNoExtraICState)               \
+                                                                             \
+  V(OnStackReplacement, BUILTIN, kNoExtraICState)                            \
+  V(InterruptCheck, BUILTIN, kNoExtraICState)                                \
+  V(StackCheck, BUILTIN, kNoExtraICState)                                    \
+                                                                             \
+  V(MarkCodeAsToBeExecutedOnce, BUILTIN, kNoExtraICState)                    \
+  V(MarkCodeAsExecutedOnce, BUILTIN, kNoExtraICState)                        \
+  V(MarkCodeAsExecutedTwice, BUILTIN, kNoExtraICState)                       \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
@@ -362,11 +349,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(StoreIC_Normal,          STORE_IC)
 
 // Define list of builtins used by the debugger implemented in assembly.
-#define BUILTIN_LIST_DEBUG_A(V)                                 \
-  V(Return_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)    \
-  V(Slot_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)      \
-  V(FrameDropper_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState)
-
+#define BUILTIN_LIST_DEBUG_A(V)                  \
+  V(Return_DebugBreak, BUILTIN, kNoExtraICState) \
+  V(Slot_DebugBreak, BUILTIN, kNoExtraICState)   \
+  V(FrameDropper_LiveEdit, BUILTIN, kNoExtraICState)
 
 class BuiltinFunctionTable;
 class ObjectVisitor;
@@ -389,7 +375,7 @@ class Builtins {
 
   enum Name {
 #define DEF_ENUM_C(name, ignore) k##name,
-#define DEF_ENUM_A(name, kind, state, extra) k##name,
+#define DEF_ENUM_A(name, kind, extra) k##name,
 #define DEF_ENUM_T(name, argc) k##name,
 #define DEF_ENUM_H(name, kind) k##name,
     BUILTIN_LIST_C(DEF_ENUM_C) BUILTIN_LIST_A(DEF_ENUM_A)
@@ -410,8 +396,7 @@ class Builtins {
   };
 
 #define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
-#define DECLARE_BUILTIN_ACCESSOR_A(name, kind, state, extra) \
-  Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_A(name, kind, extra) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_T(name, argc) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_H(name, kind) Handle<Code> name();
   BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)

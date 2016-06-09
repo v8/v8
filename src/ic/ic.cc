@@ -45,12 +45,6 @@ char IC::TransitionMarkFromState(IC::State state) {
       return 'N';
     case GENERIC:
       return 'G';
-
-    // We never see the debugger states here, because the state is
-    // computed from the original code - not the patched code. Let
-    // these cases fall through to the unreachable code below.
-    case DEBUG_STUB:
-      break;
   }
   UNREACHABLE();
   return 0;
@@ -183,11 +177,32 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   Code* target = this->target();
   kind_ = target->kind();
-  state_ = UseVector() ? nexus->StateFromFeedback() : target->ic_state();
+  state_ = UseVector() ? nexus->StateFromFeedback() : StateFromCode(target);
   old_state_ = state_;
   extra_ic_state_ = target->extra_ic_state();
 }
 
+InlineCacheState IC::StateFromCode(Code* code) {
+  Isolate* isolate = code->GetIsolate();
+  switch (code->kind()) {
+    case Code::BINARY_OP_IC: {
+      BinaryOpICState state(isolate, code->extra_ic_state());
+      return state.GetICState();
+    }
+    case Code::COMPARE_IC: {
+      CompareICStub stub(isolate, code->extra_ic_state());
+      return stub.GetICState();
+    }
+    case Code::TO_BOOLEAN_IC: {
+      ToBooleanICStub stub(isolate, code->extra_ic_state());
+      return stub.GetICState();
+    }
+    default:
+      if (code->is_debug_stub()) return UNINITIALIZED;
+      UNREACHABLE();
+      return UNINITIALIZED;
+  }
+}
 
 SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
   // Compute the JavaScript frame for the frame pointer of this IC
@@ -354,7 +369,6 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
       }
       break;
     case RECOMPUTE_HANDLER:
-    case DEBUG_STUB:
       UNREACHABLE();
   }
 }
@@ -379,8 +393,8 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
 
   DCHECK(old_target->is_inline_cache_stub());
   DCHECK(target->is_inline_cache_stub());
-  State old_state = old_target->ic_state();
-  State new_state = target->ic_state();
+  State old_state = StateFromCode(old_target);
+  State new_state = StateFromCode(target);
 
   Isolate* isolate = target->GetIsolate();
   Code* host =
@@ -793,8 +807,6 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
       // Indicate that we've handled this case.
       DCHECK(UseVector());
       vector_set_ = true;
-      break;
-    case DEBUG_STUB:
       break;
     case GENERIC:
       UNREACHABLE();

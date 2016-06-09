@@ -34,7 +34,6 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
   // cache only contains handlers. Make sure that the bits are the least
   // significant so they will be the ones masked out.
   DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
-  STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
   // Make sure that the cache holder are not included in the hash.
   DCHECK(Code::ExtractCacheHolderFromFlags(flags) == 0);

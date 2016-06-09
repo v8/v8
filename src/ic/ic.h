@@ -63,11 +63,6 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool IsCleared(Code* code) {
-    InlineCacheState state = code->ic_state();
-    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
   static bool IsCleared(FeedbackNexus* nexus) {
     InlineCacheState state = nexus->StateFromFeedback();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
@@ -78,6 +73,8 @@ class IC {
            kind == Code::CALL_IC || kind == Code::STORE_IC ||
            kind == Code::KEYED_STORE_IC;
   }
+
+  static InlineCacheState StateFromCode(Code* code);
 
  protected:
   Address fp() const { return fp_; }

@@ -584,8 +584,6 @@ enum InlineCacheState {
   MEGAMORPHIC,
   // A generic handler is installed and no extra typefeedback is recorded.
   GENERIC,
-  // Special state for debug break or step in prepare stubs.
-  DEBUG_STUB
 };
 
 enum CacheHolderFlag {

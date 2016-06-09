@@ -5243,7 +5243,8 @@ void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
   } else {
     Code* ic = FindFirstIC(function->code(), kind);
     CHECK(ic->is_inline_cache_stub());
-    CHECK(ic->ic_state() == state);
+    CHECK(!IC::ICUseVector(kind));
+    CHECK_EQ(state, IC::StateFromCode(ic));
   }
 }
 
