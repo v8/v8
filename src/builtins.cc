@@ -3291,11 +3291,9 @@ double ParseDateTimeString(Handle<String> str) {
   String::FlatContent str_content = str->GetFlatContent();
   bool result;
   if (str_content.IsOneByte()) {
-    result = DateParser::Parse(str_content.ToOneByteVector(), *tmp,
-                               isolate->unicode_cache());
+    result = DateParser::Parse(isolate, str_content.ToOneByteVector(), *tmp);
   } else {
-    result = DateParser::Parse(str_content.ToUC16Vector(), *tmp,
-                               isolate->unicode_cache());
+    result = DateParser::Parse(isolate, str_content.ToUC16Vector(), *tmp);
   }
   if (!result) return std::numeric_limits<double>::quiet_NaN();
   double const day = MakeDay(tmp->get(0)->Number(), tmp->get(1)->Number(),
