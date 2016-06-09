@@ -21,11 +21,12 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   CHECK(function->shared()->is_resumable());
 
   Handle<FixedArray> operand_stack;
-  if (FLAG_ignition && FLAG_ignition_generators) {
+  if (function->shared()->HasBytecodeArray()) {
+    // New-style generators.
     int size = function->shared()->bytecode_array()->register_count();
     operand_stack = isolate->factory()->NewFixedArray(size);
   } else {
-    DCHECK(!function->shared()->HasBytecodeArray());
+    // Old-style generators.
     operand_stack = handle(isolate->heap()->empty_fixed_array());
   }
 
@@ -148,9 +149,8 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
 
   if (!generator->is_suspended()) return isolate->heap()->undefined_value();
 
-  if (FLAG_ignition && FLAG_ignition_generators) UNIMPLEMENTED();
+  if (generator->function()->shared()->HasBytecodeArray()) UNIMPLEMENTED();
 
-  DCHECK(!generator->function()->shared()->HasBytecodeArray());
   Handle<Code> code(generator->function()->code(), isolate);
   int offset = generator->continuation();
   CHECK(0 <= offset && offset < code->instruction_size());
