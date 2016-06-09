@@ -132,12 +132,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
     }
     PrintF(" (%c->%c%s) map=%p ", TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state), modifier, map);
-#ifdef OBJECT_PRINT
-    OFStream os(stdout);
-    name->Print(os);
-#else
     name->ShortPrint(stdout);
-#endif
     PrintF("]\n");
   }
 }
