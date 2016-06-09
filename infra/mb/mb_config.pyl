@@ -8,7 +8,7 @@
   # below). MB uses this dict to look up which config to use for a given bot.
   'masters': {
     'client.v8': {
-      'V8 Linux - swarming staging': 'gyp_swarming_release',
+      'V8 Linux - swarming staging': 'gn_swarming_release',
     },
   },
 
