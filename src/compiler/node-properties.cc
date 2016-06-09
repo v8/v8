@@ -215,7 +215,8 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(exception);
         edge.UpdateTo(exception);
       } else {
-        UNREACHABLE();
+        DCHECK_NOT_NULL(success);
+        edge.UpdateTo(success);
       }
     } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

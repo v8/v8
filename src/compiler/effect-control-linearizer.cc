@@ -452,10 +452,13 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringFromCharCode:
       state = LowerStringFromCharCode(node, *effect, *control);
       break;
+    case IrOpcode::kCheckIf:
+      state = LowerCheckIf(node, frame_state, *effect, *control);
+      break;
     default:
       return false;
   }
-  NodeProperties::ReplaceUses(node, state.value);
+  NodeProperties::ReplaceUses(node, state.value, state.effect, state.control);
   *effect = state.effect;
   *control = state.control;
   return true;
@@ -1271,6 +1274,16 @@ EffectControlLinearizer::LowerStringFromCharCode(Node* node, Node* effect,
                            vtrue0, vfalse0, control);
 
   return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
+                                      Node* effect, Node* control) {
+  NodeProperties::ReplaceEffectInput(node, effect);
+  NodeProperties::ReplaceControlInput(node, control);
+  node->InsertInput(graph()->zone(), 1, frame_state);
+  NodeProperties::ChangeOp(node, common()->DeoptimizeIf());
+  return ValueEffectControl(node, node, node);
 }
 
 EffectControlLinearizer::ValueEffectControl

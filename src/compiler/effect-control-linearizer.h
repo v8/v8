@@ -89,6 +89,8 @@ class EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
                                              Node* control);
+  ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
+                                  Node* control);
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl BuildCheckedFloat64ToInt32(Node* value, Node* frame_state,

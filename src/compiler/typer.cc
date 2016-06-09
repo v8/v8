@@ -1945,6 +1945,11 @@ Type* Typer::Visitor::TypeCheckedTaggedToFloat64(Node* node) {
   return Type::Number();
 }
 
+Type* Typer::Visitor::TypeCheckIf(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(jarin): DCHECK(arg->Is(Type::NumberOrUndefined()));

@@ -190,6 +190,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedTaggedToInt32();
   const Operator* CheckedTaggedToFloat64();
 
+  const Operator* CheckIf();
+
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();
   const Operator* ObjectIsReceiver();

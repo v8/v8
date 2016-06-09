@@ -261,6 +261,13 @@ struct SimplifiedOperatorGlobalCache final {
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
 
+  struct CheckIfOperator final : public Operator {
+    CheckIfOperator()
+        : Operator(IrOpcode::kCheckIf, Operator::kFoldable, "CheckIf", 1, 1, 1,
+                   0, 1, 1) {}
+  };
+  CheckIfOperator kCheckIf;
+
   template <PretenureFlag kPretenure>
   struct AllocateOperator final : public Operator1<PretenureFlag> {
     AllocateOperator()
@@ -308,6 +315,10 @@ PURE_OP_LIST(GET_FROM_CACHE)
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::CheckIf() {
+  return &cache_.kCheckIf;
+}
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,

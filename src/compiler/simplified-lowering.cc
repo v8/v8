@@ -1035,11 +1035,10 @@ class RepresentationSelector {
   void ChangeToInt32OverflowOp(Node* node, const Operator* op) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
-    Node* frame_state = NodeProperties::FindFrameStateBefore(node);
     Node* arith = graph()->NewNode(op, node->InputAt(0), node->InputAt(1));
     Node* overflow = graph()->NewNode(common()->Projection(1), arith);
-    control = effect = graph()->NewNode(common()->DeoptimizeIf(), overflow,
-                                        frame_state, effect, control);
+    control = effect =
+        graph()->NewNode(simplified()->CheckIf(), overflow, effect, control);
 
     Node* value = graph()->NewNode(common()->Projection(0), arith);
     ReplaceEffectControlUses(node, effect, control);

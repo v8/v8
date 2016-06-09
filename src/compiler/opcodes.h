@@ -216,6 +216,7 @@
   V(CheckedFloat64ToInt32)         \
   V(CheckedTaggedToInt32)          \
   V(CheckedTaggedToFloat64)        \
+  V(CheckIf)                       \
   V(TruncateTaggedToWord32)        \
   V(TruncateTaggedToFloat64)       \
   V(Allocate)                      \
