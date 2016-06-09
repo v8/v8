@@ -1516,7 +1516,7 @@ class RepresentationSelector {
       case IrOpcode::kStringToNumber: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         if (lower()) {
-          // StringToNumber(x) => Call(StringToNumberStub, x, no-context)
+          // StringToNumber(x) => Call(StringToNumber, x, no-context)
           Operator::Properties properties = Operator::kNoThrow;
           Callable callable = CodeFactory::StringToNumber(jsgraph_->isolate());
           CallDescriptor::Flags flags = CallDescriptor::kNoFlags;

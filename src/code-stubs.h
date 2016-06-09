@@ -47,7 +47,6 @@ namespace internal {
   V(SubString)                              \
   V(ToNumber)                               \
   V(NonNumberToNumber)                      \
-  V(StringToNumber)                         \
   V(ToString)                               \
   V(ToName)                                 \
   V(ToObject)                               \
@@ -3232,15 +3231,6 @@ class NonNumberToNumberStub final : public PlatformCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_PLATFORM_CODE_STUB(NonNumberToNumber, PlatformCodeStub);
 };
-
-class StringToNumberStub final : public PlatformCodeStub {
- public:
-  explicit StringToNumberStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_PLATFORM_CODE_STUB(StringToNumber, PlatformCodeStub);
-};
-
 
 class ToStringStub final : public PlatformCodeStub {
  public:

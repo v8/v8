@@ -148,8 +148,8 @@ Callable CodeFactory::NonNumberToNumber(Isolate* isolate) {
 
 // static
 Callable CodeFactory::StringToNumber(Isolate* isolate) {
-  StringToNumberStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+  return Callable(isolate->builtins()->StringToNumber(),
+                  TypeConversionDescriptor(isolate));
 }
 
 // static

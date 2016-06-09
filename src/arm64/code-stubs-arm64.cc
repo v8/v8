@@ -3130,8 +3130,7 @@ void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
   // x0: receiver
   // x1: receiver instance type
   __ B(hs, &not_string);
-  StringToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
+  __ Jump(isolate()->builtins()->StringToNumber(), RelocInfo::CODE_TARGET);
   __ Bind(&not_string);
 
   Label not_oddball;
@@ -3143,23 +3142,6 @@ void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
 
   __ Push(x0);  // Push argument.
   __ TailCallRuntime(Runtime::kToNumber);
-}
-
-void StringToNumberStub::Generate(MacroAssembler* masm) {
-  // The StringToNumber stub takes one argument in x0.
-  __ AssertString(x0);
-
-  // Check if string has a cached array index.
-  Label runtime;
-  __ Ldr(x2, FieldMemOperand(x0, String::kHashFieldOffset));
-  __ Tst(x2, Operand(String::kContainsCachedArrayIndexMask));
-  __ B(ne, &runtime);
-  __ IndexFromHash(x2, x0);
-  __ Ret();
-
-  __ Bind(&runtime);
-  __ Push(x0);  // Push argument.
-  __ TailCallRuntime(Runtime::kStringToNumber);
 }
 
 void ToStringStub::Generate(MacroAssembler* masm) {

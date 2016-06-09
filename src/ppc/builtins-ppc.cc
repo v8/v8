@@ -2750,6 +2750,24 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
+// static
+void Builtins::Generate_StringToNumber(MacroAssembler* masm) {
+  // The StringToNumber stub takes one argument in r3.
+  __ AssertString(r3);
+
+  // Check if string has a cached array index.
+  Label runtime;
+  __ lwz(r5, FieldMemOperand(r3, String::kHashFieldOffset));
+  __ And(r0, r5, Operand(String::kContainsCachedArrayIndexMask), SetRC);
+  __ bne(&runtime, cr0);
+  __ IndexFromHash(r5, r3);
+  __ blr();
+
+  __ bind(&runtime);
+  __ push(r3);  // Push argument.
+  __ TailCallRuntime(Runtime::kStringToNumber);
+}
+
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : actual number of arguments
