@@ -33,13 +33,20 @@ class Isolate;
 template <typename JobTraits>
 class PageParallelJob {
  public:
-  PageParallelJob(Heap* heap, CancelableTaskManager* cancelable_task_manager)
+  // PageParallelJob cannot dynamically create a semaphore because of a bug in
+  // glibc. See http://crbug.com/609249 and
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=12674.
+  // The caller must provide a semaphore with value 0 and ensure that
+  // the lifetime of the semaphore is the same as the lifetime of the Isolate
+  // It is guaranteed that the semaphore value will be 0 after Run() call.
+  PageParallelJob(Heap* heap, CancelableTaskManager* cancelable_task_manager,
+                  base::Semaphore* semaphore)
       : heap_(heap),
         cancelable_task_manager_(cancelable_task_manager),
         items_(nullptr),
         num_items_(0),
         num_tasks_(0),
-        pending_tasks_(new base::Semaphore(0)) {}
+        pending_tasks_(semaphore) {}
 
   ~PageParallelJob() {
     Item* item = items_;
@@ -48,7 +55,6 @@ class PageParallelJob {
       delete item;
       item = next;
     }
-    delete pending_tasks_;
   }
 
   void AddPage(MemoryChunk* chunk, typename JobTraits::PerPageData data) {

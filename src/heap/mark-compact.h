@@ -841,6 +841,8 @@ class MarkCompactCollector {
   // Semaphore used to synchronize compaction tasks.
   base::Semaphore pending_compaction_tasks_semaphore_;
 
+  base::Semaphore page_parallel_job_semaphore_;
+
   bool black_allocation_;
 
   friend class Heap;

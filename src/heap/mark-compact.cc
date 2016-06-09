@@ -63,7 +63,8 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       compacting_(false),
       sweeping_in_progress_(false),
       pending_sweeper_tasks_semaphore_(0),
-      pending_compaction_tasks_semaphore_(0) {
+      pending_compaction_tasks_semaphore_(0),
+      page_parallel_job_semaphore_(0) {
 }
 
 #ifdef VERIFY_HEAP
@@ -3108,7 +3109,8 @@ class EvacuationJobTraits {
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
   PageParallelJob<EvacuationJobTraits> job(
-      heap_, heap_->isolate()->cancelable_task_manager());
+      heap_, heap_->isolate()->cancelable_task_manager(),
+      &page_parallel_job_semaphore_);
 
   int abandoned_pages = 0;
   intptr_t live_bytes = 0;
@@ -3493,9 +3495,9 @@ int NumberOfPointerUpdateTasks(int pages) {
 }
 
 template <PointerDirection direction>
-void UpdatePointersInParallel(Heap* heap) {
+void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
   PageParallelJob<PointerUpdateJobTraits<direction> > job(
-      heap, heap->isolate()->cancelable_task_manager());
+      heap, heap->isolate()->cancelable_task_manager(), semaphore);
   RememberedSet<direction>::IterateMemoryChunks(
       heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   PointersUpdatingVisitor visitor(heap);
@@ -3525,9 +3527,9 @@ class ToSpacePointerUpdateJobTraits {
   }
 };
 
-void UpdateToSpacePointersInParallel(Heap* heap) {
+void UpdateToSpacePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
   PageParallelJob<ToSpacePointerUpdateJobTraits> job(
-      heap, heap->isolate()->cancelable_task_manager());
+      heap, heap->isolate()->cancelable_task_manager(), semaphore);
   Address space_start = heap->new_space()->bottom();
   Address space_end = heap->new_space()->top();
   NewSpacePageIterator it(space_start, space_end);
@@ -3551,17 +3553,17 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW);
-    UpdateToSpacePointersInParallel(heap_);
+    UpdateToSpacePointersInParallel(heap_, &page_parallel_job_semaphore_);
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-    UpdatePointersInParallel<OLD_TO_NEW>(heap_);
+    UpdatePointersInParallel<OLD_TO_NEW>(heap_, &page_parallel_job_semaphore_);
   }
 
   {
     Heap* heap = this->heap();
     TRACE_GC(heap->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED);
-    UpdatePointersInParallel<OLD_TO_OLD>(heap_);
+    UpdatePointersInParallel<OLD_TO_OLD>(heap_, &page_parallel_job_semaphore_);
   }
 
   {
