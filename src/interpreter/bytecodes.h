@@ -495,9 +495,21 @@ class Bytecodes {
   // Return true if |bytecode| writes the accumulator with a boolean value.
   static bool WritesBooleanToAccumulator(Bytecode bytecode);
 
-  // Return true if |bytecode| is an accumulator load bytecode,
+  // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode);
+
+  // Return true if |bytecode| is a jump without effects,
+  // e.g.  any jump excluding those that include type coercion like
+  // JumpIfTrueToBoolean.
+  static bool IsJumpWithoutEffects(Bytecode bytecode);
+
+  // Return true if |bytecode| is a register load without effects,
+  // e.g. Mov, Star, LdrUndefined.
+  static bool IsRegisterLoadWithoutEffects(Bytecode bytecode);
+
+  // Returns true if |bytecode| has no effects.
+  static bool IsWithoutExternalSideEffects(Bytecode bytecode);
 
   // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
@@ -587,10 +599,6 @@ class Bytecodes {
 
   // Returns true if the bytecode is a scaling prefix bytecode.
   static bool IsPrefixScalingBytecode(Bytecode bytecode);
-
-  // Returns true if the bytecode has no effects outside the current
-  // interpreter frame.
-  static bool IsWithoutExternalSideEffects(Bytecode bytecode);
 
   // Returns true if |operand_type| is any type of register operand.
   static bool IsRegisterOperandType(OperandType operand_type);

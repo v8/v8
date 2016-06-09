@@ -173,6 +173,7 @@ namespace {
 void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
                                BytecodeNode* const current) {
   DCHECK_EQ(current->bytecode(), Bytecode::kStar);
+
   //
   // An example transformation here would be:
   //
@@ -186,20 +187,17 @@ void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
   last->Transform(new_bytecode, current->operand(0), current->operand_scale());
   current->set_bytecode(Bytecode::kLdar, current->operand(0),
                         current->operand_scale());
-
-  // If there was a source position on |current| transfer it to the
-  // updated |last| to maintain the debugger's causal view. ie. if an
-  // expression position LdrGlobal is the bytecode that could throw
-  // and if a statement position it needs to be placed before the
-  // store to R occurs.
-  last->source_info().Update(current->source_info());
-  current->source_info().set_invalid();
 }
 
 }  // namespace
 
-bool BytecodePeepholeOptimizer::ChangeLdaToLdr(BytecodeNode* const current) {
-  if (current->bytecode() == Bytecode::kStar) {
+bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
+    BytecodeNode* const current) {
+  if (current->bytecode() == Bytecode::kStar &&
+      !current->source_info().is_statement()) {
+    // Note: If the Star is tagged with a statement position, we can't
+    // perform this transform as the store to the register will
+    // have the wrong ordering for stepping in the debugger.
     switch (last_.bytecode()) {
       case Bytecode::kLdaNamedProperty:
         TransformLdaStarToLdrLdar(Bytecode::kLdrNamedProperty, &last_, current);
@@ -252,10 +250,10 @@ bool BytecodePeepholeOptimizer::RemoveToBooleanFromLogicalNot(
   return can_remove;
 }
 
-bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
+bool BytecodePeepholeOptimizer::TransformCurrentBytecode(
     BytecodeNode* const current) {
   return RemoveToBooleanFromJump(current) ||
-         RemoveToBooleanFromLogicalNot(current) || ChangeLdaToLdr(current);
+         RemoveToBooleanFromLogicalNot(current);
 }
 
 bool BytecodePeepholeOptimizer::CanElideLast(
@@ -283,7 +281,8 @@ bool BytecodePeepholeOptimizer::CanElideLast(
 BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
   TryToRemoveLastExpressionPosition(current);
 
-  if (TransformLastAndCurrentBytecodes(current)) {
+  if (TransformCurrentBytecode(current) ||
+      TransformLastAndCurrentBytecodes(current)) {
     return current;
   }
 

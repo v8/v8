@@ -109,7 +109,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaSmi), U8(1),
                 B(Sub), R(3),
-  /*   56 E> */ B(LdrUndefined), R(1),
+                B(LdrUndefined), R(1),
                 B(Ldar), R(1),
   /*   74 S> */ B(Nop),
   /*   84 S> */ B(Return),

@@ -37,6 +37,7 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   void Flush();
 
   void TryToRemoveLastExpressionPosition(const BytecodeNode* const current);
+  bool TransformCurrentBytecode(BytecodeNode* const current);
   bool TransformLastAndCurrentBytecodes(BytecodeNode* const current);
   bool CanElideCurrent(const BytecodeNode* const current) const;
   bool CanElideLast(const BytecodeNode* const current) const;
@@ -46,7 +47,6 @@ class BytecodePeepholeOptimizer final : public BytecodePipelineStage,
   // Simple substitution methods.
   bool RemoveToBooleanFromJump(BytecodeNode* const current);
   bool RemoveToBooleanFromLogicalNot(BytecodeNode* const current);
-  bool ChangeLdaToLdr(BytecodeNode* const current);
 
   void InvalidateLast();
   bool LastIsValid() const;

@@ -107,7 +107,6 @@ Bytecode Bytecodes::FromByte(uint8_t value) {
   return bytecode;
 }
 
-
 // static
 Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
   DCHECK(!IsDebugBreak(bytecode));
@@ -140,7 +139,6 @@ int Bytecodes::Size(Bytecode bytecode, OperandScale operand_scale) {
   return size;
 }
 
-
 // static
 size_t Bytecodes::ReturnCount(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn ? 1 : 0;
@@ -159,7 +157,6 @@ int Bytecodes::NumberOfOperands(Bytecode bytecode) {
   UNREACHABLE();
   return 0;
 }
-
 
 // static
 int Bytecodes::NumberOfRegisterOperands(Bytecode bytecode) {
@@ -274,6 +271,34 @@ bool Bytecodes::IsAccumulatorLoadWithoutEffects(Bytecode bytecode) {
     default:
       return false;
   }
+}
+
+// static
+bool Bytecodes::IsJumpWithoutEffects(Bytecode bytecode) {
+  return IsJump(bytecode) && !IsJumpIfToBoolean(bytecode);
+}
+
+// static
+bool Bytecodes::IsRegisterLoadWithoutEffects(Bytecode bytecode) {
+  switch (bytecode) {
+    case Bytecode::kMov:
+    case Bytecode::kPopContext:
+    case Bytecode::kPushContext:
+    case Bytecode::kStar:
+    case Bytecode::kLdrUndefined:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// static
+bool Bytecodes::IsWithoutExternalSideEffects(Bytecode bytecode) {
+  // These bytecodes only manipulate interpreter frame state and will
+  // never throw.
+  return (IsAccumulatorLoadWithoutEffects(bytecode) ||
+          IsRegisterLoadWithoutEffects(bytecode) ||
+          bytecode == Bytecode::kNop || IsJumpWithoutEffects(bytecode));
 }
 
 // static
@@ -485,15 +510,6 @@ bool Bytecodes::IsPrefixScalingBytecode(Bytecode bytecode) {
     default:
       return false;
   }
-}
-
-// static
-bool Bytecodes::IsWithoutExternalSideEffects(Bytecode bytecode) {
-  // These bytecodes only manipulate interpreter frame state and will
-  // never throw.
-  return (IsAccumulatorLoadWithoutEffects(bytecode) || IsLdarOrStar(bytecode) ||
-          bytecode == Bytecode::kMov || bytecode == Bytecode::kNop ||
-          IsJump(bytecode));
 }
 
 // static
