@@ -583,12 +583,12 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 }
 
 bool MarkCompactCollector::Sweeper::IsSweepingCompleted() {
-  while ((num_sweeping_tasks_ > 0) &&
-         pending_sweeper_tasks_semaphore_.WaitFor(
-             base::TimeDelta::FromSeconds(0))) {
-    num_sweeping_tasks_--;
+  if (!pending_sweeper_tasks_semaphore_.WaitFor(
+          base::TimeDelta::FromSeconds(0))) {
+    return false;
   }
-  return num_sweeping_tasks_ == 0;
+  pending_sweeper_tasks_semaphore_.Signal();
+  return true;
 }
 
 void Marking::TransferMark(Heap* heap, Address old_start, Address new_start) {
