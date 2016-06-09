@@ -149,6 +149,9 @@
 
       'test_isolation_mode%': 'noop',
 
+      # By default, use ICU data file (icudtl.dat).
+      'icu_use_data_file_flag%': 1,
+
       'conditions': [
         # Set default gomadir.
         ['OS=="win"', {
@@ -197,6 +200,7 @@
     'fastbuild%': '<(fastbuild)',
     'coverage%': '<(coverage)',
     'sysroot%': '<(sysroot)',
+    'icu_use_data_file_flag%': '<(icu_use_data_file_flag)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],

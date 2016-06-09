@@ -27,7 +27,6 @@
 
 {
   'variables': {
-    'icu_use_data_file_flag%': 0,
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
