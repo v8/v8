@@ -53,7 +53,6 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/ostreams.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
@@ -1558,7 +1557,7 @@ ExternalReference ExternalReference::address_of_uint32_bias() {
 
 
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
-  return ExternalReference(isolate->cpu_profiler()->is_profiling_address());
+  return ExternalReference(isolate->is_profiling_address());
 }
 
 
@@ -2086,7 +2085,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 // Platform specific but identical code for all the platforms.
 
 void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
-  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
+  if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);

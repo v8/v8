@@ -10,7 +10,6 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/isolate.h"
 #include "src/log.h"
-#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -391,7 +390,7 @@ void Scavenger::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 void Scavenger::SelectScavengingVisitorsTable() {
   bool logging_and_profiling =
       FLAG_verify_predictable || isolate()->logger()->is_logging() ||
-      isolate()->cpu_profiler()->is_profiling() ||
+      isolate()->is_profiling() ||
       (isolate()->heap_profiler() != NULL &&
        isolate()->heap_profiler()->is_tracking_object_moves());
 

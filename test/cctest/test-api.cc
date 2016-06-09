@@ -47,6 +47,7 @@
 #include "src/futex-emulation.h"
 #include "src/objects.h"
 #include "src/parsing/parser.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"

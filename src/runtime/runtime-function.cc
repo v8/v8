@@ -10,7 +10,6 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -215,8 +214,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   // the target_shared optimized code map.
   JSFunction::EnsureLiterals(target);
 
-  if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
         source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
   }

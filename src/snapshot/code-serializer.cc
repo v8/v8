@@ -7,7 +7,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/deserializer.h"
 #include "src/version.h"
 
@@ -185,8 +184,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
   result->set_deserialized(true);
 
-  if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     String* name = isolate->heap()->empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());

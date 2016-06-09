@@ -6,8 +6,6 @@
 
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic-inl.h"
-#include "src/profiler/cpu-profiler.h"
-
 
 namespace v8 {
 namespace internal {

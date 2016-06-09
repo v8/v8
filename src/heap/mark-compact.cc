@@ -1637,7 +1637,7 @@ class MarkCompactCollector::EvacuateVisitorBase
       : heap_(heap),
         compaction_spaces_(compaction_spaces),
         profiling_(
-            heap->isolate()->cpu_profiler()->is_profiling() ||
+            heap->isolate()->is_profiling() ||
             heap->isolate()->logger()->is_logging_code_events() ||
             heap->isolate()->heap_profiler()->is_tracking_object_moves()) {}
 

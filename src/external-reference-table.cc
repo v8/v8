@@ -91,7 +91,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       "Code::MarkCodeAsExecuted");
   Add(ExternalReference::is_profiling_address(isolate).address(),
-      "CpuProfiler::is_profiling");
+      "Isolate::is_profiling");
   Add(ExternalReference::scheduled_exception_address(isolate).address(),
       "Isolate::scheduled_exception");
   Add(ExternalReference::invoke_function_callback(isolate).address(),

@@ -2950,8 +2950,7 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       const char* message, uint32_t index,
                                       wasm::WasmName func_name) {
   Isolate* isolate = info->isolate();
-  if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     ScopedVector<char> buffer(128);
     SNPrintF(buffer, "%s#%d:%.*s", message, index, func_name.length(),
              func_name.start());

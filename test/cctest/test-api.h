@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/isolate.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/vm-state.h"
 #include "test/cctest/cctest.h"
 
@@ -32,7 +31,7 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   CHECK_EQ(is_runtime, (*o)->IsTheHole());
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
-  if (isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->is_profiling()) {
     CHECK_EQ(v8::EXTERNAL, isolate->current_vm_state());
     CHECK(isolate->external_callback_scope());
     CHECK_EQ(callback, isolate->external_callback_scope()->callback());

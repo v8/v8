@@ -41,13 +41,11 @@ for (int i = 0; i < listeners_.length(); ++i) { \
   listeners_[i]->Call;                          \
 }
 
-#define PROFILER_LOG(Call)                                \
-  do {                                                    \
-    CpuProfiler* cpu_profiler = isolate_->cpu_profiler(); \
-    if (cpu_profiler->is_profiling()) {                   \
-      cpu_profiler->Call;                                 \
-    }                                                     \
-  } while (false);
+#define PROFILER_LOG(Call)          \
+  if (isolate_->is_profiling()) {   \
+    isolate_->cpu_profiler()->Call; \
+  } else {                          \
+  }
 
 static const char* ComputeMarker(SharedFunctionInfo* shared,
                                  AbstractCode* code) {

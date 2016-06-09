@@ -420,6 +420,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
   V(int, code_and_metadata_size, 0)                                            \
   V(int, bytecode_and_metadata_size, 0)                                        \
+  /* true if being profiled. Causes collection of extra compile info. */       \
+  V(bool, is_profiling, false)                                                 \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -916,6 +918,7 @@ class Isolate {
 
   Debug* debug() { return debug_; }
 
+  bool* is_profiling_address() { return &is_profiling_; }
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 

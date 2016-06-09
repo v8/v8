@@ -135,7 +135,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
       bailout_reason_(kNoReason),
       prologue_offset_(Code::kPrologueOffsetNotSet),
       track_positions_(FLAG_hydrogen_track_positions ||
-                       isolate->cpu_profiler()->is_profiling()),
+                       isolate->is_profiling()),
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
@@ -386,7 +386,7 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
   if (info->isolate()->logger()->is_logging_code_events() ||
-      info->isolate()->cpu_profiler()->is_profiling()) {
+      info->isolate()->is_profiling()) {
     Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<Script> script = info->parse_info()->script();
     Handle<AbstractCode> abstract_code =
