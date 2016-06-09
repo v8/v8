@@ -21,7 +21,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
 
@@ -30,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
                                 "ExportFromRuntime");
   Bootstrapper::ExportFromRuntime(isolate, container);
@@ -43,7 +43,7 @@ RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
                                 "ExportExperimentalFromRuntime");
   Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
@@ -56,21 +56,21 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  RUNTIME_ASSERT(array->HasFastElements());
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(array->HasFastElements());
+  CHECK(isolate->bootstrapper()->IsActive());
   Handle<Context> native_context = isolate->native_context();
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   int length = Smi::cast(array->length())->value();
   for (int i = 0; i < length; i += 2) {
-    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    CHECK(fixed_array->get(i)->IsString());
     Handle<String> name(String::cast(fixed_array->get(i)));
-    RUNTIME_ASSERT(fixed_array->get(i + 1)->IsJSObject());
+    CHECK(fixed_array->get(i + 1)->IsJSObject());
     Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
     int index = Context::ImportedFieldIndexForName(name);
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
     }
-    RUNTIME_ASSERT(index != Context::kNotFound);
+    CHECK(index != Context::kNotFound);
     native_context->set(index, *object);
   }
   return isolate->heap()->undefined_value();
@@ -273,8 +273,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // At this point, no revocation has been issued before
-  RUNTIME_ASSERT(
-      JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
+  CHECK(JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();
@@ -306,9 +305,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_SMI_ARG_CHECKED(size, 0);
-  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
-  RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(IsAligned(size, kPointerSize));
+  CHECK(size > 0);
+  CHECK(size <= Page::kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -318,9 +317,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   DCHECK(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
-  RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(IsAligned(size, kPointerSize));
+  CHECK(size > 0);
+  CHECK(size <= Page::kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   return *isolate->factory()->NewFillerObject(size, double_align, space);
@@ -395,15 +394,15 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
                                         template_index, arg0, arg1, arg2));
 }
 
-#define CALLSITE_GET(NAME, RETURN)                                  \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {                    \
-    HandleScope scope(isolate);                                     \
-    DCHECK(args.length() == 1);                                     \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0);         \
-    Handle<String> result;                                          \
-    CallSite call_site(isolate, call_site_obj);                     \
-    RUNTIME_ASSERT(call_site.IsJavaScript() || call_site.IsWasm()); \
-    return RETURN(call_site.NAME(), isolate);                       \
+#define CALLSITE_GET(NAME, RETURN)                          \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
+    HandleScope scope(isolate);                             \
+    DCHECK(args.length() == 1);                             \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
+    Handle<String> result;                                  \
+    CallSite call_site(isolate, call_site_obj);             \
+    CHECK(call_site.IsJavaScript() || call_site.IsWasm());  \
+    return RETURN(call_site.NAME(), isolate);               \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
