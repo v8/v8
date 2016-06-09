@@ -790,6 +790,8 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   int base_size = JSArray::kSize + FixedArray::kHeaderSize;
   int elements_offset = JSArray::kSize;
 
+  Comment("begin allocation of JSArray");
+
   if (allocation_site != nullptr) {
     base_size += AllocationMemento::kSize;
     elements_offset += AllocationMemento::kSize;

@@ -194,6 +194,7 @@ class MachineOperatorBuilder final : public ZoneObject {
       AlignmentRequirements alignmentRequirements =
           AlignmentRequirements::NoUnalignedAccessSupport());
 
+  const Operator* Comment(const char* msg);
   const Operator* DebugBreak();
 
   const Operator* Word32And();
@@ -631,6 +632,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 #undef PSEUDO_OP_LIST
 
  private:
+  Zone* zone_;
   MachineOperatorGlobalCache const& cache_;
   MachineRepresentation const word_;
   Flags const flags_;

@@ -907,7 +907,10 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kObjectState:
       return;
     case IrOpcode::kDebugBreak:
-      VisitDebugBreak();
+      VisitDebugBreak(node);
+      return;
+    case IrOpcode::kComment:
+      VisitComment(node);
       return;
     case IrOpcode::kLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
@@ -1800,9 +1803,15 @@ void InstructionSelector::VisitThrow(Node* value) {
   Emit(kArchThrowTerminator, g.NoOutput());
 }
 
-void InstructionSelector::VisitDebugBreak() {
+void InstructionSelector::VisitDebugBreak(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
+}
+
+void InstructionSelector::VisitComment(Node* node) {
+  OperandGenerator g(this);
+  InstructionOperand operand(g.UseImmediate(node));
+  Emit(kArchComment, 0, nullptr, 1, &operand);
 }
 
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(

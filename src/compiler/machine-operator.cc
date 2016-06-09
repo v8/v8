@@ -538,6 +538,11 @@ struct MachineOperatorGlobalCache {
   DebugBreakOperator kDebugBreak;
 };
 
+struct CommentOperator : public Operator1<const char*> {
+  explicit CommentOperator(const char* msg)
+      : Operator1<const char*>(IrOpcode::kComment, Operator::kNoThrow,
+                               "Comment", 0, 0, 0, 0, 0, 0, msg) {}
+};
 
 static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
@@ -545,7 +550,8 @@ static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
 MachineOperatorBuilder::MachineOperatorBuilder(
     Zone* zone, MachineRepresentation word, Flags flags,
     AlignmentRequirements alignmentRequirements)
-    : cache_(kCache.Get()),
+    : zone_(zone),
+      cache_(kCache.Get()),
       word_(word),
       flags_(flags),
       alignment_requirements_(alignmentRequirements) {
@@ -618,6 +624,10 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
 
 const Operator* MachineOperatorBuilder::DebugBreak() {
   return &cache_.kDebugBreak;
+}
+
+const Operator* MachineOperatorBuilder::Comment(const char* msg) {
+  return new (zone_) CommentOperator(msg);
 }
 
 const Operator* MachineOperatorBuilder::CheckedLoad(

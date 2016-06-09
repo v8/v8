@@ -212,6 +212,7 @@ class CodeAssembler {
   void Return(Node* value);
 
   void DebugBreak();
+  void Comment(const char* format, ...);
 
   void Bind(Label* label);
   void Goto(Label* label);

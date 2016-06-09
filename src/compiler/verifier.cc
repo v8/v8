@@ -658,6 +658,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
 
+    case IrOpcode::kComment:
+      CheckNotTyped(node);
+      break;
+
     // Simplified operators
     // -------------------------------
     case IrOpcode::kBooleanNot:

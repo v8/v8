@@ -19,6 +19,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/utils.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -161,6 +162,25 @@ void CodeAssembler::Return(Node* value) {
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler_->DebugBreak(); }
+
+void CodeAssembler::Comment(const char* format, ...) {
+  if (!FLAG_code_comments) return;
+  char buffer[4 * KB];
+  StringBuilder builder(buffer, arraysize(buffer));
+  va_list arguments;
+  va_start(arguments, format);
+  builder.AddFormattedList(format, arguments);
+  va_end(arguments);
+
+  // Copy the string before recording it in the assembler to avoid
+  // issues when the stack allocated buffer goes out of scope.
+  size_t length = builder.position() + 3;
+  char* copy = reinterpret_cast<char*>(malloc(static_cast<int>(length)));
+  MemCopy(copy + 2, builder.Finalize(), length);
+  copy[0] = ';';
+  copy[1] = ' ';
+  raw_assembler_->Comment(copy);
+}
 
 void CodeAssembler::Bind(CodeAssembler::Label* label) { return label->Bind(); }
 

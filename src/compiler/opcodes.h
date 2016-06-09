@@ -256,6 +256,7 @@
 #define MACHINE_OP_LIST(V)      \
   MACHINE_COMPARE_BINOP_LIST(V) \
   V(DebugBreak)                 \
+  V(Comment)                    \
   V(Load)                       \
   V(Store)                      \
   V(StackSlot)                  \

@@ -219,6 +219,7 @@ class OperandGenerator {
       case IrOpcode::kNumberConstant:
         return Constant(OpParameter<double>(node));
       case IrOpcode::kExternalConstant:
+      case IrOpcode::kComment:
         return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
         return Constant(OpParameter<Handle<HeapObject>>(node));

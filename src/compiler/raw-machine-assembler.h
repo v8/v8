@@ -699,6 +699,7 @@ class RawMachineAssembler {
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
+  void Comment(const char* msg);
 
   // Variables.
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {
