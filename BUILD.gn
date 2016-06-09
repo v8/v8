@@ -261,14 +261,14 @@ config("toolchain") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
-  if (v8_target_arch == "s390") {
+  if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-  }
-  if (v8_target_arch == "s390x") {
-    defines += [
-      "V8_TARGET_ARCH_S390",
-      "V8_TARGET_ARCH_S390X",
-    ]
+    if (v8_target_arch == "s390x") {
+      defines += [ "V8_TARGET_ARCH_S390X" ]
+    }
+    if (host_cpu == "x64" || host_cpu == "x86") {
+      defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
+    }
   }
   if (v8_target_arch == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
