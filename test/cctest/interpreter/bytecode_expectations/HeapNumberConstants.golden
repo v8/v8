@@ -845,7 +845,7 @@ bytecodes: [
   /* 2846 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
   /* 2857 S> */ B(Wide), B(LdaConstant), U16(256),
-  /* 2859 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(LdaUndefined),
   /* 2867 S> */ B(Return),
 ]

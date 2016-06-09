@@ -96,7 +96,7 @@ bool BytecodePeepholeOptimizer::LastBytecodePutsNameInAccumulator() const {
 
 void BytecodePeepholeOptimizer::TryToRemoveLastExpressionPosition(
     const BytecodeNode* const current) {
-  if (current->source_info().is_statement() &&
+  if (current->source_info().is_valid() &&
       last_.source_info().is_expression() &&
       Bytecodes::IsWithoutExternalSideEffects(last_.bytecode())) {
     // The last bytecode has been marked as expression. It has no

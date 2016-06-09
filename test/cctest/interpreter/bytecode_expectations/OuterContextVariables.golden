@@ -50,12 +50,11 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
   /*   97 E> */ B(StackCheck),
-  /*  102 S> */ B(LdaContextSlot), R(context), U8(4),
-  /*  111 E> */ B(Star), R(0),
-                B(LdrContextSlot), R(context), U8(1), R(1),
+  /*  102 S> */ B(LdrContextSlot), R(context), U8(4), R(0),
+  /*  111 E> */ B(LdrContextSlot), R(context), U8(1), R(1),
                 B(Ldar), R(0),
                 B(StaContextSlot), R(1), U8(4),
                 B(LdaUndefined),

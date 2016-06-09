@@ -34,7 +34,7 @@ bytecode array length: 7
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   66 S> */ B(LdaSmi), U8(1),
-  /*   66 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(LdaUndefined),
   /*   69 S> */ B(Return),
 ]

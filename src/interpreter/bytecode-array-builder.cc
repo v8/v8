@@ -79,10 +79,29 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
                                     handler_table);
 }
 
+namespace {
+
+static bool ExpressionPositionIsNeeded(Bytecode bytecode) {
+  // An expression position is always needed if filtering is turned
+  // off. Otherwise an expression is only needed if the bytecode has
+  // external side effects.
+  return !FLAG_ignition_filter_expression_positions ||
+         !Bytecodes::IsWithoutExternalSideEffects(bytecode);
+}
+
+}  // namespace
+
 void BytecodeArrayBuilder::AttachSourceInfo(BytecodeNode* node) {
   if (latest_source_info_.is_valid()) {
-    node->source_info().Update(latest_source_info_);
-    latest_source_info_.set_invalid();
+    // Statement positions need to be emitted immediately.  Expression
+    // positions can be pushed back until a bytecode is found that can
+    // throw. Hence we only invalidate the existing source position
+    // information if it is used.
+    if (latest_source_info_.is_statement() ||
+        ExpressionPositionIsNeeded(node->bytecode())) {
+      node->source_info() = latest_source_info_;
+      latest_source_info_.set_invalid();
+    }
   }
 }
 
@@ -500,7 +519,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
   if (position != RelocInfo::kNoPosition) {
     // We need to attach a non-breakable source position to a stack check,
     // so we simply add it as expression position.
-    latest_source_info_.Update({position, false});
+    latest_source_info_ = {position, false};
   }
   Output(Bytecode::kStackCheck);
   return *this;
@@ -722,6 +741,15 @@ void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
+  if (latest_source_info_.is_expression()) {
+    // Ensure the current expression position is overwritten with the
+    // latest value.
+    //
+    // TODO(oth): Clean-up BytecodeSourceInfo to have three states and
+    // simplify the update logic, taking care to ensure position
+    // information is not lost.
+    latest_source_info_.set_invalid();
+  }
   latest_source_info_.Update({expr->position(), false});
 }
 

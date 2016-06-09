@@ -41,7 +41,7 @@ bytecodes: [
   /*   45 S> */ B(ToNumber),
                 B(Star), R(1),
                 B(Inc),
-  /*   53 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(Ldar), R(1),
   /*   57 S> */ B(Return),
 ]
@@ -84,7 +84,7 @@ bytecodes: [
   /*   45 S> */ B(ToNumber),
                 B(Star), R(1),
                 B(Dec),
-  /*   53 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(Ldar), R(1),
   /*   57 S> */ B(Return),
 ]
@@ -150,7 +150,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 29
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaConstant), U8(0),
@@ -158,9 +158,8 @@ bytecodes: [
   /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(Star), R(1),
-  /*   72 S> */ B(Nop),
-  /*   81 E> */ B(Ldar), R(0),
-                B(LdaKeyedProperty), R(1), U8(1),
+  /*   72 S> */ B(Ldar), R(0),
+  /*   81 E> */ B(LdaKeyedProperty), R(1), U8(1),
                 B(ToNumber),
                 B(Star), R(4),
                 B(Dec),
@@ -181,7 +180,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaConstant), U8(0),
@@ -189,9 +188,8 @@ bytecodes: [
   /*   60 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(Star), R(1),
-  /*   72 S> */ B(Nop),
-  /*   83 E> */ B(Ldar), R(0),
-                B(LdaKeyedProperty), R(1), U8(1),
+  /*   72 S> */ B(Ldar), R(0),
+  /*   83 E> */ B(LdaKeyedProperty), R(1), U8(1),
                 B(Inc),
   /*   87 E> */ B(StaKeyedPropertySloppy), R(1), R(0), U8(3),
   /*   90 S> */ B(Return),
@@ -275,7 +273,7 @@ bytecodes: [
                 B(ToNumber),
                 B(Star), R(3),
                 B(Inc),
-  /*   75 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(LdaSmi), U8(2),
   /*   79 E> */ B(StaKeyedPropertySloppy), R(1), R(3), U8(1),
   /*   84 S> */ B(Return),

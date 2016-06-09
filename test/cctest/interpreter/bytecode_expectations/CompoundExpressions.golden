@@ -21,7 +21,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), U8(2),
                 B(Add), R(0),
                 B(Mov), R(0), R(1),
-  /*   47 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
 ]
@@ -44,7 +44,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), U8(2),
                 B(Div), R(0),
                 B(Mov), R(0), R(1),
-  /*   47 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
 ]

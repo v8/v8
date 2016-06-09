@@ -17,12 +17,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(0),
@@ -54,12 +53,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 39
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(0),
@@ -93,12 +91,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(0),
@@ -109,7 +106,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(8),
                 B(Jump), U8(12),
   /*   66 S> */ B(LdaSmi), U8(2),
-  /*   68 E> */ B(Star), R(1),
+                B(Star), R(1),
   /*   98 S> */ B(LdaSmi), U8(3),
                 B(Star), R(1),
   /*  105 S> */ B(Jump), U8(2),
@@ -132,12 +129,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 36
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(0),
@@ -175,8 +171,8 @@ bytecode array length: 45
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-                B(TypeOf),
+                B(Star), R(1),
+  /*   42 E> */ B(TypeOf),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(0),
@@ -213,12 +209,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(TypeOf),
                 B(TestEqualStrict), R(0),
@@ -316,12 +311,11 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 291
+bytecode array length: 290
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(1),
-  /*   52 E> */ B(Nop),
+                B(Star), R(1),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(0),
@@ -487,12 +481,11 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 60
+bytecode array length: 59
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(Star), R(2),
-  /*   52 E> */ B(Nop),
+                B(Star), R(2),
                 B(Star), R(0),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(0),
@@ -502,8 +495,8 @@ bytecodes: [
                 B(TestEqualStrict), R(3),
                 B(JumpIfTrue), U8(33),
                 B(Jump), U8(35),
-  /*   77 E> */ B(LdaSmi), U8(1),
-                B(Add), R(2),
+                B(LdaSmi), U8(1),
+  /*   77 E> */ B(Add), R(2),
                 B(Star), R(1),
   /*   70 S> */ B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(1),
@@ -517,7 +510,7 @@ bytecodes: [
                 B(Star), R(2),
   /*  138 S> */ B(Jump), U8(2),
   /*  176 S> */ B(LdaSmi), U8(3),
-  /*  178 E> */ B(Star), R(2),
+                B(Star), R(2),
                 B(LdaUndefined),
   /*  185 S> */ B(Return),
 ]

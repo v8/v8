@@ -44,8 +44,8 @@ bytecodes: [
   /*   63 S> */ B(LdrGlobal), U8(0), U8(3), R(0),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),
-  /*   70 E> */ B(Ldar), R(0),
-                B(New), R(0), R(1), U8(1),
+                B(Ldar), R(0),
+  /*   70 E> */ B(New), R(0), R(1), U8(1),
   /*   82 S> */ B(Return),
 ]
 constant pool: [
@@ -77,8 +77,8 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaSmi), U8(5),
                 B(Star), R(3),
-  /*  112 E> */ B(Ldar), R(0),
-                B(New), R(0), R(1), U8(3),
+                B(Ldar), R(0),
+  /*  112 E> */ B(New), R(0), R(1), U8(3),
   /*  130 S> */ B(Return),
 ]
 constant pool: [

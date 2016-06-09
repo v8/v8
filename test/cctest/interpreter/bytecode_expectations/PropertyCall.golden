@@ -36,14 +36,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 4
-bytecode array length: 25
+bytecode array length: 24
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(Nop),
   /*   30 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(3), R(0),
                 B(Ldar), R(0),
-  /*   36 E> */ B(Nop),
-  /*   39 E> */ B(Mov), R(arg0), R(1),
+                B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(2),
                 B(Mov), R(arg2), R(3),
   /*   31 E> */ B(Call), R(0), R(1), U8(3), U8(1),
@@ -62,17 +61,15 @@ snippet: "
 "
 frame size: 4
 parameter count: 3
-bytecode array length: 28
+bytecode array length: 25
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Nop),
   /*   27 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(3), R(0),
-                B(Ldar), R(0),
-  /*   33 E> */ B(Nop),
-  /*   37 E> */ B(Ldar), R(arg1),
-                B(Add), R(arg1),
+                B(Ldar), R(arg1),
+  /*   37 E> */ B(Add), R(arg1),
                 B(Star), R(2),
-  /*   40 E> */ B(Mov), R(arg0), R(1),
+                B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(3),
   /*   28 E> */ B(Call), R(0), R(1), U8(3), U8(1),
   /*   44 S> */ B(Return),

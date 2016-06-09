@@ -46,7 +46,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(5),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(Star), R(0),
-  /*   34 E> */ B(Star), R(1),
+                B(Star), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
@@ -98,7 +98,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(5),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
                 B(Star), R(0),
-  /*   34 E> */ B(Star), R(1),
+                B(Star), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
@@ -172,7 +172,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(5),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
                 B(Star), R(0),
-  /*   62 E> */ B(Star), R(1),
+                B(Star), R(1),
                 B(LdaUndefined),
   /*  129 S> */ B(Return),
 ]
