@@ -253,7 +253,7 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
-  'es6/tail-call-megatest*': [PASS, FAST_VARIANTS],
+  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
   # TODO(titzer): ASM->WASM tests on these platforms
   'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
