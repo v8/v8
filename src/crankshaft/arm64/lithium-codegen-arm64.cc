@@ -2832,10 +2832,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(eq, instr, Deoptimizer::kProxy);
 
   __ Ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ Cmp(object_prototype, prototype);
-  __ B(eq, instr->TrueLabel(chunk_));
   __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
   __ B(eq, instr->FalseLabel(chunk_));
+  __ Cmp(object_prototype, prototype);
+  __ B(eq, instr->TrueLabel(chunk_));
   __ Ldr(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
   __ B(&loop);
 }

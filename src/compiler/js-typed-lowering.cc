@@ -1267,6 +1267,17 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       simplified()->LoadField(AccessBuilder::ForMapPrototype()),
       loop_object_map, loop_effect, control);
 
+  // If not, check if object prototype is the null prototype.
+  Node* null_proto =
+      graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
+                       object_prototype, jsgraph()->NullConstant());
+  Node* branch_null_proto = graph()->NewNode(
+      common()->Branch(BranchHint::kFalse), null_proto, control);
+  Node* if_null_proto = graph()->NewNode(common()->IfTrue(), branch_null_proto);
+  Node* e_null_proto = effect;
+
+  control = graph()->NewNode(common()->IfFalse(), branch_null_proto);
+
   // Check if object prototype is equal to function prototype.
   Node* eq_proto =
       graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
@@ -1278,16 +1289,6 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
 
   control = graph()->NewNode(common()->IfFalse(), branch_eq_proto);
 
-  // If not, check if object prototype is the null prototype.
-  Node* null_proto =
-      graph()->NewNode(simplified()->ReferenceEqual(r.right_type()),
-                       object_prototype, jsgraph()->NullConstant());
-  Node* branch_null_proto = graph()->NewNode(
-      common()->Branch(BranchHint::kFalse), null_proto, control);
-  Node* if_null_proto = graph()->NewNode(common()->IfTrue(), branch_null_proto);
-  Node* e_null_proto = effect;
-
-  control = graph()->NewNode(common()->IfFalse(), branch_null_proto);
   Node* load_object_map = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                        object_prototype, effect, control);

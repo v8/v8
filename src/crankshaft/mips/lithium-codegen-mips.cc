@@ -2415,9 +2415,9 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
                Operand(JS_PROXY_TYPE));
 
   __ lw(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  EmitTrueBranch(instr, eq, object_prototype, Operand(prototype));
   __ LoadRoot(at, Heap::kNullValueRootIndex);
   EmitFalseBranch(instr, eq, object_prototype, Operand(at));
+  EmitTrueBranch(instr, eq, object_prototype, Operand(prototype));
   __ Branch(USE_DELAY_SLOT, &loop);
   __ lw(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
 }

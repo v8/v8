@@ -1956,8 +1956,8 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
 
     // Check the current {object} prototype.
     Node* object_prototype = LoadMapPrototype(object_map);
-    GotoIf(WordEqual(object_prototype, callable_prototype), &return_true);
     GotoIf(WordEqual(object_prototype, NullConstant()), &return_false);
+    GotoIf(WordEqual(object_prototype, callable_prototype), &return_true);
 
     // Continue with the prototype.
     var_object_map.Bind(LoadMap(object_prototype));

@@ -2525,10 +2525,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(eq, instr, Deoptimizer::kProxy);
 
   __ ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ cmp(object_prototype, prototype);
-  EmitTrueBranch(instr, eq);
   __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
   EmitFalseBranch(instr, eq);
+  __ cmp(object_prototype, prototype);
+  EmitTrueBranch(instr, eq);
   __ ldr(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
   __ b(&loop);
 }

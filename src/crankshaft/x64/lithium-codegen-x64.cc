@@ -2456,7 +2456,6 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   Label loop;
   __ bind(&loop);
 
-
   // Deoptimize if the object needs to be access checked.
   __ testb(FieldOperand(object_map, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsAccessCheckNeeded));
@@ -2466,10 +2465,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
 
   __ movp(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmpp(object_prototype, prototype);
-  EmitTrueBranch(instr, equal);
   __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
   EmitFalseBranch(instr, equal);
+  __ cmpp(object_prototype, prototype);
+  EmitTrueBranch(instr, equal);
   __ movp(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
   __ jmp(&loop);
 }
