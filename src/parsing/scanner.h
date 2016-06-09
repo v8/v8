@@ -148,9 +148,10 @@ class DuplicateFinder {
   char number_buffer_[kBufferSize];
 };
 
-
 // ----------------------------------------------------------------------------
 // LiteralBuffer -  Collector of chars of literals.
+
+const int kMaxAscii = 127;
 
 class LiteralBuffer {
  public:
@@ -158,7 +159,16 @@ class LiteralBuffer {
 
   ~LiteralBuffer() { backing_store_.Dispose(); }
 
-  INLINE(void AddChar(uint32_t code_unit)) {
+  INLINE(void AddChar(char code_unit)) {
+    if (position_ >= backing_store_.length()) ExpandBuffer();
+    DCHECK(is_one_byte_);
+    DCHECK(0 <= code_unit && code_unit <= kMaxAscii);
+    backing_store_[position_] = static_cast<byte>(code_unit);
+    position_ += kOneByteSize;
+    return;
+  }
+
+  INLINE(void AddChar(uc32 code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_one_byte_) {
       if (code_unit <= unibrow::Latin1::kMaxChar) {
@@ -553,6 +563,11 @@ class Scanner {
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
+    DCHECK_NOT_NULL(next_.literal_chars);
+    next_.literal_chars->AddChar(c);
+  }
+
+  INLINE(void AddLiteralChar(char c)) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
