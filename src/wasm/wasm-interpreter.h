@@ -163,7 +163,7 @@ class WasmInterpreter {
   // Thread iteration and inspection.
   //==========================================================================
   int GetThreadCount();
-  Thread& GetThread(int id);
+  Thread* GetThread(int id);
 
   //==========================================================================
   // Stack frame inspection.

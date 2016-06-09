@@ -1675,13 +1675,19 @@ class WasmInterpreterInternals : public ZoneObject {
  public:
   WasmModuleInstance* instance_;
   CodeMap codemap_;
-  ZoneVector<ThreadImpl> threads_;
+  ZoneVector<ThreadImpl*> threads_;
 
   WasmInterpreterInternals(Zone* zone, WasmModuleInstance* instance)
       : instance_(instance),
         codemap_(instance_ ? instance_->module : nullptr, zone),
         threads_(zone) {
-    threads_.push_back(ThreadImpl(zone, &codemap_, instance));
+    threads_.push_back(new ThreadImpl(zone, &codemap_, instance));
+  }
+
+  void Delete() {
+    // TODO(titzer): CFI doesn't like threads in the ZoneVector.
+    for (auto t : threads_) delete t;
+    threads_.resize(0);
   }
 };
 
@@ -1693,11 +1699,11 @@ WasmInterpreter::WasmInterpreter(WasmModuleInstance* instance,
     : zone_(allocator),
       internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
 
-WasmInterpreter::~WasmInterpreter() {}
+WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
-void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
+void WasmInterpreter::Run() { internals_->threads_[0]->Run(); }
 
-void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
+void WasmInterpreter::Pause() { internals_->threads_[0]->Pause(); }
 
 bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
                                     bool enabled) {
@@ -1740,7 +1746,7 @@ int WasmInterpreter::GetThreadCount() {
   return 1;  // only one thread for now.
 }
 
-WasmInterpreter::Thread& WasmInterpreter::GetThread(int id) {
+WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   CHECK_EQ(0, id);  // only one thread for now.
   return internals_->threads_[id];
 }

@@ -706,13 +706,13 @@ class WasmRunner {
   ReturnType CallInterpreter(Vector<WasmVal> args) {
     CHECK_EQ(args.length(),
              static_cast<int>(compiler_.function_->sig->parameter_count()));
-    WasmInterpreter::Thread& thread = interpreter()->GetThread(0);
-    thread.Reset();
-    thread.PushFrame(compiler_.function_, args.start());
-    if (thread.Run() == WasmInterpreter::FINISHED) {
-      WasmVal val = thread.GetReturnValue();
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    thread->Reset();
+    thread->PushFrame(compiler_.function_, args.start());
+    if (thread->Run() == WasmInterpreter::FINISHED) {
+      WasmVal val = thread->GetReturnValue();
       return val.to<ReturnType>();
-    } else if (thread.state() == WasmInterpreter::TRAPPED) {
+    } else if (thread->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
       int64_t result = 0xdeadbeefdeadbeef;
       return static_cast<ReturnType>(result);
