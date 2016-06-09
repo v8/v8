@@ -17,6 +17,8 @@ deps = {
     Var("git_url") + "/chromium/buildtools.git" + "@" + "099f1da55bfe8caa12266371a7eb983698fb1d87",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
+  "v8/tools/mb":
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "66482e6d056affa96f6dec4ff166f52f748a0c00",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
