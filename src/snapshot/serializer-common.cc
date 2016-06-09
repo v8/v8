@@ -14,7 +14,7 @@ namespace internal {
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = isolate->external_reference_map();
   if (map_ != NULL) return;
-  map_ = new HashMap(HashMap::PointersMatch);
+  map_ = new base::HashMap(base::HashMap::PointersMatch);
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (int i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
@@ -31,16 +31,16 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
 
 uint32_t ExternalReferenceEncoder::Encode(Address address) const {
   DCHECK_NOT_NULL(address);
-  HashMap::Entry* entry =
-      const_cast<HashMap*>(map_)->Lookup(address, Hash(address));
+  base::HashMap::Entry* entry =
+      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
   DCHECK_NOT_NULL(entry);
   return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
 }
 
 const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
-  HashMap::Entry* entry =
-      const_cast<HashMap*>(map_)->Lookup(address, Hash(address));
+  base::HashMap::Entry* entry =
+      const_cast<base::HashMap*>(map_)->Lookup(address, Hash(address));
   if (entry == NULL) return "<unknown>";
   uint32_t i = static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   return ExternalReferenceTable::instance(isolate)->name(i);

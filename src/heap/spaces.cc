@@ -2929,15 +2929,13 @@ HeapObject* LargeObjectIterator::Next() {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
       first_page_(NULL),
       size_(0),
       page_count_(0),
       objects_size_(0),
-      chunk_map_(HashMap::PointersMatch, 1024) {}
-
+      chunk_map_(base::HashMap::PointersMatch, 1024) {}
 
 LargeObjectSpace::~LargeObjectSpace() {}
 
@@ -2988,7 +2986,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   uintptr_t base = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
   uintptr_t limit = base + (page->size() - 1) / MemoryChunk::kAlignment;
   for (uintptr_t key = base; key <= limit; key++) {
-    HashMap::Entry* entry = chunk_map_.LookupOrInsert(
+    base::HashMap::Entry* entry = chunk_map_.LookupOrInsert(
         reinterpret_cast<void*>(key), static_cast<uint32_t>(key));
     DCHECK(entry != NULL);
     entry->value = page;
@@ -3031,8 +3029,8 @@ Object* LargeObjectSpace::FindObject(Address a) {
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
   uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
-  HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
-                                        static_cast<uint32_t>(key));
+  base::HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
+                                              static_cast<uint32_t>(key));
   if (e != NULL) {
     DCHECK(e->value != NULL);
     LargePage* page = reinterpret_cast<LargePage*>(e->value);

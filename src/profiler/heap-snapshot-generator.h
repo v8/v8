@@ -259,7 +259,7 @@ class HeapObjectsMap {
   };
 
   SnapshotObjectId next_id_;
-  HashMap entries_map_;
+  base::HashMap entries_map_;
   List<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
   Heap* heap_;
@@ -297,7 +297,7 @@ class HeapEntriesMap {
         v8::internal::kZeroHashSeed);
   }
 
-  HashMap entries_;
+  base::HashMap entries_;
 
   friend class HeapObjectsSet;
 
@@ -316,7 +316,7 @@ class HeapObjectsSet {
   bool is_empty() const { return entries_.occupancy() == 0; }
 
  private:
-  HashMap entries_;
+  base::HashMap entries_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsSet);
 };
@@ -521,8 +521,8 @@ class NativeObjectsExplorer {
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
   // RetainedObjectInfo* -> List<HeapObject*>*
-  HashMap objects_by_info_;
-  HashMap native_groups_;
+  base::HashMap objects_by_info_;
+  base::HashMap native_groups_;
   HeapEntriesAllocator* synthetic_entries_allocator_;
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
@@ -609,7 +609,7 @@ class HeapSnapshotJSONSerializer {
   static const int kNodeFieldsCount;
 
   HeapSnapshot* snapshot_;
-  HashMap strings_;
+  base::HashMap strings_;
   int next_node_id_;
   int next_string_id_;
   OutputStreamWriter* writer_;

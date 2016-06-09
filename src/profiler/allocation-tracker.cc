@@ -190,12 +190,10 @@ void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
     delete *info;
 }
 
-
-AllocationTracker::AllocationTracker(
-    HeapObjectsMap* ids, StringsStorage* names)
+AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(HashMap::PointersMatch),
+      id_to_function_info_index_(base::HashMap::PointersMatch),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";
@@ -261,7 +259,7 @@ static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
 
 unsigned AllocationTracker::AddFunctionInfo(SharedFunctionInfo* shared,
                                             SnapshotObjectId id) {
-  HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
+  base::HashMap::Entry* entry = id_to_function_info_index_.LookupOrInsert(
       reinterpret_cast<void*>(id), SnapshotObjectIdHash(id));
   if (entry->value == NULL) {
     FunctionInfo* info = new FunctionInfo();

@@ -8,16 +8,16 @@
 #define V8_PARSING_SCANNER_H_
 
 #include "src/allocation.h"
+#include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/char-predicates.h"
 #include "src/collector.h"
 #include "src/globals.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/messages.h"
 #include "src/parsing/token.h"
-#include "src/unicode.h"
 #include "src/unicode-decoder.h"
+#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -143,7 +143,7 @@ class DuplicateFinder {
   UnicodeCache* unicode_constants_;
   // Backing store used to store strings used as hashmap keys.
   SequenceCollector<unsigned char> backing_store_;
-  HashMap map_;
+  base::HashMap map_;
   // Buffer used for string->number->canonical string conversions.
   char number_buffer_[kBufferSize];
 };

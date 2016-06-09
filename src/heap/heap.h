@@ -1377,7 +1377,7 @@ class Heap {
   // value) is cached on the local pretenuring feedback.
   template <UpdateAllocationSiteMode mode>
   inline void UpdateAllocationSite(HeapObject* object,
-                                   HashMap* pretenuring_feedback);
+                                   base::HashMap* pretenuring_feedback);
 
   // Removes an entry from the global pretenuring storage.
   inline void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
@@ -1386,7 +1386,7 @@ class Heap {
   // method needs to be called after evacuation, as allocation sites may be
   // evacuated and this method resolves forward pointers accordingly.
   void MergeAllocationSitePretenuringFeedback(
-      const HashMap& local_pretenuring_feedback);
+      const base::HashMap& local_pretenuring_feedback);
 
 // =============================================================================
 
@@ -2210,7 +2210,7 @@ class Heap {
   // storage is only alive temporary during a GC. The invariant is that all
   // pointers in this map are already fixed, i.e., they do not point to
   // forwarding pointers.
-  HashMap* global_pretenuring_feedback_;
+  base::HashMap* global_pretenuring_feedback_;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
   // If it's not full then the data is from 0 to ring_buffer_end_.  If it's

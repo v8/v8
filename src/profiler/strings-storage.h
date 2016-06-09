@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -34,10 +34,10 @@ class StringsStorage {
 
   static bool StringsMatch(void* key1, void* key2);
   const char* AddOrDisposeString(char* str, int len);
-  HashMap::Entry* GetEntry(const char* str, int len);
+  base::HashMap::Entry* GetEntry(const char* str, int len);
 
   uint32_t hash_seed_;
-  HashMap names_;
+  base::HashMap names_;
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };

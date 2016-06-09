@@ -6,7 +6,7 @@
 #define V8_ADDRESS_MAP_H_
 
 #include "src/assert-scope.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -14,16 +14,17 @@ namespace internal {
 
 class AddressMapBase {
  protected:
-  static void SetValue(HashMap::Entry* entry, uint32_t v) {
+  static void SetValue(base::HashMap::Entry* entry, uint32_t v) {
     entry->value = reinterpret_cast<void*>(v);
   }
 
-  static uint32_t GetValue(HashMap::Entry* entry) {
+  static uint32_t GetValue(base::HashMap::Entry* entry) {
     return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   }
 
-  inline static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
-                                            bool insert) {
+  inline static base::HashMap::Entry* LookupEntry(base::HashMap* map,
+                                                  HeapObject* obj,
+                                                  bool insert) {
     if (insert) {
       map->LookupOrInsert(Key(obj), Hash(obj));
     }
@@ -47,13 +48,13 @@ class RootIndexMap : public AddressMapBase {
   static const int kInvalidRootIndex = -1;
 
   int Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(map_, obj, false);
+    base::HashMap::Entry* entry = LookupEntry(map_, obj, false);
     if (entry) return GetValue(entry);
     return kInvalidRootIndex;
   }
 
  private:
-  HashMap* map_;
+  base::HashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
@@ -180,18 +181,18 @@ class SerializerReferenceMap : public AddressMapBase {
  public:
   SerializerReferenceMap()
       : no_allocation_(),
-        map_(HashMap::PointersMatch),
+        map_(base::HashMap::PointersMatch),
         attached_reference_index_(0) {}
 
   SerializerReference Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(&map_, obj, false);
+    base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);
     return entry ? SerializerReference(GetValue(entry)) : SerializerReference();
   }
 
   void Add(HeapObject* obj, SerializerReference b) {
     DCHECK(b.is_valid());
     DCHECK_NULL(LookupEntry(&map_, obj, false));
-    HashMap::Entry* entry = LookupEntry(&map_, obj, true);
+    base::HashMap::Entry* entry = LookupEntry(&map_, obj, true);
     SetValue(entry, b.bitfield_);
   }
 
@@ -204,7 +205,7 @@ class SerializerReferenceMap : public AddressMapBase {
 
  private:
   DisallowHeapAllocation no_allocation_;
-  HashMap map_;
+  base::HashMap map_;
   int attached_reference_index_;
   DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };

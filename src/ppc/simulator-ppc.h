@@ -66,7 +66,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 // Running with a simulator.
 
 #include "src/assembler.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/ppc/constants-ppc.h"
 
 namespace v8 {

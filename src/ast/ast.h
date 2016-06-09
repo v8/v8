@@ -130,7 +130,8 @@ class FeedbackVectorSlotCache {
  public:
   explicit FeedbackVectorSlotCache(Zone* zone)
       : zone_(zone),
-        hash_map_(HashMap::PointersMatch, ZoneHashMap::kDefaultHashMapCapacity,
+        hash_map_(base::HashMap::PointersMatch,
+                  ZoneHashMap::kDefaultHashMapCapacity,
                   ZoneAllocationPolicy(zone)) {}
 
   void Put(Variable* variable, FeedbackVectorSlot slot) {
@@ -1551,13 +1552,14 @@ class ObjectLiteral final : public MaterializedLiteral {
 
 
 // A map from property names to getter/setter pairs allocated in the zone.
-class AccessorTable : public TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                                             ZoneAllocationPolicy> {
+class AccessorTable
+    : public base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                                   ZoneAllocationPolicy> {
  public:
   explicit AccessorTable(Zone* zone)
-      : TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                        ZoneAllocationPolicy>(Literal::Match,
-                                              ZoneAllocationPolicy(zone)),
+      : base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                              ZoneAllocationPolicy>(Literal::Match,
+                                                    ZoneAllocationPolicy(zone)),
         zone_(zone) {}
 
   Iterator lookup(Literal* literal) {

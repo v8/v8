@@ -8,14 +8,14 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
+#include "src/base/hashmap.h"
 #include "src/builtins.h"
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
-#include "src/hashmap.h"
 #include "src/parsing/parser.h"
-#include "src/property.h"
 #include "src/property-details.h"
+#include "src/property.h"
 #include "src/string-stream.h"
 #include "src/type-info.h"
 

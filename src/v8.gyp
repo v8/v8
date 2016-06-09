@@ -833,7 +833,6 @@
         'handles-inl.h',
         'handles.cc',
         'handles.h',
-        'hashmap.h',
         'heap-symbols.h',
         'heap/array-buffer-tracker.cc',
         'heap/array-buffer-tracker.h',
@@ -1680,6 +1679,7 @@
         'base/format-macros.h',
         'base/functional.cc',
         'base/functional.h',
+        'base/hashmap.h',
         'base/iterator.h',
         'base/lazy-instance.h',
         'base/logging.cc',
@@ -1959,8 +1959,6 @@
         '../include',
       ],
       'sources': [
-        'libsampler/hashmap.h',
-        'libsampler/utils.h',
         'libsampler/v8-sampler.cc',
         'libsampler/v8-sampler.h'
       ],

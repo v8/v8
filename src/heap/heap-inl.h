@@ -526,7 +526,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 
 template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
-                                HashMap* pretenuring_feedback) {
+                                base::HashMap* pretenuring_feedback) {
   DCHECK(InFromSpace(object));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
@@ -554,7 +554,7 @@ void Heap::UpdateAllocationSite(HeapObject* object,
     // to dereference the allocation site and rather have to postpone all checks
     // till actually merging the data.
     Address key = memento_candidate->GetAllocationSiteUnchecked();
-    HashMap::Entry* e =
+    base::HashMap::Entry* e =
         pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
     DCHECK(e != nullptr);
     (*bit_cast<intptr_t*>(&e->value))++;

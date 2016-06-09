@@ -47,9 +47,8 @@
 #include <map>
 
 #include "src/base/atomic-utils.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
-#include "src/libsampler/hashmap.h"
-
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
@@ -219,15 +218,16 @@ class Sampler::PlatformData {
 
 class SamplerManager {
  public:
-  SamplerManager() : sampler_map_(HashMap::PointersMatch) {}
+  SamplerManager() : sampler_map_(base::HashMap::PointersMatch) {}
 
   void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || !sampler->IsRegistered());
     // Add sampler into map if needed.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
-    HashMap::Entry* entry = sampler_map_.LookupOrInsert(ThreadKey(thread_id),
-                                                        ThreadHash(thread_id));
+    base::HashMap::Entry* entry =
+            sampler_map_.LookupOrInsert(ThreadKey(thread_id),
+                                        ThreadHash(thread_id));
     DCHECK(entry != nullptr);
     if (entry->value == nullptr) {
       SamplerList* samplers = new SamplerList();
@@ -256,7 +256,7 @@ class SamplerManager {
     pthread_t thread_id = sampler->platform_data()->vm_tid();
     void* thread_key = ThreadKey(thread_id);
     uint32_t thread_hash = ThreadHash(thread_id);
-    HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
+    base::HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
     DCHECK(entry != nullptr);
     SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
     for (SamplerListIterator iter = samplers->begin(); iter != samplers->end();
@@ -277,7 +277,7 @@ class SamplerManager {
     AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
     if (!atomic_guard.is_success()) return;
     pthread_t thread_id = pthread_self();
-    HashMap::Entry* entry =
+    base::HashMap::Entry* entry =
         sampler_map_.Lookup(ThreadKey(thread_id), ThreadHash(thread_id));
     if (!entry) return;
     SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
@@ -296,7 +296,7 @@ class SamplerManager {
   static SamplerManager* instance() { return instance_.Pointer(); }
 
  private:
-  HashMap sampler_map_;
+  base::HashMap sampler_map_;
   static AtomicMutex samplers_access_counter_;
   static base::LazyInstance<SamplerManager>::type instance_;
 };

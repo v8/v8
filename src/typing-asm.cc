@@ -53,10 +53,10 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
   stdlib_simd_##name##_types_(zone),
       SIMD128_TYPES(V)
 #undef V
-          global_variable_type_(HashMap::PointersMatch,
+          global_variable_type_(base::HashMap::PointersMatch,
                                 ZoneHashMap::kDefaultHashMapCapacity,
                                 ZoneAllocationPolicy(zone)),
-      local_variable_type_(HashMap::PointersMatch,
+      local_variable_type_(base::HashMap::PointersMatch,
                            ZoneHashMap::kDefaultHashMapCapacity,
                            ZoneAllocationPolicy(zone)),
       in_function_(false),

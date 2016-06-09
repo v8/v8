@@ -6,7 +6,7 @@
 #define V8_AST_SCOPES_H_
 
 #include "src/ast/ast.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/pending-compilation-error-handler.h"
 #include "src/zone.h"
 

@@ -8,8 +8,8 @@
 #include <map>
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
+#include "src/base/hashmap.h"
 #include "src/compiler.h"
-#include "src/hashmap.h"
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {
@@ -180,10 +180,10 @@ class ProfileNode {
   CodeEntry* entry_;
   unsigned self_ticks_;
   // Mapping from CodeEntry* to ProfileNode*
-  HashMap children_;
+  base::HashMap children_;
   List<ProfileNode*> children_list_;
   unsigned id_;
-  HashMap line_ticks_;
+  base::HashMap line_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 
@@ -220,7 +220,7 @@ class ProfileTree {
   Isolate* isolate_;
 
   unsigned next_function_id_;
-  HashMap function_ids_;
+  base::HashMap function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };

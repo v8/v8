@@ -29,7 +29,7 @@
 #define V8_AST_AST_VALUE_FACTORY_H_
 
 #include "src/api.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values
@@ -352,7 +352,7 @@ class AstValueFactory {
   static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
-  HashMap string_table_;
+  base::HashMap string_table_;
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   List<AstValue*> values_;

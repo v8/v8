@@ -32,9 +32,9 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
+#include "src/base/hashmap.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
-#include "src/hashmap.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -43,7 +43,6 @@
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
-using i::HashMap;
 using i::ArrayVector;
 using i::Vector;
 
@@ -66,7 +65,7 @@ class NamedEntriesDetector {
   }
 
   void CheckAllReachables(i::HeapEntry* root) {
-    i::HashMap visited(AddressesMatch);
+    v8::base::HashMap visited(AddressesMatch);
     i::List<i::HeapEntry*> list(10);
     list.Add(root);
     CheckEntry(root);
@@ -76,7 +75,7 @@ class NamedEntriesDetector {
       for (int i = 0; i < children.length(); ++i) {
         if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
         i::HeapEntry* child = children[i]->to();
-        i::HashMap::Entry* entry = visited.LookupOrInsert(
+        v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
             reinterpret_cast<void*>(child),
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)));
         if (entry->value)
@@ -144,10 +143,10 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   i::HeapSnapshot* heap_snapshot = const_cast<i::HeapSnapshot*>(
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 
-  i::HashMap visited(AddressesMatch);
+  v8::base::HashMap visited(AddressesMatch);
   i::List<i::HeapGraphEdge>& edges = heap_snapshot->edges();
   for (int i = 0; i < edges.length(); ++i) {
-    i::HashMap::Entry* entry = visited.LookupOrInsert(
+    v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
         reinterpret_cast<void*>(edges[i].to()),
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(edges[i].to())));
     uint32_t ref_count = static_cast<uint32_t>(
@@ -157,7 +156,7 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   uint32_t unretained_entries_count = 0;
   i::List<i::HeapEntry>& entries = heap_snapshot->entries();
   for (int i = 0; i < entries.length(); ++i) {
-    i::HashMap::Entry* entry = visited.Lookup(
+    v8::base::HashMap::Entry* entry = visited.Lookup(
         reinterpret_cast<void*>(&entries[i]),
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&entries[i])));
     if (!entry && entries[i].id() != 1) {

@@ -236,7 +236,7 @@ class Genesis BASE_EMBEDDED {
     void set_state(RegisteredExtension* extension,
                    ExtensionTraversalState state);
    private:
-    HashMap map_;
+    base::HashMap map_;
     DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
   };
 
@@ -3447,12 +3447,12 @@ static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
 }
 
-
-Genesis::ExtensionStates::ExtensionStates() : map_(HashMap::PointersMatch, 8) {}
+Genesis::ExtensionStates::ExtensionStates()
+    : map_(base::HashMap::PointersMatch, 8) {}
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {
-  i::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension));
+  base::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension));
   if (entry == NULL) {
     return UNVISITED;
   }

@@ -392,7 +392,7 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
       entries_.at(to_entry_info_index).addr = NULL;
     }
   } else {
-    HashMap::Entry* to_entry =
+    base::HashMap::Entry* to_entry =
         entries_map_.LookupOrInsert(to, ComputePointerHash(to));
     if (to_entry->value != NULL) {
       // We found the existing entry with to address for an old object.
@@ -428,7 +428,8 @@ void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
 
 
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
-  HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr));
+  base::HashMap::Entry* entry =
+      entries_map_.Lookup(addr, ComputePointerHash(addr));
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   EntryInfo& entry_info = entries_.at(entry_index);
@@ -441,7 +442,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
                                                 unsigned int size,
                                                 bool accessed) {
   DCHECK(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       entries_map_.LookupOrInsert(addr, ComputePointerHash(addr));
   if (entry->value != NULL) {
     int entry_index =
@@ -545,7 +546,7 @@ int HeapObjectsMap::FindUntrackedObjects() {
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    HashMap::Entry* entry =
+    base::HashMap::Entry* entry =
         entries_map_.Lookup(obj->address(), ComputePointerHash(obj->address()));
     if (entry == NULL) {
       ++untracked;
@@ -665,7 +666,7 @@ void HeapObjectsMap::RemoveDeadEntries() {
         entries_.at(first_free_entry) = entry_info;
       }
       entries_.at(first_free_entry).accessed = false;
-      HashMap::Entry* entry = entries_map_.Lookup(
+      base::HashMap::Entry* entry = entries_map_.Lookup(
           entry_info.addr, ComputePointerHash(entry_info.addr));
       DCHECK(entry);
       entry->value = reinterpret_cast<void*>(first_free_entry);
@@ -698,37 +699,28 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
 
 
 size_t HeapObjectsMap::GetUsedMemorySize() const {
-  return
-      sizeof(*this) +
-      sizeof(HashMap::Entry) * entries_map_.capacity() +
-      GetMemoryUsedByList(entries_) +
-      GetMemoryUsedByList(time_intervals_);
+  return sizeof(*this) +
+         sizeof(base::HashMap::Entry) * entries_map_.capacity() +
+         GetMemoryUsedByList(entries_) + GetMemoryUsedByList(time_intervals_);
 }
 
-
-HeapEntriesMap::HeapEntriesMap()
-    : entries_(HashMap::PointersMatch) {
-}
-
+HeapEntriesMap::HeapEntriesMap() : entries_(base::HashMap::PointersMatch) {}
 
 int HeapEntriesMap::Map(HeapThing thing) {
-  HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
+  base::HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
   if (cache_entry == NULL) return HeapEntry::kNoEntry;
   return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
 }
 
 
 void HeapEntriesMap::Pair(HeapThing thing, int entry) {
-  HashMap::Entry* cache_entry = entries_.LookupOrInsert(thing, Hash(thing));
+  base::HashMap::Entry* cache_entry =
+      entries_.LookupOrInsert(thing, Hash(thing));
   DCHECK(cache_entry->value == NULL);
   cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
 }
 
-
-HeapObjectsSet::HeapObjectsSet()
-    : entries_(HashMap::PointersMatch) {
-}
-
+HeapObjectsSet::HeapObjectsSet() : entries_(base::HashMap::PointersMatch) {}
 
 void HeapObjectsSet::Clear() {
   entries_.Clear();
@@ -751,7 +743,7 @@ void HeapObjectsSet::Insert(Object* obj) {
 
 const char* HeapObjectsSet::GetTag(Object* obj) {
   HeapObject* object = HeapObject::cast(obj);
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       entries_.Lookup(object, HeapEntriesMap::Hash(object));
   return cache_entry != NULL
       ? reinterpret_cast<const char*>(cache_entry->value)
@@ -762,7 +754,7 @@ const char* HeapObjectsSet::GetTag(Object* obj) {
 void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
   if (!obj->IsHeapObject()) return;
   HeapObject* object = HeapObject::cast(obj);
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       entries_.LookupOrInsert(object, HeapEntriesMap::Hash(object));
   cache_entry->value = const_cast<char*>(tag);
 }
@@ -2254,8 +2246,7 @@ NativeObjectsExplorer::NativeObjectsExplorer(
 
 
 NativeObjectsExplorer::~NativeObjectsExplorer() {
-  for (HashMap::Entry* p = objects_by_info_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = objects_by_info_.Start(); p != NULL;
        p = objects_by_info_.Next(p)) {
     v8::RetainedObjectInfo* info =
         reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
@@ -2264,8 +2255,7 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
         reinterpret_cast<List<HeapObject*>* >(p->value);
     delete objects;
   }
-  for (HashMap::Entry* p = native_groups_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = native_groups_.Start(); p != NULL;
        p = native_groups_.Next(p)) {
     v8::RetainedObjectInfo* info =
         reinterpret_cast<v8::RetainedObjectInfo*>(p->value);
@@ -2337,7 +2327,8 @@ void NativeObjectsExplorer::FillImplicitReferences() {
 
 List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(
     v8::RetainedObjectInfo* info) {
-  HashMap::Entry* entry = objects_by_info_.LookupOrInsert(info, InfoHash(info));
+  base::HashMap::Entry* entry =
+      objects_by_info_.LookupOrInsert(info, InfoHash(info));
   if (entry->value != NULL) {
     info->Dispose();
   } else {
@@ -2353,8 +2344,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   FillRetainedObjects();
   FillImplicitReferences();
   if (EstimateObjectsCount() > 0) {
-    for (HashMap::Entry* p = objects_by_info_.Start();
-         p != NULL;
+    for (base::HashMap::Entry* p = objects_by_info_.Start(); p != NULL;
          p = objects_by_info_.Next(p)) {
       v8::RetainedObjectInfo* info =
           reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
@@ -2406,7 +2396,7 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
       label_copy,
       static_cast<int>(strlen(label_copy)),
       isolate_->heap()->HashSeed());
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       native_groups_.LookupOrInsert(const_cast<char*>(label_copy), hash);
   if (entry->value == NULL) {
     entry->value = new NativeGroupRetainedObjectInfo(label);
@@ -2452,8 +2442,7 @@ void NativeObjectsExplorer::SetWrapperNativeReferences(
 
 
 void NativeObjectsExplorer::SetRootNativeRootsReference() {
-  for (HashMap::Entry* entry = native_groups_.Start();
-       entry;
+  for (base::HashMap::Entry* entry = native_groups_.Start(); entry;
        entry = native_groups_.Next(entry)) {
     NativeGroupRetainedObjectInfo* group_info =
         static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
@@ -2721,7 +2710,7 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
 
 
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       strings_.LookupOrInsert(const_cast<char*>(s), StringHash(s));
   if (cache_entry->value == NULL) {
     cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
@@ -3106,8 +3095,7 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   ScopedVector<const unsigned char*> sorted_strings(
       strings_.occupancy() + 1);
-  for (HashMap::Entry* entry = strings_.Start();
-       entry != NULL;
+  for (base::HashMap::Entry* entry = strings_.Start(); entry != NULL;
        entry = strings_.Next(entry)) {
     int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
     sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);

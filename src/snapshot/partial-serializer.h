@@ -24,21 +24,21 @@ class PartialSerializer : public Serializer {
  private:
   class PartialCacheIndexMap : public AddressMapBase {
    public:
-    PartialCacheIndexMap() : map_(HashMap::PointersMatch) {}
+    PartialCacheIndexMap() : map_(base::HashMap::PointersMatch) {}
 
     static const int kInvalidIndex = -1;
 
     // Lookup object in the map. Return its index if found, or create
     // a new entry with new_index as value, and return kInvalidIndex.
     int LookupOrInsert(HeapObject* obj, int new_index) {
-      HashMap::Entry* entry = LookupEntry(&map_, obj, false);
+      base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);
       if (entry != NULL) return GetValue(entry);
       SetValue(LookupEntry(&map_, obj, true), static_cast<uint32_t>(new_index));
       return kInvalidIndex;
     }
 
    private:
-    HashMap map_;
+    base::HashMap map_;
 
     DISALLOW_COPY_AND_ASSIGN(PartialCacheIndexMap);
   };

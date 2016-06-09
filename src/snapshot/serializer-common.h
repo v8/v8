@@ -28,7 +28,7 @@ class ExternalReferenceEncoder {
                                  kPointerSizeLog2);
   }
 
-  HashMap* map_;
+  base::HashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };

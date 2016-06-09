@@ -22,7 +22,8 @@ StringsStorage::StringsStorage(Heap* heap)
 
 
 StringsStorage::~StringsStorage() {
-  for (HashMap::Entry* p = names_.Start(); p != NULL; p = names_.Next(p)) {
+  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
+       p = names_.Next(p)) {
     DeleteArray(reinterpret_cast<const char*>(p->value));
   }
 }
@@ -30,7 +31,7 @@ StringsStorage::~StringsStorage() {
 
 const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
-  HashMap::Entry* entry = GetEntry(src, len);
+  base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == NULL) {
     Vector<char> dst = Vector<char>::New(len + 1);
     StrNCpy(dst, src, len);
@@ -52,7 +53,7 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 
 
 const char* StringsStorage::AddOrDisposeString(char* str, int len) {
-  HashMap::Entry* entry = GetEntry(str, len);
+  base::HashMap::Entry* entry = GetEntry(str, len);
   if (entry->value == NULL) {
     // New entry added.
     entry->key = str;
@@ -107,15 +108,15 @@ const char* StringsStorage::GetFunctionName(const char* name) {
 
 size_t StringsStorage::GetUsedMemorySize() const {
   size_t size = sizeof(*this);
-  size += sizeof(HashMap::Entry) * names_.capacity();
-  for (HashMap::Entry* p = names_.Start(); p != NULL; p = names_.Next(p)) {
+  size += sizeof(base::HashMap::Entry) * names_.capacity();
+  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
+       p = names_.Next(p)) {
     size += strlen(reinterpret_cast<const char*>(p->value)) + 1;
   }
   return size;
 }
 
-
-HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
+base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
   uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }

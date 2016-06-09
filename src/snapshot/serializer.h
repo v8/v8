@@ -38,28 +38,29 @@ class CodeAddressMap : public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(HashMap::PointersMatch) {}
+    NameMap() : impl_(base::HashMap::PointersMatch) {}
 
     ~NameMap() {
-      for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
+      for (base::HashMap::Entry* p = impl_.Start(); p != NULL;
+           p = impl_.Next(p)) {
         DeleteArray(static_cast<const char*>(p->value));
       }
     }
 
     void Insert(Address code_address, const char* name, int name_size) {
-      HashMap::Entry* entry = FindOrCreateEntry(code_address);
+      base::HashMap::Entry* entry = FindOrCreateEntry(code_address);
       if (entry->value == NULL) {
         entry->value = CopyName(name, name_size);
       }
     }
 
     const char* Lookup(Address code_address) {
-      HashMap::Entry* entry = FindEntry(code_address);
+      base::HashMap::Entry* entry = FindEntry(code_address);
       return (entry != NULL) ? static_cast<const char*>(entry->value) : NULL;
     }
 
     void Remove(Address code_address) {
-      HashMap::Entry* entry = FindEntry(code_address);
+      base::HashMap::Entry* entry = FindEntry(code_address);
       if (entry != NULL) {
         DeleteArray(static_cast<char*>(entry->value));
         RemoveEntry(entry);
@@ -68,11 +69,11 @@ class CodeAddressMap : public CodeEventLogger {
 
     void Move(Address from, Address to) {
       if (from == to) return;
-      HashMap::Entry* from_entry = FindEntry(from);
+      base::HashMap::Entry* from_entry = FindEntry(from);
       DCHECK(from_entry != NULL);
       void* value = from_entry->value;
       RemoveEntry(from_entry);
-      HashMap::Entry* to_entry = FindOrCreateEntry(to);
+      base::HashMap::Entry* to_entry = FindOrCreateEntry(to);
       DCHECK(to_entry->value == NULL);
       to_entry->value = value;
     }
@@ -89,20 +90,20 @@ class CodeAddressMap : public CodeEventLogger {
       return result;
     }
 
-    HashMap::Entry* FindOrCreateEntry(Address code_address) {
+    base::HashMap::Entry* FindOrCreateEntry(Address code_address) {
       return impl_.LookupOrInsert(code_address,
                                   ComputePointerHash(code_address));
     }
 
-    HashMap::Entry* FindEntry(Address code_address) {
+    base::HashMap::Entry* FindEntry(Address code_address) {
       return impl_.Lookup(code_address, ComputePointerHash(code_address));
     }
 
-    void RemoveEntry(HashMap::Entry* entry) {
+    void RemoveEntry(base::HashMap::Entry* entry) {
       impl_.Remove(entry->key, entry->hash);
     }
 
-    HashMap impl_;
+    base::HashMap impl_;
 
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };

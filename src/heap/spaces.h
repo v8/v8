@@ -11,9 +11,9 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/objects.h"
 #include "src/utils.h"
@@ -3084,7 +3084,7 @@ class LargeObjectSpace : public Space {
   int page_count_;         // number of chunks
   intptr_t objects_size_;  // size of objects
   // Map MemoryChunk::kAlignment-aligned chunks to large pages covering them
-  HashMap chunk_map_;
+  base::HashMap chunk_map_;
 
   friend class LargeObjectIterator;
 };

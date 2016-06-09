@@ -170,14 +170,15 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
-  HashMap::Entry* map_entry = children_.Lookup(entry, CodeEntryHash(entry));
+  base::HashMap::Entry* map_entry =
+      children_.Lookup(entry, CodeEntryHash(entry));
   return map_entry != NULL ?
       reinterpret_cast<ProfileNode*>(map_entry->value) : NULL;
 }
 
 
 ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
-  HashMap::Entry* map_entry =
+  base::HashMap::Entry* map_entry =
       children_.LookupOrInsert(entry, CodeEntryHash(entry));
   ProfileNode* node = reinterpret_cast<ProfileNode*>(map_entry->value);
   if (node == NULL) {
@@ -194,7 +195,7 @@ void ProfileNode::IncrementLineTicks(int src_line) {
   if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) return;
   // Increment a hit counter of a certain source line.
   // Add a new source line if not found.
-  HashMap::Entry* e =
+  base::HashMap::Entry* e =
       line_ticks_.LookupOrInsert(reinterpret_cast<void*>(src_line), src_line);
   DCHECK(e);
   e->value = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(e->value) + 1);
@@ -212,7 +213,7 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
   v8::CpuProfileNode::LineTick* entry = entries;
 
-  for (HashMap::Entry* p = line_ticks_.Start(); p != NULL;
+  for (base::HashMap::Entry *p = line_ticks_.Start(); p != NULL;
        p = line_ticks_.Next(p), entry++) {
     entry->line =
         static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->key));
@@ -250,8 +251,7 @@ void ProfileNode::Print(int indent) {
     base::OS::Print("%*s bailed out due to '%s'\n", indent + 10, "",
                     bailout_reason);
   }
-  for (HashMap::Entry* p = children_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = children_.Start(); p != NULL;
        p = children_.Next(p)) {
     reinterpret_cast<ProfileNode*>(p->value)->Print(indent + 2);
   }
@@ -287,7 +287,7 @@ ProfileTree::~ProfileTree() {
 
 unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
   CodeEntry* code_entry = node->entry();
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       function_ids_.LookupOrInsert(code_entry, code_entry->GetHash());
   if (!entry->value) {
     entry->value = reinterpret_cast<void*>(next_function_id_++);

@@ -1180,7 +1180,6 @@ v8_source_set("v8_base") {
     "src/handles-inl.h",
     "src/handles.cc",
     "src/handles.h",
-    "src/hashmap.h",
     "src/heap-symbols.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
@@ -1898,6 +1897,7 @@ v8_source_set("v8_libbase") {
     "src/base/format-macros.h",
     "src/base/functional.cc",
     "src/base/functional.h",
+    "src/base/hashmap.h",
     "src/base/iterator.h",
     "src/base/lazy-instance.h",
     "src/base/logging.cc",
@@ -1997,8 +1997,6 @@ v8_source_set("v8_libplatform") {
 
 v8_source_set("v8_libsampler") {
   sources = [
-    "src/libsampler/hashmap.h",
-    "src/libsampler/utils.h",
     "src/libsampler/v8-sampler.cc",
     "src/libsampler/v8-sampler.h",
   ]
