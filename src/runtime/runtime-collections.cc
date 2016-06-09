@@ -31,7 +31,7 @@ RUNTIME_FUNCTION(Runtime_JSCollectionGetTable) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, object, 0);
-  RUNTIME_ASSERT(object->IsJSSet() || object->IsJSMap());
+  CHECK(object->IsJSSet() || object->IsJSMap());
   return static_cast<JSCollection*>(object)->table();
 }
 
@@ -91,8 +91,8 @@ RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, set, 1);
   CONVERT_SMI_ARG_CHECKED(kind, 2)
-  RUNTIME_ASSERT(kind == JSSetIterator::kKindValues ||
-                 kind == JSSetIterator::kKindEntries);
+  CHECK(kind == JSSetIterator::kKindValues ||
+        kind == JSSetIterator::kKindEntries);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
   holder->set_table(*table);
   holder->set_index(Smi::FromInt(0));
@@ -186,9 +186,9 @@ RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, map, 1);
   CONVERT_SMI_ARG_CHECKED(kind, 2)
-  RUNTIME_ASSERT(kind == JSMapIterator::kKindKeys ||
-                 kind == JSMapIterator::kKindValues ||
-                 kind == JSMapIterator::kKindEntries);
+  CHECK(kind == JSMapIterator::kKindKeys ||
+        kind == JSMapIterator::kKindValues ||
+        kind == JSMapIterator::kKindEntries);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
   holder->set_table(*table);
   holder->set_index(Smi::FromInt(0));
@@ -232,7 +232,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_entries, Int32, args[1]);
-  RUNTIME_ASSERT(max_entries >= 0);
+  CHECK(max_entries >= 0);
 
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   if (max_entries == 0 || max_entries > table->NumberOfElements()) {
@@ -286,10 +286,10 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_SMI_ARG_CHECKED(hash, 2)
-  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
+  CHECK(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(isolate, *key));
+  CHECK(table->IsKey(isolate, *key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
   return lookup->IsTheHole(isolate) ? isolate->heap()->undefined_value()
                                     : *lookup;
@@ -302,10 +302,10 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_SMI_ARG_CHECKED(hash, 2)
-  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
+  CHECK(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(isolate, *key));
+  CHECK(table->IsKey(isolate, *key));
   Handle<Object> lookup(table->Lookup(key, hash), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole(isolate));
 }
@@ -317,10 +317,10 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_SMI_ARG_CHECKED(hash, 2)
-  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
+  CHECK(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(isolate, *key));
+  CHECK(table->IsKey(isolate, *key));
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
   return isolate->heap()->ToBoolean(was_present);
 }
@@ -331,12 +331,12 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
+  CHECK(key->IsJSReceiver() || key->IsSymbol());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(hash, 3)
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  RUNTIME_ASSERT(table->IsKey(isolate, *key));
+  CHECK(table->IsKey(isolate, *key));
   JSWeakCollection::Set(weak_collection, key, value, hash);
   return *weak_collection;
 }
@@ -347,7 +347,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
-  RUNTIME_ASSERT(max_values >= 0);
+  CHECK(max_values >= 0);
 
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   if (max_values == 0 || max_values > table->NumberOfElements()) {

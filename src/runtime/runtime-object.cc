@@ -393,7 +393,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
 
 RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 4);
+  DCHECK_EQ(4, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
@@ -406,7 +406,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  RUNTIME_ASSERT(!it.IsFound());
+  CHECK(!it.IsFound());
 #endif
 
   RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -418,7 +418,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 // This is used to create an indexed data property into an array.
 RUNTIME_FUNCTION(Runtime_AddElement) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
@@ -432,11 +432,11 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  RUNTIME_ASSERT(!it.IsFound());
+  CHECK(!it.IsFound());
 
   if (object->IsJSArray()) {
     Handle<JSArray> array = Handle<JSArray>::cast(object);
-    RUNTIME_ASSERT(!JSArray::WouldChangeReadOnlyLength(array, index));
+    CHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
   }
 #endif
 
@@ -447,7 +447,7 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
 
 RUNTIME_FUNCTION(Runtime_AppendElement) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
@@ -464,7 +464,7 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
 
 RUNTIME_FUNCTION(Runtime_SetProperty) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 4);
+  DCHECK_EQ(4, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
@@ -634,15 +634,14 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
-  RUNTIME_ASSERT((index->value() & 1) == 1);
+  CHECK((index->value() & 1) == 1);
   FieldIndex field_index =
       FieldIndex::ForLoadByFieldIndex(object->map(), index->value());
   if (field_index.is_inobject()) {
-    RUNTIME_ASSERT(field_index.property_index() <
-                   object->map()->GetInObjectProperties());
+    CHECK(field_index.property_index() <
+          object->map()->GetInObjectProperties());
   } else {
-    RUNTIME_ASSERT(field_index.outobject_array_index() <
-                   object->properties()->length());
+    CHECK(field_index.outobject_array_index() < object->properties()->length());
   }
   return *JSObject::FastPropertyAt(object, Representation::Double(),
                                    field_index);
@@ -687,12 +686,12 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(!obj->IsNull());
+  CHECK(!obj->IsNull());
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
-  RUNTIME_ASSERT(IsValidAccessor(isolate, getter));
+  CHECK(IsValidAccessor(isolate, getter));
   CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
-  RUNTIME_ASSERT(IsValidAccessor(isolate, setter));
+  CHECK(IsValidAccessor(isolate, setter));
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 4);
 
   RETURN_FAILURE_ON_EXCEPTION(

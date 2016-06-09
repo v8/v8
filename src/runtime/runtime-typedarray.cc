@@ -36,17 +36,17 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
                                   "ArrayBuffer.prototype.slice")));
   }
 
-  RUNTIME_ASSERT(!source.is_identical_to(target));
+  CHECK(!source.is_identical_to(target));
   size_t start = 0, target_length = 0;
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *new_length, &target_length));
-  RUNTIME_ASSERT(NumberToSize(isolate, target->byte_length()) >= target_length);
+  CHECK(TryNumberToSize(isolate, *first, &start));
+  CHECK(TryNumberToSize(isolate, *new_length, &target_length));
+  CHECK(NumberToSize(isolate, target->byte_length()) >= target_length);
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
   size_t source_byte_length = NumberToSize(isolate, source->byte_length());
-  RUNTIME_ASSERT(start <= source_byte_length);
-  RUNTIME_ASSERT(source_byte_length - start >= target_length);
+  CHECK(start <= source_byte_length);
+  CHECK(source_byte_length - start >= target_length);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
@@ -63,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
-  RUNTIME_ASSERT(!array_buffer->is_shared());
+  CHECK(!array_buffer->is_shared());
   DCHECK(!array_buffer->is_external());
   void* backing_store = array_buffer->backing_store();
   size_t byte_length = NumberToSize(isolate, array_buffer->byte_length());
@@ -105,32 +105,32 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length_object, 4);
   CONVERT_BOOLEAN_ARG_CHECKED(initialize, 5);
 
-  RUNTIME_ASSERT(arrayId >= Runtime::ARRAY_ID_FIRST &&
-                 arrayId <= Runtime::ARRAY_ID_LAST);
+  CHECK(arrayId >= Runtime::ARRAY_ID_FIRST &&
+        arrayId <= Runtime::ARRAY_ID_LAST);
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;                            // Bogus initialization.
   ElementsKind fixed_elements_kind = INT8_ELEMENTS;  // Bogus initialization.
   Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &fixed_elements_kind,
                                 &element_size);
-  RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
+  CHECK(holder->map()->elements_kind() == fixed_elements_kind);
 
   size_t byte_offset = 0;
   size_t byte_length = 0;
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset_object, &byte_offset));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length_object, &byte_length));
+  CHECK(TryNumberToSize(isolate, *byte_offset_object, &byte_offset));
+  CHECK(TryNumberToSize(isolate, *byte_length_object, &byte_length));
 
   if (maybe_buffer->IsJSArrayBuffer()) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
     size_t array_buffer_byte_length =
         NumberToSize(isolate, buffer->byte_length());
-    RUNTIME_ASSERT(byte_offset <= array_buffer_byte_length);
-    RUNTIME_ASSERT(array_buffer_byte_length - byte_offset >= byte_length);
+    CHECK(byte_offset <= array_buffer_byte_length);
+    CHECK(array_buffer_byte_length - byte_offset >= byte_length);
   } else {
-    RUNTIME_ASSERT(maybe_buffer->IsNull());
+    CHECK(maybe_buffer->IsNull());
   }
 
-  RUNTIME_ASSERT(byte_length % element_size == 0);
+  CHECK(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
 
   if (length > static_cast<unsigned>(Smi::kMaxValue)) {
@@ -186,8 +186,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 3);
 
-  RUNTIME_ASSERT(arrayId >= Runtime::ARRAY_ID_FIRST &&
-                 arrayId <= Runtime::ARRAY_ID_LAST);
+  CHECK(arrayId >= Runtime::ARRAY_ID_FIRST &&
+        arrayId <= Runtime::ARRAY_ID_LAST);
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;                            // Bogus initialization.
@@ -195,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   Runtime::ArrayIdToTypeAndSize(arrayId, &array_type, &fixed_elements_kind,
                                 &element_size);
 
-  RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
+  CHECK(holder->map()->elements_kind() == fixed_elements_kind);
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   size_t length = 0;
@@ -204,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
     length_obj = handle(JSTypedArray::cast(*source)->length(), isolate);
     length = JSTypedArray::cast(*source)->length_value();
   } else {
-    RUNTIME_ASSERT(TryNumberToSize(isolate, *length_obj, &length));
+    CHECK(TryNumberToSize(isolate, *length_obj, &length));
   }
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
@@ -328,7 +328,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
   Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
   size_t offset = 0;
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *offset_obj, &offset));
+  CHECK(TryNumberToSize(isolate, *offset_obj, &offset));
   size_t target_length = target->length_value();
   size_t source_length = source->length_value();
   size_t target_byte_length = NumberToSize(isolate, target->byte_length());

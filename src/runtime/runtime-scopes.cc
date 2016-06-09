@@ -149,14 +149,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
 RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   HandleScope scope(isolate);
-  // args[0] == name
-  // args[1] == language_mode
-  // args[2] == value (optional)
-
-  // Determine if we need to assign to the variable if it already
-  // exists (based on the number of arguments).
-  RUNTIME_ASSERT(args.length() == 3);
-
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
@@ -169,10 +162,7 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
 
 RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   HandleScope handle_scope(isolate);
-  // All constants are declared with an initial value. The name
-  // of the constant is the first argument and the initial value
-  // is the second.
-  RUNTIME_ASSERT(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 

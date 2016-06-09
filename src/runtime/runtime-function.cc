@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   DCHECK(args.length() == 1);
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  RUNTIME_ASSERT(f->RemovePrototype());
+  CHECK(f->RemovePrototype());
   f->shared()->set_construct_stub(
       *isolate->builtins()->ConstructedNonConstructable());
 
@@ -128,8 +128,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_SMI_ARG_CHECKED(length, 1);
-  RUNTIME_ASSERT((length & 0xC0000000) == 0xC0000000 ||
-                 (length & 0xC0000000) == 0x0);
+  CHECK((length & 0xC0000000) == 0xC0000000 || (length & 0xC0000000) == 0x0);
   fun->shared()->set_length(length);
   return isolate->heap()->undefined_value();
 }
@@ -141,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RUNTIME_ASSERT(fun->IsConstructor());
+  CHECK(fun->IsConstructor());
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               Accessors::FunctionSetPrototype(fun, value));
   return args[0];  // return TOS
@@ -228,7 +227,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 // into the global object when doing call and apply.
 RUNTIME_FUNCTION(Runtime_SetNativeFlag) {
   SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(Object, object, 0);
 
@@ -249,7 +248,7 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
 
 RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {

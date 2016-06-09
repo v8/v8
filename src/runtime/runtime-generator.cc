@@ -18,7 +18,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  RUNTIME_ASSERT(function->shared()->is_resumable());
+  CHECK(function->shared()->is_resumable());
 
   Handle<FixedArray> operand_stack;
   if (FLAG_ignition && FLAG_ignition_generators) {
@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
 
   JavaScriptFrameIterator stack_iterator(isolate);
   JavaScriptFrame* frame = stack_iterator.frame();
-  RUNTIME_ASSERT(frame->function()->shared()->is_resumable());
+  CHECK(frame->function()->shared()->is_resumable());
   DCHECK_EQ(frame->function(), generator_object->function());
   DCHECK(frame->function()->shared()->is_compiled());
   DCHECK(!frame->function()->IsOptimized());
@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   DCHECK(!generator->function()->shared()->HasBytecodeArray());
   Handle<Code> code(generator->function()->code(), isolate);
   int offset = generator->continuation();
-  RUNTIME_ASSERT(0 <= offset && offset < code->instruction_size());
+  CHECK(0 <= offset && offset < code->instruction_size());
   return Smi::FromInt(code->SourcePosition(offset));
 }
 
