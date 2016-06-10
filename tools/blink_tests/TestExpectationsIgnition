@@ -1,4 +1,2 @@
-# Failures due to eager compilation, crbug/608287.
-[ Linux ] inspector/sources/debugger-frameworks/frameworks-jquery.html [ Failure ]
-[ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-active-dom-object.html [ Failure ]
-[ Linux ] inspector-protocol/heap-profiler/heap-snapshot-with-detached-dom-tree.html [ Failure ]
+# BUG v8:5096
+[ Linux ] intersection-observer/observer-exceptions.html [ Failure ]
