@@ -26,7 +26,7 @@ static bool CanCast(F from) {
   // A float can't represent 2^31 - 1 or 2^32 - 1 exactly, so promote the limits
   // to double. Otherwise, the limit is truncated and numbers like 2^31 or 2^32
   // get through, causing any static_cast to be undefined.
-  from = std::trunc(from);
+  from = trunc(from);
   return from >= static_cast<double>(std::numeric_limits<T>::min()) &&
          from <= static_cast<double>(std::numeric_limits<T>::max());
 }
