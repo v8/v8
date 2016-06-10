@@ -2539,7 +2539,6 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
       ReportUnexpectedToken(Next());
       *ok = false;
       return nullptr;
-
     default:
       break;
   }
@@ -5649,13 +5648,19 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
   return factory->NewYield(generator_object, do_expr, nopos);
 }
 
-Zone* ParserTraits::zone() const {
-  return parser_->function_state_->scope()->zone();
+ZoneList<Expression*>* ParserTraits::GetNonPatternList() const {
+  return parser_->function_state_->non_patterns_to_rewrite();
 }
 
 
-ZoneList<Expression*>* ParserTraits::GetNonPatternList() const {
-  return parser_->function_state_->non_patterns_to_rewrite();
+ZoneList<typename ParserTraits::Type::ExpressionClassifier::Error>*
+ParserTraits::GetReportedErrorList() const {
+  return parser_->function_state_->GetReportedErrorList();
+}
+
+
+Zone* ParserTraits::zone() const {
+  return parser_->function_state_->scope()->zone();
 }
 
 
@@ -5872,9 +5877,9 @@ void ParserTraits::QueueDestructuringAssignmentForRewriting(Expression* expr) {
 }
 
 
-void ParserTraits::QueueNonPatternForRewriting(Expression* expr) {
+void ParserTraits::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
   DCHECK(expr->IsRewritableExpression());
-  parser_->function_state_->AddNonPatternForRewriting(expr);
+  parser_->function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
 

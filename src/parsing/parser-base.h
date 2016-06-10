@@ -387,8 +387,8 @@ class ParserBase : public Traits {
 
     typename Traits::Type::Factory* factory() { return factory_; }
 
-    const List<DestructuringAssignment>& destructuring_assignments_to_rewrite()
-        const {
+    const ZoneList<DestructuringAssignment>&
+        destructuring_assignments_to_rewrite() const {
       return destructuring_assignments_to_rewrite_;
     }
 
@@ -408,6 +408,10 @@ class ParserBase : public Traits {
           ReturnExprContext::kInsideValidReturnStatement) {
         tail_call_expressions_.AddExplicitTailCall(expression, loc);
       }
+    }
+
+    ZoneList<typename ExpressionClassifier::Error>* GetReportedErrorList() {
+      return &reported_errors_;
     }
 
     ReturnExprContext return_expr_context() const {
@@ -431,13 +435,16 @@ class ParserBase : public Traits {
 
    private:
     void AddDestructuringAssignment(DestructuringAssignment pair) {
-      destructuring_assignments_to_rewrite_.Add(pair);
+      destructuring_assignments_to_rewrite_.Add(pair, (*scope_stack_)->zone());
     }
 
     V8_INLINE Scope* scope() { return *scope_stack_; }
 
-    void AddNonPatternForRewriting(ExpressionT expr) {
+    void AddNonPatternForRewriting(ExpressionT expr, bool* ok) {
       non_patterns_to_rewrite_.Add(expr, (*scope_stack_)->zone());
+      if (non_patterns_to_rewrite_.length() >=
+          std::numeric_limits<uint16_t>::max())
+        *ok = false;
     }
 
     // Used to assign an index to each literal that needs materialization in
@@ -468,10 +475,12 @@ class ParserBase : public Traits {
     Scope** scope_stack_;
     Scope* outer_scope_;
 
-    List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
+    ZoneList<DestructuringAssignment> destructuring_assignments_to_rewrite_;
     TailCallExpressionList tail_call_expressions_;
     ReturnExprContext return_expr_context_;
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
+
+    ZoneList<typename ExpressionClassifier::Error> reported_errors_;
 
     typename Traits::Type::Factory* factory_;
 
@@ -1196,9 +1205,11 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
+      destructuring_assignments_to_rewrite_(16, scope->zone()),
       tail_call_expressions_(scope->zone()),
       return_expr_context_(ReturnExprContext::kInsideValidBlock),
       non_patterns_to_rewrite_(0, scope->zone()),
+      reported_errors_(16, scope->zone()),
       factory_(factory),
       next_function_is_parenthesized_(false),
       this_function_is_parenthesized_(false) {
@@ -1555,12 +1566,11 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       // Parentheses are not valid on the LHS of a BindingPattern, so we use the
       // is_valid_binding_pattern() check to detect multiple levels of
       // parenthesization.
-      if (!classifier->is_valid_binding_pattern()) {
-        ArrowFormalParametersUnexpectedToken(classifier);
-      }
+      bool pattern_error = !classifier->is_valid_binding_pattern();
       classifier->RecordPatternError(scanner()->peek_location(),
                                      MessageTemplate::kUnexpectedToken,
                                      Token::String(Token::LPAREN));
+      if (pattern_error) ArrowFormalParametersUnexpectedToken(classifier);
       Consume(Token::LPAREN);
       if (Check(Token::RPAREN)) {
         // ()=>x.  The continuation that looks for the => is in
@@ -1693,6 +1703,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
       seen_rest = is_rest = true;
     }
     int pos = position(), expr_pos = peek_position();
+    ExpressionClassifier binding_classifier(this);
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, &binding_classifier, CHECK_OK);
     classifier->Accumulate(&binding_classifier,
@@ -1780,7 +1791,15 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
                                                   literal_index, pos);
   if (first_spread_index >= 0) {
     result = factory()->NewRewritableExpression(result);
-    Traits::QueueNonPatternForRewriting(result);
+    Traits::QueueNonPatternForRewriting(result, ok);
+    if (!*ok) {
+      // If the non-pattern rewriting mechanism is used in the future for
+      // rewriting other things than spreads, this error message will have
+      // to change.  Also, this error message will never appear while pre-
+      // parsing (this is OK, as it is an implementation limitation).
+      ReportMessage(MessageTemplate::kTooManySpreads);
+      return this->EmptyExpression();
+    }
   }
   return result;
 }
@@ -2227,9 +2246,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
 
   if (peek() == Token::ARROW) {
-    classifier->RecordPatternError(scanner()->peek_location(),
-                                   MessageTemplate::kUnexpectedToken,
-                                   Token::String(Token::ARROW));
+    Scanner::Location arrow_loc = scanner()->peek_location();
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   parenthesized_formals, is_async, CHECK_OK);
     // This reads strangely, but is correct: it checks whether any
@@ -2266,6 +2283,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     }
     expression = this->ParseArrowFunctionLiteral(
         accept_IN, parameters, is_async, arrow_formals_classifier, CHECK_OK);
+    arrow_formals_classifier.Discard();
+    classifier->RecordPatternError(arrow_loc,
+                                   MessageTemplate::kUnexpectedToken,
+                                   Token::String(Token::ARROW));
 
     if (fni_ != nullptr) fni_->Infer();
 
@@ -2505,8 +2526,8 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   if (peek() != Token::CONDITIONAL) return expression;
   CheckNoTailCallExpressions(classifier, CHECK_OK);
   Traits::RewriteNonPattern(classifier, CHECK_OK);
-  ArrowFormalParametersUnexpectedToken(classifier);
   BindingPatternUnexpectedToken(classifier);
+  ArrowFormalParametersUnexpectedToken(classifier);
   Consume(Token::CONDITIONAL);
   // In parsing the first assignment expression in conditional
   // expressions we always accept the 'in' keyword; see ECMA-262,
