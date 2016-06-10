@@ -278,7 +278,9 @@ function ResolvePromise(promise, resolution) {
 
     if (IS_CALLABLE(then)) {
       // PromiseResolveThenableJob
-      var id, name, instrumenting = DEBUG_IS_ACTIVE;
+      var id;
+      var name = "PromiseResolveThenableJob";
+      var instrumenting = DEBUG_IS_ACTIVE;
       %EnqueueMicrotask(function() {
         if (instrumenting) {
           %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
@@ -295,7 +297,6 @@ function ResolvePromise(promise, resolution) {
       });
       if (instrumenting) {
         id = ++lastMicrotaskId;
-        name = "PromseResolveThenableJob";
         %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
       }
       return;
