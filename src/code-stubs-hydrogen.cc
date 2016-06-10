@@ -85,18 +85,10 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* EmitKeyedSloppyArguments(HValue* receiver, HValue* key,
                                    HValue* value);
 
-  HValue* BuildArrayConstructor(ElementsKind kind,
-                                AllocationSiteOverrideMode override_mode);
-  HValue* BuildInternalArrayConstructor(ElementsKind kind);
-
   HValue* BuildToString(HValue* input, bool convert);
   HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
  private:
-  HValue* BuildArraySingleArgumentConstructor(JSArrayBuilder* builder);
-  HValue* BuildArrayNArgumentsConstructor(JSArrayBuilder* builder,
-                                          ElementsKind kind);
-
   base::SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfo* info_;
@@ -1455,108 +1447,6 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
-
-HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
-    ElementsKind kind, AllocationSiteOverrideMode override_mode) {
-  HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
-  HValue* alloc_site = GetParameter(ArrayConstructorStubBase::kAllocationSite);
-  JSArrayBuilder array_builder(this, kind, alloc_site, constructor,
-                               override_mode);
-  return BuildArrayNArgumentsConstructor(&array_builder, kind);
-}
-
-HValue* CodeStubGraphBuilderBase::BuildInternalArrayConstructor(
-    ElementsKind kind) {
-  HValue* constructor = GetParameter(
-      InternalArrayConstructorStubBase::kConstructor);
-  JSArrayBuilder array_builder(this, kind, constructor);
-  return BuildArrayNArgumentsConstructor(&array_builder, kind);
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
-    JSArrayBuilder* array_builder) {
-  // Smi check and range check on the input arg.
-  HValue* constant_one = graph()->GetConstant1();
-  HValue* constant_zero = graph()->GetConstant0();
-
-  HInstruction* elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = Add<HAccessArgumentsAt>(
-      elements, constant_one, constant_zero);
-
-  return BuildAllocateArrayFromLength(array_builder, argument);
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
-    JSArrayBuilder* array_builder, ElementsKind kind) {
-  // Insert a bounds check because the number of arguments might exceed
-  // the kInitialMaxFastElementArray limit. This cannot happen for code
-  // that was parsed, but calling via Array.apply(thisArg, [...]) might
-  // trigger it.
-  HValue* length = GetArgumentsLength();
-  HConstant* max_alloc_length =
-      Add<HConstant>(JSArray::kInitialMaxFastElementArray);
-  HValue* checked_length = Add<HBoundsCheck>(length, max_alloc_length);
-
-  // We need to fill with the hole if it's a smi array in the multi-argument
-  // case because we might have to bail out while copying arguments into
-  // the array because they aren't compatible with a smi array.
-  // If it's a double array, no problem, and if it's fast then no
-  // problem either because doubles are boxed.
-  //
-  // TODO(mvstanton): consider an instruction to memset fill the array
-  // with zero in this case instead.
-  JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
-      ? JSArrayBuilder::FILL_WITH_HOLE
-      : JSArrayBuilder::DONT_FILL_WITH_HOLE;
-  HValue* new_object = array_builder->AllocateArray(checked_length,
-                                                    checked_length,
-                                                    fill_mode);
-  HValue* elements = array_builder->GetElementsLocation();
-  DCHECK(elements != NULL);
-
-  // Now populate the elements correctly.
-  LoopBuilder builder(this,
-                      context(),
-                      LoopBuilder::kPostIncrement);
-  HValue* start = graph()->GetConstant0();
-  HValue* key = builder.BeginBody(start, checked_length, Token::LT);
-  HInstruction* argument_elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = Add<HAccessArgumentsAt>(
-      argument_elements, checked_length, key);
-
-  Add<HStoreKeyed>(elements, key, argument, nullptr, kind);
-  builder.EndBody();
-  return new_object;
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode);
-}
-
-
-Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<InternalArrayNArgumentsConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind);
-}
-
-
-Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 
 template <>
 HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {

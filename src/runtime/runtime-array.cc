@@ -322,7 +322,6 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_NewArray) {
   HandleScope scope(isolate);
   DCHECK_LE(3, args.length());
@@ -337,72 +336,6 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
                                     ? Handle<AllocationSite>::cast(type_info)
                                     : Handle<AllocationSite>::null();
   return ArrayConstructorCommon(isolate, constructor, new_target, site, &argv);
-}
-
-
-RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
-  HandleScope scope(isolate);
-  // If we get 2 arguments then they are the stub parameters (constructor, type
-  // info).  If we get 4, then the first one is a pointer to the arguments
-  // passed by the caller, and the last one is the length of the arguments
-  // passed to the caller (redundant, but useful to check on the deoptimizer
-  // with an assert).
-  Arguments empty_args(0, NULL);
-  bool no_caller_args = args.length() == 2;
-  DCHECK(no_caller_args || args.length() == 4);
-  int parameters_start = no_caller_args ? 0 : 1;
-  Arguments* caller_args =
-      no_caller_args ? &empty_args : reinterpret_cast<Arguments*>(args[0]);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
-  CONVERT_ARG_HANDLE_CHECKED(Object, type_info, parameters_start + 1);
-#ifdef DEBUG
-  if (!no_caller_args) {
-    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 2);
-    DCHECK(arg_count == caller_args->length());
-  }
-#endif
-
-  Handle<AllocationSite> site;
-  if (!type_info.is_null() && !type_info->IsUndefined(isolate)) {
-    site = Handle<AllocationSite>::cast(type_info);
-    DCHECK(!site->SitePointsToLiteral());
-  }
-
-  return ArrayConstructorCommon(isolate, constructor, constructor, site,
-                                caller_args);
-}
-
-RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
-  HandleScope scope(isolate);
-  Arguments empty_args(0, NULL);
-  bool no_caller_args = args.length() == 1;
-  DCHECK(no_caller_args || args.length() == 3);
-  int parameters_start = no_caller_args ? 0 : 1;
-  Arguments* caller_args =
-      no_caller_args ? &empty_args : reinterpret_cast<Arguments*>(args[0]);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, parameters_start);
-#ifdef DEBUG
-  if (!no_caller_args) {
-    CONVERT_SMI_ARG_CHECKED(arg_count, parameters_start + 1);
-    DCHECK(arg_count == caller_args->length());
-  }
-#endif
-  return ArrayConstructorCommon(isolate, constructor, constructor,
-                                Handle<AllocationSite>::null(), caller_args);
-}
-
-RUNTIME_FUNCTION(Runtime_ArraySingleArgumentConstructor) {
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
-  Object** argument_base = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, raw_site, 3);
-  Handle<AllocationSite> casted_site =
-      raw_site->IsUndefined(isolate) ? Handle<AllocationSite>::null()
-                                     : Handle<AllocationSite>::cast(raw_site);
-  Arguments constructor_args(argument_count, argument_base);
-  return ArrayConstructorCommon(isolate, constructor, constructor, casted_site,
-                                &constructor_args);
 }
 
 RUNTIME_FUNCTION(Runtime_NormalizeElements) {

@@ -450,8 +450,7 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
       node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
       NodeProperties::ChangeOp(node, common()->Call(desc));
     } else {
-      ArrayNArgumentsConstructorStub stub(isolate(), elements_kind,
-                                          override_mode);
+      ArrayNArgumentsConstructorStub stub(isolate());
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
           arity + 1, CallDescriptor::kNeedsFrameState);

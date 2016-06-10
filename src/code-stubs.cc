@@ -4466,16 +4466,6 @@ void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
 }
 
 
-std::ostream& ArrayConstructorStubBase::BasePrintName(
-    std::ostream& os,  // NOLINT
-    const char* name) const {
-  os << name << "_" << ElementsKindToString(elements_kind());
-  if (override_mode() == DISABLE_ALLOCATION_SITES) {
-    os << "_DISABLE_ALLOCATION_SITES";
-  }
-  return os;
-}
-
 bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
   Types new_types = types();
   Types old_types = new_types;
@@ -4613,7 +4603,6 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
                                      ElementsKind elements_kind,
                                      compiler::Node* array_map,
                                      compiler::Node* allocation_site,
-                                     Runtime::FunctionId runtime_fallback,
                                      AllocationSiteMode mode) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
@@ -4652,21 +4641,14 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
   {
     Node* context = assembler->Parameter(
         ArraySingleArgumentConstructorDescriptor::kContextIndex);
-    Node* constructor = assembler->Parameter(
+    Node* function = assembler->Parameter(
         ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
-    Node* argument_count = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kArgumentsCountIndex);
-    Node* argument_base_offset = assembler->IntPtrAdd(
-        assembler->IntPtrConstant(CommonFrameConstants::kFixedFrameSizeAboveFp -
-                                  kPointerSize),
-        assembler->Word32Shl(argument_count,
-                             assembler->IntPtrConstant(kPointerSizeLog2)));
-    Node* argument_base = assembler->IntPtrAdd(assembler->LoadFramePointer(),
-                                               argument_base_offset);
-    Node* array = assembler->CallRuntime(
-        runtime_fallback, context, constructor, argument_base,
-        assembler->SmiTag(argument_count), allocation_site);
-    assembler->Return(array);
+    Node* array_size = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kArraySizeSmiParameterIndex);
+    Node* allocation_site = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kAllocationSiteIndex);
+    assembler->TailCallRuntime(Runtime::kNewArray, context, function,
+                               array_size, function, allocation_site);
   }
 }
 }  // namespace
@@ -4685,9 +4667,8 @@ void ArraySingleArgumentConstructorStub::GenerateAssembly(
                                 : AllocationSite::GetMode(elements_kind());
   Node* allocation_site = assembler->Parameter(
       ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex);
-  SingleArgumentConstructorCommon(
-      assembler, elements_kind(), array_map, allocation_site,
-      Runtime::kArraySingleArgumentConstructor, mode);
+  SingleArgumentConstructorCommon(assembler, elements_kind(), array_map,
+                                  allocation_site, mode);
 }
 
 void InternalArraySingleArgumentConstructorStub::GenerateAssembly(
@@ -4697,15 +4678,14 @@ void InternalArraySingleArgumentConstructorStub::GenerateAssembly(
       ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
   Node* array_map = assembler->LoadObjectField(
       function, JSFunction::kPrototypeOrInitialMapOffset);
-  SingleArgumentConstructorCommon(
-      assembler, elements_kind(), array_map, assembler->UndefinedConstant(),
-      Runtime::kArraySingleArgumentConstructor, DONT_TRACK_ALLOCATION_SITE);
+  SingleArgumentConstructorCommon(assembler, elements_kind(), array_map,
+                                  assembler->UndefinedConstant(),
+                                  DONT_TRACK_ALLOCATION_SITE);
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {
   minor_key_ = ArgumentCountBits::encode(ANY);
-  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
@@ -4721,15 +4701,10 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
   } else {
     UNREACHABLE();
   }
-  ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
-
-InternalArrayConstructorStub::InternalArrayConstructorStub(
-    Isolate* isolate) : PlatformCodeStub(isolate) {
-  InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
-}
-
+InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
+    : PlatformCodeStub(isolate) {}
 
 Representation RepresentationFromType(Type* type) {
   if (type->Is(Type::UntaggedIntegral())) {

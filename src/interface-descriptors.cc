@@ -453,25 +453,14 @@ FunctionType* ArraySingleArgumentConstructorDescriptor::
 }
 
 FunctionType*
-ArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+ArrayNArgumentsConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
   function->InitParameter(0, Type::Receiver());  // JSFunction
-  function->InitParameter(1, AnyTagged(zone));
-  function->InitParameter(2, UntaggedIntegral32(zone));
-  return function;
-}
-
-FunctionType*
-InternalArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
-  function->InitParameter(0, Type::Receiver());  // JSFunction
-  function->InitParameter(1, UntaggedIntegral32(zone));
+  function->InitParameter(1, AnyTagged(zone));   // Allocation site or undefined
+  function->InitParameter(2, UntaggedIntegral32(zone));  //  Arg count
   return function;
 }
 

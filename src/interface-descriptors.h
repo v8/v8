@@ -58,8 +58,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateBool8x16)                  \
   V(ArrayNoArgumentConstructor)        \
   V(ArraySingleArgumentConstructor)    \
-  V(ArrayConstructor)                  \
-  V(InternalArrayConstructor)          \
+  V(ArrayNArgumentsConstructor)        \
   V(Compare)                           \
   V(BinaryOp)                          \
   V(BinaryOpWithAllocationSite)        \
@@ -604,24 +603,23 @@ class ArraySingleArgumentConstructorDescriptor
   enum ParameterIndices {
     kFunctionIndex,
     kAllocationSiteIndex,
-    kArgumentsCountIndex,
+    kArgumentCountIndex,
     kFunctionParameterIndex,
     kArraySizeSmiParameterIndex,
     kContextIndex
   };
 };
 
-class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArrayConstructorDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class InternalArrayConstructorDescriptor : public CallInterfaceDescriptor {
+class ArrayNArgumentsConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InternalArrayConstructorDescriptor, CallInterfaceDescriptor)
+      ArrayNArgumentsConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kContextIndex
+  };
 };
 
 

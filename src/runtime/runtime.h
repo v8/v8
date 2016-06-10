@@ -31,29 +31,26 @@ namespace internal {
 
 // Entries have the form F(name, number of arguments, number of values):
 
-#define FOR_EACH_INTRINSIC_ARRAY(F)        \
-  F(FinishArrayPrototypeSetup, 1, 1)       \
-  F(SpecialArrayFunctions, 0, 1)           \
-  F(TransitionElementsKind, 2, 1)          \
-  F(RemoveArrayHoles, 2, 1)                \
-  F(MoveArrayContents, 2, 1)               \
-  F(EstimateNumberOfElements, 1, 1)        \
-  F(GetArrayKeys, 2, 1)                    \
-  F(ArrayConstructor, -1, 1)               \
-  F(NewArray, -1 /* >= 3 */, 1)            \
-  F(InternalArrayConstructor, -1, 1)       \
-  F(ArraySingleArgumentConstructor, -1, 1) \
-  F(ArrayPush, -1, 1)                      \
-  F(FunctionBind, -1, 1)                   \
-  F(NormalizeElements, 1, 1)               \
-  F(GrowArrayElements, 2, 1)               \
-  F(HasComplexElements, 1, 1)              \
-  F(IsArray, 1, 1)                         \
-  F(ArrayIsArray, 1, 1)                    \
-  F(HasCachedArrayIndex, 1, 1)             \
-  F(GetCachedArrayIndex, 1, 1)             \
-  F(FixedArrayGet, 2, 1)                   \
-  F(FixedArraySet, 3, 1)                   \
+#define FOR_EACH_INTRINSIC_ARRAY(F)  \
+  F(FinishArrayPrototypeSetup, 1, 1) \
+  F(SpecialArrayFunctions, 0, 1)     \
+  F(TransitionElementsKind, 2, 1)    \
+  F(RemoveArrayHoles, 2, 1)          \
+  F(MoveArrayContents, 2, 1)         \
+  F(EstimateNumberOfElements, 1, 1)  \
+  F(GetArrayKeys, 2, 1)              \
+  F(NewArray, -1 /* >= 3 */, 1)      \
+  F(ArrayPush, -1, 1)                \
+  F(FunctionBind, -1, 1)             \
+  F(NormalizeElements, 1, 1)         \
+  F(GrowArrayElements, 2, 1)         \
+  F(HasComplexElements, 1, 1)        \
+  F(IsArray, 1, 1)                   \
+  F(ArrayIsArray, 1, 1)              \
+  F(HasCachedArrayIndex, 1, 1)       \
+  F(GetCachedArrayIndex, 1, 1)       \
+  F(FixedArrayGet, 2, 1)             \
+  F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \

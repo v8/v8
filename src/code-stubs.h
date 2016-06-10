@@ -53,7 +53,6 @@ namespace internal {
   V(VectorStoreIC)                          \
   V(VectorKeyedStoreIC)                     \
   /* HydrogenCodeStubs */                   \
-  V(ArrayNArgumentsConstructor)             \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
   V(CreateAllocationSite)                   \
@@ -70,7 +69,6 @@ namespace internal {
   V(FastNewSloppyArguments)                 \
   V(FastNewStrictArguments)                 \
   V(GrowArrayElements)                      \
-  V(InternalArrayNArgumentsConstructor)     \
   V(KeyedLoadGeneric)                       \
   V(LoadGlobalViaContext)                   \
   V(LoadScriptContextField)                 \
@@ -101,6 +99,7 @@ namespace internal {
   V(AllocateBool8x16)                       \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
+  V(ArrayNArgumentsConstructor)             \
   V(StringLength)                           \
   V(Add)                                    \
   V(Subtract)                               \
@@ -1301,7 +1300,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
 
   class ArgumentCountBits : public BitField<ArgumentCountKey, 0, 2> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNArgumentsConstructor);
   DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
 };
 
@@ -1313,7 +1312,7 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
  private:
   void GenerateCase(MacroAssembler* masm, ElementsKind kind);
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructor);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNArgumentsConstructor);
   DEFINE_PLATFORM_CODE_STUB(InternalArrayConstructor, PlatformCodeStub);
 };
 
@@ -2788,50 +2787,6 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
 SIMD128_TYPES(SIMD128_ALLOC_STUB)
 #undef SIMD128_ALLOC_STUB
 
-class ArrayConstructorStubBase : public HydrogenCodeStub {
- public:
-  ArrayConstructorStubBase(Isolate* isolate,
-                           ElementsKind kind,
-                           AllocationSiteOverrideMode override_mode)
-      : HydrogenCodeStub(isolate) {
-    // It only makes sense to override local allocation site behavior
-    // if there is a difference between the global allocation site policy
-    // for an ElementsKind and the desired usage of the stub.
-    DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
-           AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
-    set_sub_minor_key(ElementsKindBits::encode(kind) |
-                      AllocationSiteOverrideModeBits::encode(override_mode));
-  }
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
-  }
-
-  AllocationSiteOverrideMode override_mode() const {
-    return AllocationSiteOverrideModeBits::decode(sub_minor_key());
-  }
-
-  static void GenerateStubsAheadOfTime(Isolate* isolate);
-
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kConstructor = 0;
-  static const int kAllocationSite = 1;
-
- protected:
-  std::ostream& BasePrintName(std::ostream& os,
-                              const char* name) const;  // NOLINT
-
- private:
-  // Ensure data fits within available bits.
-  STATIC_ASSERT(LAST_ALLOCATION_SITE_OVERRIDE_MODE == 1);
-
-  class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class AllocationSiteOverrideModeBits: public
-      BitField<AllocationSiteOverrideMode, 8, 1> {};  // NOLINT
-
-  DEFINE_CODE_STUB_BASE(ArrayConstructorStubBase, HydrogenCodeStub);
-};
-
 class CommonArrayConstructorStub : public TurboFanCodeStub {
  protected:
   CommonArrayConstructorStub(Isolate* isolate, ElementsKind kind,
@@ -2861,6 +2816,8 @@ class CommonArrayConstructorStub : public TurboFanCodeStub {
   AllocationSiteOverrideMode override_mode() const {
     return AllocationSiteOverrideModeBits::decode(sub_minor_key());
   }
+
+  static void GenerateStubsAheadOfTime(Isolate* isolate);
 
  private:
   // Ensure data fits within available bits.
@@ -2938,60 +2895,18 @@ class InternalArraySingleArgumentConstructorStub
                             CommonArrayConstructorStub);
 };
 
-class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
+class ArrayNArgumentsConstructorStub : public PlatformCodeStub {
  public:
-  ArrayNArgumentsConstructorStub(
-      Isolate* isolate,
-      ElementsKind kind,
-      AllocationSiteOverrideMode override_mode = DONT_OVERRIDE)
-      : ArrayConstructorStubBase(isolate, kind, override_mode) {
+  explicit ArrayNArgumentsConstructorStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    return ArrayNArgumentsConstructorDescriptor(isolate());
   }
 
  private:
-  void PrintName(std::ostream& os) const override {  // NOLINT
-    BasePrintName(os, "ArrayNArgumentsConstructorStub");
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
-  DEFINE_HYDROGEN_CODE_STUB(ArrayNArgumentsConstructor,
-                            ArrayConstructorStubBase);
+  DEFINE_PLATFORM_CODE_STUB(ArrayNArgumentsConstructor, PlatformCodeStub);
 };
-
-
-class InternalArrayConstructorStubBase : public HydrogenCodeStub {
- public:
-  InternalArrayConstructorStubBase(Isolate* isolate, ElementsKind kind)
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(ElementsKindBits::encode(kind));
-  }
-
-  static void GenerateStubsAheadOfTime(Isolate* isolate);
-
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kConstructor = 0;
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
-  }
-
- private:
-  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
-
-  DEFINE_CODE_STUB_BASE(InternalArrayConstructorStubBase, HydrogenCodeStub);
-};
-
-
-class InternalArrayNArgumentsConstructorStub : public
-    InternalArrayConstructorStubBase {
- public:
-  InternalArrayNArgumentsConstructorStub(Isolate* isolate, ElementsKind kind)
-      : InternalArrayConstructorStubBase(isolate, kind) { }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructor);
-  DEFINE_HYDROGEN_CODE_STUB(InternalArrayNArgumentsConstructor,
-                            InternalArrayConstructorStubBase);
-};
-
 
 class StoreElementStub : public PlatformCodeStub {
  public:
