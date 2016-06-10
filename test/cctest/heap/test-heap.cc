@@ -6761,5 +6761,23 @@ TEST(Regress615489) {
   CHECK_LE(size_after, size_before);
 }
 
+TEST(Regress618958) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  bool isolate_is_locked = true;
+  heap->update_amount_of_external_allocated_memory(100 * MB);
+  int mark_sweep_count_before = heap->ms_count();
+  heap->MemoryPressureNotification(MemoryPressureLevel::kCritical,
+                                   isolate_is_locked);
+  int mark_sweep_count_after = heap->ms_count();
+  int mark_sweeps_performed = mark_sweep_count_after - mark_sweep_count_before;
+  // The memory pressuer handler either performed two GCs or performed one and
+  // started incremental marking.
+  CHECK(mark_sweeps_performed == 2 ||
+        (mark_sweeps_performed == 1 &&
+         !heap->incremental_marking()->IsStopped()));
+}
+
 }  // namespace internal
 }  // namespace v8
