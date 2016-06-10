@@ -263,16 +263,13 @@ class CpuProfile {
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
 
-
 class CodeMap {
  public:
   CodeMap() {}
-  ~CodeMap();
+
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
   CodeEntry* FindEntry(Address addr);
-  int GetSharedId(Address addr);
-
   void Print();
 
  private:
@@ -283,29 +280,12 @@ class CodeMap {
     unsigned size;
   };
 
-  struct CodeTreeConfig {
-    typedef Address Key;
-    typedef CodeEntryInfo Value;
-    static const Key kNoKey;
-    static const Value NoValue() { return CodeEntryInfo(NULL, 0); }
-    static int Compare(const Key& a, const Key& b) {
-      return a < b ? -1 : (a > b ? 1 : 0);
-    }
-  };
-  typedef SplayTree<CodeTreeConfig> CodeTree;
-
-  class CodeTreePrinter {
-   public:
-    void Call(const Address& key, const CodeEntryInfo& value);
-  };
-
   void DeleteAllCoveredCode(Address start, Address end);
 
-  CodeTree tree_;
+  std::map<Address, CodeEntryInfo> code_map_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };
-
 
 class CpuProfilesCollection {
  public:

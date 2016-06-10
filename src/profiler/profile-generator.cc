@@ -11,7 +11,6 @@
 #include "src/global-handles.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
-#include "src/splay-tree-inl.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -384,81 +383,54 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
   }
 }
 
-
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
   end_time_ = base::TimeTicks::HighResolutionNow();
 }
-
 
 void CpuProfile::Print() {
   base::OS::Print("[Top down]:\n");
   top_down_.Print();
 }
 
-
-CodeMap::~CodeMap() {}
-
-
-const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
-
-
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   DeleteAllCoveredCode(addr, addr + size);
-  CodeTree::Locator locator;
-  tree_.Insert(addr, &locator);
-  locator.set_value(CodeEntryInfo(entry, size));
+  code_map_.insert({addr, CodeEntryInfo(entry, size)});
 }
-
 
 void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
-  List<Address> to_delete;
-  Address addr = end - 1;
-  while (addr >= start) {
-    CodeTree::Locator locator;
-    if (!tree_.FindGreatestLessThan(addr, &locator)) break;
-    Address start2 = locator.key(), end2 = start2 + locator.value().size;
-    if (start2 < end && start < end2) to_delete.Add(start2);
-    addr = start2 - 1;
+  auto left = code_map_.upper_bound(start);
+  if (left != code_map_.begin()) {
+    --left;
+    if (left->first + left->second.size <= start) ++left;
   }
-  for (int i = 0; i < to_delete.length(); ++i) tree_.Remove(to_delete[i]);
+  auto right = left;
+  while (right != code_map_.end() && right->first < end) ++right;
+  code_map_.erase(left, right);
 }
-
 
 CodeEntry* CodeMap::FindEntry(Address addr) {
-  CodeTree::Locator locator;
-  if (tree_.FindGreatestLessThan(addr, &locator)) {
-    // locator.key() <= addr. Need to check that addr is within entry.
-    const CodeEntryInfo& entry = locator.value();
-    if (addr < (locator.key() + entry.size)) {
-      return entry.entry;
-    }
-  }
-  return NULL;
+  auto it = code_map_.upper_bound(addr);
+  if (it == code_map_.begin()) return nullptr;
+  --it;
+  Address end_address = it->first + it->second.size;
+  return addr < end_address ? it->second.entry : nullptr;
 }
-
 
 void CodeMap::MoveCode(Address from, Address to) {
   if (from == to) return;
-  CodeTree::Locator locator;
-  if (!tree_.Find(from, &locator)) return;
-  CodeEntryInfo entry = locator.value();
-  tree_.Remove(from);
-  AddCode(to, entry.entry, entry.size);
+  auto it = code_map_.find(from);
+  if (it == code_map_.end()) return;
+  CodeEntryInfo info = it->second;
+  code_map_.erase(it);
+  AddCode(to, info.entry, info.size);
 }
-
-
-void CodeMap::CodeTreePrinter::Call(
-    const Address& key, const CodeMap::CodeEntryInfo& value) {
-  base::OS::Print("%p %5d %s\n", static_cast<void*>(key), value.size,
-                  value.entry->name());
-}
-
 
 void CodeMap::Print() {
-  CodeTreePrinter printer;
-  tree_.ForEach(&printer);
+  for (auto it = code_map_.begin(); it != code_map_.end(); ++it) {
+    base::OS::Print("%p %5d %s\n", static_cast<void*>(it->first),
+                    it->second.size, it->second.entry->name());
+  }
 }
-
 
 CpuProfilesCollection::CpuProfilesCollection(Heap* heap)
     : function_and_resource_names_(heap),
