@@ -13,8 +13,7 @@ namespace internal {
 
 class PartialSerializer : public Serializer {
  public:
-  PartialSerializer(Isolate* isolate, Serializer* startup_snapshot_serializer,
-                    SnapshotByteSink* sink);
+  PartialSerializer(Isolate* isolate, Serializer* startup_snapshot_serializer);
 
   ~PartialSerializer() override;
 

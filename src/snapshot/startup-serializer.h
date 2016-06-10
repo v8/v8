@@ -15,7 +15,7 @@ namespace internal {
 class StartupSerializer : public Serializer {
  public:
   StartupSerializer(
-      Isolate* isolate, SnapshotByteSink* sink,
+      Isolate* isolate,
       v8::SnapshotCreator::FunctionCodeHandling function_code_handling);
   ~StartupSerializer() override;
 

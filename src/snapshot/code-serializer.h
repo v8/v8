@@ -28,8 +28,8 @@ class CodeSerializer : public Serializer {
   const List<uint32_t>* stub_keys() const { return &stub_keys_; }
 
  private:
-  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
-      : Serializer(isolate, sink), source_(source) {
+  CodeSerializer(Isolate* isolate, String* source)
+      : Serializer(isolate), source_(source) {
     reference_map_.AddAttachedReference(source);
   }
 

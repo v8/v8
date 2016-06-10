@@ -120,7 +120,7 @@ class CodeAddressMap : public CodeEventLogger {
 // There can be only one serializer per V8 process.
 class Serializer : public SerializerDeserializer {
  public:
-  Serializer(Isolate* isolate, SnapshotByteSink* sink);
+  explicit Serializer(Isolate* isolate);
   ~Serializer() override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
@@ -177,8 +177,8 @@ class Serializer : public SerializerDeserializer {
 
   inline void FlushSkip(int skip) {
     if (skip != 0) {
-      sink_->Put(kSkip, "SkipFromSerializeObject");
-      sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
+      sink_.Put(kSkip, "SkipFromSerializeObject");
+      sink_.PutInt(skip, "SkipDistanceFromSerializeObject");
     }
   }
 
@@ -208,7 +208,7 @@ class Serializer : public SerializerDeserializer {
     return max_chunk_size_[space];
   }
 
-  SnapshotByteSink* sink() const { return sink_; }
+  const SnapshotByteSink* sink() const { return &sink_; }
 
   void QueueDeferredObject(HeapObject* obj) {
     DCHECK(reference_map_.Lookup(obj).is_back_reference());
@@ -219,7 +219,7 @@ class Serializer : public SerializerDeserializer {
 
   Isolate* isolate_;
 
-  SnapshotByteSink* sink_;
+  SnapshotByteSink sink_;
   ExternalReferenceEncoder external_reference_encoder_;
 
   SerializerReferenceMap reference_map_;

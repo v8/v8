@@ -92,8 +92,7 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
   internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
-  SnapshotByteSink sink;
-  StartupSerializer ser(internal_isolate, &sink,
+  StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
   ser.SerializeWeakReferencesAndDeferred();
@@ -282,15 +281,11 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
     }
     env.Reset();
 
-    SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, &startup_sink,
-        v8::SnapshotCreator::FunctionCodeHandling::kClear);
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
-    SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_foo);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -385,13 +380,11 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, &startup_sink,
-        v8::SnapshotCreator::FunctionCodeHandling::kClear);
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -505,13 +498,11 @@ static void PartiallySerializeCustomContext(
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, &startup_sink,
-        v8::SnapshotCreator::FunctionCodeHandling::kClear);
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 

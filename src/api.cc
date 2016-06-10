@@ -461,14 +461,10 @@ StartupData SnapshotCreator::CreateBlob(
   }
   data->contexts_.Clear();
 
-  i::SnapshotByteSink snapshot_sink;
-  i::StartupSerializer startup_serializer(isolate, &snapshot_sink,
-                                          function_code_handling);
+  i::StartupSerializer startup_serializer(isolate, function_code_handling);
   startup_serializer.SerializeStrongReferences();
 
-  i::SnapshotByteSink context_sink;
-  i::PartialSerializer context_serializer(isolate, &startup_serializer,
-                                          &context_sink);
+  i::PartialSerializer context_serializer(isolate, &startup_serializer);
   context_serializer.Serialize(&contexts[0]);
   startup_serializer.SerializeWeakReferencesAndDeferred();
 

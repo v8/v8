@@ -11,9 +11,9 @@ namespace v8 {
 namespace internal {
 
 StartupSerializer::StartupSerializer(
-    Isolate* isolate, SnapshotByteSink* sink,
+    Isolate* isolate,
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling)
-    : Serializer(isolate, sink),
+    : Serializer(isolate),
       clear_function_code_(function_code_handling ==
                            v8::SnapshotCreator::FunctionCodeHandling::kClear),
       serializing_builtins_(false) {
@@ -65,7 +65,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   FlushSkip(skip);
 
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer object_serializer(this, obj, sink_, how_to_code,
+  ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
                                      where_to_point);
   object_serializer.Serialize();
 
@@ -94,7 +94,7 @@ void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   // We expect the builtins tag after builtins have been serialized.
   DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
   serializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
-  sink_->Put(kSynchronize, "Synchronize");
+  sink_.Put(kSynchronize, "Synchronize");
 }
 
 void StartupSerializer::SerializeStrongReferences() {

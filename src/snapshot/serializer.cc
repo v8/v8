@@ -10,9 +10,8 @@
 namespace v8 {
 namespace internal {
 
-Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
+Serializer::Serializer(Isolate* isolate)
     : isolate_(isolate),
-      sink_(sink),
       external_reference_encoder_(isolate),
       root_index_map_(isolate),
       recursion_depth_(0),
@@ -90,10 +89,10 @@ void Serializer::OutputStatistics(const char* name) {
 void Serializer::SerializeDeferredObjects() {
   while (deferred_objects_.length() > 0) {
     HeapObject* obj = deferred_objects_.RemoveLast();
-    ObjectSerializer obj_serializer(this, obj, sink_, kPlain, kStartOfObject);
+    ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
     obj_serializer.SerializeDeferred();
   }
-  sink_->Put(kSynchronize, "Finished with deferred objects");
+  sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
 void Serializer::VisitPointers(Object** start, Object** end) {
@@ -154,10 +153,10 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
         PrintF("\n");
       }
       if (skip != 0) {
-        sink_->Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
-        sink_->PutInt(skip, "HotObjectSkipDistance");
+        sink_.Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
+        sink_.PutInt(skip, "HotObjectSkipDistance");
       } else {
-        sink_->Put(kHotObject + index, "HotObject");
+        sink_.Put(kHotObject + index, "HotObject");
       }
       return true;
     }
@@ -186,11 +185,11 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
       PutAlignmentPrefix(obj);
       AllocationSpace space = reference.space();
       if (skip == 0) {
-        sink_->Put(kBackref + how_to_code + where_to_point + space, "BackRef");
+        sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
       } else {
-        sink_->Put(kBackrefWithSkip + how_to_code + where_to_point + space,
-                   "BackRefWithSkip");
-        sink_->PutInt(skip, "BackRefSkipDistance");
+        sink_.Put(kBackrefWithSkip + how_to_code + where_to_point + space,
+                  "BackRefWithSkip");
+        sink_.PutInt(skip, "BackRefSkipDistance");
       }
       PutBackReference(obj, reference);
     }
@@ -213,28 +212,28 @@ void Serializer::PutRoot(int root_index, HeapObject* object,
       root_index < kNumberOfRootArrayConstants &&
       !isolate()->heap()->InNewSpace(object)) {
     if (skip == 0) {
-      sink_->Put(kRootArrayConstants + root_index, "RootConstant");
+      sink_.Put(kRootArrayConstants + root_index, "RootConstant");
     } else {
-      sink_->Put(kRootArrayConstantsWithSkip + root_index, "RootConstant");
-      sink_->PutInt(skip, "SkipInPutRoot");
+      sink_.Put(kRootArrayConstantsWithSkip + root_index, "RootConstant");
+      sink_.PutInt(skip, "SkipInPutRoot");
     }
   } else {
     FlushSkip(skip);
-    sink_->Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
-    sink_->PutInt(root_index, "root_index");
+    sink_.Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
+    sink_.PutInt(root_index, "root_index");
   }
 }
 
 void Serializer::PutSmi(Smi* smi) {
-  sink_->Put(kOnePointerRawData, "Smi");
+  sink_.Put(kOnePointerRawData, "Smi");
   byte* bytes = reinterpret_cast<byte*>(&smi);
-  for (int i = 0; i < kPointerSize; i++) sink_->Put(bytes[i], "Byte");
+  for (int i = 0; i < kPointerSize; i++) sink_.Put(bytes[i], "Byte");
 }
 
 void Serializer::PutBackReference(HeapObject* object,
                                   SerializerReference reference) {
   DCHECK(BackReferenceIsAlreadyAllocated(reference));
-  sink_->PutInt(reference.back_reference(), "BackRefValue");
+  sink_.PutInt(reference.back_reference(), "BackRefValue");
   hot_objects_.Add(object);
 }
 
@@ -245,8 +244,8 @@ void Serializer::PutAttachedReference(SerializerReference reference,
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  sink_->Put(kAttachedReference + how_to_code + where_to_point, "AttachedRef");
-  sink_->PutInt(reference.attached_reference_index(), "AttachedRefIndex");
+  sink_.Put(kAttachedReference + how_to_code + where_to_point, "AttachedRef");
+  sink_.PutInt(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
 int Serializer::PutAlignmentPrefix(HeapObject* object) {
@@ -254,7 +253,7 @@ int Serializer::PutAlignmentPrefix(HeapObject* object) {
   if (alignment != kWordAligned) {
     DCHECK(1 <= alignment && alignment <= 3);
     byte prefix = (kAlignmentPrefix - 1) + alignment;
-    sink_->Put(prefix, "Alignment");
+    sink_.Put(prefix, "Alignment");
     return Heap::GetMaximumFillToAlign(alignment);
   }
   return 0;
@@ -274,8 +273,8 @@ SerializerReference Serializer::Allocate(AllocationSpace space, int size) {
   if (new_chunk_size > max_chunk_size(space)) {
     // The new chunk size would not fit onto a single page. Complete the
     // current chunk and start a new one.
-    sink_->Put(kNextChunk, "NextChunk");
-    sink_->Put(space, "NextChunkSpace");
+    sink_.Put(kNextChunk, "NextChunk");
+    sink_.Put(space, "NextChunkSpace");
     completed_chunks_[space].Add(pending_chunk_[space]);
     pending_chunk_[space] = 0;
     new_chunk_size = size;
@@ -290,11 +289,11 @@ void Serializer::Pad() {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
-    sink_->Put(kNop, "Padding");
+    sink_.Put(kNop, "Padding");
   }
   // Pad up to pointer size for checksum.
-  while (!IsAligned(sink_->Position(), kPointerAlignment)) {
-    sink_->Put(kNop, "Padding");
+  while (!IsAligned(sink_.Position(), kPointerAlignment)) {
+    sink_.Put(kNop, "Padding");
   }
 }
 

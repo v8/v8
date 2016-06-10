@@ -26,15 +26,14 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   }
 
   // Serialize code object.
-  SnapshotByteSink sink(info->code()->CodeSize() * 2);
-  CodeSerializer cs(isolate, &sink, *source);
+  CodeSerializer cs(isolate, *source);
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
   cs.SerializeDeferredObjects();
   cs.Pad();
 
-  SerializedCodeData data(sink.data(), &cs);
+  SerializedCodeData data(cs.sink()->data(), &cs);
   ScriptData* script_data = data.GetScriptData();
 
   if (FLAG_profile_deserialization) {
@@ -105,7 +104,7 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
+  ObjectSerializer serializer(this, heap_object, &sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
 }
@@ -123,8 +122,8 @@ void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
            isolate()->builtins()->name(builtin_index));
   }
 
-  sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
-  sink_->PutInt(builtin_index, "builtin_index");
+  sink_.Put(kBuiltin + how_to_code + where_to_point, "Builtin");
+  sink_.PutInt(builtin_index, "builtin_index");
 }
 
 void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
