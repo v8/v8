@@ -249,7 +249,8 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     // 'this' is allocated in an outer context and is is already being
     // referenced by the current function, so it can be correctly resolved.
     return;
-  } else if (local_function->shared()->scope_info()->HasReceiver()) {
+  } else if (local_function->shared()->scope_info()->HasReceiver() &&
+             !frame_->receiver()->IsTheHole()) {
     recv = handle(frame_->receiver(), isolate_);
   }
   JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();
