@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/bits.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecode-traits.h"
 #include "src/interpreter/interpreter.h"
@@ -324,6 +325,20 @@ const OperandType* Bytecodes::GetOperandTypes(Bytecode bytecode) {
 }
 
 // static
+const OperandTypeInfo* Bytecodes::GetOperandTypeInfos(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
+  switch (bytecode) {
+#define CASE(Name, ...)   \
+  case Bytecode::k##Name: \
+    return BytecodeTraits<__VA_ARGS__>::GetOperandTypeInfos();
+    BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+// static
 OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i,
                                       OperandScale operand_scale) {
   DCHECK_LT(i, NumberOfOperands(bytecode));
@@ -598,7 +613,7 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
   switch (operand_type) {
 #define CASE(Name, _)        \
   case OperandType::k##Name: \
-    return OperandTraits<OperandType::k##Name>::TypeInfo::kIsUnsigned;
+    return OperandTraits<OperandType::k##Name>::TypeInfoTraits::kIsUnsigned;
     OPERAND_TYPE_LIST(CASE)
 #undef CASE
   }
@@ -608,9 +623,9 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
 
 // static
 OperandSize Bytecodes::SizeForSignedOperand(int value) {
-  if (kMinInt8 <= value && value <= kMaxInt8) {
+  if (value >= kMinInt8 && value <= kMaxInt8) {
     return OperandSize::kByte;
-  } else if (kMinInt16 <= value && value <= kMaxInt16) {
+  } else if (value >= kMinInt16 && value <= kMaxInt16) {
     return OperandSize::kShort;
   } else {
     return OperandSize::kQuad;
@@ -618,8 +633,7 @@ OperandSize Bytecodes::SizeForSignedOperand(int value) {
 }
 
 // static
-OperandSize Bytecodes::SizeForUnsignedOperand(int value) {
-  DCHECK_GE(value, 0);
+OperandSize Bytecodes::SizeForUnsignedOperand(uint32_t value) {
   if (value <= kMaxUInt8) {
     return OperandSize::kByte;
   } else if (value <= kMaxUInt16) {
@@ -627,69 +641,6 @@ OperandSize Bytecodes::SizeForUnsignedOperand(int value) {
   } else {
     return OperandSize::kQuad;
   }
-}
-
-OperandSize Bytecodes::SizeForUnsignedOperand(size_t value) {
-  if (value <= static_cast<size_t>(kMaxUInt8)) {
-    return OperandSize::kByte;
-  } else if (value <= static_cast<size_t>(kMaxUInt16)) {
-    return OperandSize::kShort;
-  } else if (value <= kMaxUInt32) {
-    return OperandSize::kQuad;
-  } else {
-    UNREACHABLE();
-    return OperandSize::kQuad;
-  }
-}
-
-OperandScale Bytecodes::OperandSizesToScale(OperandSize size0) {
-  OperandScale operand_scale = static_cast<OperandScale>(size0);
-  DCHECK(operand_scale == OperandScale::kSingle ||
-         operand_scale == OperandScale::kDouble ||
-         operand_scale == OperandScale::kQuadruple);
-  return operand_scale;
-}
-
-OperandScale Bytecodes::OperandSizesToScale(OperandSize size0,
-                                            OperandSize size1) {
-  OperandSize operand_size = std::max(size0, size1);
-  // Operand sizes have been scaled before calling this function.
-  // Currently all scalable operands are byte sized at
-  // OperandScale::kSingle.
-  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
-                    static_cast<int>(OperandScale::kSingle) &&
-                static_cast<int>(OperandSize::kShort) ==
-                    static_cast<int>(OperandScale::kDouble) &&
-                static_cast<int>(OperandSize::kQuad) ==
-                    static_cast<int>(OperandScale::kQuadruple));
-  OperandScale operand_scale = static_cast<OperandScale>(operand_size);
-  DCHECK(operand_scale == OperandScale::kSingle ||
-         operand_scale == OperandScale::kDouble ||
-         operand_scale == OperandScale::kQuadruple);
-  return operand_scale;
-}
-
-OperandScale Bytecodes::OperandSizesToScale(OperandSize size0,
-                                            OperandSize size1,
-                                            OperandSize size2,
-                                            OperandSize size3) {
-  OperandSize upper = std::max(size0, size1);
-  OperandSize lower = std::max(size2, size3);
-  OperandSize result = std::max(upper, lower);
-  // Operand sizes have been scaled before calling this function.
-  // Currently all scalable operands are byte sized at
-  // OperandScale::kSingle.
-  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
-                    static_cast<int>(OperandScale::kSingle) &&
-                static_cast<int>(OperandSize::kShort) ==
-                    static_cast<int>(OperandScale::kDouble) &&
-                static_cast<int>(OperandSize::kQuad) ==
-                    static_cast<int>(OperandScale::kQuadruple));
-  OperandScale operand_scale = static_cast<OperandScale>(result);
-  DCHECK(operand_scale == OperandScale::kSingle ||
-         operand_scale == OperandScale::kDouble ||
-         operand_scale == OperandScale::kQuadruple);
-  return operand_scale;
 }
 
 // static

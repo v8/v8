@@ -30,13 +30,15 @@ OPERAND_TYPE_INFO_LIST(DECLARE_OPERAND_TYPE_INFO)
 
 template <OperandType>
 struct OperandTraits {
-  typedef OperandTypeInfoTraits<OperandTypeInfo::kNone> TypeInfo;
+  typedef OperandTypeInfoTraits<OperandTypeInfo::kNone> TypeInfoTraits;
+  static const OperandTypeInfo kOperandTypeInfo = OperandTypeInfo::kNone;
 };
 
-#define DECLARE_OPERAND_TYPE_TRAITS(Name, InfoType)   \
-  template <>                                         \
-  struct OperandTraits<OperandType::k##Name> {        \
-    typedef OperandTypeInfoTraits<InfoType> TypeInfo; \
+#define DECLARE_OPERAND_TYPE_TRAITS(Name, InfoType)           \
+  template <>                                                 \
+  struct OperandTraits<OperandType::k##Name> {                \
+    typedef OperandTypeInfoTraits<InfoType> TypeInfoTraits;   \
+    static const OperandTypeInfo kOperandTypeInfo = InfoType; \
   };
 OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
@@ -57,8 +59,8 @@ struct OperandScaler {
   };
 
   static const int kSize =
-      Helper<OperandTraits<operand_type>::TypeInfo::kIsScalable,
-             OperandTraits<operand_type>::TypeInfo::kUnscaledSize,
+      Helper<OperandTraits<operand_type>::TypeInfoTraits::kIsScalable,
+             OperandTraits<operand_type>::TypeInfoTraits::kUnscaledSize,
              operand_scale>::kSize;
   static const OperandSize kOperandSize = static_cast<OperandSize>(kSize);
 };
@@ -89,6 +91,15 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
     return operand_types;
   }
 
+  static const OperandTypeInfo* GetOperandTypeInfos() {
+    static const OperandTypeInfo operand_type_infos[] = {
+        OperandTraits<operand_0>::kOperandTypeInfo,
+        OperandTraits<operand_1>::kOperandTypeInfo,
+        OperandTraits<operand_2>::kOperandTypeInfo,
+        OperandTraits<operand_3>::kOperandTypeInfo, OperandTypeInfo::kNone};
+    return operand_type_infos;
+  }
+
   static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
     switch (operand_scale) {
 #define CASE(Name, _)                                                  \
@@ -115,10 +126,10 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
   }
 
   static inline bool IsScalable() {
-    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
-            OperandTraits<operand_1>::TypeInfo::kIsScalable |
-            OperandTraits<operand_2>::TypeInfo::kIsScalable |
-            OperandTraits<operand_3>::TypeInfo::kIsScalable);
+    return (OperandTraits<operand_0>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_1>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_2>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_3>::TypeInfoTraits::kIsScalable);
   }
 
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
@@ -142,6 +153,14 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
     static const OperandType operand_types[] = {operand_0, operand_1, operand_2,
                                                 OperandType::kNone};
     return operand_types;
+  }
+
+  static const OperandTypeInfo* GetOperandTypeInfos() {
+    static const OperandTypeInfo operand_type_infos[] = {
+        OperandTraits<operand_0>::kOperandTypeInfo,
+        OperandTraits<operand_1>::kOperandTypeInfo,
+        OperandTraits<operand_2>::kOperandTypeInfo, OperandTypeInfo::kNone};
+    return operand_type_infos;
   }
 
   static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
@@ -168,9 +187,9 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
   }
 
   static inline bool IsScalable() {
-    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
-            OperandTraits<operand_1>::TypeInfo::kIsScalable |
-            OperandTraits<operand_2>::TypeInfo::kIsScalable);
+    return (OperandTraits<operand_0>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_1>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_2>::TypeInfoTraits::kIsScalable);
   }
 
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
@@ -192,6 +211,13 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
     static const OperandType operand_types[] = {operand_0, operand_1,
                                                 OperandType::kNone};
     return operand_types;
+  }
+
+  static const OperandTypeInfo* GetOperandTypeInfos() {
+    static const OperandTypeInfo operand_type_infos[] = {
+        OperandTraits<operand_0>::kOperandTypeInfo,
+        OperandTraits<operand_1>::kOperandTypeInfo, OperandTypeInfo::kNone};
+    return operand_type_infos;
   }
 
   static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
@@ -217,8 +243,8 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
   }
 
   static inline bool IsScalable() {
-    return (OperandTraits<operand_0>::TypeInfo::kIsScalable |
-            OperandTraits<operand_1>::TypeInfo::kIsScalable);
+    return (OperandTraits<operand_0>::TypeInfoTraits::kIsScalable |
+            OperandTraits<operand_1>::TypeInfoTraits::kIsScalable);
   }
 
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
@@ -236,6 +262,12 @@ struct BytecodeTraits<accumulator_use, operand_0> {
   static const OperandType* GetOperandTypes() {
     static const OperandType operand_types[] = {operand_0, OperandType::kNone};
     return operand_types;
+  }
+
+  static const OperandTypeInfo* GetOperandTypeInfos() {
+    static const OperandTypeInfo operand_type_infos[] = {
+        OperandTraits<operand_0>::kOperandTypeInfo, OperandTypeInfo::kNone};
+    return operand_type_infos;
   }
 
   static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
@@ -260,7 +292,7 @@ struct BytecodeTraits<accumulator_use, operand_0> {
   }
 
   static inline bool IsScalable() {
-    return OperandTraits<operand_0>::TypeInfo::kIsScalable;
+    return OperandTraits<operand_0>::TypeInfoTraits::kIsScalable;
   }
 
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
@@ -276,6 +308,12 @@ struct BytecodeTraits<accumulator_use> {
   static const OperandType* GetOperandTypes() {
     static const OperandType operand_types[] = {OperandType::kNone};
     return operand_types;
+  }
+
+  static const OperandTypeInfo* GetOperandTypeInfos() {
+    static const OperandTypeInfo operand_type_infos[] = {
+        OperandTypeInfo::kNone};
+    return operand_type_infos;
   }
 
   static const OperandSize* GetOperandSizes(OperandScale operand_scale) {

@@ -275,11 +275,23 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   void EnsureReturn();
 
-  static uint32_t RegisterOperand(Register reg);
-  static Register RegisterFromOperand(uint32_t operand);
-  static uint32_t SignedOperand(int value, OperandSize size);
-  static uint32_t UnsignedOperand(int value);
-  static uint32_t UnsignedOperand(size_t value);
+  static uint32_t RegisterOperand(Register reg) {
+    return static_cast<uint32_t>(reg.ToOperand());
+  }
+
+  static uint32_t SignedOperand(int value) {
+    return static_cast<uint32_t>(value);
+  }
+
+  static uint32_t UnsignedOperand(int value) {
+    DCHECK_GE(value, 0);
+    return static_cast<uint32_t>(value);
+  }
+
+  static uint32_t UnsignedOperand(size_t value) {
+    DCHECK_LE(value, kMaxUInt32);
+    return static_cast<uint32_t>(value);
+  }
 
  private:
   friend class BytecodeRegisterAllocator;
@@ -296,24 +308,21 @@ class BytecodeArrayBuilder final : public ZoneObject {
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
   static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+              uint32_t operand2, uint32_t operand3);
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
+              uint32_t operand2);
+  void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
+  void Output(Bytecode bytecode, uint32_t operand0);
   void Output(Bytecode bytecode);
-  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
-                    uint32_t operand0, uint32_t operand1, uint32_t operand2,
-                    uint32_t operand3);
-  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
-                    uint32_t operand0, uint32_t operand1, uint32_t operand2);
-  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
-                    uint32_t operand0, uint32_t operand1);
-  void OutputScaled(Bytecode bytecode, OperandScale operand_scale,
-                    uint32_t operand0);
 
   BytecodeArrayBuilder& OutputJump(Bytecode jump_bytecode,
                                    BytecodeLabel* label);
 
-
-  bool OperandIsValid(Bytecode bytecode, OperandScale operand_scale,
-                      int operand_index, uint32_t operand_value) const;
-  bool RegisterIsValid(Register reg, OperandSize reg_size) const;
+  bool RegisterIsValid(Register reg) const;
+  bool OperandsAreValid(Bytecode bytecode, int operand_count,
+                        uint32_t operand0 = 0, uint32_t operand1 = 0,
+                        uint32_t operand2 = 0, uint32_t operand3 = 0) const;
 
   // Attach latest source position to |node|.
   void AttachSourceInfo(BytecodeNode* node);

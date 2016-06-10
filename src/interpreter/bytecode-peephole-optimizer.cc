@@ -184,9 +184,8 @@ void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
   // accumulator. However, in the second form the Ldar can often be
   // peephole optimized away unlike the Star in the first form.
   //
-  last->Transform(new_bytecode, current->operand(0), current->operand_scale());
-  current->set_bytecode(Bytecode::kLdar, current->operand(0),
-                        current->operand_scale());
+  last->Transform(new_bytecode, current->operand(0));
+  current->set_bytecode(Bytecode::kLdar, current->operand(0));
 }
 
 }  // namespace
@@ -232,7 +231,7 @@ bool BytecodePeepholeOptimizer::RemoveToBooleanFromJump(
     // element can be removed if the previous bytecode put a boolean
     // value in the accumulator.
     Bytecode jump = Bytecodes::GetJumpWithoutToBoolean(current->bytecode());
-    current->set_bytecode(jump, current->operand(0), current->operand_scale());
+    current->set_bytecode(jump, current->operand(0));
   }
   return can_remove;
 }

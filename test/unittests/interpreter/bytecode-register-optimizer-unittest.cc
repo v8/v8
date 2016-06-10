@@ -93,23 +93,22 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNopStatement) {
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   Initialize(1, 1);
   Register temp = NewTemporary();
-  BytecodeNode node(Bytecode::kStar, temp.ToOperand(), OperandScale::kSingle);
+  BytecodeNode node(Bytecode::kStar, temp.ToOperand());
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 0);
   BytecodeLabel label;
-  BytecodeNode jump(Bytecode::kJump, 0, OperandScale::kSingle);
+  BytecodeNode jump(Bytecode::kJump, 0);
   optimizer()->WriteJump(&jump, &label);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
   CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kJump);
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForBind) {
   Initialize(1, 1);
   Register temp = NewTemporary();
-  BytecodeNode node(Bytecode::kStar, temp.ToOperand(), OperandScale::kSingle);
+  BytecodeNode node(Bytecode::kStar, temp.ToOperand());
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 0);
   BytecodeLabel label;
@@ -117,7 +116,6 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForBind) {
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
   CHECK_EQ(output()->at(0).operand(0), temp.ToOperand());
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
 }
 
 // Basic Register Optimizations
@@ -125,13 +123,11 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForBind) {
 TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   Initialize(3, 1);
   Register parameter = Register::FromParameterIndex(1, 3);
-  BytecodeNode node0(Bytecode::kLdar, parameter.ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node0(Bytecode::kLdar, parameter.ToOperand());
   optimizer()->Write(&node0);
   CHECK_EQ(write_count(), 0);
   Register temp = NewTemporary();
-  BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand());
   optimizer()->Write(&node1);
   CHECK_EQ(write_count(), 0);
   KillTemporary(temp);
@@ -141,32 +137,28 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(0).operand(0), parameter.ToOperand());
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kReturn);
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
   Initialize(3, 1);
   Register parameter = Register::FromParameterIndex(1, 3);
-  BytecodeNode node0(Bytecode::kLdar, parameter.ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node0(Bytecode::kLdar, parameter.ToOperand());
   optimizer()->Write(&node0);
   CHECK_EQ(write_count(), 0);
   Register local = Register(0);
-  BytecodeNode node1(Bytecode::kStar, local.ToOperand(), OperandScale::kSingle);
+  BytecodeNode node1(Bytecode::kStar, local.ToOperand());
   optimizer()->Write(&node1);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kMov);
   CHECK_EQ(output()->at(0).operand(0), parameter.ToOperand());
   CHECK_EQ(output()->at(0).operand(1), local.ToOperand());
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
 
   BytecodeNode node2(Bytecode::kReturn);
   optimizer()->Write(&node2);
   CHECK_EQ(write_count(), 3);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(1).operand(0), local.ToOperand());
-  CHECK_EQ(output()->at(1).operand_scale(), OperandScale::kSingle);
   CHECK_EQ(output()->at(2).bytecode(), Bytecode::kReturn);
 }
 
@@ -175,22 +167,18 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotMaterializedForInput) {
   Register parameter = Register::FromParameterIndex(1, 3);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  BytecodeNode node0(Bytecode::kMov, parameter.ToOperand(), temp0.ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node0(Bytecode::kMov, parameter.ToOperand(), temp0.ToOperand());
   optimizer()->Write(&node0);
-  BytecodeNode node1(Bytecode::kMov, parameter.ToOperand(), temp1.ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node1(Bytecode::kMov, parameter.ToOperand(), temp1.ToOperand());
   optimizer()->Write(&node1);
   CHECK_EQ(write_count(), 0);
-  BytecodeNode node2(Bytecode::kCallJSRuntime, 0, temp0.ToOperand(), 1,
-                     OperandScale::kSingle);
+  BytecodeNode node2(Bytecode::kCallJSRuntime, 0, temp0.ToOperand(), 1);
   optimizer()->Write(&node2);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kCallJSRuntime);
   CHECK_EQ(output()->at(0).operand(0), 0);
   CHECK_EQ(output()->at(0).operand(1), parameter.ToOperand());
   CHECK_EQ(output()->at(0).operand(2), 1);
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
@@ -198,38 +186,32 @@ TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   Register parameter = Register::FromParameterIndex(1, 3);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  BytecodeNode node0(Bytecode::kLdaSmi, 3, OperandScale::kSingle);
+  BytecodeNode node0(Bytecode::kLdaSmi, 3);
   optimizer()->Write(&node0);
   CHECK_EQ(write_count(), 1);
-  BytecodeNode node1(Bytecode::kStar, temp0.ToOperand(), OperandScale::kSingle);
+  BytecodeNode node1(Bytecode::kStar, temp0.ToOperand());
   optimizer()->Write(&node1);
-  BytecodeNode node2(Bytecode::kMov, parameter.ToOperand(), temp1.ToOperand(),
-                     OperandScale::kSingle);
+  BytecodeNode node2(Bytecode::kMov, parameter.ToOperand(), temp1.ToOperand());
   optimizer()->Write(&node2);
   CHECK_EQ(write_count(), 1);
-  BytecodeNode node3(Bytecode::kCallJSRuntime, 0, temp0.ToOperand(), 2,
-                     OperandScale::kSingle);
+  BytecodeNode node3(Bytecode::kCallJSRuntime, 0, temp0.ToOperand(), 2);
   optimizer()->Write(&node3);
   CHECK_EQ(write_count(), 4);
 
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdaSmi);
   CHECK_EQ(output()->at(0).operand(0), 3);
-  CHECK_EQ(output()->at(0).operand_scale(), OperandScale::kSingle);
 
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kStar);
   CHECK_EQ(output()->at(1).operand(0), temp0.ToOperand());
-  CHECK_EQ(output()->at(1).operand_scale(), OperandScale::kSingle);
 
   CHECK_EQ(output()->at(2).bytecode(), Bytecode::kMov);
   CHECK_EQ(output()->at(2).operand(0), parameter.ToOperand());
   CHECK_EQ(output()->at(2).operand(1), temp1.ToOperand());
-  CHECK_EQ(output()->at(2).operand_scale(), OperandScale::kSingle);
 
   CHECK_EQ(output()->at(3).bytecode(), Bytecode::kCallJSRuntime);
   CHECK_EQ(output()->at(3).operand(0), 0);
   CHECK_EQ(output()->at(3).operand(1), temp0.ToOperand());
   CHECK_EQ(output()->at(3).operand(2), 2);
-  CHECK_EQ(output()->at(3).operand_scale(), OperandScale::kSingle);
 }
 
 }  // namespace interpreter

@@ -105,10 +105,64 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
   }
 }
 
+namespace {
+
+OperandScale ScaleForScalableByteOperand(OperandSize operand_size) {
+  STATIC_ASSERT(static_cast<int>(OperandSize::kByte) ==
+                static_cast<int>(OperandScale::kSingle));
+  STATIC_ASSERT(static_cast<int>(OperandSize::kShort) ==
+                static_cast<int>(OperandScale::kDouble));
+  STATIC_ASSERT(static_cast<int>(OperandSize::kQuad) ==
+                static_cast<int>(OperandScale::kQuadruple));
+  return static_cast<OperandScale>(operand_size);
+}
+
+OperandScale OperandScaleForScalableSignedByte(uint32_t operand_value) {
+  int32_t signed_operand = static_cast<int32_t>(operand_value);
+  OperandSize bytes_required = Bytecodes::SizeForSignedOperand(signed_operand);
+  return ScaleForScalableByteOperand(bytes_required);
+}
+
+OperandScale OperandScaleForScalableUnsignedByte(uint32_t operand_value) {
+  OperandSize bytes_required = Bytecodes::SizeForUnsignedOperand(operand_value);
+  return ScaleForScalableByteOperand(bytes_required);
+}
+
+OperandScale GetOperandScale(const BytecodeNode* const node) {
+  const OperandTypeInfo* operand_type_infos =
+      Bytecodes::GetOperandTypeInfos(node->bytecode());
+  OperandScale operand_scale = OperandScale::kSingle;
+  for (int i = 0; i < node->operand_count(); ++i) {
+    switch (operand_type_infos[i]) {
+      case OperandTypeInfo::kScalableSignedByte: {
+        uint32_t operand = node->operand(i);
+        operand_scale =
+            std::max(operand_scale, OperandScaleForScalableSignedByte(operand));
+        break;
+      }
+      case OperandTypeInfo::kScalableUnsignedByte: {
+        uint32_t operand = node->operand(i);
+        operand_scale = std::max(operand_scale,
+                                 OperandScaleForScalableUnsignedByte(operand));
+        break;
+      }
+      case OperandTypeInfo::kFixedUnsignedByte:
+      case OperandTypeInfo::kFixedUnsignedShort:
+        break;
+      case OperandTypeInfo::kNone:
+        UNREACHABLE();
+        break;
+    }
+  }
+  return operand_scale;
+}
+
+}  // namespace
+
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
   DCHECK_NE(node->bytecode(), Bytecode::kIllegal);
 
-  OperandScale operand_scale = node->operand_scale();
+  OperandScale operand_scale = GetOperandScale(node);
   if (operand_scale != OperandScale::kSingle) {
     Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
     bytecodes()->push_back(Bytecodes::ToByte(prefix));
@@ -160,23 +214,6 @@ void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
   }
 }
 
-// TODO(rmcilroy): This is the same as SignedOperand in BytecodeArrayBuilder.
-// Once we move the scalable operand processing here remove the SignedOperand
-// in BytecodeArrayBuilder.
-static uint32_t SignedOperand(int value, OperandSize size) {
-  switch (size) {
-    case OperandSize::kByte:
-      return static_cast<uint8_t>(value & 0xff);
-    case OperandSize::kShort:
-      return static_cast<uint16_t>(value & 0xffff);
-    case OperandSize::kQuad:
-      return static_cast<uint32_t>(value);
-    case OperandSize::kNone:
-      UNREACHABLE();
-  }
-  return 0;
-}
-
 // static
 Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
   switch (jump_bytecode) {
@@ -207,7 +244,7 @@ void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
   Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
   size_t operand_location = jump_location + 1;
-  DCHECK_EQ(bytecodes()->at(operand_location), 0);
+  DCHECK_EQ(bytecodes()->at(operand_location), k8BitJumpPlaceholder);
   if (Bytecodes::SizeForSignedOperand(delta) == OperandSize::kByte) {
     // The jump fits within the range of an Imm operand, so cancel
     // the reservation and jump directly.
@@ -219,7 +256,9 @@ void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kByte, handle(Smi::FromInt(delta), isolate()));
-    DCHECK(Bytecodes::SizeForUnsignedOperand(entry) == OperandSize::kByte);
+    DCHECK_LE(entry, kMaxUInt32);
+    DCHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<uint32_t>(entry)),
+              OperandSize::kByte);
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
     bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
     bytecodes()->at(operand_location) = static_cast<uint8_t>(entry);
@@ -242,8 +281,8 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
         OperandSize::kShort, handle(Smi::FromInt(delta), isolate()));
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
   }
-  DCHECK(bytecodes()->at(operand_location) == 0 &&
-         bytecodes()->at(operand_location + 1) == 0);
+  DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder);
   bytecodes()->at(operand_location++) = operand_bytes[0];
   bytecodes()->at(operand_location) = operand_bytes[1];
 }
@@ -256,10 +295,10 @@ void BytecodeArrayWriter::PatchJumpWith32BitOperand(size_t jump_location,
   uint8_t operand_bytes[4];
   WriteUnalignedUInt32(operand_bytes, static_cast<uint32_t>(delta));
   size_t operand_location = jump_location + 1;
-  DCHECK(bytecodes()->at(operand_location) == 0 &&
-         bytecodes()->at(operand_location + 1) == 0 &&
-         bytecodes()->at(operand_location + 2) == 0 &&
-         bytecodes()->at(operand_location + 3) == 0);
+  DCHECK(bytecodes()->at(operand_location) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 1) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 2) == k8BitJumpPlaceholder &&
+         bytecodes()->at(operand_location + 3) == k8BitJumpPlaceholder);
   bytecodes()->at(operand_location++) = operand_bytes[0];
   bytecodes()->at(operand_location++) = operand_bytes[1];
   bytecodes()->at(operand_location++) = operand_bytes[2];
@@ -316,8 +355,7 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
       DCHECK_LE(delta, 0);
       delta -= 1;
     }
-    node->set_bytecode(node->bytecode(), SignedOperand(delta, operand_size),
-                       Bytecodes::OperandSizesToScale(operand_size));
+    node->set_bytecode(node->bytecode(), delta);
   } else {
     // The label has not yet been bound so this is a forward reference
     // that will be patched when the label is bound. We create a
@@ -329,9 +367,20 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
     label->set_referrer(current_offset);
     OperandSize reserved_operand_size =
         constant_array_builder()->CreateReservedEntry();
-    OperandScale operand_scale =
-        Bytecodes::OperandSizesToScale(reserved_operand_size);
-    node->set_bytecode(node->bytecode(), 0, operand_scale);
+    switch (reserved_operand_size) {
+      case OperandSize::kNone:
+        UNREACHABLE();
+        break;
+      case OperandSize::kByte:
+        node->set_bytecode(node->bytecode(), k8BitJumpPlaceholder);
+        break;
+      case OperandSize::kShort:
+        node->set_bytecode(node->bytecode(), k16BitJumpPlaceholder);
+        break;
+      case OperandSize::kQuad:
+        node->set_bytecode(node->bytecode(), k32BitJumpPlaceholder);
+        break;
+    }
   }
   EmitBytecode(node);
 }

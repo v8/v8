@@ -34,6 +34,15 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
       Handle<FixedArray> handler_table) override;
 
  private:
+  // Constants that act as placeholders for jump operands to be
+  // patched. These have operand sizes that match the sizes of
+  // reserved constant pool entries.
+  const uint32_t k8BitJumpPlaceholder = 0x7f;
+  const uint32_t k16BitJumpPlaceholder =
+      k8BitJumpPlaceholder | (k8BitJumpPlaceholder << 8);
+  const uint32_t k32BitJumpPlaceholder =
+      k16BitJumpPlaceholder | (k16BitJumpPlaceholder << 16);
+
   void PatchJump(size_t jump_target, size_t jump_location);
   void PatchJumpWith8BitOperand(size_t jump_location, int delta);
   void PatchJumpWith16BitOperand(size_t jump_location, int delta);

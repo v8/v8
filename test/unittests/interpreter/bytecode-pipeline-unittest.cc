@@ -61,82 +61,71 @@ TEST_F(BytecodeNodeTest, Constructor1) {
   BytecodeNode node(Bytecode::kLdaZero);
   CHECK_EQ(node.bytecode(), Bytecode::kLdaZero);
   CHECK_EQ(node.operand_count(), 0);
-  CHECK_EQ(node.operand_scale(), OperandScale::kSingle);
   CHECK(!node.source_info().is_valid());
-  CHECK_EQ(node.Size(), 1);
 }
 
 TEST_F(BytecodeNodeTest, Constructor2) {
   uint32_t operands[] = {0x11};
-  BytecodeNode node(Bytecode::kJumpIfTrue, operands[0], OperandScale::kDouble);
+  BytecodeNode node(Bytecode::kJumpIfTrue, operands[0]);
   CHECK_EQ(node.bytecode(), Bytecode::kJumpIfTrue);
   CHECK_EQ(node.operand_count(), 1);
   CHECK_EQ(node.operand(0), operands[0]);
-  CHECK_EQ(node.operand_scale(), OperandScale::kDouble);
   CHECK(!node.source_info().is_valid());
-  CHECK_EQ(node.Size(), 4);
 }
 
 TEST_F(BytecodeNodeTest, Constructor3) {
   uint32_t operands[] = {0x11, 0x22};
-  BytecodeNode node(Bytecode::kLdaGlobal, operands[0], operands[1],
-                    OperandScale::kQuadruple);
+  BytecodeNode node(Bytecode::kLdaGlobal, operands[0], operands[1]);
   CHECK_EQ(node.bytecode(), Bytecode::kLdaGlobal);
   CHECK_EQ(node.operand_count(), 2);
   CHECK_EQ(node.operand(0), operands[0]);
   CHECK_EQ(node.operand(1), operands[1]);
-  CHECK_EQ(node.operand_scale(), OperandScale::kQuadruple);
   CHECK(!node.source_info().is_valid());
-  CHECK_EQ(node.Size(), 10);
 }
 
 TEST_F(BytecodeNodeTest, Constructor4) {
   uint32_t operands[] = {0x11, 0x22, 0x33};
   BytecodeNode node(Bytecode::kLdaNamedProperty, operands[0], operands[1],
-                    operands[2], OperandScale::kSingle);
+                    operands[2]);
   CHECK_EQ(node.operand_count(), 3);
   CHECK_EQ(node.bytecode(), Bytecode::kLdaNamedProperty);
   CHECK_EQ(node.operand(0), operands[0]);
   CHECK_EQ(node.operand(1), operands[1]);
   CHECK_EQ(node.operand(2), operands[2]);
-  CHECK_EQ(node.operand_scale(), OperandScale::kSingle);
   CHECK(!node.source_info().is_valid());
-  CHECK_EQ(node.Size(), 4);
 }
 
 TEST_F(BytecodeNodeTest, Constructor5) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   CHECK_EQ(node.operand_count(), 4);
   CHECK_EQ(node.bytecode(), Bytecode::kForInNext);
   CHECK_EQ(node.operand(0), operands[0]);
   CHECK_EQ(node.operand(1), operands[1]);
   CHECK_EQ(node.operand(2), operands[2]);
   CHECK_EQ(node.operand(3), operands[3]);
-  CHECK_EQ(node.operand_scale(), OperandScale::kDouble);
   CHECK(!node.source_info().is_valid());
-  CHECK_EQ(node.Size(), 10);
 }
 
 TEST_F(BytecodeNodeTest, Equality) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   CHECK_EQ(node, node);
   BytecodeNode other(Bytecode::kForInNext, operands[0], operands[1],
-                     operands[2], operands[3], OperandScale::kDouble);
+                     operands[2], operands[3]);
   CHECK_EQ(node, other);
 }
 
 TEST_F(BytecodeNodeTest, EqualityWithSourceInfo) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   node.source_info().Update({3, true});
   CHECK_EQ(node, node);
   BytecodeNode other(Bytecode::kForInNext, operands[0], operands[1],
-                     operands[2], operands[3], OperandScale::kDouble);
+                     operands[2], operands[3]);
   other.source_info().Update({3, true});
   CHECK_EQ(node, other);
 }
@@ -144,17 +133,17 @@ TEST_F(BytecodeNodeTest, EqualityWithSourceInfo) {
 TEST_F(BytecodeNodeTest, NoEqualityWithDifferentSourceInfo) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   node.source_info().Update({3, true});
   BytecodeNode other(Bytecode::kForInNext, operands[0], operands[1],
-                     operands[2], operands[3], OperandScale::kDouble);
+                     operands[2], operands[3]);
   CHECK_NE(node, other);
 }
 
 TEST_F(BytecodeNodeTest, Clone) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   BytecodeNode clone;
   clone.Clone(&node);
   CHECK_EQ(clone, node);
@@ -163,7 +152,7 @@ TEST_F(BytecodeNodeTest, Clone) {
 TEST_F(BytecodeNodeTest, SetBytecode0) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   BytecodeSourceInfo source_info(77, false);
   node.source_info().Update(source_info);
 
@@ -172,24 +161,22 @@ TEST_F(BytecodeNodeTest, SetBytecode0) {
   clone.set_bytecode(Bytecode::kNop);
   CHECK_EQ(clone.bytecode(), Bytecode::kNop);
   CHECK_EQ(clone.operand_count(), 0);
-  CHECK_EQ(clone.operand_scale(), OperandScale::kSingle);
   CHECK_EQ(clone.source_info(), source_info);
 }
 
 TEST_F(BytecodeNodeTest, SetBytecode1) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], OperandScale::kDouble);
+                    operands[3]);
   BytecodeSourceInfo source_info(77, false);
   node.source_info().Update(source_info);
 
   BytecodeNode clone;
   clone.Clone(&node);
-  clone.set_bytecode(Bytecode::kJump, 0x01aabbcc, OperandScale::kQuadruple);
+  clone.set_bytecode(Bytecode::kJump, 0x01aabbcc);
   CHECK_EQ(clone.bytecode(), Bytecode::kJump);
   CHECK_EQ(clone.operand_count(), 1);
   CHECK_EQ(clone.operand(0), 0x01aabbcc);
-  CHECK_EQ(clone.operand_scale(), OperandScale::kQuadruple);
   CHECK_EQ(clone.source_info(), source_info);
 }
 

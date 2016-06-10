@@ -518,6 +518,10 @@ class Bytecodes {
   // OperandType::kNone.
   static const OperandType* GetOperandTypes(Bytecode bytecode);
 
+  // Returns a pointer to an array of operand type info terminated in
+  // OperandTypeInfo::kNone.
+  static const OperandTypeInfo* GetOperandTypeInfos(Bytecode bytecode);
+
   // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
                                     OperandScale operand_scale);
@@ -652,18 +656,7 @@ class Bytecodes {
   static OperandSize SizeForSignedOperand(int value);
 
   // Return the operand size required to hold an unsigned operand.
-  static OperandSize SizeForUnsignedOperand(int value);
-
-  // Return the operand size required to hold an unsigned operand.
-  static OperandSize SizeForUnsignedOperand(size_t value);
-
-  // Return the OperandScale required for bytecode emission of
-  // operand sizes.
-  static OperandScale OperandSizesToScale(OperandSize size0);
-  static OperandScale OperandSizesToScale(OperandSize size0, OperandSize size1);
-  static OperandScale OperandSizesToScale(
-      OperandSize size0, OperandSize size1, OperandSize size2,
-      OperandSize size3 = OperandSize::kByte);
+  static OperandSize SizeForUnsignedOperand(uint32_t value);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

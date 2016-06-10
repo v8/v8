@@ -324,20 +324,16 @@ void BytecodeRegisterOptimizer::OutputRegisterTransfer(
 
   if (input == accumulator_) {
     uint32_t operand = static_cast<uint32_t>(output.ToOperand());
-    OperandScale scale = Bytecodes::OperandSizesToScale(output.SizeOfOperand());
-    BytecodeNode node(Bytecode::kStar, operand, scale);
+    BytecodeNode node(Bytecode::kStar, operand);
     WriteToNextStage(&node, source_info);
   } else if (output == accumulator_) {
     uint32_t operand = static_cast<uint32_t>(input.ToOperand());
-    OperandScale scale = Bytecodes::OperandSizesToScale(input.SizeOfOperand());
-    BytecodeNode node(Bytecode::kLdar, operand, scale);
+    BytecodeNode node(Bytecode::kLdar, operand);
     WriteToNextStage(&node, source_info);
   } else {
     uint32_t operand0 = static_cast<uint32_t>(input.ToOperand());
     uint32_t operand1 = static_cast<uint32_t>(output.ToOperand());
-    OperandScale scale = Bytecodes::OperandSizesToScale(input.SizeOfOperand(),
-                                                        output.SizeOfOperand());
-    BytecodeNode node(Bytecode::kMov, operand0, operand1, scale);
+    BytecodeNode node(Bytecode::kMov, operand0, operand1);
     WriteToNextStage(&node, source_info);
   }
   output_info->set_materialized(true);
@@ -483,12 +479,6 @@ void BytecodeRegisterOptimizer::PrepareRegisterInputOperand(
   Register equivalent = GetEquivalentRegisterForInputOperand(reg);
   node->operands()[operand_index] =
       static_cast<uint32_t>(equivalent.ToOperand());
-  // Update operand scale as equivalent may be different.
-  OperandScale operand_scale =
-      Bytecodes::OperandSizesToScale(equivalent.SizeOfOperand());
-  if (operand_scale > node->operand_scale()) {
-    node->set_operand_scale(operand_scale);
-  }
 }
 
 void BytecodeRegisterOptimizer::PrepareRegisterRangeInputOperand(Register start,

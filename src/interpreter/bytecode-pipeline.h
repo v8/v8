@@ -91,22 +91,18 @@ class BytecodeSourceInfo final {
 class BytecodeNode final : ZoneObject {
  public:
   explicit BytecodeNode(Bytecode bytecode = Bytecode::kIllegal);
-  BytecodeNode(Bytecode bytecode, uint32_t operand0,
-               OperandScale operand_scale);
+  BytecodeNode(Bytecode bytecode, uint32_t operand0);
+  BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1);
   BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-               OperandScale operand_scale);
+               uint32_t operand2);
   BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-               uint32_t operand2, OperandScale operand_scale);
-  BytecodeNode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-               uint32_t operand2, uint32_t operand3,
-               OperandScale operand_scale);
+               uint32_t operand2, uint32_t operand3);
 
   BytecodeNode(const BytecodeNode& other);
   BytecodeNode& operator=(const BytecodeNode& other);
 
   void set_bytecode(Bytecode bytecode);
-  void set_bytecode(Bytecode bytecode, uint32_t operand0,
-                    OperandScale operand_scale);
+  void set_bytecode(Bytecode bytecode, uint32_t operand0);
 
   // Clone |other|.
   void Clone(const BytecodeNode* const other);
@@ -114,13 +110,9 @@ class BytecodeNode final : ZoneObject {
   // Print to stream |os|.
   void Print(std::ostream& os) const;
 
-  // Return the size when this node is serialized to a bytecode array.
-  size_t Size() const;
-
   // Transform to a node representing |new_bytecode| which has one
   // operand more than the current bytecode.
-  void Transform(Bytecode new_bytecode, uint32_t extra_operand,
-                 OperandScale extra_operand_scale);
+  void Transform(Bytecode new_bytecode, uint32_t extra_operand);
 
   Bytecode bytecode() const { return bytecode_; }
 
@@ -132,10 +124,6 @@ class BytecodeNode final : ZoneObject {
   const uint32_t* operands() const { return operands_; }
 
   int operand_count() const { return Bytecodes::NumberOfOperands(bytecode_); }
-  OperandScale operand_scale() const { return operand_scale_; }
-  void set_operand_scale(OperandScale operand_scale) {
-    operand_scale_ = operand_scale;
-  }
 
   const BytecodeSourceInfo& source_info() const { return source_info_; }
   BytecodeSourceInfo& source_info() { return source_info_; }
@@ -149,7 +137,6 @@ class BytecodeNode final : ZoneObject {
 
   Bytecode bytecode_;
   uint32_t operands_[kMaxOperands];
-  OperandScale operand_scale_;
   BytecodeSourceInfo source_info_;
 };
 
