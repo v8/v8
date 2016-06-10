@@ -651,6 +651,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
 
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
+    update_receiver_map(object);
   }
   // Named lookup in the object.
   LookupIterator it(object, name);
