@@ -454,6 +454,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       state = LowerPlainPrimitiveToNumber(node, *effect, *control);
       break;
