@@ -81,7 +81,8 @@ function TickProcessor(
     sourceMap,
     timedRange,
     pairwiseTimedRange,
-    onlySummary) {
+    onlySummary,
+    runtimeTimerFilter) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -94,6 +95,9 @@ function TickProcessor(
           processor: this.processCodeDelete },
       'sfi-move': { parsers: [parseInt, parseInt],
           processor: this.processFunctionMove },
+      'active-runtime-timer': {
+        parsers: [null],
+        processor: this.processRuntimeTimerEvent },
       'tick': {
           parsers: [parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
@@ -124,6 +128,7 @@ function TickProcessor(
   this.callGraphSize_ = callGraphSize;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
+  this.runtimeTimerFilter_ = runtimeTimerFilter;
   this.sourceMap = sourceMap;
   this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
@@ -284,8 +289,17 @@ TickProcessor.prototype.processFunctionMove = function(from, to) {
 
 
 TickProcessor.prototype.includeTick = function(vmState) {
-  return this.stateFilter_ == null || this.stateFilter_ == vmState;
+  if (this.stateFilter_ !== null) {
+    return this.stateFilter_ == vmState;
+  } else if (this.runtimeTimerFilter_ !== null) {
+    return this.currentRuntimeTimer == this.runtimeTimerFilter_;
+  }
+  return true;
 };
+
+TickProcessor.prototype.processRuntimeTimerEvent = function(name) {
+  this.currentRuntimeTimer = name;
+}
 
 TickProcessor.prototype.processTick = function(pc,
                                                ns_since_start,
@@ -781,6 +795,8 @@ function ArgumentsProcessor(args) {
         'Show only ticks from OTHER VM state'],
     '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
         'Show only ticks from EXTERNAL VM state'],
+    '--filter-runtime-timer': ['runtimeTimerFilter', null,
+            'Show only ticks matching the given runtime timer scope'],
     '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
         'Set the call graph size'],
     '--ignore-unknown': ['ignoreUnknown', true,
@@ -832,7 +848,8 @@ ArgumentsProcessor.DEFAULTS = {
   distortion: 0,
   timedRange: false,
   pairwiseTimedRange: false,
-  onlySummary: false
+  onlySummary: false,
+  runtimeTimerFilter: null,
 };
 
 

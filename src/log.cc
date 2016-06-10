@@ -11,6 +11,7 @@
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/interpreter/bytecodes.h"
@@ -1421,9 +1422,23 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
   msg.WriteToLogFile();
 }
 
+void Logger::RuntimeCallTimerEvent() {
+  RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
+  RuntimeCallTimer* timer = stats->current_timer();
+  if (timer == nullptr) return;
+  RuntimeCallCounter* counter = timer->counter();
+  if (counter == nullptr) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("active-runtime-timer,");
+  msg.AppendDoubleQuotedString(counter->name);
+  msg.WriteToLogFile();
+}
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
+  if (FLAG_runtime_call_stats) {
+    RuntimeCallTimerEvent();
+  }
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);

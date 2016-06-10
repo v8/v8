@@ -68,6 +68,7 @@ class PositionsRecorder;
 class Profiler;
 class Ticker;
 struct TickSample;
+class RuntimeCallTimer;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -354,6 +355,7 @@ class Logger {
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
+  void RuntimeCallTimerEvent();
 
   PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
 

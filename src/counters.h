@@ -493,6 +493,8 @@ struct RuntimeCallCounter {
 class RuntimeCallTimer {
  public:
   RuntimeCallTimer() {}
+  RuntimeCallCounter* counter() { return counter_; }
+  base::ElapsedTimer timer() { return timer_; }
 
  private:
   friend class RuntimeCallStats;
@@ -775,6 +777,7 @@ class RuntimeCallStats {
   void Print(std::ostream& os);
 
   RuntimeCallStats() { Reset(); }
+  RuntimeCallTimer* current_timer() { return current_timer_; }
 
  private:
   // Counter to track recursive time events.

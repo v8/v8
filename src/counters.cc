@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/isolate.h"
 #include "src/log-inl.h"
+#include "src/log.h"
 
 namespace v8 {
 namespace internal {
