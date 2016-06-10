@@ -681,7 +681,7 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         CHECK_NE(i, 0);
         CHECK(operand_types[i - 1] == OperandType::kMaybeReg ||
               operand_types[i - 1] == OperandType::kReg);
-        if (operands[i] > 0) {
+        if (i > 0 && operands[i] > 0) {
           Register start = Register::FromOperand(operands[i - 1]);
           Register end(start.index() + static_cast<int>(operands[i]) - 1);
           if (!RegisterIsValid(start) || !RegisterIsValid(end) || start > end) {
