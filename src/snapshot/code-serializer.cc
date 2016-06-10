@@ -34,7 +34,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   cs.SerializeDeferredObjects();
   cs.Pad();
 
-  SerializedCodeData data(sink.data(), cs);
+  SerializedCodeData data(sink.data(), &cs);
   ScriptData* script_data = data.GetScriptData();
 
   if (FLAG_profile_deserialization) {
@@ -235,13 +235,13 @@ class Checksum {
   DISALLOW_COPY_AND_ASSIGN(Checksum);
 };
 
-SerializedCodeData::SerializedCodeData(const List<byte>& payload,
-                                       const CodeSerializer& cs) {
+SerializedCodeData::SerializedCodeData(const List<byte>* payload,
+                                       const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const List<uint32_t>* stub_keys = cs.stub_keys();
+  const List<uint32_t>* stub_keys = cs->stub_keys();
 
   List<Reservation> reservations;
-  cs.EncodeReservations(&reservations);
+  cs->EncodeReservations(&reservations);
 
   // Calculate sizes.
   int reservation_size = reservations.length() * kInt32Size;
@@ -249,23 +249,23 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   int stub_keys_size = stub_keys->length() * kInt32Size;
   int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
   int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  int size = padded_payload_offset + payload.length();
+  int size = padded_payload_offset + payload->length();
 
   // Allocate backing store and create result data.
   AllocateData(size);
 
   // Set header values.
-  SetMagicNumber(cs.isolate());
+  SetMagicNumber(cs->isolate());
   SetHeaderValue(kVersionHashOffset, Version::Hash());
-  SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
+  SetHeaderValue(kSourceHashOffset, SourceHash(cs->source()));
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, payload.length());
+  SetHeaderValue(kPayloadLengthOffset, payload->length());
 
-  Checksum checksum(payload.ToConstVector());
+  Checksum checksum(payload->ToConstVector());
   SetHeaderValue(kChecksum1Offset, checksum.a());
   SetHeaderValue(kChecksum2Offset, checksum.b());
 
@@ -280,8 +280,8 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
 
   // Copy serialized data.
-  CopyBytes(data_ + padded_payload_offset, payload.begin(),
-            static_cast<size_t>(payload.length()));
+  CopyBytes(data_ + padded_payload_offset, payload->begin(),
+            static_cast<size_t>(payload->length()));
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(

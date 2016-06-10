@@ -60,7 +60,7 @@ class SerializedCodeData : public SerializedData {
                                             String* source);
 
   // Used when producing.
-  SerializedCodeData(const List<byte>& payload, const CodeSerializer& cs);
+  SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();

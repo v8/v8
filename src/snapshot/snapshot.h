@@ -36,8 +36,8 @@ class Snapshot : public AllStatic {
   static const v8::StartupData* DefaultSnapshotBlob();
 
   static v8::StartupData CreateSnapshotBlob(
-      const StartupSerializer& startup_ser,
-      const PartialSerializer& context_ser);
+      const StartupSerializer* startup_serializer,
+      const PartialSerializer* context_serializer);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
@@ -75,7 +75,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob);
 class SnapshotData : public SerializedData {
  public:
   // Used when producing.
-  explicit SnapshotData(const Serializer& ser);
+  explicit SnapshotData(const Serializer* serializer);
 
   // Used when consuming.
   explicit SnapshotData(const Vector<const byte> snapshot)

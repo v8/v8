@@ -97,7 +97,7 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
   ser.SerializeWeakReferencesAndDeferred();
-  SnapshotData snapshot_data(ser);
+  SnapshotData snapshot_data(&ser);
   return WritePayload(snapshot_data.RawData());
 }
 
@@ -295,8 +295,8 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
@@ -395,8 +395,8 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
@@ -515,8 +515,8 @@ static void PartiallySerializeCustomContext(
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());

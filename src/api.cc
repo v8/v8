@@ -469,14 +469,12 @@ StartupData SnapshotCreator::CreateBlob(
   i::SnapshotByteSink context_sink;
   i::PartialSerializer context_serializer(isolate, &startup_serializer,
                                           &context_sink);
-  // TODO(yangguo): support multiple contexts in the snapshot.
-  DCHECK_EQ(1, contexts.length());
   context_serializer.Serialize(&contexts[0]);
   startup_serializer.SerializeWeakReferencesAndDeferred();
 
   data->created_ = true;
-  return i::Snapshot::CreateSnapshotBlob(startup_serializer,
-                                         context_serializer);
+  return i::Snapshot::CreateSnapshotBlob(&startup_serializer,
+                                         &context_serializer);
 }
 
 StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {

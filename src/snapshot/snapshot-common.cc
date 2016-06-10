@@ -86,23 +86,23 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return Handle<Context>::cast(result);
 }
 
-void CalculateFirstPageSizes(const SnapshotData& startup_snapshot,
-                             const SnapshotData& context_snapshot,
+void CalculateFirstPageSizes(const SnapshotData* startup_snapshot,
+                             const SnapshotData* context_snapshot,
                              uint32_t* sizes_out) {
   Vector<const SerializedData::Reservation> startup_reservations =
-      startup_snapshot.Reservations();
+      startup_snapshot->Reservations();
   Vector<const SerializedData::Reservation> context_reservations =
-      context_snapshot.Reservations();
+      context_snapshot->Reservations();
   int startup_index = 0;
   int context_index = 0;
 
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
     int context_total = 0;
-    for (auto& reservation : startup_reservations) {
+    for (const auto& reservation : startup_reservations) {
       startup_total += reservation.chunk_size();
     }
-    for (auto& reservation : context_reservations) {
+    for (const auto& reservation : context_reservations) {
       context_total += reservation.chunk_size();
     }
     PrintF(
@@ -152,16 +152,17 @@ void CalculateFirstPageSizes(const SnapshotData& startup_snapshot,
 }
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
-    const i::StartupSerializer& startup_ser,
-    const i::PartialSerializer& context_ser) {
-  SnapshotData startup_snapshot(startup_ser);
-  SnapshotData context_snapshot(context_ser);
+    const StartupSerializer* startup_serializer,
+    const PartialSerializer* context_serializer) {
+  SnapshotData startup_snapshot(startup_serializer);
+  SnapshotData context_snapshot(context_serializer);
   Vector<const byte> startup_data = startup_snapshot.RawData();
   Vector<const byte> context_data = context_snapshot.RawData();
 
   uint32_t first_page_sizes[kNumPagedSpaces];
 
-  CalculateFirstPageSizes(startup_snapshot, context_snapshot, first_page_sizes);
+  CalculateFirstPageSizes(&startup_snapshot, &context_snapshot,
+                          first_page_sizes);
 
   int startup_length = startup_data.length();
   int context_length = context_data.length();
@@ -210,32 +211,32 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data) {
   return Vector<const byte>(context_data, context_length);
 }
 
-SnapshotData::SnapshotData(const Serializer& ser) {
+SnapshotData::SnapshotData(const Serializer* serializer) {
   DisallowHeapAllocation no_gc;
   List<Reservation> reservations;
-  ser.EncodeReservations(&reservations);
-  const List<byte>& payload = ser.sink()->data();
+  serializer->EncodeReservations(&reservations);
+  const List<byte>* payload = serializer->sink()->data();
 
   // Calculate sizes.
   int reservation_size = reservations.length() * kInt32Size;
-  int size = kHeaderSize + reservation_size + payload.length();
+  int size = kHeaderSize + reservation_size + payload->length();
 
   // Allocate backing store and create result data.
   AllocateData(size);
 
   // Set header values.
-  SetMagicNumber(ser.isolate());
+  SetMagicNumber(serializer->isolate());
   SetHeaderValue(kCheckSumOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
-  SetHeaderValue(kPayloadLengthOffset, payload.length());
+  SetHeaderValue(kPayloadLengthOffset, payload->length());
 
   // Copy reservation chunk sizes.
   CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
             reservation_size);
 
   // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize + reservation_size, payload.begin(),
-            static_cast<size_t>(payload.length()));
+  CopyBytes(data_ + kHeaderSize + reservation_size, payload->begin(),
+            static_cast<size_t>(payload->length()));
 }
 
 bool SnapshotData::IsSane() {
