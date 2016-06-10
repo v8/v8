@@ -214,7 +214,6 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       case CMD_CONTINUE:
         UNREACHABLE();
       case CMD_RETURN:
-        generator()->builder()->SetReturnPosition();
         generator()->builder()->Return();
         return true;
       case CMD_RETHROW:
@@ -2283,6 +2282,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     }
 
     builder()->Bind(&resume_with_throw);
+    builder()->SetExpressionPosition(expr);
     builder()->LoadAccumulatorWithRegister(input).Throw();
 
     builder()->Bind(&resume_with_next);

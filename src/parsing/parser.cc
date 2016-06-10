@@ -4741,8 +4741,11 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
             Token::INIT, init_proxy, allocation, RelocInfo::kNoPosition);
         VariableProxy* get_proxy = factory()->NewVariableProxy(
             function_state_->generator_object_variable());
-        Yield* yield =
-            factory()->NewYield(get_proxy, assignment, RelocInfo::kNoPosition);
+        // The position of the yield is important for reporting the exception
+        // caused by calling the .throw method on a generator suspended at the
+        // initial yield (i.e. right after generator instantiation).
+        Yield* yield = factory()->NewYield(get_proxy, assignment,
+                                           scope_->start_position());
         try_block->statements()->Add(
             factory()->NewExpressionStatement(yield, RelocInfo::kNoPosition),
             zone());

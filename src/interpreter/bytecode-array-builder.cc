@@ -459,6 +459,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
+  SetReturnPosition();
   Output(Bytecode::kReturn);
   return_seen_in_block_ = true;
   return *this;
@@ -536,7 +537,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
 void BytecodeArrayBuilder::EnsureReturn() {
   if (!return_seen_in_block_) {
     LoadUndefined();
-    SetReturnPosition();
     Return();
   }
   DCHECK(return_seen_in_block_);
