@@ -843,6 +843,8 @@ class Heap {
 
   DependentCode* LookupWeakObjectToCodeDependency(Handle<HeapObject> obj);
 
+  void CompactWeakFixedArrays();
+
   void AddRetainedMap(Handle<Map> map);
 
   // This event is triggered after successful allocation of a new object made

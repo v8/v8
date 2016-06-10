@@ -15,6 +15,7 @@
 #include "include/v8-experimental.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
+#include "include/v8-util.h"
 #include "src/accessors.h"
 #include "src/api-experimental.h"
 #include "src/api-natives.h"
@@ -383,87 +384,122 @@ bool RunExtraCode(Isolate* isolate, Local<Context> context,
   return true;
 }
 
-StartupData SerializeIsolateAndContext(
-    Isolate* isolate, Persistent<Context>* context,
-    i::StartupSerializer::FunctionCodeHandling function_code_handling) {
-  if (context->IsEmpty()) return {NULL, 0};
+struct SnapshotCreatorData {
+  explicit SnapshotCreatorData(Isolate* isolate)
+      : isolate_(isolate), contexts_(isolate), created_(false) {}
 
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  static SnapshotCreatorData* cast(void* data) {
+    return reinterpret_cast<SnapshotCreatorData*>(data);
+  }
+
+  ArrayBufferAllocator allocator_;
+  Isolate* isolate_;
+  PersistentValueVector<Context> contexts_;
+  bool created_;
+};
+
+}  // namespace
+
+SnapshotCreator::SnapshotCreator(StartupData* existing_snapshot) {
+  i::Isolate* internal_isolate = new i::Isolate(true);
+  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
+  SnapshotCreatorData* data = new SnapshotCreatorData(isolate);
+  data->isolate_ = isolate;
+  internal_isolate->set_array_buffer_allocator(&data->allocator_);
+  isolate->Enter();
+  if (existing_snapshot) {
+    internal_isolate->set_snapshot_blob(existing_snapshot);
+    i::Snapshot::Initialize(internal_isolate);
+  } else {
+    internal_isolate->Init(nullptr);
+  }
+  data_ = data;
+}
+
+SnapshotCreator::~SnapshotCreator() {
+  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
+  DCHECK(data->created_);
+  Isolate* isolate = data->isolate_;
+  isolate->Exit();
+  isolate->Dispose();
+  delete data;
+}
+
+Isolate* SnapshotCreator::GetIsolate() {
+  return SnapshotCreatorData::cast(data_)->isolate_;
+}
+
+void SnapshotCreator::AddContext(Local<Context> context) {
+  DCHECK(!context.IsEmpty());
+  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
+  DCHECK(!data->created_);
+  Isolate* isolate = data->isolate_;
+  CHECK_EQ(isolate, context->GetIsolate());
+  data->contexts_.Append(context);
+}
+
+StartupData SnapshotCreator::CreateBlob(
+    SnapshotCreator::FunctionCodeHandling function_code_handling) {
+  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
+  DCHECK(!data->created_);
 
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
-  internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+  isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
+  isolate->heap()->CompactWeakFixedArrays();
 
-  // GC may have cleared weak cells, so compact any WeakFixedArrays
-  // found on the heap.
-  i::HeapIterator iterator(internal_isolate->heap(),
-                           i::HeapIterator::kFilterUnreachable);
-  for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
-    if (o->IsPrototypeInfo()) {
-      i::Object* prototype_users = i::PrototypeInfo::cast(o)->prototype_users();
-      if (prototype_users->IsWeakFixedArray()) {
-        i::WeakFixedArray* array = i::WeakFixedArray::cast(prototype_users);
-        array->Compact<i::JSObject::PrototypeRegistryCompactionCallback>();
-      }
-    } else if (o->IsScript()) {
-      i::Object* shared_list = i::Script::cast(o)->shared_function_infos();
-      if (shared_list->IsWeakFixedArray()) {
-        i::WeakFixedArray* array = i::WeakFixedArray::cast(shared_list);
-        array->Compact<i::WeakFixedArray::NullCallback>();
-      }
-    }
+  i::DisallowHeapAllocation no_gc_from_here_on;
+
+  int num_contexts = static_cast<int>(data->contexts_.Size());
+  i::List<i::Object*> contexts(num_contexts);
+  for (int i = 0; i < num_contexts; i++) {
+    i::HandleScope scope(isolate);
+    i::Handle<i::Context> context =
+        v8::Utils::OpenHandle(*data->contexts_.Get(i));
+    contexts.Add(*context);
   }
-
-  i::Object* raw_context = *v8::Utils::OpenPersistent(*context);
-  context->Reset();
+  data->contexts_.Clear();
 
   i::SnapshotByteSink snapshot_sink;
-  i::StartupSerializer ser(internal_isolate, &snapshot_sink,
-                           function_code_handling);
-  ser.SerializeStrongReferences();
+  i::StartupSerializer startup_serializer(isolate, &snapshot_sink,
+                                          function_code_handling);
+  startup_serializer.SerializeStrongReferences();
 
   i::SnapshotByteSink context_sink;
-  i::PartialSerializer context_ser(internal_isolate, &ser, &context_sink);
-  context_ser.Serialize(&raw_context);
-  ser.SerializeWeakReferencesAndDeferred();
+  i::PartialSerializer context_serializer(isolate, &startup_serializer,
+                                          &context_sink);
+  // TODO(yangguo): support multiple contexts in the snapshot.
+  DCHECK_EQ(1, contexts.length());
+  context_serializer.Serialize(&contexts[0]);
+  startup_serializer.SerializeWeakReferencesAndDeferred();
 
-  return i::Snapshot::CreateSnapshotBlob(ser, context_ser);
+  data->created_ = true;
+  return i::Snapshot::CreateSnapshotBlob(startup_serializer,
+                                         context_serializer);
 }
-
-}  // namespace
 
 StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
   // Create a new isolate and a new context from scratch, optionally run
   // a script to embed, and serialize to create a snapshot blob.
-  StartupData result = {NULL, 0};
-
+  StartupData result = {nullptr, 0};
   base::ElapsedTimer timer;
   timer.Start();
-
-  ArrayBufferAllocator allocator;
-  i::Isolate* internal_isolate = new i::Isolate(true);
-  internal_isolate->set_array_buffer_allocator(&allocator);
-  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
-
   {
-    Isolate::Scope isolate_scope(isolate);
-    internal_isolate->Init(NULL);
-    Persistent<Context> context;
+    SnapshotCreator snapshot_creator;
+    Isolate* isolate = snapshot_creator.GetIsolate();
     {
-      HandleScope handle_scope(isolate);
-      Local<Context> new_context = Context::New(isolate);
-      context.Reset(isolate, new_context);
+      HandleScope scope(isolate);
+      Local<Context> context = Context::New(isolate);
       if (embedded_source != NULL &&
-          !RunExtraCode(isolate, new_context, embedded_source, "<embedded>")) {
-        context.Reset();
+          !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
+        return result;
       }
+      snapshot_creator.AddContext(context);
     }
-
-    result = SerializeIsolateAndContext(
-        isolate, &context, i::StartupSerializer::CLEAR_FUNCTION_CODE);
-    DCHECK(context.IsEmpty());
+    result = snapshot_creator.CreateBlob(
+        SnapshotCreator::FunctionCodeHandling::kClear);
   }
-  isolate->Dispose();
 
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Creating snapshot took %0.3f ms\n",
@@ -483,39 +519,28 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
   //    compilation of executed functions.
   //  - Create a new context. This context will be unpolluted.
   //  - Serialize the isolate and the second context into a new snapshot blob.
-  StartupData result = {NULL, 0};
-
+  StartupData result = {nullptr, 0};
   base::ElapsedTimer timer;
   timer.Start();
-
-  ArrayBufferAllocator allocator;
-  i::Isolate* internal_isolate = new i::Isolate(true);
-  internal_isolate->set_array_buffer_allocator(&allocator);
-  internal_isolate->set_snapshot_blob(&cold_snapshot_blob);
-  Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
-
   {
-    Isolate::Scope isolate_scope(isolate);
-    i::Snapshot::Initialize(internal_isolate);
-    Persistent<Context> context;
-    bool success;
+    SnapshotCreator snapshot_creator(&cold_snapshot_blob);
+    Isolate* isolate = snapshot_creator.GetIsolate();
+    {
+      HandleScope scope(isolate);
+      Local<Context> context = Context::New(isolate);
+      if (!RunExtraCode(isolate, context, warmup_source, "<warm-up>")) {
+        return result;
+      }
+    }
     {
       HandleScope handle_scope(isolate);
-      Local<Context> new_context = Context::New(isolate);
-      success = RunExtraCode(isolate, new_context, warmup_source, "<warm-up>");
-    }
-    if (success) {
-      HandleScope handle_scope(isolate);
       isolate->ContextDisposedNotification(false);
-      Local<Context> new_context = Context::New(isolate);
-      context.Reset(isolate, new_context);
+      Local<Context> context = Context::New(isolate);
+      snapshot_creator.AddContext(context);
     }
-
-    result = SerializeIsolateAndContext(
-        isolate, &context, i::StartupSerializer::KEEP_FUNCTION_CODE);
-    DCHECK(context.IsEmpty());
+    result = snapshot_creator.CreateBlob(
+        SnapshotCreator::FunctionCodeHandling::kKeep);
   }
-  isolate->Dispose();
 
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Warming up snapshot took %0.3f ms\n",

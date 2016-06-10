@@ -6769,6 +6769,48 @@ class V8_EXPORT V8 {
   friend class Context;
 };
 
+/**
+ * Helper class to create a snapshot data blob.
+ */
+class SnapshotCreator {
+ public:
+  enum class FunctionCodeHandling { kClear, kKeep };
+
+  /**
+   * Create and enter an isolate, and set it up for serialization.
+   * The isolate is either created from scratch or from an existing snapshot.
+   * The caller keeps ownership of the argument snapshot.
+   */
+  explicit SnapshotCreator(StartupData* existing_blob = nullptr);
+
+  ~SnapshotCreator();
+
+  /**
+   * \returns the isolate prepared by the snapshot creator.
+   */
+  Isolate* GetIsolate();
+
+  /**
+   * Add a context to be included in the snapshot blob.
+   */
+  void AddContext(Local<Context> context);
+
+  /**
+   * Created a snapshot data blob.
+   * \param function_code_handling whether to include compiled function code
+   *        in the snapshot.
+   * \returns { nullptr, 0 } on failure, and a startup snapshot on success. The
+   *        caller acquires ownership of the data array in the return value.
+   */
+  StartupData CreateBlob(FunctionCodeHandling function_code_handling);
+
+ private:
+  void* data_;
+
+  // Disallow copying and assigning.
+  SnapshotCreator(const SnapshotCreator&);
+  void operator=(const SnapshotCreator&);
+};
 
 /**
  * A simple Maybe type, representing an object which may or may not have a

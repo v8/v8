@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_STARTUP_SERIALIZER_H_
 
 #include <bitset>
+#include "include/v8.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
@@ -13,11 +14,9 @@ namespace internal {
 
 class StartupSerializer : public Serializer {
  public:
-  enum FunctionCodeHandling { CLEAR_FUNCTION_CODE, KEEP_FUNCTION_CODE };
-
   StartupSerializer(
       Isolate* isolate, SnapshotByteSink* sink,
-      FunctionCodeHandling function_code_handling = CLEAR_FUNCTION_CODE);
+      v8::SnapshotCreator::FunctionCodeHandling function_code_handling);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
@@ -42,7 +41,7 @@ class StartupSerializer : public Serializer {
   // roots. In the second pass, we serialize the rest.
   bool RootShouldBeSkipped(int root_index);
 
-  FunctionCodeHandling function_code_handling_;
+  bool clear_function_code_;
   bool serializing_builtins_;
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
