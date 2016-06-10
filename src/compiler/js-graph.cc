@@ -24,6 +24,11 @@ Node* JSGraph::AllocateInOldSpaceStubConstant() {
                 HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
 }
 
+Node* JSGraph::ToNumberBuiltinConstant() {
+  return CACHED(kToNumberBuiltinConstant,
+                HeapConstant(isolate()->builtins()->ToNumber()));
+}
+
 Node* JSGraph::CEntryStubConstant(int result_size) {
   if (result_size == 1) {
     return CACHED(kCEntryStubConstant,

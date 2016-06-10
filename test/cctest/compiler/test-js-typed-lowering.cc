@@ -492,7 +492,7 @@ TEST(JSToNumberOfNumberOrOtherPrimitive) {
   for (size_t i = 0; i < arraysize(others); i++) {
     Type* t = Type::Union(Type::Number(), others[i], R.main_zone());
     Node* r = R.ReduceUnop(R.javascript.ToNumber(), t);
-    CHECK_EQ(IrOpcode::kJSToNumber, r->opcode());
+    CHECK_EQ(IrOpcode::kPlainPrimitiveToNumber, r->opcode());
   }
 }
 

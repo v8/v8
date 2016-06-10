@@ -1639,6 +1639,24 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kPlainPrimitiveToNumber:
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        if (truncation.TruncatesToWord32()) {
+          SetOutput(node, MachineRepresentation::kWord32);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     simplified()->PlainPrimitiveToWord32());
+          }
+        } else if (truncation.TruncatesToFloat64()) {
+          SetOutput(node, MachineRepresentation::kFloat64);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     simplified()->PlainPrimitiveToFloat64());
+          }
+        } else {
+          SetOutput(node, MachineRepresentation::kTagged);
+        }
+        return;
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
@@ -1808,6 +1826,8 @@ class RepresentationSelector {
       case IrOpcode::kCheckedFloat64ToInt32:
       case IrOpcode::kCheckedTaggedToInt32:
       case IrOpcode::kCheckedTaggedToFloat64:
+      case IrOpcode::kPlainPrimitiveToWord32:
+      case IrOpcode::kPlainPrimitiveToFloat64:
         FATAL("Representation inference: unsupported opcodes.");
         break;
 

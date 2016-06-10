@@ -375,6 +375,7 @@ Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
 Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsLoadParentFramePointer();
+Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& input_matcher);
 
 Matcher<Node*> IsInt32PairAdd(const Matcher<Node*>& a_matcher,
                               const Matcher<Node*>& b_matcher,

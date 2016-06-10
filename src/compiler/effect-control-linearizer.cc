@@ -454,6 +454,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
+    case IrOpcode::kPlainPrimitiveToNumber:
+      state = LowerPlainPrimitiveToNumber(node, *effect, *control);
+      break;
+    case IrOpcode::kPlainPrimitiveToWord32:
+      state = LowerPlainPrimitiveToWord32(node, *effect, *control);
+      break;
+    case IrOpcode::kPlainPrimitiveToFloat64:
+      state = LowerPlainPrimitiveToFloat64(node, *effect, *control);
       break;
     default:
       return false;
@@ -1330,7 +1338,6 @@ Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
   }
   return value;
 }
-
 Node* EffectControlLinearizer::ObjectIsSmi(Node* value) {
   return graph()->NewNode(
       machine()->WordEqual(),
@@ -1347,12 +1354,146 @@ Node* EffectControlLinearizer::SmiShiftBitsConstant() {
   return jsgraph()->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerPlainPrimitiveToNumber(Node* node, Node* effect,
+                                                     Node* control) {
+  Node* value = node->InputAt(0);
+  Node* result = effect =
+      graph()->NewNode(ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(),
+                       value, jsgraph()->NoContextConstant(), effect, control);
+  return ValueEffectControl(result, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerPlainPrimitiveToWord32(Node* node, Node* effect,
+                                                     Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check0 = ObjectIsSmi(value);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0 = ChangeSmiToInt32(value);
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0;
+  {
+    vfalse0 = efalse0 = graph()->NewNode(
+        ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(), value,
+        jsgraph()->NoContextConstant(), efalse0, if_false0);
+
+    Node* check1 = ObjectIsSmi(vfalse0);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = efalse0;
+    Node* vtrue1 = ChangeSmiToInt32(vfalse0);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = efalse0;
+    Node* vfalse1;
+    {
+      vfalse1 = efalse1 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), efalse0,
+          efalse1, if_false1);
+      vfalse1 = graph()->NewNode(machine()->TruncateFloat64ToWord32(), vfalse1);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue1, vfalse1, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue0, vfalse0, control);
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
+                                                      Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check0 = ObjectIsSmi(value);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0;
+  {
+    vtrue0 = ChangeSmiToInt32(value);
+    vtrue0 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0;
+  {
+    vfalse0 = efalse0 = graph()->NewNode(
+        ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(), value,
+        jsgraph()->NoContextConstant(), efalse0, if_false0);
+
+    Node* check1 = ObjectIsSmi(vfalse0);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = efalse0;
+    Node* vtrue1;
+    {
+      vtrue1 = ChangeSmiToInt32(vfalse0);
+      vtrue1 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), vtrue1);
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = efalse0;
+    Node* vfalse1;
+    {
+      vfalse1 = efalse1 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), efalse0,
+          efalse1, if_false1);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+    vfalse0 =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                         vtrue1, vfalse1, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue0, vfalse0, control);
+  return ValueEffectControl(value, effect, control);
+}
+
 Factory* EffectControlLinearizer::factory() const {
   return isolate()->factory();
 }
 
 Isolate* EffectControlLinearizer::isolate() const {
   return jsgraph()->isolate();
+}
+
+Operator const* EffectControlLinearizer::ToNumberOperator() {
+  if (!to_number_operator_.is_set()) {
+    Callable callable = CodeFactory::ToNumber(isolate());
+    CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+        Operator::kNoThrow);
+    to_number_operator_.set(common()->Call(desc));
+  }
+  return to_number_operator_.get();
 }
 
 }  // namespace compiler

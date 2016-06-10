@@ -91,6 +91,13 @@ class EffectControlLinearizer {
                                              Node* control);
   ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
                                   Node* control);
+  ValueEffectControl LowerPlainPrimitiveToNumber(Node* node, Node* effect,
+                                                 Node* control);
+  ValueEffectControl LowerPlainPrimitiveToWord32(Node* node, Node* effect,
+                                                 Node* control);
+  ValueEffectControl LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
+                                                  Node* control);
+
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl BuildCheckedFloat64ToInt32(Node* value, Node* frame_state,
@@ -99,6 +106,7 @@ class EffectControlLinearizer {
                                                               Node* frame_state,
                                                               Node* effect,
                                                               Node* control);
+
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeInt32ToFloat64(Node* value);
@@ -119,9 +127,13 @@ class EffectControlLinearizer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
 
+  Operator const* ToNumberOperator();
+
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
+
+  SetOncePointer<Operator const> to_number_operator_;
 };
 
 }  // namespace compiler

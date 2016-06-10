@@ -1759,6 +1759,18 @@ Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypePlainPrimitiveToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
+
+Type* Typer::Visitor::TypePlainPrimitiveToWord32(Node* node) {
+  return Type::Integral32();
+}
+
+Type* Typer::Visitor::TypePlainPrimitiveToFloat64(Node* node) {
+  return Type::Number();
+}
+
 Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
 
 Type* Typer::Visitor::TypeNumberClz32(Node* node) {

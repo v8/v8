@@ -172,6 +172,10 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringFromCharCode();
   const Operator* StringToNumber();
 
+  const Operator* PlainPrimitiveToNumber();
+  const Operator* PlainPrimitiveToWord32();
+  const Operator* PlainPrimitiveToFloat64();
+
   const Operator* ChangeTaggedSignedToInt32();
   const Operator* ChangeTaggedToInt32();
   const Operator* ChangeTaggedToUint32();

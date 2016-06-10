@@ -289,10 +289,7 @@ class JSBinopReduction final {
     if (NodeProperties::GetType(node)->Is(Type::NumberOrUndefined())) {
       return node;
     }
-    // TODO(bmeurer): Introduce PlainPrimitiveToNumber here.
-    return graph()->NewNode(
-        javascript()->ToNumber(), node, jsgraph()->NoContextConstant(),
-        lowering_->EmptyFrameState(), graph()->start(), graph()->start());
+    return graph()->NewNode(simplified()->PlainPrimitiveToNumber(), node);
   }
 
   Node* ConvertSingleInputToNumber(Node* node, Node* frame_state) {
@@ -869,20 +866,10 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   }
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::PlainPrimitive())) {
-    if (NodeProperties::GetContextInput(node) !=
-            jsgraph()->NoContextConstant() ||
-        NodeProperties::GetEffectInput(node) != graph()->start() ||
-        NodeProperties::GetControlInput(node) != graph()->start()) {
-      // JSToNumber(x:plain-primitive,context,effect,control)
-      //   => JSToNumber(x,no-context,start,start)
-      RelaxEffectsAndControls(node);
-      NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-      NodeProperties::ReplaceControlInput(node, graph()->start());
-      NodeProperties::ReplaceEffectInput(node, graph()->start());
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-      NodeProperties::ReplaceFrameStateInput(node, 0, EmptyFrameState());
-      return Changed(node);
-    }
+    RelaxEffectsAndControls(node);
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->PlainPrimitiveToNumber());
+    return Changed(node);
   }
   return NoChange();
 }

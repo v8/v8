@@ -41,6 +41,7 @@ class JSGraph : public ZoneObject {
   // Canonicalized global constants.
   Node* AllocateInNewSpaceStubConstant();
   Node* AllocateInOldSpaceStubConstant();
+  Node* ToNumberBuiltinConstant();
   Node* CEntryStubConstant(int result_size);
   Node* EmptyFixedArrayConstant();
   Node* EmptyLiteralsArrayConstant();
@@ -146,6 +147,7 @@ class JSGraph : public ZoneObject {
   enum CachedNode {
     kAllocateInNewSpaceStubConstant,
     kAllocateInOldSpaceStubConstant,
+    kToNumberBuiltinConstant,
     kCEntryStubConstant,
     kEmptyFixedArrayConstant,
     kEmptyLiteralsArrayConstant,

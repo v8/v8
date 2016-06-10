@@ -175,6 +175,9 @@
 
 #define SIMPLIFIED_OP_LIST(V)      \
   SIMPLIFIED_COMPARE_BINOP_LIST(V) \
+  V(PlainPrimitiveToNumber)        \
+  V(PlainPrimitiveToWord32)        \
+  V(PlainPrimitiveToFloat64)       \
   V(BooleanNot)                    \
   V(BooleanToNumber)               \
   V(SpeculativeNumberAdd)          \
