@@ -3612,32 +3612,10 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  DCHECK(instr->value()->Equals(instr->result()));
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  XMMRegister xmm_scratch = double_scratch0();
-  Label positive, done, zero;
-  __ Xorpd(xmm_scratch, xmm_scratch);
-  __ Ucomisd(input_reg, xmm_scratch);
-  __ j(above, &positive, Label::kNear);
-  __ j(not_carry, &zero, Label::kNear);
-  __ Pcmpeqd(input_reg, input_reg);
-  __ jmp(&done, Label::kNear);
-  __ bind(&zero);
-  ExternalReference ninf =
-      ExternalReference::address_of_negative_infinity();
-  Operand ninf_operand = masm()->ExternalOperand(ninf);
-  __ Movsd(input_reg, ninf_operand);
-  __ jmp(&done, Label::kNear);
-  __ bind(&positive);
-  __ fldln2();
-  __ subp(rsp, Immediate(kDoubleSize));
-  __ Movsd(Operand(rsp, 0), input_reg);
-  __ fld_d(Operand(rsp, 0));
-  __ fyl2x();
-  __ fstp_d(Operand(rsp, 0));
-  __ Movsd(input_reg, Operand(rsp, 0));
-  __ addp(rsp, Immediate(kDoubleSize));
-  __ bind(&done);
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 1);
 }
 
 

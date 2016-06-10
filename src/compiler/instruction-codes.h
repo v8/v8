@@ -88,7 +88,8 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(AtomicLoadWord32)                     \
   V(AtomicStoreWord8)                     \
   V(AtomicStoreWord16)                    \
-  V(AtomicStoreWord32)
+  V(AtomicStoreWord32)                    \
+  V(Ieee754Float64Log)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \

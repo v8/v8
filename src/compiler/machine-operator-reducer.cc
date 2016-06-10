@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/ieee754.h"
 #include "src/codegen.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
@@ -384,7 +385,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Log: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(std::log(m.Value()));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::log(m.Value()));
       break;
     }
     case IrOpcode::kChangeFloat32ToFloat64: {

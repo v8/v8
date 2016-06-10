@@ -1035,7 +1035,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
 
-  static ExternalReference math_log_double_function(Isolate* isolate);
+  // IEEE 754 functions.
+  static ExternalReference ieee754_log_function(Isolate* isolate);
 
   static ExternalReference math_exp_constants(int constant_index);
   static ExternalReference math_exp_log_table();

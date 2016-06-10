@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/machine-operator-reducer.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/ieee754.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "src/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -1408,7 +1409,7 @@ TEST_F(MachineOperatorReducerTest, Float64LogWithConstant) {
         Reduce(graph()->NewNode(machine()->Float64Log(), Float64Constant(x)));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
-                IsFloat64Constant(NanSensitiveDoubleEq(std::log(x))));
+                IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::log(x))));
   }
 }
 

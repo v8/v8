@@ -111,6 +111,7 @@ class ValueHelper {
         -4.30175e-14f,
         -5.27385e-15f,
         -1.48084e-15f,
+        -2.220446049250313e-16f,
         -1.05755e-19f,
         -3.2995e-21f,
         -1.67354e-23f,
@@ -177,6 +178,7 @@ class ValueHelper {
   static std::vector<double> float64_vector() {
     static const double nan = std::numeric_limits<double>::quiet_NaN();
     static const double values[] = {-2e66,
+                                    -2.220446049250313e-16,
                                     -9223373136366403584.0,
                                     -9223372036854775808.0,  // INT64_MIN
                                     -2147483649.5,

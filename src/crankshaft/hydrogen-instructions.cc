@@ -5,6 +5,7 @@
 #include "src/crankshaft/hydrogen-instructions.h"
 
 #include "src/base/bits.h"
+#include "src/base/ieee754.h"
 #include "src/base/safe_math.h"
 #include "src/crankshaft/hydrogen-infer-representation.h"
 #include "src/double.h"
@@ -3425,7 +3426,7 @@ HInstruction* HUnaryMathOperation::New(Isolate* isolate, Zone* zone,
         lazily_initialize_fast_exp(isolate);
         return H_CONSTANT_DOUBLE(fast_exp(d, isolate));
       case kMathLog:
-        return H_CONSTANT_DOUBLE(std::log(d));
+        return H_CONSTANT_DOUBLE(base::ieee754::log(d));
       case kMathSqrt:
         lazily_initialize_fast_sqrt(isolate);
         return H_CONSTANT_DOUBLE(fast_sqrt(d, isolate));

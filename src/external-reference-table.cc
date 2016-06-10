@@ -67,8 +67,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function(isolate).address(),
       "power_double_int_function");
-  Add(ExternalReference::math_log_double_function(isolate).address(),
-      "std::log");
+  Add(ExternalReference::ieee754_log_function(isolate).address(),
+      "base::ieee754::log");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");

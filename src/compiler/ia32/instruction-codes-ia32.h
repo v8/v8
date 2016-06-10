@@ -43,7 +43,6 @@ namespace compiler {
   V(IA32Lzcnt)                     \
   V(IA32Tzcnt)                     \
   V(IA32Popcnt)                    \
-  V(X87Float64Log)                 \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \

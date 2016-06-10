@@ -617,6 +617,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Log: {
+      // Pass one double as argument on the stack.
+      __ PrepareCallCFunction(2, eax);
+      __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 2);
+      // Return value is in st(0) on ia32.
+      // Store it into the result register.
+      __ sub(esp, Immediate(kDoubleSize));
+      __ fstp_d(Operand(esp, 0));
+      __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
+      __ add(esp, Immediate(kDoubleSize));
+      break;
+    }
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));
@@ -819,16 +832,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
-      break;
-    case kX87Float64Log:
-      __ sub(esp, Immediate(kDoubleSize));
-      __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
-      __ fldln2();
-      __ fld_d(Operand(esp, 0));
-      __ fyl2x();
-      __ fstp_d(Operand(esp, 0));
-      __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
-      __ add(esp, Immediate(kDoubleSize));
       break;
     case kSSEFloat32Cmp:
       __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));

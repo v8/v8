@@ -1898,6 +1898,8 @@ v8_source_set("v8_libbase") {
     "src/base/functional.cc",
     "src/base/functional.h",
     "src/base/hashmap.h",
+    "src/base/ieee754.cc",
+    "src/base/ieee754.h",
     "src/base/iterator.h",
     "src/base/lazy-instance.h",
     "src/base/logging.cc",

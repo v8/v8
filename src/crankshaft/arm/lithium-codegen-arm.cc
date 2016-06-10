@@ -3557,8 +3557,7 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 void LCodeGen::DoMathLog(LMathLog* instr) {
   __ PrepareCallCFunction(0, 1, scratch0());
   __ MovToFloatParameter(ToDoubleRegister(instr->value()));
-  __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                   0, 1);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0, 1);
   __ MovFromFloatResult(ToDoubleRegister(instr->result()));
 }
 

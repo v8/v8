@@ -3736,8 +3736,7 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
 void LCodeGen::DoMathLog(LMathLog* instr) {
   DCHECK(instr->IsMarkedAsCall());
   DCHECK(ToDoubleRegister(instr->value()).is(d0));
-  __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                   0, 1);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0, 1);
   DCHECK(ToDoubleRegister(instr->result()).Is(d0));
 }
 

@@ -1225,8 +1225,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FrameScope scope(masm(), StackFrame::MANUAL);
       __ PrepareCallCFunction(0, 1, kScratchReg);
       __ MovToFloatParameter(i.InputDoubleRegister(0));
-      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                       0, 1);
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
+                       1);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputDoubleRegister());
       break;

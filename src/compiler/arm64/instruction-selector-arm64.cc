@@ -1689,7 +1689,7 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
 
 void InstructionSelector::VisitFloat64Log(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Float64Log, g.DefineAsFixed(node, d0),
+  Emit(kIeee754Float64Log, g.DefineAsFixed(node, d0),
        g.UseFixed(node->InputAt(0), d0))
       ->MarkAsCall();
 }

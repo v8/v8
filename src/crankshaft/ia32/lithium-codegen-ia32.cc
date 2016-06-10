@@ -3400,31 +3400,18 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  DCHECK(instr->value()->Equals(instr->result()));
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  XMMRegister xmm_scratch = double_scratch0();
-  Label positive, done, zero;
-  __ xorps(xmm_scratch, xmm_scratch);
-  __ ucomisd(input_reg, xmm_scratch);
-  __ j(above, &positive, Label::kNear);
-  __ j(not_carry, &zero, Label::kNear);
-  __ pcmpeqd(input_reg, input_reg);
-  __ jmp(&done, Label::kNear);
-  __ bind(&zero);
-  ExternalReference ninf =
-      ExternalReference::address_of_negative_infinity();
-  __ movsd(input_reg, Operand::StaticVariable(ninf));
-  __ jmp(&done, Label::kNear);
-  __ bind(&positive);
-  __ fldln2();
-  __ sub(Operand(esp), Immediate(kDoubleSize));
-  __ movsd(Operand(esp, 0), input_reg);
-  __ fld_d(Operand(esp, 0));
-  __ fyl2x();
+  XMMRegister input = ToDoubleRegister(instr->value());
+  XMMRegister result = ToDoubleRegister(instr->result());
+  // Pass one double as argument on the stack.
+  __ PrepareCallCFunction(2, eax);
+  __ movsd(Operand(esp, 0 * kDoubleSize), input);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 2);
+  // Return value is in st(0) on ia32.
+  // Store it into the result register.
+  __ sub(esp, Immediate(kDoubleSize));
   __ fstp_d(Operand(esp, 0));
-  __ movsd(input_reg, Operand(esp, 0));
-  __ add(Operand(esp), Immediate(kDoubleSize));
-  __ bind(&done);
+  __ movsd(result, Operand(esp, 0));
+  __ add(esp, Immediate(kDoubleSize));
 }
 
 

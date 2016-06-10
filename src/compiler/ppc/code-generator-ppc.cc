@@ -436,16 +436,15 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                      \
   } while (0)
 
-
-#define ASSEMBLE_FLOAT_LOG()                                                  \
-  do {                                                                        \
-    FrameScope scope(masm(), StackFrame::MANUAL);                             \
-    __ PrepareCallCFunction(0, 1, kScratchReg);                               \
-    __ MovToFloatParameter(i.InputDoubleRegister(0));                        \
-    __ CallCFunction(ExternalReference::math_log_double_function(isolate()),  \
-                     0, 1);                                                   \
-    __ MovFromFloatResult(i.OutputDoubleRegister());                          \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                      \
+#define ASSEMBLE_FLOAT_LOG()                                                \
+  do {                                                                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
+    __ PrepareCallCFunction(0, 1, kScratchReg);                             \
+    __ MovToFloatParameter(i.InputDoubleRegister(0));                       \
+    __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0, \
+                     1);                                                    \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                        \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                    \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MAX(scratch_reg)                                       \

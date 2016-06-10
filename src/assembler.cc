@@ -39,6 +39,7 @@
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
+#include "src/base/ieee754.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1027,7 +1028,7 @@ void ExternalReference::InitializeMathExpData() {
     // The rest is black magic. Do not attempt to understand it. It is
     // loosely based on the "expd" function published at:
     // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
-    const double constant3 = (1 << kTableSizeBits) / std::log(2.0);
+    const double constant3 = (1 << kTableSizeBits) / base::ieee754::log(2.0);
     math_exp_constants_array[3] = constant3;
     math_exp_constants_array[4] =
         static_cast<double>(static_cast<int64_t>(3) << 51);
@@ -1647,13 +1648,9 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 
 #endif  // V8_INTERPRETED_REGEXP
 
-
-ExternalReference ExternalReference::math_log_double_function(
-    Isolate* isolate) {
-  typedef double (*d2d)(double x);
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(static_cast<d2d>(std::log)),
-                                    BUILTIN_FP_CALL));
+ExternalReference ExternalReference::ieee754_log_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
 }
 
 

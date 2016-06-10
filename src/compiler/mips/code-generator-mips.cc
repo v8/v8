@@ -718,6 +718,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
+    case kIeee754Float64Log: {
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      __ PrepareCallCFunction(0, 1, kScratchReg);
+      __ MovToFloatParameter(i.InputDoubleRegister(0));
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
+                       1);
+      // Move the result in the double result register.
+      __ MovFromFloatResult(i.OutputDoubleRegister());
+      break;
+    }
     case kMipsAdd:
       __ Addu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1037,18 +1049,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsAbsD:
       __ abs_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kMipsLogD: {
-      // TODO(bmeurer): We should really get rid of this special instruction,
-      // and generate a CallAddress instruction instead.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      __ PrepareCallCFunction(0, 1, kScratchReg);
-      __ MovToFloatParameter(i.InputDoubleRegister(0));
-      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                       0, 1);
-      // Move the result in the double result register.
-      __ MovFromFloatResult(i.OutputDoubleRegister());
-      break;
-    }
     case kMipsSqrtD: {
       __ sqrt_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

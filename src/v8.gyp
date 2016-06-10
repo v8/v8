@@ -1680,6 +1680,8 @@
         'base/functional.cc',
         'base/functional.h',
         'base/hashmap.h',
+        'base/ieee754.cc',
+        'base/ieee754.h',
         'base/iterator.h',
         'base/lazy-instance.h',
         'base/logging.cc',

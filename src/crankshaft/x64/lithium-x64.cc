@@ -1155,8 +1155,9 @@ LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* input = UseRegisterAtStart(instr->value());
-  return MarkAsCall(DefineSameAsFirst(new(zone()) LMathLog(input)), instr);
+  LOperand* input = UseFixedDouble(instr->value(), xmm0);
+  return MarkAsCall(DefineFixedDouble(new (zone()) LMathLog(input), xmm0),
+                    instr);
 }
 
 

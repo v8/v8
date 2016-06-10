@@ -71,7 +71,6 @@ namespace compiler {
   V(ArmVdivF64)                    \
   V(ArmVmodF64)                    \
   V(ArmVabsF64)                    \
-  V(ArmVlogF64)                    \
   V(ArmVnegF64)                    \
   V(ArmVsqrtF64)                   \
   V(ArmVrintmF32)                  \

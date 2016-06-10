@@ -674,6 +674,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
+    case kIeee754Float64Log: {
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      __ PrepareCallCFunction(0, 1, kScratchReg);
+      __ MovToFloatParameter(i.InputFloat64Register(0));
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
+                       1);
+      // Move the result in the double result register.
+      __ MovFromFloatResult(i.OutputFloat64Register());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmAdd:
       __ add(i.OutputRegister(), i.InputRegister(0), i.InputOperand2(1),
              i.OutputSBit());
@@ -993,19 +1006,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                               i.InputFloat64Register(1));
       __ CallCFunction(ExternalReference::mod_two_doubles_operation(isolate()),
                        0, 2);
-      // Move the result in the double result register.
-      __ MovFromFloatResult(i.OutputFloat64Register());
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
-    case kArmVlogF64: {
-      // TODO(bmeurer): We should really get rid of this special instruction,
-      // and generate a CallAddress instruction instead.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      __ PrepareCallCFunction(0, 1, kScratchReg);
-      __ MovToFloatParameter(i.InputFloat64Register(0));
-      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                       0, 1);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputFloat64Register());
       DCHECK_EQ(LeaveCC, i.OutputSBit());

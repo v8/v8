@@ -878,7 +878,8 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
 
 void InstructionSelector::VisitFloat64Log(Node* node) {
   MipsOperandGenerator g(this);
-  Emit(kMipsLogD, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12))
+  Emit(kIeee754Float64Log, g.DefineAsFixed(node, f0),
+       g.UseFixed(node->InputAt(0), f12))
       ->MarkAsCall();
 }
 

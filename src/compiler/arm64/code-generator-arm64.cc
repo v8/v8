@@ -792,6 +792,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
+    case kIeee754Float64Log: {
+      FrameScope scope(masm(), StackFrame::MANUAL);
+      DCHECK(d0.is(i.InputDoubleRegister(0)));
+      DCHECK(d0.is(i.OutputDoubleRegister()));
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
+                       1);
+      break;
+    }
     case kArm64Float32RoundDown:
       __ Frintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
@@ -1250,16 +1258,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64Abs:
       __ Fabs(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArm64Float64Log: {
-      // TODO(dcarney): implement directly. See note in lithium-codegen-arm64.cc
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      DCHECK(d0.is(i.InputDoubleRegister(0)));
-      DCHECK(d0.is(i.OutputDoubleRegister()));
-      // TODO(dcarney): make sure this saves all relevant registers.
-      __ CallCFunction(ExternalReference::math_log_double_function(isolate()),
-                       0, 1);
-      break;
-    }
     case kArm64Float64Neg:
       __ Fneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

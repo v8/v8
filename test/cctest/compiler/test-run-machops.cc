@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "test/cctest/cctest.h"
@@ -5507,7 +5508,7 @@ TEST(RunFloat64Log) {
   CHECK_DOUBLE_EQ(0.0, m.Call(1.0));
   CHECK_DOUBLE_EQ(std::numeric_limits<double>::infinity(),
                   m.Call(std::numeric_limits<double>::infinity()));
-  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(std::log(*i), m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::log(*i), m.Call(*i)); }
 }
 
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.

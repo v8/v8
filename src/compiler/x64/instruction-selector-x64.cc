@@ -1356,7 +1356,10 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
 }
 
 void InstructionSelector::VisitFloat64Log(Node* node) {
-  VisitRR(this, node, kX87Float64Log);
+  X64OperandGenerator g(this);
+  Emit(kIeee754Float64Log, g.DefineAsFixed(node, xmm0),
+       g.UseFixed(node->InputAt(0), xmm0))
+      ->MarkAsCall();
 }
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {

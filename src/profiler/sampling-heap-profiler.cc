@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <memory>
 #include "src/api.h"
+#include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap.h"
@@ -27,7 +28,7 @@ intptr_t SamplingAllocationObserver::GetNextSampleInterval(uint64_t rate) {
     return static_cast<intptr_t>(rate);
   }
   double u = random_->NextDouble();
-  double next = (-std::log(u)) * rate;
+  double next = (-base::ieee754::log(u)) * rate;
   return next < kPointerSize
              ? kPointerSize
              : (next > INT_MAX ? INT_MAX : static_cast<intptr_t>(next));
