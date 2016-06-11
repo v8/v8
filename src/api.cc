@@ -5990,14 +5990,11 @@ bool v8::String::MakeExternal(
 
 bool v8::String::CanMakeExternal() {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
+  if (obj->IsExternalString()) return false;
 
   // Old space strings should be externalized.
-  if (!isolate->heap()->new_space()->Contains(*obj)) return true;
-  int size = obj->Size();  // Byte size of the original string.
-  if (size <= i::ExternalString::kShortSize) return false;
-  i::StringShape shape(*obj);
-  return !shape.IsExternal();
+  i::Isolate* isolate = obj->GetIsolate();
+  return !isolate->heap()->new_space()->Contains(*obj);
 }
 
 

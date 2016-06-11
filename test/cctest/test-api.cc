@@ -556,40 +556,19 @@ TEST(MakingExternalStringConditions) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
-  Local<String> small_string =
+  Local<String> local_string =
       String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
                              v8::NewStringType::kNormal)
           .ToLocalChecked();
   i::DeleteArray(two_byte_string);
 
-  // We should refuse to externalize small strings.
-  CHECK(!small_string->CanMakeExternal());
+  // We should refuse to externalize new space strings.
+  CHECK(!local_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
-  CHECK(small_string->CanMakeExternal());
-
-  two_byte_string = AsciiToTwoByteString("small string 2");
-  small_string = String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
-                                        v8::NewStringType::kNormal)
-                     .ToLocalChecked();
-  i::DeleteArray(two_byte_string);
-
-  const int buf_size = 10 * 1024;
-  char* buf = i::NewArray<char>(buf_size);
-  memset(buf, 'a', buf_size);
-  buf[buf_size - 1] = '\0';
-
-  two_byte_string = AsciiToTwoByteString(buf);
-  Local<String> large_string =
-      String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
-                             v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  i::DeleteArray(buf);
-  i::DeleteArray(two_byte_string);
-  // Large strings should be immediately accepted.
-  CHECK(large_string->CanMakeExternal());
+  CHECK(local_string->CanMakeExternal());
 }
 
 
@@ -601,23 +580,14 @@ TEST(MakingExternalOneByteStringConditions) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
-  Local<String> small_string = v8_str("s1");
-  // We should refuse to externalize small strings.
-  CHECK(!small_string->CanMakeExternal());
+  Local<String> local_string = v8_str("s1");
+  // We should refuse to externalize new space strings.
+  CHECK(!local_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
-  CHECK(small_string->CanMakeExternal());
-
-  const int buf_size = 10 * 1024;
-  char* buf = i::NewArray<char>(buf_size);
-  memset(buf, 'a', buf_size);
-  buf[buf_size - 1] = '\0';
-  Local<String> large_string = v8_str(buf);
-  i::DeleteArray(buf);
-  // Large strings should be immediately accepted.
-  CHECK(large_string->CanMakeExternal());
+  CHECK(local_string->CanMakeExternal());
 }
 
 
