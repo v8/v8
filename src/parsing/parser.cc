@@ -4972,7 +4972,7 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   int end_pos = scanner()->location().end_pos;
 
   if (constructor == NULL) {
-    constructor = DefaultConstructor(name, extends != NULL, block_scope, pos,
+    constructor = DefaultConstructor(name, has_extends, block_scope, pos,
                                      end_pos, block_scope->language_mode());
   }
 
