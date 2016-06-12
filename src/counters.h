@@ -13,6 +13,7 @@
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -786,6 +787,7 @@ class RuntimeCallStats {
 
 #define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
   do {                                                  \
+    TRACE_RUNTIME_CALL(#counter_name);                  \
     if (FLAG_runtime_call_stats) {                      \
       RuntimeCallStats::CorrectCurrentCounterId(        \
           isolate, &RuntimeCallStats::counter_name);    \

@@ -292,6 +292,8 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
+extern int kRuntimeCallsTracingEnabled;
+
 class TraceEventHelper {
  public:
   static v8::Platform* GetCurrentPlatform();
@@ -593,5 +595,26 @@ class TraceEventSamplingStateScope {
 }  // namespace tracing
 }  // namespace internal
 }  // namespace v8
+
+// V8 Specific macros
+#define TRACE_IS_RUNTIME_CALLS_TRACING_ENABLED() \
+  v8::internal::tracing::kRuntimeCallsTracingEnabled == 1
+
+#define TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING()                           \
+  do {                                                                        \
+    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                   \
+        TRACE_DISABLED_BY_DEFAULT("v8.runtime"));                             \
+    v8::internal::tracing::kRuntimeCallsTracingEnabled =                      \
+        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() ? 1  \
+                                                                         : 0; \
+  } while (0)
+
+#define TRACE_RUNTIME_CALL(name)                                               \
+  do {                                                                         \
+    if (V8_UNLIKELY(TRACE_IS_RUNTIME_CALLS_TRACING_ENABLED())) {               \
+      INTERNAL_TRACE_EVENT_ADD_SCOPED(TRACE_DISABLED_BY_DEFAULT("v8.runtime"), \
+                                      name);                                   \
+    }                                                                          \
+  } while (0)
 
 #endif  // SRC_TRACING_TRACE_EVENT_H_
