@@ -24,13 +24,6 @@ struct MoveKeyCompare {
   }
 };
 
-struct OperandCompare {
-  bool operator()(const InstructionOperand& a,
-                  const InstructionOperand& b) const {
-    return a.CompareCanonicalized(b);
-  }
-};
-
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
@@ -138,8 +131,8 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   ParallelMove* from_moves = from->parallel_moves()[0];
   if (from_moves == nullptr || from_moves->empty()) return;
 
-  ZoneSet<InstructionOperand, OperandCompare> dst_cant_be(local_zone());
-  ZoneSet<InstructionOperand, OperandCompare> src_cant_be(local_zone());
+  OperandSet dst_cant_be(local_zone());
+  OperandSet src_cant_be(local_zone());
 
   // If an operand is an input to the instruction, we cannot move assignments
   // where it appears on the LHS.
