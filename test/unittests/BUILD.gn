@@ -106,6 +106,7 @@ executable("unittests") {
     "run-all-unittests.cc",
     "test-utils.cc",
     "test-utils.h",
+    "wasm/asm-types-unittest.cc",
     "wasm/ast-decoder-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",

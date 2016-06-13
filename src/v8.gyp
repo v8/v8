@@ -1147,6 +1147,8 @@
         'version.h',
         'vm-state-inl.h',
         'vm-state.h',
+        'wasm/asm-types.cc',
+        'wasm/asm-types.h',
         'wasm/asm-wasm-builder.cc',
         'wasm/asm-wasm-builder.h',
         'wasm/ast-decoder.cc',

@@ -1,0 +1,255 @@
+// Copyright 2016 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef SRC_WASM_ASM_TYPES_H_
+#define SRC_WASM_ASM_TYPES_H_
+
+#include <string>
+#include <type_traits>
+
+#include "src/base/macros.h"
+#include "src/zone-containers.h"
+#include "src/zone.h"
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+
+class AsmType;
+class AsmFunctionType;
+class AsmOverloadedFunctionType;
+
+// List of V(CamelName, string_name, number, parent_types)
+#define FOR_EACH_ASM_VALUE_TYPE_LIST(V)                                       \
+  /* These tags are not types that are expressable in the asm source. They */ \
+  /* are used to express semantic information about the types they tag.    */ \
+  V(Heap, "[]", 1, 0)                                                         \
+  /*The following are actual types that appear in the asm source. */          \
+  V(Void, "void", 2, 0)                                                       \
+  V(Extern, "extern", 3, 0)                                                   \
+  V(DoubleQ, "double?", 4, 0)                                                 \
+  V(Double, "double", 5, kAsmDoubleQ | kAsmExtern)                            \
+  V(Intish, "intish", 6, 0)                                                   \
+  V(Int, "int", 7, kAsmIntish)                                                \
+  V(Signed, "signed", 8, kAsmInt | kAsmExtern)                                \
+  V(Unsigned, "unsigned", 9, kAsmInt)                                         \
+  V(FixNum, "fixnum", 10, kAsmSigned | kAsmUnsigned)                          \
+  V(Floatish, "floatish", 11, 0)                                              \
+  V(FloatQ, "float?", 12, kAsmFloatish)                                       \
+  V(Float, "float", 13, kAsmFloatQ)                                           \
+  /* Types used for expressing the Heap accesses. */                          \
+  V(Uint8Array, "Uint8Array", 14, kAsmHeap)                                   \
+  V(Int8Array, "Int8Array", 15, kAsmHeap)                                     \
+  V(Uint16Array, "Uint16Array", 16, kAsmHeap)                                 \
+  V(Int16Array, "Int16Array", 17, kAsmHeap)                                   \
+  V(Uint32Array, "Uint32Array", 18, kAsmHeap)                                 \
+  V(Int32Array, "Int32Array", 19, kAsmHeap)                                   \
+  V(Float32Array, "Float32Array", 20, kAsmHeap)                               \
+  V(Float64Array, "Float64Array", 21, kAsmHeap)                               \
+  V(FloatishDoubleQ, "floatish|double?", 22, kAsmFloatish | kAsmDoubleQ)      \
+  V(FloatQDoubleQ, "float?|double?", 23, kAsmFloatQ | kAsmDoubleQ)            \
+  /* None is used to represent errors in the type checker. */                 \
+  V(None, "<none>", 31, 0)
+
+// List of V(CamelName)
+#define FOR_EACH_ASM_CALLABLE_TYPE_LIST(V) \
+  V(FunctionType)                          \
+  V(OverloadedFunctionType)
+
+class AsmValueType {
+ public:
+  typedef uint32_t bitset_t;
+
+  enum : uint32_t {
+#define DEFINE_TAG(CamelName, string_name, number, parent_types) \
+  kAsm##CamelName = ((1u << (number)) | (parent_types)),
+    FOR_EACH_ASM_VALUE_TYPE_LIST(DEFINE_TAG)
+#undef DEFINE_TAG
+        kAsmUnknown = 0,
+    kAsmValueTypeTag = 1u
+  };
+
+ private:
+  friend class AsmType;
+
+  static AsmValueType* AsValueType(AsmType* type) {
+    if ((reinterpret_cast<uintptr_t>(type) & kAsmValueTypeTag) ==
+        kAsmValueTypeTag) {
+      return reinterpret_cast<AsmValueType*>(type);
+    }
+    return nullptr;
+  }
+
+  bitset_t Bitset() const {
+    DCHECK((reinterpret_cast<uintptr_t>(this) & kAsmValueTypeTag) ==
+           kAsmValueTypeTag);
+    return static_cast<bitset_t>(reinterpret_cast<uintptr_t>(this) &
+                                 ~kAsmValueTypeTag);
+  }
+
+  static AsmType* New(bitset_t bits) {
+    DCHECK_EQ((bits & kAsmValueTypeTag), 0);
+    return reinterpret_cast<AsmType*>(
+        static_cast<uintptr_t>(bits | kAsmValueTypeTag));
+  }
+
+  // AsmValueTypes can't be created except through AsmValueType::New.
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AsmValueType);
+};
+
+class AsmCallableType : public ZoneObject {
+ public:
+  virtual std::string Name() = 0;
+  virtual AsmType* ValidateCall(AsmType* function_type) = 0;
+
+#define DECLARE_CAST(CamelName) \
+  virtual Asm##CamelName* As##CamelName() { return nullptr; }
+  FOR_EACH_ASM_CALLABLE_TYPE_LIST(DECLARE_CAST)
+#undef DECLARE_CAST
+
+ protected:
+  AsmCallableType() = default;
+  virtual ~AsmCallableType() = default;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AsmCallableType);
+};
+
+class AsmFunctionType : public AsmCallableType {
+ public:
+  AsmFunctionType* AsFunctionType() final { return this; }
+
+  void AddArgument(AsmType* type) { args_.push_back(type); }
+  const ZoneVector<AsmType*> Arguments() const { return args_; }
+  AsmType* ReturnType() const { return return_type_; }
+
+  virtual bool IsMinMaxType() const { return false; }
+  virtual bool IsFroundType() const { return false; }
+
+ protected:
+  AsmFunctionType(Zone* zone, AsmType* return_type)
+      : return_type_(return_type), args_(zone) {}
+
+ private:
+  friend AsmType;
+
+  std::string Name() override;
+  AsmType* ValidateCall(AsmType* function_type) override;
+
+  AsmType* return_type_;
+  ZoneVector<AsmType*> args_;
+
+  DISALLOW_COPY_AND_ASSIGN(AsmFunctionType);
+};
+
+class AsmOverloadedFunctionType final : public AsmCallableType {
+ public:
+  AsmOverloadedFunctionType* AsOverloadedFunctionType() override {
+    return this;
+  }
+
+  void AddOverload(AsmType* overload);
+
+ private:
+  friend AsmType;
+
+  explicit AsmOverloadedFunctionType(Zone* zone) : overloads_(zone) {}
+
+  std::string Name() override;
+  AsmType* ValidateCall(AsmType* function_type) override;
+
+  ZoneVector<AsmType*> overloads_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AsmOverloadedFunctionType);
+};
+
+class AsmType {
+ public:
+#define DEFINE_CONSTRUCTOR(CamelName, string_name, number, parent_types) \
+  static AsmType* CamelName() {                                          \
+    return AsmValueType::New(AsmValueType::kAsm##CamelName);             \
+  }
+  FOR_EACH_ASM_VALUE_TYPE_LIST(DEFINE_CONSTRUCTOR)
+#undef DEFINE_CONSTRUCTOR
+
+#define DEFINE_CAST(CamelCase)                                        \
+  Asm##CamelCase* As##CamelCase() {                                   \
+    if (AsValueType() != nullptr) {                                   \
+      return nullptr;                                                 \
+    }                                                                 \
+    return reinterpret_cast<AsmCallableType*>(this)->As##CamelCase(); \
+  }
+  FOR_EACH_ASM_CALLABLE_TYPE_LIST(DEFINE_CAST)
+#undef DEFINE_CAST
+  AsmValueType* AsValueType() { return AsmValueType::AsValueType(this); }
+  AsmCallableType* AsCallableType();
+
+  // A function returning ret. Callers still need to invoke AddArgument with the
+  // returned type to fully create this type.
+  static AsmType* Function(Zone* zone, AsmType* ret) {
+    AsmFunctionType* f = new (zone) AsmFunctionType(zone, ret);
+    return reinterpret_cast<AsmType*>(f);
+  }
+
+  // Overloaded function types. Not creatable by asm source, but useful to
+  // represent the overloaded stdlib functions.
+  static AsmType* OverloadedFunction(Zone* zone) {
+    auto* f = new (zone) AsmOverloadedFunctionType(zone);
+    return reinterpret_cast<AsmType*>(f);
+  }
+
+  // The type for fround(src).
+  static AsmType* FroundType(Zone* zone, AsmType* src);
+
+  // The (variadic) type for min and max.
+  static AsmType* MinMaxType(Zone* zone, AsmType* type);
+
+  std::string Name();
+  // IsExactly returns true if this is the exact same type as that. For
+  // non-value types (e.g., callables), this returns this == that.
+  bool IsExactly(AsmType* that);
+  // IsA is used to query whether this is an instance of that (i.e., if this is
+  // a type derived from that.) For non-value types (e.g., callables), this
+  // returns this == that.
+  bool IsA(AsmType* that);
+
+  // Types allowed in return statements. void is the type for returns without
+  // an expression.
+  bool IsReturnType() {
+    return this == AsmType::Void() || this == AsmType::Double() ||
+           this == AsmType::Signed() || this == AsmType::Float();
+  }
+
+  // Types allowed to be parameters in asm functions.
+  bool IsParameterType() {
+    return this == AsmType::Double() || this == AsmType::Int() ||
+           this == AsmType::Float();
+  }
+
+  // Types allowed to be compared using the comparison operators.
+  bool IsComparableType() {
+    return this == AsmType::Double() || this == AsmType::Signed() ||
+           this == AsmType::Unsigned() || this == AsmType::Float();
+  }
+
+  // The following methods are meant to be used for inspecting the traits of
+  // element types for the heap view types.
+  enum : int32_t { kNotHeapType = -1 };
+
+  // Returns the element size if this is a heap type. Otherwise returns
+  // kNotHeapType.
+  int32_t ElementSizeInBytes();
+  // Returns the load type if this is a heap type. AsmType::None is returned if
+  // this is not a heap type.
+  AsmType* LoadType();
+  // Returns the store type if this is a heap type. AsmType::None is returned if
+  // this is not a heap type.
+  AsmType* StoreType();
+};
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+#endif  // SRC_WASM_ASM_TYPES_H_
