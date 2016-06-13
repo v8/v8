@@ -571,7 +571,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
 
   RegisterAllocationScope register_scope(this);
 
-  if (IsGeneratorFunction(info()->literal()->kind())) {
+  if (IsResumableFunction(info()->literal()->kind())) {
     generator_state_ = register_allocator()->NewRegister();
     VisitGeneratorPrologue();
   }
@@ -698,8 +698,8 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
 
   builder()->Bind(&regular_call);
   // This is a regular call. Fall through to the ordinary function prologue,
-  // after which we will run into the generator object creation and the initial
-  // yield (both inserted by the parser).
+  // after which we will run into the generator object creation and other extra
+  // code inserted by the parser.
 }
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {

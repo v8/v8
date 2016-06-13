@@ -1024,6 +1024,10 @@ inline bool IsAsyncFunction(FunctionKind kind) {
   return kind & FunctionKind::kAsyncFunction;
 }
 
+inline bool IsResumableFunction(FunctionKind kind) {
+  return IsGeneratorFunction(kind) || IsAsyncFunction(kind);
+}
+
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kConciseMethod;
