@@ -205,7 +205,16 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
       // $super_constructor = %_GetSuperConstructor(<this-function>)
-      // %reflect_construct($super_constructor, arguments, new.target)
+      // %reflect_construct(
+      //     $super_constructor, InternalArray(...args), new.target)
+      auto constructor_args_name = ast_value_factory()->empty_string();
+      bool is_duplicate;
+      bool is_rest = true;
+      bool is_optional = false;
+      Variable* constructor_args =
+          function_scope->DeclareParameter(constructor_args_name, TEMPORARY,
+                                           is_optional, is_rest, &is_duplicate);
+
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());
       VariableProxy* this_function_proxy = scope_->NewUnresolved(
@@ -217,10 +226,12 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       Expression* super_constructor = factory()->NewCallRuntime(
           Runtime::kInlineGetSuperConstructor, tmp, pos);
       args->Add(super_constructor, zone());
-      VariableProxy* arguments_proxy = scope_->NewUnresolved(
-          factory(), ast_value_factory()->arguments_string(), Variable::NORMAL,
-          pos);
-      args->Add(arguments_proxy, zone());
+      Spread* spread_args = factory()->NewSpread(
+          factory()->NewVariableProxy(constructor_args), pos, pos);
+      ZoneList<Expression*>* spread_args_expr =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      spread_args_expr->Add(spread_args, zone());
+      args->AddAll(*PrepareSpreadArguments(spread_args_expr), zone());
       VariableProxy* new_target_proxy = scope_->NewUnresolved(
           factory(), ast_value_factory()->new_target_string(), Variable::NORMAL,
           pos);

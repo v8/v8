@@ -173,9 +173,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4890
-  'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4901
   'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
