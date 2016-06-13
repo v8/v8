@@ -4550,12 +4550,12 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Fall back to %AllocateInNewSpace (if not too big).
     Label too_big_for_new_space;
     __ bind(&allocate);
-    __ cmp(r1, Operand(Page::kMaxRegularHeapObjectSize));
+    __ cmp(r6, Operand(Page::kMaxRegularHeapObjectSize));
     __ b(gt, &too_big_for_new_space);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(r1);
-      __ Push(r0, r2, r1);
+      __ SmiTag(r6);
+      __ Push(r0, r2, r6);
       __ CallRuntime(Runtime::kAllocateInNewSpace);
       __ mov(r3, r0);
       __ Pop(r0, r2);
