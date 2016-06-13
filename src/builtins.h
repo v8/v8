@@ -131,7 +131,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(MathAcos, kNone)                                           \
   V(MathAsin, kNone)                                           \
-  V(MathAtan, kNone)                                           \
   V(MathFround, kNone)                                         \
   V(MathImul, kNone)                                           \
                                                                \
@@ -320,6 +319,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(GeneratorPrototypeNext, 2)        \
   V(GeneratorPrototypeReturn, 2)      \
   V(GeneratorPrototypeThrow, 2)       \
+  V(MathAtan, 2)                      \
+  V(MathAtan2, 3)                     \
   V(MathCeil, 2)                      \
   V(MathClz32, 2)                     \
   V(MathFloor, 2)                     \
@@ -624,6 +625,10 @@ class Builtins {
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
 
+  // ES6 section 20.2.2.6 Math.atan ( x )
+  static void Generate_MathAtan(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.8 Math.atan2 ( y, x )
+  static void Generate_MathAtan2(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.10 Math.ceil ( x )
   static void Generate_MathCeil(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.11 Math.clz32 ( x )

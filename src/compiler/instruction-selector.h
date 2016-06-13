@@ -245,6 +245,7 @@ class InstructionSelector final {
   void VisitNode(Node* node);
 
   // Visit the node and generate code for IEEE 754 functions.
+  void VisitFloat64Ieee754Binop(Node*, InstructionCode code);
   void VisitFloat64Ieee754Unop(Node*, InstructionCode code);
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);

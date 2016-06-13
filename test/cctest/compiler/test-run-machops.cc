@@ -5496,6 +5496,27 @@ TEST(RunFloat64Abs) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(std::abs(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Atan) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Atan(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  CHECK_DOUBLE_EQ(-0.0, m.Call(-0.0));
+  CHECK_DOUBLE_EQ(0.0, m.Call(0.0));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::atan(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Atan2) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Atan2(m.Parameter(0), m.Parameter(1)));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) {
+      CHECK_DOUBLE_EQ(ieee754::atan2(*i, *j), m.Call(*i, *j));
+    }
+  }
+}
+
 TEST(RunFloat64Log) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.Float64Log(m.Parameter(0)));

@@ -363,9 +363,25 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                 \
   } while (0)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    /* Pass two doubles as arguments on the stack. */                         \
+    __ PrepareCallCFunction(4, eax);                                          \
+    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));        \
+    __ movsd(Operand(esp, 1 * kDoubleSize), i.InputDoubleRegister(1));        \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     4);                                                      \
+    /* Return value is in st(0) on ia32. */                                   \
+    /* Store it into the result register. */                                  \
+    __ sub(esp, Immediate(kDoubleSize));                                      \
+    __ fstp_d(Operand(esp, 0));                                               \
+    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                      \
+    __ add(esp, Immediate(kDoubleSize));                                      \
+  } while (false)
+
 #define ASSEMBLE_IEEE754_UNOP(name)                                           \
   do {                                                                        \
-    /* Pass one double as argument on the stack.*/                            \
+    /* Pass one double as argument on the stack. */                           \
     __ PrepareCallCFunction(2, eax);                                          \
     __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));        \
     __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
@@ -632,6 +648,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);
       break;

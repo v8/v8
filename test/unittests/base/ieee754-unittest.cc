@@ -9,11 +9,50 @@
 #include "testing/gmock-support.h"
 #include "testing/gtest-support.h"
 
+using testing::BitEq;
 using testing::IsNaN;
 
 namespace v8 {
 namespace base {
 namespace ieee754 {
+
+TEST(Ieee754, Atan) {
+  EXPECT_THAT(atan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(atan(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(atan(-0.0), BitEq(-0.0));
+  EXPECT_THAT(atan(0.0), BitEq(0.0));
+  EXPECT_DOUBLE_EQ(1.5707963267948966,
+                   atan(std::numeric_limits<double>::infinity()));
+  EXPECT_DOUBLE_EQ(-1.5707963267948966,
+                   atan(-std::numeric_limits<double>::infinity()));
+}
+
+TEST(Ieee754, Atan2) {
+  EXPECT_THAT(atan2(std::numeric_limits<double>::quiet_NaN(),
+                    std::numeric_limits<double>::quiet_NaN()),
+              IsNaN());
+  EXPECT_THAT(atan2(std::numeric_limits<double>::quiet_NaN(),
+                    std::numeric_limits<double>::signaling_NaN()),
+              IsNaN());
+  EXPECT_THAT(atan2(std::numeric_limits<double>::signaling_NaN(),
+                    std::numeric_limits<double>::quiet_NaN()),
+              IsNaN());
+  EXPECT_THAT(atan2(std::numeric_limits<double>::signaling_NaN(),
+                    std::numeric_limits<double>::signaling_NaN()),
+              IsNaN());
+  EXPECT_DOUBLE_EQ(0.7853981633974483,
+                   atan2(std::numeric_limits<double>::infinity(),
+                         std::numeric_limits<double>::infinity()));
+  EXPECT_DOUBLE_EQ(2.356194490192345,
+                   atan2(std::numeric_limits<double>::infinity(),
+                         -std::numeric_limits<double>::infinity()));
+  EXPECT_DOUBLE_EQ(-0.7853981633974483,
+                   atan2(-std::numeric_limits<double>::infinity(),
+                         std::numeric_limits<double>::infinity()));
+  EXPECT_DOUBLE_EQ(-2.356194490192345,
+                   atan2(-std::numeric_limits<double>::infinity(),
+                         -std::numeric_limits<double>::infinity()));
+}
 
 TEST(Ieee754, Log) {
   EXPECT_THAT(log(std::numeric_limits<double>::quiet_NaN()), IsNaN());

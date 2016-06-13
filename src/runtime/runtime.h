@@ -354,7 +354,6 @@ namespace internal {
   F(DoubleLo, 1, 1)                 \
   F(ConstructDouble, 2, 1)          \
   F(RemPiO2, 2, 1)                  \
-  F(MathAtan2, 2, 1)                \
   F(MathExpRT, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \

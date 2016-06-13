@@ -7,6 +7,7 @@
 #include "src/api-arguments.h"
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/base/ieee754.h"
 #include "src/base/once.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
@@ -2289,14 +2290,30 @@ BUILTIN(MathAsin) {
   return *isolate->factory()->NewHeapNumber(std::asin(x->Number()));
 }
 
-
 // ES6 section 20.2.2.6 Math.atan ( x )
-BUILTIN(MathAtan) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at<Object>(1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-  return *isolate->factory()->NewHeapNumber(std::atan(x->Number()));
+void Builtins::Generate_MathAtan(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Atan(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.8 Math.atan2 ( y, x )
+void Builtins::Generate_MathAtan2(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* y = assembler->Parameter(1);
+  Node* x = assembler->Parameter(2);
+  Node* context = assembler->Parameter(5);
+  Node* y_value = assembler->TruncateTaggedToFloat64(context, y);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Atan2(y_value, x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
 namespace {

@@ -1672,6 +1672,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "acos", Builtins::kMathAcos, 1, true);
     SimpleInstallFunction(math, "asin", Builtins::kMathAsin, 1, true);
     SimpleInstallFunction(math, "atan", Builtins::kMathAtan, 1, true);
+    SimpleInstallFunction(math, "atan2", Builtins::kMathAtan2, 2, true);
     SimpleInstallFunction(math, "ceil", Builtins::kMathCeil, 1, true);
     SimpleInstallFunction(math, "clz32", Builtins::kMathClz32, 1, true);
     Handle<JSFunction> math_floor =

@@ -1036,6 +1036,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_uint32_bias();
 
   // IEEE 754 functions.
+  static ExternalReference ieee754_atan_function(Isolate* isolate);
+  static ExternalReference ieee754_atan2_function(Isolate* isolate);
   static ExternalReference ieee754_log_function(Isolate* isolate);
   static ExternalReference ieee754_log1p_function(Isolate* isolate);
 

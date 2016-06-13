@@ -512,6 +512,13 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Dmb(InnerShareable, BarrierAll);                               \
   } while (0)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    FrameScope scope(masm(), StackFrame::MANUAL);                             \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     0, 2);                                                   \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_UNOP(name)                                           \
   do {                                                                        \
     FrameScope scope(masm(), StackFrame::MANUAL);                             \
@@ -799,6 +806,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);
       break;

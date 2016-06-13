@@ -1612,7 +1612,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleHi:
       return Type::Signed32();
     case Runtime::kInlineConstructDouble:
-    case Runtime::kInlineMathAtan2:
       return Type::Number();
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineRegExpConstructResult:
@@ -1784,6 +1783,10 @@ Type* Typer::Visitor::TypeNumberCeil(Node* node) {
 Type* Typer::Visitor::TypeNumberFloor(Node* node) {
   return TypeUnaryOp(node, NumberFloor);
 }
+
+Type* Typer::Visitor::TypeNumberAtan(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberLog(Node* node) { return Type::Number(); }
 
@@ -2503,6 +2506,10 @@ Type* Typer::Visitor::TypeFloat64Abs(Node* node) {
   // TODO(turbofan): We should be able to infer a better type here.
   return Type::Number();
 }
+
+Type* Typer::Visitor::TypeFloat64Atan(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log(Node* node) { return Type::Number(); }
 

@@ -72,6 +72,7 @@ class Schedule;
   V(Float64Mul)                            \
   V(Float64Div)                            \
   V(Float64Mod)                            \
+  V(Float64Atan2)                          \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
   V(IntPtrAdd)                             \
@@ -106,6 +107,7 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Atan)                        \
   V(Float64Log)                         \
   V(Float64Log1p)                       \
   V(Float64Neg)                         \

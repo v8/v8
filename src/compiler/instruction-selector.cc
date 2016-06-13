@@ -1127,6 +1127,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Max(node);
     case IrOpcode::kFloat64Abs:
       return MarkAsFloat64(node), VisitFloat64Abs(node);
+    case IrOpcode::kFloat64Atan:
+      return MarkAsFloat64(node), VisitFloat64Atan(node);
+    case IrOpcode::kFloat64Atan2:
+      return MarkAsFloat64(node), VisitFloat64Atan2(node);
     case IrOpcode::kFloat64Log:
       return MarkAsFloat64(node), VisitFloat64Log(node);
     case IrOpcode::kFloat64Log1p:
@@ -1234,6 +1238,14 @@ void InstructionSelector::VisitLoadFramePointer(Node* node) {
 void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitFloat64Atan(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Atan);
+}
+
+void InstructionSelector::VisitFloat64Atan2(Node* node) {
+  VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
 }
 
 void InstructionSelector::VisitFloat64Log(Node* node) {

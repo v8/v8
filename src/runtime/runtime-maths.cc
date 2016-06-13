@@ -59,31 +59,6 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
 }
 
 
-static const double kPiDividedBy4 = 0.78539816339744830962;
-
-
-RUNTIME_FUNCTION(Runtime_MathAtan2) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_atan2_runtime()->Increment();
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  double result;
-  if (std::isinf(x) && std::isinf(y)) {
-    // Make sure that the result in case of two infinite arguments
-    // is a multiple of Pi / 4. The sign of the result is determined
-    // by the first argument (x) and the sign of the second argument
-    // determines the multiplier: one or three.
-    int multiplier = (x < 0) ? -1 : 1;
-    if (y < 0) multiplier *= 3;
-    result = multiplier * kPiDividedBy4;
-  } else {
-    result = std::atan2(x, y);
-  }
-  return *isolate->factory()->NewNumber(result);
-}
-
-
 RUNTIME_FUNCTION(Runtime_MathExpRT) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

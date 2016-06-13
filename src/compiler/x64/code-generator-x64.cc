@@ -594,6 +594,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                            \
   } while (false)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    __ PrepareCallCFunction(2);                                               \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     2);                                                      \
+  } while (false)
+
 #define ASSEMBLE_IEEE754_UNOP(name)                                           \
   do {                                                                        \
     __ PrepareCallCFunction(1);                                               \
@@ -847,6 +854,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ leaq(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);
       break;

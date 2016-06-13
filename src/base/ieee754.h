@@ -9,6 +9,14 @@ namespace v8 {
 namespace base {
 namespace ieee754 {
 
+// Returns the principal value of the arc tangent of |x|; that is the value
+// whose tangent is |x|.
+double atan(double x);
+
+// Returns the principal value of the arc tangent of |y/x|, using the signs of
+// the two arguments to determine the quadrant of the result.
+double atan2(double y, double x);
+
 // Returns the natural logarithm of |x|.
 double log(double x);
 

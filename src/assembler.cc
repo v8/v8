@@ -1323,7 +1323,7 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
 }
 
 static void f64_atan_wrapper(double* param) {
-  WriteDoubleValue(param, std::atan(ReadDoubleValue(param)));
+  WriteDoubleValue(param, base::ieee754::atan(ReadDoubleValue(param)));
 }
 
 ExternalReference ExternalReference::f64_atan_wrapper_function(
@@ -1392,7 +1392,7 @@ static void f64_atan2_wrapper(double* param0, double* param1) {
     if (y < 0) multiplier *= 3;
     WriteDoubleValue(param0, multiplier * kPiDividedBy4);
   } else {
-    WriteDoubleValue(param0, std::atan2(x, y));
+    WriteDoubleValue(param0, base::ieee754::atan2(x, y));
   }
 }
 
@@ -1647,6 +1647,16 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 }
 
 #endif  // V8_INTERPRETED_REGEXP
+
+ExternalReference ExternalReference::ieee754_atan_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
+}
 
 ExternalReference ExternalReference::ieee754_log_function(Isolate* isolate) {
   return ExternalReference(

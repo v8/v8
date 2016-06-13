@@ -29,15 +29,6 @@ function MathAbs(x) {
   return (x > 0) ? x : 0 - x;
 }
 
-// ECMA 262 - 15.8.2.5
-// The naming of y and x matches the spec, as does the order in which
-// ToNumber (valueOf) is called.
-function MathAtan2JS(y, x) {
-  y = +y;
-  x = +x;
-  return %MathAtan2(y, x);
-}
-
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
   return %MathExpRT(TO_NUMBER(x));
@@ -194,7 +185,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
   "exp", MathExp,
-  "atan2", MathAtan2JS,
   "pow", MathPowJS,
   "sign", MathSign,
   "asinh", MathAsinh,
@@ -205,7 +195,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 ]);
 
 %SetForceInlineFlag(MathAbs);
-%SetForceInlineFlag(MathAtan2JS);
 %SetForceInlineFlag(MathRandom);
 %SetForceInlineFlag(MathSign);
 

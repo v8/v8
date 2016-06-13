@@ -1455,6 +1455,14 @@ void InstructionSelector::VisitFloat64Neg(Node* node) {
   VisitRR(this, kArmVnegF64, node);
 }
 
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  ArmOperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0),
+       g.UseFixed(node->InputAt(1), d1))
+      ->MarkAsCall();
+}
+
 void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
                                                   InstructionCode opcode) {
   ArmOperandGenerator g(this);

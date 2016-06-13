@@ -1072,6 +1072,14 @@ void InstructionSelector::VisitFloat32Neg(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  IA32OperandGenerator g(this);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)))
+      ->MarkAsCall();
+}
+
 void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
                                                   InstructionCode opcode) {
   IA32OperandGenerator g(this);

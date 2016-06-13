@@ -183,6 +183,29 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.6 Math.atan ( x )
+Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.atan(a:number) -> NumberAtan(a)
+    Node* value = graph()->NewNode(simplified()->NumberAtan(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.8 Math.atan2 ( y, x )
+Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchTwo(Type::Number(), Type::Number())) {
+    // Math.atan2(a:number, b:number) -> NumberAtan2(a, b)
+    Node* value =
+        graph()->NewNode(simplified()->NumberAtan2(), r.left(), r.right());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.20 Math.log ( x )
 Reduction JSBuiltinReducer::ReduceMathLog(Node* node) {
   JSCallReduction r(node);
@@ -274,6 +297,12 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathFround:
       reduction = ReduceMathFround(node);
+      break;
+    case kMathAtan:
+      reduction = ReduceMathAtan(node);
+      break;
+    case kMathAtan2:
+      reduction = ReduceMathAtan2(node);
       break;
     case kMathLog:
       reduction = ReduceMathLog(node);

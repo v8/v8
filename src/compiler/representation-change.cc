@@ -659,6 +659,10 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
       return machine()->Float64LessThanOrEqual();
+    case IrOpcode::kNumberAtan:
+      return machine()->Float64Atan();
+    case IrOpcode::kNumberAtan2:
+      return machine()->Float64Atan2();
     case IrOpcode::kNumberLog:
       return machine()->Float64Log();
     case IrOpcode::kNumberLog1p:

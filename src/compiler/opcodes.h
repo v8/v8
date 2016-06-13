@@ -197,6 +197,8 @@
   V(NumberClz32)                   \
   V(NumberCeil)                    \
   V(NumberFloor)                   \
+  V(NumberAtan)                    \
+  V(NumberAtan2)                   \
   V(NumberLog)                     \
   V(NumberLog1p)                   \
   V(NumberRound)                   \
@@ -356,6 +358,8 @@
   V(Float64Max)                 \
   V(Float64Min)                 \
   V(Float64Abs)                 \
+  V(Float64Atan)                \
+  V(Float64Atan2)               \
   V(Float64Log)                 \
   V(Float64Log1p)               \
   V(Float64Sqrt)                \
