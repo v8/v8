@@ -8,7 +8,6 @@
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/property-descriptor.h"
 #include "src/runtime/runtime.h"
@@ -19,7 +18,7 @@ namespace internal {
 MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key) {
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate) || object->IsNull()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
@@ -63,7 +62,9 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
           PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
           if (cell->property_details().type() == DATA) {
             Object* value = cell->value();
-            if (!value->IsTheHole()) return Handle<Object>(value, isolate);
+            if (!value->IsTheHole(isolate)) {
+              return Handle<Object>(value, isolate);
+            }
             // If value is the hole (meaning, absent) do the general lookup.
           }
         }
@@ -195,7 +196,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
         key_is_array_index
             ? index < static_cast<uint32_t>(String::cast(*object)->length())
             : key->Equals(isolate->heap()->length_string()));
-  } else if (object->IsNull() || object->IsUndefined()) {
+  } else if (object->IsNull() || object->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
@@ -208,7 +209,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                Handle<Object> value,
                                                LanguageMode language_mode) {
-  if (object->IsUndefined() || object->IsNull()) {
+  if (object->IsUndefined(isolate) || object->IsNull()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
@@ -226,24 +227,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   return value;
 }
 
-MaybeHandle<Object> Runtime::BasicJsonStringify(Isolate* isolate,
-                                                Handle<Object> object) {
-  return BasicJsonStringifier(isolate).Stringify(object);
-}
-
-MaybeHandle<Object> Runtime::BasicJsonStringifyString(Isolate* isolate,
-                                                      Handle<String> string) {
-  return BasicJsonStringifier::StringifyString(isolate, string);
-}
 
 RUNTIME_FUNCTION(Runtime_GetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     JSReceiver::GetPrototype(isolate, obj));
-  return *prototype;
+  RETURN_RESULT_OR_FAILURE(isolate, JSReceiver::GetPrototype(isolate, obj));
 }
 
 
@@ -315,9 +304,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
     script_context->set(slot, isolate->heap()->empty_property_cell());
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
 
 
@@ -386,10 +373,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::GetObjectProperty(isolate, object, key));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Runtime::GetObjectProperty(isolate, object, key));
 }
 
 
@@ -401,16 +386,14 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key_obj, 1);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
 }
 
 
 RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 4);
+  DCHECK_EQ(4, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
@@ -423,14 +406,11 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  RUNTIME_ASSERT(!it.IsFound());
+  CHECK(!it.IsFound());
 #endif
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetOwnPropertyIgnoreAttributes(object, name, value, attrs));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                        object, name, value, attrs));
 }
 
 
@@ -438,7 +418,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 // This is used to create an indexed data property into an array.
 RUNTIME_FUNCTION(Runtime_AddElement) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
@@ -452,25 +432,22 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  RUNTIME_ASSERT(!it.IsFound());
+  CHECK(!it.IsFound());
 
   if (object->IsJSArray()) {
     Handle<JSArray> array = Handle<JSArray>::cast(object);
-    RUNTIME_ASSERT(!JSArray::WouldChangeReadOnlyLength(array, index));
+    CHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
   }
 #endif
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetOwnElementIgnoreAttributes(object, index, value, NONE));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnElementIgnoreAttributes(
+                                        object, index, value, NONE));
 }
 
 
 RUNTIME_FUNCTION(Runtime_AppendElement) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
@@ -478,9 +455,8 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
   uint32_t index;
   CHECK(array->length()->ToArrayIndex(&index));
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::AddDataElement(array, index, value, NONE));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::AddDataElement(array, index, value, NONE));
   JSObject::ValidateElements(array);
   return *array;
 }
@@ -488,7 +464,7 @@ RUNTIME_FUNCTION(Runtime_AppendElement) {
 
 RUNTIME_FUNCTION(Runtime_SetProperty) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 4);
+  DCHECK_EQ(4, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
@@ -496,11 +472,9 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 3);
   LanguageMode language_mode = language_mode_arg;
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
-  return *result;
 }
 
 
@@ -591,7 +565,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      JSReceiver::GetKeys(object, OWN_ONLY, filter, CONVERT_TO_STRING));
+      KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly, filter,
+                              GetKeysConversion::kConvertToString));
 
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
@@ -639,10 +614,7 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
-  Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, JSObject::New(target, new_target));
 }
 
 
@@ -662,15 +634,14 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
-  RUNTIME_ASSERT((index->value() & 1) == 1);
+  CHECK((index->value() & 1) == 1);
   FieldIndex field_index =
       FieldIndex::ForLoadByFieldIndex(object->map(), index->value());
   if (field_index.is_inobject()) {
-    RUNTIME_ASSERT(field_index.property_index() <
-                   object->map()->GetInObjectProperties());
+    CHECK(field_index.property_index() <
+          object->map()->GetInObjectProperties());
   } else {
-    RUNTIME_ASSERT(field_index.outobject_array_index() <
-                   object->properties()->length());
+    CHECK(field_index.outobject_array_index() < object->properties()->length());
   }
   return *JSObject::FastPropertyAt(object, Representation::Double(),
                                    field_index);
@@ -700,9 +671,8 @@ RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
   return isolate->heap()->ToBoolean(obj->IsJSGlobalProxy());
 }
 
-
-static bool IsValidAccessor(Handle<Object> obj) {
-  return obj->IsUndefined() || obj->IsCallable() || obj->IsNull();
+static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
+  return obj->IsUndefined(isolate) || obj->IsCallable() || obj->IsNull();
 }
 
 
@@ -716,12 +686,12 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(!obj->IsNull());
+  CHECK(!obj->IsNull());
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
-  RUNTIME_ASSERT(IsValidAccessor(getter));
+  CHECK(IsValidAccessor(isolate, getter));
   CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
-  RUNTIME_ASSERT(IsValidAccessor(setter));
+  CHECK(IsValidAccessor(isolate, setter));
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 4);
 
   RETURN_FAILURE_ON_EXCEPTION(
@@ -846,10 +816,7 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-  return *receiver;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToObject(isolate, object));
 }
 
 
@@ -857,10 +824,7 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToPrimitive(input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToPrimitive(input));
 }
 
 
@@ -868,10 +832,8 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
 }
 
 
@@ -879,10 +841,8 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ToPrimitive(input, ToPrimitiveHint::kString));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kString));
 }
 
 
@@ -890,9 +850,7 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::ToNumber(input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumber(input));
 }
 
 
@@ -900,10 +858,7 @@ RUNTIME_FUNCTION(Runtime_ToInteger) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToInteger(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToInteger(isolate, input));
 }
 
 
@@ -911,10 +866,7 @@ RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToLength(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToLength(isolate, input));
 }
 
 
@@ -922,10 +874,7 @@ RUNTIME_FUNCTION(Runtime_ToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToString(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, input));
 }
 
 
@@ -933,10 +882,7 @@ RUNTIME_FUNCTION(Runtime_ToName) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ToName(isolate, input));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToName(isolate, input));
 }
 
 

@@ -21,7 +21,6 @@ var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
 var FLAG_intl_extra;
-var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
@@ -31,7 +30,6 @@ var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
 var InternalRegExpMatch;
 var InternalRegExpReplace
-var IsFinite;
 var IsNaN;
 var MakeError;
 var MakeRangeError;
@@ -51,7 +49,6 @@ utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
-  IsFinite = from.IsFinite;
   IsNaN = from.IsNaN;
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
@@ -87,11 +84,11 @@ function InstallConstructor(object, name, func) {
 /**
  * Adds bound method to the prototype of the given object.
  */
-function AddBoundMethod(obj, methodName, implementation, length) {
+function AddBoundMethod(obj, methodName, implementation, length, type) {
   %CheckIsBootstrapping();
   var internalName = %CreatePrivateSymbol(methodName);
   var getter = function() {
-    if (!%IsInitializedIntlObject(this)) {
+    if (!%IsInitializedIntlObjectOfType(this, type)) {
       throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
     }
     if (IS_UNDEFINED(this[internalName])) {
@@ -285,7 +282,7 @@ function supportedLocalesOf(service, locales, options) {
 
   var matcher = options.localeMatcher;
   if (!IS_UNDEFINED(matcher)) {
-    matcher = GlobalString(matcher);
+    matcher = TO_STRING(matcher);
     if (matcher !== 'lookup' && matcher !== 'best fit') {
       throw MakeRangeError(kLocaleMatcher, matcher);
     }
@@ -366,13 +363,13 @@ function getGetOption(options, caller) {
       var value = options[property];
       switch (type) {
         case 'boolean':
-          value = GlobalBoolean(value);
+          value = TO_BOOLEAN(value);
           break;
         case 'string':
-          value = GlobalString(value);
+          value = TO_STRING(value);
           break;
         case 'number':
-          value = GlobalNumber(value);
+          value = TO_NUMBER(value);
           break;
         default:
           throw MakeError(kWrongValueType);
@@ -523,7 +520,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   var extension = '';
 
   var updateExtension = function updateExtension(key, value) {
-    return '-' + key + '-' + GlobalString(value);
+    return '-' + key + '-' + TO_STRING(value);
   }
 
   var updateProperty = function updateProperty(property, type, value) {
@@ -742,7 +739,7 @@ function canonicalizeLanguageTag(localeID) {
     return localeID;
   }
 
-  var localeString = GlobalString(localeID);
+  var localeString = TO_STRING(localeID);
 
   if (isValidLanguageTag(localeString) === false) {
     throw MakeRangeError(kInvalidLanguageTag, localeString);
@@ -1078,11 +1075,11 @@ InstallFunction(Intl.Collator, 'supportedLocalesOf', function(locales) {
  */
 function compare(collator, x, y) {
   return %InternalCompare(%GetImplFromInitializedIntlObject(collator),
-                          GlobalString(x), GlobalString(y));
+                          TO_STRING(x), TO_STRING(y));
 };
 
 
-AddBoundMethod(Intl.Collator, 'compare', compare, 2);
+AddBoundMethod(Intl.Collator, 'compare', compare, 2, 'collator');
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1102,8 +1099,8 @@ function isWellFormedCurrencyCode(currency) {
 function getNumberOption(options, property, min, max, fallback) {
   var value = options[property];
   if (!IS_UNDEFINED(value)) {
-    value = GlobalNumber(value);
-    if (IsNaN(value) || value < min || value > max) {
+    value = TO_NUMBER(value);
+    if (NUMBER_IS_NAN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
     return %math_floor(value);
@@ -1348,10 +1345,10 @@ function formatNumber(formatter, value) {
  */
 function IntlParseNumber(formatter, value) {
   return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
-                              GlobalString(value));
+                              TO_STRING(value));
 }
 
-AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1);
+AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat');
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1755,7 +1752,7 @@ function formatDate(formatter, dateValue) {
     dateMs = TO_NUMBER(dateValue);
   }
 
-  if (!IsFinite(dateMs)) throw MakeRangeError(kDateRange);
+  if (!NUMBER_IS_FINITE(dateMs)) throw MakeRangeError(kDateRange);
 
   return %InternalDateFormat(%GetImplFromInitializedIntlObject(formatter),
                              new GlobalDate(dateMs));
@@ -1770,12 +1767,12 @@ function formatDate(formatter, dateValue) {
  */
 function IntlParseDate(formatter, value) {
   return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
-                            GlobalString(value));
+                            TO_STRING(value));
 }
 
 
 // 0 because date is optional argument.
-AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0);
+AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat');
 
 
 /**
@@ -1927,7 +1924,7 @@ InstallFunction(Intl.v8BreakIterator, 'supportedLocalesOf',
  */
 function adoptText(iterator, text) {
   %BreakIteratorAdoptText(%GetImplFromInitializedIntlObject(iterator),
-                          GlobalString(text));
+                          TO_STRING(text));
 }
 
 
@@ -1963,11 +1960,13 @@ function breakType(iterator) {
 }
 
 
-AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1);
-AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0);
-AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1,
+               'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0, 'breakiterator');
+AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0,
+               'breakiterator');
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {
@@ -1989,6 +1988,23 @@ var defaultObjects = {
   'dateformattime': UNDEFINED,
 };
 
+function clearDefaultObjects() {
+  defaultObjects['dateformatall'] = UNDEFINED;
+  defaultObjects['dateformatdate'] = UNDEFINED;
+  defaultObjects['dateformattime'] = UNDEFINED;
+}
+
+var date_cache_version = 0;
+
+function checkDateCacheCurrent() {
+  var new_date_cache_version = %DateCacheVersion();
+  if (new_date_cache_version == date_cache_version) {
+    return;
+  }
+  date_cache_version = new_date_cache_version;
+
+  clearDefaultObjects();
+}
 
 /**
  * Returns cached or newly created instance of a given service.
@@ -1997,6 +2013,7 @@ var defaultObjects = {
 function cachedOrNewService(service, locales, options, defaults) {
   var useOptions = (IS_UNDEFINED(defaults)) ? options : defaults;
   if (IS_UNDEFINED(locales) && IS_UNDEFINED(options)) {
+    checkDateCacheCurrent();
     if (IS_UNDEFINED(defaultObjects[service])) {
       defaultObjects[service] = new savedObjects[service](locales, useOptions);
     }

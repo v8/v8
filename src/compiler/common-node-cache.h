@@ -52,12 +52,14 @@ class CommonNodeCache final {
 
   Node** FindHeapConstant(Handle<HeapObject> value);
 
-  Node** FindRelocatableInt32Constant(int32_t value) {
-    return relocatable_int32_constants_.Find(zone(), value);
+  Node** FindRelocatableInt32Constant(int32_t value, RelocInfoMode rmode) {
+    return relocatable_int32_constants_.Find(zone(),
+                                             std::make_pair(value, rmode));
   }
 
-  Node** FindRelocatableInt64Constant(int64_t value) {
-    return relocatable_int64_constants_.Find(zone(), value);
+  Node** FindRelocatableInt64Constant(int64_t value, RelocInfoMode rmode) {
+    return relocatable_int64_constants_.Find(zone(),
+                                             std::make_pair(value, rmode));
   }
 
   // Return all nodes from the cache.
@@ -73,8 +75,8 @@ class CommonNodeCache final {
   IntPtrNodeCache external_constants_;
   Int64NodeCache number_constants_;
   IntPtrNodeCache heap_constants_;
-  Int32NodeCache relocatable_int32_constants_;
-  Int64NodeCache relocatable_int64_constants_;
+  RelocInt32NodeCache relocatable_int32_constants_;
+  RelocInt64NodeCache relocatable_int64_constants_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonNodeCache);

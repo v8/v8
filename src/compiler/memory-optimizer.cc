@@ -87,6 +87,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitStoreField(node, state);
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
     case IrOpcode::kStore:

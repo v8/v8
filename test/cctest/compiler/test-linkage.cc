@@ -7,6 +7,7 @@
 #include "src/parsing/parser.h"
 #include "src/zone.h"
 
+#include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -97,14 +98,12 @@ TEST(TestLinkageRuntimeCall) {
 TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator());
-  ToNumberStub stub(isolate);
+  Callable callable = CodeFactory::ToNumber(isolate);
   CompilationInfo info(ArrayVector("test"), isolate, &zone,
                        Code::ComputeFlags(Code::STUB));
-  CallInterfaceDescriptor interface_descriptor =
-      stub.GetCallInterfaceDescriptor();
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate, &zone, interface_descriptor, stub.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties);
+      isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      Operator::kNoProperties);
   CHECK(descriptor);
   CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
   CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));

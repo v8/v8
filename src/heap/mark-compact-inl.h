@@ -79,7 +79,7 @@ void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
 
 void CodeFlusher::AddCandidate(JSFunction* function) {
   DCHECK(function->code() == function->shared()->code());
-  if (function->next_function_link()->IsUndefined()) {
+  if (function->next_function_link()->IsUndefined(isolate_)) {
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
   }
@@ -105,7 +105,7 @@ void CodeFlusher::SetNextCandidate(JSFunction* candidate,
 
 
 void CodeFlusher::ClearNextCandidate(JSFunction* candidate, Object* undefined) {
-  DCHECK(undefined->IsUndefined());
+  DCHECK(undefined->IsUndefined(candidate->GetIsolate()));
   candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
 }
 

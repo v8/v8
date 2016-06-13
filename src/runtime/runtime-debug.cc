@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
-  RUNTIME_ASSERT(args[0]->IsJSFunction() || args[0]->IsUndefined() ||
+  RUNTIME_ASSERT(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
                  args[0]->IsNull());
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
@@ -145,7 +145,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
-  RUNTIME_ASSERT_HANDLIFIED(iterator->kind()->IsSmi(), JSArray);
+  CHECK(iterator->kind()->IsSmi());
   const char* kind = NULL;
   switch (Smi::cast(iterator->kind())->value()) {
     case IteratorType::kKindKeys:
@@ -158,7 +158,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
       kind = "entries";
       break;
     default:
-      RUNTIME_ASSERT_HANDLIFIED(false, JSArray);
+      UNREACHABLE();
   }
 
   Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
@@ -248,7 +248,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
     Handle<Object> status_obj =
         DebugGetProperty(promise, isolate->factory()->promise_state_symbol());
-    RUNTIME_ASSERT_HANDLIFIED(status_obj->IsSmi(), JSArray);
+    CHECK(status_obj->IsSmi());
     const char* status = "rejected";
     int status_val = Handle<Smi>::cast(status_obj)->value();
     switch (status_val) {
@@ -313,10 +313,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
-  Handle<JSArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::GetInternalProperties(isolate, obj));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Runtime::GetInternalProperties(isolate, obj));
 }
 
 
@@ -564,7 +562,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // Use the value from the stack.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(i))) continue;
     locals->set(local * 2, scope_info->LocalName(i));
-    Handle<Object> value = frame_inspector.GetExpression(i);
+    Handle<Object> value =
+        frame_inspector.GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
     if (value->IsOptimizedOut()) value = isolate->factory()->undefined_value();
@@ -764,10 +763,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
-  Handle<JSObject> details;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     it.MaterializeScopeDetails());
-  return *details;
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
 
@@ -856,10 +852,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
     return isolate->heap()->undefined_value();
   }
 
-  Handle<JSObject> details;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
-                                     it.MaterializeScopeDetails());
-  return *details;
+  RETURN_RESULT_OR_FAILURE(isolate, it.MaterializeScopeDetails());
 }
 
 
@@ -971,7 +964,9 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   // Find the number of break points
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(shared, alignment);
-  if (break_locations->IsUndefined()) return isolate->heap()->undefined_value();
+  if (break_locations->IsUndefined(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(break_locations));
@@ -1141,12 +1136,9 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
-                           disable_break, context_extension));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
+                                    disable_break, context_extension));
 }
 
 
@@ -1163,11 +1155,9 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 3);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       DebugEvaluate::Global(isolate, source, disable_break, context_extension));
-  return *result;
 }
 
 
@@ -1206,7 +1196,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
 static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
                                                JSObject* object,
                                                Object* proto) {
-  PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
+  PrototypeIterator iter(isolate, object, kStartAtReceiver);
   while (true) {
     iter.AdvanceIgnoringProxies();
     if (iter.IsAtEnd()) return false;
@@ -1224,7 +1214,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
-  RUNTIME_ASSERT(filter->IsUndefined() || filter->IsJSObject());
+  RUNTIME_ASSERT(filter->IsUndefined(isolate) || filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
   RUNTIME_ASSERT(max_references >= 0);
 
@@ -1243,7 +1233,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
       if (!obj->ReferencesObject(*target)) continue;
       // Check filter if supplied. This is normally used to avoid
       // references from mirror objects.
-      if (!filter->IsUndefined() &&
+      if (!filter->IsUndefined(isolate) &&
           HasInPrototypeChainIgnoringProxies(isolate, obj, *filter)) {
         continue;
       }
@@ -1313,12 +1303,9 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  Handle<Object> prototype;
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     JSReceiver::GetPrototype(isolate, obj));
-  return *prototype;
+  RETURN_RESULT_OR_FAILURE(isolate, JSReceiver::GetPrototype(isolate, obj));
 }
 
 
@@ -1359,15 +1346,13 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
-  Handle<Object> name;
   if (function->IsJSBoundFunction()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, name, JSBoundFunction::GetName(
-                           isolate, Handle<JSBoundFunction>::cast(function)));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSBoundFunction::GetName(
+                     isolate, Handle<JSBoundFunction>::cast(function)));
   } else {
-    name = JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
+    return *JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   }
-  return *name;
 }
 
 
@@ -1423,12 +1408,9 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
     return isolate->heap()->exception();
   }
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function, handle(function->global_proxy()), 0,
-                      NULL));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::Call(isolate, function,
+                               handle(function->global_proxy()), 0, NULL));
 }
 
 
@@ -1501,6 +1483,212 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
   return *Script::GetWrapper(found);
 }
 
+RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  return Smi::FromInt(line_ends_array->length());
+}
+
+RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  // If line == line_count, we return the first position beyond the last line.
+  if (line < 0 || line > line_count) {
+    return Smi::FromInt(-1);
+  } else if (line == 0) {
+    return Smi::FromInt(0);
+  } else {
+    DCHECK(0 < line && line <= line_count);
+    const int pos = Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+    return Smi::FromInt(pos);
+  }
+}
+
+RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  if (line < 0 || line >= line_count) {
+    return Smi::FromInt(-1);
+  } else {
+    return Smi::cast(line_ends_array->get(line));
+  }
+}
+
+static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
+                                        Script::OffsetFlag offset_flag,
+                                        Isolate* isolate) {
+  Script::PositionInfo info;
+  if (!script->GetPositionInfo(position, &info, offset_flag)) {
+    return handle(isolate->heap()->null_value(), isolate);
+  }
+
+  Handle<String> source = handle(String::cast(script->source()), isolate);
+  Handle<String> sourceText =
+      isolate->factory()->NewSubString(source, info.line_start, info.line_end);
+
+  Handle<JSObject> jsinfo =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  JSObject::AddProperty(jsinfo, isolate->factory()->script_string(), script,
+                        NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->position_string(),
+                        handle(Smi::FromInt(position), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->line_string(),
+                        handle(Smi::FromInt(info.line), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->column_string(),
+                        handle(Smi::FromInt(info.column), isolate), NONE);
+  JSObject::AddProperty(jsinfo, isolate->factory()->sourceText_string(),
+                        sourceText, NONE);
+
+  return jsinfo;
+}
+
+// Get information on a specific source line and column possibly offset by a
+// fixed source position. This function is used to find a source position from
+// a line and column position. The fixed source position offset is typically
+// used to find a source position in a function based on a line and column in
+// the source for the function alone. The offset passed will then be the
+// start position of the source for the function within the full script source.
+// Note that incoming line and column parameters may be undefined, and are
+// assumed to be passed *with* offsets.
+RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  // Line and column are possibly undefined and we need to handle these cases,
+  // additionally subtracting corresponding offsets.
+
+  int32_t line;
+  if (args[1]->IsNull() || args[1]->IsUndefined(isolate)) {
+    line = 0;
+  } else {
+    RUNTIME_ASSERT(args[1]->IsNumber());
+    line = NumberToInt32(args[1]) - script_handle->line_offset();
+  }
+
+  int32_t column;
+  if (args[2]->IsNull() || args[2]->IsUndefined(isolate)) {
+    column = 0;
+  } else {
+    RUNTIME_ASSERT(args[2]->IsNumber());
+    column = NumberToInt32(args[2]);
+    if (line == 0) column -= script_handle->column_offset();
+  }
+
+  CONVERT_NUMBER_CHECKED(int32_t, offset_position, Int32, args[3]);
+
+  if (line < 0 || column < 0 || offset_position < 0) {
+    return isolate->heap()->null_value();
+  }
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  int position;
+  if (line == 0) {
+    position = offset_position + column;
+  } else {
+    Script::PositionInfo info;
+    if (!script_handle->GetPositionInfo(offset_position, &info,
+                                        Script::NO_OFFSET) ||
+        info.line + line >= line_count) {
+      return isolate->heap()->null_value();
+    }
+
+    const int offset_line = info.line + line;
+    const int offset_line_position =
+        (offset_line == 0)
+            ? 0
+            : Smi::cast(line_ends_array->get(offset_line - 1))->value() + 1;
+    position = offset_line_position + column;
+  }
+
+  return *GetJSPositionInfo(script_handle, position, Script::NO_OFFSET,
+                            isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
+  CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  const Script::OffsetFlag offset_flag =
+      with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
+  return *GetJSPositionInfo(script_handle, position, offset_flag, isolate);
+}
+
+// Returns the given line as a string, or null if line is out of bounds.
+// The parameter line is expected to include the script's line offset.
+RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSValue, script, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  Script::InitLineEnds(script_handle);
+
+  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
+  const int line_count = line_ends_array->length();
+
+  line -= script_handle->line_offset();
+  if (line < 0 || line_count <= line) {
+    return isolate->heap()->null_value();
+  }
+
+  const int start =
+      (line == 0) ? 0 : Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+  const int end = Smi::cast(line_ends_array->get(line))->value();
+
+  Handle<String> source =
+      handle(String::cast(script_handle->source()), isolate);
+  Handle<String> str = isolate->factory()->NewSubString(source, start, end);
+
+  return *str;
+}
 
 // Set one shot breakpoints for the callback function that is passed to a
 // built-in function such as Array.forEach to enable stepping into the callback,
@@ -1513,6 +1701,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   return isolate->heap()->undefined_value();
 }
 
+// Set one shot breakpoints for the suspended generator object.
+RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->debug()->PrepareStepInSuspendedGenerator();
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 2);

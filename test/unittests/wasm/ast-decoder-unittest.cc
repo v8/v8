@@ -82,7 +82,7 @@ class AstDecoderTest : public TestWithZone {
   // verification failures.
   void Verify(ErrorCode expected, FunctionSig* sig, const byte* start,
               const byte* end) {
-    local_decls.Prepend(&start, &end);
+    local_decls.Prepend(zone(), &start, &end);
     // Verify the code.
     TreeResult result =
         VerifyWasmCode(zone()->allocator(), module, sig, start, end);
@@ -105,8 +105,6 @@ class AstDecoderTest : public TestWithZone {
       }
       FATAL(str.str().c_str());
     }
-
-    delete[] start;  // local_decls.Prepend() allocated a new buffer.
   }
 
   void TestBinop(WasmOpcode opcode, FunctionSig* success) {
@@ -1171,14 +1169,13 @@ class TestModuleEnv : public ModuleEnv {
     return static_cast<byte>(mod.signatures.size() - 1);
   }
   byte AddFunction(FunctionSig* sig) {
-    mod.functions.push_back({sig,      // sig
-                             0,        // func_index
-                             0,        // sig_index
-                             0,        // name_offset
-                             0,        // name_length
-                             0,        // code_start_offset
-                             0,        // code_end_offset
-                             false});  // exported
+    mod.functions.push_back({sig,  // sig
+                             0,    // func_index
+                             0,    // sig_index
+                             0,    // name_offset
+                             0,    // name_length
+                             0,    // code_start_offset
+                             0});  // code_end_offset
     CHECK(mod.functions.size() <= 127);
     return static_cast<byte>(mod.functions.size() - 1);
   }
@@ -2427,7 +2424,7 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.AddLocals(5, kAstF32);
   local_decls.AddLocals(1337, kAstI32);
   local_decls.AddLocals(212, kAstI64);
-  local_decls.Prepend(&data, &end);
+  local_decls.Prepend(zone(), &data, &end);
 
   AstLocalDecls decls(zone());
   bool result = DecodeLocalDecls(decls, data, end);
@@ -2439,7 +2436,6 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kAstF32, 5);
   pos = ExpectRun(map, pos, kAstI32, 1337);
   pos = ExpectRun(map, pos, kAstI64, 212);
-  delete[] data;
 }
 
 }  // namespace wasm

@@ -13,9 +13,8 @@ namespace v8 {
 namespace internal {
 
 template <typename Char>
-bool DateParser::Parse(Vector<Char> str,
-                       FixedArray* out,
-                       UnicodeCache* unicode_cache) {
+bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray* out) {
+  UnicodeCache* unicode_cache = isolate->unicode_cache();
   DCHECK(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(unicode_cache, str);
   DateStringTokenizer<Char> scanner(&in);
@@ -76,6 +75,7 @@ bool DateParser::Parse(Vector<Char> str,
   if (next_unhandled_token.IsInvalid()) return false;
   bool has_read_number = !day.IsEmpty();
   // If there's anything left, continue with the legacy parser.
+  bool legacy_parser = !next_unhandled_token.IsEndOfInput();
   for (DateToken token = next_unhandled_token;
        !token.IsEndOfInput();
        token = scanner.Next()) {
@@ -170,7 +170,13 @@ bool DateParser::Parse(Vector<Char> str,
     }
   }
 
-  return day.Write(out) && time.Write(out) && tz.Write(out);
+  bool success = day.Write(out) && time.Write(out) && tz.Write(out);
+
+  if (legacy_parser && success) {
+    isolate->CountUsage(v8::Isolate::kLegacyDateParser);
+  }
+
+  return success;
 }
 
 

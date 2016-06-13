@@ -61,6 +61,7 @@ namespace compiler {
   V(S390_ModU32)                   \
   V(S390_ModU64)                   \
   V(S390_ModDouble)                \
+  V(S390_LogDouble)                \
   V(S390_Neg)                      \
   V(S390_NegDouble)                \
   V(S390_SqrtFloat)                \

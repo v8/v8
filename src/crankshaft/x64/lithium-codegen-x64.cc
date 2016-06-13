@@ -12,7 +12,6 @@
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -760,7 +759,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
                                             !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling() ||
+    if (FLAG_trace_deopt || isolate()->is_profiling() ||
         jump_table_.is_empty() ||
         !table_entry.IsEquivalentTo(jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
@@ -1779,7 +1778,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
           : SmiValuesAre31Bits());
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
-      __ movp(left_reg, right_imm);
+      __ movl(left_reg, right_imm);
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
       if (instr->hydrogen_value()->representation().IsSmi()) {
@@ -1887,13 +1886,12 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       __ Movapd(result, result);
       break;
     case Token::MOD: {
-      XMMRegister xmm_scratch = double_scratch0();
-      __ PrepareCallCFunction(2);
-      __ Movapd(xmm_scratch, left);
+      DCHECK(left.is(xmm0));
       DCHECK(right.is(xmm1));
+      DCHECK(result.is(xmm0));
+      __ PrepareCallCFunction(2);
       __ CallCFunction(
           ExternalReference::mod_two_doubles_operation(isolate()), 2);
-      __ Movapd(result, xmm_scratch);
       break;
     }
     default:
@@ -2458,7 +2456,6 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   Label loop;
   __ bind(&loop);
 
-
   // Deoptimize if the object needs to be access checked.
   __ testb(FieldOperand(object_map, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsAccessCheckNeeded));
@@ -2468,10 +2465,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
 
   __ movp(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmpp(object_prototype, prototype);
-  EmitTrueBranch(instr, equal);
   __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
   EmitFalseBranch(instr, equal);
+  __ cmpp(object_prototype, prototype);
+  EmitTrueBranch(instr, equal);
   __ movp(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
   __ jmp(&loop);
 }
@@ -2569,9 +2566,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), instr->typeof_mode(), PREMONOMORPHIC)
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2686,10 +2683,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), NOT_INSIDE_TYPEOF,
-                        instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_INSIDE_TYPEOF).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2973,13 +2968,9 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->key()).is(LoadDescriptor::NameRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
-  }
+  EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
 
-  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(
-                        isolate(), instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3274,8 +3265,19 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
 
   Label slow, allocated, done;
-  Register tmp = input_reg.is(rax) ? rcx : rax;
-  Register tmp2 = tmp.is(rcx) ? rdx : input_reg.is(rcx) ? rdx : rcx;
+  uint32_t available_regs = rax.bit() | rcx.bit() | rdx.bit() | rbx.bit();
+  available_regs &= ~input_reg.bit();
+  if (instr->context()->IsRegister()) {
+    // Make sure that the context isn't overwritten in the AllocateHeapNumber
+    // macro below.
+    available_regs &= ~ToRegister(instr->context()).bit();
+  }
+
+  Register tmp =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
+  available_regs &= ~tmp.bit();
+  Register tmp2 =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
 
   // Preserve the value of all registers.
   PushSafepointRegistersScope scope(this);
@@ -3610,32 +3612,10 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  DCHECK(instr->value()->Equals(instr->result()));
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  XMMRegister xmm_scratch = double_scratch0();
-  Label positive, done, zero;
-  __ Xorpd(xmm_scratch, xmm_scratch);
-  __ Ucomisd(input_reg, xmm_scratch);
-  __ j(above, &positive, Label::kNear);
-  __ j(not_carry, &zero, Label::kNear);
-  __ Pcmpeqd(input_reg, input_reg);
-  __ jmp(&done, Label::kNear);
-  __ bind(&zero);
-  ExternalReference ninf =
-      ExternalReference::address_of_negative_infinity();
-  Operand ninf_operand = masm()->ExternalOperand(ninf);
-  __ Movsd(input_reg, ninf_operand);
-  __ jmp(&done, Label::kNear);
-  __ bind(&positive);
-  __ fldln2();
-  __ subp(rsp, Immediate(kDoubleSize));
-  __ Movsd(Operand(rsp, 0), input_reg);
-  __ fld_d(Operand(rsp, 0));
-  __ fyl2x();
-  __ fstp_d(Operand(rsp, 0));
-  __ Movsd(input_reg, Operand(rsp, 0));
-  __ addp(rsp, Immediate(kDoubleSize));
-  __ bind(&done);
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 1);
 }
 
 
@@ -3727,14 +3707,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->result()).is(rax));
 
   __ Set(rax, instr->arity());
-  if (instr->arity() == 1) {
-    // We only need the allocation site for the case we have a length argument.
-    // The case may bail out to the runtime, which will determine the correct
-    // elements kind with the site.
-    __ Move(rbx, instr->hydrogen()->site());
-  } else {
-    __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  }
+  __ Move(rbx, instr->hydrogen()->site());
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
@@ -3768,7 +3741,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
     __ bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(isolate(), kind, override_mode);
+    ArrayNArgumentsConstructorStub stub(isolate());
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
 }
@@ -3931,14 +3904,12 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
 
   __ Move(StoreDescriptor::NameRegister(), instr->hydrogen()->name());
-  Handle<Code> ic = CodeFactory::StoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+  Handle<Code> ic =
+      CodeFactory::StoreICInOptimizedCode(isolate(), instr->language_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4190,13 +4161,11 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
 
   Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+                        isolate(), instr->language_mode())
+                        .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4778,20 +4747,21 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     __ Set(input_reg, 0);
   } else {
     XMMRegister scratch = ToDoubleRegister(instr->temp());
-    DCHECK(!scratch.is(xmm0));
+    DCHECK(!scratch.is(double_scratch0()));
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
-    __ Movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-    __ Cvttsd2si(input_reg, xmm0);
+    __ Movsd(double_scratch0(),
+             FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ Cvttsd2si(input_reg, double_scratch0());
     __ Cvtlsi2sd(scratch, input_reg);
-    __ Ucomisd(xmm0, scratch);
+    __ Ucomisd(double_scratch0(), scratch);
     DeoptimizeIf(not_equal, instr, Deoptimizer::kLostPrecision);
     DeoptimizeIf(parity_even, instr, Deoptimizer::kNaN);
     if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
       __ testl(input_reg, input_reg);
       __ j(not_zero, done);
-      __ Movmskpd(input_reg, xmm0);
+      __ Movmskpd(input_reg, double_scratch0());
       __ andl(input_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr, Deoptimizer::kMinusZero);
     }

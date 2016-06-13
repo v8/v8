@@ -493,6 +493,8 @@ struct RuntimeCallCounter {
 class RuntimeCallTimer {
  public:
   RuntimeCallTimer() {}
+  RuntimeCallCounter* counter() { return counter_; }
+  base::ElapsedTimer timer() { return timer_; }
 
  private:
   friend class RuntimeCallStats;
@@ -706,7 +708,6 @@ class RuntimeCallTimer {
   V(KeyedStoreIC_StoreElementStub)              \
   V(KeyedStoreIC_Polymorphic)                   \
   V(LoadIC_FunctionPrototypeStub)               \
-  V(LoadIC_ArrayBufferViewLoadFieldStub)        \
   V(LoadIC_LoadApiGetterStub)                   \
   V(LoadIC_LoadCallback)                        \
   V(LoadIC_LoadConstant)                        \
@@ -776,6 +777,7 @@ class RuntimeCallStats {
   void Print(std::ostream& os);
 
   RuntimeCallStats() { Reset(); }
+  RuntimeCallTimer* current_timer() { return current_timer_; }
 
  private:
   // Counter to track recursive time events.
@@ -1015,7 +1017,6 @@ class RuntimeCallTimerScope {
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
-  SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \

@@ -15,7 +15,6 @@
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -734,7 +733,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
                                             !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling() ||
+    if (FLAG_trace_deopt || isolate()->is_profiling() ||
         jump_table_.is_empty() ||
         !table_entry.IsEquivalentTo(jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
@@ -2317,10 +2316,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
 
   __ mov(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmp(object_prototype, prototype);
-  EmitTrueBranch(instr, equal);
   __ cmp(object_prototype, factory()->null_value());
   EmitFalseBranch(instr, equal);
+  __ cmp(object_prototype, prototype);
+  EmitTrueBranch(instr, equal);
   __ mov(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
   __ jmp(&loop);
 }
@@ -2424,9 +2423,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
   __ mov(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), instr->typeof_mode(), PREMONOMORPHIC)
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2541,10 +2540,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   __ mov(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), NOT_INSIDE_TYPEOF,
-                        instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_INSIDE_TYPEOF).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2775,13 +2772,9 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->key()).is(LoadDescriptor::NameRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
-  }
+  EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
 
-  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(
-                        isolate(), instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3078,8 +3071,19 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
 
   Label slow, allocated, done;
-  Register tmp = input_reg.is(eax) ? ecx : eax;
-  Register tmp2 = tmp.is(ecx) ? edx : input_reg.is(ecx) ? edx : ecx;
+  uint32_t available_regs = eax.bit() | ecx.bit() | edx.bit() | ebx.bit();
+  available_regs &= ~input_reg.bit();
+  if (instr->context()->IsRegister()) {
+    // Make sure that the context isn't overwritten in the AllocateHeapNumber
+    // macro below.
+    available_regs &= ~ToRegister(instr->context()).bit();
+  }
+
+  Register tmp =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
+  available_regs &= ~tmp.bit();
+  Register tmp2 =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
 
   // Preserve the value of all registers.
   PushSafepointRegistersScope scope(this);
@@ -3396,31 +3400,18 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  DCHECK(instr->value()->Equals(instr->result()));
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  XMMRegister xmm_scratch = double_scratch0();
-  Label positive, done, zero;
-  __ xorps(xmm_scratch, xmm_scratch);
-  __ ucomisd(input_reg, xmm_scratch);
-  __ j(above, &positive, Label::kNear);
-  __ j(not_carry, &zero, Label::kNear);
-  __ pcmpeqd(input_reg, input_reg);
-  __ jmp(&done, Label::kNear);
-  __ bind(&zero);
-  ExternalReference ninf =
-      ExternalReference::address_of_negative_infinity();
-  __ movsd(input_reg, Operand::StaticVariable(ninf));
-  __ jmp(&done, Label::kNear);
-  __ bind(&positive);
-  __ fldln2();
-  __ sub(Operand(esp), Immediate(kDoubleSize));
-  __ movsd(Operand(esp, 0), input_reg);
-  __ fld_d(Operand(esp, 0));
-  __ fyl2x();
+  XMMRegister input = ToDoubleRegister(instr->value());
+  XMMRegister result = ToDoubleRegister(instr->result());
+  // Pass one double as argument on the stack.
+  __ PrepareCallCFunction(2, eax);
+  __ movsd(Operand(esp, 0 * kDoubleSize), input);
+  __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 2);
+  // Return value is in st(0) on ia32.
+  // Store it into the result register.
+  __ sub(esp, Immediate(kDoubleSize));
   __ fstp_d(Operand(esp, 0));
-  __ movsd(input_reg, Operand(esp, 0));
-  __ add(Operand(esp), Immediate(kDoubleSize));
-  __ bind(&done);
+  __ movsd(result, Operand(esp, 0));
+  __ add(esp, Immediate(kDoubleSize));
 }
 
 
@@ -3524,14 +3515,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->result()).is(eax));
 
   __ Move(eax, Immediate(instr->arity()));
-  if (instr->arity() == 1) {
-    // We only need the allocation site for the case we have a length argument.
-    // The case may bail out to the runtime, which will determine the correct
-    // elements kind with the site.
-    __ mov(ebx, instr->hydrogen()->site());
-  } else {
-    __ mov(ebx, isolate()->factory()->undefined_value());
-  }
+  __ mov(ebx, instr->hydrogen()->site());
 
   ElementsKind kind = instr->hydrogen()->elements_kind();
   AllocationSiteOverrideMode override_mode =
@@ -3565,7 +3549,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
     __ bind(&done);
   } else {
-    ArrayNArgumentsConstructorStub stub(isolate(), kind, override_mode);
+    ArrayNArgumentsConstructorStub stub(isolate());
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
 }
@@ -3695,14 +3679,12 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
 
   __ mov(StoreDescriptor::NameRegister(), instr->name());
-  Handle<Code> ic = CodeFactory::StoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+  Handle<Code> ic =
+      CodeFactory::StoreICInOptimizedCode(isolate(), instr->language_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3872,13 +3854,11 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
 
   Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+                        isolate(), instr->language_mode())
+                        .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

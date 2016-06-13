@@ -10,8 +10,9 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/objects-visiting.h"
+#include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/objects-visiting.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
@@ -175,6 +176,9 @@ class IncrementalMarkingMarkingVisitor
     table_.Register(kVisitFixedArray, &VisitFixedArrayIncremental);
     table_.Register(kVisitNativeContext, &VisitNativeContextIncremental);
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
+    if (FLAG_track_gc_object_stats) {
+      IncrementalMarkingObjectStatsVisitor::Initialize(&table_);
+    }
   }
 
   static const int kProgressBarScanningChunk = 32 * 1024;
@@ -231,7 +235,7 @@ class IncrementalMarkingMarkingVisitor
     // Note that GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
     Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-    if (!cache->IsUndefined()) {
+    if (!cache->IsUndefined(map->GetIsolate())) {
       MarkObjectGreyDoNotEnqueue(cache);
     }
     VisitNativeContext(map, context);
@@ -469,9 +473,10 @@ static void PatchIncrementalMarkingRecordWriteStubs(
   UnseededNumberDictionary* stubs = heap->code_stubs();
 
   int capacity = stubs->Capacity();
+  Isolate* isolate = heap->isolate();
   for (int i = 0; i < capacity; i++) {
     Object* k = stubs->KeyAt(i);
-    if (stubs->IsKey(k)) {
+    if (stubs->IsKey(isolate, k)) {
       uint32_t key = NumberToUint32(k);
 
       if (CodeStub::MajorKeyFromKey(key) == CodeStub::RecordWrite) {
@@ -930,12 +935,12 @@ void IncrementalMarking::Hurry() {
   }
 
   Object* context = heap_->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(heap_->isolate())) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
     HeapObject* cache = HeapObject::cast(
         Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
-    if (!cache->IsUndefined()) {
+    if (!cache->IsUndefined(heap_->isolate())) {
       MarkBit mark_bit = Marking::MarkBitFrom(cache);
       if (Marking::IsGrey(mark_bit)) {
         Marking::GreyToBlack(mark_bit);

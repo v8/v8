@@ -118,6 +118,10 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
 
+  if int(os.environ.get('GYP_CHROMIUM_NO_ACTION', 0)):
+    print 'Skipping gyp_v8 due to GYP_CHROMIUM_NO_ACTION env var.'
+    sys.exit(0)
+
   gyp_environment.set_environment()
 
   # This could give false positives since it doesn't actually do real option

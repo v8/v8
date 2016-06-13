@@ -62,12 +62,6 @@ static void InitializeInternalArrayConstructorDescriptor(
 }
 
 
-void ArraySingleArgumentConstructorStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate(), descriptor, 1);
-}
-
-
 void ArrayNArgumentsConstructorStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   InitializeArrayConstructorDescriptor(isolate(), descriptor, -1);
@@ -79,11 +73,11 @@ void FastArrayPushStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(eax, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
 }
 
-void InternalArraySingleArgumentConstructorStub::InitializeDescriptor(
+void FastFunctionBindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate(), descriptor, 1);
+  Address deopt_handler = Runtime::FunctionForId(Runtime::kFunctionBind)->entry;
+  descriptor->Initialize(eax, deopt_handler, -1, JS_FUNCTION_STUB_MODE);
 }
-
 
 void InternalArrayNArgumentsConstructorStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
@@ -381,7 +375,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
                                           &miss,  // When index out of range.
-                                          STRING_INDEX_IS_ARRAY_INDEX,
                                           RECEIVER_IS_STRING);
   char_at_generator.GenerateFast(masm);
   __ ret(0);
@@ -1178,6 +1171,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // edi : the function to call
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function;
+  Label done_increment_count, done_initialize_count;
 
   // Load the cache state into ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -1190,7 +1184,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // type-feedback-vector.h).
   Label check_allocation_site;
   __ cmp(edi, FieldOperand(ecx, WeakCell::kValueOffset));
-  __ j(equal, &done, Label::kFar);
+  __ j(equal, &done_increment_count, Label::kFar);
   __ CompareRoot(ecx, Heap::kmegamorphic_symbolRootIndex);
   __ j(equal, &done, Label::kFar);
   __ CompareRoot(FieldOperand(ecx, HeapObject::kMapOffset),
@@ -1213,7 +1207,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
   __ j(not_equal, &megamorphic);
-  __ jmp(&done, Label::kFar);
+  __ jmp(&done_increment_count, Label::kFar);
 
   __ bind(&miss);
 
@@ -1242,11 +1236,25 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // slot.
   CreateAllocationSiteStub create_stub(isolate);
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ jmp(&done);
+  __ jmp(&done_initialize_count);
 
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(isolate);
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
+  __ bind(&done_initialize_count);
+
+  // Initialize the call counter.
+  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FixedArray::kHeaderSize + kPointerSize),
+         Immediate(Smi::FromInt(1)));
+  __ jmp(&done);
+
+  __ bind(&done_increment_count);
+  // Increment the call count for monomorphic function calls.
+  __ add(FieldOperand(ebx, edx, times_half_pointer_size,
+                      FixedArray::kHeaderSize + kPointerSize),
+         Immediate(Smi::FromInt(1)));
+
   __ bind(&done);
 }
 
@@ -1310,7 +1318,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // Increment the call count for monomorphic function calls.
   __ add(FieldOperand(ebx, edx, times_half_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+         Immediate(Smi::FromInt(1)));
 
   __ mov(ebx, ecx);
   __ mov(edx, edi);
@@ -1358,7 +1366,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Increment the call count for monomorphic function calls.
   __ add(FieldOperand(ebx, edx, times_half_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+         Immediate(Smi::FromInt(1)));
 
   __ bind(&call_function);
   __ Set(eax, argc);
@@ -1429,7 +1437,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // Initialize the call counter.
   __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
                       FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+         Immediate(Smi::FromInt(1)));
 
   // Store the function. Use a stub since we need a frame for allocation.
   // ebx - vector
@@ -1824,13 +1832,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   }
   __ push(object_);
   __ push(index_);  // Consumed by runtime conversion function.
-  if (index_flags_ == STRING_INDEX_IS_NUMBER) {
-    __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero);
-  } else {
-    DCHECK(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
-    // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kNumberToSmi);
-  }
+  __ CallRuntime(Runtime::kNumberToSmi);
   if (!index_.is(eax)) {
     // Save the conversion result before the pop instructions below
     // have a chance to overwrite it.
@@ -2163,75 +2165,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // ecx: sub string length (smi)
   // edx: from index (smi)
   StringCharAtGenerator generator(eax, edx, ecx, eax, &runtime, &runtime,
-                                  &runtime, STRING_INDEX_IS_NUMBER,
-                                  RECEIVER_IS_STRING);
+                                  &runtime, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ ret(3 * kPointerSize);
   generator.SkipSlow(masm, &runtime);
-}
-
-
-void ToNumberStub::Generate(MacroAssembler* masm) {
-  // The ToNumber stub takes one argument in eax.
-  Label not_smi;
-  __ JumpIfNotSmi(eax, &not_smi, Label::kNear);
-  __ Ret();
-  __ bind(&not_smi);
-
-  Label not_heap_number;
-  __ CompareMap(eax, masm->isolate()->factory()->heap_number_map());
-  __ j(not_equal, &not_heap_number, Label::kNear);
-  __ Ret();
-  __ bind(&not_heap_number);
-
-  NonNumberToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-}
-
-void NonNumberToNumberStub::Generate(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes one argument in eax.
-  __ AssertNotNumber(eax);
-
-  Label not_string;
-  __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edi);
-  // eax: object
-  // edi: object map
-  __ j(above_equal, &not_string, Label::kNear);
-  StringToNumberStub stub(masm->isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_string);
-
-  Label not_oddball;
-  __ CmpInstanceType(edi, ODDBALL_TYPE);
-  __ j(not_equal, &not_oddball, Label::kNear);
-  __ mov(eax, FieldOperand(eax, Oddball::kToNumberOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ pop(ecx);   // Pop return address.
-  __ push(eax);  // Push argument.
-  __ push(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kToNumber);
-}
-
-void StringToNumberStub::Generate(MacroAssembler* masm) {
-  // The StringToNumber stub takes one argument in eax.
-  __ AssertString(eax);
-
-  // Check if string has a cached array index.
-  Label runtime;
-  __ test(FieldOperand(eax, String::kHashFieldOffset),
-          Immediate(String::kContainsCachedArrayIndexMask));
-  __ j(not_zero, &runtime, Label::kNear);
-  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
-  __ IndexFromHash(eax, eax);
-  __ Ret();
-
-  __ bind(&runtime);
-  __ PopReturnAddressTo(ecx);     // Pop return address.
-  __ Push(eax);                   // Push argument.
-  __ PushReturnAddressFrom(ecx);  // Push return address.
-  __ TailCallRuntime(Runtime::kStringToNumber);
 }
 
 void ToStringStub::Generate(MacroAssembler* masm) {
@@ -2440,7 +2377,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   // Load ecx with the allocation site.  We stick an undefined dummy value here
   // and replace it with the real allocation site later when we instantiate this
   // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
-  __ mov(ecx, handle(isolate()->heap()->undefined_value()));
+  __ mov(ecx, isolate()->factory()->undefined_value());
 
   // Make sure that we actually patched the allocation site.
   if (FLAG_debug_code) {

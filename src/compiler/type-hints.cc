@@ -16,8 +16,8 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
       return os << "SignedSmall";
     case BinaryOperationHints::kSigned32:
       return os << "Signed32";
-    case BinaryOperationHints::kNumber:
-      return os << "Number";
+    case BinaryOperationHints::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
     case BinaryOperationHints::kString:
       return os << "String";
     case BinaryOperationHints::kAny:
@@ -76,6 +76,34 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
     }
   }
   return os;
+}
+
+// static
+bool BinaryOperationHints::Is(Hint h1, Hint h2) {
+  if (h1 == h2) return true;
+  switch (h1) {
+    case kNone:
+      return true;
+    case kSignedSmall:
+      return h2 == kSigned32 || h2 == kNumberOrUndefined || h2 == kAny;
+    case kSigned32:
+      return h2 == kNumberOrUndefined || h2 == kAny;
+    case kNumberOrUndefined:
+      return h2 == kAny;
+    case kString:
+      return h2 == kAny;
+    case kAny:
+      return false;
+  }
+  UNREACHABLE();
+  return false;
+}
+
+// static
+BinaryOperationHints::Hint BinaryOperationHints::Combine(Hint h1, Hint h2) {
+  if (Is(h1, h2)) return h2;
+  if (Is(h2, h1)) return h1;
+  return kAny;
 }
 
 }  // namespace compiler

@@ -12,6 +12,8 @@ namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
+class StatsCounter;
+class StubCache;
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
@@ -32,12 +34,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   CodeStubAssembler(Isolate* isolate, Zone* zone, int parameter_count,
                     Code::Flags flags, const char* name);
 
+  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
+
   compiler::Node* BooleanMapConstant();
   compiler::Node* EmptyStringConstant();
   compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
   compiler::Node* NullConstant();
   compiler::Node* UndefinedConstant();
+  compiler::Node* TheHoleConstant();
+  compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
   // Float64 operations.
@@ -53,6 +59,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Smi conversions.
   compiler::Node* SmiToFloat64(compiler::Node* value);
+  compiler::Node* SmiFromWord(compiler::Node* value) { return SmiTag(value); }
   compiler::Node* SmiFromWord32(compiler::Node* value);
   compiler::Node* SmiToWord(compiler::Node* value) { return SmiUntag(value); }
   compiler::Node* SmiToWord32(compiler::Node* value);
@@ -75,6 +82,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* InnerAllocate(compiler::Node* previous,
                                 compiler::Node* offset);
 
+  void Assert(compiler::Node* condition);
+
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
   // Check that the value is a positive smi.
@@ -95,6 +104,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
 
+  // Load value from current frame by given offset in bytes.
+  compiler::Node* LoadFromFrame(int offset,
+                                MachineType rep = MachineType::AnyTagged());
+  // Load value from current parent frame by given offset in bytes.
+  compiler::Node* LoadFromParentFrame(
+      int offset, MachineType rep = MachineType::AnyTagged());
+
   // Load an object pointer from a buffer that isn't in the heap.
   compiler::Node* LoadBufferObject(compiler::Node* buffer, int offset,
                                    MachineType rep = MachineType::AnyTagged());
@@ -107,6 +123,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMap(compiler::Node* object);
   // Load the instance type of an HeapObject.
   compiler::Node* LoadInstanceType(compiler::Node* object);
+  // Load the properties backing store of a JSObject.
+  compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
   // Load the length of a fixed array base instance.
@@ -123,23 +141,35 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
   // Load the prototype of a map.
   compiler::Node* LoadMapPrototype(compiler::Node* map);
-
-  // Load the hash field of a name.
-  compiler::Node* LoadNameHash(compiler::Node* name);
   // Load the instance size of a Map.
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
+
+  // Load the hash field of a name.
+  compiler::Node* LoadNameHashField(compiler::Node* name);
+  // Load the hash value of a name. If {if_hash_not_computed} label
+  // is specified then it also checks if hash is actually computed.
+  compiler::Node* LoadNameHash(compiler::Node* name,
+                               Label* if_hash_not_computed = nullptr);
+
+  // Load length field of a String object.
+  compiler::Node* LoadStringLength(compiler::Node* object);
+  // Load value field of a JSValue object.
+  compiler::Node* LoadJSValueValue(compiler::Node* object);
+  // Load value field of a WeakCell object.
+  compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell);
 
   compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
   // Load an array element from a FixedArray.
-  compiler::Node* LoadFixedArrayElementInt32Index(compiler::Node* object,
-                                                  compiler::Node* int32_index,
-                                                  int additional_offset = 0);
-  compiler::Node* LoadFixedArrayElementSmiIndex(compiler::Node* object,
-                                                compiler::Node* smi_index,
-                                                int additional_offset = 0);
-  compiler::Node* LoadFixedArrayElementConstantIndex(compiler::Node* object,
-                                                     int index);
+  compiler::Node* LoadFixedArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  // Load an array element from a FixedDoubleArray.
+  compiler::Node* LoadFixedDoubleArrayElement(
+      compiler::Node* object, compiler::Node* int32_index,
+      MachineType machine_type, int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Context manipulation
   compiler::Node* LoadNativeContext(compiler::Node* context);
@@ -160,24 +190,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
                                          compiler::Node* map);
   // Store an array element to a FixedArray.
-  compiler::Node* StoreFixedArrayElementInt32Index(compiler::Node* object,
-                                                   compiler::Node* index,
-                                                   compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
-                                                       compiler::Node* index,
-                                                       compiler::Node* value);
-  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
-                                                         compiler::Node* index,
-                                                         compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementInt32Index(compiler::Node* object,
-                                                   int index,
-                                                   compiler::Node* value);
-  compiler::Node* StoreFixedArrayElementNoWriteBarrier(compiler::Node* object,
-                                                       int index,
-                                                       compiler::Node* value);
-  compiler::Node* StoreFixedDoubleArrayElementInt32Index(compiler::Node* object,
-                                                         int index,
-                                                         compiler::Node* value);
+  compiler::Node* StoreFixedArrayElement(
+      compiler::Node* object, compiler::Node* index, compiler::Node* value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+
+  compiler::Node* StoreFixedDoubleArrayElement(
+      compiler::Node* object, compiler::Node* index, compiler::Node* value,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Allocate a HeapNumber without initializing its value.
   compiler::Node* AllocateHeapNumber();
@@ -185,12 +205,18 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value);
   // Allocate a SeqOneByteString with the given length.
   compiler::Node* AllocateSeqOneByteString(int length);
+  compiler::Node* AllocateSeqOneByteString(compiler::Node* context,
+                                           compiler::Node* length);
   // Allocate a SeqTwoByteString with the given length.
   compiler::Node* AllocateSeqTwoByteString(int length);
+  compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
+                                           compiler::Node* length);
   // Allocated an JSArray
   compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
-                                  int capacity, int length,
-                                  compiler::Node* allocation_site = nullptr);
+                                  compiler::Node* capacity,
+                                  compiler::Node* length,
+                                  compiler::Node* allocation_site = nullptr,
+                                  ParameterMode mode = INTEGER_PARAMETERS);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
@@ -231,19 +257,37 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
 
+  void SetCounter(StatsCounter* counter, int value);
+  void IncrementCounter(StatsCounter* counter, int delta);
+  void DecrementCounter(StatsCounter* counter, int delta);
+
   // Various building blocks for stubs doing property lookups.
   void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Label* call_runtime);
+                 Label* if_keyisunique, Label* if_bailout);
+
+  static const int kInlinedDictionaryProbes = 4;
+  template <typename Dictionary>
+  void NameDictionaryLookup(compiler::Node* dictionary,
+                            compiler::Node* unique_name, Label* if_found,
+                            Variable* var_entry, Label* if_not_found,
+                            int inlined_probes = kInlinedDictionaryProbes);
+
+  compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
+
+  template <typename Dictionary>
+  void NumberDictionaryLookup(compiler::Node* dictionary, compiler::Node* key,
+                              Label* if_found, Variable* var_entry,
+                              Label* if_not_found);
 
   void TryLookupProperty(compiler::Node* object, compiler::Node* map,
-                         compiler::Node* instance_type, compiler::Node* name,
-                         Label* if_found, Label* if_not_found,
-                         Label* call_runtime);
+                         compiler::Node* instance_type,
+                         compiler::Node* unique_name, Label* if_found,
+                         Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,
                         compiler::Node* instance_type, compiler::Node* index,
                         Label* if_found, Label* if_not_found,
-                        Label* call_runtime);
+                        Label* if_bailout);
 
   // Instanceof helpers.
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
@@ -251,7 +295,70 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
+  // LoadIC helpers.
+  struct LoadICParameters {
+    LoadICParameters(compiler::Node* context, compiler::Node* receiver,
+                     compiler::Node* name, compiler::Node* slot,
+                     compiler::Node* vector)
+        : context(context),
+          receiver(receiver),
+          name(name),
+          slot(slot),
+          vector(vector) {}
+
+    compiler::Node* context;
+    compiler::Node* receiver;
+    compiler::Node* name;
+    compiler::Node* slot;
+    compiler::Node* vector;
+  };
+
+  // Load type feedback vector from the stub caller's frame.
+  compiler::Node* LoadTypeFeedbackVectorForStub();
+
+  compiler::Node* LoadReceiverMap(compiler::Node* receiver);
+
+  // Checks monomorphic case. Returns {feedback} entry of the vector.
+  compiler::Node* TryMonomorphicCase(const LoadICParameters* p,
+                                     compiler::Node* receiver_map,
+                                     Label* if_handler, Variable* var_handler,
+                                     Label* if_miss);
+  void HandlePolymorphicCase(const LoadICParameters* p,
+                             compiler::Node* receiver_map,
+                             compiler::Node* feedback, Label* if_handler,
+                             Variable* var_handler, Label* if_miss,
+                             int unroll_count);
+
+  compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
+                                         Code::Flags flags,
+                                         compiler::Node* map);
+
+  compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
+                                           Code::Flags flags,
+                                           compiler::Node* seed);
+
+  // This enum is used here as a replacement for StubCache::Table to avoid
+  // including stub cache header.
+  enum StubCacheTable : int;
+
+  void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
+                              compiler::Node* entry_offset,
+                              compiler::Node* name, Code::Flags flags,
+                              compiler::Node* map, Label* if_handler,
+                              Variable* var_handler, Label* if_miss);
+
+  void TryProbeStubCache(StubCache* stub_cache, Code::Flags flags,
+                         compiler::Node* receiver, compiler::Node* name,
+                         Label* if_handler, Variable* var_handler,
+                         Label* if_miss);
+
+  void LoadIC(const LoadICParameters* p, Label* if_miss);
+
  private:
+  compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
+                                         ElementsKind kind, ParameterMode mode,
+                                         int base_size = 0);
+
   compiler::Node* AllocateRawAligned(compiler::Node* size_in_bytes,
                                      AllocationFlags flags,
                                      compiler::Node* top_address,
@@ -266,5 +373,4 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
 }  // namespace internal
 }  // namespace v8
-
 #endif  // V8_CODE_STUB_ASSEMBLER_H_

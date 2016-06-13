@@ -57,7 +57,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     #column {
       display: none;
     }
-    
+   
     .list {
       width: 100%;
     }
@@ -108,6 +108,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     
     tr.selected {
       background-color: #DDD;
+    }
+    
+    .codeSearch {
+      display: block-inline;
+      float: right;
+      border-radius: 5px;
+      background-color: #EEE;
+      width: 1em;
+      text-align: center;
     }
     
     .list .position {
@@ -207,6 +216,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     #popover .compare .version {
       padding-left: 10px;
     }
+    .graph,
+    .graph .content {
+      width: 100%;
+    }
+
+    .diff .hideDiff {
+      display: none;
+    }
+    .noDiff .hideNoDiff {
+      display: none;
+    }
   </style>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <script type="text/javascript">
@@ -223,6 +243,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     var versions;
+    var pages;
     var selectedPage;
     var baselineVersion;
     var selectedEntry;
@@ -257,7 +278,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           var optgroup = document.createElement("optgroup");
           optgroup.label = version.name;
           optgroup.version = version;
-          version.pages.forEach((page) => {
+          version.forEachPage((page) => {
             var option = document.createElement("option");
             option.textContent = page.name;
             option.page = page;
@@ -280,22 +301,45 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         option.version = version;
         select.appendChild(option);
       });
+      initializeToggleList(versions.versions, $('versionSelector'));
+      initializeToggleList(pages.values(), $('pageSelector'));
+      initializeToggleContentVisibility();
+    }
 
-      var versionSelectorList = $('results').querySelector('.versionSelector ul');
-      removeAllChildren(versionSelectorList);
-      versions.forEach((version) => {
+    function initializeToggleList(items, node) {
+      var list = node.querySelector('ul');
+      removeAllChildren(list);
+      items = Array.from(items);
+      items.sort(NameComparator);
+      items.forEach((item) => {
         var li = document.createElement('li');
         var checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = version.enabled;
-        checkbox.version = version;
+        checkbox.checked = item.enabled;
+        checkbox.item = item;
         checkbox.addEventListener('click', handleToggleVersionEnable);
         li.appendChild(checkbox);
-        li.appendChild(document.createTextNode(version.name));
-        versionSelectorList.appendChild(li);
+        li.appendChild(document.createTextNode(item.name));
+        list.appendChild(li);
       });
       $('results').querySelectorAll('#results > .hidden').forEach((node) => {
         toggleCssClass(node, 'hidden', false);
+      })
+    }
+
+    function initializeToggleContentVisibility() {
+      var nodes = document.querySelectorAll('.toggleContentVisibility');
+      nodes.forEach((node) => {
+        var content = node.querySelector('.content');
+        var header = node.querySelector('h1,h2,h3');
+        if (content === undefined || header === undefined) return;
+        if (header.querySelector('input') != undefined) return;
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = content.className.indexOf('hidden') == -1;
+        checkbox.contentNode = content;
+        checkbox.addEventListener('click', handleToggleContentVisibility);
+        header.insertBefore(checkbox, header.childNodes[0]);
       });
     }
 
@@ -306,7 +350,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       selectedPage.sort();
       showPageInColumn(firstPage, 0);
       // Show the other versions of this page in the following columns.
-      var pageVersions = versions.pageVersions(firstPage.name);
+      var pageVersions = versions.getPageVersions(firstPage);
       var index = 1;
       pageVersions.forEach((page) => {
         if (page !== firstPage) {
@@ -385,7 +429,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           } else {
             td(tr, entry.position == 0 ? '' : entry.position, 'position');
           }
-          td(tr, entry.name, 'name ' + entry.cssClass());
+          addCodeSearchButton(entry,
+              td(tr, entry.name, 'name ' + entry.cssClass()));
+          
           diffStatus(
             td(tr, ms(entry.time), 'value time'),
             entry.time, referenceEntry.time);
@@ -398,18 +444,19 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         } else if (baselineVersion !== undefined && referenceEntry 
             && page.version !== baselineVersion) {
           // Show comparison of entry that does not exist on the current page.
-          tr.entry = referenceEntry;
+          tr.entry = new Entry(0, referenceEntry.name);
+          tr.entry.page = page;
           td(tr, '-', 'position');
           td(tr, referenceEntry.name, 'name');
           diffStatus(
-            td(tr, ms(referenceEntry.time), 'value time'),
-            referenceEntry.time, 0);
+            td(tr, ms(-referenceEntry.time), 'value time'),
+            -referenceEntry.time, 0);
           diffStatus(
-            td(tr, percent(referenceEntry.timePercent), 'value time'),
-            referenceEntry.timePercent, 0);
+            td(tr, percent(-referenceEntry.timePercent), 'value time'),
+            -referenceEntry.timePercent, 0);
           diffStatus(
-            td(tr, count(referenceEntry.count), 'value count'),
-            referenceEntry.count, 0);
+            td(tr, count(-referenceEntry.count), 'value count'),
+            -referenceEntry.count, 0);
         } else {
           // Display empty entry / baseline entry
           var showBaselineEntry = entry !== undefined;
@@ -444,7 +491,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       if (updateSelectedPage) {
         entry = selectedPage.version.getEntry(entry);
       }
-      var rowIndex;
+      var rowIndex = 0;
       var needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
       // If clicked in the detail row change the first column to that page.
       if (needsPageSwitch) showPage(entry.page);
@@ -478,13 +525,20 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showEntryDetail(entry) {
+      showVersionDetails(entry);
+      showPageDetails(entry);
+      showImpactList(entry.page);
+      showGraphs(entry.page);
+    }
+    
+    function showVersionDetails(entry) {
       var table, tbody, entries;
       table = $('detailView').querySelector('.versionDetailTable');
       tbody = document.createElement('tbody');
       if (entry !== undefined) {
         $('detailView').querySelector('.versionDetail h3 span').innerHTML =
-          entry.name;
-        entries = versions.pageVersions(entry.page.name).map(
+          entry.name + ' in ' + entry.page.name;
+        entries = versions.getPageVersions(entry.page).map(
           (page) => {
             return page.get(entry.name)
           });
@@ -496,53 +550,59 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           var tr = document.createElement('tr');
           if (pageEntry == entry) tr.className += 'selected';
           tr.entry = pageEntry;
+          var isBaselineEntry = pageEntry.page.version == baselineVersion;
           td(tr, pageEntry.page.version.name, 'version');
-          td(tr, pageEntry.position, 'value position');
-          td(tr, ms(pageEntry.time), 'value time');
-          td(tr, percent(pageEntry.timePercent), 'value time');
-          td(tr, count(pageEntry.count), 'value count');
+          td(tr, ms(pageEntry.time, !isBaselineEntry), 'value time');
+          td(tr, percent(pageEntry.timePercent, !isBaselineEntry), 'value time');
+          td(tr, count(pageEntry.count, !isBaselineEntry), 'value count');
           tbody.appendChild(tr);
         });
       }
       table.replaceChild(tbody, table.querySelector('tbody'));
+    }
 
+    function showPageDetails(entry) {
+      var table, tbody, entries;
       table = $('detailView').querySelector('.pageDetailTable');
       tbody = document.createElement('tbody');
-      if (entry !== undefined) {
-        var version = entry.page.version;
-        $('detailView').querySelector('.pageDetail h3 span').innerHTML =
-          version.name;
-        entries = version.pages.map(
-          (page) => {
-            return page.get(entry.name)
-          });
-        entries.sort((a, b) => {
-          var cmp = b.timePercent - a.timePercent;
-          if (cmp.toFixed(1) == 0) return b.time - a.time;
-          return cmp
-        });
-        entries.forEach((pageEntry) => {
-          if (pageEntry === undefined) return;
-          var tr = document.createElement('tr');
-          if (pageEntry === entry) tr.className += 'selected';
-          tr.entry = pageEntry;
-          td(tr, pageEntry.page.name, 'name');
-          td(tr, pageEntry.position, 'value position');
-          td(tr, ms(pageEntry.time), 'value time');
-          td(tr, percent(pageEntry.timePercent), 'value time');
-          td(tr, count(pageEntry.count), 'value count');
-          tbody.appendChild(tr);
-        });
-        // show the total for all pages
-        var tds = table.querySelectorAll('tfoot td');
-        tds[2].innerHTML = ms(entry.getTimeImpact());
-        // Only show the percentage total if we are in diff mode:
-        tds[3].innerHTML = percent(entry.getTimePercentImpact());
-        tds[4].innerHTML = count(entry.getCountImpact());
+      if (entry === undefined) {
+        table.replaceChild(tbody, table.querySelector('tbody'));
+        return;
       }
+      var version = entry.page.version;
+      var showDiff = version !== baselineVersion;
+      $('detailView').querySelector('.pageDetail h3 span').innerHTML =
+        version.name;
+      entries = version.pages.map((page) => {
+          if (!page.enabled) return;
+          return page.get(entry.name)
+        });
+      entries.sort((a, b) => {
+        var cmp = b.timePercent - a.timePercent;
+        if (cmp.toFixed(1) == 0) return b.time - a.time;
+        return cmp
+      });
+      entries.forEach((pageEntry) => {
+        if (pageEntry === undefined) return;
+        var tr = document.createElement('tr');
+        if (pageEntry === entry) tr.className += 'selected';
+        tr.entry = pageEntry;
+        td(tr, pageEntry.page.name, 'name');
+        td(tr, ms(pageEntry.time, showDiff), 'value time');
+        td(tr, percent(pageEntry.timePercent, showDiff), 'value time');
+        td(tr, percent(pageEntry.timePercentPerEntry, showDiff),
+            'value time hideNoDiff');
+        td(tr, count(pageEntry.count, showDiff), 'value count');
+        tbody.appendChild(tr);
+      });
+      // show the total for all pages
+      var tds = table.querySelectorAll('tfoot td');
+      tds[1].innerHTML = ms(entry.getTimeImpact(), showDiff);
+      // Only show the percentage total if we are in diff mode:
+      tds[2].innerHTML = percent(entry.getTimePercentImpact(), showDiff);
+      tds[3].innerHTML = '';
+      tds[4].innerHTML = count(entry.getCountImpact(), showDiff);
       table.replaceChild(tbody, table.querySelector('tbody'));
-      showImpactList(entry.page);
-      showPageGraphs(entry.page);
     }
 
     function showImpactList(page) {
@@ -593,62 +653,192 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       table.replaceChild(tbody, table.querySelector('tbody'));
     }
     
-    var selectedGroup;
-    function showPageGraphs(page) {
-      var groups = page.groups.filter(each => each.name != page.total.name);
+    function showGraphs(page) {
+      var groups = page.groups.slice(); 
+      // Sort groups by the biggest impact
+      groups.sort((a, b) => {
+        return b.getTimeImpact() - a.getTimeImpact();
+      });
       if (selectedGroup == undefined) {
         selectedGroup = groups[0];
       } else {
         groups = groups.filter(each => each.name != selectedGroup.name);
         groups.unshift(selectedGroup);
       }
+      showPageGraph(groups, page);
+      showVersionGraph(groups, page);
+      showPageVersionGraph(groups, page);
+    }
+    
+    function getGraphDataTable(groups) {
       var dataTable = new google.visualization.DataTable();
       dataTable.addColumn('string', 'Name');
       groups.forEach(group => {
-        var column = dataTable.addColumn('number', group.name);
+        var column = dataTable.addColumn('number', group.name.substring(6));
         dataTable.setColumnProperty(column, 'group', group);
       });
+      return dataTable;
+    }
+
+    var selectedGroup;
+    function showPageGraph(groups, page) {
+      var isDiffView = baselineVersion !== undefined;
+      var dataTable = getGraphDataTable(groups);
       // Calculate the average row
       var row = ['Average'];
       groups.forEach((group) => {
-        row.push(group.getTimeImpact());
+        if (isDiffView) {
+          row.push(group.isTotal ? 0 : group.getAverageTimeImpact());
+        } else {
+          row.push(group.isTotal ? 0 : group.getTimeImpact());
+        }
       });
       dataTable.addRow(row);
       // Sort the pages by the selected group.
-      var pages = page.version.pages.slice();
-      pages.sort((a, b) => {
-        return b.getEntry(selectedGroup).timePercent - a.getEntry(selectedGroup).timePercent; 
-      });
+      var pages = page.version.pages.filter(page => page.enabled);
+      function sumDiff(page) {
+        var sum = 0;
+        groups.forEach(group => {
+          var value = group.getTimePercentImpact() -
+            page.getEntry(group).timePercent;
+          sum += value * value;
+        });
+        return sum;
+      }
+      if (isDiffView) {
+        pages.sort((a, b) => {
+          return b.getEntry(selectedGroup).time-
+            a.getEntry(selectedGroup).time; 
+        });
+      } else {
+        pages.sort((a, b) => {
+          return b.getEntry(selectedGroup).timePercent -
+            a.getEntry(selectedGroup).timePercent; 
+        });
+      }
+      // Sort by sum of squared distance to the average.
+      // pages.sort((a, b) => {
+      //   return a.distanceFromTotalPercent() - b.distanceFromTotalPercent(); 
+      // });
       // Calculate the entries for the pages
       pages.forEach((page) => { 
         row = [page.name];
         groups.forEach((group) => {
-          row.push(page.getEntry(group).time);
+          row.push(group.isTotal ? 0 : page.getEntry(group).time);
         });
-        dataTable.addRow(row);
+        var rowIndex = dataTable.addRow(row);
+        dataTable.setRowProperty(rowIndex, 'page', page);
       });
+      renderGraph('Pages for ' + page.version.name, groups, dataTable,
+          'pageGraph', isDiffView ? true : 'percent');
+    }
 
-      var height = 1000/27*page.version.pages.length;
+    function showVersionGraph(groups, page) {
+      var dataTable = getGraphDataTable(groups);
+      var row;
+      var vs = versions.versions.filter(version => version.enabled);
+      vs.sort((a, b) => {
+        return b.getEntry(selectedGroup).getTimeImpact() -
+          a.getEntry(selectedGroup).getTimeImpact(); 
+      });
+      // Calculate the entries for the versions 
+      vs.forEach((version) => { 
+        row = [version.name];
+        groups.forEach((group) => {
+          row.push(group.isTotal ? 0 : version.getEntry(group).getTimeImpact());
+        });
+        var rowIndex = dataTable.addRow(row);
+        dataTable.setRowProperty(rowIndex, 'page', page);
+      });
+      renderGraph('Versions Total Time over all Pages', groups, dataTable,
+          'versionGraph', true);
+    }
+
+    function showPageVersionGraph(groups, page) {
+      var dataTable = getGraphDataTable(groups);
+      var row;
+      var vs = versions.getPageVersions(page);
+      vs.sort((a, b) => {
+        return b.getEntry(selectedGroup).time - a.getEntry(selectedGroup).time; 
+      });
+      // Calculate the entries for the versions 
+      vs.forEach((page) => { 
+        row = [page.version.name];
+        groups.forEach((group) => {
+          row.push(group.isTotal ? 0 : page.getEntry(group).time);
+        });
+        var rowIndex = dataTable.addRow(row);
+        dataTable.setRowProperty(rowIndex, 'page', page);
+      });
+      renderGraph('Versions for ' + page.name, groups, dataTable,
+          'pageVersionGraph', true);
+    }
+
+    function renderGraph(title, groups, dataTable, id, isStacked) {
+      var isDiffView = baselineVersion !== undefined;
+      var formatter = new google.visualization.NumberFormat({
+        suffix: (isDiffView ? 'msΔ' : 'ms'), 
+        negativeColor: 'red', 
+        groupingSymbol: "'"
+      });
+      for (var i = 1; i < dataTable.getNumberOfColumns(); i++) {
+        formatter.format(dataTable, i);
+      }
+      var height = 85 + 28 * dataTable.getNumberOfRows();
       var options = {
-        title: 'Page Comparison for Version ' + page.version.name,
-        isStacked: 'percent',
-        height: height ,
+        isStacked: isStacked,
+        height: height,
         hAxis: {
-          title: '% Time',
           minValue: 0,
         },
+        animation:{
+          duration: 500,
+          easing: 'out',
+        },
         vAxis: {
-        }
+        },
+        explorer: {
+          actions: ['dragToZoom', 'rightClickToReset'],
+          maxZoomIn: 0.01
+        },
+        legend: {position:'top', textStyle:{fontSize: '16px'}},
+        chartArea: {left:200, top:50, width:'98%', height:'80%'},
+        colors: groups.map(each => each.color)
       };
-      var chart = new google.visualization.BarChart($('pageGraphs'));
-      chart.draw(dataTable, options);
-      google.visualization.events.addListener(chart, 'select', selectHandler);
-      function selectHandler() {
-        var column = chart.getSelection()[0].column;
-        if (column === undefined) return;
-        selectedGroup = dataTable.getColumnProperty(column, 'group');
-        showPageGraphs(selectedEntry.page);
+      var parentNode = $(id);
+      parentNode.querySelector('h2>span, h3>span').innerHTML = title;
+      var graphNode = parentNode.querySelector('.content');
+
+      var chart = graphNode.chart;
+      if (chart === undefined) {
+        chart = graphNode.chart = new google.visualization.BarChart(graphNode);
+      } else {
+        google.visualization.events.removeAllListeners(chart);
       }
+      google.visualization.events.addListener(chart, 'select', selectHandler);
+      function getChartEntry(selection) {
+        if (!selection) return undefined;
+        var column = selection.column;
+        if (column == undefined) return undefined;
+        var selectedGroup = dataTable.getColumnProperty(column, 'group');
+        var row = selection.row;
+        if (row == null) return selectedGroup;
+        var page = dataTable.getRowProperty(row, 'page');
+        if (!page) return selectedGroup;
+        return page.getEntry(selectedGroup);
+      }
+      function selectHandler() {
+        selectedGroup = getChartEntry(chart.getSelection()[0])
+        if (!selectedGroup) return;
+        selectEntry(selectedGroup, true);
+      }
+
+      // Make our global tooltips work
+      google.visualization.events.addListener(chart, 'onmouseover', mouseOverHandler);
+      function mouseOverHandler(selection) {
+        graphNode.entry = getChartEntry(selection);
+      }
+      chart.draw(dataTable, options);
     }
 
     function showGroup(entry) {
@@ -684,6 +874,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         node('.time').innerHTML = '-';
         node('.timeVariance').innerHTML = '-';
         node('.percent').innerHTML = '-';
+        node('.percentPerEntry').innerHTML = '-';
         node('.percentVariance').innerHTML  = '-';
         node('.count').innerHTML =  '-';
         node('.countVariance').innerHTML = '-';
@@ -695,6 +886,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         node('.timeVariance').innerHTML
             = percent(entry.timeVariancePercent, false);
         node('.percent').innerHTML = percent(entry.timePercent, false);
+        node('.percentPerEntry').innerHTML
+            = percent(entry.timePercentPerEntry, false);
         node('.percentVariance').innerHTML 
             = percent(entry.timePercentVariancePercent, false);
         node('.count').innerHTML = count(entry._count, false);
@@ -706,8 +899,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             = percent(entry.getTimeImpactVariancePercent(false), false);
       }
     }
-
-    // ===========================================================================
+  </script>
+  <script type="text/javascript">
+  "use strict"
+    // =========================================================================
     // Helpers
     function $(id) {
       return document.getElementById(id)
@@ -727,6 +922,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           return;
         }
       }
+    }
+
+    function addCodeSearchButton(entry, node) {
+      if (entry.isGroup) return;
+      var button = document.createElement("div");
+      button.innerHTML = '?'
+      button.className = "codeSearch"
+      button.addEventListener('click', handleCodeSearch);
+      node.appendChild(button);
+      return node;
     }
 
     function td(tr, content, className) {
@@ -765,8 +970,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       node.className = classes.join(' ');
     }
 
+    function NameComparator(a, b) {
+      if (a.name > b.name) return 1;
+      if (a.name < b.name) return -1;
+      return 0
+    }
+
     function diffSign(value, digits, unit, showDiff) {
       if (showDiff === false || baselineVersion == undefined) {
+        if (value === undefined) return '';
         return value.toFixed(digits) + unit;
       }
       return (value >= 0 ? '+' : '') + value.toFixed(digits) + unit + 'Δ';
@@ -784,6 +996,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return diffSign(value, 1, '%', showDiff);
     }
 
+  </script>
+  <script type="text/javascript">
+  "use strict"
     // =========================================================================
     // EventHandlers
     function handleBodyLoad() {
@@ -796,6 +1011,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var reader = new FileReader();
 
       reader.onload = function(evt) {
+        pages = new Pages();
         versions = Versions.fromJSON(JSON.parse(this.result));
         initialize()
         showPage(versions.versions[0].pages[0]);
@@ -827,7 +1043,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       } else {
         var columnIndex = select.id.split('_')[1];
         var pageSelect = $('select_' + columnIndex);
-        var page = pageSelect.options[select.selectedIndex].page;
+        var page = pageSelect.options[pageSelect.selectedIndex].page;
         page = version.get(page.name);
         showPageInColumn(page, columnIndex);
       }
@@ -851,29 +1067,40 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     function handleSelectBaseline(select, event) {
       var option = select.options[select.selectedIndex];
-      baselineVersion = option.version
+      baselineVersion = option.version;
+      var showingDiff = baselineVersion !== undefined;
+      var body = $('body');
+      toggleCssClass(body, 'diff', showingDiff);
+      toggleCssClass(body, 'noDiff', !showingDiff);
       showPage(selectedPage);
       if (selectedEntry === undefined) return;
       selectEntry(selectedEntry, true);
+    }
+
+    function findEntry(event) {
+      var target = event.target;
+      while (target.entry === undefined) {
+        target = target.parentNode;
+        if (!target) return undefined;
+      }
+      return target.entry;
     }
 
     function handleUpdatePopover(event) {
       var popover = $('popover');
       popover.style.left = event.pageX + 'px';
       popover.style.top = event.pageY + 'px';
+      popover.style.display = 'none';
       popover.style.display = event.shiftKey ? 'block' : 'none';
-      var target = event.target;
-      while (target.entry === undefined) {
-        target = target.parentNode;
-        if (!target) return;
-      }
-      showPopover(target.entry);
+      var entry = findEntry(event);
+      if (entry === undefined) return;
+      showPopover(entry);
     }
 
     function handleToggleVersionEnable(event) {
-      var version = this.version;
-      if (version === undefined) return;
-      version.enabled = this.checked;
+      var item = this.item ;
+      if (item  === undefined) return;
+      item .enabled = this.checked;
       initialize();
       var page = selectedPage;
       if (page === undefined || !page.version.enabled) {
@@ -882,8 +1109,26 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       showPage(page);
     }
 
-    // ===========================================================================
+    function handleToggleContentVisibility(event) {
+      var content = event.target.contentNode;
+      toggleCssClass(content, 'hidden');
+    }
 
+    function handleCodeSearch(event) {
+      var entry = findEntry(event);
+      if (entry === undefined) return;
+      var url = "https://cs.chromium.org/search/?sq=package:chromium&type=cs&q=";
+      name = entry.name;
+      if (name.startsWith("API_")) {
+        name = name.substring(4);
+      }
+      url += encodeURIComponent(name) + "+file:src/v8/src";
+      window.open(url,'_blank');
+    }
+  </script>
+  <script type="text/javascript">
+  "use strict"
+    // =========================================================================
     class Versions {
       constructor() {
         this.versions = [];
@@ -891,12 +1136,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       add(version) {
         this.versions.push(version)
       }
-      pageVersions(name) {
+      getPageVersions(page) {
         var result = [];
         this.versions.forEach((version) => {
           if (!version.enabled) return;
-          var page = version.get(name);
-          if (page !== undefined) result.push(page);
+          var versionPage = version.get(page.name);
+          if (versionPage  !== undefined) result.push(versionPage);
         });
         return result;
       }
@@ -910,11 +1155,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.versions.forEach(f);
       }
       sort() {
-        this.versions.sort((a, b) => {
-          if (a.name > b.name) return 1;
-          if (a.name < b.name) return -1;
-          return 0
-        })
+        this.versions.sort(NameComparator);
       }
       getEnabledPage(name) {
         for (var i = 0; i < this.versions.length; i++) {
@@ -922,7 +1163,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           if (!version.enabled) continue;
           var page = version.get(name);
           if (page !== undefined) return page;
-          }
+        }
       }
     }
     Versions.fromJSON = function(json) {
@@ -964,9 +1205,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return page.get(entry.name);
       }
       forEachEntry(fun) {
-        this.pages.forEach((page) => {
+        this.forEachPage((page) => {
           page.forEach(fun);
         });
+      }
+      forEachPage(fun) {
+        this.pages.forEach((page) => {
+          if (!page.enabled) return;
+          fun(page);
+        })
       }
       allEntries() {
         var map = new Map();
@@ -978,7 +1225,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       getTotalValue(name, property) {
         if (name === undefined) name = this.pages[0].total.name;
         var sum = 0;
-        this.pages.forEach((page) => {
+        this.forEachPage((page) => {
           var entry = page.get(name);
           if (entry !== undefined) sum += entry[property];
         });
@@ -988,19 +1235,20 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.getTotalValue(name, showDiff === false ? '_time' : 'time');
       }
       getTotalTimePercent(name, showDiff) {
-        if (baselineVersion === undefined) {
+        if (baselineVersion === undefined || showDiff === false) {
           // Return the overall average percent of the given entry name.
           return this.getTotalValue(name, 'time') /
             this.getTotalTime('Group-Total') * 100;
         }
         // Otherwise return the difference to the sum of the baseline version.
         var baselineValue = baselineVersion.getTotalTime(name, false);
-        return this.getTotalValue(name, '_time') / baselineValue  * 100;
+        var total = this.getTotalValue(name, '_time');
+        return (total / baselineValue - 1)  * 100;
       }
       getTotalTimeVariance(name, showDiff) {
         // Calculate the overall error for a given entry name
         var sum = 0;
-        this.pages.forEach((page) => {
+        this.forEachPage((page) => {
           var entry = page.get(name);
           if (entry === undefined) return;
           sum += entry.timeVariance * entry.timeVariance;
@@ -1014,6 +1262,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       getTotalCount(name, showDiff) {
         return this.getTotalValue(name, showDiff === false ? '_count' : 'count');
       }
+      getAverageTimeImpact(name, showDiff) {
+        return this.getTotalTime(name, showDiff) / this.pages.length;
+      }
       getPagesByPercentImpact(name) {
         var sortedPages =
           this.pages.filter((each) => {
@@ -1025,38 +1276,60 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return sortedPages;
       }
       sort() {
-        this.pages.sort((a, b) => {
-          if (a.name > b.name) return 1;
-          if (a.name < b.name) return -1;
-          return 0
-        })
+        this.pages.sort(NameComparator)
       }
     }
     Version.fromJSON = function(name, data) {
       var version = new Version(name);
-      for (var page in data) {
-        version.add(Page.fromJSON(version, page, data[page]));
+      for (var pageName in data) {
+        version.add(PageVersion.fromJSON(version, pageName, data[pageName]));
       }
       version.sort();
       return version;
     }
-
+    
+    class Pages extends Map {
+      get(name) {
+        if (name.indexOf('www.') == 0) {
+          name = name.substring(4);
+        }
+        if (!this.has(name)) {
+          this.set(name, new Page(name));
+        }
+        return super.get(name);
+      }
+    }
 
     class Page {
-      constructor(version, name) {
+      constructor(name) {
         this.name = name;
-        this.total = new GroupedEntry('Total', /.*Total.*/);
-        this.unclassified = new UnclassifiedEntry(this)
+        this.enabled = true;
+        this.versions = [];
+      }
+      add(page) {
+        this.versions.push(page);
+      }
+    }
+
+    class PageVersion {
+      constructor(version, page) {
+        this.page = page;
+        this.page.add(this);
+        this.total = new GroupedEntry('Total', /.*Total.*/, '#BBB');
+        this.total.isTotal = true;
+        this.unclassified = new UnclassifiedEntry(this, "#000")
         this.groups = [
           this.total,
-          new GroupedEntry('IC', /.*IC.*/),
+          new GroupedEntry('IC', /.*IC.*/, "#3366CC"),
           new GroupedEntry('Optimize',
-            /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/),
-          new GroupedEntry('Compile', /.*Compile.*|Parse.*/),
-          new GroupedEntry('Callback', /.*Callback$/),
-          new GroupedEntry('API', /.*API.*/),
-          new GroupedEntry('GC', /GC|AllocateInTargetSpace/),
-          new GroupedEntry('JavaScript', /JS_Execution/),
+            /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"),
+          new GroupedEntry('Compile', /.*Compile.*/, "#FFAA00"),
+          new GroupedEntry('Parse', /.*Parse.*/, "#FF6600"),
+          new GroupedEntry('Callback', /.*Callback$/, "#109618"),
+          new GroupedEntry('API', /.*API.*/, "#990099"),
+          new GroupedEntry('GC', /GC|AllocateInTargetSpace/, "#0099C6"),
+          new GroupedEntry('JavaScript', /JS_Execution/, "#DD4477"),
+          new GroupedEntry('Runtime', /.*/, "#88BB00"),
           this.unclassified
         ];
         this.entryDict = new Map();
@@ -1086,8 +1359,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get length() {
         return this.versions.length
       }
+      get name() { return this.page.name }
+      get enabled() { return this.page.enabled }
       forEachSorted(referencePage, func) {
-        // Iterate over all the entries in the order they appear on the reference page.
+        // Iterate over all the entries in the order they appear on the
+        // reference page.
         referencePage.forEach((parent, referenceEntry) => {
           var entry;
           if (parent) parent = this.entryDict.get(parent.name);
@@ -1114,12 +1390,19 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           group.sort()
         });
       }
-    }
-    Page.fromJSON = function(version, name, data) {
-      if (name.indexOf('www.') == 0) {
-        name = name.substring(4);
+      distanceFromTotalPercent() {
+        var sum = 0;
+        this.groups.forEach(group => {
+          if (group == this.total) return;
+          var value = group.getTimePercentImpact() - 
+              this.getEntry(group).timePercent;
+          sum += value * value;
+        });
+        return sum;
       }
-      var page = new Page(version, name);
+    }
+    PageVersion.fromJSON = function(version, name, data) {
+      var page = new PageVersion(version, pages.get(name));
       for (var i = 0; i < data.length; i++) {
         page.add(Entry.fromJSON(i, data[data.length - i - 1]));
       }
@@ -1142,6 +1425,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.countVariancePercent = countVariancePercent;
         this.page = undefined;
         this.parent = undefined;
+        this.isTotal = false;
       }
       getCompareWithBaseline(value, property) {
         if (baselineVersion == undefined) return value;
@@ -1168,6 +1452,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return (this._time - baselineEntry._time) / this.page.total._time *
           100;
       }
+      get timePercentPerEntry() {
+        var value = this._time / this.page.total._time * 100;
+        if (baselineVersion == undefined) return value;
+        var baselineEntry = baselineVersion.getEntry(this);
+        if (!baselineEntry) return value;
+        if (baselineVersion === this.page.version) return value;
+        return (this._time / baselineEntry._time - 1) * 100;
+      }
       get timePercentVariancePercent() {
         // Get the absolute values for the percentages
         return this.timeVariance / this.page.total._time * 100;
@@ -1183,6 +1475,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       getCountImpact(showDiff) {
         return this.page.version.getTotalCount(this.name, showDiff);
+      }
+      getAverageTimeImpact(showDiff) {
+        return this.page.version.getAverageTimeImpact(this.name, showDiff);
       }
       getPagesByPercentImpact() {
         return this.page.version.getPagesByPercentImpact(this.name);
@@ -1203,9 +1498,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 
     class GroupedEntry extends Entry {
-      constructor(name, regexp) {
+      constructor(name, regexp, color) {
         super(0, 'Group-' + name, 0, 0, 0, 0, 0, 0);
         this.regexp = regexp;
+        this.color = color;
         this.entries = [];
       }
       add(entry) {
@@ -1222,8 +1518,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           this.entries.forEach(fun);
           return;
         }
-        // If we have a baslineVersion to compare against show also all entries from the
-        // other group.
+        // If we have a baslineVersion to compare against show also all entries
+        // from the other group.
         var tmpEntries = baselineVersion.getEntry(this)
           .entries.filter((entry) => {
             return this.page.get(entry.name) == undefined
@@ -1271,8 +1567,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     class UnclassifiedEntry extends GroupedEntry {
-      constructor(page) {
-        super('Runtime');
+      constructor(page, color) {
+        super('Unclassified', undefined, color);
         this.page = page;
         this._time = undefined;
         this._count = undefined;
@@ -1311,7 +1607,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
   </script>
 </head>
 
-<body onmousemove="handleUpdatePopover(event)" onload="handleBodyLoad()">
+<body id="body" onmousemove="handleUpdatePopover(event)" onload="handleBodyLoad()" class="noDiff">
   <h1>Runtime Stats Komparator</h1>
 
   <div id="results">
@@ -1331,71 +1627,97 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         <span style="color: #060">Green</span> the selected version above performs
         better on this measurement.
       </div>
-      <div class="versionSelector inline">
-        Select Versions:
+    </div>
+    
+    <div id="versionSelector" class="inline toggleContentVisibility">
+      <h2>Version Selector</h2>
+      <div class="content hidden">
         <ul></ul>
       </div>
     </div>
+    
+    <div id="pageSelector" class="inline toggleContentVisibility">
+      <h2>Page Selector</h2>
+      <div class="content hidden">
+        <ul></ul>
+      </div>
+    </div>
+
     <div id="view">
     </div>
 
     <div id="detailView" class="hidden">
-      <h2></h2>
-      <div class="versionDetail inline">
-        <h3>Version Comparison for <span></span></h3>
-        <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
-          <thead>
-            <tr>
-              <th class="version">Version&nbsp;</th>
-              <th class="position">Pos.&nbsp;</th>
-              <th class="value time">Time▴&nbsp;</th>
-              <th class="value time">Percent&nbsp;</th>
-              <th class="value count">Count&nbsp;</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+      <div class="versionDetail inline toggleContentVisibility">
+        <h3><span></span></h3>
+        <div class="content">
+          <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
+            <thead>
+              <tr>
+                <th class="version">Version&nbsp;</th>
+                <th class="position">Pos.&nbsp;</th>
+                <th class="value time">Time▴&nbsp;</th>
+                <th class="value time">Percent&nbsp;</th>
+                <th class="value count">Count&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
-      <div class="pageDetail inline">
+      <div class="pageDetail inline toggleContentVisibility">
         <h3>Page Comparison for <span></span></h3>
-        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-          <thead>
-            <tr>
-              <th class="page">Page&nbsp;</th>
-              <th class="position">Pos.&nbsp;</th>
-              <th class="value time">Time&nbsp;</th>
-              <th class="value time">Percent▾&nbsp;</th>
-              <th class="value count">Count&nbsp;</th>
-            </tr>
-          </thead>
-          <tfoot>
-            <tr>
-              <td class="page">Total:</td>
-              <td class="position"></td>
-              <td class="value time"></td>
-              <td class="value time"></td>
-              <td class="value count"></td>
-            </tr>
-          </tfoot>
-          <tbody></tbody>
-        </table>
+        <div class="content">
+          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+            <thead>
+              <tr>
+                <th class="page">Page&nbsp;</th>
+                <th class="value time">Time&nbsp;</th>
+                <th class="value time">Percent▾&nbsp;</th>
+                <th class="value time hideNoDiff">%/Entry&nbsp;</th>
+                <th class="value count">Count&nbsp;</th>
+              </tr>
+            </thead>
+            <tfoot>
+              <tr>
+                <td class="page">Total:</td>
+                <td class="value time"></td>
+                <td class="value time"></td>
+                <td class="value time hideNoDiff"></td>
+                <td class="value count"></td>
+              </tr>
+            </tfoot>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
-      <div class="impactView inline">
+      <div class="impactView inline toggleContentVisibility">
         <h3>Impact list for <span></span></h3>
-        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
-          <thead>
-            <tr>
-              <th class="page">Name&nbsp;</th>
-              <th class="value time">Time&nbsp;</th>
-              <th class="value time">Percent▾&nbsp;</th>
-              <th class="">Top Pages</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="content">
+          <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+            <thead>
+              <tr>
+                <th class="page">Name&nbsp;</th>
+                <th class="value time">Time&nbsp;</th>
+                <th class="value time">Percent▾&nbsp;</th>
+                <th class="">Top Pages</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div id="pageGraphs" class="hidden">
+    <div id="pageVersionGraph" class="graph hidden toggleContentVisibility">
+      <h3><span></span></h3>
+      <div class="content"></div>
+    </div>
+    <div id="pageGraph" class="graph hidden toggleContentVisibility">
+      <h3><span></span></h3>
+      <div class="content"></div>
+    </div>
+    <div id="versionGraph" class="graph hidden toggleContentVisibility">
+      <h3><span></span></h3>
+      <div class="content"></div>
     </div>
 
     <div id="column" class="column">
@@ -1464,6 +1786,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         <td class="compare percent"></td><td class="compare"> ± </td><td class="compare percentVariance"></td>
       </tr>
       <tr>
+        <td>Percent per Entry:</td>
+        <td class="percentPerEntry"></td><td colspan=2></td>
+        <td class="compare percentPerEntry"></td><td colspan=2></td>
+      </tr>
+      <tr>
         <td>Count:</td>
         <td class="count"></td><td>±</td><td class="countVariance"></td>
         <td class="compare count"></td><td class="compare"> ± </td><td class="compare countVariance"></td>
@@ -1475,7 +1802,5 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       </tr>
     </table>
   </div>
-
 </body>
-
 </html>

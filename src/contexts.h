@@ -87,6 +87,7 @@ enum BindingFlags {
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
   V(MATH_FLOOR, JSFunction, math_floor)                                 \
+  V(MATH_LOG, JSFunction, math_log)                                     \
   V(MATH_SQRT, JSFunction, math_sqrt)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                   \
@@ -104,7 +105,6 @@ enum BindingFlags {
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)             \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)       \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                     \
-  V(JSON_SERIALIZE_ADAPTER_INDEX, JSFunction, json_serialize_adapter)       \
   V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)             \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                        \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                              \
@@ -250,6 +250,8 @@ enum BindingFlags {
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
+  V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
+  V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
   V(UINT16X8_FUNCTION_INDEX, JSFunction, uint16x8_function)                    \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \

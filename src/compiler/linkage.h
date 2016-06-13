@@ -368,7 +368,7 @@ class Linkage : public ZoneObject {
   bool ParameterHasSecondaryLocation(int index) const;
   LinkageLocation GetParameterSecondaryLocation(int index) const;
 
-  static int FrameStateInputCount(Runtime::FunctionId function);
+  static bool NeedsFrameStateInput(Runtime::FunctionId function);
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;

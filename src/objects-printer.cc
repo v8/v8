@@ -380,8 +380,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      os << "\n - elements: ";
-      elements()->Print(os);
+      SeededNumberDictionary::cast(elements())->Print(os);
       break;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
@@ -424,10 +423,14 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
-  os << "\n {";
+  os << "\n - properties = {";
   obj->PrintProperties(os);
-  if (print_elements) obj->PrintElements(os);
   os << "\n }\n";
+  if (print_elements && obj->elements()->length() > 0) {
+    os << " - elements = {";
+    obj->PrintElements(os);
+    os << "\n }\n";
+  }
 }
 
 
@@ -462,7 +465,7 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << "\n - hash: " << Hash();
   os << "\n - name: " << Brief(name());
-  if (name()->IsUndefined()) {
+  if (name()->IsUndefined(GetIsolate())) {
     os << " (" << PrivateSymbolToName() << ")";
   }
   os << "\n - private: " << is_private();
@@ -716,8 +719,6 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
 void Name::NamePrint(std::ostream& os) {  // NOLINT
   if (IsString()) {
     String::cast(this)->StringPrint(os);
-  } else if (IsSymbol()) {
-    Symbol::cast(this)->name()->Print(os);
   } else {
     os << Brief(this);
   }
@@ -875,6 +876,8 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
      << shared()->internal_formal_parameter_count();
   if (shared()->is_generator()) {
     os << "\n   - generator";
+  } else if (shared()->is_async()) {
+    os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());
   os << "\n - literals = " << Brief(literals());
@@ -916,9 +919,10 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - end position = " << end_position();
   os << "\n - debug info = " << Brief(debug_info());
   os << "\n - length = " << length();
+  os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
-  os << "\n - feedback_vector = ";
-  feedback_vector()->TypeFeedbackVectorPrint(os);
+  os << "\n - feedback_metadata = ";
+  feedback_metadata()->TypeFeedbackMetadataPrint(os);
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
@@ -1032,8 +1036,6 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
 
 void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessCheckInfo");
-  os << "\n - named_callback: " << Brief(named_callback());
-  os << "\n - indexed_callback: " << Brief(indexed_callback());
   os << "\n - callback: " << Brief(callback());
   os << "\n - data: " << Brief(data());
   os << "\n";
@@ -1218,7 +1220,7 @@ void Name::NameShortPrint() {
   } else {
     DCHECK(this->IsSymbol());
     Symbol* s = Symbol::cast(this);
-    if (s->name()->IsUndefined()) {
+    if (s->name()->IsUndefined(GetIsolate())) {
       PrintF("#<%s>", s->PrivateSymbolToName());
     } else {
       PrintF("<%s>", String::cast(s->name())->ToCString().get());
@@ -1233,7 +1235,7 @@ int Name::NameShortPrint(Vector<char> str) {
   } else {
     DCHECK(this->IsSymbol());
     Symbol* s = Symbol::cast(this);
-    if (s->name()->IsUndefined()) {
+    if (s->name()->IsUndefined(GetIsolate())) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
       return SNPrintF(str, "<%s>", String::cast(s->name())->ToCString().get());

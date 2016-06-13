@@ -12,6 +12,10 @@
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
   V(Array_string, "Array")                                         \
+  V(array_to_string, "[object Array]")                             \
+  V(object_to_string, "[object Object]")                           \
+  V(string_to_string, "[object String]")                           \
+  V(function_to_string, "[object Function]")                       \
   V(bind_string, "bind")                                           \
   V(bool16x8_string, "bool16x8")                                   \
   V(Bool16x8_string, "Bool16x8")                                   \
@@ -22,6 +26,7 @@
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
   V(bound__string, "bound ")                                       \
+  V(buffer_string, "buffer")                                       \
   V(byte_length_string, "byteLength")                              \
   V(byte_offset_string, "byteOffset")                              \
   V(call_string, "call")                                           \
@@ -30,6 +35,7 @@
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(column_string, "column")                                       \
   V(compare_ic_string, "==")                                       \
   V(configurable_string, "configurable")                           \
   V(constructor_string, "constructor")                             \
@@ -78,6 +84,7 @@
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
   V(last_index_string, "lastIndex")                                \
   V(length_string, "length")                                       \
+  V(line_string, "line")                                           \
   V(Map_string, "Map")                                             \
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
@@ -91,6 +98,7 @@
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
   V(ownKeys_string, "ownKeys")                                     \
+  V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
   V(private_api_string, "private_api")                             \
   V(Promise_string, "Promise")                                     \
@@ -99,11 +107,13 @@
   V(Proxy_string, "Proxy")                                         \
   V(query_colon_string, "(?:)")                                    \
   V(RegExp_string, "RegExp")                                       \
+  V(script_string, "script")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
   V(source_mapping_url_string, "source_mapping_url")               \
   V(source_string, "source")                                       \
+  V(sourceText_string, "sourceText")                               \
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(strict_compare_ic_string, "===")                               \
@@ -166,12 +176,13 @@
   V(premonomorphic_symbol)                  \
   V(promise_combined_deferred_symbol)       \
   V(promise_debug_marker_symbol)            \
-  V(promise_has_handler_symbol)             \
+  V(promise_deferred_reactions_symbol)      \
   V(promise_fulfill_reactions_symbol)       \
-  V(promise_reject_reactions_symbol)        \
+  V(promise_has_handler_symbol)             \
   V(promise_raw_symbol)                     \
-  V(promise_state_symbol)                   \
+  V(promise_reject_reactions_symbol)        \
   V(promise_result_symbol)                  \
+  V(promise_state_symbol)                   \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(strict_function_transition_symbol)      \

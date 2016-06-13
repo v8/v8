@@ -15,6 +15,8 @@
 #include "src/base/win32-headers.h"
 #endif
 
+#include <vector>
+
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -185,7 +187,7 @@ TEST(TimeTicks, IsMonotonic) {
 
 
 // Disable on windows until it is implemented.
-#if V8_OS_ANDROID || V8_OS_WIN
+#if V8_OS_ANDROID
 #define MAYBE_ThreadNow DISABLED_ThreadNow
 #else
 #define MAYBE_ThreadNow ThreadNow
@@ -209,6 +211,51 @@ TEST(ThreadTicks, MAYBE_ThreadNow) {
     EXPECT_GE(difference.InMicroseconds(), 9000);
   }
 }
+
+
+#if V8_OS_WIN
+TEST(TimeTicks, TimerPerformance) {
+  // Verify that various timer mechanisms can always complete quickly.
+  // Note:  This is a somewhat arbitrary test.
+  const int kLoops = 10000;
+
+  typedef TimeTicks (*TestFunc)();
+  struct TestCase {
+    TestFunc func;
+    const char *description;
+  };
+  // Cheating a bit here:  assumes sizeof(TimeTicks) == sizeof(Time)
+  // in order to create a single test case list.
+  static_assert(sizeof(TimeTicks) == sizeof(Time),
+                "TimeTicks and Time must be the same size");
+  std::vector<TestCase> cases;
+  cases.push_back({reinterpret_cast<TestFunc>(&Time::Now), "Time::Now"});
+  cases.push_back({&TimeTicks::Now, "TimeTicks::Now"});
+
+  if (ThreadTicks::IsSupported()) {
+    ThreadTicks::WaitUntilInitialized();
+    cases.push_back(
+        {reinterpret_cast<TestFunc>(&ThreadTicks::Now), "ThreadTicks::Now"});
+  }
+
+  for (const auto& test_case : cases) {
+    TimeTicks start = TimeTicks::Now();
+    for (int index = 0; index < kLoops; index++)
+      test_case.func();
+    TimeTicks stop = TimeTicks::Now();
+    // Turning off the check for acceptible delays.  Without this check,
+    // the test really doesn't do much other than measure.  But the
+    // measurements are still useful for testing timers on various platforms.
+    // The reason to remove the check is because the tests run on many
+    // buildbots, some of which are VMs.  These machines can run horribly
+    // slow, and there is really no value for checking against a max timer.
+    // const int kMaxTime = 35;  // Maximum acceptible milliseconds for test.
+    // EXPECT_LT((stop - start).InMilliseconds(), kMaxTime);
+    printf("%s: %1.2fus per call\n", test_case.description,
+           (stop - start).InMillisecondsF() * 1000 / kLoops);
+  }
+}
+#endif  // V8_OS_WIN
 
 }  // namespace base
 }  // namespace v8

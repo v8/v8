@@ -34,7 +34,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   TRACE_EVENT0("v8", "V8.CompileFullCode");
 
   Handle<Script> script = info->script();
-  if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+  if (!script->IsUndefined(isolate) &&
+      !script->source()->IsUndefined(isolate)) {
     int len = String::cast(script->source())->length();
     isolate->counters()->total_full_codegen_source_size()->Increment(len);
   }
@@ -1032,17 +1033,12 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
-  // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning. If
-  // we're running with the --always-opt or the --prepare-always-opt
+  // If we're running with the --always-opt or the --prepare-always-opt
   // flag, we need to use the runtime function so that the new function
   // we are creating here gets a chance to have its code optimized and
   // doesn't just get a copy of the existing unoptimized code.
-  if (!FLAG_always_opt &&
-      !FLAG_prepare_always_opt &&
-      !pretenure &&
-      scope()->is_function_scope() &&
-      info->num_literals() == 0) {
+  if (!FLAG_always_opt && !FLAG_prepare_always_opt && !pretenure &&
+      scope()->is_function_scope()) {
     FastNewClosureStub stub(isolate(), info->language_mode(), info->kind());
     __ Move(stub.GetCallInterfaceDescriptor().GetRegisterParameter(0), info);
     __ CallStub(&stub);

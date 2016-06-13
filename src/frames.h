@@ -325,6 +325,8 @@ class InterpreterFrameConstants : public AllStatic {
 
   // FP-relative.
   static const int kLastParamFromFp = StandardFrameConstants::kCallerSPOffset;
+  static const int kCallerPCOffsetFromFp =
+      StandardFrameConstants::kCallerPCOffset;
   static const int kNewTargetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
   static const int kBytecodeArrayFromFp =
@@ -970,8 +972,6 @@ class WasmFrame : public StandardFrame {
 
   Object* wasm_obj();
   uint32_t function_index();
-
-  Object* function_name();
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());

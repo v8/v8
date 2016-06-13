@@ -13,84 +13,82 @@ namespace internal {
 
 class PlatformInterfaceDescriptor;
 
-#define INTERFACE_DESCRIPTOR_LIST(V)          \
-  V(Void)                                     \
-  V(Load)                                     \
-  V(Store)                                    \
-  V(StoreTransition)                          \
-  V(VectorStoreTransition)                    \
-  V(VectorStoreICTrampoline)                  \
-  V(VectorStoreIC)                            \
-  V(LoadWithVector)                           \
-  V(FastArrayPush)                            \
-  V(FastNewClosure)                           \
-  V(FastNewContext)                           \
-  V(FastNewObject)                            \
-  V(FastNewRestParameter)                     \
-  V(FastNewSloppyArguments)                   \
-  V(FastNewStrictArguments)                   \
-  V(TypeConversion)                           \
-  V(Typeof)                                   \
-  V(FastCloneRegExp)                          \
-  V(FastCloneShallowArray)                    \
-  V(FastCloneShallowObject)                   \
-  V(CreateAllocationSite)                     \
-  V(CreateWeakCell)                           \
-  V(CallFunction)                             \
-  V(CallFunctionWithFeedback)                 \
-  V(CallFunctionWithFeedbackAndVector)        \
-  V(CallConstruct)                            \
-  V(CallTrampoline)                           \
-  V(ConstructStub)                            \
-  V(ConstructTrampoline)                      \
-  V(RegExpConstructResult)                    \
-  V(TransitionElementsKind)                   \
-  V(AllocateHeapNumber)                       \
-  V(AllocateFloat32x4)                        \
-  V(AllocateInt32x4)                          \
-  V(AllocateUint32x4)                         \
-  V(AllocateBool32x4)                         \
-  V(AllocateInt16x8)                          \
-  V(AllocateUint16x8)                         \
-  V(AllocateBool16x8)                         \
-  V(AllocateInt8x16)                          \
-  V(AllocateUint8x16)                         \
-  V(AllocateBool8x16)                         \
-  V(ArrayNoArgumentConstructor)               \
-  V(ArrayConstructorConstantArgCount)         \
-  V(ArrayConstructor)                         \
-  V(InternalArrayConstructorConstantArgCount) \
-  V(InternalArrayConstructor)                 \
-  V(Compare)                                  \
-  V(BinaryOp)                                 \
-  V(BinaryOpWithAllocationSite)               \
-  V(CountOp)                                  \
-  V(StringAdd)                                \
-  V(StringCompare)                            \
-  V(Keyed)                                    \
-  V(Named)                                    \
-  V(HasProperty)                              \
-  V(CallHandler)                              \
-  V(ArgumentAdaptor)                          \
-  V(ApiCallbackWith0Args)                     \
-  V(ApiCallbackWith1Args)                     \
-  V(ApiCallbackWith2Args)                     \
-  V(ApiCallbackWith3Args)                     \
-  V(ApiCallbackWith4Args)                     \
-  V(ApiCallbackWith5Args)                     \
-  V(ApiCallbackWith6Args)                     \
-  V(ApiCallbackWith7Args)                     \
-  V(ApiGetter)                                \
-  V(LoadGlobalViaContext)                     \
-  V(StoreGlobalViaContext)                    \
-  V(MathPowTagged)                            \
-  V(MathPowInteger)                           \
-  V(ContextOnly)                              \
-  V(GrowArrayElements)                        \
-  V(InterpreterDispatch)                      \
-  V(InterpreterPushArgsAndCall)               \
-  V(InterpreterPushArgsAndConstruct)          \
-  V(InterpreterCEntry)                        \
+#define INTERFACE_DESCRIPTOR_LIST(V)   \
+  V(Void)                              \
+  V(Load)                              \
+  V(Store)                             \
+  V(StoreTransition)                   \
+  V(VectorStoreTransition)             \
+  V(VectorStoreICTrampoline)           \
+  V(VectorStoreIC)                     \
+  V(LoadWithVector)                    \
+  V(VarArgFunction)                    \
+  V(FastNewClosure)                    \
+  V(FastNewContext)                    \
+  V(FastNewObject)                     \
+  V(FastNewRestParameter)              \
+  V(FastNewSloppyArguments)            \
+  V(FastNewStrictArguments)            \
+  V(TypeConversion)                    \
+  V(Typeof)                            \
+  V(FastCloneRegExp)                   \
+  V(FastCloneShallowArray)             \
+  V(FastCloneShallowObject)            \
+  V(CreateAllocationSite)              \
+  V(CreateWeakCell)                    \
+  V(CallFunction)                      \
+  V(CallFunctionWithFeedback)          \
+  V(CallFunctionWithFeedbackAndVector) \
+  V(CallConstruct)                     \
+  V(CallTrampoline)                    \
+  V(ConstructStub)                     \
+  V(ConstructTrampoline)               \
+  V(RegExpConstructResult)             \
+  V(TransitionElementsKind)            \
+  V(AllocateHeapNumber)                \
+  V(AllocateFloat32x4)                 \
+  V(AllocateInt32x4)                   \
+  V(AllocateUint32x4)                  \
+  V(AllocateBool32x4)                  \
+  V(AllocateInt16x8)                   \
+  V(AllocateUint16x8)                  \
+  V(AllocateBool16x8)                  \
+  V(AllocateInt8x16)                   \
+  V(AllocateUint8x16)                  \
+  V(AllocateBool8x16)                  \
+  V(ArrayNoArgumentConstructor)        \
+  V(ArraySingleArgumentConstructor)    \
+  V(ArrayNArgumentsConstructor)        \
+  V(Compare)                           \
+  V(BinaryOp)                          \
+  V(BinaryOpWithAllocationSite)        \
+  V(CountOp)                           \
+  V(StringAdd)                         \
+  V(StringCompare)                     \
+  V(Keyed)                             \
+  V(Named)                             \
+  V(HasProperty)                       \
+  V(CallHandler)                       \
+  V(ArgumentAdaptor)                   \
+  V(ApiCallbackWith0Args)              \
+  V(ApiCallbackWith1Args)              \
+  V(ApiCallbackWith2Args)              \
+  V(ApiCallbackWith3Args)              \
+  V(ApiCallbackWith4Args)              \
+  V(ApiCallbackWith5Args)              \
+  V(ApiCallbackWith6Args)              \
+  V(ApiCallbackWith7Args)              \
+  V(ApiGetter)                         \
+  V(LoadGlobalViaContext)              \
+  V(StoreGlobalViaContext)             \
+  V(MathPowTagged)                     \
+  V(MathPowInteger)                    \
+  V(ContextOnly)                       \
+  V(GrowArrayElements)                 \
+  V(InterpreterDispatch)               \
+  V(InterpreterPushArgsAndCall)        \
+  V(InterpreterPushArgsAndConstruct)   \
+  V(InterpreterCEntry)                 \
   V(ResumeGenerator)
 
 class CallInterfaceDescriptorData {
@@ -110,7 +108,7 @@ class CallInterfaceDescriptorData {
   // and register side by side (eg, RegRep(r1, Representation::Tagged()).
   // The same should go for the CodeStubDescriptor class.
   void InitializePlatformSpecific(
-      int register_parameter_count, Register* registers,
+      int register_parameter_count, const Register* registers,
       PlatformInterfaceDescriptor* platform_descriptor = NULL);
 
   bool IsInitialized() const { return register_param_count_ >= 0; }
@@ -219,6 +217,12 @@ class CallInterfaceDescriptor {
     }
   }
 
+  // Initializes |data| using the platform dependent default set of registers.
+  // It is intended to be used for TurboFan stubs when particular set of
+  // registers does not matter.
+  static void DefaultInitializePlatformSpecific(
+      CallInterfaceDescriptorData* data, int register_parameter_count);
+
  private:
   const CallInterfaceDescriptorData* data_;
 };
@@ -229,6 +233,17 @@ class CallInterfaceDescriptor {
     Initialize(isolate, key());                            \
   }                                                        \
   static inline CallDescriptors::Key key();
+
+#define DECLARE_DEFAULT_DESCRIPTOR(name, base, parameter_count)            \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                 \
+ protected:                                                                \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)       \
+      override {                                                           \
+    DefaultInitializePlatformSpecific(data, parameter_count);              \
+  }                                                                        \
+  name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {} \
+                                                                           \
+ public:
 
 #define DECLARE_DESCRIPTOR(name, base)                                         \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
@@ -425,10 +440,7 @@ class HasPropertyDescriptor final : public CallInterfaceDescriptor {
  public:
   enum ParameterIndices { kKeyIndex, kObjectIndex };
 
-  DECLARE_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor)
-
-  static const Register KeyRegister();
-  static const Register ObjectRegister();
+  DECLARE_DEFAULT_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor, 2)
 };
 
 class TypeofDescriptor : public CallInterfaceDescriptor {
@@ -578,37 +590,36 @@ class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
     kFunctionIndex,
     kAllocationSiteIndex,
     kArgumentCountIndex,
+    kFunctionParameterIndex,
     kContextIndex
   };
 };
 
-class ArrayConstructorConstantArgCountDescriptor
+class ArraySingleArgumentConstructorDescriptor
     : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(ArrayConstructorConstantArgCountDescriptor,
-                     CallInterfaceDescriptor)
-};
-
-
-class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArrayConstructorDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class InternalArrayConstructorConstantArgCountDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(InternalArrayConstructorConstantArgCountDescriptor,
-                     CallInterfaceDescriptor)
-};
-
-
-class InternalArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InternalArrayConstructorDescriptor, CallInterfaceDescriptor)
+      ArraySingleArgumentConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kFunctionParameterIndex,
+    kArraySizeSmiParameterIndex,
+    kContextIndex
+  };
+};
+
+class ArrayNArgumentsConstructorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
+      ArrayNArgumentsConstructorDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices {
+    kFunctionIndex,
+    kAllocationSiteIndex,
+    kArgumentCountIndex,
+    kContextIndex
+  };
 };
 
 
@@ -778,9 +789,9 @@ class ContextOnlyDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
-class FastArrayPushDescriptor : public CallInterfaceDescriptor {
+class VarArgFunctionDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastArrayPushDescriptor,
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(VarArgFunctionDescriptor,
                                                CallInterfaceDescriptor)
 };
 

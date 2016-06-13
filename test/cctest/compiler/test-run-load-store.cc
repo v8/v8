@@ -251,26 +251,6 @@ TEST(RunLoadStoreSignExtend32) {
   }
 }
 
-TEST(RunLoadEliminationWithCompareAndTest) {
-  int8_t byte = 0x81;
-  int16_t word = 0xf00f;
-  RawMachineAssemblerTester<int32_t> m;
-  Node* load8 = m.LoadFromPointer(&byte, MachineType::Int8());
-  RawMachineLabel a, b, c, d;
-  m.Branch(m.Word32And(load8, m.Int32Constant(-0x80)), &b, &a);
-  m.Bind(&a);
-  m.Return(m.Int32Constant(0));
-  m.Bind(&b);
-  Node* load16 = m.LoadFromPointer(&word, MachineType::Int16());
-  m.Branch(m.Word32And(load16, m.Int32Constant(-0x7fff)), &d, &c);
-  m.Bind(&c);
-  m.Return(m.Int32Constant(0));
-  m.Bind(&d);
-  m.Return(m.Int32Constant(1));
-
-  CHECK_EQ(1, m.Call());
-}
-
 TEST(RunLoadStoreZeroExtend32) {
   uint32_t buffer[4];
   RawMachineAssemblerTester<uint32_t> m;

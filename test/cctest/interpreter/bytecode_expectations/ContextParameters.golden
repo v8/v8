@@ -46,7 +46,7 @@ bytecodes: [
                 B(StaContextSlot), R(context), U8(4),
   /*   10 E> */ B(StackCheck),
   /*   27 S> */ B(CreateClosure), U8(0), U8(0),
-  /*   27 E> */ B(Star), R(0),
+                B(Star), R(0),
   /*   53 S> */ B(LdaContextSlot), R(context), U8(4),
   /*   66 S> */ B(Return),
 ]

@@ -63,11 +63,6 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool IsCleared(Code* code) {
-    InlineCacheState state = code->ic_state();
-    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
   static bool IsCleared(FeedbackNexus* nexus) {
     InlineCacheState state = nexus->StateFromFeedback();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
@@ -78,6 +73,8 @@ class IC {
            kind == Code::CALL_IC || kind == Code::STORE_IC ||
            kind == Code::KEYED_STORE_IC;
   }
+
+  static InlineCacheState StateFromCode(Code* code);
 
  protected:
   Address fp() const { return fp_; }
@@ -292,7 +289,7 @@ class LoadIC : public IC {
   static void GenerateNormal(MacroAssembler* masm);
 
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state, State initialization_state);
+      Isolate* isolate, ExtraICState extra_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -337,7 +334,7 @@ class KeyedLoadIC : public LoadIC {
   static void GenerateMegamorphic(MacroAssembler* masm);
 
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, State initialization_state, ExtraICState extra_state);
+      Isolate* isolate, ExtraICState extra_state);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 
@@ -372,7 +369,7 @@ class StoreIC : public IC {
                                          LanguageMode language_mode);
 
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode, State initialization_state);
+      Isolate* isolate, LanguageMode language_mode);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -428,7 +425,7 @@ class KeyedStoreIC : public StoreIC {
                                   LanguageMode language_mode);
 
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, LanguageMode language_mode, State initialization_state);
+      Isolate* isolate, LanguageMode language_mode);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 

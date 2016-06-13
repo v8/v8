@@ -89,8 +89,8 @@ TEST(Unreachable) {
   CHECK(returnObjMaybe.is_null());
 
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM>", static_cast<int>(wasm_index), 1},  // --
-      {"callFn", 1, 24}                             // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 1},  // --
+      {"callFn", 1, 24}                                     // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
@@ -131,9 +131,9 @@ TEST(IllegalLoad) {
 
   // Line number is 1-based, with 0 == kNoLineNumberInfo.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM>", static_cast<int>(wasm_index), 6},    // --
-      {"<WASM>", static_cast<int>(wasm_index_2), 2},  // --
-      {"callFn", 1, 24}                               // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 6},    // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // --
+      {"callFn", 1, 24}                                       // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);

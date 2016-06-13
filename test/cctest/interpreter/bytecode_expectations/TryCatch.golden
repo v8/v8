@@ -13,17 +13,17 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
   /*   40 S> */ B(LdaSmi), U8(1),
   /*   75 S> */ B(Return),
+                B(Jump), U8(34),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),
-                B(Ldar), R(closure),
-                B(Star), R(4),
+                B(Mov), R(closure), R(4),
                 B(CallRuntime), U16(Runtime::kPushCatchContext), R(2), U8(3),
                 B(Star), R(1),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
@@ -32,6 +32,7 @@ bytecodes: [
   /*   63 S> */ B(LdaSmi), U8(2),
                 B(PopContext), R(0),
   /*   75 S> */ B(Return),
+                B(PopContext), R(0),
                 B(LdaUndefined),
   /*   75 S> */ B(Return),
 ]
@@ -39,7 +40,7 @@ constant pool: [
   "e",
 ]
 handlers: [
-  [4, 7, 7],
+  [4, 7, 9],
 ]
 
 ---
@@ -50,19 +51,18 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 81
+bytecode array length: 79
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(2),
   /*   47 S> */ B(LdaSmi), U8(1),
-  /*   49 E> */ B(Star), R(0),
-                B(Jump), U8(30),
+                B(Star), R(0),
+                B(Jump), U8(29),
                 B(Star), R(4),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
-                B(Ldar), R(closure),
-                B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
+                B(Mov), R(closure), R(5),
+  /*   49 E> */ B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Ldar), R(2),
@@ -70,20 +70,19 @@ bytecodes: [
                 B(PopContext), R(1),
                 B(Mov), R(context), R(2),
   /*   75 S> */ B(LdaSmi), U8(2),
-  /*   77 E> */ B(Star), R(0),
-                B(Jump), U8(34),
+                B(Star), R(0),
+                B(Jump), U8(33),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
-                B(Ldar), R(closure),
-                B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
+                B(Mov), R(closure), R(5),
+  /*   77 E> */ B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),
                 B(Star), R(2),
                 B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
                 B(Ldar), R(2),
                 B(PushContext), R(1),
   /*   95 S> */ B(LdaSmi), U8(3),
-  /*   97 E> */ B(Star), R(0),
+                B(Star), R(0),
                 B(PopContext), R(1),
                 B(LdaUndefined),
   /*  103 S> */ B(Return),
@@ -94,6 +93,6 @@ constant pool: [
 ]
 handlers: [
   [4, 8, 10],
-  [41, 45, 47],
+  [40, 44, 46],
 ]
 

@@ -8,16 +8,16 @@
 #define V8_PARSING_SCANNER_H_
 
 #include "src/allocation.h"
+#include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/char-predicates.h"
 #include "src/collector.h"
 #include "src/globals.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/messages.h"
 #include "src/parsing/token.h"
-#include "src/unicode.h"
 #include "src/unicode-decoder.h"
+#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -143,14 +143,15 @@ class DuplicateFinder {
   UnicodeCache* unicode_constants_;
   // Backing store used to store strings used as hashmap keys.
   SequenceCollector<unsigned char> backing_store_;
-  HashMap map_;
+  base::HashMap map_;
   // Buffer used for string->number->canonical string conversions.
   char number_buffer_[kBufferSize];
 };
 
-
 // ----------------------------------------------------------------------------
 // LiteralBuffer -  Collector of chars of literals.
+
+const int kMaxAscii = 127;
 
 class LiteralBuffer {
  public:
@@ -158,7 +159,16 @@ class LiteralBuffer {
 
   ~LiteralBuffer() { backing_store_.Dispose(); }
 
-  INLINE(void AddChar(uint32_t code_unit)) {
+  INLINE(void AddChar(char code_unit)) {
+    if (position_ >= backing_store_.length()) ExpandBuffer();
+    DCHECK(is_one_byte_);
+    DCHECK(0 <= code_unit && code_unit <= kMaxAscii);
+    backing_store_[position_] = static_cast<byte>(code_unit);
+    position_ += kOneByteSize;
+    return;
+  }
+
+  INLINE(void AddChar(uc32 code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_one_byte_) {
       if (code_unit <= unibrow::Latin1::kMaxChar) {
@@ -553,6 +563,11 @@ class Scanner {
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
+    DCHECK_NOT_NULL(next_.literal_chars);
+    next_.literal_chars->AddChar(c);
+  }
+
+  INLINE(void AddLiteralChar(char c)) {
     DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }

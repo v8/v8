@@ -436,6 +436,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                      \
   } while (0)
 
+#define ASSEMBLE_FLOAT_LOG()                                                \
+  do {                                                                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                           \
+    __ PrepareCallCFunction(0, 1, kScratchReg);                             \
+    __ MovToFloatParameter(i.InputDoubleRegister(0));                       \
+    __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0, \
+                     1);                                                    \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                        \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                    \
+  } while (0)
 
 #define ASSEMBLE_FLOAT_MAX(scratch_reg)                                       \
   do {                                                                        \
@@ -874,6 +884,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchTableSwitch(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    case kArchDebugBreak:
+      __ stop("kArchDebugBreak");
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -1226,6 +1239,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // and generate a CallAddress instruction instead.
       ASSEMBLE_FLOAT_MODULO();
       break;
+    case kPPC_LogDouble:
+      // TODO(bmeurer): We should really get rid of this special instruction,
+      // and generate a CallAddress instruction instead.
+      ASSEMBLE_FLOAT_LOG();
+      break;
     case kPPC_Neg:
       __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
       break;
@@ -1321,8 +1339,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_PushFrame: {
       int num_slots = i.InputInt32(1);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ StoreDoubleU(i.InputDoubleRegister(0),
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDoubleU(i.InputDoubleRegister(0),
                         MemOperand(sp, -num_slots * kPointerSize), r0);
+        } else {
+          DCHECK(op->representation() == MachineRepresentation::kFloat32);
+          __ StoreSingleU(i.InputDoubleRegister(0),
+                        MemOperand(sp, -num_slots * kPointerSize), r0);
+        }
       } else {
         __ StorePU(i.InputRegister(0),
                    MemOperand(sp, -num_slots * kPointerSize), r0);
@@ -1332,8 +1357,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_StoreToStackSlot: {
       int slot = i.InputInt32(1);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ StoreDouble(i.InputDoubleRegister(0),
-                       MemOperand(sp, slot * kPointerSize), r0);
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ StoreDouble(i.InputDoubleRegister(0),
+                        MemOperand(sp, slot * kPointerSize), r0);
+        } else {
+          DCHECK(op->representation() == MachineRepresentation::kFloat32);
+          __ StoreSingle(i.InputDoubleRegister(0),
+                        MemOperand(sp, slot * kPointerSize), r0);
+        }
       } else {
         __ StoreP(i.InputRegister(0), MemOperand(sp, slot * kPointerSize), r0);
       }
@@ -1997,17 +2029,33 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Move(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      __ StoreDouble(src, g.ToMemOperand(destination), r0);
+      LocationOperand* op = LocationOperand::cast(source);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ StoreDouble(src, g.ToMemOperand(destination), r0);
+      } else {
+        __ StoreSingle(src, g.ToMemOperand(destination), r0);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsFPRegister()) {
-      __ LoadDouble(g.ToDoubleRegister(destination), src, r0);
+      LocationOperand* op = LocationOperand::cast(source);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ LoadDouble(g.ToDoubleRegister(destination), src, r0);
+      } else {
+        __ LoadSingle(g.ToDoubleRegister(destination), src, r0);
+      }
     } else {
+      LocationOperand* op = LocationOperand::cast(source);
       DoubleRegister temp = kScratchDoubleReg;
-      __ LoadDouble(temp, src, r0);
-      __ StoreDouble(temp, g.ToMemOperand(destination), r0);
+      if (op->representation() == MachineRepresentation::kFloat64) {
+        __ LoadDouble(temp, src, r0);
+        __ StoreDouble(temp, g.ToMemOperand(destination), r0);
+      } else {
+        __ LoadSingle(temp, src, r0);
+        __ StoreSingle(temp, g.ToMemOperand(destination), r0);
+      }
     }
   } else {
     UNREACHABLE();

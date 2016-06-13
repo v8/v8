@@ -14,6 +14,7 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
+#include "src/compiler/checkpoint-elimination.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
@@ -25,7 +26,6 @@
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/greedy-allocator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/js-builtin-reducer.h"
@@ -521,7 +521,7 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
                                              ZonePool* zone_pool) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics = new PipelineStatistics(info, zone_pool);
     pipeline_statistics->BeginPhaseKind("initializing");
   }
@@ -533,7 +533,9 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
     int pos = info->shared_info()->start_position();
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+    Isolate* isolate = info->isolate();
+    if (!script->IsUndefined(isolate) &&
+        !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
       int len = info->shared_info()->end_position() - start;
@@ -597,6 +599,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     info()->MarkAsDeoptimizationEnabled();
   }
   if (!info()->is_optimizing_from_bytecode()) {
+    if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
+      info()->MarkAsTypeFeedbackEnabled();
+    }
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
@@ -718,7 +723,7 @@ struct TypeHintAnalysisPhase {
   static const char* phase_name() { return "type hint analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (!data->info()->is_optimizing_from_bytecode()) {
+    if (data->info()->is_type_feedback_enabled()) {
       TypeHintAnalyzer analyzer(data->graph_zone());
       Handle<Code> code(data->info()->shared_info()->code(), data->isolate());
       TypeHintAnalysis* type_hint_analysis = analyzer.Analyze(code);
@@ -804,7 +809,9 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &call_reducer);
-    AddReducer(data, &graph_reducer, &inlining);
+    if (!data->info()->is_optimizing_from_bytecode()) {
+      AddReducer(data, &graph_reducer, &inlining);
+    }
     graph_reducer.ReduceGraph();
   }
 };
@@ -880,6 +887,9 @@ struct TypedLoweringPhase {
     if (data->info()->shared_info()->HasBytecodeArray()) {
       typed_lowering_flags |= JSTypedLowering::kDisableBinaryOpReduction;
     }
+    if (data->info()->is_type_feedback_enabled()) {
+      typed_lowering_flags |= JSTypedLowering::kTypeFeedbackEnabled;
+    }
     JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
                                    typed_lowering_flags, data->jsgraph(),
                                    temp_zone);
@@ -889,6 +899,7 @@ struct TypedLoweringPhase {
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -900,6 +911,7 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
@@ -942,8 +954,12 @@ struct RepresentationSelectionPhase {
   static const char* phase_name() { return "representation selection"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    SimplifiedLowering::Flags flags =
+        data->info()->is_type_feedback_enabled()
+            ? SimplifiedLowering::kTypeFeedbackEnabled
+            : SimplifiedLowering::kNoFlag;
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
-                                data->source_positions());
+                                data->source_positions(), flags);
     lowering.LowerAllNodes();
   }
 };
@@ -1404,18 +1420,14 @@ bool PipelineImpl::CreateGraph() {
       RunPrintAndVerify("Loop peeled");
     }
 
-    if (FLAG_experimental_turbo_escape) {
+    if (FLAG_turbo_escape) {
       Run<EscapeAnalysisPhase>();
       RunPrintAndVerify("Escape Analysed");
     }
 
     // Select representations.
     Run<RepresentationSelectionPhase>();
-    RunPrintAndVerify("Representations selected");
-
-    // Run early optimization pass.
-    Run<EarlyOptimizationPhase>();
-    RunPrintAndVerify("Early optimized");
+    RunPrintAndVerify("Representations selected", true);
   }
 
 #ifdef DEBUG
@@ -1434,6 +1446,10 @@ bool PipelineImpl::CreateGraph() {
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif
+
+  // Run early optimization pass.
+  Run<EarlyOptimizationPhase>();
+  RunPrintAndVerify("Early optimized", true);
 
   data->EndPhaseKind();
 
@@ -1487,7 +1503,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZonePool zone_pool(isolate->allocator());
   PipelineData data(&zone_pool, &info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("stub codegen");
   }
@@ -1496,9 +1512,11 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   DCHECK_NOT_NULL(data.schedule());
 
   if (FLAG_trace_turbo) {
-    TurboJsonFile json_of(&info, std::ios_base::trunc);
-    json_of << "{\"function\":\"" << info.GetDebugName().get()
-            << "\", \"source\":\"\",\n\"phases\":[";
+    {
+      TurboJsonFile json_of(&info, std::ios_base::trunc);
+      json_of << "{\"function\":\"" << info.GetDebugName().get()
+              << "\", \"source\":\"\",\n\"phases\":[";
+    }
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
@@ -1539,7 +1557,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   ZonePool zone_pool(info->isolate()->allocator());
   PipelineData data(&zone_pool, info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("test codegen");
   }
@@ -1747,13 +1765,8 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     Run<SplinterLiveRangesPhase>();
   }
 
-  if (FLAG_turbo_greedy_regalloc) {
-    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
-    Run<AllocateFPRegistersPhase<GreedyAllocator>>();
-  } else {
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-    Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
-  }
+  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+  Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
 
   if (FLAG_turbo_preprocess_ranges) {
     Run<MergeSplintersPhase>();

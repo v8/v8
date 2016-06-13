@@ -4,6 +4,9 @@
 
 #include "src/api-arguments.h"
 
+#include "src/tracing/trace-event.h"
+#include "src/vm-state-inl.h"
+
 namespace v8 {
 namespace internal {
 

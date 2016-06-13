@@ -43,9 +43,8 @@ FunctionType* CallInterfaceDescriptor::BuildDefaultFunctionType(
   return function;
 }
 
-
 void CallInterfaceDescriptorData::InitializePlatformSpecific(
-    int register_parameter_count, Register* registers,
+    int register_parameter_count, const Register* registers,
     PlatformInterfaceDescriptor* platform_descriptor) {
   platform_specific_descriptor_ = platform_descriptor;
   register_param_count_ = register_parameter_count;
@@ -190,12 +189,6 @@ void TypeConversionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void HasPropertyDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {KeyRegister(), ObjectRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void MathPowTaggedDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {exponent()};
@@ -316,7 +309,8 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType* FastArrayPushDescriptor::BuildCallInterfaceDescriptorFunctionType(
+FunctionType*
+VarArgFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
@@ -444,26 +438,29 @@ ArrayNoArgumentConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
+FunctionType* ArraySingleArgumentConstructorDescriptor::
+    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
+                                             int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
+  function->InitParameter(0, Type::Receiver());  // JSFunction
+  function->InitParameter(1, AnyTagged(zone));
+  function->InitParameter(2, UntaggedIntegral32(zone));
+  function->InitParameter(3, AnyTagged(zone));
+  function->InitParameter(4, AnyTagged(zone));
+  return function;
+}
+
 FunctionType*
-ArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+ArrayNArgumentsConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
   function->InitParameter(0, Type::Receiver());  // JSFunction
-  function->InitParameter(1, AnyTagged(zone));
-  function->InitParameter(2, UntaggedIntegral32(zone));
-  return function;
-}
-
-FunctionType*
-InternalArrayConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
-  function->InitParameter(0, Type::Receiver());  // JSFunction
-  function->InitParameter(1, UntaggedIntegral32(zone));
+  function->InitParameter(1, AnyTagged(zone));   // Allocation site or undefined
+  function->InitParameter(2, UntaggedIntegral32(zone));  //  Arg count
   return function;
 }
 

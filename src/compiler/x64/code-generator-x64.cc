@@ -18,10 +18,6 @@ namespace compiler {
 
 #define __ masm()->
 
-
-#define kScratchDoubleReg xmm0
-
-
 // Adds X64 specific methods for decoding operands.
 class X64OperandConverter : public InstructionOperandConverter {
  public:
@@ -598,6 +594,20 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                            \
   } while (false)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    __ PrepareCallCFunction(2);                                               \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     2);                                                      \
+  } while (false)
+
+#define ASSEMBLE_IEEE754_UNOP(name)                                           \
+  do {                                                                        \
+    __ PrepareCallCFunction(1);                                               \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     1);                                                      \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ movq(rsp, rbp);
   __ popq(rbp);
@@ -763,6 +773,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
+    case kArchComment: {
+      Address comment_string = i.InputExternalReference(0).address();
+      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+      break;
+    }
+    case kArchDebugBreak:
+      __ int3();
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -836,6 +854,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ leaq(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
+      break;
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
     case kX64Add32:
       ASSEMBLE_BINOP(addl);
       break;
@@ -2224,10 +2254,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ Movsd(dst, src);
     } else {
-      // We rely on having xmm0 available as a fixed scratch register.
       Operand dst = g.ToOperand(destination);
-      __ Movsd(xmm0, src);
-      __ Movsd(dst, xmm0);
+      __ Movsd(kScratchDoubleReg, src);
+      __ Movsd(dst, kScratchDoubleReg);
     }
   } else {
     UNREACHABLE();
@@ -2271,21 +2300,19 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     dst = g.ToOperand(destination);
     __ popq(dst);
   } else if (source->IsFPRegister() && destination->IsFPRegister()) {
-    // XMM register-register swap. We rely on having xmm0
-    // available as a fixed scratch register.
+    // XMM register-register swap.
     XMMRegister src = g.ToDoubleRegister(source);
     XMMRegister dst = g.ToDoubleRegister(destination);
-    __ Movapd(xmm0, src);
+    __ Movapd(kScratchDoubleReg, src);
     __ Movapd(src, dst);
-    __ Movapd(dst, xmm0);
+    __ Movapd(dst, kScratchDoubleReg);
   } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
-    // XMM register-memory swap.  We rely on having xmm0
-    // available as a fixed scratch register.
+    // XMM register-memory swap.
     XMMRegister src = g.ToDoubleRegister(source);
     Operand dst = g.ToOperand(destination);
-    __ Movsd(xmm0, src);
+    __ Movsd(kScratchDoubleReg, src);
     __ Movsd(src, dst);
-    __ Movsd(dst, xmm0);
+    __ Movsd(dst, kScratchDoubleReg);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

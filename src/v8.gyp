@@ -27,7 +27,6 @@
 
 {
   'variables': {
-    'icu_use_data_file_flag%': 0,
     'v8_code': 1,
     'v8_random_seed%': 314159265,
     'v8_vector_stores%': 0,
@@ -381,6 +380,7 @@
       'type': 'static_library',
       'dependencies': [
         'v8_libbase',
+        'v8_libsampler',
       ],
       'variables': {
         'optimize': 'max',
@@ -412,6 +412,7 @@
         'api-experimental.h',
         'api.cc',
         'api.h',
+        'api-arguments-inl.h',
         'api-arguments.cc',
         'api-arguments.h',
         'api-natives.cc',
@@ -504,8 +505,8 @@
         'compiler/bytecode-graph-builder.cc',
         'compiler/bytecode-graph-builder.h',
         'compiler/c-linkage.cc',
-        'compiler/coalesced-live-ranges.cc',
-        'compiler/coalesced-live-ranges.h',
+        'compiler/checkpoint-elimination.cc',
+        'compiler/checkpoint-elimination.h',
         'compiler/code-generator-impl.h',
         'compiler/code-generator.cc',
         'compiler/code-generator.h',
@@ -550,8 +551,6 @@
         'compiler/graph-visualizer.h',
         'compiler/graph.cc',
         'compiler/graph.h',
-        'compiler/greedy-allocator.cc',
-        'compiler/greedy-allocator.h',
         'compiler/instruction-codes.h',
         'compiler/instruction-selector-impl.h',
         'compiler/instruction-selector.cc',
@@ -625,6 +624,8 @@
         'compiler/node.h',
         'compiler/opcodes.cc',
         'compiler/opcodes.h',
+        'compiler/operation-typer.cc',
+        'compiler/operation-typer.h',
         'compiler/operator-properties.cc',
         'compiler/operator-properties.h',
         'compiler/operator.cc',
@@ -828,7 +829,6 @@
         'handles-inl.h',
         'handles.cc',
         'handles.h',
-        'hashmap.h',
         'heap-symbols.h',
         'heap/array-buffer-tracker.cc',
         'heap/array-buffer-tracker.h',
@@ -897,12 +897,15 @@
         'interpreter/bytecode-array-iterator.h',
         'interpreter/bytecode-array-writer.cc',
         'interpreter/bytecode-array-writer.h',
+        'interpreter/bytecode-label.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
         'interpreter/bytecode-pipeline.cc',
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register-allocator.cc',
         'interpreter/bytecode-register-allocator.h',
+        'interpreter/bytecode-register-optimizer.cc',
+        'interpreter/bytecode-register-optimizer.h',
         'interpreter/bytecode-generator.cc',
         'interpreter/bytecode-generator.h',
         'interpreter/bytecode-traits.h',
@@ -923,7 +926,9 @@
         'isolate-inl.h',
         'isolate.cc',
         'isolate.h',
+        'json-parser.cc',
         'json-parser.h',
+        'json-stringifier.cc',
         'json-stringifier.h',
         'keys.h',
         'keys.cc',
@@ -999,8 +1004,6 @@
         'profiler/profile-generator-inl.h',
         'profiler/profile-generator.cc',
         'profiler/profile-generator.h',
-        'profiler/sampler.cc',
-        'profiler/sampler.h',
         'profiler/sampling-heap-profiler.cc',
         'profiler/sampling-heap-profiler.h',
         'profiler/strings-storage.cc',
@@ -1052,7 +1055,6 @@
         'runtime/runtime-i18n.cc',
         'runtime/runtime-internal.cc',
         'runtime/runtime-interpreter.cc',
-        'runtime/runtime-json.cc',
         'runtime/runtime-literals.cc',
         'runtime/runtime-liveedit.cc',
         'runtime/runtime-maths.cc',
@@ -1067,7 +1069,6 @@
         'runtime/runtime-symbol.cc',
         'runtime/runtime-test.cc',
         'runtime/runtime-typedarray.cc',
-        'runtime/runtime-uri.cc',
         'runtime/runtime-utils.h',
         'runtime/runtime.cc',
         'runtime/runtime.h',
@@ -1167,6 +1168,8 @@
         'wasm/wasm-macro-gen.h',
         'wasm/wasm-module.cc',
         'wasm/wasm-module.h',
+        'wasm/wasm-interpreter.cc',
+        'wasm/wasm-interpreter.h',
         'wasm/wasm-opcodes.cc',
         'wasm/wasm-opcodes.h',
         'wasm/wasm-result.cc',
@@ -1603,7 +1606,20 @@
           'dependencies': [
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
-          ]
+          ],
+          'conditions': [
+            ['icu_use_data_file_flag==1', {
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
+            }, { # else icu_use_data_file_flag !=1
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
+                }, {
+                  'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
+                }],
+              ],
+            }],
+          ],
         }, {  # v8_enable_i18n_support==0
           'sources!': [
             'i18n.cc',
@@ -1613,17 +1629,6 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
-          ],
-        }],
-        ['icu_use_data_file_flag==1', {
-          'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
-        }, { # else icu_use_data_file_flag !=1
-          'conditions': [
-            ['OS=="win"', {
-              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
-            }, {
-              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
-            }],
           ],
         }],
       ],
@@ -1664,10 +1669,15 @@
         'base/cpu.h',
         'base/division-by-constant.cc',
         'base/division-by-constant.h',
+        'base/file-utils.cc',
+        'base/file-utils.h',
         'base/flags.h',
         'base/format-macros.h',
         'base/functional.cc',
         'base/functional.h',
+        'base/hashmap.h',
+        'base/ieee754.cc',
+        'base/ieee754.h',
         'base/iterator.h',
         'base/lazy-instance.h',
         'base/logging.cc',
@@ -1909,6 +1919,7 @@
       ],
       'include_dirs+': [
         '..',
+        '../include',
       ],
       'sources': [
         '../include/libplatform/libplatform.h',
@@ -1918,6 +1929,36 @@
         'libplatform/task-queue.h',
         'libplatform/worker-thread.cc',
         'libplatform/worker-thread.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '../include',
+        ],
+      },
+    },
+    {
+      'target_name': 'v8_libsampler',
+      'type': 'static_library',
+      'variables': {
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'v8_libbase',
+      ],
+      'include_dirs+': [
+        '..',
+        '../include',
+      ],
+      'sources': [
+        'libsampler/v8-sampler.cc',
+        'libsampler/v8-sampler.h'
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -2010,7 +2051,6 @@
           'js/symbol.js',
           'js/array.js',
           'js/string.js',
-          'js/uri.js',
           'js/math.js',
           'third_party/fdlibm/fdlibm.js',
           'js/regexp.js',
@@ -2022,7 +2062,6 @@
           'js/collection-iterator.js',
           'js/promise.js',
           'js/messages.js',
-          'js/json.js',
           'js/array-iterator.js',
           'js/string-iterator.js',
           'js/templates.js',

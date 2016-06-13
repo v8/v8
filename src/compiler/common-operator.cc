@@ -167,10 +167,24 @@ std::ostream& operator<<(std::ostream& os,
   return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const ZoneVector<MachineType>* types) {
+  // Print all the MachineTypes, separated by commas.
+  bool first = true;
+  for (MachineType elem : *types) {
+    if (!first) {
+      os << ", ";
+    }
+    first = false;
+    os << elem;
+  }
+  return os;
+}
+
 #define CACHED_OP_LIST(V)                                    \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)             \
-  V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 0, 1)     \
-  V(DeoptimizeUnless, Operator::kFoldable, 2, 1, 1, 0, 0, 1) \
+  V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 1, 1)     \
+  V(DeoptimizeUnless, Operator::kFoldable, 2, 1, 1, 0, 1, 1) \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)            \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)           \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
@@ -179,7 +193,7 @@ std::ostream& operator<<(std::ostream& os,
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
-  V(CheckPoint, Operator::kKontrol, 1, 1, 1, 0, 1, 0)        \
+  V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)        \
   V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
   V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
 

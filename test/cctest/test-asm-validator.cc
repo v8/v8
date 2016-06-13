@@ -1361,6 +1361,12 @@ TEST(CompareMismatchInt32Float32) {
       "asm: line 1: left and right side of comparison must match\n");
 }
 
+TEST(FunctionRepeated) {
+  CHECK_FUNC_ERROR(
+      "function foo() { return 0; }\n"
+      "function foo() { return 0; }",
+      "asm: line 2: function repeated in module\n");
+}
 
 TEST(Float64ToInt32) {
   CHECK_FUNC_TYPES_BEGIN(

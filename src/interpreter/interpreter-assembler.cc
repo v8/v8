@@ -394,10 +394,9 @@ Node* InterpreterAssembler::StoreContextSlot(Node* context, Node* slot_index,
 
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
-  Node* shared_info =
-      LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
+  Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
   Node* vector =
-      LoadObjectField(shared_info, SharedFunctionInfo::kFeedbackVectorOffset);
+      LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
   return vector;
 }
 
@@ -720,7 +719,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
         Int32Sub(Int32Constant(Register(0).ToOperand()), index);
     Node* value = LoadRegister(ChangeInt32ToIntPtr(reg_index));
 
-    StoreFixedArrayElementInt32Index(array, index, value);
+    StoreFixedArrayElement(array, index, value);
 
     var_index.Bind(Int32Add(index, Int32Constant(1)));
     Goto(&loop);
@@ -750,13 +749,13 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
     Node* condition = Int32LessThan(index, RegisterCount());
     GotoUnless(condition, &done_loop);
 
-    Node* value = LoadFixedArrayElementInt32Index(array, index);
+    Node* value = LoadFixedArrayElement(array, index);
 
     Node* reg_index =
         Int32Sub(Int32Constant(Register(0).ToOperand()), index);
     StoreRegister(value, ChangeInt32ToIntPtr(reg_index));
 
-    StoreFixedArrayElementInt32Index(array, index, StaleRegisterConstant());
+    StoreFixedArrayElement(array, index, StaleRegisterConstant());
 
     var_index.Bind(Int32Add(index, Int32Constant(1)));
     Goto(&loop);

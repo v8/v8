@@ -60,7 +60,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kChangeTaggedToFloat64: {
+    case IrOpcode::kChangeTaggedToFloat64:
+    case IrOpcode::kTruncateTaggedToFloat64: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(m.Value());
       if (m.IsChangeFloat64ToTagged()) return Replace(m.node()->InputAt(0));
@@ -107,6 +108,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat64ToTagged()) {
         return Change(node, machine()->TruncateFloat64ToWord32(), m.InputAt(0));
       }
+      break;
+    }
+    case IrOpcode::kObjectIsSmi: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceBoolean(IsSmiDouble(m.Value()));
+      if (m.IsChangeBitToTagged()) return ReplaceBoolean(false);
+      if (m.IsChangeInt31ToTaggedSigned()) return ReplaceBoolean(true);
+      if (m.IsHeapConstant()) return ReplaceBoolean(false);
       break;
     }
     case IrOpcode::kNumberCeil:
@@ -164,6 +173,9 @@ Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
   return Changed(node);
 }
 
+Reduction SimplifiedOperatorReducer::ReplaceBoolean(bool value) {
+  return Replace(jsgraph()->BooleanConstant(value));
+}
 
 Reduction SimplifiedOperatorReducer::ReplaceFloat64(double value) {
   return Replace(jsgraph()->Float64Constant(value));

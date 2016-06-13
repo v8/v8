@@ -7,8 +7,8 @@
 
 #ifndef V8_SHARED
 #include "src/allocation.h"
+#include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #else
 #include "include/v8.h"
@@ -61,13 +61,13 @@ class CounterMap {
  public:
   CounterMap(): hash_map_(Match) { }
   Counter* Lookup(const char* name) {
-    i::HashMap::Entry* answer =
+    base::HashMap::Entry* answer =
         hash_map_.Lookup(const_cast<char*>(name), Hash(name));
     if (!answer) return NULL;
     return reinterpret_cast<Counter*>(answer->value);
   }
   void Set(const char* name, Counter* value) {
-    i::HashMap::Entry* answer =
+    base::HashMap::Entry* answer =
         hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
     DCHECK(answer != NULL);
     answer->value = value;
@@ -81,14 +81,14 @@ class CounterMap {
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
     Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
    private:
-    i::HashMap* map_;
-    i::HashMap::Entry* entry_;
+    base::HashMap* map_;
+    base::HashMap::Entry* entry_;
   };
 
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
-  i::HashMap hash_map_;
+  base::HashMap hash_map_;
 };
 #endif  // !V8_SHARED
 
@@ -350,7 +350,7 @@ class Shell : public i::AllStatic {
 
 #ifndef V8_SHARED
   // TODO(binji): stupid implementation for now. Is there an easy way to hash an
-  // object for use in i::HashMap? By pointer?
+  // object for use in base::HashMap? By pointer?
   typedef i::List<Local<Object>> ObjectList;
   static bool SerializeValue(Isolate* isolate, Local<Value> value,
                              const ObjectList& to_transfer,
@@ -375,6 +375,8 @@ class Shell : public i::AllStatic {
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmCreateAllowCrossRealmAccess(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -469,6 +471,8 @@ class Shell : public i::AllStatic {
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static MaybeLocal<Context> CreateRealm(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 

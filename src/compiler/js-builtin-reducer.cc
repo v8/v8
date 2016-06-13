@@ -183,6 +183,51 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.6 Math.atan ( x )
+Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.atan(a:number) -> NumberAtan(a)
+    Node* value = graph()->NewNode(simplified()->NumberAtan(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.8 Math.atan2 ( y, x )
+Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchTwo(Type::Number(), Type::Number())) {
+    // Math.atan2(a:number, b:number) -> NumberAtan2(a, b)
+    Node* value =
+        graph()->NewNode(simplified()->NumberAtan2(), r.left(), r.right());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.20 Math.log ( x )
+Reduction JSBuiltinReducer::ReduceMathLog(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.log(a:number) -> NumberLog(a)
+    Node* value = graph()->NewNode(simplified()->NumberLog(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.21 Math.log1p ( x )
+Reduction JSBuiltinReducer::ReduceMathLog1p(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.log1p(a:number) -> NumberLog1p(a)
+    Node* value = graph()->NewNode(simplified()->NumberLog1p(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
@@ -216,6 +261,18 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   return NoChange();
 }
 
+// ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // String.fromCharCode(a:number) -> StringFromCharCode(a)
+    Node* value =
+        graph()->NewNode(simplified()->StringFromCharCode(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -241,6 +298,18 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathFround:
       reduction = ReduceMathFround(node);
       break;
+    case kMathAtan:
+      reduction = ReduceMathAtan(node);
+      break;
+    case kMathAtan2:
+      reduction = ReduceMathAtan2(node);
+      break;
+    case kMathLog:
+      reduction = ReduceMathLog(node);
+      break;
+    case kMathLog1p:
+      reduction = ReduceMathLog1p(node);
+      break;
     case kMathRound:
       reduction = ReduceMathRound(node);
       break;
@@ -249,6 +318,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);
+      break;
+    case kStringFromCharCode:
+      reduction = ReduceStringFromCharCode(node);
       break;
     default:
       break;

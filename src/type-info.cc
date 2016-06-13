@@ -108,7 +108,7 @@ bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorSlot slot) {
 
 bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorSlot slot) {
   Handle<Object> value = GetInfo(slot);
-  return value->IsUndefined() ||
+  return value->IsUndefined(isolate()) ||
          value.is_identical_to(
              TypeFeedbackVector::UninitializedSentinel(isolate()));
 }

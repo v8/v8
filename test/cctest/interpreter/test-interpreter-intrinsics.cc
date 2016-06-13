@@ -29,7 +29,7 @@ class InvokeIntrinsicHelper {
     builder.CallRuntime(function_id_, builder.Parameter(0), sizeof...(args))
         .Return();
     InterpreterTester tester(isolate_, builder.ToBytecodeArray());
-    auto callable = tester.GetCallable<Handle<Object>>();
+    auto callable = tester.GetCallable<A...>();
     return callable(args...).ToHandleChecked();
   }
 
@@ -89,6 +89,127 @@ TEST(IsArray) {
   CHECK_EQ(*factory->false_value(),
            *helper.Invoke(helper.NewObject("'string'")));
   CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
+}
+
+TEST(IsJSProxy) {
+  HandleAndZoneScope handles;
+
+  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
+                               Runtime::kInlineIsJSProxy);
+  Factory* factory = handles.main_isolate()->factory();
+
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("new Date()")));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("(function() {})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("(/x/)")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("'string'")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
+  CHECK_EQ(*factory->true_value(),
+           *helper.Invoke(helper.NewObject("new Proxy({},{})")));
+}
+
+TEST(IsRegExp) {
+  HandleAndZoneScope handles;
+
+  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
+                               Runtime::kInlineIsRegExp);
+  Factory* factory = handles.main_isolate()->factory();
+
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("new Date()")));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("(function() {})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
+  CHECK_EQ(*factory->true_value(), *helper.Invoke(helper.NewObject("(/x/)")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("'string'")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
+}
+
+TEST(IsTypedArray) {
+  HandleAndZoneScope handles;
+
+  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
+                               Runtime::kInlineIsTypedArray);
+  Factory* factory = handles.main_isolate()->factory();
+
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("new Date()")));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("(function() {})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("(/x/)")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("'string'")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42")));
+
+  CHECK_EQ(
+      *factory->true_value(),
+      *helper.Invoke(helper.NewObject("new Uint8Array(new ArrayBuffer(1));")));
+  CHECK_EQ(
+      *factory->true_value(),
+      *helper.Invoke(helper.NewObject("new Uint16Array(new ArrayBuffer(2));")));
+  CHECK_EQ(
+      *factory->true_value(),
+      *helper.Invoke(helper.NewObject("new Int32Array(new ArrayBuffer(4));")));
+}
+
+TEST(IsSmi) {
+  HandleAndZoneScope handles;
+
+  InvokeIntrinsicHelper helper(handles.main_isolate(), handles.main_zone(),
+                               Runtime::kInlineIsSmi);
+  Factory* factory = handles.main_isolate()->factory();
+
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("new Date()")));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("(function() {})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("([1])")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("({})")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("(/x/)")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Undefined()));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.Null()));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("'string'")));
+  CHECK_EQ(*factory->false_value(), *helper.Invoke(helper.NewObject("42.2")));
+  CHECK_EQ(*factory->false_value(),
+           *helper.Invoke(helper.NewObject("4294967297")));
+  CHECK_EQ(*factory->true_value(), *helper.Invoke(helper.NewObject("42")));
+}
+
+TEST(Call) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  InvokeIntrinsicHelper helper(isolate, handles.main_zone(),
+                               Runtime::kInlineCall);
+
+  CHECK_EQ(Smi::FromInt(20),
+           *helper.Invoke(helper.NewObject("(function() { return this.x; })"),
+                          helper.NewObject("({ x: 20 })")));
+  CHECK_EQ(Smi::FromInt(50),
+           *helper.Invoke(helper.NewObject("(function(arg1) { return arg1; })"),
+                          factory->undefined_value(),
+                          handle(Smi::FromInt(50), isolate)));
+  CHECK_EQ(
+      Smi::FromInt(20),
+      *helper.Invoke(
+          helper.NewObject("(function(a, b, c) { return a + b + c; })"),
+          factory->undefined_value(), handle(Smi::FromInt(10), isolate),
+          handle(Smi::FromInt(7), isolate), handle(Smi::FromInt(3), isolate)));
 }
 
 }  // namespace interpreter

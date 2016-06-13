@@ -606,6 +606,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
+    case kArchDebugBreak:
+      __ int3();
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -894,6 +897,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX87Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
+    case kX87Float64Log:
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ X87SetFPUCW(0x027F);
+      __ fstp(0);
+      __ fldln2();
+      __ fld_d(MemOperand(esp, 0));
+      __ fyl2x();
+      __ lea(esp, Operand(esp, kDoubleSize));
+      __ X87SetFPUCW(0x037F);
       break;
     case kX87LoadFloat64Constant: {
       InstructionOperand* source = instr->InputAt(0);
@@ -1661,27 +1676,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsFPRegister()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
         if (allocated.representation() == MachineRepresentation::kFloat32) {
-          __ sub(esp, Immediate(kDoubleSize));
+          __ sub(esp, Immediate(kFloatSize));
           __ fst_s(Operand(esp, 0));
+          frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
         } else {
           DCHECK(allocated.representation() == MachineRepresentation::kFloat64);
           __ sub(esp, Immediate(kDoubleSize));
           __ fst_d(Operand(esp, 0));
-        }
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        }
       } else if (instr->InputAt(0)->IsFPStackSlot()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
         if (allocated.representation() == MachineRepresentation::kFloat32) {
-          __ sub(esp, Immediate(kDoubleSize));
+          __ sub(esp, Immediate(kFloatSize));
           __ fld_s(i.InputOperand(0));
           __ fstp_s(MemOperand(esp, 0));
+          frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
         } else {
           DCHECK(allocated.representation() == MachineRepresentation::kFloat64);
           __ sub(esp, Immediate(kDoubleSize));
           __ fld_d(i.InputOperand(0));
           __ fstp_d(MemOperand(esp, 0));
-        }
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        }
       } else if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);

@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "test/cctest/cctest.h"
@@ -3568,6 +3569,12 @@ TEST(RunFloat32Sub) {
   }
 }
 
+TEST(RunFloat32Neg) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32());
+  if (!m.machine()->Float32Neg().IsSupported()) return;
+  m.Return(m.AddNode(m.machine()->Float32Neg().op(), m.Parameter(0)));
+  FOR_FLOAT32_INPUTS(i) { CHECK_FLOAT_EQ(-0.0f - *i, m.Call(*i)); }
+}
 
 TEST(RunFloat32Mul) {
   BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
@@ -3612,6 +3619,12 @@ TEST(RunFloat64Sub) {
   }
 }
 
+TEST(RunFloat64Neg) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  if (!m.machine()->Float64Neg().IsSupported()) return;
+  m.Return(m.AddNode(m.machine()->Float64Neg().op(), m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(-0.0 - *i, m.Call(*i)); }
+}
 
 TEST(RunFloat64Mul) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
@@ -5483,6 +5496,55 @@ TEST(RunFloat64Abs) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(std::abs(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Atan) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Atan(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  CHECK_DOUBLE_EQ(-0.0, m.Call(-0.0));
+  CHECK_DOUBLE_EQ(0.0, m.Call(0.0));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::atan(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Atan2) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Atan2(m.Parameter(0), m.Parameter(1)));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) {
+      CHECK_DOUBLE_EQ(ieee754::atan2(*i, *j), m.Call(*i, *j));
+    }
+  }
+}
+
+TEST(RunFloat64Log) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Log(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  CHECK(std::isnan(m.Call(-std::numeric_limits<double>::infinity())));
+  CHECK(std::isnan(m.Call(-1.0)));
+  CHECK_DOUBLE_EQ(-std::numeric_limits<double>::infinity(), m.Call(-0.0));
+  CHECK_DOUBLE_EQ(-std::numeric_limits<double>::infinity(), m.Call(0.0));
+  CHECK_DOUBLE_EQ(0.0, m.Call(1.0));
+  CHECK_DOUBLE_EQ(std::numeric_limits<double>::infinity(),
+                  m.Call(std::numeric_limits<double>::infinity()));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::log(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Log1p) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Log1p(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  CHECK(std::isnan(m.Call(-std::numeric_limits<double>::infinity())));
+  CHECK_DOUBLE_EQ(-std::numeric_limits<double>::infinity(), m.Call(-1.0));
+  CHECK_DOUBLE_EQ(0.0, m.Call(0.0));
+  CHECK_DOUBLE_EQ(-0.0, m.Call(-0.0));
+  CHECK_DOUBLE_EQ(std::numeric_limits<double>::infinity(),
+                  m.Call(std::numeric_limits<double>::infinity()));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::log1p(*i), m.Call(*i)); }
+}
 
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.
 static double two_52 = two_30 * (1 << 22);  // 2^52 is a precision boundary.

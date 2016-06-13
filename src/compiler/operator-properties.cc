@@ -22,23 +22,18 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 // static
 int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
   switch (op->opcode()) {
+    case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
       return 1;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
-      return Linkage::FrameStateInputCount(p.id());
+      return Linkage::NeedsFrameStateInput(p.id()) ? 1 : 0;
     }
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSStrictNotEqual:
       return 0;
-
-    // We record the frame state immediately before and immediately after every
-    // construct/function call.
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallFunction:
-      return 2;
 
     // Compare operations
     case IrOpcode::kJSEqual:
@@ -54,6 +49,15 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
 
+    // Property access operations
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSLoadGlobal:
+    case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSDeleteProperty:
+
     // Context operations
     case IrOpcode::kJSCreateScriptContext:
 
@@ -65,23 +69,16 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
 
+    // Call operations
+    case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSCallFunction:
+
     // Misc operations
     case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
-    case IrOpcode::kJSDeleteProperty:
       return 1;
-
-    // We record the frame state immediately before and immediately after
-    // every property or global variable access.
-    case IrOpcode::kJSLoadNamed:
-    case IrOpcode::kJSStoreNamed:
-    case IrOpcode::kJSLoadProperty:
-    case IrOpcode::kJSStoreProperty:
-    case IrOpcode::kJSLoadGlobal:
-    case IrOpcode::kJSStoreGlobal:
-      return 2;
 
     // Binary operators that can deopt in the middle the operation (e.g.,
     // as a result of lazy deopt in ToNumber conversion) need a second frame

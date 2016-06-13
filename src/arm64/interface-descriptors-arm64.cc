@@ -13,6 +13,14 @@ namespace internal {
 
 const Register CallInterfaceDescriptor::ContextRegister() { return cp; }
 
+void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
+    CallInterfaceDescriptorData* data, int register_parameter_count) {
+  const Register default_stub_registers[] = {x0, x1, x2, x3, x4};
+  CHECK_LE(static_cast<size_t>(register_parameter_count),
+           arraysize(default_stub_registers));
+  data->InitializePlatformSpecific(register_parameter_count,
+                                   default_stub_registers);
+}
 
 const Register LoadDescriptor::ReceiverRegister() { return x1; }
 const Register LoadDescriptor::NameRegister() { return x2; }
@@ -63,8 +71,6 @@ const Register MathPowIntegerDescriptor::exponent() { return x12; }
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return x0; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 
-const Register HasPropertyDescriptor::ObjectRegister() { return x0; }
-const Register HasPropertyDescriptor::KeyRegister() { return x3; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -280,41 +286,24 @@ void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-void ArrayConstructorConstantArgCountDescriptor::InitializePlatformSpecific(
+void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
+  // register state
+  // x0: number of arguments
   // x1: function
   // x2: allocation site with elements kind
-  // x0: number of arguments to the constructor function
-  Register registers[] = {x1, x2};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  Register registers[] = {x1, x2, x0};
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-
-void ArrayConstructorDescriptor::InitializePlatformSpecific(
+void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // stack param count needs (constructor pointer, and single argument)
   Register registers[] = {x1, x2, x0};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void InternalArrayConstructorConstantArgCountDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
-  // x1: constructor function
-  // x0: number of arguments to the constructor function
-  Register registers[] = {x1};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // stack param count needs (constructor pointer, and single argument)
-  Register registers[] = {x1, x0};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void FastArrayPushDescriptor::InitializePlatformSpecific(
+void VarArgFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // stack param count needs (arg count)
   Register registers[] = {x0};

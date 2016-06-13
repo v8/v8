@@ -372,6 +372,8 @@ class GCTracer {
   static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
                              const BytesAndDuration& initial, double time_ms);
 
+  void ResetForTesting();
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.

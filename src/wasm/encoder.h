@@ -10,6 +10,7 @@
 
 #include "src/base/smart-pointers.h"
 
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -19,29 +20,113 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-class WasmModuleBuilder;
-
-class WasmFunctionEncoder : public ZoneObject {
+class ZoneBuffer : public ZoneObject {
  public:
-  uint32_t HeaderSize() const;
-  uint32_t BodySize() const;
-  uint32_t NameSize() const;
-  void Serialize(byte* buffer, byte** header, byte** body) const;
+  static const uint32_t kInitialSize = 4096;
+  explicit ZoneBuffer(Zone* zone, size_t initial = kInitialSize)
+      : zone_(zone), buffer_(reinterpret_cast<byte*>(zone->New(initial))) {
+    pos_ = buffer_;
+    end_ = buffer_ + initial;
+  }
+
+  void write_u8(uint8_t x) {
+    EnsureSpace(1);
+    *(pos_++) = x;
+  }
+
+  void write_u16(uint16_t x) {
+    EnsureSpace(2);
+#if V8_TARGET_LITTLE_ENDIAN
+    WriteUnalignedUInt16(pos_, x);
+#else
+    pos_[0] = x & 0xff;
+    pos_[1] = (x >> 8) & 0xff;
+#endif
+    pos_ += 2;
+  }
+
+  void write_u32(uint32_t x) {
+    EnsureSpace(4);
+#if V8_TARGET_LITTLE_ENDIAN
+    WriteUnalignedUInt32(pos_, x);
+#else
+    pos_[0] = x & 0xff;
+    pos_[1] = (x >> 8) & 0xff;
+    pos_[2] = (x >> 16) & 0xff;
+    pos_[3] = (x >> 24) & 0xff;
+#endif
+    pos_ += 4;
+  }
+
+  void write_u32v(uint32_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    LEBHelper::write_u32v(&pos_, val);
+  }
+
+  void write_size(size_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    DCHECK_EQ(val, static_cast<uint32_t>(val));
+    LEBHelper::write_u32v(&pos_, static_cast<uint32_t>(val));
+  }
+
+  void write(const byte* data, size_t size) {
+    EnsureSpace(size);
+    memcpy(pos_, data, size);
+    pos_ += size;
+  }
+
+  size_t reserve_u32v() {
+    size_t off = offset();
+    EnsureSpace(kMaxVarInt32Size);
+    pos_ += kMaxVarInt32Size;
+    return off;
+  }
+
+  // Patch a (padded) u32v at the given offset to be the given value.
+  void patch_u32v(size_t offset, uint32_t val) {
+    byte* ptr = buffer_ + offset;
+    for (size_t pos = 0; pos != kPaddedVarInt32Size; ++pos) {
+      uint32_t next = val >> 7;
+      byte out = static_cast<byte>(val & 0x7f);
+      if (pos != kPaddedVarInt32Size - 1) {
+        *(ptr++) = 0x80 | out;
+        val = next;
+      } else {
+        *(ptr++) = out;
+      }
+    }
+  }
+
+  size_t offset() { return static_cast<size_t>(pos_ - buffer_); }
+  size_t size() { return static_cast<size_t>(pos_ - buffer_); }
+  const byte* begin() { return buffer_; }
+  const byte* end() { return pos_; }
+
+  void EnsureSpace(size_t size) {
+    if ((pos_ + size) > end_) {
+      size_t new_size = 4096 + (end_ - buffer_) * 3;
+      byte* new_buffer = reinterpret_cast<byte*>(zone_->New(new_size));
+      memcpy(new_buffer, buffer_, (pos_ - buffer_));
+      pos_ = new_buffer + (pos_ - buffer_);
+      buffer_ = new_buffer;
+      end_ = new_buffer + new_size;
+    }
+  }
+
+  byte** pos_ptr() { return &pos_; }
 
  private:
-  WasmFunctionEncoder(Zone* zone, LocalDeclEncoder locals, bool exported);
-  friend class WasmFunctionBuilder;
-  uint32_t signature_index_;
-  LocalDeclEncoder locals_;
-  bool exported_;
-  ZoneVector<uint8_t> body_;
-  ZoneVector<char> name_;
-
-  bool HasName() const { return exported_ && name_.size() > 0; }
+  Zone* zone_;
+  byte* buffer_;
+  byte* pos_;
+  byte* end_;
 };
+
+class WasmModuleBuilder;
 
 class WasmFunctionBuilder : public ZoneObject {
  public:
+  // Building methods.
   void SetSignature(FunctionSig* sig);
   uint32_t AddLocal(LocalType type);
   void EmitVarInt(uint32_t val);
@@ -53,44 +138,36 @@ class WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
-  void Exported(uint8_t flag);
+  void SetExported();
   void SetName(const char* name, int name_length);
-  WasmFunctionEncoder* Build(Zone* zone, WasmModuleBuilder* mb) const;
+  bool exported() { return exported_; }
+
+  // Writing methods.
+  void WriteSignature(ZoneBuffer& buffer) const;
+  void WriteExport(ZoneBuffer& buffer, uint32_t func_index) const;
+  void WriteBody(ZoneBuffer& buffer) const;
 
  private:
-  explicit WasmFunctionBuilder(Zone* zone);
+  explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
   friend class WasmModuleBuilder;
+  WasmModuleBuilder* builder_;
   LocalDeclEncoder locals_;
-  uint8_t exported_;
+  uint32_t signature_index_;
+  bool exported_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
-  void IndexVars(WasmFunctionEncoder* e, uint32_t* var_index) const;
 };
 
+// TODO(titzer): kill!
 class WasmDataSegmentEncoder : public ZoneObject {
  public:
   WasmDataSegmentEncoder(Zone* zone, const byte* data, uint32_t size,
                          uint32_t dest);
-  uint32_t HeaderSize() const;
-  uint32_t BodySize() const;
-  void Serialize(byte* buffer, byte** header, byte** body) const;
+  void Write(ZoneBuffer& buffer) const;
 
  private:
   ZoneVector<byte> data_;
   uint32_t dest_;
-};
-
-class WasmModuleIndex : public ZoneObject {
- public:
-  const byte* Begin() const { return begin_; }
-  const byte* End() const { return end_; }
-
- private:
-  friend class WasmModuleWriter;
-  WasmModuleIndex(const byte* begin, const byte* end)
-      : begin_(begin), end_(end) {}
-  const byte* begin_;
-  const byte* end_;
 };
 
 struct WasmFunctionImport {
@@ -99,25 +176,11 @@ struct WasmFunctionImport {
   int name_length;
 };
 
-class WasmModuleWriter : public ZoneObject {
- public:
-  WasmModuleIndex* WriteTo(Zone* zone) const;
-
- private:
-  friend class WasmModuleBuilder;
-  explicit WasmModuleWriter(Zone* zone);
-  ZoneVector<WasmFunctionImport> imports_;
-  ZoneVector<WasmFunctionEncoder*> functions_;
-  ZoneVector<WasmDataSegmentEncoder*> data_segments_;
-  ZoneVector<FunctionSig*> signatures_;
-  ZoneVector<uint32_t> indirect_functions_;
-  ZoneVector<std::pair<MachineType, bool>> globals_;
-  int start_function_index_;
-};
-
 class WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
+
+  // Building methods.
   uint32_t AddFunction();
   uint32_t AddGlobal(MachineType type, bool exported);
   WasmFunctionBuilder* FunctionAt(size_t index);
@@ -126,12 +189,16 @@ class WasmModuleBuilder : public ZoneObject {
   void AddIndirectFunction(uint32_t index);
   void MarkStartFunction(uint32_t index);
   uint32_t AddImport(const char* name, int name_length, FunctionSig* sig);
-  WasmModuleWriter* Build(Zone* zone);
+
+  // Writing methods.
+  void WriteTo(ZoneBuffer& buffer) const;
 
   struct CompareFunctionSigs {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   typedef ZoneMap<FunctionSig*, uint32_t, CompareFunctionSigs> SignatureMap;
+
+  Zone* zone() { return zone_; }
 
  private:
   Zone* zone_;

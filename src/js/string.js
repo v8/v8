@@ -13,8 +13,6 @@ var ArrayIndexOf;
 var ArrayJoin;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
-var InternalArray = utils.InternalArray;
-var InternalPackedArray = utils.InternalPackedArray;
 var IsRegExp;
 var MakeRangeError;
 var MakeTypeError;
@@ -520,37 +518,6 @@ function StringToLocaleUpperCase() {
   return %StringToUpperCase(TO_STRING(this));
 }
 
-// ES5, 15.5.4.20
-function StringTrimJS() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
-
-  return %StringTrim(TO_STRING(this), true, true);
-}
-
-function StringTrimLeft() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimLeft");
-
-  return %StringTrim(TO_STRING(this), true, false);
-}
-
-function StringTrimRight() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.trimRight");
-
-  return %StringTrim(TO_STRING(this), false, true);
-}
-
-
-// ECMA-262, section 15.5.3.2
-function StringFromCharCode(_) {  // length == 1
-  "use strict";
-  var s = "";
-  var n = arguments.length;
-  for (var i = 0; i < n; ++i) {
-    s += %_StringCharFromCode(arguments[i] & 0xffff);
-  }
-  return s;
-}
-
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
@@ -835,7 +802,6 @@ function StringRaw(callSite) {
 
 // Set up the non-enumerable functions on the String object.
 utils.InstallFunctions(GlobalString, DONT_ENUM, [
-  "fromCharCode", StringFromCharCode,
   "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
@@ -865,9 +831,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "toLocaleLowerCase", StringToLocaleLowerCase,
   "toUpperCase", StringToUpperCaseJS,
   "toLocaleUpperCase", StringToLocaleUpperCase,
-  "trim", StringTrimJS,
-  "trimLeft", StringTrimLeft,
-  "trimRight", StringTrimRight,
 
   "link", StringLink,
   "anchor", StringAnchor,

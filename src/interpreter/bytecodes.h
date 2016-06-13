@@ -88,8 +88,13 @@ namespace interpreter {
   V(LdaFalse, AccumulatorUse::kWrite)                                         \
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                   \
                                                                               \
+  /* Loading registers */                                                     \
+  V(LdrUndefined, AccumulatorUse::kNone, OperandType::kRegOut)                \
+                                                                              \
   /* Globals */                                                               \
   V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)  \
+  V(LdrGlobal, AccumulatorUse::kNone, OperandType::kIdx, OperandType::kIdx,   \
+    OperandType::kRegOut)                                                     \
   V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,         \
     OperandType::kIdx)                                                        \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                \
@@ -102,6 +107,8 @@ namespace interpreter {
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                     \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                \
     OperandType::kIdx)                                                        \
+  V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                 \
+    OperandType::kIdx, OperandType::kRegOut)                                  \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                 \
     OperandType::kIdx)                                                        \
                                                                               \
@@ -118,20 +125,24 @@ namespace interpreter {
   /* Register-register transfers */                                           \
   V(Mov, AccumulatorUse::kNone, OperandType::kReg, OperandType::kRegOut)      \
                                                                               \
-  /* LoadIC operations */                                                     \
-  V(LoadIC, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx,     \
+  /* Property loads (LoadIC) operations */                                    \
+  V(LdaNamedProperty, AccumulatorUse::kWrite, OperandType::kReg,              \
+    OperandType::kIdx, OperandType::kIdx)                                     \
+  V(LdrNamedProperty, AccumulatorUse::kNone, OperandType::kReg,               \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)               \
+  V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,          \
     OperandType::kIdx)                                                        \
-  V(KeyedLoadIC, AccumulatorUse::kReadWrite, OperandType::kReg,               \
-    OperandType::kIdx)                                                        \
+  V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,               \
+    OperandType::kIdx, OperandType::kRegOut)                                  \
                                                                               \
-  /* StoreIC operations */                                                    \
-  V(StoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,                  \
+  /* Propery stores (StoreIC) operations */                                   \
+  V(StaNamedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                     \
-  V(StoreICStrict, AccumulatorUse::kRead, OperandType::kReg,                  \
+  V(StaNamedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                     \
-  V(KeyedStoreICSloppy, AccumulatorUse::kRead, OperandType::kReg,             \
+  V(StaKeyedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kReg, OperandType::kIdx)                                     \
-  V(KeyedStoreICStrict, AccumulatorUse::kRead, OperandType::kReg,             \
+  V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,         \
     OperandType::kReg, OperandType::kIdx)                                     \
                                                                               \
   /* Binary Operators */                                                      \
@@ -376,6 +387,11 @@ class Register final {
   static Register bytecode_offset();
   bool is_bytecode_offset() const;
 
+  // Returns a register that can be used to represent the accumulator
+  // within code in the interpreter, but should never be emitted in
+  // bytecode.
+  static Register virtual_accumulator();
+
   OperandSize SizeOfOperand() const;
 
   int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
@@ -442,7 +458,10 @@ class Bytecodes {
   static const char* OperandSizeToString(OperandSize operand_size);
 
   // Returns byte value of bytecode.
-  static uint8_t ToByte(Bytecode bytecode);
+  static uint8_t ToByte(Bytecode bytecode) {
+    DCHECK_LE(bytecode, Bytecode::kLast);
+    return static_cast<uint8_t>(bytecode);
+  }
 
   // Returns bytecode for |value|.
   static Bytecode FromByte(uint8_t value);
@@ -476,9 +495,21 @@ class Bytecodes {
   // Return true if |bytecode| writes the accumulator with a boolean value.
   static bool WritesBooleanToAccumulator(Bytecode bytecode);
 
-  // Return true if |bytecode| is an accumulator load bytecode,
+  // Return true if |bytecode| is an accumulator load without effects,
   // e.g. LdaConstant, LdaTrue, Ldar.
   static bool IsAccumulatorLoadWithoutEffects(Bytecode bytecode);
+
+  // Return true if |bytecode| is a jump without effects,
+  // e.g.  any jump excluding those that include type coercion like
+  // JumpIfTrueToBoolean.
+  static bool IsJumpWithoutEffects(Bytecode bytecode);
+
+  // Return true if |bytecode| is a register load without effects,
+  // e.g. Mov, Star, LdrUndefined.
+  static bool IsRegisterLoadWithoutEffects(Bytecode bytecode);
+
+  // Returns true if |bytecode| has no effects.
+  static bool IsWithoutExternalSideEffects(Bytecode bytecode);
 
   // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
@@ -487,9 +518,17 @@ class Bytecodes {
   // OperandType::kNone.
   static const OperandType* GetOperandTypes(Bytecode bytecode);
 
+  // Returns a pointer to an array of operand type info terminated in
+  // OperandTypeInfo::kNone.
+  static const OperandTypeInfo* GetOperandTypeInfos(Bytecode bytecode);
+
   // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
                                     OperandScale operand_scale);
+
+  // Returns a pointer to an array of the operand sizes for |bytecode|.
+  static const OperandSize* GetOperandSizes(Bytecode bytecode,
+                                            OperandScale operand_scale);
 
   // Returns the offset of the i-th operand of |bytecode| relative to the start
   // of the bytecode.
@@ -617,17 +656,7 @@ class Bytecodes {
   static OperandSize SizeForSignedOperand(int value);
 
   // Return the operand size required to hold an unsigned operand.
-  static OperandSize SizeForUnsignedOperand(int value);
-
-  // Return the operand size required to hold an unsigned operand.
-  static OperandSize SizeForUnsignedOperand(size_t value);
-
-  // Return the OperandScale required for bytecode emission of
-  // operand sizes.
-  static OperandScale OperandSizesToScale(
-      OperandSize size0, OperandSize size1 = OperandSize::kByte,
-      OperandSize size2 = OperandSize::kByte,
-      OperandSize size3 = OperandSize::kByte);
+  static OperandSize SizeForUnsignedOperand(uint32_t value);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);

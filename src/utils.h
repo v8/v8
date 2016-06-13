@@ -1524,6 +1524,10 @@ static inline void WriteUnalignedValue(void* p, V value) {
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
 
+static inline double ReadFloatValue(const void* p) {
+  return ReadUnalignedValue<float>(p);
+}
+
 static inline double ReadDoubleValue(const void* p) {
   return ReadUnalignedValue<double>(p);
 }

@@ -366,7 +366,7 @@ function run_tests(shard) {
   var iter = 0;
   var tests_executed = 0;
   if (shard !== undefined) {
-    print("Running shard #" + shard);
+//    print("Running shard #" + shard);
   }
   f_variants.forEach((f_cfg) => {
     check_new_target_variants.forEach((check_new_target) => {
@@ -378,7 +378,7 @@ function run_tests(shard) {
                 g_inlinable_variants.forEach((g_inlinable) => {
                   test_warmup_counts.forEach((test_warmup_count) => {
                     if (shard !== undefined && (iter++) % SHARDS_COUNT != shard) {
-                      print("skipping...");
+//                      print("skipping...");
                       return;
                     }
                     tests_executed++;
@@ -396,8 +396,8 @@ function run_tests(shard) {
                       deopt_mode,
                     };
                     var source = test_template(cfg);
-                    print("====================");
-                    print(source);
+//                    print("====================");
+//                    print(source);
                     eval(source);
                   });
                 });
@@ -408,7 +408,7 @@ function run_tests(shard) {
       });
     });
   });
-  print("Number of tests executed: " + tests_executed);
+//  print("Number of tests executed: " + tests_executed);
 }
 
 // Uncomment to run all the tests at once or use shard runners.

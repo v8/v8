@@ -15,7 +15,14 @@ namespace compiler {
 // Type hints for an binary operation.
 class BinaryOperationHints final {
  public:
-  enum Hint { kNone, kSignedSmall, kSigned32, kNumber, kString, kAny };
+  enum Hint {
+    kNone,
+    kSignedSmall,
+    kSigned32,
+    kNumberOrUndefined,
+    kString,
+    kAny
+  };
 
   BinaryOperationHints() : BinaryOperationHints(kNone, kNone, kNone) {}
   BinaryOperationHints(Hint left, Hint right, Hint result)
@@ -29,6 +36,11 @@ class BinaryOperationHints final {
   Hint left() const { return LeftField::decode(bit_field_); }
   Hint right() const { return RightField::decode(bit_field_); }
   Hint result() const { return ResultField::decode(bit_field_); }
+  Hint combined() const { return Combine(Combine(left(), right()), result()); }
+
+  // Hint 'subtyping' and generalization.
+  static bool Is(Hint h1, Hint h2);
+  static Hint Combine(Hint h1, Hint h2);
 
   bool operator==(BinaryOperationHints const& that) const {
     return this->bit_field_ == that.bit_field_;

@@ -2296,4 +2296,24 @@ TEST(AssemblerX64JumpTables2) {
   }
 }
 
+TEST(AssemblerX64PslldWithXmm15) {
+  CcTest::InitializeVM();
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(xmm15, arg1);
+  __ pslld(xmm15, 1);
+  __ movq(rax, xmm15);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  uint64_t result = FUNCTION_CAST<F5>(buffer)(V8_UINT64_C(0x1122334455667788));
+  CHECK_EQ(V8_UINT64_C(0x22446688aaccef10), result);
+}
+
 #undef __

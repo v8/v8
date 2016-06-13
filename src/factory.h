@@ -224,6 +224,10 @@ class Factory final {
       const ExternalOneByteString::Resource* resource);
   MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
+  // Create a new external string object for one-byte encoded native script.
+  // It does not cache the resource data pointer.
+  Handle<ExternalOneByteString> NewNativeSourceString(
+      const ExternalOneByteString::Resource* resource);
 
   // Create a symbol.
   Handle<Symbol> NewSymbol();

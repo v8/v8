@@ -136,6 +136,10 @@ class TypeFeedbackMetadata : public FixedArray {
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
+  bool DiffersFrom(const TypeFeedbackMetadata* other_metadata) const;
+
+  inline bool is_empty() const;
+
   // Returns number of slots in the vector.
   inline int slot_count() const;
 
@@ -194,18 +198,18 @@ class TypeFeedbackVector : public FixedArray {
   inline TypeFeedbackMetadata* metadata() const;
 
   // Conversion from a slot to an integer index to the underlying array.
-  inline int GetIndex(FeedbackVectorSlot slot) const;
+  static inline int GetIndex(FeedbackVectorSlot slot);
   static int GetIndexFromSpec(const FeedbackVectorSpec* spec,
                               FeedbackVectorSlot slot);
 
   // Conversion from an integer index to the underlying array to a slot.
-  inline FeedbackVectorSlot ToSlot(int index) const;
+  static inline FeedbackVectorSlot ToSlot(int index);
   inline Object* Get(FeedbackVectorSlot slot) const;
   inline void Set(FeedbackVectorSlot slot, Object* value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns slot kind for given slot.
-  inline FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
 
   static Handle<TypeFeedbackVector> New(Isolate* isolate,
                                         Handle<TypeFeedbackMetadata> metadata);
@@ -288,15 +292,9 @@ class TypeFeedbackMetadataIterator {
         slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
-  bool HasNext() const { return slot_.ToInt() < metadata()->slot_count(); }
+  inline bool HasNext() const;
 
-  FeedbackVectorSlot Next() {
-    DCHECK(HasNext());
-    FeedbackVectorSlot slot = slot_;
-    slot_kind_ = metadata()->GetKind(slot);
-    slot_ = FeedbackVectorSlot(slot_.ToInt() + entry_size());
-    return slot;
-  }
+  inline FeedbackVectorSlot Next();
 
   // Returns slot kind of the last slot returned by Next().
   FeedbackVectorSlotKind kind() const {
@@ -306,7 +304,7 @@ class TypeFeedbackMetadataIterator {
   }
 
   // Returns entry size of the last slot returned by Next().
-  int entry_size() const { return TypeFeedbackMetadata::GetSlotSize(kind()); }
+  inline int entry_size() const;
 
  private:
   TypeFeedbackMetadata* metadata() const {
@@ -393,10 +391,6 @@ class FeedbackNexus {
 
 class CallICNexus final : public FeedbackNexus {
  public:
-  // Monomorphic call ics store call counts. Platform code needs to increment
-  // the count appropriately (ie, by 2).
-  static const int kCallCountIncrement = 2;
-
   CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));

@@ -16,7 +16,6 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -400,11 +399,15 @@ static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  Code* interpreter_baseline_on_return =
+      isolate->builtins()->builtin(Builtins::kInterpreterMarkBaselineOnReturn);
 
   return (pc >= interpreter_entry_trampoline->instruction_start() &&
           pc < interpreter_entry_trampoline->instruction_end()) ||
          (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end());
+          pc < interpreter_bytecode_dispatch->instruction_end()) ||
+         (pc >= interpreter_baseline_on_return->instruction_start() &&
+          pc < interpreter_baseline_on_return->instruction_end());
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
@@ -445,13 +448,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     Code* code_obj =
         GetContainingCode(iterator->isolate(), *(state->pc_address));
     if (code_obj != nullptr) {
-      if (code_obj->is_interpreter_entry_trampoline() ||
-          code_obj->is_interpreter_enter_bytecode_dispatch()) {
-        return INTERPRETED;
-      }
       switch (code_obj->kind()) {
         case Code::BUILTIN:
           if (marker->IsSmi()) break;
+          if (code_obj->is_interpreter_trampoline_builtin()) {
+            return INTERPRETED;
+          }
           // We treat frames for BUILTIN Code objects as OptimizedFrame for now
           // (all the builtins with JavaScript linkage are actually generated
           // with TurboFan currently, so this is sound).
@@ -600,11 +602,12 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   return EXIT;
 }
 
-
 Address ExitFrame::ComputeStackPointer(Address fp) {
+#if defined(USE_SIMULATOR)
+  MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset, kPointerSize);
+#endif
   return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
-
 
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->sp = sp;
@@ -1346,20 +1349,13 @@ uint32_t WasmFrame::function_index() {
   FixedArray* deopt_data = LookupCode()->deoptimization_data();
   DCHECK(deopt_data->length() == 2);
   Object* func_index_obj = deopt_data->get(1);
-  if (func_index_obj->IsUndefined()) return static_cast<uint32_t>(-1);
+  if (func_index_obj->IsUndefined(isolate())) return static_cast<uint32_t>(-1);
   if (func_index_obj->IsSmi()) return Smi::cast(func_index_obj)->value();
   DCHECK(func_index_obj->IsHeapNumber());
   uint32_t val = static_cast<uint32_t>(-1);
   func_index_obj->ToUint32(&val);
   DCHECK(val != static_cast<uint32_t>(-1));
   return val;
-}
-
-Object* WasmFrame::function_name() {
-  Object* wasm_object = wasm_obj();
-  if (wasm_object->IsUndefined()) return wasm_object;
-  Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
-  return *wasm::GetWasmFunctionName(wasm, function_index());
 }
 
 namespace {

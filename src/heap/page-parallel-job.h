@@ -33,14 +33,20 @@ class Isolate;
 template <typename JobTraits>
 class PageParallelJob {
  public:
-  PageParallelJob(Heap* heap, CancelableTaskManager* cancelable_task_manager)
+  // PageParallelJob cannot dynamically create a semaphore because of a bug in
+  // glibc. See http://crbug.com/609249 and
+  // https://sourceware.org/bugzilla/show_bug.cgi?id=12674.
+  // The caller must provide a semaphore with value 0 and ensure that
+  // the lifetime of the semaphore is the same as the lifetime of the Isolate.
+  // It is guaranteed that the semaphore value will be 0 after Run() call.
+  PageParallelJob(Heap* heap, CancelableTaskManager* cancelable_task_manager,
+                  base::Semaphore* semaphore)
       : heap_(heap),
         cancelable_task_manager_(cancelable_task_manager),
         items_(nullptr),
         num_items_(0),
         num_tasks_(0),
-        pending_tasks_(new base::Semaphore(0)),
-        finished_tasks_(new base::AtomicNumber<int>(0)) {}
+        pending_tasks_(semaphore) {}
 
   ~PageParallelJob() {
     Item* item = items_;
@@ -49,8 +55,6 @@ class PageParallelJob {
       delete item;
       item = next;
     }
-    delete pending_tasks_;
-    delete finished_tasks_;
   }
 
   void AddPage(MemoryChunk* chunk, typename JobTraits::PerPageData data) {
@@ -85,7 +89,7 @@ class PageParallelJob {
         start_index -= num_items_;
       }
       Task* task = new Task(heap_, items_, num_items_, start_index,
-                            pending_tasks_, per_task_data_callback(i), this);
+                            pending_tasks_, per_task_data_callback(i));
       task_ids[i] = task->id();
       if (i > 0) {
         V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -97,18 +101,12 @@ class PageParallelJob {
     // Contribute on main thread.
     main_task->Run();
     delete main_task;
-    int aborted_tasks = 0;
     // Wait for background tasks.
     for (int i = 0; i < num_tasks_; i++) {
       if (!cancelable_task_manager_->TryAbort(task_ids[i])) {
         pending_tasks_->Wait();
-      } else {
-        ++aborted_tasks;
       }
     }
-    int finished_tasks = finished_tasks_->Value();
-    // TODO(ulan): Remove this check after investigation of crbug.com/609249.
-    CHECK_EQ(aborted_tasks + finished_tasks, num_tasks_);
     if (JobTraits::NeedSequentialFinalization) {
       Item* item = items_;
       while (item != nullptr) {
@@ -119,8 +117,6 @@ class PageParallelJob {
       }
     }
   }
-
-  void NotifyFinishedTask() { finished_tasks_->Increment(1); }
 
  private:
   static const int kMaxNumberOfTasks = 10;
@@ -139,16 +135,14 @@ class PageParallelJob {
   class Task : public CancelableTask {
    public:
     Task(Heap* heap, Item* items, int num_items, int start_index,
-         base::Semaphore* on_finish, typename JobTraits::PerTaskData data,
-         PageParallelJob<JobTraits>* job)
+         base::Semaphore* on_finish, typename JobTraits::PerTaskData data)
         : CancelableTask(heap->isolate()),
           heap_(heap),
           items_(items),
           num_items_(num_items),
           start_index_(start_index),
           on_finish_(on_finish),
-          data_(data),
-          job_(job) {}
+          data_(data) {}
 
     virtual ~Task() {}
 
@@ -173,8 +167,7 @@ class PageParallelJob {
           current = items_;
         }
       }
-      job_->NotifyFinishedTask();
-      on_finish_->Signal("PageParallelJob::Task::RunInternal");
+      on_finish_->Signal();
     }
 
     Heap* heap_;
@@ -183,7 +176,6 @@ class PageParallelJob {
     int start_index_;
     base::Semaphore* on_finish_;
     typename JobTraits::PerTaskData data_;
-    PageParallelJob<JobTraits>* job_;
     DISALLOW_COPY_AND_ASSIGN(Task);
   };
 
@@ -193,7 +185,6 @@ class PageParallelJob {
   int num_items_;
   int num_tasks_;
   base::Semaphore* pending_tasks_;
-  base::AtomicNumber<int>* finished_tasks_;
   DISALLOW_COPY_AND_ASSIGN(PageParallelJob);
 };
 

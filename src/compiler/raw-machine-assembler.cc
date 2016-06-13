@@ -135,6 +135,11 @@ void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
   current_block_ = nullptr;
 }
 
+void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
+
+void RawMachineAssembler::Comment(const char* msg) {
+  AddNode(machine()->Comment(msg));
+}
 
 Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {

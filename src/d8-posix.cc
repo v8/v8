@@ -531,21 +531,18 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   OpenFDCloser error_read_closer(exec_error_fds[kReadFD]);
   OpenFDCloser stdout_read_closer(stdout_fds[kReadFD]);
 
-  if (!ChildLaunchedOK(args.GetIsolate(), exec_error_fds)) return;
+  Isolate* isolate = args.GetIsolate();
+  if (!ChildLaunchedOK(isolate, exec_error_fds)) return;
 
-  Local<Value> accumulator = GetStdout(args.GetIsolate(), stdout_fds[kReadFD],
-                                       start_time, read_timeout, total_timeout);
+  Local<Value> accumulator = GetStdout(isolate, stdout_fds[kReadFD], start_time,
+                                       read_timeout, total_timeout);
   if (accumulator->IsUndefined()) {
     kill(pid, SIGINT);  // On timeout, kill the subprocess.
     args.GetReturnValue().Set(accumulator);
     return;
   }
 
-  if (!WaitForChild(args.GetIsolate(),
-                    pid,
-                    child_waiter,
-                    start_time,
-                    read_timeout,
+  if (!WaitForChild(isolate, pid, child_waiter, start_time, read_timeout,
                     total_timeout)) {
     return;
   }

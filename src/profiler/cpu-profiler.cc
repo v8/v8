@@ -21,7 +21,7 @@ static const int kProfilerStackSize = 64 * KB;
 
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
-                                                 Sampler* sampler,
+                                                 sampler::Sampler* sampler,
                                                  base::TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
@@ -566,10 +566,11 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
   generator_ = new ProfileGenerator(profiles_);
-  Sampler* sampler = logger->sampler();
+  sampler::Sampler* sampler = logger->sampler();
   processor_ = new ProfilerEventsProcessor(
       generator_, sampler, sampling_interval_);
   is_profiling_ = true;
+  isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
   if (!FLAG_prof_browser_mode) {
@@ -612,8 +613,10 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
 
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
-  Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
+  sampler::Sampler* sampler =
+      reinterpret_cast<sampler::Sampler*>(logger->ticker_);
   is_profiling_ = false;
+  isolate_->set_is_profiling(false);
   processor_->StopSynchronously();
   delete processor_;
   delete generator_;

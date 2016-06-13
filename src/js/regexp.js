@@ -325,10 +325,10 @@ function RegExpTest(string) {
     // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
     var regexp = this;
     var source = REGEXP_SOURCE(regexp);
-    if (regexp.length >= 3 &&
-        %_StringCharCodeAt(regexp, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(regexp, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(regexp, 2) != 63) {  // '?'
+    if (source.length >= 3 &&
+        %_StringCharCodeAt(source, 0) == 46 &&  // '.'
+        %_StringCharCodeAt(source, 1) == 42 &&  // '*'
+        %_StringCharCodeAt(source, 2) != 63) {  // '?'
       regexp = TrimRegExp(regexp);
     }
     // matchIndices is either null or the RegExpLastMatchInfo array.

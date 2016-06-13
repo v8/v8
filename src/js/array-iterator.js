@@ -22,7 +22,7 @@ var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-var GlobalTypedArray = global.Uint8Array.__proto__;
+var GlobalTypedArray = %object_get_prototype_of(global.Uint8Array);
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;

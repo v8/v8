@@ -7,6 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {
@@ -105,6 +106,7 @@ class BytecodeGenerator final : public AstVisitor {
   void BuildKeyedSuperPropertyLoad(Register receiver, Register home_object,
                                    Register key);
 
+  void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReassignConstant(Handle<String> name);

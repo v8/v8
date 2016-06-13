@@ -6,6 +6,7 @@
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/type-hints.h"
 #include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -199,6 +200,18 @@ Matcher<Node*> IsNumberEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsSpeculativeNumberAdd(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsSpeculativeNumberSubtract(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberMultiply(const Matcher<Node*>& lhs_matcher,
@@ -211,6 +224,12 @@ Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberAtan(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAtan2(const Matcher<Node*>& lhs_matcher,
+                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberLog(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberLog1p(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsStringFromCharCode(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
@@ -361,6 +380,7 @@ Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
 Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsLoadParentFramePointer();
+Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& input_matcher);
 
 Matcher<Node*> IsInt32PairAdd(const Matcher<Node*>& a_matcher,
                               const Matcher<Node*>& b_matcher,

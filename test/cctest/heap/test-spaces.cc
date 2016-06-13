@@ -32,7 +32,6 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -203,36 +202,32 @@ static void VerifyMemoryChunk(Isolate* isolate,
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  const int pageSize = Page::kPageSize;
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
                                 0));
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
-  const size_t code_range_size = 4 * pageSize;
-  if (!code_range->SetUp(
-          code_range_size +
-          RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
-                  MemoryChunk::kAlignment) +
-          v8::internal::MemoryAllocator::CodePageAreaSize())) {
+  size_t code_range_size =
+      kMinimumCodeRangeSize > 0 ? kMinimumCodeRangeSize : 3 * MB;
+  if (!code_range->SetUp(code_range_size)) {
     return;
   }
 
   Address address;
   size_t size;
-  size_t request_size = code_range_size - 2 * pageSize;
+  size_t request_size = code_range_size - Page::kPageSize;
   address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &size);
-  CHECK(address != NULL);
+  CHECK_NOT_NULL(address);
 
   Address null_address;
   size_t null_size;
-  request_size = code_range_size - pageSize;
+  request_size = code_range_size - Page::kPageSize;
   null_address = code_range->AllocateRawMemory(
       request_size, request_size - (2 * MemoryAllocator::CodePageGuardSize()),
       &null_size);
-  CHECK(null_address == NULL);
+  CHECK_NULL(null_address);
 
   code_range->FreeRawMemory(address, size);
   delete code_range;
@@ -281,8 +276,8 @@ TEST(MemoryChunk) {
                       NOT_EXECUTABLE);
     delete code_range;
 
-    // Without CodeRange.
-    code_range = NULL;
+    // Without a valid CodeRange, i.e., omitting SetUp.
+    code_range = new CodeRange(isolate);
     VerifyMemoryChunk(isolate,
                       heap,
                       code_range,
@@ -298,6 +293,7 @@ TEST(MemoryChunk) {
                       initial_commit_area_size,
                       second_commit_area_size,
                       NOT_EXECUTABLE);
+    delete code_range;
   }
 }
 
@@ -489,7 +485,15 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   if (!isolate->snapshot_available()) return;
-  if (Snapshot::EmbedsScript(isolate)) return;
+  HandleScope scope(isolate);
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  // Skip this test on the custom snapshot builder.
+  if (!CcTest::global()
+           ->Get(context, v8_str("assertEquals"))
+           .ToLocalChecked()
+           ->IsUndefined()) {
+    return;
+  }
 
   // If this test fails due to enabling experimental natives that are not part
   // of the snapshot, we may need to adjust CalculateFirstPageSizes.
@@ -502,7 +506,6 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   }
 
   // Executing the empty script gets by with one page per space.
-  HandleScope scope(isolate);
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.

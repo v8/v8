@@ -31,7 +31,7 @@
 
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -177,7 +177,7 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
   {
@@ -216,7 +216,7 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
@@ -249,7 +249,7 @@ TEST(Regress399527) {
   {
     HandleScope scope(isolate);
     AllocateJSWeakMap(isolate);
-    SimulateIncrementalMarking(heap);
+    heap::SimulateIncrementalMarking(heap);
   }
   // The weak map is marked black here but leaving the handle scope will make
   // the object unreachable. Aborting incremental marking will clear all the

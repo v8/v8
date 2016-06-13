@@ -37,9 +37,14 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathFloor(Node* node);
   Reduction ReduceMathFround(Node* node);
+  Reduction ReduceMathAtan(Node* node);
+  Reduction ReduceMathAtan2(Node* node);
+  Reduction ReduceMathLog(Node* node);
+  Reduction ReduceMathLog1p(Node* node);
   Reduction ReduceMathRound(Node* node);
   Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathTrunc(Node* node);
+  Reduction ReduceStringFromCharCode(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

@@ -34,11 +34,9 @@ class CodeFactory final {
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadICInOptimizedCode(Isolate* isolate,
-                                        TypeofMode typeof_mode,
-                                        InlineCacheState initialization_state);
+                                        TypeofMode typeof_mode);
   static Callable KeyedLoadIC(Isolate* isolate);
-  static Callable KeyedLoadICInOptimizedCode(
-      Isolate* isolate, InlineCacheState initialization_state);
+  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable CallIC(Isolate* isolate, int argc,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
@@ -47,12 +45,10 @@ class CodeFactory final {
       ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
-  static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
-                                         InlineCacheState initialization_state);
+  static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
-  static Callable KeyedStoreICInOptimizedCode(
-      Isolate* isolate, LanguageMode mode,
-      InlineCacheState initialization_state);
+  static Callable KeyedStoreICInOptimizedCode(Isolate* isolate,
+                                              LanguageMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
 

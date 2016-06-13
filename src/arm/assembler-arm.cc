@@ -57,7 +57,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
     answer |= 1u << ARMv8;
     // ARMv8 always features VFP and NEON.
     answer |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
-    answer |= 1u << SUDIV | 1u << MLS;
+    answer |= 1u << SUDIV;
   }
 #endif  // CAN_USE_ARMV8_INSTRUCTIONS
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
@@ -93,7 +93,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= 1u << ARMv8;
     // ARMv8 always features VFP and NEON.
     supported_ |= 1u << ARMv7 | 1u << VFP3 | 1u << NEON | 1u << VFP32DREGS;
-    supported_ |= 1u << SUDIV | 1u << MLS;
+    supported_ |= 1u << SUDIV;
     if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
   }
   if (FLAG_enable_armv7) {
@@ -104,7 +104,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
     if (FLAG_enable_32dregs) supported_ |= 1u << VFP32DREGS;
   }
-  if (FLAG_enable_mls) supported_ |= 1u << MLS;
   if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
 
 #else  // __arm__
@@ -119,7 +118,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (FLAG_enable_neon && cpu.has_neon()) supported_ |= 1u << NEON;
   if (FLAG_enable_sudiv && cpu.has_idiva()) supported_ |= 1u << SUDIV;
-  if (FLAG_enable_mls && cpu.has_thumb2()) supported_ |= 1u << MLS;
 
   if (cpu.architecture() >= 7) {
     if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
@@ -141,15 +139,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 
   if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
-
-  if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER &&
-      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    // TODO(jkummerow): This is turned off as an experiment to see if it
-    // affects crash rates. Keep an eye on crash reports and either remove
-    // coherent cache support permanently, or re-enable it!
-    // supported_ |= 1u << COHERENT_CACHE;
-  }
 #endif
 
   DCHECK(!IsSupported(VFP3) || IsSupported(ARMv7));
@@ -212,18 +201,13 @@ void CpuFeatures::PrintTarget() {
 
 void CpuFeatures::PrintFeatures() {
   printf(
-    "ARMv8=%d ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d MLS=%d"
-    "UNALIGNED_ACCESSES=%d MOVW_MOVT_IMMEDIATE_LOADS=%d COHERENT_CACHE=%d",
-    CpuFeatures::IsSupported(ARMv8),
-    CpuFeatures::IsSupported(ARMv7),
-    CpuFeatures::IsSupported(VFP3),
-    CpuFeatures::IsSupported(VFP32DREGS),
-    CpuFeatures::IsSupported(NEON),
-    CpuFeatures::IsSupported(SUDIV),
-    CpuFeatures::IsSupported(MLS),
-    CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
-    CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS),
-    CpuFeatures::IsSupported(COHERENT_CACHE));
+      "ARMv8=%d ARMv7=%d VFP3=%d VFP32DREGS=%d NEON=%d SUDIV=%d "
+      "UNALIGNED_ACCESSES=%d MOVW_MOVT_IMMEDIATE_LOADS=%d",
+      CpuFeatures::IsSupported(ARMv8), CpuFeatures::IsSupported(ARMv7),
+      CpuFeatures::IsSupported(VFP3), CpuFeatures::IsSupported(VFP32DREGS),
+      CpuFeatures::IsSupported(NEON), CpuFeatures::IsSupported(SUDIV),
+      CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
+      CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
 #ifdef __arm__
   bool eabi_hardfloat = base::OS::ArmUsingHardFloat();
 #elif USE_EABI_HARDFLOAT
@@ -499,17 +483,16 @@ const Instr kStrRegFpNegOffsetPattern =
     al | B26 | NegOffset | Register::kCode_fp * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      pending_32_bit_constants_(&pending_32_bit_constants_buffer_[0]),
-      pending_64_bit_constants_(&pending_64_bit_constants_buffer_[0]),
+      pending_32_bit_constants_(),
+      pending_64_bit_constants_(),
       constant_pool_builder_(kLdrMaxReachBits, kVldrMaxReachBits),
       positions_recorder_(this) {
+  pending_32_bit_constants_.reserve(kMinNumPendingConstants);
+  pending_64_bit_constants_.reserve(kMinNumPendingConstants);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
-  num_pending_32_bit_constants_ = 0;
-  num_pending_64_bit_constants_ = 0;
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
@@ -522,12 +505,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   DCHECK(const_pool_blocked_nesting_ == 0);
-  if (pending_32_bit_constants_ != &pending_32_bit_constants_buffer_[0]) {
-    delete[] pending_32_bit_constants_;
-  }
-  if (pending_64_bit_constants_ != &pending_64_bit_constants_buffer_[0]) {
-    delete[] pending_64_bit_constants_;
-  }
 }
 
 
@@ -540,8 +517,8 @@ void Assembler::GetCode(CodeDesc* desc) {
     constant_pool_offset = EmitEmbeddedConstantPool();
   } else {
     CheckConstPool(true, false);
-    DCHECK(num_pending_32_bit_constants_ == 0);
-    DCHECK(num_pending_64_bit_constants_ == 0);
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK(pending_64_bit_constants_.empty());
   }
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -864,6 +841,19 @@ void Assembler::target_at_put(int pos, int target_pos) {
     // Load the position of the label relative to the generated code object
     // pointer in a register.
 
+    // The existing code must be a single 24-bit label chain link, followed by
+    // nops encoding the destination register. See mov_label_offset.
+
+    // Extract the destination register from the first nop instructions.
+    Register dst =
+        Register::from_code(Instruction::RmValue(instr_at(pos + kInstrSize)));
+    // In addition to the 24-bit label chain link, we expect to find one nop for
+    // ARMv7 and above, or two nops for ARMv6. See mov_label_offset.
+    DCHECK(IsNop(instr_at(pos + kInstrSize), dst.code()));
+    if (!CpuFeatures::IsSupported(ARMv7)) {
+      DCHECK(IsNop(instr_at(pos + 2 * kInstrSize), dst.code()));
+    }
+
     // Here are the instructions we need to emit:
     //   For ARMv7: target24 => target16_1:target16_0
     //      movw dst, #target16_0
@@ -873,10 +863,6 @@ void Assembler::target_at_put(int pos, int target_pos) {
     //      orr dst, dst, #target8_1 << 8
     //      orr dst, dst, #target8_2 << 16
 
-    // We extract the destination register from the emitted nop instruction.
-    Register dst = Register::from_code(
-        Instruction::RmValue(instr_at(pos + kInstrSize)));
-    DCHECK(IsNop(instr_at(pos + kInstrSize), dst.code()));
     uint32_t target24 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
     DCHECK(is_uint24(target24));
     if (is_uint8(target24)) {
@@ -1622,7 +1608,7 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mls(Register dst, Register src1, Register src2, Register srcA,
                     Condition cond) {
   DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
-  DCHECK(IsEnabled(MLS));
+  DCHECK(IsEnabled(ARMv7));
   emit(cond | B22 | B21 | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -2089,6 +2075,53 @@ void Assembler::strd(Register src1, Register src2,
   addrmod3(cond | B7 | B6 | B5 | B4, src1, dst);
 }
 
+// Load/Store exclusive instructions.
+void Assembler::ldrex(Register dst, Register src, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.75.
+  // cond(31-28) | 00011001(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  emit(cond | B24 | B23 | B20 | src.code() * B16 | dst.code() * B12 | 0xf9f);
+}
+
+void Assembler::strex(Register src1, Register src2, Register dst,
+                      Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.212.
+  // cond(31-28) | 00011000(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
+  // Rt(3-0)
+  emit(cond | B24 | B23 | dst.code() * B16 | src1.code() * B12 | 0xf9 * B4 |
+       src2.code());
+}
+
+void Assembler::ldrexb(Register dst, Register src, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.76.
+  // cond(31-28) | 00011101(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  emit(cond | B24 | B23 | B22 | B20 | src.code() * B16 | dst.code() * B12 |
+       0xf9f);
+}
+
+void Assembler::strexb(Register src1, Register src2, Register dst,
+                       Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.213.
+  // cond(31-28) | 00011100(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
+  // Rt(3-0)
+  emit(cond | B24 | B23 | B22 | dst.code() * B16 | src1.code() * B12 |
+       0xf9 * B4 | src2.code());
+}
+
+void Assembler::ldrexh(Register dst, Register src, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.78.
+  // cond(31-28) | 00011111(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  emit(cond | B24 | B23 | B22 | B21 | B20 | src.code() * B16 |
+       dst.code() * B12 | 0xf9f);
+}
+
+void Assembler::strexh(Register src1, Register src2, Register dst,
+                       Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.215.
+  // cond(31-28) | 00011110(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
+  // Rt(3-0)
+  emit(cond | B24 | B23 | B22 | B21 | dst.code() * B16 | src1.code() * B12 |
+       0xf9 * B4 | src2.code());
+}
 
 // Preload instructions.
 void Assembler::pld(const MemOperand& address) {
@@ -3840,8 +3873,8 @@ void Assembler::GrowBuffer() {
 void Assembler::db(uint8_t data) {
   // db is used to write raw data. The constant pool should be emitted or
   // blocked before using db.
-  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
-  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
+  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -3851,8 +3884,8 @@ void Assembler::db(uint8_t data) {
 void Assembler::dd(uint32_t data) {
   // dd is used to write raw data. The constant pool should be emitted or
   // blocked before using dd.
-  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
-  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
+  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -3862,8 +3895,8 @@ void Assembler::dd(uint32_t data) {
 void Assembler::dq(uint64_t value) {
   // dq is used to write raw data. The constant pool should be emitted or
   // blocked before using dq.
-  DCHECK(is_const_pool_blocked() || (num_pending_32_bit_constants_ == 0));
-  DCHECK(is_const_pool_blocked() || (num_pending_64_bit_constants_ == 0));
+  DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
+  DCHECK(is_const_pool_blocked() || pending_64_bit_constants_.empty());
   CheckBuffer();
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
@@ -3906,21 +3939,12 @@ ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
   if (FLAG_enable_embedded_constant_pool) {
     return constant_pool_builder_.AddEntry(position, value, sharing_ok);
   } else {
-    DCHECK(num_pending_32_bit_constants_ < kMaxNumPending32Constants);
-    if (num_pending_32_bit_constants_ == 0) {
+    DCHECK(pending_32_bit_constants_.size() < kMaxNumPending32Constants);
+    if (pending_32_bit_constants_.empty()) {
       first_const_pool_32_use_ = position;
-    } else if (num_pending_32_bit_constants_ == kMinNumPendingConstants &&
-               pending_32_bit_constants_ ==
-                   &pending_32_bit_constants_buffer_[0]) {
-      // Inline buffer is full, switch to dynamically allocated buffer.
-      pending_32_bit_constants_ =
-          new ConstantPoolEntry[kMaxNumPending32Constants];
-      std::copy(&pending_32_bit_constants_buffer_[0],
-                &pending_32_bit_constants_buffer_[kMinNumPendingConstants],
-                &pending_32_bit_constants_[0]);
     }
     ConstantPoolEntry entry(position, value, sharing_ok);
-    pending_32_bit_constants_[num_pending_32_bit_constants_++] = entry;
+    pending_32_bit_constants_.push_back(entry);
 
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
@@ -3935,21 +3959,12 @@ ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
   if (FLAG_enable_embedded_constant_pool) {
     return constant_pool_builder_.AddEntry(position, value);
   } else {
-    DCHECK(num_pending_64_bit_constants_ < kMaxNumPending64Constants);
-    if (num_pending_64_bit_constants_ == 0) {
+    DCHECK(pending_64_bit_constants_.size() < kMaxNumPending64Constants);
+    if (pending_64_bit_constants_.empty()) {
       first_const_pool_64_use_ = position;
-    } else if (num_pending_64_bit_constants_ == kMinNumPendingConstants &&
-               pending_64_bit_constants_ ==
-                   &pending_64_bit_constants_buffer_[0]) {
-      // Inline buffer is full, switch to dynamically allocated buffer.
-      pending_64_bit_constants_ =
-          new ConstantPoolEntry[kMaxNumPending64Constants];
-      std::copy(&pending_64_bit_constants_buffer_[0],
-                &pending_64_bit_constants_buffer_[kMinNumPendingConstants],
-                &pending_64_bit_constants_[0]);
     }
     ConstantPoolEntry entry(position, value);
-    pending_64_bit_constants_[num_pending_64_bit_constants_++] = entry;
+    pending_64_bit_constants_.push_back(entry);
 
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
@@ -3962,8 +3977,8 @@ ConstantPoolEntry::Access Assembler::ConstantPoolAddEntry(int position,
 void Assembler::BlockConstPoolFor(int instructions) {
   if (FLAG_enable_embedded_constant_pool) {
     // Should be a no-op if using an embedded constant pool.
-    DCHECK(num_pending_32_bit_constants_ == 0);
-    DCHECK(num_pending_64_bit_constants_ == 0);
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK(pending_64_bit_constants_.empty());
     return;
   }
 
@@ -3972,11 +3987,11 @@ void Assembler::BlockConstPoolFor(int instructions) {
     // Max pool start (if we need a jump and an alignment).
 #ifdef DEBUG
     int start = pc_limit + kInstrSize + 2 * kPointerSize;
-    DCHECK((num_pending_32_bit_constants_ == 0) ||
+    DCHECK(pending_32_bit_constants_.empty() ||
            (start - first_const_pool_32_use_ +
-                num_pending_64_bit_constants_ * kDoubleSize <
+                pending_64_bit_constants_.size() * kDoubleSize <
             kMaxDistToIntPool));
-    DCHECK((num_pending_64_bit_constants_ == 0) ||
+    DCHECK(pending_64_bit_constants_.empty() ||
            (start - first_const_pool_64_use_ < kMaxDistToFPPool));
 #endif
     no_const_pool_before_ = pc_limit;
@@ -3991,8 +4006,8 @@ void Assembler::BlockConstPoolFor(int instructions) {
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   if (FLAG_enable_embedded_constant_pool) {
     // Should be a no-op if using an embedded constant pool.
-    DCHECK(num_pending_32_bit_constants_ == 0);
-    DCHECK(num_pending_64_bit_constants_ == 0);
+    DCHECK(pending_32_bit_constants_.empty());
+    DCHECK(pending_64_bit_constants_.empty());
     return;
   }
 
@@ -4006,8 +4021,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   }
 
   // There is nothing to do if there are no pending constant pool entries.
-  if ((num_pending_32_bit_constants_ == 0) &&
-      (num_pending_64_bit_constants_ == 0)) {
+  if (pending_32_bit_constants_.empty() && pending_64_bit_constants_.empty()) {
     // Calculate the offset of the next check.
     next_buffer_check_ = pc_offset() + kCheckPoolInterval;
     return;
@@ -4019,9 +4033,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   int jump_instr = require_jump ? kInstrSize : 0;
   int size_up_to_marker = jump_instr + kInstrSize;
   int estimated_size_after_marker =
-      num_pending_32_bit_constants_ * kPointerSize;
-  bool has_int_values = (num_pending_32_bit_constants_ > 0);
-  bool has_fp_values = (num_pending_64_bit_constants_ > 0);
+      pending_32_bit_constants_.size() * kPointerSize;
+  bool has_int_values = !pending_32_bit_constants_.empty();
+  bool has_fp_values = !pending_64_bit_constants_.empty();
   bool require_64_bit_align = false;
   if (has_fp_values) {
     require_64_bit_align =
@@ -4030,7 +4044,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     if (require_64_bit_align) {
       estimated_size_after_marker += kInstrSize;
     }
-    estimated_size_after_marker += num_pending_64_bit_constants_ * kDoubleSize;
+    estimated_size_after_marker +=
+        pending_64_bit_constants_.size() * kDoubleSize;
   }
   int estimated_size = size_up_to_marker + estimated_size_after_marker;
 
@@ -4049,7 +4064,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       // The 64-bit constants are always emitted before the 32-bit constants, so
       // we can ignore the effect of the 32-bit constants on estimated_size.
       int dist64 = pc_offset() + estimated_size -
-                   num_pending_32_bit_constants_ * kPointerSize -
+                   pending_32_bit_constants_.size() * kPointerSize -
                    first_const_pool_64_use_;
       if ((dist64 >= kMaxDistToFPPool - kCheckPoolInterval) ||
           (!require_jump && (dist64 >= kMaxDistToFPPool / 2))) {
@@ -4068,7 +4083,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // Deduplicate constants.
   int size_after_marker = estimated_size_after_marker;
-  for (int i = 0; i < num_pending_64_bit_constants_; i++) {
+  for (int i = 0; i < pending_64_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_64_bit_constants_[i];
     DCHECK(!entry.is_merged());
     for (int j = 0; j < i; j++) {
@@ -4081,7 +4096,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
   }
 
-  for (int i = 0; i < num_pending_32_bit_constants_; i++) {
+  for (int i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
     DCHECK(!entry.is_merged());
     if (!entry.sharing_ok()) continue;
@@ -4126,7 +4141,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     // Emit 64-bit constant pool entries first: their range is smaller than
     // 32-bit entries.
-    for (int i = 0; i < num_pending_64_bit_constants_; i++) {
+    for (int i = 0; i < pending_64_bit_constants_.size(); i++) {
       ConstantPoolEntry& entry = pending_64_bit_constants_[i];
 
       Instr instr = instr_at(entry.position());
@@ -4155,7 +4170,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
 
     // Emit 32-bit constant pool entries.
-    for (int i = 0; i < num_pending_32_bit_constants_; i++) {
+    for (int i = 0; i < pending_32_bit_constants_.size(); i++) {
       ConstantPoolEntry& entry = pending_32_bit_constants_[i];
       Instr instr = instr_at(entry.position());
 
@@ -4189,8 +4204,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       }
     }
 
-    num_pending_32_bit_constants_ = 0;
-    num_pending_64_bit_constants_ = 0;
+    pending_32_bit_constants_.clear();
+    pending_64_bit_constants_.clear();
     first_const_pool_32_use_ = -1;
     first_const_pool_64_use_ = -1;
 

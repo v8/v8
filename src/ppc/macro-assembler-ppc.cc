@@ -1047,9 +1047,8 @@ void MacroAssembler::Prologue(bool code_pre_aging, Register base,
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   LoadP(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  LoadP(vector, FieldMemOperand(vector, JSFunction::kSharedFunctionInfoOffset));
-  LoadP(vector,
-        FieldMemOperand(vector, SharedFunctionInfo::kFeedbackVectorOffset));
+  LoadP(vector, FieldMemOperand(vector, JSFunction::kLiteralsOffset));
+  LoadP(vector, FieldMemOperand(vector, LiteralsArray::kFeedbackVectorOffset));
 }
 
 

@@ -27,9 +27,13 @@ class IA32OperandGenerator final : public OperandGenerator {
     return DefineAsRegister(node);
   }
 
-  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input) {
+  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
+                          int effect_level) {
     if (input->opcode() != IrOpcode::kLoad ||
         !selector()->CanCover(node, input)) {
+      return false;
+    }
+    if (effect_level != selector()->GetEffectLevel(input)) {
       return false;
     }
     MachineRepresentation rep =
@@ -1010,7 +1014,6 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
 }
 
-
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRO(this, node, kSSEFloat32Sqrt);
 }
@@ -1065,6 +1068,24 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  IA32OperandGenerator g(this);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)))
+      ->MarkAsCall();
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
+  IA32OperandGenerator g(this);
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)))
+      ->MarkAsCall();
+}
 
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
@@ -1099,7 +1120,7 @@ void InstructionSelector::EmitPrepareArguments(
           g.CanBeImmediate(input.node())
               ? g.UseImmediate(input.node())
               : IsSupported(ATOM) ||
-                        sequence()->IsFloat(GetVirtualRegister(input.node()))
+                        sequence()->IsFP(GetVirtualRegister(input.node()))
                     ? g.UseRegister(input.node())
                     : g.Use(input.node());
       if (input.type() == MachineType::Float32()) {
@@ -1178,26 +1199,6 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
-bool InferMachineRepresentation(Node* node,
-                                MachineRepresentation* representation) {
-  if (node->opcode() == IrOpcode::kLoad) {
-    *representation = LoadRepresentationOf(node->op()).representation();
-    return true;
-  }
-  if (node->opcode() != IrOpcode::kInt32Constant) {
-    return false;
-  }
-  int32_t value = OpParameter<int32_t>(node->op());
-  if (is_int8(value)) {
-    *representation = MachineRepresentation::kWord8;
-  } else if (is_int16(value)) {
-    *representation = MachineRepresentation::kWord16;
-  } else {
-    *representation = MachineRepresentation::kWord32;
-  }
-  return true;
-}
-
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
@@ -1205,22 +1206,20 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
   if (opcode != kIA32Cmp && opcode != kIA32Test) {
     return opcode;
   }
-  // We only do this if at least one of the two operands is a load.
-  // TODO(epertoso): we can probably get some size information out of phi nodes.
-  if (left->opcode() != IrOpcode::kLoad && right->opcode() != IrOpcode::kLoad) {
+  // Currently, if one of the two operands is not a Load, we don't know what its
+  // machine representation is, so we bail out.
+  // TODO(epertoso): we can probably get some size information out of immediates
+  // and phi nodes.
+  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
     return opcode;
   }
-  MachineRepresentation left_representation, right_representation;
-  if (!InferMachineRepresentation(left, &left_representation) ||
-      !InferMachineRepresentation(right, &right_representation)) {
-    return opcode;
-  }
-  // If the representations don't match, both operands will be
+  // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  if (left_representation != right_representation) {
+  LoadRepresentation left_representation = LoadRepresentationOf(left->op());
+  if (left_representation != LoadRepresentationOf(right->op())) {
     return opcode;
   }
-  switch (left_representation) {
+  switch (left_representation.representation()) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
       return opcode == kIA32Cmp ? kIA32Cmp8 : kIA32Test8;
@@ -1257,44 +1256,27 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   InstructionCode narrowed_opcode = TryNarrowOpcodeSize(opcode, left, right);
 
+  int effect_level = selector->GetEffectLevel(node);
+  if (cont->IsBranch()) {
+    effect_level = selector->GetEffectLevel(
+        cont->true_block()->PredecessorAt(0)->control_input());
+  }
+
   // If one of the two inputs is an immediate, make sure it's on the right, or
   // if one of the two inputs is a memory operand, make sure it's on the left.
   if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
-      (g.CanBeMemoryOperand(narrowed_opcode, node, right) &&
-       !g.CanBeMemoryOperand(narrowed_opcode, node, left))) {
+      (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
+       !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
-      // If we're truncating the immediate (32 bits to 16 or 8), comparison
-      // semantics should take the signedness/unsignedness of the op into
-      // account.
-      if (narrowed_opcode != opcode &&
-          LoadRepresentationOf(left->op()).IsUnsigned()) {
-        switch (cont->condition()) {
-          case FlagsCondition::kSignedLessThan:
-            cont->OverwriteAndNegateIfEqual(FlagsCondition::kUnsignedLessThan);
-            break;
-          case FlagsCondition::kSignedGreaterThan:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedGreaterThan);
-            break;
-          case FlagsCondition::kSignedLessThanOrEqual:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedLessThanOrEqual);
-            break;
-          case FlagsCondition::kSignedGreaterThanOrEqual:
-            cont->OverwriteAndNegateIfEqual(
-                FlagsCondition::kUnsignedGreaterThanOrEqual);
-            break;
-          default:
-            break;
-        }
-      }
-      return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
+    if (g.CanBeMemoryOperand(opcode, node, left, effect_level)) {
+      // TODO(epertoso): we should use `narrowed_opcode' here once we match
+      // immediates too.
+      return VisitCompareWithMemoryOperand(selector, opcode, left,
                                            g.UseImmediate(right), cont);
     }
     return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
@@ -1302,7 +1284,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 
   // Match memory operands on left side of comparison.
-  if (g.CanBeMemoryOperand(narrowed_opcode, node, left)) {
+  if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
     bool needs_byte_register =
         narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
     return VisitCompareWithMemoryOperand(
@@ -1689,6 +1671,13 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags;
+}
+
+// static
+MachineOperatorBuilder::AlignmentRequirements
+InstructionSelector::AlignmentRequirements() {
+  return MachineOperatorBuilder::AlignmentRequirements::
+      FullUnalignedAccessSupport();
 }
 
 }  // namespace compiler

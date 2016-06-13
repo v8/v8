@@ -7,7 +7,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/deserializer.h"
 #include "src/version.h"
 
@@ -27,15 +26,14 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   }
 
   // Serialize code object.
-  SnapshotByteSink sink(info->code()->CodeSize() * 2);
-  CodeSerializer cs(isolate, &sink, *source);
+  CodeSerializer cs(isolate, *source);
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
   cs.SerializeDeferredObjects();
   cs.Pad();
 
-  SerializedCodeData data(sink.data(), cs);
+  SerializedCodeData data(cs.sink()->data(), &cs);
   ScriptData* script_data = data.GetScriptData();
 
   if (FLAG_profile_deserialization) {
@@ -76,7 +74,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 #define IC_KIND_CASE(KIND) case Code::KIND:
         IC_KIND_LIST(IC_KIND_CASE)
 #undef IC_KIND_CASE
-        SerializeCodeStub(code_object->stub_key(), how_to_code, where_to_point);
+        SerializeCodeStub(code_object, how_to_code, where_to_point);
         return;
       case Code::FUNCTION:
         DCHECK(code_object->has_reloc_info_for_serialization());
@@ -106,7 +104,7 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
+  ObjectSerializer serializer(this, heap_object, &sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
 }
@@ -124,38 +122,27 @@ void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
            isolate()->builtins()->name(builtin_index));
   }
 
-  sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
-  sink_->PutInt(builtin_index, "builtin_index");
+  sink_.Put(kBuiltin + how_to_code + where_to_point, "Builtin");
+  sink_.PutInt(builtin_index, "builtin_index");
 }
 
-void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
-  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kPlain && where_to_point == kInnerPointer) ||
-         (how_to_code == kFromCode && where_to_point == kInnerPointer));
+  // We only arrive here if we have not encountered this code stub before.
+  DCHECK(!reference_map()->Lookup(code_stub).is_valid());
+  uint32_t stub_key = code_stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-
-  int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
-
-  if (FLAG_trace_serializer) {
-    PrintF(" Encoding code stub %s as %d\n",
-           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)), index);
-  }
-
-  sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");
-  sink_->PutInt(index, "CodeStub key");
-}
-
-int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
-  // TODO(yangguo) Maybe we need a hash table for a faster lookup than O(n^2).
-  int index = 0;
-  while (index < stub_keys_.length()) {
-    if (stub_keys_[index] == stub_key) return index;
-    index++;
-  }
   stub_keys_.Add(stub_key);
-  return index;
+
+  SerializerReference reference =
+      reference_map()->AddAttachedReference(code_stub);
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding code stub %s as attached reference %d\n",
+           CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key)),
+           reference.attached_reference_index());
+  }
+  PutAttachedReference(reference, how_to_code, where_to_point);
 }
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
@@ -173,18 +160,13 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  // Prepare and register list of attached objects.
-  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
-  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(
-      code_stub_keys.length() + kCodeStubsBaseIndex);
-  attached_objects[kSourceObjectIndex] = source;
-  for (int i = 0; i < code_stub_keys.length(); i++) {
-    attached_objects[i + kCodeStubsBaseIndex] =
-        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked();
-  }
-
   Deserializer deserializer(scd.get());
-  deserializer.SetAttachedObjects(attached_objects);
+  deserializer.AddAttachedObject(source);
+  Vector<const uint32_t> code_stub_keys = scd->CodeStubKeys();
+  for (int i = 0; i < code_stub_keys.length(); i++) {
+    deserializer.AddAttachedObject(
+        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
+  }
 
   // Deserialize.
   Handle<SharedFunctionInfo> result;
@@ -201,8 +183,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
   result->set_deserialized(true);
 
-  if (isolate->logger()->is_logging_code_events() ||
-      isolate->cpu_profiler()->is_profiling()) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     String* name = isolate->heap()->empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
@@ -253,13 +234,13 @@ class Checksum {
   DISALLOW_COPY_AND_ASSIGN(Checksum);
 };
 
-SerializedCodeData::SerializedCodeData(const List<byte>& payload,
-                                       const CodeSerializer& cs) {
+SerializedCodeData::SerializedCodeData(const List<byte>* payload,
+                                       const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const List<uint32_t>* stub_keys = cs.stub_keys();
+  const List<uint32_t>* stub_keys = cs->stub_keys();
 
   List<Reservation> reservations;
-  cs.EncodeReservations(&reservations);
+  cs->EncodeReservations(&reservations);
 
   // Calculate sizes.
   int reservation_size = reservations.length() * kInt32Size;
@@ -267,23 +248,23 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   int stub_keys_size = stub_keys->length() * kInt32Size;
   int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
   int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  int size = padded_payload_offset + payload.length();
+  int size = padded_payload_offset + payload->length();
 
   // Allocate backing store and create result data.
   AllocateData(size);
 
   // Set header values.
-  SetMagicNumber(cs.isolate());
+  SetMagicNumber(cs->isolate());
   SetHeaderValue(kVersionHashOffset, Version::Hash());
-  SetHeaderValue(kSourceHashOffset, SourceHash(cs.source()));
+  SetHeaderValue(kSourceHashOffset, SourceHash(cs->source()));
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, payload.length());
+  SetHeaderValue(kPayloadLengthOffset, payload->length());
 
-  Checksum checksum(payload.ToConstVector());
+  Checksum checksum(payload->ToConstVector());
   SetHeaderValue(kChecksum1Offset, checksum.a());
   SetHeaderValue(kChecksum2Offset, checksum.b());
 
@@ -298,8 +279,8 @@ SerializedCodeData::SerializedCodeData(const List<byte>& payload,
   memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
 
   // Copy serialized data.
-  CopyBytes(data_ + padded_payload_offset, payload.begin(),
-            static_cast<size_t>(payload.length()));
+  CopyBytes(data_ + padded_payload_offset, payload->begin(),
+            static_cast<size_t>(payload->length()));
 }
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(

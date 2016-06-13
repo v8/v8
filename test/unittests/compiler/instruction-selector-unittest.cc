@@ -94,12 +94,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   }
   for (auto i : s.virtual_registers_) {
     int const virtual_register = i.second;
-    if (sequence.IsFloat(virtual_register)) {
+    if (sequence.IsFP(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
     }
     if (sequence.IsReference(virtual_register)) {
-      EXPECT_FALSE(sequence.IsFloat(virtual_register));
+      EXPECT_FALSE(sequence.IsFP(virtual_register));
       s.references_.insert(virtual_register);
     }
   }

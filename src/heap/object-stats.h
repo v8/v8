@@ -81,16 +81,34 @@ class ObjectStats {
   size_t object_sizes_last_time_[OBJECT_STATS_COUNT];
 };
 
-
-class ObjectStatsVisitor : public StaticMarkingVisitor<ObjectStatsVisitor> {
+class ObjectStatsCollector {
  public:
-  static void Initialize(VisitorDispatchTable<Callback>* original);
-
-  static void VisitBase(VisitorId id, Map* map, HeapObject* obj);
+  static void CollectStatistics(StaticVisitorBase::VisitorId id, Map* map,
+                                HeapObject* obj);
+  static void CollectFixedArrayStatistics(HeapObject* obj);
 
   static void CountFixedArray(FixedArrayBase* fixed_array,
                               FixedArraySubInstanceType fast_type,
                               FixedArraySubInstanceType dictionary_type);
+  static void RecordMapStats(Map* map, HeapObject* obj);
+  static void RecordCodeStats(Map* map, HeapObject* obj);
+  static void RecordSharedFunctionInfoStats(Map* map, HeapObject* obj);
+  static void RecordFixedArrayStats(Map* map, HeapObject* obj);
+};
+
+class MarkCompactObjectStatsVisitor
+    : public StaticMarkingVisitor<MarkCompactObjectStatsVisitor> {
+ public:
+  static void Initialize(VisitorDispatchTable<Callback>* original);
+
+  template <VisitorId id>
+  static inline void Visit(Map* map, HeapObject* obj);
+};
+
+class IncrementalMarkingObjectStatsVisitor
+    : public StaticMarkingVisitor<IncrementalMarkingObjectStatsVisitor> {
+ public:
+  static void Initialize(VisitorDispatchTable<Callback>* original);
 
   template <VisitorId id>
   static inline void Visit(Map* map, HeapObject* obj);

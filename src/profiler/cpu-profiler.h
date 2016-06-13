@@ -10,9 +10,9 @@
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
+#include "src/libsampler/v8-sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
-#include "src/profiler/sampler.h"
 #include "src/profiler/tick-sample.h"
 
 namespace v8 {
@@ -128,7 +128,7 @@ class CodeEventsContainer {
 class ProfilerEventsProcessor : public base::Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
-                          Sampler* sampler,
+                          sampler::Sampler* sampler,
                           base::TimeDelta period);
   virtual ~ProfilerEventsProcessor();
 
@@ -166,7 +166,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SampleProcessingResult ProcessOneSample();
 
   ProfileGenerator* generator_;
-  Sampler* sampler_;
+  sampler::Sampler* sampler_;
   base::Atomic32 running_;
   const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
@@ -180,17 +180,14 @@ class ProfilerEventsProcessor : public base::Thread {
   unsigned last_processed_code_event_id_;
 };
 
-
-#define PROFILE(IsolateGetter, Call)                                        \
-  do {                                                                      \
-    Isolate* cpu_profiler_isolate = (IsolateGetter);                        \
-    v8::internal::Logger* logger = cpu_profiler_isolate->logger();          \
-    CpuProfiler* cpu_profiler = cpu_profiler_isolate->cpu_profiler();       \
-    if (logger->is_logging_code_events() || cpu_profiler->is_profiling()) { \
-      logger->Call;                                                         \
-    }                                                                       \
+#define PROFILE(IsolateGetter, Call)                                       \
+  do {                                                                     \
+    Isolate* the_isolate = (IsolateGetter);                                \
+    v8::internal::Logger* logger = the_isolate->logger();                  \
+    if (logger->is_logging_code_events() || the_isolate->is_profiling()) { \
+      logger->Call;                                                        \
+    }                                                                      \
   } while (false)
-
 
 class CpuProfiler : public CodeEventListener {
  public:
@@ -242,10 +239,7 @@ class CpuProfiler : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
 
-  INLINE(bool is_profiling() const) { return is_profiling_; }
-  bool* is_profiling_address() {
-    return &is_profiling_;
-  }
+  bool is_profiling() const { return is_profiling_; }
 
   ProfileGenerator* generator() const { return generator_; }
   ProfilerEventsProcessor* processor() const { return processor_; }

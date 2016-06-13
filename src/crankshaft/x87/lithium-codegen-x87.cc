@@ -14,7 +14,6 @@
 #include "src/deoptimizer.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/x87/frames-x87.h"
 
 namespace v8 {
@@ -1025,7 +1024,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
                                             !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling() ||
+    if (FLAG_trace_deopt || isolate()->is_profiling() ||
         jump_table_.is_empty() ||
         !table_entry.IsEquivalentTo(jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
@@ -2362,9 +2361,7 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 
   __ add(esp, Immediate(kDoubleSize));
   int offset = sizeof(kHoleNanUpper32);
-  // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-  // so we check the upper with 0xffffffff for hole as a temporary fix.
-  __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+  __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
   EmitBranch(instr, equal);
 }
 
@@ -2605,10 +2602,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
 
   __ mov(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmp(object_prototype, prototype);
-  EmitTrueBranch(instr, equal);
   __ cmp(object_prototype, factory()->null_value());
   EmitFalseBranch(instr, equal);
+  __ cmp(object_prototype, prototype);
+  EmitTrueBranch(instr, equal);
   __ mov(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
   __ jmp(&loop);
 }
@@ -2711,9 +2708,9 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
   __ mov(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), instr->typeof_mode(), PREMONOMORPHIC)
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2822,10 +2819,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   __ mov(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
-  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(
-                        isolate(), NOT_INSIDE_TYPEOF,
-                        instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_INSIDE_TYPEOF).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3053,13 +3048,9 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->key()).is(LoadDescriptor::NameRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
-  }
+  EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
 
-  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(
-                        isolate(), instr->hydrogen()->initialization_state())
-                        .code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3356,8 +3347,19 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   DeoptimizeIf(not_equal, instr, Deoptimizer::kNotAHeapNumber);
 
   Label slow, allocated, done;
-  Register tmp = input_reg.is(eax) ? ecx : eax;
-  Register tmp2 = tmp.is(ecx) ? edx : input_reg.is(ecx) ? edx : ecx;
+  uint32_t available_regs = eax.bit() | ecx.bit() | edx.bit() | ebx.bit();
+  available_regs &= ~input_reg.bit();
+  if (instr->context()->IsRegister()) {
+    // Make sure that the context isn't overwritten in the AllocateHeapNumber
+    // macro below.
+    available_regs &= ~ToRegister(instr->context()).bit();
+  }
+
+  Register tmp =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
+  available_regs &= ~tmp.bit();
+  Register tmp2 =
+      Register::from_code(base::bits::CountTrailingZeros32(available_regs));
 
   // Preserve the value of all registers.
   PushSafepointRegistersScope scope(this);
@@ -4036,14 +4038,12 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
 
   __ mov(StoreDescriptor::NameRegister(), instr->name());
-  Handle<Code> ic = CodeFactory::StoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+  Handle<Code> ic =
+      CodeFactory::StoreICInOptimizedCode(isolate(), instr->language_mode())
+          .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -4105,9 +4105,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     __ fst_d(MemOperand(esp, 0));
     __ lea(esp, Operand(esp, kDoubleSize));
     int offset = sizeof(kHoleNanUpper32);
-    // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-    // so we check the upper with 0xffffffff for hole as a temporary fix.
-    __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+    __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
     __ j(not_equal, &no_special_nan_handling, Label::kNear);
     __ mov(operand, Immediate(lower));
     __ mov(operand2, Immediate(upper));
@@ -4193,9 +4191,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       __ fst_d(MemOperand(esp, 0));
       __ lea(esp, Operand(esp, kDoubleSize));
       int offset = sizeof(kHoleNanUpper32);
-      // x87 converts sNaN(0xfff7fffffff7ffff) to QNaN(0xfffffffffff7ffff),
-      // so we check the upper with 0xffffffff for hole as a temporary fix.
-      __ cmp(MemOperand(esp, -offset), Immediate(0xffffffff));
+      __ cmp(MemOperand(esp, -offset), Immediate(kHoleNanUpper32));
       __ j(not_equal, &no_special_nan_handling, Label::kNear);
       __ mov(double_store_operand, Immediate(lower));
       __ mov(double_store_operand2, Immediate(upper));
@@ -4266,13 +4262,11 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  if (instr->hydrogen()->HasVectorAndSlot()) {
-    EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
-  }
+  EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
 
   Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
-                        isolate(), instr->language_mode(),
-                        instr->hydrogen()->initialization_state()).code();
+                        isolate(), instr->language_mode())
+                        .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

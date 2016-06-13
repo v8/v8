@@ -13,6 +13,7 @@
 #include "src/assert-scope.h"
 #include "src/base/accounting-allocator.h"
 #include "src/base/atomicops.h"
+#include "src/base/hashmap.h"
 #include "src/builtins.h"
 #include "src/cancelable-task.h"
 #include "src/contexts.h"
@@ -22,7 +23,6 @@
 #include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
-#include "src/hashmap.h"
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/optimizing-compile-dispatcher.h"
@@ -124,6 +124,17 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
 
+#define RETURN_RESULT_OR_FAILURE(isolate, call)     \
+  do {                                              \
+    Handle<Object> __result__;                      \
+    Isolate* __isolate__ = (isolate);               \
+    if (!(call).ToHandle(&__result__)) {            \
+      DCHECK(__isolate__->has_pending_exception()); \
+      return __isolate__->heap()->exception();      \
+    }                                               \
+    return *__result__;                             \
+  } while (false)
+
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
   do {                                                               \
     if (!(call).ToHandle(&dst)) {                                    \
@@ -132,21 +143,26 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                                \
   } while (false)
 
-#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)  \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(                             \
-      isolate, dst, call, isolate->heap()->exception())
+#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)          \
+  do {                                                                  \
+    Isolate* __isolate__ = (isolate);                                   \
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,            \
+                                     __isolate__->heap()->exception()); \
+  } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
 
-#define THROW_NEW_ERROR(isolate, call, T)               \
-  do {                                                  \
-    return isolate->Throw<T>(isolate->factory()->call); \
+#define THROW_NEW_ERROR(isolate, call, T)                       \
+  do {                                                          \
+    Isolate* __isolate__ = (isolate);                           \
+    return __isolate__->Throw<T>(__isolate__->factory()->call); \
   } while (false)
 
-#define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call) \
-  do {                                                \
-    return isolate->Throw(*isolate->factory()->call); \
+#define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
+  do {                                                        \
+    Isolate* __isolate__ = (isolate);                         \
+    return __isolate__->Throw(*__isolate__->factory()->call); \
   } while (false)
 
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
@@ -157,8 +173,12 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                              \
   } while (false)
 
-#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)  \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, isolate->heap()->exception())
+#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)               \
+  do {                                                           \
+    Isolate* __isolate__ = (isolate);                            \
+    RETURN_ON_EXCEPTION_VALUE(__isolate__, call,                 \
+                              __isolate__->heap()->exception()); \
+  } while (false);
 
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
   RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
@@ -339,9 +359,9 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #if USE_SIMULATOR
 
-#define ISOLATE_INIT_SIMULATOR_LIST(V)                                         \
-  V(bool, simulator_initialized, false)                                        \
-  V(HashMap*, simulator_i_cache, NULL)                                         \
+#define ISOLATE_INIT_SIMULATOR_LIST(V)       \
+  V(bool, simulator_initialized, false)      \
+  V(base::HashMap*, simulator_i_cache, NULL) \
   V(Redirection*, simulator_redirection, NULL)
 #else
 
@@ -352,10 +372,10 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #ifdef DEBUG
 
-#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)                                       \
-  V(CommentStatistic, paged_space_comments_statistics,                         \
-      CommentStatistic::kMaxComments + 1)                                      \
-  V(int, code_kind_statistics, Code::NUMBER_OF_KINDS)
+#define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)               \
+  V(CommentStatistic, paged_space_comments_statistics, \
+    CommentStatistic::kMaxComments + 1)                \
+  V(int, code_kind_statistics, AbstractCode::NUMBER_OF_KINDS)
 #else
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
@@ -387,8 +407,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
-  V(HashMap*, external_reference_map, NULL)                                    \
-  V(HashMap*, root_index_map, NULL)                                            \
+  V(base::HashMap*, external_reference_map, NULL)                              \
+  V(base::HashMap*, root_index_map, NULL)                                      \
   V(int, pending_microtask_count, 0)                                           \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(CompilationStatistics*, turbo_statistics, NULL)                            \
@@ -398,6 +418,10 @@ typedef List<HeapObject*> DebugObjectCache;
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   V(const v8::StartupData*, snapshot_blob, NULL)                               \
+  V(int, code_and_metadata_size, 0)                                            \
+  V(int, bytecode_and_metadata_size, 0)                                        \
+  /* true if being profiled. Causes collection of extra compile info. */       \
+  V(bool, is_profiling, false)                                                 \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -894,6 +918,7 @@ class Isolate {
 
   Debug* debug() { return debug_; }
 
+  bool* is_profiling_address() { return &is_profiling_; }
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
@@ -1110,6 +1135,8 @@ class Isolate {
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
+  void SetRAILMode(RAILMode rail_mode);
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1221,6 +1248,24 @@ class Isolate {
 
   void RunMicrotasksInternal();
 
+  const char* RAILModeName(RAILMode rail_mode) const {
+    switch (rail_mode) {
+      case PERFORMANCE_DEFAULT:
+        return "DEFAULT";
+      case PERFORMANCE_RESPONSE:
+        return "RESPONSE";
+      case PERFORMANCE_ANIMATION:
+        return "ANIMATION";
+      case PERFORMANCE_IDLE:
+        return "IDLE";
+      case PERFORMANCE_LOAD:
+        return "LOAD";
+      default:
+        UNREACHABLE();
+    }
+    return "";
+  }
+
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
@@ -1267,6 +1312,7 @@ class Isolate {
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
+  RAILMode rail_mode_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1373,6 +1419,7 @@ class Isolate {
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
+  friend class v8::SnapshotCreator;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
   friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
                                                         const char*);

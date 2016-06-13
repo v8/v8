@@ -37,10 +37,10 @@ bool ContextMeasure::IsShared(HeapObject* object) {
 
 
 void ContextMeasure::MeasureObject(HeapObject* object) {
-  if (back_reference_map_.Lookup(object).is_valid()) return;
+  if (reference_map_.Lookup(object).is_valid()) return;
   if (root_index_map_.Lookup(object) != RootIndexMap::kInvalidRootIndex) return;
   if (IsShared(object)) return;
-  back_reference_map_.Add(object, BackReference::DummyReference());
+  reference_map_.Add(object, SerializerReference::DummyReference());
   recursion_depth_++;
   if (recursion_depth_ > kMaxRecursion) {
     deferred_objects_.Add(object);

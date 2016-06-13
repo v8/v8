@@ -49,6 +49,19 @@ class JSBuiltinReducerTest : public TypedGraphTest {
     return HeapConstant(f);
   }
 
+  Node* StringFunction(const char* name) {
+    Handle<Object> m =
+        JSObject::GetProperty(
+            isolate()->global_object(),
+            isolate()->factory()->NewStringFromAsciiChecked("String"))
+            .ToHandleChecked();
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        Object::GetProperty(
+            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return HeapConstant(f);
+  }
+
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:
@@ -86,7 +99,7 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
   Node* frame_state = graph()->start();
   Node* call = graph()->NewNode(javascript()->CallFunction(2), function,
                                 UndefinedConstant(), context, frame_state,
-                                frame_state, effect, control);
+                                effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -105,7 +118,7 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
     Node* p0 = Parameter(t0, 0);
     Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
                                   UndefinedConstant(), p0, context, frame_state,
-                                  frame_state, effect, control);
+                                  effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -127,7 +140,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
       Node* p1 = Parameter(t1, 1);
       Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
                                     UndefinedConstant(), p0, p1, context,
-                                    frame_state, frame_state, effect, control);
+                                    frame_state, effect, control);
       Reduction r = Reduce(call);
 
       ASSERT_TRUE(r.Changed());
@@ -155,7 +168,7 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
       Node* p1 = Parameter(t1, 1);
       Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
                                     UndefinedConstant(), p0, p1, context,
-                                    frame_state, frame_state, effect, control);
+                                    frame_state, effect, control);
       Reduction r = Reduce(call);
 
       ASSERT_TRUE(r.Changed());
@@ -181,11 +194,124 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
     Node* p0 = Parameter(t0, 0);
     Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
                                   UndefinedConstant(), p0, context, frame_state,
-                                  frame_state, effect, control);
+                                  effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsTruncateFloat64ToFloat32(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Math.atan
+
+TEST_F(JSBuiltinReducerTest, MathAtan) {
+  Node* function = MathFunction("atan");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAtan(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Math.atan2
+
+TEST_F(JSBuiltinReducerTest, MathAtan2) {
+  Node* function = MathFunction("atan2");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    TRACED_FOREACH(Type*, t1, kNumberTypes) {
+      Node* p1 = Parameter(t1, 0);
+      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                    UndefinedConstant(), p0, p1, context,
+                                    frame_state, effect, control);
+      Reduction r = Reduce(call);
+
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsNumberAtan2(p0, p1));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Math.log
+
+TEST_F(JSBuiltinReducerTest, MathLog) {
+  Node* function = MathFunction("log");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberLog(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Math.log1p
+
+TEST_F(JSBuiltinReducerTest, MathLog1p) {
+  Node* function = MathFunction("log1p");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberLog1p(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// String.fromCharCode
+
+TEST_F(JSBuiltinReducerTest, StringFromCharCode) {
+  Node* function = StringFunction("fromCharCode");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsStringFromCharCode(p0));
   }
 }
 

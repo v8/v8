@@ -299,7 +299,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       // Install a property cell.
       auto cell = JSGlobalObject::EnsurePropertyCell(
           Handle<JSGlobalObject>::cast(receiver), name());
-      DCHECK(cell->value()->IsTheHole());
+      DCHECK(cell->value()->IsTheHole(isolate_));
       transition_ = cell;
     } else {
       transition_ = map;
@@ -496,8 +496,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
   if (object->IsJSProxy()) return false;
-  PrototypeIterator iter(isolate(), current,
-                         PrototypeIterator::START_AT_PROTOTYPE,
+  PrototypeIterator iter(isolate(), current, kStartAtPrototype,
                          PrototypeIterator::END_AT_NON_HIDDEN);
   while (!iter.IsAtEnd()) {
     if (iter.GetCurrent<JSReceiver>() == object) return true;
@@ -693,7 +692,7 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         number_ = static_cast<uint32_t>(number);
         DCHECK(dict->ValueAt(number_)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
-        if (cell->value()->IsTheHole()) return NOT_FOUND;
+        if (cell->value()->IsTheHole(isolate_)) return NOT_FOUND;
         property_details_ = cell->property_details();
         has_property_ = true;
         switch (property_details_.kind()) {

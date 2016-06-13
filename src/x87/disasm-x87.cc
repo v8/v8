@@ -920,6 +920,10 @@ static const char* F0Mnem(byte f0byte) {
       return "shrd";  // 3-operand version.
     case 0xAB:
       return "bts";
+    case 0xB0:
+      return "cmpxchg_b";
+    case 0xB1:
+      return "cmpxchg";
     case 0xBC:
       return "bsf";
     case 0xBD:
@@ -943,7 +947,11 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
   } else if (*data == 0x2E /*cs*/) {
     branch_hint = "predicted not taken";
     data++;
+  } else if (*data == 0xF0 /*lock*/) {
+    AppendToBuffer("lock ");
+    data++;
   }
+
   bool processed = true;  // Will be set to false if the current instruction
                           // is not in 'instructions' table.
   const InstructionDesc& idesc = instruction_table_->Get(*data);
@@ -1162,6 +1170,24 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else {
               AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
             }
+          } else if (f0byte == 0xB0) {
+            // cmpxchg_b
+            data += 2;
+            AppendToBuffer("%s ", f0mnem);
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            data += PrintRightOperand(data);
+            AppendToBuffer(",%s", NameOfByteCPURegister(regop));
+          } else if (f0byte == 0xB1) {
+            // cmpxchg
+            data += 2;
+            data += PrintOperands(f0mnem, OPER_REG_OP_ORDER, data);
+          } else if (f0byte == 0xBC) {
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("%s %s,", f0mnem, NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
           } else if (f0byte == 0xBD) {
             data += 2;
             int mod, regop, rm;
@@ -1272,9 +1298,8 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
           data++;
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
-          AppendToBuffer("xchg_w ");
+          AppendToBuffer("xchg_w %s,", NameOfCPURegister(regop));
           data += PrintRightOperand(data);
-          AppendToBuffer(",%s", NameOfCPURegister(regop));
         } else if (*data == 0x89) {
           data++;
           int mod, regop, rm;
@@ -1513,6 +1538,9 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0xB1) {
+            data++;
+            data += PrintOperands("cmpxchg_w", OPER_REG_OP_ORDER, data);
           } else {
             UnimplementedInstruction();
           }
@@ -1752,7 +1780,7 @@ static const char* const xmm_regs[8] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1815,7 +1843,7 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    fprintf(f, "%p", prev_pc);
+    fprintf(f, "%p", static_cast<void*>(prev_pc));
     fprintf(f, "    ");
 
     for (byte* bp = prev_pc; bp < pc; bp++) {

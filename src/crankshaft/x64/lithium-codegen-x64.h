@@ -115,7 +115,7 @@ class LCodeGen: public LCodeGenBase {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk()->graph(); }
 
-  XMMRegister double_scratch0() const { return xmm0; }
+  XMMRegister double_scratch0() const { return kScratchDoubleReg; }
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,

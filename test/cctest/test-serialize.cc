@@ -36,6 +36,7 @@
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
+#include "src/macro-assembler.h"
 #include "src/objects.h"
 #include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
@@ -46,7 +47,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -91,11 +92,11 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
   internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
-  SnapshotByteSink sink;
-  StartupSerializer ser(internal_isolate, &sink);
+  StartupSerializer ser(internal_isolate,
+                        v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
   ser.SerializeWeakReferencesAndDeferred();
-  SnapshotData snapshot_data(ser);
+  SnapshotData snapshot_data(&ser);
   return WritePayload(snapshot_data.RawData());
 }
 
@@ -280,19 +281,17 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
     }
     env.Reset();
 
-    SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate, &startup_sink);
+    StartupSerializer startup_serializer(
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
-    SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_foo);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
@@ -380,17 +379,17 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     env.Reset();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate, &startup_sink);
+    StartupSerializer startup_serializer(
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
@@ -498,17 +497,17 @@ static void PartiallySerializeCustomContext(
     env.Reset();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate, &startup_sink);
+    StartupSerializer startup_serializer(
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
-    PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                         &partial_sink);
+    PartialSerializer partial_serializer(isolate, &startup_serializer);
     partial_serializer.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
-    SnapshotData startup_snapshot(startup_serializer);
-    SnapshotData partial_snapshot(partial_serializer);
+    SnapshotData startup_snapshot(&startup_serializer);
+    SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
@@ -1827,12 +1826,61 @@ TEST(Regress503552) {
       false);
   delete script_data;
 
-  SimulateIncrementalMarking(isolate->heap());
+  heap::SimulateIncrementalMarking(isolate->heap());
 
   script_data = CodeSerializer::Serialize(isolate, shared, source);
   delete script_data;
 }
 
+#if V8_TARGET_ARCH_X64
+TEST(CodeSerializerCell) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  HandleScope handles(isolate);
+
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
+  assembler.enable_serializer();
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
+  CHECK(isolate->heap()->InNewSpace(*number));
+  MacroAssembler* masm = &assembler;
+  masm->MoveHeapObject(rax, number);
+  masm->ret(0);
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::FUNCTION), masm->CodeObject());
+  code->set_has_reloc_info_for_serialization(true);
+
+  RelocIterator rit1(*code, 1 << RelocInfo::CELL);
+  CHECK_EQ(*number, rit1.rinfo()->target_cell()->value());
+
+  Handle<String> source = isolate->factory()->empty_string();
+  Handle<SharedFunctionInfo> sfi =
+      isolate->factory()->NewSharedFunctionInfo(source, code, false);
+  ScriptData* script_data = CodeSerializer::Serialize(isolate, sfi, source);
+
+  Handle<SharedFunctionInfo> copy =
+      CodeSerializer::Deserialize(isolate, script_data, source)
+          .ToHandleChecked();
+  RelocIterator rit2(copy->code(), 1 << RelocInfo::CELL);
+  CHECK(rit2.rinfo()->target_cell()->IsCell());
+  Handle<Cell> cell(rit2.rinfo()->target_cell());
+  CHECK(cell->value()->IsHeapNumber());
+  CHECK_EQ(0.3, HeapNumber::cast(cell->value())->value());
+
+  delete script_data;
+}
+#endif  // V8_TARGET_ARCH_X64
 
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;

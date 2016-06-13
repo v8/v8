@@ -839,8 +839,9 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   }
 
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, andi=%p, delta=%d\n", address,
-           andi_instruction_address, delta);
+    PrintF("[  patching ic at %p, andi=%p, delta=%d\n",
+           static_cast<void*>(address),
+           static_cast<void*>(andi_instruction_address), delta);
   }
 
   Address patch_address =

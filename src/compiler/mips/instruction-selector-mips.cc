@@ -876,7 +876,6 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kMipsAbsD, node);
 }
 
-
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kMipsSqrtS, node);
 }
@@ -931,6 +930,24 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, kMipsFloat64RoundTiesEven, node);
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  MipsOperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12),
+       g.UseFixed(node->InputAt(1), f14))
+      ->MarkAsCall();
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
+  MipsOperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12))
+      ->MarkAsCall();
+}
 
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
@@ -1546,6 +1563,20 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundUp |
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat32RoundTiesEven;
+}
+
+// static
+MachineOperatorBuilder::AlignmentRequirements
+InstructionSelector::AlignmentRequirements() {
+  if (IsMipsArchVariant(kMips32r6)) {
+    return MachineOperatorBuilder::AlignmentRequirements::
+        FullUnalignedAccessSupport();
+  } else {
+    DCHECK(IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r1) ||
+           IsMipsArchVariant(kMips32r2));
+    return MachineOperatorBuilder::AlignmentRequirements::
+        NoUnalignedAccessSupport();
+  }
 }
 
 }  // namespace compiler

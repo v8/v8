@@ -86,7 +86,7 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
-  printf("Trace: %p\n", fp);
+  printf("Trace: %p\n", static_cast<void*>(fp));
   return fp;
 }
 

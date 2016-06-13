@@ -39,6 +39,7 @@
 #include "src/api.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
+#include "src/base/ieee754.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
@@ -53,7 +54,6 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/ostreams.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
@@ -130,7 +130,6 @@ bool Register::IsAllocatable() const {
               ->allocatable_general_codes_mask()) != 0;
 }
 
-
 const char* DoubleRegister::ToString() {
   // This is the mapping of allocation indices to registers.
   DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
@@ -145,6 +144,23 @@ bool DoubleRegister::IsAllocatable() const {
               ->allocatable_double_codes_mask()) != 0;
 }
 
+// FloatRegister is only a distinct type on ARM. On all other platforms it's
+// typedef'ed to DoubleRegister.
+#if V8_TARGET_ARCH_ARM
+const char* FloatRegister::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetFloatRegisterName(reg_code);
+}
+
+bool FloatRegister::IsAllocatable() const {
+  // TODO(bbudge) Update this once RegisterConfigutation handles aliasing.
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_double_codes_mask()) != 0;
+}
+#endif  // V8_TARGET_ARCH_ARM
 
 // -----------------------------------------------------------------------------
 // Common double constants.
@@ -201,7 +217,6 @@ AssemblerBase::~AssemblerBase() {
 
 void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
   if (size == 0) return;
-  if (CpuFeatures::IsSupported(COHERENT_CACHE)) return;
 
 #if defined(USE_SIMULATOR)
   Simulator::FlushICache(isolate->simulator_i_cache(), start, size);
@@ -1013,7 +1028,7 @@ void ExternalReference::InitializeMathExpData() {
     // The rest is black magic. Do not attempt to understand it. It is
     // loosely based on the "expd" function published at:
     // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
-    const double constant3 = (1 << kTableSizeBits) / std::log(2.0);
+    const double constant3 = (1 << kTableSizeBits) / base::ieee754::log(2.0);
     math_exp_constants_array[3] = constant3;
     math_exp_constants_array[4] =
         static_cast<double>(static_cast<int64_t>(3) << 51);
@@ -1289,64 +1304,72 @@ ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
 }
 
-static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
+static void f64_acos_wrapper(double* param) {
+  WriteDoubleValue(param, std::acos(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_acos_wrapper)));
 }
 
-static void f64_asin_wrapper(double* param) { *param = std::asin(*param); }
+static void f64_asin_wrapper(double* param) {
+  WriteDoubleValue(param, std::asin(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_asin_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
-static void f64_atan_wrapper(double* param) { *param = std::atan(*param); }
+static void f64_atan_wrapper(double* param) {
+  WriteDoubleValue(param, base::ieee754::atan(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_atan_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan_wrapper)));
 }
 
-static void f64_cos_wrapper(double* param) { *param = std::cos(*param); }
+static void f64_cos_wrapper(double* param) {
+  WriteDoubleValue(param, std::cos(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_cos_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_cos_wrapper)));
 }
 
-static void f64_sin_wrapper(double* param) { *param = std::sin(*param); }
+static void f64_sin_wrapper(double* param) {
+  WriteDoubleValue(param, std::sin(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_sin_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_sin_wrapper)));
 }
 
-static void f64_tan_wrapper(double* param) { *param = std::tan(*param); }
+static void f64_tan_wrapper(double* param) {
+  WriteDoubleValue(param, std::tan(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_tan_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_tan_wrapper)));
 }
 
-static void f64_exp_wrapper(double* param) { *param = std::exp(*param); }
+static void f64_exp_wrapper(double* param) {
+  WriteDoubleValue(param, std::exp(ReadDoubleValue(param)));
+}
 
 ExternalReference ExternalReference::f64_exp_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
 }
 
-static void f64_log_wrapper(double* param) { *param = std::log(*param); }
-
-ExternalReference ExternalReference::f64_log_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_log_wrapper)));
-}
-
 static void f64_pow_wrapper(double* param0, double* param1) {
-  *param0 = power_double_double(*param0, *param1);
+  WriteDoubleValue(param0, power_double_double(ReadDoubleValue(param0),
+                                               ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_pow_wrapper_function(
@@ -1355,8 +1378,8 @@ ExternalReference ExternalReference::f64_pow_wrapper_function(
 }
 
 static void f64_atan2_wrapper(double* param0, double* param1) {
-  double x = *param0;
-  double y = *param1;
+  double x = ReadDoubleValue(param0);
+  double y = ReadDoubleValue(param1);
   // TODO(bradnelson): Find a good place to put this to share
   // with the same code in src/runtime/runtime-math.cc
   static const double kPiDividedBy4 = 0.78539816339744830962;
@@ -1367,9 +1390,9 @@ static void f64_atan2_wrapper(double* param0, double* param1) {
     // determines the multiplier: one or three.
     int multiplier = (x < 0) ? -1 : 1;
     if (y < 0) multiplier *= 3;
-    *param0 = multiplier * kPiDividedBy4;
+    WriteDoubleValue(param0, multiplier * kPiDividedBy4);
   } else {
-    *param0 = std::atan2(x, y);
+    WriteDoubleValue(param0, base::ieee754::atan2(x, y));
   }
 }
 
@@ -1379,7 +1402,8 @@ ExternalReference ExternalReference::f64_atan2_wrapper_function(
 }
 
 static void f64_mod_wrapper(double* param0, double* param1) {
-  *param0 = modulo(*param0, *param1);
+  WriteDoubleValue(param0,
+                   modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(
@@ -1534,7 +1558,7 @@ ExternalReference ExternalReference::address_of_uint32_bias() {
 
 
 ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
-  return ExternalReference(isolate->cpu_profiler()->is_profiling_address());
+  return ExternalReference(isolate->is_profiling_address());
 }
 
 
@@ -1624,15 +1648,25 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 
 #endif  // V8_INTERPRETED_REGEXP
 
-
-ExternalReference ExternalReference::math_log_double_function(
-    Isolate* isolate) {
-  typedef double (*d2d)(double x);
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(static_cast<d2d>(std::log)),
-                                    BUILTIN_FP_CALL));
+ExternalReference ExternalReference::ieee754_atan_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
 }
 
+ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_log_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_log1p_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log1p), BUILTIN_FP_CALL));
+}
 
 ExternalReference ExternalReference::math_exp_constants(int constant_index) {
   DCHECK(math_exp_data_initialized);
@@ -1775,6 +1809,10 @@ ExternalReference ExternalReference::debug_step_in_enabled_address(
   return ExternalReference(isolate->debug()->step_in_enabled_address());
 }
 
+ExternalReference ExternalReference::debug_suspended_generator_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->suspended_generator_address());
+}
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
   return ExternalReference(reinterpret_cast<void*>(
@@ -2058,7 +2096,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 // Platform specific but identical code for all the platforms.
 
 void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
-  if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
+  if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);

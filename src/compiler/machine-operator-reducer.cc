@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/ieee754.h"
 #include "src/codegen.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
@@ -380,6 +381,35 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K % K => K
         return ReplaceFloat64(modulo(m.left().Value(), m.right().Value()));
       }
+      break;
+    }
+    case IrOpcode::kFloat64Atan: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::atan(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Atan2: {
+      Float64BinopMatcher m(node);
+      if (m.right().IsNaN()) {
+        return Replace(m.right().node());
+      }
+      if (m.left().IsNaN()) {
+        return Replace(m.left().node());
+      }
+      if (m.IsFoldable()) {
+        return ReplaceFloat64(
+            base::ieee754::atan2(m.left().Value(), m.right().Value()));
+      }
+      break;
+    }
+    case IrOpcode::kFloat64Log: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::log(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Log1p: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::log1p(m.Value()));
       break;
     }
     case IrOpcode::kChangeFloat32ToFloat64: {

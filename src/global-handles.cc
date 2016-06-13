@@ -879,7 +879,7 @@ void ObjectGroupsTracer::PrintObject(Object* object) {
     PrintInternalFields(js_object);
     PrintF(" ] }\n");
   } else {
-    PrintF("object of unexpected type: %p\n", object);
+    PrintF("object of unexpected type: %p\n", static_cast<void*>(object));
   }
 }
 
@@ -907,7 +907,7 @@ void ObjectGroupsTracer::PrintInternalFields(JSObject* js_object) {
     if (i != 0) {
       PrintF(", ");
     }
-    PrintF("%p", js_object->GetInternalField(i));
+    PrintF("%p", static_cast<void*>(js_object->GetInternalField(i)));
   }
 }
 

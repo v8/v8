@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Please keep this file in sync with BUILD.gn.
+
 {
   'variables': {
     'v8_code': 1,
@@ -29,6 +31,7 @@
         'base/division-by-constant-unittest.cc',
         'base/flags-unittest.cc',
         'base/functional-unittest.cc',
+        'base/ieee754-unittest.cc',
         'base/logging-unittest.cc',
         'base/iterator-unittest.cc',
         'base/platform/condition-variable-unittest.cc',
@@ -41,7 +44,7 @@
         'cancelable-tasks-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/branch-elimination-unittest.cc',
-        'compiler/coalesced-live-ranges-unittest.cc',
+        'compiler/checkpoint-elimination-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
@@ -98,8 +101,9 @@
         'interpreter/bytecode-array-iterator-unittest.cc',
         'interpreter/bytecode-array-writer-unittest.cc',
         'interpreter/bytecode-peephole-optimizer-unittest.cc',
-        'interpreter/bytecode-register-allocator-unittest.cc',
         'interpreter/bytecode-pipeline-unittest.cc',
+        'interpreter/bytecode-register-allocator-unittest.cc',
+        'interpreter/bytecode-register-optimizer-unittest.cc',
         'interpreter/constant-array-builder-unittest.cc',
         'interpreter/interpreter-assembler-unittest.cc',
         'interpreter/interpreter-assembler-unittest.h',
@@ -119,6 +123,7 @@
         'test-utils.h',
         'test-utils.cc',
         'wasm/ast-decoder-unittest.cc',
+        'wasm/control-transfer-unittest.cc',
         'wasm/decoder-unittest.cc',
         'wasm/encoder-unittest.cc',
         'wasm/leb-helper-unittest.cc',

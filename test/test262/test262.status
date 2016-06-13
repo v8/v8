@@ -71,6 +71,10 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Promise/reject-function-name': [FAIL],
+  'built-ins/Promise/resolve-function-name': [FAIL],
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
@@ -138,39 +142,11 @@
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4476
-  # The bug is fixed but behind a flag, --icu_case_mapping.
-  'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
-  'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
-  'built-ins/String/prototype/toUpperCase/supplementary_plane': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4477
-  # The bug is fixed but behind a flag, --icu_case_mapping.
-  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
-  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
-  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': [FAIL],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': [FAIL],
-  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': [FAIL],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': [FAIL],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
-  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
-  'language/eval-code/non-definable-function-with-variable': [FAIL],
-  'language/eval-code/non-definable-function-with-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4592
   'built-ins/ArrayBuffer/length-is-absent': [FAIL],
   'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
   'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
   'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4633
-  'built-ins/Promise/reject-function-name': [FAIL],
-  'built-ins/Promise/resolve-function-name': [FAIL],
-  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
-  'built-ins/Promise/executor-function-name': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4634
   'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
@@ -250,26 +226,8 @@
   'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/values/detached-buffer': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4925
-  'built-ins/ThrowTypeError/forbidden-arguments': [FAIL],
-  'built-ins/ThrowTypeError/forbidden-caller': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4902
-  'built-ins/TypedArray/prototype/byteLength/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/every/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/every/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/fill/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/find/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/get-length-ignores-length-prop': [FAIL],
-  'built-ins/TypedArray/prototype/indexOf/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/lastIndexOf/get-length-uses-internal-arraylength': [FAIL],
-  'built-ins/TypedArray/prototype/length/prop-desc': [FAIL],
-  'built-ins/TypedArray/prototype/some/get-length-uses-internal-arraylength': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
@@ -302,7 +260,7 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
   'language/literals/regexp/early-err-pattern': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4468
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
@@ -340,10 +298,6 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4985
-  'language/reserved-words/await-module': [SKIP],
-  'language/module-code/strict-mode': [SKIP],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -355,7 +309,6 @@
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
-  'intl402/DateTimeFormat/12.1.1': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],

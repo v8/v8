@@ -119,8 +119,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
       }
       case kMode_MRI: {
         Register base = InputRegister(NextOffset(offset));
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(base, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(base, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_MR1:
       case kMode_MR2:
@@ -139,8 +139,8 @@ class IA32OperandConverter : public InstructionOperandConverter {
         Register base = InputRegister(NextOffset(offset));
         Register index = InputRegister(NextOffset(offset));
         ScaleFactor scale = ScaleFor(kMode_MR1I, mode);
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(base, index, scale, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(base, index, scale, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_M1:
       case kMode_M2:
@@ -157,12 +157,12 @@ class IA32OperandConverter : public InstructionOperandConverter {
       case kMode_M8I: {
         Register index = InputRegister(NextOffset(offset));
         ScaleFactor scale = ScaleFor(kMode_M1I, mode);
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(index, scale, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(index, scale, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_MI: {
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(Immediate(disp));
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(ctant.ToInt32(), ctant.rmode());
       }
       case kMode_None:
         UNREACHABLE();
@@ -363,6 +363,37 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                 \
   } while (0)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    /* Pass two doubles as arguments on the stack. */                         \
+    __ PrepareCallCFunction(4, eax);                                          \
+    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));        \
+    __ movsd(Operand(esp, 1 * kDoubleSize), i.InputDoubleRegister(1));        \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     4);                                                      \
+    /* Return value is in st(0) on ia32. */                                   \
+    /* Store it into the result register. */                                  \
+    __ sub(esp, Immediate(kDoubleSize));                                      \
+    __ fstp_d(Operand(esp, 0));                                               \
+    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                      \
+    __ add(esp, Immediate(kDoubleSize));                                      \
+  } while (false)
+
+#define ASSEMBLE_IEEE754_UNOP(name)                                           \
+  do {                                                                        \
+    /* Pass one double as argument on the stack. */                           \
+    __ PrepareCallCFunction(2, eax);                                          \
+    __ movsd(Operand(esp, 0 * kDoubleSize), i.InputDoubleRegister(0));        \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     2);                                                      \
+    /* Return value is in st(0) on ia32. */                                   \
+    /* Store it into the result register. */                                  \
+    __ sub(esp, Immediate(kDoubleSize));                                      \
+    __ fstp_d(Operand(esp, 0));                                               \
+    __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                      \
+    __ add(esp, Immediate(kDoubleSize));                                      \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -539,6 +570,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
+    case kArchComment: {
+      Address comment_string = i.InputExternalReference(0).address();
+      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+      break;
+    }
+    case kArchDebugBreak:
+      __ int3();
+      break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
@@ -609,6 +648,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
+      break;
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));
@@ -1227,9 +1278,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32PushFloat32:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kDoubleSize));
+        __ sub(esp, Immediate(kFloatSize));
         __ movss(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputDouble(0));
         __ sub(esp, Immediate(kDoubleSize));
@@ -1261,9 +1312,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32Push:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kDoubleSize));
+        __ sub(esp, Immediate(kFloatSize));
         __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);

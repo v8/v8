@@ -105,46 +105,55 @@ bool IsWord(MachineRepresentation rep) {
 
 }  // namespace
 
-
 // Changes representation from {output_rep} to {use_rep}. The {truncation}
 // parameter is only used for sanity checking - if the changer cannot figure
 // out signedness for the word32->float64 conversion, then we check that the
 // uses truncate to word32 (so they do not care about signedness).
 Node* RepresentationChanger::GetRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
-    MachineRepresentation use_rep, Truncation truncation) {
+    Node* use_node, UseInfo use_info) {
   if (output_rep == MachineRepresentation::kNone) {
     // The output representation should be set.
-    return TypeError(node, output_rep, output_type, use_rep);
+    return TypeError(node, output_rep, output_type, use_info.representation());
   }
-  if (use_rep == output_rep) {
-    // Representations are the same. That's a no-op.
-    return node;
+
+  // Handle the no-op shortcuts when no checking is necessary.
+  if (use_info.type_check() == TypeCheckKind::kNone ||
+      output_rep != MachineRepresentation::kWord32) {
+    if (use_info.representation() == output_rep) {
+      // Representations are the same. That's a no-op.
+      return node;
+    }
+    if (IsWord(use_info.representation()) && IsWord(output_rep)) {
+      // Both are words less than or equal to 32-bits.
+      // Since loads of integers from memory implicitly sign or zero extend the
+      // value to the full machine word size and stores implicitly truncate,
+      // no representation change is necessary.
+      return node;
+    }
   }
-  if (IsWord(use_rep) && IsWord(output_rep)) {
-    // Both are words less than or equal to 32-bits.
-    // Since loads of integers from memory implicitly sign or zero extend the
-    // value to the full machine word size and stores implicitly truncate,
-    // no representation change is necessary.
-    return node;
-  }
-  switch (use_rep) {
+
+  switch (use_info.representation()) {
     case MachineRepresentation::kTagged:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetTaggedRepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kFloat32:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetFloat32RepresentationFor(node, output_rep, output_type,
-                                         truncation);
+                                         use_info.truncation());
     case MachineRepresentation::kFloat64:
       return GetFloat64RepresentationFor(node, output_rep, output_type,
-                                         truncation);
+                                         use_node, use_info);
     case MachineRepresentation::kBit:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetBitRepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
-      return GetWord32RepresentationFor(node, output_rep, output_type,
-                                        truncation);
+      return GetWord32RepresentationFor(node, output_rep, output_type, use_node,
+                                        use_info);
     case MachineRepresentation::kWord64:
+      DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetWord64RepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kSimd128:  // Fall through.
       // TODO(bbudge) Handle conversions between tagged and untagged.
@@ -155,7 +164,6 @@ Node* RepresentationChanger::GetRepresentationFor(
   UNREACHABLE();
   return nullptr;
 }
-
 
 Node* RepresentationChanger::GetTaggedRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
@@ -271,8 +279,12 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::NumberOrUndefined())) {
-      op = simplified()
-               ->ChangeTaggedToFloat64();  // tagged -> float64 -> float32
+      // tagged -> float64 -> float32
+      if (output_type->Is(Type::Number())) {
+        op = simplified()->ChangeTaggedToFloat64();
+      } else {
+        op = simplified()->TruncateTaggedToFloat64();
+      }
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     }
@@ -286,29 +298,31 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   return jsgraph()->graph()->NewNode(op, node);
 }
 
-
 Node* RepresentationChanger::GetFloat64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
-    Truncation truncation) {
+    Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
-  switch (node->opcode()) {
-    case IrOpcode::kNumberConstant:
-      return jsgraph()->Float64Constant(OpParameter<double>(node));
-    case IrOpcode::kInt32Constant:
-      if (output_type->Is(Type::Signed32())) {
-        int32_t value = OpParameter<int32_t>(node);
-        return jsgraph()->Float64Constant(value);
-      } else {
-        DCHECK(output_type->Is(Type::Unsigned32()));
-        uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
-        return jsgraph()->Float64Constant(static_cast<double>(value));
-      }
-    case IrOpcode::kFloat64Constant:
-      return node;  // No change necessary.
-    case IrOpcode::kFloat32Constant:
-      return jsgraph()->Float64Constant(OpParameter<float>(node));
-    default:
-      break;
+  if ((use_info.type_check() == TypeCheckKind::kNone)) {
+    // TODO(jarin) Handle checked constant conversions.
+    switch (node->opcode()) {
+      case IrOpcode::kNumberConstant:
+        return jsgraph()->Float64Constant(OpParameter<double>(node));
+      case IrOpcode::kInt32Constant:
+        if (output_type->Is(Type::Signed32())) {
+          int32_t value = OpParameter<int32_t>(node);
+          return jsgraph()->Float64Constant(value);
+        } else {
+          DCHECK(output_type->Is(Type::Unsigned32()));
+          uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
+          return jsgraph()->Float64Constant(static_cast<double>(value));
+        }
+      case IrOpcode::kFloat64Constant:
+        return node;  // No change necessary.
+      case IrOpcode::kFloat32Constant:
+        return jsgraph()->Float64Constant(OpParameter<float>(node));
+      default:
+        break;
+    }
   }
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
@@ -316,7 +330,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type->Is(Type::Unsigned32()) ||
-               truncation.TruncatesToWord32()) {
+               use_info.truncation().TruncatesToWord32()) {
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
       op = machine()->ChangeUint32ToFloat64();
@@ -328,8 +342,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (output_type->Is(Type::TaggedSigned())) {
       node = InsertChangeTaggedSignedToInt32(node);
       op = machine()->ChangeInt32ToFloat64();
-    } else if (output_type->Is(Type::NumberOrUndefined())) {
+    } else if (output_type->Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
+    } else if (output_type->Is(Type::NumberOrUndefined())) {
+      // TODO(jarin) Here we should check that truncation is Number.
+      op = simplified()->TruncateTaggedToFloat64();
+    } else if (use_info.type_check() == TypeCheckKind::kNumberOrUndefined) {
+      op = simplified()->CheckedTaggedToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();
@@ -338,9 +357,8 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kFloat64);
   }
-  return jsgraph()->graph()->NewNode(op, node);
+  return InsertConversion(node, op, use_node);
 }
-
 
 Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
   return jsgraph()->Int32Constant(DoubleToInt32(value));
@@ -348,19 +366,23 @@ Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
 
 Node* RepresentationChanger::GetWord32RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
-    Truncation truncation) {
+    Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
-  switch (node->opcode()) {
-    case IrOpcode::kInt32Constant:
-      return node;  // No change necessary.
-    case IrOpcode::kFloat32Constant:
-      return MakeTruncatedInt32Constant(OpParameter<float>(node));
-    case IrOpcode::kNumberConstant:
-    case IrOpcode::kFloat64Constant:
-      return MakeTruncatedInt32Constant(OpParameter<double>(node));
-    default:
-      break;
+  // TODO(jarin) Properly fold constants in presence of type check.
+  if (use_info.type_check() == TypeCheckKind::kNone) {
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return node;  // No change necessary.
+      case IrOpcode::kFloat32Constant:
+        return MakeTruncatedInt32Constant(OpParameter<float>(node));
+      case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat64Constant:
+        return MakeTruncatedInt32Constant(OpParameter<double>(node));
+      default:
+        break;
+    }
   }
+
   // Select the correct X -> Word32 operator.
   const Operator* op = nullptr;
   if (output_rep == MachineRepresentation::kBit) {
@@ -370,8 +392,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (use_info.truncation().TruncatesToWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedFloat64ToInt32();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
@@ -379,8 +403,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (use_info.truncation().TruncatesToWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedFloat64ToInt32();
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::TaggedSigned())) {
@@ -389,13 +415,45 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->ChangeTaggedToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (use_info.truncation().TruncatesToWord32()) {
       op = simplified()->TruncateTaggedToWord32();
+    } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedTaggedToInt32();
     }
+  } else if (output_rep == MachineRepresentation::kWord32) {
+    // Only the checked case should get here, the non-checked case is
+    // handled in GetRepresentationFor.
+    DCHECK(use_info.type_check() == TypeCheckKind::kSigned32);
+    if (output_type->Is(Type::Signed32())) {
+      return node;
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = simplified()->CheckedUint32ToInt32();
+    }
+  } else if (output_rep == MachineRepresentation::kWord8 ||
+             output_rep == MachineRepresentation::kWord16) {
+    DCHECK(use_info.representation() == MachineRepresentation::kWord32);
+    DCHECK(use_info.type_check() == TypeCheckKind::kSigned32);
+    return node;
   }
+
   if (op == nullptr) {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kWord32);
+  }
+  return InsertConversion(node, op, use_node);
+}
+
+Node* RepresentationChanger::InsertConversion(Node* node, const Operator* op,
+                                              Node* use_node) {
+  if (op->ControlInputCount() > 0) {
+    // If the operator can deoptimize (which means it has control
+    // input), we need to connect it to the effect and control chains.
+    Node* effect = NodeProperties::GetEffectInput(use_node);
+    Node* control = NodeProperties::GetControlInput(use_node);
+    Node* conversion = jsgraph()->graph()->NewNode(op, node, effect, control);
+    NodeProperties::ReplaceControlInput(use_node, control);
+    NodeProperties::ReplaceEffectInput(use_node, effect);
+    return conversion;
   }
   return jsgraph()->graph()->NewNode(op, node);
 }
@@ -426,7 +484,6 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   return jsgraph()->graph()->NewNode(op, node);
 }
 
-
 Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
   if (output_rep == MachineRepresentation::kBit) {
@@ -437,12 +494,81 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                    MachineRepresentation::kWord64);
 }
 
+Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
+    Node* node, MachineRepresentation output_rep, Type* output_type,
+    Node* use_node, Truncation truncation, TypeCheckKind check) {
+  // TODO(jarin) Eagerly fold constants (or insert hard deopt if the constant
+  // does not pass the check).
+
+  // If the input is already Signed32 in Word32 representation, we do not
+  // have to do anything. (We could fold this into the big if below, but
+  // it feels nicer to have the shortcut return first).
+  if (output_rep == MachineRepresentation::kWord32 ||
+      output_type->Is(Type::Signed32())) {
+    return node;
+  }
+
+  // Select the correct X -> Word32 operator.
+  const Operator* op = nullptr;
+  if (output_rep == MachineRepresentation::kWord32) {
+    if (output_type->Is(Type::Unsigned32())) {
+      op = simplified()->CheckedUint32ToInt32();
+    }
+  } else if (output_rep == MachineRepresentation::kBit) {
+    return node;  // Sloppy comparison -> word32
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    if (output_type->Is(Type::Unsigned32())) {
+      op = machine()->ChangeFloat64ToUint32();
+    } else if (output_type->Is(Type::Signed32())) {
+      op = machine()->ChangeFloat64ToInt32();
+    } else if (truncation.TruncatesToWord32()) {
+      op = machine()->TruncateFloat64ToWord32();
+    } else if (check == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedFloat64ToInt32();
+    }
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
+    if (output_type->Is(Type::Unsigned32())) {
+      op = machine()->ChangeFloat64ToUint32();
+    } else if (output_type->Is(Type::Signed32())) {
+      op = machine()->ChangeFloat64ToInt32();
+    } else if (truncation.TruncatesToWord32()) {
+      op = machine()->TruncateFloat64ToWord32();
+    } else if (check == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedFloat64ToInt32();
+    }
+  } else if (output_rep == MachineRepresentation::kTagged) {
+    if (output_type->Is(Type::TaggedSigned())) {
+      op = simplified()->ChangeTaggedSignedToInt32();
+    } else if (output_type->Is(Type::Unsigned32())) {
+      op = simplified()->ChangeTaggedToUint32();
+    } else if (output_type->Is(Type::Signed32())) {
+      op = simplified()->ChangeTaggedToInt32();
+    } else if (truncation.TruncatesToWord32()) {
+      op = simplified()->TruncateTaggedToWord32();
+    } else if (check == TypeCheckKind::kSigned32) {
+      op = simplified()->CheckedTaggedToInt32();
+    }
+  }
+  if (op == nullptr) {
+    return TypeError(node, output_rep, output_type,
+                     MachineRepresentation::kWord32);
+  }
+  if (op->ControlInputCount() > 0) {
+    // If the operator can deoptimize (which means it has control
+    // input), we need to connect it to the effect and control chains.
+    UNIMPLEMENTED();
+  }
+  return jsgraph()->graph()->NewNode(op, node);
+}
 
 const Operator* RepresentationChanger::Int32OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
+    case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
     case IrOpcode::kNumberAdd:
       return machine()->Int32Add();
+    case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
     case IrOpcode::kNumberMultiply:
@@ -469,6 +595,18 @@ const Operator* RepresentationChanger::Int32OperatorFor(
   }
 }
 
+const Operator* RepresentationChanger::Int32OverflowOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
+      return machine()->Int32AddWithOverflow();
+    case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
+      return machine()->Int32SubWithOverflow();
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
 
 const Operator* RepresentationChanger::Uint32OperatorFor(
     IrOpcode::Value opcode) {
@@ -503,8 +641,10 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
 const Operator* RepresentationChanger::Float64OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
+    case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Float64Add();
+    case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Float64Sub();
     case IrOpcode::kNumberMultiply:
@@ -519,6 +659,14 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
       return machine()->Float64LessThanOrEqual();
+    case IrOpcode::kNumberAtan:
+      return machine()->Float64Atan();
+    case IrOpcode::kNumberAtan2:
+      return machine()->Float64Atan2();
+    case IrOpcode::kNumberLog:
+      return machine()->Float64Log();
+    case IrOpcode::kNumberLog1p:
+      return machine()->Float64Log1p();
     default:
       UNREACHABLE();
       return nullptr;

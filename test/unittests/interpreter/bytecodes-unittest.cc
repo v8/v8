@@ -182,21 +182,21 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
   };
 
   const BytecodesAndResult cases[] = {
-      {{B(LdaSmi), U8(0x01)}, 2, 0, "            LdaSmi [1]"},
+      {{B(LdaSmi), U8(1)}, 2, 0, "            LdaSmi [1]"},
       {{B(Wide), B(LdaSmi), U16(1000)}, 4, 0, "      LdaSmi.Wide [1000]"},
       {{B(ExtraWide), B(LdaSmi), U32(100000)},
        6,
        0,
        "LdaSmi.ExtraWide [100000]"},
-      {{B(LdaSmi), 0xff}, 2, 0, "            LdaSmi [-1]"},
-      {{B(Wide), B(LdaSmi), 0x18, 0xfc}, 4, 0, "      LdaSmi.Wide [-1000]"},
+      {{B(LdaSmi), U8(-1)}, 2, 0, "            LdaSmi [-1]"},
+      {{B(Wide), B(LdaSmi), U16(-1000)}, 4, 0, "      LdaSmi.Wide [-1000]"},
       {{B(ExtraWide), B(LdaSmi), U32(-100000)},
        6,
        0,
        "LdaSmi.ExtraWide [-100000]"},
       {{B(Star), R8(5)}, 2, 0, "            Star r5"},
       {{B(Wide), B(Star), R16(136)}, 4, 0, "      Star.Wide r136"},
-      {{B(Wide), B(Call), R16(134), R16(135), U16(0x02), U16(177)},
+      {{B(Wide), B(Call), R16(134), R16(135), U16(2), U16(177)},
        10,
        0,
        "Call.Wide r134, r135, #2, [177]"},
@@ -205,7 +205,7 @@ TEST(Bytecodes, DecodeBytecodeAndOperands) {
        2,
        3,
        "            Ldar a1"},
-      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U16(165)},
+      {{B(Wide), B(CreateObjectLiteral), U16(513), U16(1027), U8(165)},
        7,
        0,
        "CreateObjectLiteral.Wide [513], [1027], #165"},
@@ -252,35 +252,6 @@ TEST(Bytecodes, PrefixMappings) {
     CHECK_EQ(prefix, Bytecodes::OperandScaleToPrefixBytecode(
                          Bytecodes::PrefixBytecodeToOperandScale(prefix)));
   }
-}
-
-TEST(Bytecodes, OperandScales) {
-  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kByte),
-           OperandScale::kSingle);
-  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kShort),
-           OperandScale::kDouble);
-  CHECK_EQ(Bytecodes::OperandSizesToScale(OperandSize::kQuad),
-           OperandScale::kQuadruple);
-  CHECK_EQ(
-      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
-                                     OperandSize::kShort, OperandSize::kShort),
-      OperandScale::kDouble);
-  CHECK_EQ(
-      Bytecodes::OperandSizesToScale(OperandSize::kQuad, OperandSize::kShort,
-                                     OperandSize::kShort, OperandSize::kShort),
-      OperandScale::kQuadruple);
-  CHECK_EQ(
-      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kQuad,
-                                     OperandSize::kShort, OperandSize::kShort),
-      OperandScale::kQuadruple);
-  CHECK_EQ(
-      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
-                                     OperandSize::kQuad, OperandSize::kShort),
-      OperandScale::kQuadruple);
-  CHECK_EQ(
-      Bytecodes::OperandSizesToScale(OperandSize::kShort, OperandSize::kShort,
-                                     OperandSize::kShort, OperandSize::kQuad),
-      OperandScale::kQuadruple);
 }
 
 TEST(Bytecodes, SizesForSignedOperands) {
@@ -366,7 +337,6 @@ TEST(AccumulatorUse, AccumulatorUseToString) {
   names.insert(Bytecodes::AccumulatorUseToString(AccumulatorUse::kReadWrite));
   CHECK_EQ(names.size(), 4);
 }
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

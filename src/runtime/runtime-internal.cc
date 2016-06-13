@@ -13,6 +13,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +21,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
 
@@ -29,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
                                 "ExportFromRuntime");
   Bootstrapper::ExportFromRuntime(isolate, container);
@@ -42,7 +43,7 @@ RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
                                 "ExportExperimentalFromRuntime");
   Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
@@ -55,21 +56,21 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  RUNTIME_ASSERT(array->HasFastElements());
-  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  CHECK(array->HasFastElements());
+  CHECK(isolate->bootstrapper()->IsActive());
   Handle<Context> native_context = isolate->native_context();
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   int length = Smi::cast(array->length())->value();
   for (int i = 0; i < length; i += 2) {
-    RUNTIME_ASSERT(fixed_array->get(i)->IsString());
+    CHECK(fixed_array->get(i)->IsString());
     Handle<String> name(String::cast(fixed_array->get(i)));
-    RUNTIME_ASSERT(fixed_array->get(i + 1)->IsJSObject());
+    CHECK(fixed_array->get(i + 1)->IsJSObject());
     Handle<JSObject> object(JSObject::cast(fixed_array->get(i + 1)));
     int index = Context::ImportedFieldIndexForName(name);
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
     }
-    RUNTIME_ASSERT(index != Context::kNotFound);
+    CHECK(index != Context::kNotFound);
     native_context->set(index, *object);
   }
   return isolate->heap()->undefined_value();
@@ -258,7 +259,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
   if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined()) {
+  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
@@ -272,7 +273,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
   // At this point, no revocation has been issued before
-  RUNTIME_ASSERT(JSReceiver::GetDataProperty(promise, key)->IsUndefined());
+  CHECK(JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return isolate->heap()->undefined_value();
@@ -304,9 +305,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_SMI_ARG_CHECKED(size, 0);
-  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
-  RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(IsAligned(size, kPointerSize));
+  CHECK(size > 0);
+  CHECK(size <= Page::kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -316,14 +317,33 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   DCHECK(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
-  RUNTIME_ASSERT(size > 0);
-  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
+  CHECK(IsAligned(size, kPointerSize));
+  CHECK(size > 0);
+  CHECK(size <= Page::kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 
+RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  Handle<SeqOneByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, isolate->factory()->NewRawOneByteString(length));
+  return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, isolate->factory()->NewRawTwoByteString(length));
+  return *result;
+}
 
 // Collect the raw data for a stack trace.  Returns an array of 4
 // element segments each containing a receiver, function, code and
@@ -369,23 +389,20 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   CONVERT_ARG_HANDLE_CHECKED(String, arg0, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, arg1, 2);
   CONVERT_ARG_HANDLE_CHECKED(String, arg2, 3);
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      MessageTemplate::FormatMessage(template_index, arg0, arg1, arg2));
   isolate->native_context()->IncrementErrorsThrown();
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, MessageTemplate::FormatMessage(
+                                        template_index, arg0, arg1, arg2));
 }
 
-#define CALLSITE_GET(NAME, RETURN)                                  \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {                    \
-    HandleScope scope(isolate);                                     \
-    DCHECK(args.length() == 1);                                     \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0);         \
-    Handle<String> result;                                          \
-    CallSite call_site(isolate, call_site_obj);                     \
-    RUNTIME_ASSERT(call_site.IsJavaScript() || call_site.IsWasm()); \
-    return RETURN(call_site.NAME(), isolate);                       \
+#define CALLSITE_GET(NAME, RETURN)                          \
+  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
+    HandleScope scope(isolate);                             \
+    DCHECK(args.length() == 1);                             \
+    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
+    Handle<String> result;                                  \
+    CallSite call_site(isolate, call_site_obj);             \
+    CHECK(call_site.IsJavaScript() || call_site.IsWasm());  \
+    return RETURN(call_site.NAME(), isolate);               \
   }
 
 static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
@@ -434,8 +451,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     JSFunction* fun = frame->function();
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined())) {
-      Handle<Script> casted_script(Script::cast(script));
+        !(Script::cast(script)->source()->IsUndefined(isolate))) {
+      Handle<Script> casted_script(Script::cast(script), isolate);
       // Compute the location from the function and the relocation info of the
       // baseline code. For optimized code this will use the deoptimization
       // information to get canonical location information.
@@ -515,11 +532,8 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  Handle<FixedArray> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::CreateListFromArrayLike(isolate, object, ElementTypes::kAll));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::CreateListFromArrayLike(
+                                        isolate, object, ElementTypes::kAll));
 }
 
 
@@ -597,10 +611,17 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, callable, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::OrdinaryHasInstance(isolate, callable, object));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::OrdinaryHasInstance(isolate, callable, object));
+}
+
+RUNTIME_FUNCTION(Runtime_IsWasmObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  bool is_wasm_object = object->IsJSObject() &&
+                        wasm::IsWasmObject(Handle<JSObject>::cast(object));
+  return *isolate->factory()->ToBoolean(is_wasm_object);
 }
 
 }  // namespace internal

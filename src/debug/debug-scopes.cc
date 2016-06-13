@@ -34,7 +34,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   Handle<JSFunction> function = GetFunction();
   Handle<SharedFunctionInfo> shared_info(function->shared());
   Handle<ScopeInfo> scope_info(shared_info->scope_info());
-  if (shared_info->script() == isolate->heap()->undefined_value()) {
+  if (shared_info->script()->IsUndefined(isolate)) {
     while (context_->closure() == *function) {
       context_ = Handle<Context>(context_->previous(), isolate_);
     }
@@ -494,7 +494,7 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
   if (function_context->closure() == *function &&
       !function_context->IsNativeContext()) {
     CopyContextExtensionToScopeObject(function_context, local_scope,
-                                      INCLUDE_PROTOS);
+                                      KeyCollectionMode::kIncludePrototypes);
   }
 
   return local_scope;
@@ -520,7 +520,8 @@ Handle<JSObject> ScopeIterator::MaterializeClosure() {
 
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
-  CopyContextExtensionToScopeObject(context, closure_scope, OWN_ONLY);
+  CopyContextExtensionToScopeObject(context, closure_scope,
+                                    KeyCollectionMode::kOwnOnly);
 
   return closure_scope;
 }
@@ -571,7 +572,8 @@ Handle<JSObject> ScopeIterator::MaterializeInnerScope() {
   if (!context.is_null()) {
     // Fill all context locals.
     CopyContextLocalsToScopeObject(CurrentScopeInfo(), context, inner_scope);
-    CopyContextExtensionToScopeObject(context, inner_scope, OWN_ONLY);
+    CopyContextExtensionToScopeObject(context, inner_scope,
+                                      KeyCollectionMode::kOwnOnly);
   }
   return inner_scope;
 }
@@ -754,7 +756,7 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
     int context_index = Context::MIN_CONTEXT_SLOTS + i;
     Handle<Object> value = Handle<Object>(context->get(context_index), isolate);
     // Reflect variables under TDZ as undefined in scope object.
-    if (value->IsTheHole()) continue;
+    if (value->IsTheHole(isolate)) continue;
     // This should always succeed.
     // TODO(verwaest): Use AddDataProperty instead.
     JSObject::SetOwnPropertyIgnoreAttributes(scope_object, name, value, NONE)
@@ -764,11 +766,11 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
 
 void ScopeIterator::CopyContextExtensionToScopeObject(
     Handle<Context> context, Handle<JSObject> scope_object,
-    KeyCollectionType type) {
+    KeyCollectionMode mode) {
   if (context->extension_object() == nullptr) return;
   Handle<JSObject> extension(context->extension_object());
   Handle<FixedArray> keys =
-      JSReceiver::GetKeys(extension, type, ENUMERABLE_STRINGS)
+      KeyAccumulator::GetKeys(extension, mode, ENUMERABLE_STRINGS)
           .ToHandleChecked();
 
   for (int i = 0; i < keys->length(); i++) {

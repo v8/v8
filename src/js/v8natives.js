@@ -12,7 +12,6 @@
 var GlobalArray = global.Array;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
-var InternalArray = utils.InternalArray;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeRangeError;
 var MakeSyntaxError;
@@ -450,7 +449,6 @@ function GetIterator(obj, method) {
 utils.Export(function(to) {
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
-  to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
   to.NumberIsNaN = NumberIsNaN;
   to.NumberIsInteger = NumberIsInteger;

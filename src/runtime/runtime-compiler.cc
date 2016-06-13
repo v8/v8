@@ -202,7 +202,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // We're not prepared to handle a function with arguments object.
   DCHECK(!function->shared()->uses_arguments());
 
-  RUNTIME_ASSERT(FLAG_use_osr);
+  CHECK(FLAG_use_osr);
 
   // Passing the PC in the javascript frame from the caller directly is
   // not GC safe, so we walk the stack to get it.

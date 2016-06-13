@@ -92,7 +92,7 @@ Context* Context::closure_context() {
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
   HeapObject* object = extension();
-  if (object->IsTheHole()) return nullptr;
+  if (object->IsTheHole(GetIsolate())) return nullptr;
   if (IsBlockContext()) {
     if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
     object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
@@ -443,10 +443,11 @@ void Context::InitializeGlobalSlots() {
 
 void Context::AddOptimizedFunction(JSFunction* function) {
   DCHECK(IsNativeContext());
+  Isolate* isolate = GetIsolate();
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
-    while (!element->IsUndefined()) {
+    while (!element->IsUndefined(isolate)) {
       CHECK(element != function);
       element = JSFunction::cast(element)->next_function_link();
     }
@@ -454,8 +455,8 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   // Check that the context belongs to the weak native contexts list.
   bool found = false;
-  Object* context = GetHeap()->native_contexts_list();
-  while (!context->IsUndefined()) {
+  Object* context = isolate->heap()->native_contexts_list();
+  while (!context->IsUndefined(isolate)) {
     if (context == this) {
       found = true;
       break;
@@ -467,12 +468,12 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   // If the function link field is already used then the function was
   // enqueued as a code flushing candidate and we remove it now.
-  if (!function->next_function_link()->IsUndefined()) {
+  if (!function->next_function_link()->IsUndefined(isolate)) {
     CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
     flusher->EvictCandidate(function);
   }
 
-  DCHECK(function->next_function_link()->IsUndefined());
+  DCHECK(function->next_function_link()->IsUndefined(isolate));
 
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST),
                                    UPDATE_WEAK_WRITE_BARRIER);
@@ -484,9 +485,10 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
   DCHECK(IsNativeContext());
   Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
   JSFunction* prev = NULL;
-  while (!element->IsUndefined()) {
+  Isolate* isolate = function->GetIsolate();
+  while (!element->IsUndefined(isolate)) {
     JSFunction* element_function = JSFunction::cast(element);
-    DCHECK(element_function->next_function_link()->IsUndefined() ||
+    DCHECK(element_function->next_function_link()->IsUndefined(isolate) ||
            element_function->next_function_link()->IsJSFunction());
     if (element_function == function) {
       if (prev == NULL) {
@@ -522,7 +524,7 @@ Object* Context::OptimizedFunctionsListHead() {
 void Context::AddOptimizedCode(Code* code) {
   DCHECK(IsNativeContext());
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(code->next_code_link()->IsUndefined());
+  DCHECK(code->next_code_link()->IsUndefined(GetIsolate()));
   code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
 }
@@ -555,7 +557,7 @@ Object* Context::DeoptimizedCodeListHead() {
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Isolate* isolate = GetIsolate();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
-  if (!result->IsUndefined()) return result;
+  if (!result->IsUndefined(isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
 }

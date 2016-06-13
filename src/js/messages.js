@@ -41,7 +41,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringIndexOf;
-var StringSubstring;
 var SymbolToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var Uint16x8ToString;
@@ -59,7 +58,6 @@ utils.Import(function(from) {
   Int8x16ToString = from.Int8x16ToString;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringIndexOf = from.StringIndexOf;
-  StringSubstring = from.StringSubstring;
   SymbolToString = from.SymbolToString;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
@@ -214,210 +212,26 @@ function GetSourceLine(message) {
   var start_position = %MessageGetStartPosition(message);
   var location = script.locationFromPosition(start_position, true);
   if (location == null) return "";
-  return location.sourceText();
-}
-
-
-/**
- * Find a line number given a specific source position.
- * @param {number} position The source position.
- * @return {number} 0 if input too small, -1 if input too large,
-       else the line number.
- */
-function ScriptLineFromPosition(position) {
-  var lower = 0;
-  var upper = this.lineCount() - 1;
-  var line_ends = this.line_ends;
-
-  // We'll never find invalid positions so bail right away.
-  if (position > line_ends[upper]) {
-    return -1;
-  }
-
-  // This means we don't have to safe-guard indexing line_ends[i - 1].
-  if (position <= line_ends[0]) {
-    return 0;
-  }
-
-  // Binary search to find line # from position range.
-  while (upper >= 1) {
-    var i = (lower + upper) >> 1;
-
-    if (position > line_ends[i]) {
-      lower = i + 1;
-    } else if (position <= line_ends[i - 1]) {
-      upper = i - 1;
-    } else {
-      return i;
-    }
-  }
-
-  return -1;
+  return location.sourceText;
 }
 
 
 /**
  * Get information on a specific source position.
+ * Returns an object with the following following properties:
+ *   script     : script object for the source
+ *   line       : source line number
+ *   column     : source column within the line
+ *   position   : position within the source
+ *   sourceText : a string containing the current line
  * @param {number} position The source position
  * @param {boolean} include_resource_offset Set to true to have the resource
  *     offset added to the location
- * @return {SourceLocation}
- *     If line is negative or not in the source null is returned.
+ * @return If line is negative or not in the source null is returned.
  */
 function ScriptLocationFromPosition(position,
                                     include_resource_offset) {
-  var line = this.lineFromPosition(position);
-  if (line == -1) return null;
-
-  // Determine start, end and column.
-  var line_ends = this.line_ends;
-  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
-  var end = line_ends[line];
-  if (end > 0 && %_StringCharAt(this.source, end - 1) === '\r') {
-    end--;
-  }
-  var column = position - start;
-
-  // Adjust according to the offset within the resource.
-  if (include_resource_offset) {
-    line += this.line_offset;
-    if (line == this.line_offset) {
-      column += this.column_offset;
-    }
-  }
-
-  return new SourceLocation(this, position, line, column, start, end);
-}
-
-
-/**
- * Get information on a specific source line and column possibly offset by a
- * fixed source position. This function is used to find a source position from
- * a line and column position. The fixed source position offset is typically
- * used to find a source position in a function based on a line and column in
- * the source for the function alone. The offset passed will then be the
- * start position of the source for the function within the full script source.
- * @param {number} opt_line The line within the source. Default value is 0
- * @param {number} opt_column The column in within the line. Default value is 0
- * @param {number} opt_offset_position The offset from the begining of the
- *     source from where the line and column calculation starts.
- *     Default value is 0
- * @return {SourceLocation}
- *     If line is negative or not in the source null is returned.
- */
-function ScriptLocationFromLine(opt_line, opt_column, opt_offset_position) {
-  // Default is the first line in the script. Lines in the script is relative
-  // to the offset within the resource.
-  var line = 0;
-  if (!IS_UNDEFINED(opt_line)) {
-    line = opt_line - this.line_offset;
-  }
-
-  // Default is first column. If on the first line add the offset within the
-  // resource.
-  var column = opt_column || 0;
-  if (line == 0) {
-    column -= this.column_offset;
-  }
-
-  var offset_position = opt_offset_position || 0;
-  if (line < 0 || column < 0 || offset_position < 0) return null;
-  if (line == 0) {
-    return this.locationFromPosition(offset_position + column, false);
-  } else {
-    // Find the line where the offset position is located.
-    var offset_line = this.lineFromPosition(offset_position);
-
-    if (offset_line == -1 || offset_line + line >= this.lineCount()) {
-      return null;
-    }
-
-    return this.locationFromPosition(
-        this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
-  }
-}
-
-
-/**
- * Get a slice of source code from the script. The boundaries for the slice is
- * specified in lines.
- * @param {number} opt_from_line The first line (zero bound) in the slice.
- *     Default is 0
- * @param {number} opt_to_column The last line (zero bound) in the slice (non
- *     inclusive). Default is the number of lines in the script
- * @return {SourceSlice} The source slice or null of the parameters where
- *     invalid
- */
-function ScriptSourceSlice(opt_from_line, opt_to_line) {
-  var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset
-                                              : opt_from_line;
-  var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount()
-                                          : opt_to_line;
-
-  // Adjust according to the offset within the resource.
-  from_line -= this.line_offset;
-  to_line -= this.line_offset;
-  if (from_line < 0) from_line = 0;
-  if (to_line > this.lineCount()) to_line = this.lineCount();
-
-  // Check parameters.
-  if (from_line >= this.lineCount() ||
-      to_line < 0 ||
-      from_line > to_line) {
-    return null;
-  }
-
-  var line_ends = this.line_ends;
-  var from_position = from_line == 0 ? 0 : line_ends[from_line - 1] + 1;
-  var to_position = to_line == 0 ? 0 : line_ends[to_line - 1] + 1;
-
-  // Return a source slice with line numbers re-adjusted to the resource.
-  return new SourceSlice(this,
-                         from_line + this.line_offset,
-                         to_line + this.line_offset,
-                          from_position, to_position);
-}
-
-
-function ScriptSourceLine(opt_line) {
-  // Default is the first line in the script. Lines in the script are relative
-  // to the offset within the resource.
-  var line = 0;
-  if (!IS_UNDEFINED(opt_line)) {
-    line = opt_line - this.line_offset;
-  }
-
-  // Check parameter.
-  if (line < 0 || this.lineCount() <= line) {
-    return null;
-  }
-
-  // Return the source line.
-  var line_ends = this.line_ends;
-  var start = line == 0 ? 0 : line_ends[line - 1] + 1;
-  var end = line_ends[line];
-  return %_Call(StringSubstring, this.source, start, end);
-}
-
-
-/**
- * Returns the number of source lines.
- * @return {number}
- *     Number of source lines.
- */
-function ScriptLineCount() {
-  // Return number of source lines.
-  return this.line_ends.length;
-}
-
-
-/**
- * Returns the position of the nth line end.
- * @return {number}
- *     Zero-based position of the nth line end in the script.
- */
-function ScriptLineEnd(n) {
-  return this.line_ends[n];
+  return %ScriptPositionInfo(this, position, !!include_resource_offset);
 }
 
 
@@ -442,110 +256,12 @@ utils.SetUpLockedPrototype(Script, [
     "name",
     "source_url",
     "source_mapping_url",
-    "line_ends",
     "line_offset",
     "column_offset"
   ], [
-    "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
-    "locationFromLine", ScriptLocationFromLine,
-    "sourceSlice", ScriptSourceSlice,
-    "sourceLine", ScriptSourceLine,
-    "lineCount", ScriptLineCount,
     "nameOrSourceURL", ScriptNameOrSourceURL,
-    "lineEnd", ScriptLineEnd
   ]
-);
-
-
-/**
- * Class for source location. A source location is a position within some
- * source with the following properties:
- *   script   : script object for the source
- *   line     : source line number
- *   column   : source column within the line
- *   position : position within the source
- *   start    : position of start of source context (inclusive)
- *   end      : position of end of source context (not inclusive)
- * Source text for the source context is the character interval
- * [start, end[. In most cases end will point to a newline character.
- * It might point just past the final position of the source if the last
- * source line does not end with a newline character.
- * @param {Script} script The Script object for which this is a location
- * @param {number} position Source position for the location
- * @param {number} line The line number for the location
- * @param {number} column The column within the line for the location
- * @param {number} start Source position for start of source context
- * @param {number} end Source position for end of source context
- * @constructor
- */
-function SourceLocation(script, position, line, column, start, end) {
-  this.script = script;
-  this.position = position;
-  this.line = line;
-  this.column = column;
-  this.start = start;
-  this.end = end;
-}
-
-
-/**
- * Get the source text for a SourceLocation
- * @return {String}
- *     Source text for this location.
- */
-function SourceLocationSourceText() {
-  return %_Call(StringSubstring, this.script.source, this.start, this.end);
-}
-
-
-utils.SetUpLockedPrototype(SourceLocation,
-  ["script", "position", "line", "column", "start", "end"],
-  ["sourceText", SourceLocationSourceText]
-);
-
-
-/**
- * Class for a source slice. A source slice is a part of a script source with
- * the following properties:
- *   script        : script object for the source
- *   from_line     : line number for the first line in the slice
- *   to_line       : source line number for the last line in the slice
- *   from_position : position of the first character in the slice
- *   to_position   : position of the last character in the slice
- * The to_line and to_position are not included in the slice, that is the lines
- * in the slice are [from_line, to_line[. Likewise the characters in the slice
- * are [from_position, to_position[.
- * @param {Script} script The Script object for the source slice
- * @param {number} from_line
- * @param {number} to_line
- * @param {number} from_position
- * @param {number} to_position
- * @constructor
- */
-function SourceSlice(script, from_line, to_line, from_position, to_position) {
-  this.script = script;
-  this.from_line = from_line;
-  this.to_line = to_line;
-  this.from_position = from_position;
-  this.to_position = to_position;
-}
-
-/**
- * Get the source text for a SourceSlice
- * @return {String} Source text for this slice. The last line will include
- *     the line terminating characters (if any)
- */
-function SourceSliceSourceText() {
-  return %_Call(StringSubstring,
-                this.script.source,
-                this.from_position,
-                this.to_position);
-}
-
-utils.SetUpLockedPrototype(SourceSlice,
-  ["script", "from_line", "to_line", "from_position", "to_position"],
-  ["sourceText", SourceSliceSourceText]
 );
 
 
@@ -559,8 +275,8 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 function CallSite(receiver, fun, pos, strict_mode) {
   // For wasm frames, receiver is the wasm object and fun is the function index
   // instead of an actual function.
-  if (!IS_FUNCTION(fun) && !IS_NUMBER(fun)) {
-    throw MakeTypeError(kCallSiteExpectsFunction, typeof fun);
+  if (!IS_FUNCTION(fun) && !%IsWasmObject(receiver)) {
+    throw MakeTypeError(kCallSiteExpectsFunction, typeof receiver, typeof fun);
   }
 
   if (IS_UNDEFINED(new.target)) {
@@ -630,12 +346,6 @@ function CallSiteGetScriptNameOrSourceURL() {
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
   CheckCallSite(this, "getFunctionName");
-  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
-    var wasm = GET_PRIVATE(this, callSiteWasmObjectSymbol);
-    var func_index = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
-    if (IS_UNDEFINED(wasm)) return "<WASM>";
-    return %WasmGetFunctionName(wasm, func_index);
-  }
   return %CallSiteGetFunctionNameRT(this);
 }
 
@@ -679,7 +389,8 @@ function CallSiteToString() {
     var funName = this.getFunctionName();
     var funcIndex = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
     var pos = this.getPosition();
-    return funName + " (<WASM>:" + funcIndex + ":" + pos + ")";
+    if (IS_NULL(funName)) funName = "<WASM UNNAMED>";
+    return funName + " (<WASM>[" + funcIndex + "]+" + pos + ")";
   }
 
   var fileName;
@@ -819,13 +530,15 @@ function FormatErrorString(error) {
 
 
 function GetStackFrames(raw_stack) {
+  var internal_raw_stack = new InternalArray();
+  %MoveArrayContents(raw_stack, internal_raw_stack);
   var frames = new InternalArray();
-  var sloppy_frames = raw_stack[0];
-  for (var i = 1; i < raw_stack.length; i += 4) {
-    var recv = raw_stack[i];
-    var fun = raw_stack[i + 1];
-    var code = raw_stack[i + 2];
-    var pc = raw_stack[i + 3];
+  var sloppy_frames = internal_raw_stack[0];
+  for (var i = 1; i < internal_raw_stack.length; i += 4) {
+    var recv = internal_raw_stack[i];
+    var fun = internal_raw_stack[i + 1];
+    var code = internal_raw_stack[i + 2];
+    var pc = internal_raw_stack[i + 3];
     // For traps in wasm, the bytecode offset is passed as (-1 - offset).
     // Otherwise, lookup the position from the pc.
     var pos = IS_NUMBER(fun) && pc < 0 ? (-1 - pc) :

@@ -67,8 +67,14 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function(isolate).address(),
       "power_double_int_function");
-  Add(ExternalReference::math_log_double_function(isolate).address(),
-      "std::log");
+  Add(ExternalReference::ieee754_atan_function(isolate).address(),
+      "base::ieee754::atan");
+  Add(ExternalReference::ieee754_atan2_function(isolate).address(),
+      "base::ieee754::atan2");
+  Add(ExternalReference::ieee754_log_function(isolate).address(),
+      "base::ieee754::log");
+  Add(ExternalReference::ieee754_log1p_function(isolate).address(),
+      "base::ieee754::log1p");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");
@@ -91,7 +97,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       "Code::MarkCodeAsExecuted");
   Add(ExternalReference::is_profiling_address(isolate).address(),
-      "CpuProfiler::is_profiling");
+      "Isolate::is_profiling");
   Add(ExternalReference::scheduled_exception_address(isolate).address(),
       "Isolate::scheduled_exception");
   Add(ExternalReference::invoke_function_callback(isolate).address(),
@@ -158,8 +164,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_tan_wrapper");
   Add(ExternalReference::f64_exp_wrapper_function(isolate).address(),
       "f64_exp_wrapper");
-  Add(ExternalReference::f64_log_wrapper_function(isolate).address(),
-      "f64_log_wrapper");
   Add(ExternalReference::f64_pow_wrapper_function(isolate).address(),
       "f64_pow_wrapper");
   Add(ExternalReference::f64_atan2_wrapper_function(isolate).address(),
@@ -191,6 +195,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Debug::is_active_address()");
   Add(ExternalReference::debug_step_in_enabled_address(isolate).address(),
       "Debug::step_in_enabled_address()");
+  Add(ExternalReference::debug_suspended_generator_address(isolate).address(),
+      "Debug::step_suspended_generator_address()");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
@@ -239,7 +245,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
 
   static const RefTableEntry builtins[] = {
 #define DEF_ENTRY_C(name, ignored) {Builtins::k##name, "Builtins::" #name},
-#define DEF_ENTRY_A(name, i1, i2, i3) {Builtins::k##name, "Builtins::" #name},
+#define DEF_ENTRY_A(name, i1, i2) {Builtins::k##name, "Builtins::" #name},
       BUILTIN_LIST_C(DEF_ENTRY_C) BUILTIN_LIST_A(DEF_ENTRY_A)
           BUILTIN_LIST_DEBUG_A(DEF_ENTRY_A)
 #undef DEF_ENTRY_C

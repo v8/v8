@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/machine-operator-reducer.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/base/ieee754.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "src/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -16,6 +17,7 @@ using testing::AllOf;
 using testing::BitEq;
 using testing::Capture;
 using testing::CaptureEq;
+using testing::NanSensitiveDoubleEq;
 
 namespace v8 {
 namespace internal {
@@ -1399,8 +1401,81 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
 
 
 // -----------------------------------------------------------------------------
-// Float64InsertLowWord32
+// Float64Atan
 
+TEST_F(MachineOperatorReducerTest, Float64AtanWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Atan(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::atan(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Atan2
+
+TEST_F(MachineOperatorReducerTest, Float64Atan2WithConstant) {
+  TRACED_FOREACH(double, y, kFloat64Values) {
+    TRACED_FOREACH(double, x, kFloat64Values) {
+      Reduction const r = Reduce(graph()->NewNode(
+          machine()->Float64Atan2(), Float64Constant(y), Float64Constant(x)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(
+          r.replacement(),
+          IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::atan2(y, x))));
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Float64Atan2WithNaN) {
+  Node* const p0 = Parameter(0);
+  Node* const nan = Float64Constant(std::numeric_limits<double>::quiet_NaN());
+  {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Atan2(), p0, nan));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(nan, r.replacement());
+  }
+  {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Atan2(), nan, p0));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(nan, r.replacement());
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Log
+
+TEST_F(MachineOperatorReducerTest, Float64LogWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Log(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::log(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Log1p
+
+TEST_F(MachineOperatorReducerTest, Float64Log1pWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Log1p(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::log1p(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64InsertLowWord32
 
 TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {
   TRACED_FOREACH(double, x, kFloat64Values) {

@@ -609,7 +609,7 @@ class Assembler : public AssemblerBase {
 
   void breakpoint(bool do_print) {
     if (do_print) {
-      printf("DebugBreak is inserted to %p\n", pc_);
+      PrintF("DebugBreak is inserted to %p\n", static_cast<void*>(pc_));
     }
 #if V8_HOST_ARCH_64_BIT
     int64_t value = reinterpret_cast<uint64_t>(&v8::base::OS::DebugBreak);

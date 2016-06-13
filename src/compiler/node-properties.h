@@ -84,7 +84,6 @@ class NodeProperties final {
   static void ReplaceControlInput(Node* node, Node* control, int index = 0);
   static void ReplaceEffectInput(Node* node, Node* effect, int index = 0);
   static void ReplaceFrameStateInput(Node* node, int index, Node* frame_state);
-  static void RemoveFrameStateInput(Node* node, int index);
   static void RemoveNonValueInputs(Node* node);
   static void RemoveValueInputs(Node* node);
 
@@ -109,6 +108,11 @@ class NodeProperties final {
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
 
+  // Find the last frame state that is effect-wise before the given node. This
+  // assumes a linear effect-chain up to a {CheckPoint} node in the graph.
+  static Node* FindFrameStateBefore(Node* node);
+
+  // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
 
   // Collect the branch-related projections from a node, such as IfTrue,

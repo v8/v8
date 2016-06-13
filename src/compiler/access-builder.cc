@@ -98,7 +98,6 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForJSFunctionLiterals() {
   FieldAccess access = {
@@ -126,6 +125,60 @@ FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
                         Type::Any(),
                         MachineType::AnyTagged(),
                         kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kContextOffset,
+                        Handle<Name>(),
+                        Type::Internal(),
+                        MachineType::AnyTagged(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
+  TypeCache const& type_cache = TypeCache::Get();
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kContinuationOffset,
+                        Handle<Name>(),
+                        type_cache.kSmi,
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectInput() {
+  FieldAccess access = {
+      kTaggedBase, JSGeneratorObject::kInputOffset, Handle<Name>(),
+      Type::Any(), MachineType::AnyTagged(),        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectOperandStack() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kOperandStackOffset,
+                        Handle<Name>(),
+                        Type::Internal(),
+                        MachineType::AnyTagged(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
+  TypeCache const& type_cache = TypeCache::Get();
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kResumeModeOffset,
+                        Handle<Name>(),
+                        type_cache.kSmi,
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
   return access;
 }
 
@@ -312,6 +365,14 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 
 
 // static
+FieldAccess AccessBuilder::ForNameHashField() {
+  FieldAccess access = {
+      kTaggedBase,      Name::kHashFieldOffset, Handle<Name>(),
+      Type::Internal(), MachineType::Pointer(), kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForStringLength() {
   FieldAccess access = {kTaggedBase,
                         String::kLengthOffset,
@@ -418,19 +479,6 @@ FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
       type,        MachineType::AnyTagged(),   kFullWriteBarrier};
   return access;
 }
-
-
-// static
-FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
-  FieldAccess access = {kTaggedBase,
-                        SharedFunctionInfo::kFeedbackVectorOffset,
-                        Handle<Name>(),
-                        Type::Any(),
-                        MachineType::AnyTagged(),
-                        kPointerWriteBarrier};
-  return access;
-}
-
 
 // static
 ElementAccess AccessBuilder::ForFixedArrayElement() {

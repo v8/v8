@@ -24,7 +24,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int main(int argc, char* argv[]) {
   // Initialize V8.
-  V8::InitializeICU();
+  V8::InitializeICUDefaultLocation(argv[0]);
   V8::InitializeExternalStartupData(argv[0]);
   Platform* platform = platform::CreateDefaultPlatform();
   V8::InitializePlatform(platform);

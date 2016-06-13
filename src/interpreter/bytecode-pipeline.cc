@@ -12,7 +12,8 @@ namespace internal {
 namespace interpreter {
 
 void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
-  DCHECK(entry.is_valid());
+  if (!entry.is_valid()) return;
+
   if (!is_valid() || (entry.is_statement() && !is_statement()) ||
       (entry.is_statement() && is_statement() &&
        entry.source_position() > source_position())) {
@@ -33,82 +34,71 @@ void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
 BytecodeNode::BytecodeNode(Bytecode bytecode) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   bytecode_ = bytecode;
-  operand_scale_ = OperandScale::kSingle;
 }
 
-BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           OperandScale operand_scale) {
+BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
   bytecode_ = bytecode;
   operands_[0] = operand0;
-  operand_scale_ = operand_scale;
 }
 
 BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           uint32_t operand1, OperandScale operand_scale) {
+                           uint32_t operand1) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 2);
   bytecode_ = bytecode;
   operands_[0] = operand0;
   operands_[1] = operand1;
-  operand_scale_ = operand_scale;
 }
 
 BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           uint32_t operand1, uint32_t operand2,
-                           OperandScale operand_scale) {
+                           uint32_t operand1, uint32_t operand2) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
   bytecode_ = bytecode;
   operands_[0] = operand0;
   operands_[1] = operand1;
   operands_[2] = operand2;
-  operand_scale_ = operand_scale;
 }
 
 BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
                            uint32_t operand1, uint32_t operand2,
-                           uint32_t operand3, OperandScale operand_scale) {
+                           uint32_t operand3) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 4);
   bytecode_ = bytecode;
   operands_[0] = operand0;
   operands_[1] = operand1;
   operands_[2] = operand2;
   operands_[3] = operand3;
-  operand_scale_ = operand_scale;
+}
+
+BytecodeNode::BytecodeNode(const BytecodeNode& other) {
+  memcpy(this, &other, sizeof(other));
+}
+
+BytecodeNode& BytecodeNode::operator=(const BytecodeNode& other) {
+  memcpy(this, &other, sizeof(other));
+  return *this;
 }
 
 void BytecodeNode::set_bytecode(Bytecode bytecode) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   bytecode_ = bytecode;
-  operand_scale_ = OperandScale::kSingle;
 }
 
-void BytecodeNode::set_bytecode(Bytecode bytecode, uint32_t operand0,
-                                OperandScale operand_scale) {
+void BytecodeNode::set_bytecode(Bytecode bytecode, uint32_t operand0) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
   bytecode_ = bytecode;
   operands_[0] = operand0;
-  operand_scale_ = operand_scale;
 }
 
-size_t BytecodeNode::Size() const {
-  size_t size = Bytecodes::Size(bytecode_, operand_scale_);
-  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale_)) {
-    size += 1;
-  }
-  return size;
+void BytecodeNode::Clone(const BytecodeNode* const other) {
+  memcpy(this, other, sizeof(*other));
 }
 
 void BytecodeNode::Print(std::ostream& os) const {
 #ifdef DEBUG
   std::ios saved_state(nullptr);
   saved_state.copyfmt(os);
-
   os << Bytecodes::ToString(bytecode_);
-  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale_)) {
-    Bytecode scale_prefix =
-        Bytecodes::OperandScaleToPrefixBytecode(operand_scale_);
-    os << '.' << Bytecodes::ToString(scale_prefix);
-  }
 
   for (int i = 0; i < operand_count(); ++i) {
     os << ' ' << std::setw(8) << std::setfill('0') << std::hex << operands_[i];
@@ -116,7 +106,7 @@ void BytecodeNode::Print(std::ostream& os) const {
   os.copyfmt(saved_state);
 
   if (source_info_.is_valid()) {
-    os << source_info_;
+    os << ' ' << source_info_;
   }
   os << '\n';
 #else
@@ -124,8 +114,21 @@ void BytecodeNode::Print(std::ostream& os) const {
 #endif  // DEBUG
 }
 
-void BytecodeNode::Clone(const BytecodeNode* const other) {
-  memcpy(this, other, sizeof(*other));
+void BytecodeNode::Transform(Bytecode new_bytecode, uint32_t extra_operand) {
+  DCHECK_EQ(Bytecodes::NumberOfOperands(new_bytecode),
+            Bytecodes::NumberOfOperands(bytecode()) + 1);
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 1 ||
+         Bytecodes::GetOperandType(new_bytecode, 0) ==
+             Bytecodes::GetOperandType(bytecode(), 0));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 2 ||
+         Bytecodes::GetOperandType(new_bytecode, 1) ==
+             Bytecodes::GetOperandType(bytecode(), 1));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 3 ||
+         Bytecodes::GetOperandType(new_bytecode, 2) ==
+             Bytecodes::GetOperandType(bytecode(), 2));
+  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 4);
+  operands_[operand_count()] = extra_operand;
+  bytecode_ = new_bytecode;
 }
 
 bool BytecodeNode::operator==(const BytecodeNode& other) const {
@@ -144,16 +147,16 @@ bool BytecodeNode::operator==(const BytecodeNode& other) const {
   return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const BytecodeNode& node) {
-  node.Print(os);
-  return os;
-}
-
 std::ostream& operator<<(std::ostream& os, const BytecodeSourceInfo& info) {
   if (info.is_valid()) {
     char description = info.is_statement() ? 'S' : 'E';
     os << info.source_position() << ' ' << description << '>';
   }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const BytecodeNode& node) {
+  node.Print(os);
   return os;
 }
 

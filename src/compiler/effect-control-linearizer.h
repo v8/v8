@@ -30,7 +30,8 @@ class EffectControlLinearizer {
   void Run();
 
  private:
-  void ProcessNode(Node* node, Node** current_effect, Node** control);
+  void ProcessNode(Node* node, Node** frame_state, Node** effect,
+                   Node** control);
 
   struct ValueEffectControl {
     Node* value;
@@ -40,7 +41,8 @@ class EffectControlLinearizer {
         : value(value), effect(effect), control(control) {}
   };
 
-  bool TryWireInStateEffect(Node* node, Node** effect, Node** control);
+  bool TryWireInStateEffect(Node* node, Node* frame_state, Node** effect,
+                            Node** control);
   ValueEffectControl LowerTypeGuard(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerChangeBitToTagged(Node* node, Node* effect,
                                             Node* control);
@@ -60,8 +62,18 @@ class EffectControlLinearizer {
                                               Node* control);
   ValueEffectControl LowerChangeTaggedToUint32(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
+                                               Node* effect, Node* control);
+  ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
+                                                Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToInt32(Node* node, Node* frame_state,
+                                               Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* frame_state,
+                                                 Node* effect, Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
+  ValueEffectControl LowerTruncateTaggedToFloat64(Node* node, Node* effect,
+                                                  Node* control);
   ValueEffectControl LowerTruncateTaggedToWord32(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl LowerObjectIsCallable(Node* node, Node* effect,
@@ -75,8 +87,25 @@ class EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerObjectIsUndetectable(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
+                                             Node* control);
+  ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
+                                  Node* control);
+  ValueEffectControl LowerPlainPrimitiveToNumber(Node* node, Node* effect,
+                                                 Node* control);
+  ValueEffectControl LowerPlainPrimitiveToWord32(Node* node, Node* effect,
+                                                 Node* control);
+  ValueEffectControl LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
+                                                  Node* control);
+
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
+  ValueEffectControl BuildCheckedFloat64ToInt32(Node* value, Node* frame_state,
+                                                Node* effect, Node* control);
+  ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(Node* value,
+                                                              Node* frame_state,
+                                                              Node* effect,
+                                                              Node* control);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
@@ -88,6 +117,8 @@ class EffectControlLinearizer {
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
 
+  Factory* factory() const;
+  Isolate* isolate() const;
   JSGraph* jsgraph() const { return js_graph_; }
   Graph* graph() const;
   Schedule* schedule() const { return schedule_; }
@@ -96,9 +127,13 @@ class EffectControlLinearizer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
 
+  Operator const* ToNumberOperator();
+
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
+
+  SetOncePointer<Operator const> to_number_operator_;
 };
 
 }  // namespace compiler

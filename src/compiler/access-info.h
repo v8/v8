@@ -53,16 +53,6 @@ class ElementAccessInfo final {
 };
 
 
-// Additional checks that need to be perform for data field accesses.
-enum class FieldCheck : uint8_t {
-  // No additional checking needed.
-  kNone,
-  // Check that the [[ViewedArrayBuffer]] of {JSArrayBufferView}s
-  // was not neutered.
-  kJSArrayBufferViewBufferNotNeutered,
-};
-
-
 // This class encapsulates all information required to access a certain
 // object property, either on the object itself or on the prototype chain.
 class PropertyAccessInfo final {
@@ -76,7 +66,6 @@ class PropertyAccessInfo final {
                                          MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
       Type* receiver_type, FieldIndex field_index, Type* field_type,
-      FieldCheck field_check = FieldCheck::kNone,
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
 
@@ -92,7 +81,6 @@ class PropertyAccessInfo final {
   MaybeHandle<JSObject> holder() const { return holder_; }
   MaybeHandle<Map> transition_map() const { return transition_map_; }
   Handle<Object> constant() const { return constant_; }
-  FieldCheck field_check() const { return field_check_; }
   FieldIndex field_index() const { return field_index_; }
   Type* field_type() const { return field_type_; }
   Type* receiver_type() const { return receiver_type_; }
@@ -103,8 +91,7 @@ class PropertyAccessInfo final {
                      Type* receiver_type);
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
-                     FieldCheck field_check, Type* field_type,
-                     Type* receiver_type);
+                     Type* field_type, Type* receiver_type);
 
   Kind kind_;
   Type* receiver_type_;
@@ -112,7 +99,6 @@ class PropertyAccessInfo final {
   MaybeHandle<Map> transition_map_;
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
-  FieldCheck field_check_;
   Type* field_type_;
 };
 

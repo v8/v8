@@ -156,20 +156,25 @@ Object* GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
 // Returns parent function template or null.
 FunctionTemplateInfo* GetParent(FunctionTemplateInfo* data) {
   Object* parent = data->parent_template();
-  return parent->IsUndefined() ? nullptr : FunctionTemplateInfo::cast(parent);
+  return parent->IsUndefined(data->GetIsolate())
+             ? nullptr
+             : FunctionTemplateInfo::cast(parent);
 }
 
 // Starting from given object template's constructor walk up the inheritance
 // chain till a function template that has an instance template is found.
 ObjectTemplateInfo* GetParent(ObjectTemplateInfo* data) {
   Object* maybe_ctor = data->constructor();
-  if (maybe_ctor->IsUndefined()) return nullptr;
+  Isolate* isolate = data->GetIsolate();
+  if (maybe_ctor->IsUndefined(isolate)) return nullptr;
   FunctionTemplateInfo* ctor = FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
     ctor = GetParent(ctor);
     if (ctor == nullptr) return nullptr;
     Object* maybe_obj = ctor->instance_template();
-    if (!maybe_obj->IsUndefined()) return ObjectTemplateInfo::cast(maybe_obj);
+    if (!maybe_obj->IsUndefined(isolate)) {
+      return ObjectTemplateInfo::cast(maybe_obj);
+    }
   }
 }
 
@@ -185,9 +190,9 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int max_number_of_properties = 0;
   TemplateInfoT* info = *data;
   while (info != nullptr) {
-    if (!info->property_accessors()->IsUndefined()) {
+    if (!info->property_accessors()->IsUndefined(isolate)) {
       Object* props = info->property_accessors();
-      if (!props->IsUndefined()) {
+      if (!props->IsUndefined(isolate)) {
         Handle<Object> props_handle(props, isolate);
         NeanderArray props_array(props_handle);
         max_number_of_properties += props_array.length();
@@ -205,7 +210,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     info = *data;
     while (info != nullptr) {
       // Accumulate accessors.
-      if (!info->property_accessors()->IsUndefined()) {
+      if (!info->property_accessors()->IsUndefined(isolate)) {
         Handle<Object> props(info->property_accessors(), isolate);
         valid_descriptors =
             AccessorInfo::AppendUnique(props, array, valid_descriptors);
@@ -221,7 +226,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   }
 
   auto property_list = handle(data->property_list(), isolate);
-  if (property_list->IsUndefined()) return obj;
+  if (property_list->IsUndefined(isolate)) return obj;
   // TODO(dcarney): just use a FixedArray here.
   NeanderArray properties(property_list);
   if (properties.length() == 0) return obj;
@@ -323,7 +328,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   if (constructor.is_null()) {
     Handle<Object> cons(info->constructor(), isolate);
-    if (cons->IsUndefined()) {
+    if (cons->IsUndefined(isolate)) {
       constructor = isolate->object_function();
     } else {
       auto cons_templ = Handle<FunctionTemplateInfo>::cast(cons);
@@ -371,7 +376,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   Handle<JSObject> prototype;
   if (!data->remove_prototype()) {
     auto prototype_templ = handle(data->prototype_template(), isolate);
-    if (prototype_templ->IsUndefined()) {
+    if (prototype_templ->IsUndefined(isolate)) {
       prototype = isolate->factory()->NewJSObject(isolate->object_function());
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -382,7 +387,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           JSFunction);
     }
     auto parent = handle(data->parent_template(), isolate);
-    if (!parent->IsUndefined()) {
+    if (!parent->IsUndefined(isolate)) {
       Handle<JSFunction> parent_instance;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, parent_instance,
@@ -445,7 +450,7 @@ class InvokeScope {
 void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
   auto list = handle(templ->property_list(), isolate);
-  if (list->IsUndefined()) {
+  if (list->IsUndefined(isolate)) {
     list = NeanderArray(isolate).value();
     templ->set_property_list(*list);
   }
@@ -520,7 +525,7 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<TemplateInfo> info,
                                        Handle<AccessorInfo> property) {
   auto list = handle(info->property_accessors(), isolate);
-  if (list->IsUndefined()) {
+  if (list->IsUndefined(isolate)) {
     list = NeanderArray(isolate).value();
     info->set_property_accessors(*list);
   }
@@ -550,7 +555,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
         isolate->factory()->empty_string(), code);
   } else {
     int internal_field_count = 0;
-    if (!obj->instance_template()->IsUndefined()) {
+    if (!obj->instance_template()->IsUndefined(isolate)) {
       Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
           ObjectTemplateInfo::cast(obj->instance_template()));
       internal_field_count =
@@ -564,8 +569,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     switch (instance_type) {
       case JavaScriptObjectType:
         if (!obj->needs_access_check() &&
-            obj->named_property_handler()->IsUndefined() &&
-            obj->indexed_property_handler()->IsUndefined()) {
+            obj->named_property_handler()->IsUndefined(isolate) &&
+            obj->indexed_property_handler()->IsUndefined(isolate)) {
           type = JS_API_OBJECT_TYPE;
         } else {
           type = JS_SPECIAL_API_OBJECT_TYPE;
@@ -633,15 +638,15 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   // Set interceptor information in the map.
-  if (!obj->named_property_handler()->IsUndefined()) {
+  if (!obj->named_property_handler()->IsUndefined(isolate)) {
     map->set_has_named_interceptor();
   }
-  if (!obj->indexed_property_handler()->IsUndefined()) {
+  if (!obj->indexed_property_handler()->IsUndefined(isolate)) {
     map->set_has_indexed_interceptor();
   }
 
   // Mark instance as callable in the map.
-  if (!obj->instance_call_handler()->IsUndefined()) {
+  if (!obj->instance_call_handler()->IsUndefined(isolate)) {
     map->set_is_callable();
     map->set_is_constructor(true);
   }

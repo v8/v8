@@ -136,6 +136,8 @@ bool operator!=(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs);
 std::ostream& operator<<(std::ostream&, RelocatablePtrConstantInfo const&);
 size_t hash_value(RelocatablePtrConstantInfo const& p);
+std::ostream& operator<<(std::ostream& os,
+                         const ZoneVector<MachineType>* types);
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -186,7 +188,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
-  const Operator* CheckPoint();
+  const Operator* Checkpoint();
   const Operator* BeginRegion();
   const Operator* FinishRegion();
   const Operator* StateValues(int arguments);

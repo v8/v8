@@ -34,7 +34,6 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
   // cache only contains handlers. Make sure that the bits are the least
   // significant so they will be the ones masked out.
   DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
-  STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
   // Make sure that the cache holder are not included in the hash.
   DCHECK(Code::ExtractCacheHolderFromFlags(flags) == 0);
@@ -75,12 +74,14 @@ Code* StubCache::Get(Name* name, Map* map, Code::Flags flags) {
   flags = CommonStubCacheChecks(name, map, flags);
   int primary_offset = PrimaryOffset(name, flags, map);
   Entry* primary = entry(primary_, primary_offset);
-  if (primary->key == name && primary->map == map) {
+  if (primary->key == name && primary->map == map &&
+      flags == Code::RemoveHolderFromFlags(primary->value->flags())) {
     return primary->value;
   }
   int secondary_offset = SecondaryOffset(name, flags, primary_offset);
   Entry* secondary = entry(secondary_, secondary_offset);
-  if (secondary->key == name && secondary->map == map) {
+  if (secondary->key == name && secondary->map == map &&
+      flags == Code::RemoveHolderFromFlags(secondary->value->flags())) {
     return secondary->value;
   }
   return NULL;

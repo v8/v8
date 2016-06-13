@@ -412,18 +412,8 @@ class LiveRange : public ZoneObject {
   void SetUseHints(int register_index);
   void UnsetUseHints() { SetUseHints(kUnassignedRegister); }
 
-  // Used solely by the Greedy Allocator:
-  unsigned GetSize();
-  float weight() const { return weight_; }
-  void set_weight(float weight) { weight_ = weight; }
-  LiveRangeGroup* group() const { return group_; }
-  void set_group(LiveRangeGroup* group) { group_ = group; }
   void Print(const RegisterConfiguration* config, bool with_children) const;
   void Print(bool with_children) const;
-
-  static const int kInvalidSize = -1;
-  static const float kInvalidWeight;
-  static const float kMaxWeight;
 
  private:
   friend class TopLevelLiveRange;
@@ -461,17 +451,6 @@ class LiveRange : public ZoneObject {
   mutable UsePosition* current_hint_position_;
   // Cache the last position splintering stopped at.
   mutable UsePosition* splitting_pointer_;
-  // greedy: the number of LifetimePositions covered by this range. Used to
-  // prioritize selecting live ranges for register assignment, as well as
-  // in weight calculations.
-  int size_;
-
-  // greedy: a metric for resolving conflicts between ranges with an assigned
-  // register and ranges that intersect them and need a register.
-  float weight_;
-
-  // greedy: groupping
-  LiveRangeGroup* group_;
 
   DISALLOW_COPY_AND_ASSIGN(LiveRange);
 };
@@ -483,7 +462,6 @@ class LiveRangeGroup final : public ZoneObject {
   ZoneVector<LiveRange*>& ranges() { return ranges_; }
   const ZoneVector<LiveRange*>& ranges() const { return ranges_; }
 
-  // TODO(mtrofin): populate assigned register and use in weight calculation.
   int assigned_register() const { return assigned_register_; }
   void set_assigned_register(int reg) { assigned_register_ = reg; }
 

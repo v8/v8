@@ -269,6 +269,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ push(eax);
   __ push(ebx);
+  __ push(esi);
 
   __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
 
@@ -301,8 +302,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
+
   // Restore registers before jumping into runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
   __ jmp(fail);
@@ -338,11 +340,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ sub(edi, Immediate(Smi::FromInt(1)));
   __ j(not_sign, &loop);
 
+  // Restore registers.
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
-
-  // Restore esi.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
   // eax: value

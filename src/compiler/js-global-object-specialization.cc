@@ -131,9 +131,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
   Handle<Name> name = StoreGlobalParametersOf(node->op()).name();
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Retrieve the global object from the given {node}.
   Handle<JSGlobalObject> global_object;
@@ -173,8 +173,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Node* check =
           graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
                            jsgraph()->Constant(property_cell_value));
-      control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                 frame_state, effect, control);
+      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                          frame_state, effect, control);
       break;
     }
     case PropertyCellType::kConstantType: {
@@ -185,8 +185,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Type* property_cell_value_type = Type::TaggedSigned();
       if (property_cell_value->IsHeapObject()) {
         // Deoptimize if the {value} is a Smi.
-        control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
-                                   effect, control);
+        control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                            frame_state, effect, control);
 
         // Load the {value} map check against the {property_cell} map.
         Node* value_map = effect =
@@ -199,8 +199,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
             jsgraph()->HeapConstant(property_cell_value_map));
         property_cell_value_type = Type::TaggedPointer();
       }
-      control = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                 frame_state, effect, control);
+      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                          frame_state, effect, control);
       effect = graph()->NewNode(
           simplified()->StoreField(
               AccessBuilder::ForPropertyCellValue(property_cell_value_type)),

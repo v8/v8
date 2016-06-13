@@ -1,0 +1,79 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+{
+  # This is a map of buildbot master names -> buildbot builder names ->
+  # config names (where each config name is a key in the 'configs' dict,
+  # below). MB uses this dict to look up which config to use for a given bot.
+  'masters': {
+    'client.v8': {
+      'V8 Linux - swarming staging': 'gn_swarming_release',
+    },
+  },
+
+  'configs': {
+    'gyp_swarming_release': [
+      'release_bot', 'swarming_bot', 'gyp'],
+    'gn_swarming_release': [
+      'release_bot', 'swarming_bot', 'gn'],
+  },
+
+  'mixins': {
+    'debug': {
+      'gn_args': 'is_debug=true',
+    },
+
+    'debug_bot': {
+      'mixins': ['debug', 'static', 'goma'],
+    },
+
+    'gn': {'type': 'gn'},
+
+    'goma': {
+      # The MB code will properly escape goma_dir if necessary in the GYP
+      # code path; the GN code path needs no escaping.
+      'gn_args': 'use_goma=true',
+      'gyp_defines': 'use_goma=1',
+    },
+
+    'gyp': {'type': 'gyp'},
+
+    # TODO(machenbach): Remove the following two configs, once the v8 default
+    # has changed.
+    'no_sysroot': {
+      'gn_args': 'use_sysroot=false',
+    },
+
+    'no_icu_data_file': {
+      'gn_args': 'icu_use_data_file=false',
+    },
+
+    'release': {
+      'gn_args': 'is_debug=false',
+    },
+
+    'release_bot': {
+      'mixins': ['release', 'static', 'goma'],
+    },
+
+    'shared': {
+      'gn_args': 'is_component_build=true',
+      'gyp_defines': 'component=shared_library',
+    },
+
+    'static': {
+      'gn_args': 'is_component_build=false',
+      'gyp_defines': 'component=static_library',
+    },
+
+    'swarming': {
+      'gn_args': 'v8_test_isolation_mode="prepare"',
+      'gyp_defines': 'test_isolation_mode=prepare',
+    },
+
+    'swarming_bot': {
+      'mixins': ['swarming', 'no_sysroot', 'no_icu_data_file'],
+    },
+  },
+}

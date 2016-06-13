@@ -259,7 +259,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
   Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
-  return isolate->heap()->ToBoolean(!tag->IsUndefined());
+  return isolate->heap()->ToBoolean(!tag->IsUndefined(isolate));
 }
 
 
@@ -317,7 +317,7 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
   Handle<Symbol> marker = isolate->factory()->intl_impl_object_symbol();
 
   Handle<Object> impl = JSReceiver::GetDataProperty(obj, marker);
-  if (impl->IsTheHole()) {
+  if (impl->IsTheHole(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotIntlObject, obj));
   }
@@ -382,13 +382,10 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   icu::UnicodeString result;
   date_format->format(value->Number(), result);
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -410,12 +407,9 @@ RUNTIME_FUNCTION(Runtime_InternalDateParse) {
   UDate date = date_format->parse(u_date, status);
   if (U_FAILURE(status)) return isolate->heap()->undefined_value();
 
-  Handle<JSDate> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSDate::New(isolate->date_function(), isolate->date_function(),
-                  static_cast<double>(date)));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDate::New(isolate->date_function(), isolate->date_function(),
+                           static_cast<double>(date)));
 }
 
 
@@ -476,13 +470,10 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   icu::UnicodeString result;
   number_format->format(value->Number(), result);
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -647,13 +638,10 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
     return isolate->heap()->undefined_value();
   }
 
-  Handle<String> result_str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_str,
-      isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length())));
-  return *result_str;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
+                   result.length())));
 }
 
 
@@ -848,13 +836,11 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
       // If no change is made, just return |s|.
       if (converted.getBuffer() == src) return *s;
     }
-    Handle<String> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
         isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
             reinterpret_cast<const uint16_t*>(converted.getBuffer()),
             converted.length())));
-    return *result;
   }
 
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
@@ -1143,6 +1129,23 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
   // Greek (el) does not require any adjustment, though.
   return LocaleConvertCase(s, isolate, is_upper,
                            reinterpret_cast<const char*>(lang_str));
+}
+
+RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  if (isolate->serializer_enabled()) return isolate->heap()->undefined_value();
+  if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
+    Handle<FixedArray> date_cache_version =
+        isolate->factory()->NewFixedArray(1, TENURED);
+    date_cache_version->set(0, Smi::FromInt(0));
+    isolate->eternal_handles()->CreateSingleton(
+        isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
+  }
+  Handle<FixedArray> date_cache_version =
+      Handle<FixedArray>::cast(isolate->eternal_handles()->GetSingleton(
+          EternalHandles::DATE_CACHE_VERSION));
+  return date_cache_version->get(0);
 }
 
 }  // namespace internal

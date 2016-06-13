@@ -97,7 +97,8 @@ class CallSite {
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
-    "CallSite expects function or number as second argument, got %")           \
+    "CallSite expects wasm object as first or function as second argument, "   \
+    "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
@@ -120,10 +121,8 @@ class CallSite {
   T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
-  T(ExtendsValueGenerator,                                                     \
-    "Class extends value % may not be a generator function")                   \
-  T(ExtendsValueNotFunction,                                                   \
-    "Class extends value % is not a function or null")                         \
+  T(ExtendsValueNotConstructor,                                                \
+    "Class extends value % is not a constructor or null")                      \
   T(FirstArgumentNotRegExp,                                                    \
     "First argument to % must not be a regular expression")                    \
   T(FunctionBind, "Bind must be called on a function")                         \
@@ -339,6 +338,8 @@ class CallSite {
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayLength, "Invalid typed array length")                     \
   T(InvalidTypedArrayOffset, "Start offset is too large:")                     \
+  T(InvalidSimdIndex, "Index out of bounds for SIMD operation")                \
+  T(InvalidSimdLaneValue, "Lane value out of bounds for SIMD operation")       \
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
@@ -441,6 +442,8 @@ class CallSite {
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65535 allowed)")         \
+  T(TooManySpreads,                                                            \
+    "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \

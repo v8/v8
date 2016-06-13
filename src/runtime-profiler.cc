@@ -56,16 +56,14 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       any_ic_changed_(false) {
 }
 
-
-static void GetICCounts(SharedFunctionInfo* shared,
-                        int* ic_with_type_info_count, int* ic_generic_count,
-                        int* ic_total_count, int* type_info_percentage,
-                        int* generic_percentage) {
+static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
+                        int* ic_generic_count, int* ic_total_count,
+                        int* type_info_percentage, int* generic_percentage) {
   *ic_total_count = 0;
   *ic_generic_count = 0;
   *ic_with_type_info_count = 0;
-  if (shared->code()->kind() == Code::FUNCTION) {
-    Code* shared_code = shared->code();
+  if (function->code()->kind() == Code::FUNCTION) {
+    Code* shared_code = function->shared()->code();
     Object* raw_info = shared_code->type_feedback_info();
     if (raw_info->IsTypeFeedbackInfo()) {
       TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
@@ -76,7 +74,7 @@ static void GetICCounts(SharedFunctionInfo* shared,
   }
 
   // Harvest vector-ics as well
-  TypeFeedbackVector* vector = shared->feedback_vector();
+  TypeFeedbackVector* vector = function->feedback_vector();
   int with = 0, gen = 0;
   vector->ComputeCounts(&with, &gen);
   *ic_with_type_info_count += with;
@@ -100,8 +98,8 @@ static void TraceRecompile(JSFunction* function, const char* reason,
     PrintF(" for %s recompilation, reason: %s", type, reason);
     if (FLAG_type_info_threshold > 0) {
       int typeinfo, generic, total, type_percentage, generic_percentage;
-      GetICCounts(function->shared(), &typeinfo, &generic, &total,
-                  &type_percentage, &generic_percentage);
+      GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
+                  &generic_percentage);
       PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total,
              type_percentage);
       PrintF(", generic ICs: %d/%d (%d%%)", generic, total, generic_percentage);
@@ -219,7 +217,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
 
   if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
-    GetICCounts(shared, &typeinfo, &generic, &total, &type_percentage,
+    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
     if (type_percentage >= FLAG_type_info_threshold &&
         generic_percentage <= FLAG_generic_ic_threshold) {
@@ -242,7 +240,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     int typeinfo, generic, total, type_percentage, generic_percentage;
-    GetICCounts(shared, &typeinfo, &generic, &total, &type_percentage,
+    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
     if (type_percentage >= FLAG_type_info_threshold &&
         generic_percentage <= FLAG_generic_ic_threshold) {

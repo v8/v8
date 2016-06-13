@@ -755,7 +755,45 @@ void Decoder::DecodeType01(Instruction* instr) {
           Format(instr, "'um'al'cond's 'rd, 'rn, 'rm, 'rs");
         }
       } else {
-        Unknown(instr);  // not used by V8
+        if (instr->Bits(24, 23) == 3) {
+          if (instr->Bit(20) == 1) {
+            // ldrex
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "ldrex'cond 'rt, ['rn]");
+                break;
+              case 2:
+                Format(instr, "ldrexb'cond 'rt, ['rn]");
+                break;
+              case 3:
+                Format(instr, "ldrexh'cond 'rt, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          } else {
+            // strex
+            // The instruction is documented as strex rd, rt, [rn], but the
+            // "rt" register is using the rm bits.
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "strex'cond 'rd, 'rm, ['rn]");
+                break;
+              case 2:
+                Format(instr, "strexb'cond 'rd, 'rm, ['rn]");
+                break;
+              case 3:
+                Format(instr, "strexh'cond 'rd, 'rm, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          }
+        } else {
+          Unknown(instr);  // not used by V8
+        }
       }
     } else if ((instr->Bit(20) == 0) && ((instr->Bits(7, 4) & 0xd) == 0xd)) {
       // ldrd, strd
@@ -2010,7 +2048,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -2073,9 +2111,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(
-        f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

@@ -80,8 +80,8 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   STATIC_ASSERT(sizeof(unsigned) == sizeof(id()));
-  base::OS::Print("%6" PRIuS " @%6u %*c %s%s: ", self_size(), id(), indent,
-                  ' ', prefix, edge_name);
+  base::OS::Print("%6" PRIuS " @%6u %*c %s%s: ", self_size(), id(), indent, ' ',
+                  prefix, edge_name);
   if (type() != kString) {
     base::OS::Print("%s %.40s\n", TypeAsString(), name_);
   } else {
@@ -392,7 +392,7 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
       entries_.at(to_entry_info_index).addr = NULL;
     }
   } else {
-    HashMap::Entry* to_entry =
+    base::HashMap::Entry* to_entry =
         entries_map_.LookupOrInsert(to, ComputePointerHash(to));
     if (to_entry->value != NULL) {
       // We found the existing entry with to address for an old object.
@@ -412,10 +412,8 @@ bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
     // object is migrated.
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Move object from %p to %p old size %6d new size %6d\n",
-             from,
-             to,
-             entries_.at(from_entry_info_index).size,
-             object_size);
+             static_cast<void*>(from), static_cast<void*>(to),
+             entries_.at(from_entry_info_index).size, object_size);
     }
     entries_.at(from_entry_info_index).size = object_size;
     to_entry->value = from_value;
@@ -430,7 +428,8 @@ void HeapObjectsMap::UpdateObjectSize(Address addr, int size) {
 
 
 SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
-  HashMap::Entry* entry = entries_map_.Lookup(addr, ComputePointerHash(addr));
+  base::HashMap::Entry* entry =
+      entries_map_.Lookup(addr, ComputePointerHash(addr));
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   EntryInfo& entry_info = entries_.at(entry_index);
@@ -443,7 +442,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
                                                 unsigned int size,
                                                 bool accessed) {
   DCHECK(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       entries_map_.LookupOrInsert(addr, ComputePointerHash(addr));
   if (entry->value != NULL) {
     int entry_index =
@@ -452,9 +451,7 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     entry_info.accessed = accessed;
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Update object size : %p with old size %d and new size %d\n",
-             addr,
-             entry_info.size,
-             size);
+             static_cast<void*>(addr), entry_info.size, size);
     }
     entry_info.size = size;
     return entry_info.id;
@@ -487,9 +484,8 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
     FindOrAddEntry(obj->address(), obj->Size());
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Update object      : %p %6d. Next address is %p\n",
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     }
   }
   RemoveDeadEntries();
@@ -517,20 +513,16 @@ struct HeapObjectInfo {
   void Print() const {
     if (expected_size == 0) {
       PrintF("Untracked object   : %p %6d. Next address is %p\n",
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     } else if (obj->Size() != expected_size) {
-      PrintF("Wrong size %6d: %p %6d. Next address is %p\n",
-             expected_size,
-             obj->address(),
-             obj->Size(),
-             obj->address() + obj->Size());
+      PrintF("Wrong size %6d: %p %6d. Next address is %p\n", expected_size,
+             static_cast<void*>(obj->address()), obj->Size(),
+             static_cast<void*>(obj->address() + obj->Size()));
     } else {
       PrintF("Good object      : %p %6d. Next address is %p\n",
-             obj->address(),
-             expected_size,
-             obj->address() + obj->Size());
+             static_cast<void*>(obj->address()), expected_size,
+             static_cast<void*>(obj->address() + obj->Size()));
     }
   }
 };
@@ -554,7 +546,7 @@ int HeapObjectsMap::FindUntrackedObjects() {
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    HashMap::Entry* entry =
+    base::HashMap::Entry* entry =
         entries_map_.Lookup(obj->address(), ComputePointerHash(obj->address()));
     if (entry == NULL) {
       ++untracked;
@@ -674,7 +666,7 @@ void HeapObjectsMap::RemoveDeadEntries() {
         entries_.at(first_free_entry) = entry_info;
       }
       entries_.at(first_free_entry).accessed = false;
-      HashMap::Entry* entry = entries_map_.Lookup(
+      base::HashMap::Entry* entry = entries_map_.Lookup(
           entry_info.addr, ComputePointerHash(entry_info.addr));
       DCHECK(entry);
       entry->value = reinterpret_cast<void*>(first_free_entry);
@@ -707,37 +699,28 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
 
 
 size_t HeapObjectsMap::GetUsedMemorySize() const {
-  return
-      sizeof(*this) +
-      sizeof(HashMap::Entry) * entries_map_.capacity() +
-      GetMemoryUsedByList(entries_) +
-      GetMemoryUsedByList(time_intervals_);
+  return sizeof(*this) +
+         sizeof(base::HashMap::Entry) * entries_map_.capacity() +
+         GetMemoryUsedByList(entries_) + GetMemoryUsedByList(time_intervals_);
 }
 
-
-HeapEntriesMap::HeapEntriesMap()
-    : entries_(HashMap::PointersMatch) {
-}
-
+HeapEntriesMap::HeapEntriesMap() : entries_(base::HashMap::PointersMatch) {}
 
 int HeapEntriesMap::Map(HeapThing thing) {
-  HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
+  base::HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
   if (cache_entry == NULL) return HeapEntry::kNoEntry;
   return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
 }
 
 
 void HeapEntriesMap::Pair(HeapThing thing, int entry) {
-  HashMap::Entry* cache_entry = entries_.LookupOrInsert(thing, Hash(thing));
+  base::HashMap::Entry* cache_entry =
+      entries_.LookupOrInsert(thing, Hash(thing));
   DCHECK(cache_entry->value == NULL);
   cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
 }
 
-
-HeapObjectsSet::HeapObjectsSet()
-    : entries_(HashMap::PointersMatch) {
-}
-
+HeapObjectsSet::HeapObjectsSet() : entries_(base::HashMap::PointersMatch) {}
 
 void HeapObjectsSet::Clear() {
   entries_.Clear();
@@ -760,7 +743,7 @@ void HeapObjectsSet::Insert(Object* obj) {
 
 const char* HeapObjectsSet::GetTag(Object* obj) {
   HeapObject* object = HeapObject::cast(obj);
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       entries_.Lookup(object, HeapEntriesMap::Hash(object));
   return cache_entry != NULL
       ? reinterpret_cast<const char*>(cache_entry->value)
@@ -771,7 +754,7 @@ const char* HeapObjectsSet::GetTag(Object* obj) {
 void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
   if (!obj->IsHeapObject()) return;
   HeapObject* object = HeapObject::cast(obj);
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       entries_.LookupOrInsert(object, HeapEntriesMap::Hash(object));
   cache_entry->value = const_cast<char*>(tag);
 }
@@ -1117,7 +1100,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   } else if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
     Object* proto_or_map = js_fun->prototype_or_initial_map();
-    if (!proto_or_map->IsTheHole()) {
+    if (!proto_or_map->IsTheHole(heap_->isolate())) {
       if (!proto_or_map->IsMap()) {
         SetPropertyReference(
             obj, entry,
@@ -1387,9 +1370,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "optimized_code_map", shared->optimized_code_map(),
                        SharedFunctionInfo::kOptimizedCodeMapOffset);
-  SetInternalReference(obj, entry,
-                       "feedback_vector", shared->feedback_vector(),
-                       SharedFunctionInfo::kFeedbackVectorOffset);
+  SetInternalReference(obj, entry, "feedback_metadata",
+                       shared->feedback_metadata(),
+                       SharedFunctionInfo::kFeedbackMetadataOffset);
 }
 
 
@@ -1567,6 +1550,7 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
 
 
 void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
+  Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastProperties()) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
     int real_size = js_obj->map()->NumberOfOwnDescriptors();
@@ -1600,7 +1584,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(isolate, k)) {
         DCHECK(dictionary->ValueAt(i)->IsPropertyCell());
         PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(i));
         Object* value = cell->value();
@@ -1614,7 +1598,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(isolate, k)) {
         Object* value = dictionary->ValueAt(i);
         PropertyDetails details = dictionary->DetailsAt(i);
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
@@ -1644,13 +1628,14 @@ void V8HeapExplorer::ExtractAccessorPairProperty(JSObject* js_obj, int entry,
 
 
 void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
+  Isolate* isolate = js_obj->GetIsolate();
   if (js_obj->HasFastObjectElements()) {
     FixedArray* elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray() ?
         Smi::cast(JSArray::cast(js_obj)->length())->value() :
         elements->length();
     for (int i = 0; i < length; ++i) {
-      if (!elements->get(i)->IsTheHole()) {
+      if (!elements->get(i)->IsTheHole(isolate)) {
         SetElementReference(js_obj, entry, i, elements->get(i));
       }
     }
@@ -1659,7 +1644,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(k)) {
+      if (dictionary->IsKey(isolate, k)) {
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         SetElementReference(js_obj, entry, index, dictionary->ValueAt(i));
@@ -2261,8 +2246,7 @@ NativeObjectsExplorer::NativeObjectsExplorer(
 
 
 NativeObjectsExplorer::~NativeObjectsExplorer() {
-  for (HashMap::Entry* p = objects_by_info_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = objects_by_info_.Start(); p != NULL;
        p = objects_by_info_.Next(p)) {
     v8::RetainedObjectInfo* info =
         reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
@@ -2271,8 +2255,7 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
         reinterpret_cast<List<HeapObject*>* >(p->value);
     delete objects;
   }
-  for (HashMap::Entry* p = native_groups_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = native_groups_.Start(); p != NULL;
        p = native_groups_.Next(p)) {
     v8::RetainedObjectInfo* info =
         reinterpret_cast<v8::RetainedObjectInfo*>(p->value);
@@ -2344,7 +2327,8 @@ void NativeObjectsExplorer::FillImplicitReferences() {
 
 List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(
     v8::RetainedObjectInfo* info) {
-  HashMap::Entry* entry = objects_by_info_.LookupOrInsert(info, InfoHash(info));
+  base::HashMap::Entry* entry =
+      objects_by_info_.LookupOrInsert(info, InfoHash(info));
   if (entry->value != NULL) {
     info->Dispose();
   } else {
@@ -2360,8 +2344,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
   FillRetainedObjects();
   FillImplicitReferences();
   if (EstimateObjectsCount() > 0) {
-    for (HashMap::Entry* p = objects_by_info_.Start();
-         p != NULL;
+    for (base::HashMap::Entry* p = objects_by_info_.Start(); p != NULL;
          p = objects_by_info_.Next(p)) {
       v8::RetainedObjectInfo* info =
           reinterpret_cast<v8::RetainedObjectInfo*>(p->key);
@@ -2413,7 +2396,7 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
       label_copy,
       static_cast<int>(strlen(label_copy)),
       isolate_->heap()->HashSeed());
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       native_groups_.LookupOrInsert(const_cast<char*>(label_copy), hash);
   if (entry->value == NULL) {
     entry->value = new NativeGroupRetainedObjectInfo(label);
@@ -2459,8 +2442,7 @@ void NativeObjectsExplorer::SetWrapperNativeReferences(
 
 
 void NativeObjectsExplorer::SetRootNativeRootsReference() {
-  for (HashMap::Entry* entry = native_groups_.Start();
-       entry;
+  for (base::HashMap::Entry* entry = native_groups_.Start(); entry;
        entry = native_groups_.Next(entry)) {
     NativeGroupRetainedObjectInfo* group_info =
         static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
@@ -2728,7 +2710,7 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
 
 
 int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
-  HashMap::Entry* cache_entry =
+  base::HashMap::Entry* cache_entry =
       strings_.LookupOrInsert(const_cast<char*>(s), StringHash(s));
   if (cache_entry->value == NULL) {
     cache_entry->value = reinterpret_cast<void*>(next_string_id_++);
@@ -3113,8 +3095,7 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
 void HeapSnapshotJSONSerializer::SerializeStrings() {
   ScopedVector<const unsigned char*> sorted_strings(
       strings_.occupancy() + 1);
-  for (HashMap::Entry* entry = strings_.Start();
-       entry != NULL;
+  for (base::HashMap::Entry* entry = strings_.Start(); entry != NULL;
        entry = strings_.Next(entry)) {
     int index = static_cast<int>(reinterpret_cast<uintptr_t>(entry->value));
     sorted_strings[index] = reinterpret_cast<const unsigned char*>(entry->key);

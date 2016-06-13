@@ -56,9 +56,10 @@ DeoptimizerData::~DeoptimizerData() {
 Code* Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_->IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
+    Isolate* isolate = function_->GetIsolate();
     Context* native_context = function_->context()->native_context();
     Object* element = native_context->DeoptimizedCodeListHead();
-    while (!element->IsUndefined()) {
+    while (!element->IsUndefined(isolate)) {
       Code* code = Code::cast(element);
       CHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
       if (code->contains(addr)) return code;
@@ -186,7 +187,8 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
   // no longer refer to optimized code.
   JSFunction* prev = NULL;
   Object* element = context->OptimizedFunctionsListHead();
-  while (!element->IsUndefined()) {
+  Isolate* isolate = context->GetIsolate();
+  while (!element->IsUndefined(isolate)) {
     JSFunction* function = JSFunction::cast(element);
     Object* next = function->next_function_link();
     if (function->code()->kind() != Code::OPTIMIZED_FUNCTION ||
@@ -226,7 +228,7 @@ void Deoptimizer::VisitAllOptimizedFunctions(
 
   // Run through the list of all native contexts.
   Object* context = isolate->heap()->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(isolate)) {
     VisitAllOptimizedFunctionsForContext(Context::cast(context), visitor);
     context = Context::cast(context)->next_context_link();
   }
@@ -315,7 +317,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   // Walk over all optimized code objects in this native context.
   Code* prev = NULL;
   Object* element = context->OptimizedCodeListHead();
-  while (!element->IsUndefined()) {
+  while (!element->IsUndefined(isolate)) {
     Code* code = Code::cast(element);
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     Object* next = code->next_code_link();
@@ -385,7 +387,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   // For all contexts, mark all code, then deoptimize.
   Object* context = isolate->heap()->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(isolate)) {
     Context* native_context = Context::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
@@ -406,7 +408,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   // For all contexts, deoptimize code already marked.
   Object* context = isolate->heap()->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(isolate)) {
     Context* native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context->next_context_link();
@@ -416,7 +418,8 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
 
 void Deoptimizer::MarkAllCodeForContext(Context* context) {
   Object* element = context->OptimizedCodeListHead();
-  while (!element->IsUndefined()) {
+  Isolate* isolate = context->GetIsolate();
+  while (!element->IsUndefined(isolate)) {
     Code* code = Code::cast(element);
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     code->set_marked_for_deoptimization(true);
@@ -660,10 +663,10 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   int length = 0;
   // Count all entries in the deoptimizing code list of every context.
   Object* context = isolate->heap()->native_contexts_list();
-  while (!context->IsUndefined()) {
+  while (!context->IsUndefined(isolate)) {
     Context* native_context = Context::cast(context);
     Object* element = native_context->DeoptimizedCodeListHead();
-    while (!element->IsUndefined()) {
+    while (!element->IsUndefined(isolate)) {
       Code* code = Code::cast(element);
       DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
       length++;
@@ -989,7 +992,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   }
   // Read the context from the translations.
   Object* context = context_pos->GetRawValue();
-  if (context == isolate_->heap()->undefined_value()) {
+  if (context->IsUndefined(isolate_)) {
     // If the context was optimized away, just use the context from
     // the activation. This should only apply to Crankshaft code.
     CHECK(!compiled_code_->is_turbofanned());
@@ -2451,6 +2454,10 @@ void Translation::StoreBoolRegister(Register reg) {
   buffer_->Add(reg.code(), zone());
 }
 
+void Translation::StoreFloatRegister(FloatRegister reg) {
+  buffer_->Add(FLOAT_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
@@ -2481,6 +2488,10 @@ void Translation::StoreBoolStackSlot(int index) {
   buffer_->Add(index, zone());
 }
 
+void Translation::StoreFloatStackSlot(int index) {
+  buffer_->Add(FLOAT_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
 
 void Translation::StoreDoubleStackSlot(int index) {
   buffer_->Add(DOUBLE_STACK_SLOT, zone());
@@ -2521,11 +2532,13 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case INT32_REGISTER:
     case UINT32_REGISTER:
     case BOOL_REGISTER:
+    case FLOAT_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
     case UINT32_STACK_SLOT:
     case BOOL_STACK_SLOT:
+    case FLOAT_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
     case COMPILED_STUB_FRAME:
@@ -2816,6 +2829,14 @@ TranslatedValue TranslatedValue::NewDuplicateObject(TranslatedState* container,
 
 
 // static
+TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
+                                          float value) {
+  TranslatedValue slot(container, kFloat);
+  slot.float_value_ = value;
+  return slot;
+}
+
+// static
 TranslatedValue TranslatedValue::NewDouble(TranslatedState* container,
                                            double value) {
   TranslatedValue slot(container, kDouble);
@@ -2886,6 +2907,10 @@ uint32_t TranslatedValue::uint32_value() const {
   return uint32_value_;
 }
 
+float TranslatedValue::float_value() const {
+  DCHECK_EQ(kFloat, kind());
+  return float_value_;
+}
 
 double TranslatedValue::double_value() const {
   DCHECK_EQ(kDouble, kind());
@@ -2964,6 +2989,7 @@ Handle<Object> TranslatedValue::GetValue() {
     case TranslatedValue::kInt32:
     case TranslatedValue::kUInt32:
     case TranslatedValue::kBoolBit:
+    case TranslatedValue::kFloat:
     case TranslatedValue::kDouble: {
       MaterializeSimple();
       return value_.ToHandleChecked();
@@ -3003,6 +3029,10 @@ void TranslatedValue::MaterializeSimple() {
 
     case kUInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(uint32_value()));
+      return;
+
+    case kFloat:
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(float_value()));
       return;
 
     case kDouble:
@@ -3281,11 +3311,13 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::INT32_REGISTER:
     case Translation::UINT32_REGISTER:
     case Translation::BOOL_REGISTER:
+    case Translation::FLOAT_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::STACK_SLOT:
     case Translation::INT32_STACK_SLOT:
     case Translation::UINT32_STACK_SLOT:
     case Translation::BOOL_STACK_SLOT:
+    case Translation::FLOAT_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL:
       break;
@@ -3412,12 +3444,23 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       return TranslatedValue::NewBool(this, static_cast<uint32_t>(value));
     }
 
+    case Translation::FLOAT_REGISTER: {
+      int input_reg = iterator->Next();
+      if (registers == nullptr) return TranslatedValue::NewInvalid(this);
+      float value = registers->GetFloatRegister(input_reg);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%e ; %s (float)", value,
+               FloatRegister::from_code(input_reg).ToString());
+      }
+      return TranslatedValue::NewFloat(this, value);
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
       double value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (bool)", value,
+        PrintF(trace_file, "%e ; %s (double)", value,
                DoubleRegister::from_code(input_reg).ToString());
       }
       return TranslatedValue::NewDouble(this, value);
@@ -3467,6 +3510,17 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewBool(this, value);
+    }
+
+    case Translation::FLOAT_STACK_SLOT: {
+      int slot_offset =
+          OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
+      float value = ReadFloatValue(fp + slot_offset);
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value,
+               slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
+      }
+      return TranslatedValue::NewFloat(this, value);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
@@ -3616,6 +3670,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
     case TranslatedValue::kInt32:
     case TranslatedValue::kUInt32:
     case TranslatedValue::kBoolBit:
+    case TranslatedValue::kFloat:
     case TranslatedValue::kDouble: {
       slot->MaterializeSimple();
       Handle<Object> value = slot->GetValue();
@@ -3709,6 +3764,35 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           object->set_properties(FixedArray::cast(*properties));
           object->set_elements(FixedArrayBase::cast(*elements));
           object->set_length(*length);
+          return object;
+        }
+        case JS_FUNCTION_TYPE: {
+          Handle<JSFunction> object =
+              isolate_->factory()->NewFunctionFromSharedFunctionInfo(
+                  handle(isolate_->object_function()->shared()),
+                  handle(isolate_->context()));
+          slot->value_ = object;
+          // We temporarily allocated a JSFunction for the {Object} function
+          // within the current context, to break cycles in the object graph.
+          // The correct function and context will be set below once available.
+          Handle<Object> properties = MaterializeAt(frame_index, value_index);
+          Handle<Object> elements = MaterializeAt(frame_index, value_index);
+          Handle<Object> prototype = MaterializeAt(frame_index, value_index);
+          Handle<Object> shared = MaterializeAt(frame_index, value_index);
+          Handle<Object> context = MaterializeAt(frame_index, value_index);
+          Handle<Object> literals = MaterializeAt(frame_index, value_index);
+          Handle<Object> entry = MaterializeAt(frame_index, value_index);
+          Handle<Object> next_link = MaterializeAt(frame_index, value_index);
+          object->ReplaceCode(*isolate_->builtins()->CompileLazy());
+          object->set_map(*map);
+          object->set_properties(FixedArray::cast(*properties));
+          object->set_elements(FixedArrayBase::cast(*elements));
+          object->set_prototype_or_initial_map(*prototype);
+          object->set_shared(SharedFunctionInfo::cast(*shared));
+          object->set_context(Context::cast(*context));
+          object->set_literals(LiteralsArray::cast(*literals));
+          CHECK(entry->IsNumber());  // Entry to compile lazy stub.
+          CHECK(next_link->IsUndefined(isolate_));
           return object;
         }
         case FIXED_ARRAY_TYPE: {

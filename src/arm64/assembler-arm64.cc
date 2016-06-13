@@ -51,26 +51,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-  // Probe for runtime features
-  base::CPU cpu;
-  if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER &&
-      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    // TODO(jkummerow): This is turned off as an experiment to see if it
-    // affects crash rates. Keep an eye on crash reports and either remove
-    // coherent cache support permanently, or re-enable it!
-    // supported_ |= 1u << COHERENT_CACHE;
-  }
+  // We used to probe for coherent cache support, but on older CPUs it
+  // causes crashes (crbug.com/524337), and newer CPUs don't even have
+  // the feature any more.
 }
-
 
 void CpuFeatures::PrintTarget() { }
-
-
-void CpuFeatures::PrintFeatures() {
-  printf("COHERENT_CACHE=%d\n", CpuFeatures::IsSupported(COHERENT_CACHE));
-}
-
+void CpuFeatures::PrintFeatures() {}
 
 // -----------------------------------------------------------------------------
 // CPURegList utilities.
@@ -1729,6 +1716,83 @@ void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   ldr_pcrel(rt, 0);
 }
 
+void Assembler::ldar(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAR_w : LDAR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAXR_w : LDAXR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLR_w : STLR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxr(const Register& rs, const Register& rt,
+                      const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
+  Emit(op | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldarb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxrb(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLXR_b | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldarh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxrh(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLXR_h | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
 
 void Assembler::mov(const Register& rd, const Register& rm) {
   // Moves involving the stack pointer are encoded as add immediate with

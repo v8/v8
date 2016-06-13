@@ -8,8 +8,8 @@
 #include <map>
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
+#include "src/base/hashmap.h"
 #include "src/compiler.h"
-#include "src/hashmap.h"
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {
@@ -114,7 +114,7 @@ class CodeEntry {
 
  private:
   class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
-  class BuiltinIdField : public BitField<Builtins::Name, 8, 8> {};
+  class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
 
   uint32_t bit_field_;
   const char* name_prefix_;
@@ -180,10 +180,10 @@ class ProfileNode {
   CodeEntry* entry_;
   unsigned self_ticks_;
   // Mapping from CodeEntry* to ProfileNode*
-  HashMap children_;
+  base::HashMap children_;
   List<ProfileNode*> children_list_;
   unsigned id_;
-  HashMap line_ticks_;
+  base::HashMap line_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 
@@ -220,7 +220,7 @@ class ProfileTree {
   Isolate* isolate_;
 
   unsigned next_function_id_;
-  HashMap function_ids_;
+  base::HashMap function_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };
@@ -263,16 +263,13 @@ class CpuProfile {
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
 
-
 class CodeMap {
  public:
   CodeMap() {}
-  ~CodeMap();
+
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
   CodeEntry* FindEntry(Address addr);
-  int GetSharedId(Address addr);
-
   void Print();
 
  private:
@@ -283,29 +280,12 @@ class CodeMap {
     unsigned size;
   };
 
-  struct CodeTreeConfig {
-    typedef Address Key;
-    typedef CodeEntryInfo Value;
-    static const Key kNoKey;
-    static const Value NoValue() { return CodeEntryInfo(NULL, 0); }
-    static int Compare(const Key& a, const Key& b) {
-      return a < b ? -1 : (a > b ? 1 : 0);
-    }
-  };
-  typedef SplayTree<CodeTreeConfig> CodeTree;
-
-  class CodeTreePrinter {
-   public:
-    void Call(const Address& key, const CodeEntryInfo& value);
-  };
-
   void DeleteAllCoveredCode(Address start, Address end);
 
-  CodeTree tree_;
+  std::map<Address, CodeEntryInfo> code_map_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };
-
 
 class CpuProfilesCollection {
  public:

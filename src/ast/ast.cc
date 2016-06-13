@@ -8,14 +8,14 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
+#include "src/base/hashmap.h"
 #include "src/builtins.h"
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
-#include "src/hashmap.h"
 #include "src/parsing/parser.h"
-#include "src/property.h"
 #include "src/property-details.h"
+#include "src/property.h"
 #include "src/string-stream.h"
 #include "src/type-info.h"
 
@@ -533,7 +533,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     // New handle scope here, needs to be after BuildContants().
     HandleScope scope(isolate);
     Handle<Object> boilerplate_value = GetBoilerplateValue(element, isolate);
-    if (boilerplate_value->IsTheHole()) {
+    if (boilerplate_value->IsTheHole(isolate)) {
       is_holey = true;
       continue;
     }
@@ -825,54 +825,74 @@ void AstVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
 // ----------------------------------------------------------------------------
 // Implementation of AstTraversalVisitor
 
-AstTraversalVisitor::AstTraversalVisitor(Isolate* isolate) {
+#define RECURSE(call)               \
+  do {                              \
+    DCHECK(!HasStackOverflow());    \
+    call;                           \
+    if (HasStackOverflow()) return; \
+  } while (false)
+
+#define RECURSE_EXPRESSION(call)    \
+  do {                              \
+    DCHECK(!HasStackOverflow());    \
+    ++depth_;                       \
+    call;                           \
+    --depth_;                       \
+    if (HasStackOverflow()) return; \
+  } while (false)
+
+AstTraversalVisitor::AstTraversalVisitor(Isolate* isolate) : depth_(0) {
   InitializeAstVisitor(isolate);
+}
+
+AstTraversalVisitor::AstTraversalVisitor(uintptr_t stack_limit) : depth_(0) {
+  InitializeAstVisitor(stack_limit);
+}
+
+void AstTraversalVisitor::VisitDeclarations(ZoneList<Declaration*>* decls) {
+  for (int i = 0; i < decls->length(); ++i) {
+    Declaration* decl = decls->at(i);
+    RECURSE(Visit(decl));
+  }
+}
+
+void AstTraversalVisitor::VisitStatements(ZoneList<Statement*>* stmts) {
+  for (int i = 0; i < stmts->length(); ++i) {
+    Statement* stmt = stmts->at(i);
+    RECURSE(Visit(stmt));
+    if (stmt->IsJump()) break;
+  }
 }
 
 void AstTraversalVisitor::VisitVariableDeclaration(VariableDeclaration* decl) {}
 
 void AstTraversalVisitor::VisitFunctionDeclaration(FunctionDeclaration* decl) {
-  Visit(decl->fun());
+  RECURSE(Visit(decl->fun()));
 }
 
 void AstTraversalVisitor::VisitImportDeclaration(ImportDeclaration* decl) {}
 
 void AstTraversalVisitor::VisitExportDeclaration(ExportDeclaration* decl) {}
 
-void AstTraversalVisitor::VisitStatements(ZoneList<Statement*>* stmts) {
-  for (int i = 0; i < stmts->length(); ++i) {
-    Statement* stmt = stmts->at(i);
-    Visit(stmt);
-    if (stmt->IsJump()) break;
-  }
-}
-
-void AstTraversalVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
-  for (int i = 0; i < expressions->length(); i++) {
-    Expression* expression = expressions->at(i);
-    if (expression != NULL) Visit(expression);
-  }
-}
-
 void AstTraversalVisitor::VisitBlock(Block* stmt) {
-  VisitStatements(stmt->statements());
+  RECURSE(VisitStatements(stmt->statements()));
 }
 
 void AstTraversalVisitor::VisitExpressionStatement(ExpressionStatement* stmt) {
-  Visit(stmt->expression());
+  RECURSE(Visit(stmt->expression()));
 }
 
 void AstTraversalVisitor::VisitEmptyStatement(EmptyStatement* stmt) {}
 
 void AstTraversalVisitor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* stmt) {
-  Visit(stmt->statement());
+  RECURSE(Visit(stmt->statement()));
 }
 
 void AstTraversalVisitor::VisitIfStatement(IfStatement* stmt) {
-  Visit(stmt->condition());
-  Visit(stmt->then_statement());
-  Visit(stmt->else_statement());
+  RECURSE(Visit(stmt->condition()));
+  RECURSE(Visit(stmt->then_statement()));
+  RECURSE(Visit(stmt->else_statement()));
 }
 
 void AstTraversalVisitor::VisitContinueStatement(ContinueStatement* stmt) {}
@@ -880,16 +900,16 @@ void AstTraversalVisitor::VisitContinueStatement(ContinueStatement* stmt) {}
 void AstTraversalVisitor::VisitBreakStatement(BreakStatement* stmt) {}
 
 void AstTraversalVisitor::VisitReturnStatement(ReturnStatement* stmt) {
-  Visit(stmt->expression());
+  RECURSE(Visit(stmt->expression()));
 }
 
 void AstTraversalVisitor::VisitWithStatement(WithStatement* stmt) {
-  stmt->expression();
-  stmt->statement();
+  RECURSE(stmt->expression());
+  RECURSE(stmt->statement());
 }
 
 void AstTraversalVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
-  Visit(stmt->tag());
+  RECURSE(Visit(stmt->tag()));
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
 
@@ -897,81 +917,81 @@ void AstTraversalVisitor::VisitSwitchStatement(SwitchStatement* stmt) {
     CaseClause* clause = clauses->at(i);
     if (!clause->is_default()) {
       Expression* label = clause->label();
-      Visit(label);
+      RECURSE(Visit(label));
     }
     ZoneList<Statement*>* stmts = clause->statements();
-    VisitStatements(stmts);
+    RECURSE(VisitStatements(stmts));
   }
 }
 
 void AstTraversalVisitor::VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
 
 void AstTraversalVisitor::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  Visit(stmt->body());
-  Visit(stmt->cond());
+  RECURSE(Visit(stmt->body()));
+  RECURSE(Visit(stmt->cond()));
 }
 
 void AstTraversalVisitor::VisitWhileStatement(WhileStatement* stmt) {
-  Visit(stmt->cond());
-  Visit(stmt->body());
+  RECURSE(Visit(stmt->cond()));
+  RECURSE(Visit(stmt->body()));
 }
 
 void AstTraversalVisitor::VisitForStatement(ForStatement* stmt) {
   if (stmt->init() != NULL) {
-    Visit(stmt->init());
+    RECURSE(Visit(stmt->init()));
   }
   if (stmt->cond() != NULL) {
-    Visit(stmt->cond());
+    RECURSE(Visit(stmt->cond()));
   }
   if (stmt->next() != NULL) {
-    Visit(stmt->next());
+    RECURSE(Visit(stmt->next()));
   }
-  Visit(stmt->body());
+  RECURSE(Visit(stmt->body()));
 }
 
 void AstTraversalVisitor::VisitForInStatement(ForInStatement* stmt) {
-  Visit(stmt->enumerable());
-  Visit(stmt->body());
+  RECURSE(Visit(stmt->enumerable()));
+  RECURSE(Visit(stmt->body()));
 }
 
 void AstTraversalVisitor::VisitForOfStatement(ForOfStatement* stmt) {
-  Visit(stmt->assign_iterator());
-  Visit(stmt->next_result());
-  Visit(stmt->result_done());
-  Visit(stmt->assign_each());
-  Visit(stmt->body());
+  RECURSE(Visit(stmt->assign_iterator()));
+  RECURSE(Visit(stmt->next_result()));
+  RECURSE(Visit(stmt->result_done()));
+  RECURSE(Visit(stmt->assign_each()));
+  RECURSE(Visit(stmt->body()));
 }
 
 void AstTraversalVisitor::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  Visit(stmt->try_block());
-  Visit(stmt->catch_block());
+  RECURSE(Visit(stmt->try_block()));
+  RECURSE(Visit(stmt->catch_block()));
 }
 
 void AstTraversalVisitor::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  Visit(stmt->try_block());
-  Visit(stmt->finally_block());
+  RECURSE(Visit(stmt->try_block()));
+  RECURSE(Visit(stmt->finally_block()));
 }
 
 void AstTraversalVisitor::VisitDebuggerStatement(DebuggerStatement* stmt) {}
 
 void AstTraversalVisitor::VisitFunctionLiteral(FunctionLiteral* expr) {
   Scope* scope = expr->scope();
-  VisitDeclarations(scope->declarations());
-  VisitStatements(expr->body());
+  RECURSE_EXPRESSION(VisitDeclarations(scope->declarations()));
+  RECURSE_EXPRESSION(VisitStatements(expr->body()));
 }
 
 void AstTraversalVisitor::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {}
 
 void AstTraversalVisitor::VisitDoExpression(DoExpression* expr) {
-  VisitBlock(expr->block());
-  VisitVariableProxy(expr->result());
+  RECURSE(VisitBlock(expr->block()));
+  RECURSE(VisitVariableProxy(expr->result()));
 }
 
 void AstTraversalVisitor::VisitConditional(Conditional* expr) {
-  Visit(expr->condition());
-  Visit(expr->then_expression());
-  Visit(expr->else_expression());
+  RECURSE_EXPRESSION(Visit(expr->condition()));
+  RECURSE_EXPRESSION(Visit(expr->then_expression()));
+  RECURSE_EXPRESSION(Visit(expr->else_expression()));
 }
 
 void AstTraversalVisitor::VisitVariableProxy(VariableProxy* expr) {}
@@ -985,9 +1005,9 @@ void AstTraversalVisitor::VisitObjectLiteral(ObjectLiteral* expr) {
   for (int i = 0; i < props->length(); ++i) {
     ObjectLiteralProperty* prop = props->at(i);
     if (!prop->key()->IsLiteral()) {
-      Visit(prop->key());
+      RECURSE_EXPRESSION(Visit(prop->key()));
     }
-    Visit(prop->value());
+    RECURSE_EXPRESSION(Visit(prop->value()));
   }
 }
 
@@ -995,42 +1015,44 @@ void AstTraversalVisitor::VisitArrayLiteral(ArrayLiteral* expr) {
   ZoneList<Expression*>* values = expr->values();
   for (int i = 0; i < values->length(); ++i) {
     Expression* value = values->at(i);
-    Visit(value);
+    RECURSE_EXPRESSION(Visit(value));
   }
 }
 
 void AstTraversalVisitor::VisitAssignment(Assignment* expr) {
-  Visit(expr->target());
-  Visit(expr->value());
+  RECURSE_EXPRESSION(Visit(expr->target()));
+  RECURSE_EXPRESSION(Visit(expr->value()));
 }
 
 void AstTraversalVisitor::VisitYield(Yield* expr) {
-  Visit(expr->generator_object());
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->generator_object()));
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
-void AstTraversalVisitor::VisitThrow(Throw* expr) { Visit(expr->exception()); }
+void AstTraversalVisitor::VisitThrow(Throw* expr) {
+  RECURSE_EXPRESSION(Visit(expr->exception()));
+}
 
 void AstTraversalVisitor::VisitProperty(Property* expr) {
-  Visit(expr->obj());
-  Visit(expr->key());
+  RECURSE_EXPRESSION(Visit(expr->obj()));
+  RECURSE_EXPRESSION(Visit(expr->key()));
 }
 
 void AstTraversalVisitor::VisitCall(Call* expr) {
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    Visit(arg);
+    RECURSE_EXPRESSION(Visit(arg));
   }
 }
 
 void AstTraversalVisitor::VisitCallNew(CallNew* expr) {
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->expression()));
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    Visit(arg);
+    RECURSE_EXPRESSION(Visit(arg));
   }
 }
 
@@ -1038,74 +1060,70 @@ void AstTraversalVisitor::VisitCallRuntime(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   for (int i = 0; i < args->length(); ++i) {
     Expression* arg = args->at(i);
-    Visit(arg);
+    RECURSE_EXPRESSION(Visit(arg));
   }
 }
 
 void AstTraversalVisitor::VisitUnaryOperation(UnaryOperation* expr) {
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
 void AstTraversalVisitor::VisitCountOperation(CountOperation* expr) {
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
 void AstTraversalVisitor::VisitBinaryOperation(BinaryOperation* expr) {
-  Visit(expr->left());
-  Visit(expr->right());
+  RECURSE_EXPRESSION(Visit(expr->left()));
+  RECURSE_EXPRESSION(Visit(expr->right()));
 }
 
 void AstTraversalVisitor::VisitCompareOperation(CompareOperation* expr) {
-  Visit(expr->left());
-  Visit(expr->right());
+  RECURSE_EXPRESSION(Visit(expr->left()));
+  RECURSE_EXPRESSION(Visit(expr->right()));
 }
 
 void AstTraversalVisitor::VisitThisFunction(ThisFunction* expr) {}
 
-void AstTraversalVisitor::VisitDeclarations(ZoneList<Declaration*>* decls) {
-  for (int i = 0; i < decls->length(); ++i) {
-    Declaration* decl = decls->at(i);
-    Visit(decl);
-  }
-}
-
 void AstTraversalVisitor::VisitClassLiteral(ClassLiteral* expr) {
   if (expr->extends() != nullptr) {
-    Visit(expr->extends());
+    RECURSE_EXPRESSION(Visit(expr->extends()));
   }
-  Visit(expr->constructor());
+  RECURSE_EXPRESSION(Visit(expr->constructor()));
   ZoneList<ObjectLiteralProperty*>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ObjectLiteralProperty* prop = props->at(i);
     if (!prop->key()->IsLiteral()) {
-      Visit(prop->key());
+      RECURSE_EXPRESSION(Visit(prop->key()));
     }
-    Visit(prop->value());
+    RECURSE_EXPRESSION(Visit(prop->value()));
   }
 }
 
 void AstTraversalVisitor::VisitSpread(Spread* expr) {
-  Visit(expr->expression());
+  RECURSE_EXPRESSION(Visit(expr->expression()));
 }
 
 void AstTraversalVisitor::VisitEmptyParentheses(EmptyParentheses* expr) {}
 
 void AstTraversalVisitor::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
-  VisitVariableProxy(expr->this_var());
-  Visit(expr->home_object());
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(Visit(expr->home_object()));
 }
 
 void AstTraversalVisitor::VisitSuperCallReference(SuperCallReference* expr) {
-  VisitVariableProxy(expr->this_var());
-  VisitVariableProxy(expr->new_target_var());
-  VisitVariableProxy(expr->this_function_var());
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->new_target_var()));
+  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
 }
 
 void AstTraversalVisitor::VisitRewritableExpression(
     RewritableExpression* expr) {
-  Visit(expr->expression());
+  RECURSE(Visit(expr->expression()));
 }
+
+#undef RECURSE_EXPRESSION
+#undef RECURSE
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos)

@@ -88,6 +88,14 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   for (int i = 0; i < slot_count; i++) {
     metadata->SetKind(FeedbackVectorSlot(i), spec->GetKind(i));
   }
+
+  // It's important that the TypeFeedbackMetadata have a COW map, since it's
+  // pointed to by both a SharedFunctionInfo and indirectly by closures through
+  // the TypeFeedbackVector. The serializer uses the COW map type to decide
+  // this object belongs in the startup snapshot and not the partial
+  // snapshot(s).
+  metadata->set_map(isolate->heap()->fixed_cow_array_map());
+
   return metadata;
 }
 
@@ -107,6 +115,21 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
   return false;
 }
 
+bool TypeFeedbackMetadata::DiffersFrom(
+    const TypeFeedbackMetadata* other_metadata) const {
+  if (other_metadata->slot_count() != slot_count()) {
+    return true;
+  }
+
+  int slots = slot_count();
+  for (int i = 0; i < slots; i++) {
+    FeedbackVectorSlot slot(i);
+    if (GetKind(slot) != other_metadata->GetKind(slot)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
   switch (kind) {
@@ -131,6 +154,11 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
   return "?";
 }
 
+FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
+    FeedbackVectorSlot slot) const {
+  DCHECK(!is_empty());
+  return metadata()->GetKind(slot);
+}
 
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::New(
@@ -251,8 +279,28 @@ void TypeFeedbackVector::ClearAllKeyedStoreICs(Isolate* isolate) {
   SharedFunctionInfo::Iterator iterator(isolate);
   SharedFunctionInfo* shared;
   while ((shared = iterator.Next())) {
-    TypeFeedbackVector* vector = shared->feedback_vector();
-    vector->ClearKeyedStoreICs(shared);
+    if (!shared->OptimizedCodeMapIsCleared()) {
+      FixedArray* optimized_code_map = shared->optimized_code_map();
+      int length = optimized_code_map->length();
+      for (int i = SharedFunctionInfo::kEntriesStart; i < length;
+           i += SharedFunctionInfo::kEntryLength) {
+        Object* lits =
+            optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset);
+        TypeFeedbackVector* vector = nullptr;
+        if (lits->IsWeakCell()) {
+          WeakCell* cell = WeakCell::cast(lits);
+          if (cell->value()->IsLiteralsArray()) {
+            vector = LiteralsArray::cast(cell->value())->feedback_vector();
+          }
+        } else {
+          DCHECK(lits->IsLiteralsArray());
+          vector = LiteralsArray::cast(lits)->feedback_vector();
+        }
+        if (vector != nullptr) {
+          vector->ClearKeyedStoreICs(shared);
+        }
+      }
+    }
   }
 }
 
@@ -488,7 +536,7 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
   if (call_count->IsSmi()) {
-    int value = Smi::cast(call_count)->value() / 2;
+    int value = Smi::cast(call_count)->value();
     return value;
   }
   return -1;
@@ -505,14 +553,14 @@ void CallICNexus::ConfigureMonomorphicArray() {
         GetIsolate()->factory()->NewAllocationSite();
     SetFeedback(*new_site);
   }
-  SetFeedbackExtra(Smi::FromInt(kCallCountIncrement), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
 }
 
 
 void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
   Handle<WeakCell> new_cell = GetIsolate()->factory()->NewWeakCell(function);
   SetFeedback(*new_cell);
-  SetFeedbackExtra(Smi::FromInt(kCallCountIncrement), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(1), SKIP_WRITE_BARRIER);
 }
 
 
@@ -524,8 +572,7 @@ void CallICNexus::ConfigureMegamorphic() {
 void CallICNexus::ConfigureMegamorphic(int call_count) {
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
               SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(call_count * kCallCountIncrement),
-                   SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(call_count), SKIP_WRITE_BARRIER);
 }
 
 

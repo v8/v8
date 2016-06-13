@@ -44,6 +44,7 @@ namespace compiler {
   V(X87Ror)                        \
   V(X87Lzcnt)                      \
   V(X87Popcnt)                     \
+  V(X87Float64Log)                 \
   V(X87Float32Cmp)                 \
   V(X87Float32Add)                 \
   V(X87Float32Sub)                 \

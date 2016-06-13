@@ -358,7 +358,7 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
 
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICUDefaultLocation(exec_path);
   v8::V8::InitializeExternalStartupData(exec_path);
   v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();

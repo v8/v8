@@ -118,6 +118,10 @@ class ModuleDecoder : public Decoder {
         break;
       }
 
+      TRACE("  +%d  section name        : \"%.*s\"\n",
+            static_cast<int>(section_name_start - start_),
+            string_length < 20 ? string_length : 20, section_name_start);
+
       WasmSection::Code section =
           WasmSection::lookup(section_name_start, string_length);
 
@@ -171,8 +175,7 @@ class ModuleDecoder : public Decoder {
                                          0,        // name_offset
                                          0,        // name_length
                                          0,        // code_start_offset
-                                         0,        // code_end_offset
-                                         false});  // exported
+                                         0});      // code_end_offset
             WasmFunction* function = &module->functions.back();
             function->sig_index = consume_sig_index(module, &function->sig);
           }
@@ -200,44 +203,6 @@ class ModuleDecoder : public Decoder {
             pc_ += size;
             if (pc_ > limit_) {
               error(pc_, "function body extends beyond end of file");
-            }
-          }
-          break;
-        }
-        case WasmSection::Code::OldFunctions: {
-          int length;
-          uint32_t functions_count = consume_u32v(&length, "functions count");
-          module->functions.reserve(SafeReserve(functions_count));
-          // Set up module environment for verification.
-          ModuleEnv menv;
-          menv.module = module;
-          menv.instance = nullptr;
-          menv.origin = origin_;
-          // Decode functions.
-          for (uint32_t i = 0; i < functions_count; i++) {
-            if (failed()) break;
-            TRACE("DecodeFunction[%d] module+%d\n", i,
-                  static_cast<int>(pc_ - start_));
-
-            module->functions.push_back({nullptr,  // sig
-                                         i,        // func_index
-                                         0,        // sig_index
-                                         0,        // name_offset
-                                         0,        // name_length
-                                         0,        // code_start_offset
-                                         0,        // code_end_offset
-                                         false});  // exported
-            WasmFunction* function = &module->functions.back();
-            DecodeFunctionInModule(module, function, false);
-          }
-          if (ok() && verify_functions) {
-            for (uint32_t i = 0; i < functions_count; i++) {
-              if (failed()) break;
-              WasmFunction* function = &module->functions[i];
-              VerifyFunctionBody(i, &menv, function);
-              if (result_.failed()) {
-                error(result_.error_pc, result_.error_msg.get());
-              }
             }
           }
           break;
@@ -419,7 +384,9 @@ class ModuleDecoder : public Decoder {
     }
 
   done:
-    ModuleResult result = toResult(module);
+    if (ok()) CalculateGlobalsOffsets(module);
+    const WasmModule* finished_module = module;
+    ModuleResult result = toResult(finished_module);
     if (FLAG_dump_wasm_module) {
       DumpModule(module, result);
     }
@@ -462,7 +429,6 @@ class ModuleDecoder : public Decoder {
     function->name_length = 0;                // ---- name length
     function->code_start_offset = off(pc_);   // ---- code start
     function->code_end_offset = off(limit_);  // ---- code end
-    function->exported = false;               // ---- exported
 
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
@@ -494,46 +460,6 @@ class ModuleDecoder : public Decoder {
     global->type = mem_type();
     global->offset = 0;
     global->exported = consume_u8("exported") != 0;
-  }
-
-  // Decodes a single function entry inside a module starting at {pc_}.
-  // TODO(titzer): legacy function body; remove
-  void DecodeFunctionInModule(WasmModule* module, WasmFunction* function,
-                              bool verify_body = true) {
-    byte decl_bits = consume_u8("function decl");
-
-    const byte* sigpos = pc_;
-    function->sig_index = consume_u16("signature index");
-
-    if (function->sig_index >= module->signatures.size()) {
-      return error(sigpos, "invalid signature index");
-    } else {
-      function->sig = module->signatures[function->sig_index];
-    }
-
-    TRACE("  +%d  <function attributes:%s%s>\n", static_cast<int>(pc_ - start_),
-          decl_bits & kDeclFunctionName ? " name" : "",
-          decl_bits & kDeclFunctionExport ? " exported" : "");
-
-    function->exported = decl_bits & kDeclFunctionExport;
-
-    if (decl_bits & kDeclFunctionName) {
-      function->name_offset =
-          consume_string(&function->name_length, function->exported);
-    }
-
-    uint16_t size = consume_u16("body size");
-    if (ok()) {
-      if ((pc_ + size) > limit_) {
-        return error(pc_, limit_,
-                     "expected %d bytes for function body, fell off end", size);
-      }
-      function->code_start_offset = static_cast<uint32_t>(pc_ - start_);
-      function->code_end_offset = function->code_start_offset + size;
-      TRACE("  +%d  %-20s: (%d bytes)\n", static_cast<int>(pc_ - start_),
-            "function body", size);
-      pc_ += size;
-    }
   }
 
   bool IsWithinLimit(uint32_t limit, uint32_t offset, uint32_t size) {
@@ -568,6 +494,22 @@ class ModuleDecoder : public Decoder {
     }
 
     consume_bytes(segment->source_size);
+  }
+
+  // Calculate individual global offsets and total size of globals table.
+  void CalculateGlobalsOffsets(WasmModule* module) {
+    uint32_t offset = 0;
+    if (module->globals.size() == 0) {
+      module->globals_size = 0;
+      return;
+    }
+    for (WasmGlobal& global : module->globals) {
+      byte size = WasmOpcodes::MemSize(global.type);
+      offset = (offset + size - 1) & ~(size - 1);  // align
+      global.offset = offset;
+      offset += size;
+    }
+    module->globals_size = offset;
   }
 
   // Verifies the body (code) of a given function.
@@ -698,6 +640,8 @@ class ModuleDecoder : public Decoder {
         return MachineType::Float32();
       case kMemF64:
         return MachineType::Float64();
+      case kMemS128:
+        return MachineType::Simd128();
       default:
         error(pc_ - 1, "invalid memory type");
         return MachineType::None();

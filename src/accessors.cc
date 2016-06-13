@@ -86,23 +86,6 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
 }
 
 
-bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
-                                                 Handle<Name> name,
-                                                 int* object_offset) {
-  DCHECK(name->IsUniqueName());
-  Isolate* isolate = name->GetIsolate();
-
-  switch (map->instance_type()) {
-    case JS_DATA_VIEW_TYPE:
-      return CheckForName(name, isolate->factory()->byte_length_string(),
-                          JSDataView::kByteLengthOffset, object_offset) ||
-             CheckForName(name, isolate->factory()->byte_offset_string(),
-                          JSDataView::kByteOffsetOffset, object_offset);
-    default:
-      return false;
-  }
-}
-
 namespace {
 
 MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
@@ -588,7 +571,7 @@ void Accessors::ScriptEvalFromScriptGetter(
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
-  if (!script->eval_from_shared()->IsUndefined()) {
+  if (!script->eval_from_shared()->IsUndefined(isolate)) {
     Handle<SharedFunctionInfo> eval_from_shared(
         SharedFunctionInfo::cast(script->eval_from_shared()));
     if (eval_from_shared->script()->IsScript()) {
@@ -654,11 +637,11 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Handle<Object> result = isolate->factory()->undefined_value();
-  if (!script->eval_from_shared()->IsUndefined()) {
+  if (!script->eval_from_shared()->IsUndefined(isolate)) {
     Handle<SharedFunctionInfo> shared(
         SharedFunctionInfo::cast(script->eval_from_shared()));
     // Find the name of the function calling eval.
-    if (!shared->name()->IsUndefined()) {
+    if (!shared->name()->IsUndefined(isolate)) {
       result = Handle<Object>(shared->name(), isolate);
     } else {
       result = Handle<Object>(shared->inferred_name(), isolate);
@@ -1149,7 +1132,7 @@ static void ModuleGetExport(v8::Local<v8::Name> property,
     return;
   }
   Object* value = context->get(slot);
-  if (value->IsTheHole()) {
+  if (value->IsTheHole(isolate)) {
     Handle<Name> name = v8::Utils::OpenHandle(*property);
 
     Handle<Object> exception = isolate->factory()->NewReferenceError(

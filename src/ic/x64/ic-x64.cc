@@ -451,7 +451,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ JumpIfDictionaryInPrototypeChain(receiver, rdi, kScratchRegister, slow);
 
   __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value, rbx, key, xmm0,
+  __ StoreNumberToDoubleElements(value, rbx, key, kScratchDoubleReg,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
@@ -829,8 +829,9 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   // condition code uses at the patched jump.
   uint8_t delta = *reinterpret_cast<uint8_t*>(delta_address);
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, test=%p, delta=%d\n", address,
-           test_instruction_address, delta);
+    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
+           static_cast<void*>(address),
+           static_cast<void*>(test_instruction_address), delta);
   }
 
   // Patch with a short conditional jump. Enabling means switching from a short

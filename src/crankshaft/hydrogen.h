@@ -1333,7 +1333,7 @@ class HGraphBuilder {
             class P7, class P8, class P9>
   HInstruction* AddUncasted(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7,
                             P8 p8, P9 p9) {
-    return AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8, p8));
+    return AddInstruction(NewUncasted<I>(p1, p2, p3, p4, p5, p6, p7, p8, p9));
   }
 
   template <class I, class P1, class P2, class P3, class P4, class P5, class P6,
@@ -2241,11 +2241,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   TestContext* inlined_test_context() const {
     return function_state()->test_context();
   }
+  Handle<JSFunction> current_closure() const {
+    return current_info()->closure();
+  }
   Handle<SharedFunctionInfo> current_shared_info() const {
     return current_info()->shared_info();
   }
   TypeFeedbackVector* current_feedback_vector() const {
-    return current_shared_info()->feedback_vector();
+    return current_closure()->feedback_vector();
   }
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
@@ -2264,9 +2267,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(NewObject)                         \
   F(ValueOf)                           \
   F(StringCharFromCode)                \
-  F(StringCharAt)                      \
-  F(OneByteSeqStringSetChar)           \
-  F(TwoByteSeqStringSetChar)           \
   F(ToInteger)                         \
   F(ToName)                            \
   F(ToObject)                          \
@@ -2299,7 +2299,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ConstructDouble)                   \
   F(DoubleHi)                          \
   F(DoubleLo)                          \
-  F(MathLogRT)                         \
   /* ES6 Collections */                \
   F(MapClear)                          \
   F(MapInitialize)                     \
@@ -2362,21 +2361,19 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void Bind(Variable* var, HValue* value) { environment()->Bind(var, value); }
   bool IsEligibleForEnvironmentLivenessAnalysis(Variable* var,
                                                 int index,
-                                                HValue* value,
                                                 HEnvironment* env) {
     if (!FLAG_analyze_environment_liveness) return false;
     // |this| and |arguments| are always live; zapping parameters isn't
     // safe because function.arguments can inspect them at any time.
     return !var->is_this() &&
            !var->is_arguments() &&
-           !value->IsArgumentsObject() &&
            env->is_local_index(index);
   }
   void BindIfLive(Variable* var, HValue* value) {
     HEnvironment* env = environment();
     int index = env->IndexFor(var);
     env->Bind(index, value);
-    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
+    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, env)) {
       HEnvironmentMarker* bind =
           Add<HEnvironmentMarker>(HEnvironmentMarker::BIND, index);
       USE(bind);
@@ -2388,8 +2385,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HValue* LookupAndMakeLive(Variable* var) {
     HEnvironment* env = environment();
     int index = env->IndexFor(var);
-    HValue* value = env->Lookup(index);
-    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, value, env)) {
+    if (IsEligibleForEnvironmentLivenessAnalysis(var, index, env)) {
       HEnvironmentMarker* lookup =
           Add<HEnvironmentMarker>(HEnvironmentMarker::LOOKUP, index);
       USE(lookup);
@@ -2397,7 +2393,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       lookup->set_closure(env->closure());
 #endif
     }
-    return value;
+    return env->Lookup(index);
   }
 
   // The value of the arguments object is allowed in some but not most value
@@ -2477,8 +2473,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HValue* implicit_return_value);
   bool TryInlineIndirectCall(Handle<JSFunction> function, Call* expr,
                              int arguments_count);
-  bool TryInlineBuiltinMethodCall(Call* expr, Handle<JSFunction> function,
-                                  Handle<Map> receiver_map,
+  bool TryInlineBuiltinGetterCall(Handle<JSFunction> function,
+                                  Handle<Map> receiver_map, BailoutId ast_id);
+  bool TryInlineBuiltinMethodCall(Handle<JSFunction> function,
+                                  Handle<Map> receiver_map, BailoutId ast_id,
                                   int args_count_no_receiver);
   bool TryInlineBuiltinFunctionCall(Call* expr);
   enum ApiCallType {
@@ -2617,20 +2615,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         } else {
           *access = HObjectAccess::ForMapAndOffset(map_, offset);
         }
-        return true;
-      }
-      return false;
-    }
-
-    bool IsJSArrayBufferViewFieldAccessor() {
-      int offset;  // unused
-      return Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset);
-    }
-
-    bool GetJSArrayBufferViewFieldAccess(HObjectAccess* access) {
-      int offset;
-      if (Accessors::IsJSArrayBufferViewFieldAccessor(map_, name_, &offset)) {
-        *access = HObjectAccess::ForMapAndOffset(map_, offset);
         return true;
       }
       return false;

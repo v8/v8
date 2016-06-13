@@ -1950,7 +1950,7 @@ FrameMirror.prototype.sourceColumn = function() {
 FrameMirror.prototype.sourceLineText = function() {
   var location = this.sourceLocation();
   if (location) {
-    return location.sourceText();
+    return location.sourceText;
   }
 };
 
@@ -2356,18 +2356,13 @@ ScriptMirror.prototype.compilationType = function() {
 
 
 ScriptMirror.prototype.lineCount = function() {
-  return this.script_.lineCount();
+  return %ScriptLineCount(this.script_);
 };
 
 
 ScriptMirror.prototype.locationFromPosition = function(
     position, include_resource_offset) {
   return this.script_.locationFromPosition(position, include_resource_offset);
-};
-
-
-ScriptMirror.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
-  return this.script_.sourceSlice(opt_from_line, opt_to_line);
 };
 
 

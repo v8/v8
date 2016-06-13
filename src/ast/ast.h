@@ -154,7 +154,8 @@ class FeedbackVectorSlotCache {
  public:
   explicit FeedbackVectorSlotCache(Zone* zone)
       : zone_(zone),
-        hash_map_(HashMap::PointersMatch, ZoneHashMap::kDefaultHashMapCapacity,
+        hash_map_(base::HashMap::PointersMatch,
+                  ZoneHashMap::kDefaultHashMapCapacity,
                   ZoneAllocationPolicy(zone)) {}
 
   void Put(Variable* variable, FeedbackVectorSlot slot) {
@@ -1583,13 +1584,14 @@ class ObjectLiteral final : public MaterializedLiteral {
 
 
 // A map from property names to getter/setter pairs allocated in the zone.
-class AccessorTable : public TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                                             ZoneAllocationPolicy> {
+class AccessorTable
+    : public base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                                   ZoneAllocationPolicy> {
  public:
   explicit AccessorTable(Zone* zone)
-      : TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                        ZoneAllocationPolicy>(Literal::Match,
-                                              ZoneAllocationPolicy(zone)),
+      : base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                              ZoneAllocationPolicy>(Literal::Match,
+                                                    ZoneAllocationPolicy(zone)),
         zone_(zone) {}
 
   Iterator lookup(Literal* literal) {
@@ -2036,6 +2038,9 @@ class CallNew final : public Expression {
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) override {
     callnew_feedback_slot_ = spec->AddGeneralSlot();
+    // Construct calls have two slots, one right after the other.
+    // The second slot stores the call count for monomorphic calls.
+    spec->AddGeneralSlot();
   }
 
   FeedbackVectorSlot CallNewFeedbackSlot() {
@@ -3521,20 +3526,26 @@ class AstVisitor BASE_EMBEDDED {
 class AstTraversalVisitor : public AstVisitor {
  public:
   explicit AstTraversalVisitor(Isolate* isolate);
+  explicit AstTraversalVisitor(uintptr_t stack_limit);
   virtual ~AstTraversalVisitor() {}
 
   // Iteration left-to-right.
   void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
   void VisitStatements(ZoneList<Statement*>* statements) override;
-  void VisitExpressions(ZoneList<Expression*>* expressions) override;
 
 // Individual nodes
 #define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+ protected:
+  int depth() { return depth_; }
+
  private:
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+
+  int depth_;
+
   DISALLOW_COPY_AND_ASSIGN(AstTraversalVisitor);
 };
 

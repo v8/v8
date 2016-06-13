@@ -278,6 +278,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kCheckIf:
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -420,7 +421,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kTypeGuard:
       // TODO(bmeurer): what are the constraints on these?
       break;
-    case IrOpcode::kCheckPoint:
+    case IrOpcode::kCheckpoint:
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -636,8 +637,28 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSStoreMessage:
       break;
 
+    case IrOpcode::kJSGeneratorStore:
+      CheckNotTyped(node);
+      break;
+
+    case IrOpcode::kJSGeneratorRestoreContinuation:
+      CheckUpperIs(node, Type::SignedSmall());
+      break;
+
+    case IrOpcode::kJSGeneratorRestoreRegister:
+      CheckUpperIs(node, Type::Any());
+      break;
+
     case IrOpcode::kJSStackCheck:
       // Type is empty.
+      CheckNotTyped(node);
+      break;
+
+    case IrOpcode::kDebugBreak:
+      CheckNotTyped(node);
+      break;
+
+    case IrOpcode::kComment:
       CheckNotTyped(node);
       break;
 
@@ -665,6 +686,9 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::NumberOrUndefined());
       CheckValueInputIs(node, 1, Type::NumberOrUndefined());
       CheckUpperIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeNumberSubtract:
       break;
     case IrOpcode::kNumberAdd:
     case IrOpcode::kNumberSubtract:
@@ -714,8 +738,17 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Unsigned32());
       CheckUpperIs(node, Type::Unsigned32());
       break;
+    case IrOpcode::kNumberAtan2:
+      // (Number, Number) -> Number
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckValueInputIs(node, 1, Type::Number());
+      CheckUpperIs(node, Type::Number());
+      break;
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
+    case IrOpcode::kNumberAtan:
+    case IrOpcode::kNumberLog:
+    case IrOpcode::kNumberLog1p:
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       // Number -> Number
@@ -737,6 +770,16 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Boolean());
       break;
+    case IrOpcode::kPlainPrimitiveToNumber:
+      // Type is Number.
+      CheckUpperIs(node, Type::Number());
+      break;
+    case IrOpcode::kPlainPrimitiveToWord32:
+      CheckUpperIs(node, Type::Number());
+      break;
+    case IrOpcode::kPlainPrimitiveToFloat64:
+      CheckUpperIs(node, Type::Number());
+      break;
     case IrOpcode::kStringEqual:
     case IrOpcode::kStringLessThan:
     case IrOpcode::kStringLessThanOrEqual:
@@ -744,6 +787,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::String());
       CheckValueInputIs(node, 1, Type::String());
       CheckUpperIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kStringFromCharCode:
+      // Number -> String
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckUpperIs(node, Type::String());
       break;
     case IrOpcode::kStringToNumber:
       // String -> Number
@@ -801,6 +849,16 @@ void Verifier::Visitor::Check(Node* node) {
       // Number /\ Tagged -> Number /\ UntaggedFloat64
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type* from = Type::Intersect(Type::Number(), Type::Tagged());
+      // Type* to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+      // CheckValueInputIs(node, 0, from));
+      // CheckUpperIs(node, to));
+      break;
+    }
+    case IrOpcode::kTruncateTaggedToFloat64: {
+      // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
+      // TODO(neis): Activate once ChangeRepresentation works in typer.
+      // Type* from = Type::Intersect(Type::NumberOrUndefined(),
+      // Type::Tagged());
       // Type* to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
       // CheckValueInputIs(node, 0, from));
       // CheckUpperIs(node, to));
@@ -869,6 +927,12 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
+
+    case IrOpcode::kCheckedUint32ToInt32:
+    case IrOpcode::kCheckedFloat64ToInt32:
+    case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kCheckedTaggedToFloat64:
+      break;
 
     case IrOpcode::kLoadField:
       // Object -> fieldtype
@@ -961,6 +1025,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat32Add:
     case IrOpcode::kFloat32Sub:
     case IrOpcode::kFloat32SubPreserveNan:
+    case IrOpcode::kFloat32Neg:
     case IrOpcode::kFloat32Mul:
     case IrOpcode::kFloat32Div:
     case IrOpcode::kFloat32Max:
@@ -973,12 +1038,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Add:
     case IrOpcode::kFloat64Sub:
     case IrOpcode::kFloat64SubPreserveNan:
+    case IrOpcode::kFloat64Neg:
     case IrOpcode::kFloat64Mul:
     case IrOpcode::kFloat64Div:
     case IrOpcode::kFloat64Mod:
     case IrOpcode::kFloat64Max:
     case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Abs:
+    case IrOpcode::kFloat64Atan:
+    case IrOpcode::kFloat64Atan2:
+    case IrOpcode::kFloat64Log:
+    case IrOpcode::kFloat64Log1p:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat32RoundDown:
     case IrOpcode::kFloat64RoundDown:

@@ -19,6 +19,10 @@ namespace base {
 class Semaphore;
 }
 
+namespace sampler {
+class Sampler;
+}
+
 namespace internal {
 
 // Logger is used for collecting logging information from V8 during
@@ -64,6 +68,7 @@ class PositionsRecorder;
 class Profiler;
 class Ticker;
 struct TickSample;
+class RuntimeCallTimer;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -141,7 +146,6 @@ class JitLogger;
 class PerfBasicLogger;
 class LowLevelLogger;
 class PerfJitLogger;
-class Sampler;
 
 class Logger {
  public:
@@ -161,7 +165,7 @@ class Logger {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  Sampler* sampler();
+  sampler::Sampler* sampler();
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -351,6 +355,7 @@ class Logger {
 
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
+  void RuntimeCallTimerEvent();
 
   PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
 

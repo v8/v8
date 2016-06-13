@@ -420,7 +420,6 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
   }
 }
 
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
     Handle<Name> name, int accessor_index, int expected_arguments) {
   Register holder = Frontend(name);
@@ -445,8 +444,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     PrototypeIterator::WhereToEnd end =
         name->IsPrivate() ? PrototypeIterator::END_AT_NON_HIDDEN
                           : PrototypeIterator::END_AT_NULL;
-    PrototypeIterator iter(isolate(), holder(),
-                           PrototypeIterator::START_AT_PROTOTYPE, end);
+    PrototypeIterator iter(isolate(), holder(), kStartAtPrototype, end);
     while (!iter.IsAtEnd()) {
       last = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
@@ -593,7 +591,8 @@ void ElementHandlerCompiler::CompileElementHandlers(
            *receiver_map == isolate()->get_initial_js_array_map(elements_kind));
 
       if (receiver_map->has_indexed_interceptor() &&
-          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined() &&
+          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined(
+              isolate()) &&
           !receiver_map->GetIndexedInterceptor()->non_masking()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
       } else if (IsSloppyArgumentsElements(elements_kind)) {

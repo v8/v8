@@ -270,7 +270,6 @@ template <Page::InitializationMode mode>
 Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  page->mutex_ = new base::Mutex();
   DCHECK(page->area_size() <= kAllocatableMemory);
   DCHECK(chunk->owner() == owner);
 
@@ -311,8 +310,8 @@ void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
 
 void MemoryChunk::ResetLiveBytes() {
   if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n", this,
-                 live_byte_count_);
+    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n",
+                 static_cast<void*>(this), live_byte_count_);
   }
   live_byte_count_ = 0;
 }
@@ -320,9 +319,9 @@ void MemoryChunk::ResetLiveBytes() {
 void MemoryChunk::IncrementLiveBytes(int by) {
   if (IsFlagSet(BLACK_PAGE)) return;
   if (FLAG_trace_live_bytes) {
-    PrintIsolate(heap()->isolate(),
-                 "live-bytes: update page=%p delta=%d %d->%d\n", this, by,
-                 live_byte_count_, live_byte_count_ + by);
+    PrintIsolate(
+        heap()->isolate(), "live-bytes: update page=%p delta=%d %d->%d\n",
+        static_cast<void*>(this), by, live_byte_count_, live_byte_count_ + by);
   }
   live_byte_count_ += by;
   DCHECK_GE(live_byte_count_, 0);
@@ -382,6 +381,7 @@ Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
 }
 
 void Page::MarkNeverAllocateForTesting() {
+  DCHECK(this->owner()->identity() != NEW_SPACE);
   DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
   SetFlag(NEVER_ALLOCATE_ON_PAGE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
@@ -404,9 +404,8 @@ void Page::ClearEvacuationCandidate() {
   InitializeFreeListCategories();
 }
 
-MemoryChunkIterator::MemoryChunkIterator(Heap* heap, Mode mode)
+MemoryChunkIterator::MemoryChunkIterator(Heap* heap)
     : state_(kOldSpaceState),
-      mode_(mode),
       old_iterator_(heap->old_space()),
       code_iterator_(heap->code_space()),
       map_iterator_(heap->map_space()),
@@ -422,14 +421,14 @@ MemoryChunk* MemoryChunkIterator::next() {
       // Fall through.
     }
     case kMapState: {
-      if (mode_ != ALL_BUT_MAP_SPACE && map_iterator_.has_next()) {
+      if (map_iterator_.has_next()) {
         return map_iterator_.next();
       }
       state_ = kCodeState;
       // Fall through.
     }
     case kCodeState: {
-      if (mode_ != ALL_BUT_CODE_SPACE && code_iterator_.has_next()) {
+      if (code_iterator_.has_next()) {
         return code_iterator_.next();
       }
       state_ = kLargeObjectState;

@@ -524,7 +524,7 @@ class Redirection {
 
 
 // static
-void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
+void Simulator::TearDown(base::HashMap* i_cache, Redirection* first) {
   Redirection::DeleteChain(first);
 }
 
@@ -609,7 +609,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
                xreg(4), xreg(5), xreg(6), xreg(7));
       ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
                                  xreg(4), xreg(5), xreg(6), xreg(7));
-      TraceSim("Returned: {%p, %p}\n", result.x, result.y);
+      TraceSim("Returned: {%p, %p}\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y));
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
@@ -639,7 +640,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
       ObjectTriple result = target(xreg(0), xreg(1), xreg(2), xreg(3), xreg(4),
                                    xreg(5), xreg(6), xreg(7));
-      TraceSim("Returned: {%p, %p, %p}\n", result.x, result.y, result.z);
+      TraceSim("Returned: {%p, %p, %p}\n", static_cast<void*>(result.x),
+               static_cast<void*>(result.y), static_cast<void*>(result.z));
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
@@ -1900,6 +1902,9 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
   }
 }
 
+void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
+  // TODO(binji)
+}
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
   if ((address >= stack_limit_) && (address < stack)) {

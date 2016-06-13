@@ -34,8 +34,9 @@ const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-const Register kScratchRegister = { 10 };      // r10.
-const Register kRootRegister = { 13 };         // r13 (callee save).
+const Register kScratchRegister = {10};      // r10.
+const XMMRegister kScratchDoubleReg = {15};  // xmm15.
+const Register kRootRegister = {13};         // r13 (callee save).
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
 const int kRootRegisterBias = 128;

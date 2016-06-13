@@ -460,6 +460,12 @@ class RawMachineAssembler {
   }
   Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
   Node* Float64Neg(Node* a) { return Float64Sub(Float64Constant(-0.0), a); }
+  Node* Float64Atan(Node* a) { return AddNode(machine()->Float64Atan(), a); }
+  Node* Float64Atan2(Node* a, Node* b) {
+    return AddNode(machine()->Float64Atan2(), a, b);
+  }
+  Node* Float64Log(Node* a) { return AddNode(machine()->Float64Log(), a); }
+  Node* Float64Log1p(Node* a) { return AddNode(machine()->Float64Log1p(), a); }
   Node* Float64Sqrt(Node* a) { return AddNode(machine()->Float64Sqrt(), a); }
   Node* Float64Equal(Node* a, Node* b) {
     return AddNode(machine()->Float64Equal(), a, b);
@@ -697,6 +703,8 @@ class RawMachineAssembler {
   void Return(Node* v1, Node* v2, Node* v3);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
+  void DebugBreak();
+  void Comment(const char* msg);
 
   // Variables.
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {

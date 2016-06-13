@@ -110,7 +110,6 @@ macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
 macro TO_BOOLEAN(arg) = (!!(arg));
 macro TO_INTEGER(arg) = (%_ToInteger(arg));
-macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(arg));
 macro TO_INT32(arg) = ((arg) | 0);
 macro TO_UINT32(arg) = ((arg) >>> 0);
 macro INVERT_NEG_ZERO(arg) = ((arg) + 0);
@@ -124,7 +123,6 @@ macro TO_PRIMITIVE_STRING(arg) = (%_ToPrimitive_String(arg));
 macro TO_NAME(arg) = (%_ToName(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
-macro HAS_INDEX(array, index, is_array) = ((is_array && %_HasFastPackedElements(%IS_VAR(array)) && (index < array.length)) ||  (index in array));
 
 # Private names.
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));

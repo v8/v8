@@ -292,7 +292,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
                             int end_position, int param_num, int literal_count,
                             int parent_index);
 
-  void SetFunctionCode(Handle<Code> function_code,
+  void SetFunctionCode(Handle<AbstractCode> function_code,
                        Handle<HeapObject> code_scope_info);
 
   void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
@@ -309,9 +309,9 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     return this->GetSmiValueField(kParentIndexOffset_);
   }
 
-  Handle<Code> GetFunctionCode();
+  Handle<AbstractCode> GetFunctionCode();
 
-  MaybeHandle<TypeFeedbackVector> GetFeedbackVector();
+  MaybeHandle<TypeFeedbackMetadata> GetFeedbackMetadata();
 
   Handle<Object> GetCodeScopeInfo();
 

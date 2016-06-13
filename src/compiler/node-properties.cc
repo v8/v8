@@ -180,13 +180,6 @@ void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
 
 
 // static
-void NodeProperties::RemoveFrameStateInput(Node* node, int index) {
-  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
-  node->RemoveInput(FirstFrameStateIndex(node) + index);
-}
-
-
-// static
 void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(node->op()->ValueInputCount());
 }
@@ -222,7 +215,8 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(exception);
         edge.UpdateTo(exception);
       } else {
-        UNREACHABLE();
+        DCHECK_NOT_NULL(success);
+        edge.UpdateTo(success);
       }
     } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
@@ -241,6 +235,18 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
+
+// static
+Node* NodeProperties::FindFrameStateBefore(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  while (effect->opcode() != IrOpcode::kCheckpoint) {
+    if (effect->opcode() == IrOpcode::kDead) return effect;
+    DCHECK_EQ(1, effect->op()->EffectInputCount());
+    effect = NodeProperties::GetEffectInput(effect);
+  }
+  Node* frame_state = GetFrameStateInput(effect, 0);
+  return frame_state;
+}
 
 // static
 Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {

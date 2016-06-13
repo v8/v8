@@ -345,3 +345,6 @@ assertEquals("async x => { return x }", (async x => { return x }).toString());
 class AsyncMethod { async foo() { } }
 assertEquals("async foo() { }", Function.prototype.toString.call(AsyncMethod.prototype.foo));
 assertEquals("async foo() { }", Function.prototype.toString.call({async foo() { }}.foo));
+
+// Async functions are not constructible
+assertThrows(() => class extends (async function() {}) {}, TypeError);

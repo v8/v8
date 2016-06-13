@@ -11,7 +11,6 @@
 #include "src/global-handles.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
-#include "src/splay-tree-inl.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -170,14 +169,15 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
 
 
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
-  HashMap::Entry* map_entry = children_.Lookup(entry, CodeEntryHash(entry));
+  base::HashMap::Entry* map_entry =
+      children_.Lookup(entry, CodeEntryHash(entry));
   return map_entry != NULL ?
       reinterpret_cast<ProfileNode*>(map_entry->value) : NULL;
 }
 
 
 ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
-  HashMap::Entry* map_entry =
+  base::HashMap::Entry* map_entry =
       children_.LookupOrInsert(entry, CodeEntryHash(entry));
   ProfileNode* node = reinterpret_cast<ProfileNode*>(map_entry->value);
   if (node == NULL) {
@@ -194,7 +194,7 @@ void ProfileNode::IncrementLineTicks(int src_line) {
   if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) return;
   // Increment a hit counter of a certain source line.
   // Add a new source line if not found.
-  HashMap::Entry* e =
+  base::HashMap::Entry* e =
       line_ticks_.LookupOrInsert(reinterpret_cast<void*>(src_line), src_line);
   DCHECK(e);
   e->value = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(e->value) + 1);
@@ -212,7 +212,7 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
   v8::CpuProfileNode::LineTick* entry = entries;
 
-  for (HashMap::Entry* p = line_ticks_.Start(); p != NULL;
+  for (base::HashMap::Entry *p = line_ticks_.Start(); p != NULL;
        p = line_ticks_.Next(p), entry++) {
     entry->line =
         static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->key));
@@ -250,8 +250,7 @@ void ProfileNode::Print(int indent) {
     base::OS::Print("%*s bailed out due to '%s'\n", indent + 10, "",
                     bailout_reason);
   }
-  for (HashMap::Entry* p = children_.Start();
-       p != NULL;
+  for (base::HashMap::Entry* p = children_.Start(); p != NULL;
        p = children_.Next(p)) {
     reinterpret_cast<ProfileNode*>(p->value)->Print(indent + 2);
   }
@@ -287,7 +286,7 @@ ProfileTree::~ProfileTree() {
 
 unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
   CodeEntry* code_entry = node->entry();
-  HashMap::Entry* entry =
+  base::HashMap::Entry* entry =
       function_ids_.LookupOrInsert(code_entry, code_entry->GetHash());
   if (!entry->value) {
     entry->value = reinterpret_cast<void*>(next_function_id_++);
@@ -384,80 +383,54 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
   }
 }
 
-
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
   end_time_ = base::TimeTicks::HighResolutionNow();
 }
-
 
 void CpuProfile::Print() {
   base::OS::Print("[Top down]:\n");
   top_down_.Print();
 }
 
-
-CodeMap::~CodeMap() {}
-
-
-const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
-
-
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   DeleteAllCoveredCode(addr, addr + size);
-  CodeTree::Locator locator;
-  tree_.Insert(addr, &locator);
-  locator.set_value(CodeEntryInfo(entry, size));
+  code_map_.insert({addr, CodeEntryInfo(entry, size)});
 }
-
 
 void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
-  List<Address> to_delete;
-  Address addr = end - 1;
-  while (addr >= start) {
-    CodeTree::Locator locator;
-    if (!tree_.FindGreatestLessThan(addr, &locator)) break;
-    Address start2 = locator.key(), end2 = start2 + locator.value().size;
-    if (start2 < end && start < end2) to_delete.Add(start2);
-    addr = start2 - 1;
+  auto left = code_map_.upper_bound(start);
+  if (left != code_map_.begin()) {
+    --left;
+    if (left->first + left->second.size <= start) ++left;
   }
-  for (int i = 0; i < to_delete.length(); ++i) tree_.Remove(to_delete[i]);
+  auto right = left;
+  while (right != code_map_.end() && right->first < end) ++right;
+  code_map_.erase(left, right);
 }
-
 
 CodeEntry* CodeMap::FindEntry(Address addr) {
-  CodeTree::Locator locator;
-  if (tree_.FindGreatestLessThan(addr, &locator)) {
-    // locator.key() <= addr. Need to check that addr is within entry.
-    const CodeEntryInfo& entry = locator.value();
-    if (addr < (locator.key() + entry.size)) {
-      return entry.entry;
-    }
-  }
-  return NULL;
+  auto it = code_map_.upper_bound(addr);
+  if (it == code_map_.begin()) return nullptr;
+  --it;
+  Address end_address = it->first + it->second.size;
+  return addr < end_address ? it->second.entry : nullptr;
 }
-
 
 void CodeMap::MoveCode(Address from, Address to) {
   if (from == to) return;
-  CodeTree::Locator locator;
-  if (!tree_.Find(from, &locator)) return;
-  CodeEntryInfo entry = locator.value();
-  tree_.Remove(from);
-  AddCode(to, entry.entry, entry.size);
+  auto it = code_map_.find(from);
+  if (it == code_map_.end()) return;
+  CodeEntryInfo info = it->second;
+  code_map_.erase(it);
+  AddCode(to, info.entry, info.size);
 }
-
-
-void CodeMap::CodeTreePrinter::Call(
-    const Address& key, const CodeMap::CodeEntryInfo& value) {
-  base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
-}
-
 
 void CodeMap::Print() {
-  CodeTreePrinter printer;
-  tree_.ForEach(&printer);
+  for (auto it = code_map_.begin(); it != code_map_.end(); ++it) {
+    base::OS::Print("%p %5d %s\n", static_cast<void*>(it->first),
+                    it->second.size, it->second.entry->name());
+  }
 }
-
 
 CpuProfilesCollection::CpuProfilesCollection(Heap* heap)
     : function_and_resource_names_(heap),
@@ -607,9 +580,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   int src_line = v8::CpuProfileNode::kNoLineNumberInfo;
   bool src_line_not_found = true;
 
-  if (sample.pc != NULL) {
-    if (sample.has_external_callback && sample.state == EXTERNAL &&
-        sample.top_frame_type == StackFrame::EXIT) {
+  if (sample.pc != nullptr) {
+    if (sample.has_external_callback && sample.state == EXTERNAL) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
@@ -619,9 +591,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
-      if (!pc_entry && (sample.top_frame_type == StackFrame::JAVA_SCRIPT ||
-                        sample.top_frame_type == StackFrame::INTERPRETED ||
-                        sample.top_frame_type == StackFrame::OPTIMIZED)) {
+      if (!pc_entry && !sample.has_external_callback) {
         pc_entry = code_map_.FindEntry(sample.tos);
       }
       // If pc is in the function code before it set up stack frame or after the
@@ -646,7 +616,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           // In the latter case we know the caller for sure but in the
           // former case we don't so we simply replace the frame with
           // 'unresolved' entry.
-          if (sample.top_frame_type == StackFrame::JAVA_SCRIPT) {
+          if (!sample.has_external_callback) {
             entries.push_back(unresolved_entry_);
           }
         }

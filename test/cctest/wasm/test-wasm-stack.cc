@@ -112,11 +112,11 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 
   // Line number is 1-based, with 0 == kNoLineNumberInfo.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},                                    // -
-      {"js", 4, 2},                                   // -
-      {"<WASM>", static_cast<int>(wasm_index), 2},    // -
-      {"<WASM>", static_cast<int>(wasm_index_2), 1},  // -
-      {"callFn", 1, 24}                               // -
+      {"a", 3, 8},                                            // -
+      {"js", 4, 2},                                           // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 1},  // -
+      {"callFn", 1, 24}                                       // -
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
@@ -157,9 +157,9 @@ TEST(CollectDetailedWasmStack_WasmError) {
 
   // Line number is 1-based, with 0 == kNoLineNumberInfo.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM>", static_cast<int>(wasm_index), 1},    // -
-      {"<WASM>", static_cast<int>(wasm_index_2), 1},  // -
-      {"callFn", 1, 24}                               //-
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 1},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 1},  // -
+      {"callFn", 1, 24}                                       //-
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);

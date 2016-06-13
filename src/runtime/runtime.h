@@ -39,10 +39,9 @@ namespace internal {
   F(MoveArrayContents, 2, 1)         \
   F(EstimateNumberOfElements, 1, 1)  \
   F(GetArrayKeys, 2, 1)              \
-  F(ArrayConstructor, -1, 1)         \
   F(NewArray, -1 /* >= 3 */, 1)      \
-  F(InternalArrayConstructor, -1, 1) \
   F(ArrayPush, -1, 1)                \
+  F(FunctionBind, -1, 1)             \
   F(NormalizeElements, 1, 1)         \
   F(GrowArrayElements, 2, 1)         \
   F(HasComplexElements, 1, 1)        \
@@ -135,56 +134,63 @@ namespace internal {
   F(DateCurrentTime, 0, 1)         \
   F(ThrowNotDateError, 0, 1)
 
-#define FOR_EACH_INTRINSIC_DEBUG(F)            \
-  F(HandleDebuggerStatement, 0, 1)             \
-  F(DebugBreak, 1, 1)                          \
-  F(DebugBreakOnBytecode, 1, 1)                \
-  F(SetDebugEventListener, 2, 1)               \
-  F(ScheduleBreak, 0, 1)                       \
-  F(DebugGetInternalProperties, 1, 1)          \
-  F(DebugGetPropertyDetails, 2, 1)             \
-  F(DebugGetProperty, 2, 1)                    \
-  F(DebugPropertyTypeFromDetails, 1, 1)        \
-  F(DebugPropertyAttributesFromDetails, 1, 1)  \
-  F(CheckExecutionState, 1, 1)                 \
-  F(GetFrameCount, 1, 1)                       \
-  F(GetFrameDetails, 2, 1)                     \
-  F(GetScopeCount, 2, 1)                       \
-  F(GetScopeDetails, 4, 1)                     \
-  F(GetAllScopesDetails, 4, 1)                 \
-  F(GetFunctionScopeCount, 1, 1)               \
-  F(GetFunctionScopeDetails, 2, 1)             \
-  F(SetScopeVariableValue, 6, 1)               \
-  F(DebugPrintScopes, 0, 1)                    \
-  F(SetBreakPointsActive, 1, 1)                \
-  F(GetBreakLocations, 2, 1)                   \
-  F(SetFunctionBreakPoint, 3, 1)               \
-  F(SetScriptBreakPoint, 4, 1)                 \
-  F(ClearBreakPoint, 1, 1)                     \
-  F(ChangeBreakOnException, 2, 1)              \
-  F(IsBreakOnException, 1, 1)                  \
-  F(PrepareStep, 2, 1)                         \
-  F(ClearStepping, 0, 1)                       \
-  F(DebugEvaluate, 6, 1)                       \
-  F(DebugEvaluateGlobal, 4, 1)                 \
-  F(DebugGetLoadedScripts, 0, 1)               \
-  F(DebugReferencedBy, 3, 1)                   \
-  F(DebugConstructedBy, 2, 1)                  \
-  F(DebugGetPrototype, 1, 1)                   \
-  F(DebugSetScriptSource, 2, 1)                \
-  F(FunctionGetInferredName, 1, 1)             \
-  F(FunctionGetDebugName, 1, 1)                \
-  F(GetFunctionCodePositionFromSource, 2, 1)   \
-  F(ExecuteInDebugContext, 1, 1)               \
-  F(GetDebugContext, 0, 1)                     \
-  F(CollectGarbage, 1, 1)                      \
-  F(GetHeapUsage, 0, 1)                        \
-  F(GetScript, 1, 1)                           \
-  F(DebugPrepareStepInIfStepping, 1, 1)        \
-  F(DebugPushPromise, 2, 1)                    \
-  F(DebugPopPromise, 0, 1)                     \
-  F(DebugAsyncTaskEvent, 1, 1)                 \
-  F(DebugIsActive, 0, 1)                       \
+#define FOR_EACH_INTRINSIC_DEBUG(F)             \
+  F(HandleDebuggerStatement, 0, 1)              \
+  F(DebugBreak, 1, 1)                           \
+  F(DebugBreakOnBytecode, 1, 1)                 \
+  F(SetDebugEventListener, 2, 1)                \
+  F(ScheduleBreak, 0, 1)                        \
+  F(DebugGetInternalProperties, 1, 1)           \
+  F(DebugGetPropertyDetails, 2, 1)              \
+  F(DebugGetProperty, 2, 1)                     \
+  F(DebugPropertyTypeFromDetails, 1, 1)         \
+  F(DebugPropertyAttributesFromDetails, 1, 1)   \
+  F(CheckExecutionState, 1, 1)                  \
+  F(GetFrameCount, 1, 1)                        \
+  F(GetFrameDetails, 2, 1)                      \
+  F(GetScopeCount, 2, 1)                        \
+  F(GetScopeDetails, 4, 1)                      \
+  F(GetAllScopesDetails, 4, 1)                  \
+  F(GetFunctionScopeCount, 1, 1)                \
+  F(GetFunctionScopeDetails, 2, 1)              \
+  F(SetScopeVariableValue, 6, 1)                \
+  F(DebugPrintScopes, 0, 1)                     \
+  F(SetBreakPointsActive, 1, 1)                 \
+  F(GetBreakLocations, 2, 1)                    \
+  F(SetFunctionBreakPoint, 3, 1)                \
+  F(SetScriptBreakPoint, 4, 1)                  \
+  F(ClearBreakPoint, 1, 1)                      \
+  F(ChangeBreakOnException, 2, 1)               \
+  F(IsBreakOnException, 1, 1)                   \
+  F(PrepareStep, 2, 1)                          \
+  F(ClearStepping, 0, 1)                        \
+  F(DebugEvaluate, 6, 1)                        \
+  F(DebugEvaluateGlobal, 4, 1)                  \
+  F(DebugGetLoadedScripts, 0, 1)                \
+  F(DebugReferencedBy, 3, 1)                    \
+  F(DebugConstructedBy, 2, 1)                   \
+  F(DebugGetPrototype, 1, 1)                    \
+  F(DebugSetScriptSource, 2, 1)                 \
+  F(FunctionGetInferredName, 1, 1)              \
+  F(FunctionGetDebugName, 1, 1)                 \
+  F(GetFunctionCodePositionFromSource, 2, 1)    \
+  F(ExecuteInDebugContext, 1, 1)                \
+  F(GetDebugContext, 0, 1)                      \
+  F(CollectGarbage, 1, 1)                       \
+  F(GetHeapUsage, 0, 1)                         \
+  F(GetScript, 1, 1)                            \
+  F(ScriptLineCount, 1, 1)                      \
+  F(ScriptLineStartPosition, 2, 1)              \
+  F(ScriptLineEndPosition, 2, 1)                \
+  F(ScriptLocationFromLine, 4, 1)               \
+  F(ScriptPositionInfo, 3, 1)                   \
+  F(ScriptSourceLine, 2, 1)                     \
+  F(DebugPrepareStepInIfStepping, 1, 1)         \
+  F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
+  F(DebugPushPromise, 2, 1)                     \
+  F(DebugPopPromise, 0, 1)                      \
+  F(DebugAsyncTaskEvent, 1, 1)                  \
+  F(DebugIsActive, 0, 1)                        \
   F(DebugBreakInOptimizedCode, 0, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
@@ -230,13 +236,9 @@ namespace internal {
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
   F(GeneratorGetInput, 1, 1)            \
-  F(GeneratorSetContext, 1, 1)          \
   F(GeneratorGetContinuation, 1, 1)     \
-  F(GeneratorSetContinuation, 2, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
-  F(GeneratorGetResumeMode, 1, 1)       \
-  F(GeneratorLoadRegister, 2, 1)        \
-  F(GeneratorStoreRegister, 3, 1)
+  F(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_I18N_SUPPORT
 #define FOR_EACH_INTRINSIC_I18N(F)           \
@@ -265,7 +267,8 @@ namespace internal {
   F(BreakIteratorBreakType, 1, 1)            \
   F(StringToLowerCaseI18N, 1, 1)             \
   F(StringToUpperCaseI18N, 1, 1)             \
-  F(StringLocaleConvertCase, 3, 1)
+  F(StringLocaleConvertCase, 3, 1)           \
+  F(DateCacheVersion, 0, 1)
 #else
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif
@@ -296,6 +299,8 @@ namespace internal {
   F(Interrupt, 0, 1)                                \
   F(AllocateInNewSpace, 1, 1)                       \
   F(AllocateInTargetSpace, 2, 1)                    \
+  F(AllocateSeqOneByteString, 1, 1)                 \
+  F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CollectStackTrace, 2, 1)                        \
   F(MessageGetStartPosition, 1, 1)                  \
   F(MessageGetScript, 1, 1)                         \
@@ -320,14 +325,8 @@ namespace internal {
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(EnqueueMicrotask, 1, 1)                         \
   F(RunMicrotasks, 0, 1)                            \
-  F(WasmGetFunctionName, 2, 1)                      \
-  F(OrdinaryHasInstance, 2, 1)
-
-#define FOR_EACH_INTRINSIC_JSON(F) \
-  F(QuoteJSONString, 1, 1)         \
-  F(BasicJSONStringify, 1, 1)      \
-  F(ParseJson, 1, 1)
-
+  F(OrdinaryHasInstance, 2, 1)                      \
+  F(IsWasmObject, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
@@ -351,12 +350,10 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_MATHS(F) \
-  F(MathLogRT, 1, 1)                \
   F(DoubleHi, 1, 1)                 \
   F(DoubleLo, 1, 1)                 \
   F(ConstructDouble, 2, 1)          \
   F(RemPiO2, 2, 1)                  \
-  F(MathAtan2, 2, 1)                \
   F(MathExpRT, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
@@ -374,7 +371,6 @@ namespace internal {
   F(StringParseFloat, 1, 1)            \
   F(NumberToString, 1, 1)              \
   F(NumberToStringSkipCache, 1, 1)     \
-  F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
@@ -832,9 +828,6 @@ namespace internal {
   F(StringToArray, 2, 1)                  \
   F(StringToLowerCase, 1, 1)              \
   F(StringToUpperCase, 1, 1)              \
-  F(StringTrim, 3, 1)                     \
-  F(TruncateString, 2, 1)                 \
-  F(NewString, 2, 1)                      \
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringGreaterThan, 2, 1)              \
@@ -843,12 +836,7 @@ namespace internal {
   F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
-  F(StringCharAt, 2, 1)                   \
   F(ExternalStringGetChar, 2, 1)          \
-  F(OneByteSeqStringGetChar, 2, 1)        \
-  F(OneByteSeqStringSetChar, 3, 1)        \
-  F(TwoByteSeqStringGetChar, 2, 1)        \
-  F(TwoByteSeqStringSetChar, 3, 1)        \
   F(StringCharCodeAt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
@@ -919,7 +907,6 @@ namespace internal {
   F(ArrayBufferViewGetByteLength, 1, 1)      \
   F(ArrayBufferViewGetByteOffset, 1, 1)      \
   F(TypedArrayGetLength, 1, 1)               \
-  F(DataViewGetBuffer, 1, 1)                 \
   F(TypedArrayGetBuffer, 1, 1)               \
   F(TypedArraySetFastCases, 3, 1)            \
   F(TypedArrayMaxSizeInHeap, 0, 1)           \
@@ -944,10 +931,6 @@ namespace internal {
   F(DataViewSetFloat32, 4, 1)                \
   F(DataViewSetFloat64, 4, 1)
 
-
-#define FOR_EACH_INTRINSIC_URI(F) \
-  F(URIEscape, 1, 1)              \
-  F(URIUnescape, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -981,7 +964,6 @@ namespace internal {
   F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)
 
-
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_IC(F)                  \
   FOR_EACH_INTRINSIC_ARRAY(F)               \
@@ -998,7 +980,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
   FOR_EACH_INTRINSIC_I18N(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
-  FOR_EACH_INTRINSIC_JSON(F)                \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
   FOR_EACH_INTRINSIC_LIVEEDIT(F)            \
   FOR_EACH_INTRINSIC_MATHS(F)               \
@@ -1012,8 +993,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_STRINGS(F)             \
   FOR_EACH_INTRINSIC_SYMBOL(F)              \
   FOR_EACH_INTRINSIC_TEST(F)                \
-  FOR_EACH_INTRINSIC_TYPEDARRAY(F)          \
-  FOR_EACH_INTRINSIC_URI(F)
+  FOR_EACH_INTRINSIC_TYPEDARRAY(F)
 
 // FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
 // either returning an object or a pair.
@@ -1093,12 +1073,6 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
-
-  MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringify(
-      Isolate* isolate, Handle<Object> object);
-
-  MUST_USE_RESULT static MaybeHandle<Object> BasicJsonStringifyString(
-      Isolate* isolate, Handle<String> string);
 
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.

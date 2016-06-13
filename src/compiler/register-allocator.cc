@@ -413,11 +413,6 @@ std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   return os;
 }
 
-
-const float LiveRange::kInvalidWeight = -1;
-const float LiveRange::kMaxWeight = std::numeric_limits<float>::max();
-
-
 LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level)
     : relative_id_(relative_id),
@@ -430,10 +425,7 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
       current_interval_(nullptr),
       last_processed_use_(nullptr),
       current_hint_position_(nullptr),
-      splitting_pointer_(nullptr),
-      size_(kInvalidSize),
-      weight_(kInvalidWeight),
-      group_(nullptr) {
+      splitting_pointer_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedRepresentation(rep));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
           RepresentationField::encode(rep);
@@ -699,10 +691,6 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   last_processed_use_ = nullptr;
   current_interval_ = nullptr;
 
-  // Invalidate size and weight of this range. The child range has them
-  // invalid at construction.
-  size_ = kInvalidSize;
-  weight_ = kInvalidWeight;
 #ifdef DEBUG
   VerifyChildStructure();
   result->VerifyChildStructure();
@@ -817,20 +805,6 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
   }
   return LifetimePosition::Invalid();
 }
-
-
-unsigned LiveRange::GetSize() {
-  if (size_ == kInvalidSize) {
-    size_ = 0;
-    for (const UseInterval* interval = first_interval(); interval != nullptr;
-         interval = interval->next()) {
-      size_ += (interval->end().value() - interval->start().value());
-    }
-  }
-
-  return static_cast<unsigned>(size_);
-}
-
 
 void LiveRange::Print(const RegisterConfiguration* config,
                       bool with_children) const {
@@ -1618,7 +1592,7 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
     DCHECK(!IsFloatingPoint(rep));
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
-  } else if (operand->HasFixedDoubleRegisterPolicy()) {
+  } else if (operand->HasFixedFPRegisterPolicy()) {
     DCHECK(IsFloatingPoint(rep));
     DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, virtual_register);
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
@@ -2184,23 +2158,24 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     // block.
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
-    InstructionOperand* hint = nullptr;
+    // Select the hint from the first predecessor block that preceeds this block
+    // in the rpo ordering. Prefer non-deferred blocks. The enforcement of
+    // hinting in rpo order is required because hint resolution that happens
+    // later in the compiler pipeline visits instructions in reverse rpo,
+    // relying on the fact that phis are encountered before their hints.
+    const Instruction* instr = nullptr;
     const InstructionBlock::Predecessors& predecessors = block->predecessors();
-    const InstructionBlock* predecessor_block =
-        code()->InstructionBlockAt(predecessors[0]);
-    const Instruction* instr = GetLastInstruction(code(), predecessor_block);
-    if (predecessor_block->IsDeferred()) {
-      // "Prefer the hint from the first non-deferred predecessor, if any.
-      for (size_t i = 1; i < predecessors.size(); ++i) {
-        predecessor_block = code()->InstructionBlockAt(predecessors[i]);
-        if (!predecessor_block->IsDeferred()) {
-          instr = GetLastInstruction(code(), predecessor_block);
-          break;
-        }
+    for (size_t i = 0; i < predecessors.size(); ++i) {
+      const InstructionBlock* predecessor_block =
+          code()->InstructionBlockAt(predecessors[i]);
+      if (predecessor_block->rpo_number() < block->rpo_number()) {
+        instr = GetLastInstruction(code(), predecessor_block);
+        if (!predecessor_block->IsDeferred()) break;
       }
     }
     DCHECK_NOT_NULL(instr);
 
+    InstructionOperand* hint = nullptr;
     for (MoveOperands* move : *instr->GetParallelMove(Instruction::END)) {
       InstructionOperand& to = move->destination();
       if (to.IsUnallocated() &&

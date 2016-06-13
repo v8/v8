@@ -912,7 +912,6 @@ bool LookupPropertyValueName(UProperty property,
 
 bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
   // Parse the property class as follows:
-  // - \pN with a single-character N is equivalent to \p{N}
   // - In \p{name}, 'name' is interpreted
   //   - either as a general category property value name.
   //   - or as a binary property name.
@@ -935,9 +934,6 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
       }
       second_part.Add(0);  // null-terminate string.
     }
-  } else if (current() != kEndMarker) {
-    // Parse \pN, where N is a single-character property name value.
-    first_part.Add(static_cast<char>(current()));
   } else {
     return false;
   }
@@ -1473,14 +1469,10 @@ void RegExpBuilder::FlushTerms() {
 
 bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   if (!unicode()) return false;
-  switch (cc->standard_type()) {
-    case 's':        // white space
-    case 'w':        // ASCII word character
-    case 'd':        // ASCII digit
-      return false;  // These characters do not need desugaring.
-    default:
-      break;
-  }
+  // TODO(yangguo): we could be smarter than this. Case-insensitivity does not
+  // necessarily mean that we need to desugar. It's probably nicer to have a
+  // separate pass to figure out unicode desugarings.
+  if (ignore_case()) return true;
   ZoneList<CharacterRange>* ranges = cc->ranges(zone());
   CharacterRange::Canonicalize(ranges);
   for (int i = ranges->length() - 1; i >= 0; i--) {

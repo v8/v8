@@ -8,15 +8,17 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "01ca9403e7d6ba63e9a4b6df1cb5cb8397ff7b92",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "ea70305807f935b36a930586aa08c66bfc6fbf8d",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "bce1c7793010574d88d7915e2d55395213ac63d1",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "c291cde264469b20ca969ce8832088acb21e0c48",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "ffa4b6704cf5cc9fec9485731f24a05b2ba94bca",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "06e80a0e17319868d4a9b13f9bb6a248dc8d8b20",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "099f1da55bfe8caa12266371a7eb983698fb1d87",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
+  "v8/tools/mb":
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "649b5791b19e4ed3df0c5542b23950d34ca8f3e7",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
@@ -27,23 +29,25 @@ deps = {
     Var("git_url") + "/v8/deps/third_party/benchmarks.git" + "@" + "05d7188267b4560491ff9155c5ee13e207ecd65f",
   "v8/test/mozilla/data":
     Var("git_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
-  "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "c8ef63c728283debc25891123eb00482fee4b8cd",
+  "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "baf493985cb9ea7cdbd0d68704860a8156de9556",
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "9c45e2ac684bae64614d8eb55789cae97323a7e7",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "18b63c680a59a7125514b1e05ca42cdfb89a19c7",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "7f07c3fce21f45df52cf39f0f52277d19b7e3573",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "adfd31794011488cd0fc716b53558b2d8a67af8b",
+      Var("git_url") + "/android_tools.git" + "@" + "5b5f2f60b78198eaef25d442ac60f823142a8a6e",
   },
   "win": {
     "v8/third_party/cygwin":
       Var("git_url") + "/chromium/deps/cygwin.git" + "@" + "c89e446b273697fadf3a10ff1007a97c0b7de6df",
   }
 }
+
+recursedeps = [ 'v8/third_party/android_tools' ]
 
 include_rules = [
   # Everybody can use some things.
@@ -187,6 +191,18 @@ hooks = [
                 "--no_auth",
                 "--bucket", "chromium-gn",
                 "-s", "v8/buildtools/linux64/gn.sha1",
+    ],
+  },
+  {
+    # Downloads the current stable linux sysroot to build/linux/ if needed.
+    # This sysroot updates at about the same rate that the chrome build deps
+    # change.
+    'name': 'sysroot',
+    'pattern': '.',
+    'action': [
+        'python',
+        'v8/build/linux/sysroot_scripts/install-sysroot.py',
+        '--running-as-hook',
     ],
   },
   {

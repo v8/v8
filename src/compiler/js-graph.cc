@@ -24,6 +24,11 @@ Node* JSGraph::AllocateInOldSpaceStubConstant() {
                 HeapConstant(isolate()->builtins()->AllocateInOldSpace()));
 }
 
+Node* JSGraph::ToNumberBuiltinConstant() {
+  return CACHED(kToNumberBuiltinConstant,
+                HeapConstant(isolate()->builtins()->ToNumber()));
+}
+
 Node* JSGraph::CEntryStubConstant(int result_size) {
   if (result_size == 1) {
     return CACHED(kCEntryStubConstant,
@@ -36,6 +41,11 @@ Node* JSGraph::CEntryStubConstant(int result_size) {
 Node* JSGraph::EmptyFixedArrayConstant() {
   return CACHED(kEmptyFixedArrayConstant,
                 HeapConstant(factory()->empty_fixed_array()));
+}
+
+Node* JSGraph::EmptyLiteralsArrayConstant() {
+  return CACHED(kEmptyLiteralsArrayConstant,
+                HeapConstant(factory()->empty_literals_array()));
 }
 
 Node* JSGraph::HeapNumberMapConstant() {
@@ -108,7 +118,7 @@ Node* JSGraph::Constant(Handle<Object> value) {
   // canonicalized node can be used.
   if (value->IsNumber()) {
     return Constant(value->Number());
-  } else if (value->IsUndefined()) {
+  } else if (value->IsUndefined(isolate())) {
     return UndefinedConstant();
   } else if (value->IsTrue()) {
     return TrueConstant();
@@ -116,7 +126,7 @@ Node* JSGraph::Constant(Handle<Object> value) {
     return FalseConstant();
   } else if (value->IsNull()) {
     return NullConstant();
-  } else if (value->IsTheHole()) {
+  } else if (value->IsTheHole(isolate())) {
     return TheHoleConstant();
   } else {
     return HeapConstant(Handle<HeapObject>::cast(value));
@@ -156,7 +166,8 @@ Node* JSGraph::Int64Constant(int64_t value) {
 }
 
 Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt32Constant(value);
+  Node** loc = cache_.FindRelocatableInt32Constant(
+      value, static_cast<RelocInfoMode>(rmode));
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->RelocatableInt32Constant(value, rmode));
   }
@@ -164,7 +175,8 @@ Node* JSGraph::RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode) {
 }
 
 Node* JSGraph::RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode) {
-  Node** loc = cache_.FindRelocatableInt64Constant(value);
+  Node** loc = cache_.FindRelocatableInt64Constant(
+      value, static_cast<RelocInfoMode>(rmode));
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->RelocatableInt64Constant(value, rmode));
   }
@@ -218,21 +230,9 @@ Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
   return ExternalConstant(ExternalReference(function_id, isolate()));
 }
 
-
-Node* JSGraph::EmptyFrameState() {
-  Node* empty_frame_state = cached_nodes_[kEmptyFrameState];
-  if (!empty_frame_state || empty_frame_state->IsDead()) {
-    Node* state_values = graph()->NewNode(common()->StateValues(0));
-    empty_frame_state = graph()->NewNode(
-        common()->FrameState(BailoutId::None(),
-                             OutputFrameStateCombine::Ignore(), nullptr),
-        state_values, state_values, state_values, NoContextConstant(),
-        UndefinedConstant(), graph()->start());
-    cached_nodes_[kEmptyFrameState] = empty_frame_state;
-  }
-  return empty_frame_state;
+Node* JSGraph::EmptyStateValues() {
+  return CACHED(kEmptyStateValues, graph()->NewNode(common()->StateValues(0)));
 }
-
 
 Node* JSGraph::Dead() {
   return CACHED(kDead, graph()->NewNode(common()->Dead()));

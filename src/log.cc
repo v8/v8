@@ -11,15 +11,17 @@
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
+#include "src/libsampler/v8-sampler.h"
 #include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
-#include "src/profiler/cpu-profiler.h"
+#include "src/profiler/cpu-profiler-inl.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
@@ -40,13 +42,11 @@ for (int i = 0; i < listeners_.length(); ++i) { \
   listeners_[i]->Call;                          \
 }
 
-#define PROFILER_LOG(Call)                                \
-  do {                                                    \
-    CpuProfiler* cpu_profiler = isolate_->cpu_profiler(); \
-    if (cpu_profiler->is_profiling()) {                   \
-      cpu_profiler->Call;                                 \
-    }                                                     \
-  } while (false);
+#define PROFILER_LOG(Call)          \
+  if (isolate_->is_profiling()) {   \
+    isolate_->cpu_profiler()->Call; \
+  } else {                          \
+  }
 
 static const char* ComputeMarker(SharedFunctionInfo* shared,
                                  AbstractCode* code) {
@@ -82,7 +82,7 @@ class CodeEventLogger::NameBuffer {
     } else {
       Symbol* symbol = Symbol::cast(name);
       AppendBytes("symbol(");
-      if (!symbol->name()->IsUndefined()) {
+      if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
         AppendBytes("\"");
         AppendString(String::cast(symbol->name()));
         AppendBytes("\" ");
@@ -240,10 +240,6 @@ class PerfBasicLogger : public CodeEventLogger {
   static const char kFilenameFormatString[];
   static const int kFilenameBufferPadding;
 
-  // File buffer size of the low-level log. We don't use the default to
-  // minimize the associated overhead.
-  static const int kLogBufferSize = 2 * MB;
-
   FILE* perf_output_handle_;
 };
 
@@ -264,7 +260,7 @@ PerfBasicLogger::PerfBasicLogger()
   perf_output_handle_ =
       base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
   CHECK_NOT_NULL(perf_output_handle_);
-  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(perf_output_handle_, NULL, _IOLBF, 0);
 }
 
 
@@ -335,10 +331,6 @@ class LowLevelLogger : public CodeEventLogger {
   // Extension added to V8 log file name to get the low-level log name.
   static const char kLogExt[];
 
-  // File buffer size of the low-level log. We don't use the default to
-  // minimize the associated overhead.
-  static const int kLogBufferSize = 2 * MB;
-
   void LogCodeInfo();
   void LogWriteBytes(const char* bytes, int size);
 
@@ -363,7 +355,7 @@ LowLevelLogger::LowLevelLogger(const char* name)
   MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
       base::OS::FOpen(ll_name.start(), base::OS::LogFileOpenMode);
-  setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(ll_output_handle_, NULL, _IOLBF, 0);
 
   LogCodeInfo();
 }
@@ -539,6 +531,31 @@ void JitLogger::EndCodePosInfoEvent(AbstractCode* code,
 }
 
 
+// TODO(lpy): Keeping sampling thread inside V8 is a workaround currently,
+// the reason is to reduce code duplication during migration to sampler library,
+// sampling thread, as well as the sampler, will be moved to D8 eventually.
+class SamplingThread : public base::Thread {
+ public:
+  static const int kSamplingThreadStackSize = 64 * KB;
+
+  SamplingThread(sampler::Sampler* sampler, int interval)
+      : base::Thread(base::Thread::Options("SamplingThread",
+                                           kSamplingThreadStackSize)),
+        sampler_(sampler),
+        interval_(interval) {}
+  void Run() override {
+    while (sampler_->IsProfiling()) {
+      sampler_->DoSample();
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
+    }
+  }
+
+ private:
+  sampler::Sampler* sampler_;
+  const int interval_;
+};
+
+
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
@@ -560,7 +577,7 @@ class Profiler: public base::Thread {
     } else {
       buffer_[head_] = *sample;
       head_ = Succ(head_);
-      buffer_semaphore_.Signal("Profiler::Insert");  // Tell we have an element.
+      buffer_semaphore_.Signal();  // Tell we have an element.
     }
   }
 
@@ -611,16 +628,16 @@ class Profiler: public base::Thread {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-class Ticker: public Sampler {
+class Ticker: public sampler::Sampler {
  public:
   Ticker(Isolate* isolate, int interval):
-      Sampler(isolate, interval),
-      profiler_(NULL) {}
+      sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
+      profiler_(NULL),
+      sampling_thread_(new SamplingThread(this, interval)) {}
 
-  ~Ticker() { if (IsActive()) Stop(); }
-
-  virtual void Tick(TickSample* sample) {
-    if (profiler_) profiler_->Insert(sample);
+  ~Ticker() {
+    if (IsActive()) Stop();
+    delete sampling_thread_;
   }
 
   void SetProfiler(Profiler* profiler) {
@@ -628,16 +645,40 @@ class Ticker: public Sampler {
     profiler_ = profiler;
     IncreaseProfilingDepth();
     if (!IsActive()) Start();
+    sampling_thread_->StartSynchronously();
   }
 
   void ClearProfiler() {
     profiler_ = NULL;
     if (IsActive()) Stop();
     DecreaseProfilingDepth();
+    sampling_thread_->Join();
+  }
+
+  void SampleStack(const v8::RegisterState& state) override {
+    v8::Isolate* v8_isolate = isolate();
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+#if defined(USE_SIMULATOR)
+    SimulatorHelper::FillRegisters(isolate,
+                                   const_cast<v8::RegisterState*>(&state));
+#endif
+    TickSample* sample = isolate->cpu_profiler()->StartTickSample();
+    TickSample sample_obj;
+    if (sample == NULL) sample = &sample_obj;
+    sample->Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
+    if (is_counting_samples_ && !sample->timestamp.IsNull()) {
+      if (sample->state == JS) ++js_sample_count_;
+      if (sample->state == EXTERNAL) ++external_sample_count_;
+    }
+    if (profiler_) profiler_->Insert(sample);
+    if (sample != &sample_obj) {
+      isolate->cpu_profiler()->FinishTickSample();
+    }
   }
 
  private:
   Profiler* profiler_;
+  SamplingThread* sampling_thread_;
 };
 
 
@@ -801,7 +842,7 @@ void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
 void Logger::HandleEvent(const char* name, Object** location) {
   if (!log_->IsEnabled() || !FLAG_log_handles) return;
   Log::MessageBuilder msg(log_);
-  msg.Append("%s,%p", name, location);
+  msg.Append("%s,%p", name, static_cast<void*>(location));
   msg.WriteToLogFile();
 }
 
@@ -971,7 +1012,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
   } else {
     Symbol* symbol = Symbol::cast(name);
     uint32_t hash = symbol->Hash();
-    if (symbol->name()->IsUndefined()) {
+    if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       ApiEvent("api,%s,\"%s\",symbol(hash %x)", tag, class_name.get(), hash);
     } else {
       base::SmartArrayPointer<char> str =
@@ -1039,7 +1080,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
     msg.Append(",1,\"%s%s\"", prefix, str.get());
   } else {
     Symbol* symbol = Symbol::cast(name);
-    if (symbol->name()->IsUndefined()) {
+    if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       msg.Append(",1,symbol(hash %x)", symbol->Hash());
     } else {
       base::SmartArrayPointer<char> str =
@@ -1381,9 +1422,23 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
   msg.WriteToLogFile();
 }
 
+void Logger::RuntimeCallTimerEvent() {
+  RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
+  RuntimeCallTimer* timer = stats->current_timer();
+  if (timer == nullptr) return;
+  RuntimeCallCounter* counter = timer->counter();
+  if (counter == nullptr) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("active-runtime-timer,");
+  msg.AppendDoubleQuotedString(counter->name);
+  msg.WriteToLogFile();
+}
 
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
+  if (FLAG_runtime_call_stats) {
+    RuntimeCallTimerEvent();
+  }
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[TICK_EVENT]);
   msg.AppendAddress(sample->pc);
@@ -1558,6 +1613,8 @@ void Logger::LogCodeObject(Object* object) {
       description = "A Wasm to JavaScript adapter";
       tag = Logger::STUB_TAG;
       break;
+    case AbstractCode::NUMBER_OF_KINDS:
+      UNIMPLEMENTED();
   }
   PROFILE(isolate_, CodeCreateEvent(tag, code_object, description));
 }
@@ -1632,7 +1689,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
     // API function.
     FunctionTemplateInfo* fun_data = shared->get_api_func_data();
     Object* raw_call_data = fun_data->call_code();
-    if (!raw_call_data->IsUndefined()) {
+    if (!raw_call_data->IsUndefined(isolate_)) {
       CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
       Object* callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
@@ -1810,7 +1867,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
 }
 
 
-Sampler* Logger::sampler() {
+sampler::Sampler* Logger::sampler() {
   return ticker_;
 }
 

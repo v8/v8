@@ -20,7 +20,7 @@ BinaryOperationHints::Hint ToHint(Type* type) {
   if (type->Is(Type::None())) return BinaryOperationHints::kNone;
   if (type->Is(Type::SignedSmall())) return BinaryOperationHints::kSignedSmall;
   if (type->Is(Type::Signed32())) return BinaryOperationHints::kSigned32;
-  if (type->Is(Type::Number())) return BinaryOperationHints::kNumber;
+  if (type->Is(Type::Number())) return BinaryOperationHints::kNumberOrUndefined;
   if (type->Is(Type::String())) return BinaryOperationHints::kString;
   return BinaryOperationHints::kAny;
 }

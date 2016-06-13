@@ -101,10 +101,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
         isolate_->heap()->undefined_value());
   }
 
-  // Update data pointers to the external strings containing natives sources.
-  Natives::UpdateSourceCache(isolate_->heap());
-  ExtraNatives::UpdateSourceCache(isolate_->heap());
-
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
   LOG_CODE_EVENT(isolate_, LogBytecodeHandlers());
@@ -119,9 +115,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
     return MaybeHandle<Object>();
   }
 
-  Vector<Handle<Object> > attached_objects = Vector<Handle<Object> >::New(1);
-  attached_objects[kGlobalProxyReference] = global_proxy;
-  SetAttachedObjects(attached_objects);
+  AddAttachedObject(global_proxy);
 
   DisallowHeapAllocation no_gc;
   // Keep track of the code space start and end pointers in case new
@@ -167,7 +161,6 @@ MaybeHandle<SharedFunctionInfo> Deserializer::DeserializeCode(
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
   // DCHECK(source_.AtEOF());
-  attached_objects_.Dispose();
 }
 
 // This is called on the roots.  It is the driver of the deserialization
@@ -315,7 +308,8 @@ void Deserializer::CommitPostProcessedObjects(Isolate* isolate) {
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
-  BackReference back_reference(source_.GetInt());
+  SerializerReference back_reference =
+      SerializerReference::FromBitfield(source_.GetInt());
   if (space == LO_SPACE) {
     CHECK(back_reference.chunk_index() == 0);
     uint32_t index = back_reference.large_object_index();
@@ -496,7 +490,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kAttachedReference) {                                \
         int index = source_.GetInt();                                          \
-        DCHECK(deserializing_user_code() || index == kGlobalProxyReference);   \
         new_object = *attached_objects_[index];                                \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \
@@ -510,12 +503,11 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         emit_write_barrier = false;                                            \
       }                                                                        \
       if (within == kInnerPointer) {                                           \
-        if (space_number != CODE_SPACE || new_object->IsCode()) {              \
-          Code* new_code_object = reinterpret_cast<Code*>(new_object);         \
+        if (new_object->IsCode()) {                                            \
+          Code* new_code_object = Code::cast(new_object);                      \
           new_object =                                                         \
               reinterpret_cast<Object*>(new_code_object->instruction_start()); \
         } else {                                                               \
-          DCHECK(space_number == CODE_SPACE);                                  \
           Cell* cell = Cell::cast(new_object);                                 \
           new_object = reinterpret_cast<Object*>(cell->ValueAddress());        \
         }                                                                      \
@@ -582,6 +574,9 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // pointer because it points at the entry point, not at the start of the
       // code object.
       SINGLE_CASE(kNewObject, kPlain, kInnerPointer, CODE_SPACE)
+      // Support for pointers into a cell. It's an inner pointer because it
+      // points directly at the value field, not the start of the cell object.
+      SINGLE_CASE(kNewObject, kPlain, kInnerPointer, OLD_SPACE)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
       ALL_SPACES(kNewObject, kFromCode, kInnerPointer)
@@ -608,8 +603,12 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // object.
       ALL_SPACES(kBackref, kFromCode, kInnerPointer)
       ALL_SPACES(kBackrefWithSkip, kFromCode, kInnerPointer)
-      ALL_SPACES(kBackref, kPlain, kInnerPointer)
-      ALL_SPACES(kBackrefWithSkip, kPlain, kInnerPointer)
+      // Support for direct instruction pointers in functions.
+      SINGLE_CASE(kBackref, kPlain, kInnerPointer, CODE_SPACE)
+      SINGLE_CASE(kBackrefWithSkip, kPlain, kInnerPointer, CODE_SPACE)
+      // Support for pointers into a cell.
+      SINGLE_CASE(kBackref, kPlain, kInnerPointer, OLD_SPACE)
+      SINGLE_CASE(kBackrefWithSkip, kPlain, kInnerPointer, OLD_SPACE)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)

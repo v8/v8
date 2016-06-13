@@ -72,6 +72,7 @@ class Schedule;
   V(Float64Mul)                            \
   V(Float64Div)                            \
   V(Float64Mod)                            \
+  V(Float64Atan2)                          \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
   V(IntPtrAdd)                             \
@@ -106,6 +107,9 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Atan)                        \
+  V(Float64Log)                         \
+  V(Float64Log1p)                       \
   V(Float64Neg)                         \
   V(Float64Sqrt)                        \
   V(Float64ExtractLowWord32)            \
@@ -166,6 +170,7 @@ class CodeAssembler {
   class Variable {
    public:
     explicit Variable(CodeAssembler* assembler, MachineRepresentation rep);
+    ~Variable();
     void Bind(Node* value);
     Node* value() const;
     MachineRepresentation rep() const;
@@ -175,6 +180,7 @@ class CodeAssembler {
     friend class CodeAssembler;
     class Impl;
     Impl* impl_;
+    CodeAssembler* assembler_;
   };
 
   enum AllocationFlag : uint8_t {
@@ -190,7 +196,8 @@ class CodeAssembler {
   // ===========================================================================
 
   // Constants.
-  Node* Int32Constant(int value);
+  Node* Int32Constant(int32_t value);
+  Node* Int64Constant(int64_t value);
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
   Node* SmiConstant(Smi* value);
@@ -200,8 +207,15 @@ class CodeAssembler {
   Node* Float64Constant(double value);
   Node* NaNConstant();
 
+  bool ToInt32Constant(Node* node, int32_t& out_value);
+  bool ToInt64Constant(Node* node, int64_t& out_value);
+  bool ToIntPtrConstant(Node* node, intptr_t& out_value);
+
   Node* Parameter(int value);
   void Return(Node* value);
+
+  void DebugBreak();
+  void Comment(const char* format, ...);
 
   void Bind(Label* label);
   void Goto(Label* label);
@@ -313,6 +327,9 @@ class CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2, Node* arg3,
                      size_t result_size = 1);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, Node* arg1, Node* arg2, Node* arg3,
+                     Node* arg4, size_t result_size = 1);
 
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);
@@ -355,7 +372,7 @@ class CodeAssembler {
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;
-  ZoneVector<Variable::Impl*> variables_;
+  ZoneSet<Variable::Impl*> variables_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };

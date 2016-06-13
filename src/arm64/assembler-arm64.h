@@ -1401,6 +1401,42 @@ class Assembler : public AssemblerBase {
   // Load literal to register.
   void ldr(const CPURegister& rt, const Immediate& imm);
 
+  // Load-acquire word.
+  void ldar(const Register& rt, const Register& rn);
+
+  // Load-acquire exclusive word.
+  void ldaxr(const Register& rt, const Register& rn);
+
+  // Store-release word.
+  void stlr(const Register& rt, const Register& rn);
+
+  // Store-release exclusive word.
+  void stlxr(const Register& rs, const Register& rt, const Register& rn);
+
+  // Load-acquire byte.
+  void ldarb(const Register& rt, const Register& rn);
+
+  // Load-acquire exclusive byte.
+  void ldaxrb(const Register& rt, const Register& rn);
+
+  // Store-release byte.
+  void stlrb(const Register& rt, const Register& rn);
+
+  // Store-release exclusive byte.
+  void stlxrb(const Register& rs, const Register& rt, const Register& rn);
+
+  // Load-acquire half-word.
+  void ldarh(const Register& rt, const Register& rn);
+
+  // Load-acquire exclusive half-word.
+  void ldaxrh(const Register& rt, const Register& rn);
+
+  // Store-release half-word.
+  void stlrh(const Register& rt, const Register& rn);
+
+  // Store-release exclusive half-word.
+  void stlxrh(const Register& rs, const Register& rt, const Register& rn);
+
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
   // that is equal to the 64-bit immediate argument. If an explicit left shift
@@ -1693,6 +1729,11 @@ class Assembler : public AssemblerBase {
   static Instr Rt2(CPURegister rt2) {
     DCHECK(rt2.code() != kSPRegInternalCode);
     return rt2.code() << Rt2_offset;
+  }
+
+  static Instr Rs(CPURegister rs) {
+    DCHECK(rs.code() != kSPRegInternalCode);
+    return rs.code() << Rs_offset;
   }
 
   // These encoding functions allow the stack pointer to be encoded, and

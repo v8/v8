@@ -1392,8 +1392,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
     EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
     EXPECT_EQ(kMode_Offset_RI, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
@@ -1403,6 +1403,39 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessTest,
                         ::testing::ValuesIn(kMemoryAccesses));
 
+TEST_F(InstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
+  TRACED_FORRANGE(int, immediate_shift, 1, 31) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                    MachineType::Int32());
+    Node* const index =
+        m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+    m.Return(m.Load(MachineType::Int32(), m.Parameter(0), index));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmLdr, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
+  TRACED_FORRANGE(int, immediate_shift, 1, 31) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                    MachineType::Int32(), MachineType::Int32());
+    Node* const index =
+        m.Word32Shl(m.Parameter(1), m.Int32Constant(immediate_shift));
+    m.Store(MachineRepresentation::kWord32, m.Parameter(0), index,
+            m.Parameter(2), kNoWriteBarrier);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmStr, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Conversions.
@@ -2228,7 +2261,7 @@ TEST_F(InstructionSelectorTest, Int32SubWithInt32MulForMLS) {
                   MachineType::Int32(), MachineType::Int32());
   m.Return(
       m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
-  Stream s = m.Build(MLS);
+  Stream s = m.Build(ARMv7);
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmMls, s[0]->arch_opcode());
   EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2324,7 +2357,7 @@ TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIVAndMLS) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
-  Stream s = m.Build(MLS, SUDIV);
+  Stream s = m.Build(ARMv7, SUDIV);
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArmSdiv, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -2530,7 +2563,7 @@ TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIVAndMLS) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                   MachineType::Int32());
   m.Return(m.Uint32Mod(m.Parameter(0), m.Parameter(1)));
-  Stream s = m.Build(MLS, SUDIV);
+  Stream s = m.Build(ARMv7, SUDIV);
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArmUdiv, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
@@ -3022,6 +3055,36 @@ TEST_F(InstructionSelectorTest, Float64Min) {
   ASSERT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Float32Neg) {
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
+  Node* const p0 = m.Parameter(0);
+  // Don't use m.Float32Neg() as that generates an explicit sub.
+  Node* const n = m.AddNode(m.machine()->Float32Neg().op(), m.Parameter(0));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVnegF32, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Float64Neg) {
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
+  Node* const p0 = m.Parameter(0);
+  // Don't use m.Float64Neg() as that generates an explicit sub.
+  Node* const n = m.AddNode(m.machine()->Float64Neg().op(), m.Parameter(0));
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmVnegF64, s[0]->arch_opcode());
+  ASSERT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
