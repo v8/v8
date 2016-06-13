@@ -542,6 +542,10 @@ void IncrementalMarking::StartMarking() {
 
   state_ = MARKING;
 
+  if (heap_->UsingEmbedderHeapTracer()) {
+    heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
+  }
+
   RecordWriteStub::Mode mode = is_compacting_
                                    ? RecordWriteStub::INCREMENTAL_COMPACTION
                                    : RecordWriteStub::INCREMENTAL;

@@ -857,7 +857,16 @@ void MarkCompactCollector::Prepare() {
     AbortWeakCells();
     AbortTransitionArrays();
     AbortCompaction();
+    if (heap_->UsingEmbedderHeapTracer()) {
+      heap_->mark_compact_collector()->embedder_heap_tracer()->AbortTracing();
+    }
     was_marked_incrementally_ = false;
+  }
+
+  if (!was_marked_incrementally_) {
+    if (heap_->UsingEmbedderHeapTracer()) {
+      heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
+    }
   }
 
   // Don't start compaction if we are in the middle of incremental
@@ -2320,10 +2329,6 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
-      if (UsingEmbedderHeapTracer()) {
-        embedder_heap_tracer()->TracePrologue();
-        ProcessMarkingDeque();
-      }
       ProcessEphemeralMarking(&root_visitor, false);
     }
 

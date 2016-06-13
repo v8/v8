@@ -5469,6 +5469,11 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void TraceEpilogue() = 0;
 
+  /**
+   * Throw away all intermediate data and reset to the initial state.
+   */
+  virtual void AbortTracing() {}
+
  protected:
   virtual ~EmbedderHeapTracer() = default;
 };
