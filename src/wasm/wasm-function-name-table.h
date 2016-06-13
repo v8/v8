@@ -16,8 +16,9 @@ namespace wasm {
 struct WasmModule;
 
 // Encode all function names of the WasmModule into one ByteArray.
-Handle<ByteArray> BuildFunctionNamesTable(Isolate* isolate,
-                                          const WasmModule* module);
+// Returns undefined if the array length would not fit in an integer value.
+Handle<Object> BuildFunctionNamesTable(Isolate* isolate,
+                                       const WasmModule* module);
 
 // Extract the function name for the given func_index from the function name
 // table.
