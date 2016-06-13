@@ -521,7 +521,7 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
                                              ZonePool* zone_pool) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics = new PipelineStatistics(info, zone_pool);
     pipeline_statistics->BeginPhaseKind("initializing");
   }
@@ -1503,7 +1503,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZonePool zone_pool(isolate->allocator());
   PipelineData data(&zone_pool, &info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("stub codegen");
   }
@@ -1557,7 +1557,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   ZonePool zone_pool(info->isolate()->allocator());
   PipelineData data(&zone_pool, info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
-  if (FLAG_turbo_stats) {
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("test codegen");
   }

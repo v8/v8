@@ -2450,8 +2450,17 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 
 void Isolate::DumpAndResetCompilationStats() {
   if (turbo_statistics() != nullptr) {
+    DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
+
     OFStream os(stdout);
-    os << *turbo_statistics() << std::endl;
+    if (FLAG_turbo_stats) {
+      AsPrintableStatistics ps = {*turbo_statistics(), false};
+      os << ps << std::endl;
+    }
+    if (FLAG_turbo_stats_nvp) {
+      AsPrintableStatistics ps = {*turbo_statistics(), true};
+      os << ps << std::endl;
+    }
   }
   if (hstatistics() != nullptr) hstatistics()->Print();
   delete turbo_statistics_;
