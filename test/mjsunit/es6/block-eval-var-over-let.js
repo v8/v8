@@ -8,13 +8,13 @@
 assertThrows(function() {
   let x = 1;
   eval('var x');
-}, SyntaxError);
+}, TypeError);
 
 // If the eval is in its own block scope, throws
 assertThrows(function() {
   let y = 1;
   { eval('var y'); }
-}, SyntaxError);
+}, TypeError);
 
 // If the let is in its own block scope, with the eval, throws
 assertThrows(function() {
@@ -22,7 +22,7 @@ assertThrows(function() {
     let x = 1;
     eval('var x');
   }
-}, SyntaxError);
+}, TypeError);
 
 // Legal if the let is no longer visible
 assertDoesNotThrow(function() {
@@ -37,13 +37,13 @@ assertDoesNotThrow(function() {
 assertThrows(function() {
   const x = 1;
   eval('var x');
-}, SyntaxError);
+}, TypeError);
 
 // If the eval is in its own block scope, throws
 assertThrows(function() {
   const y = 1;
   { eval('var y'); }
-}, SyntaxError);
+}, TypeError);
 
 // If the const is in its own block scope, with the eval, throws
 assertThrows(function() {
@@ -51,7 +51,7 @@ assertThrows(function() {
     const x = 1;
     eval('var x');
   }
-}, SyntaxError);
+}, TypeError);
 
 // Legal if the const is no longer visible
 assertDoesNotThrow(function() {

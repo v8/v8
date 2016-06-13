@@ -263,6 +263,11 @@
   'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4955
+  'language/eval-code/direct/var-env-global-lex-non-strict': [FAIL],
+  'language/eval-code/direct/var-env-lower-lex-non-strict': [FAIL],
+  'language/eval-code/indirect/var-env-global-lex-non-strict': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4124
   'built-ins/Simd/*': [SKIP],
 
