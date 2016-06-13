@@ -2529,10 +2529,13 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
   DCHECK(module_ && module_->instance);
   uint32_t size = static_cast<uint32_t>(module_->instance->mem_size);
   if (offset == 0) {
-    if (!mem_size_) mem_size_ = jsgraph()->Int32Constant(size);
+    if (!mem_size_)
+      mem_size_ = jsgraph()->RelocatableInt32Constant(
+          size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
     return mem_size_;
   } else {
-    return jsgraph()->Int32Constant(size + offset);
+    return jsgraph()->RelocatableInt32Constant(
+        size + offset, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   }
 }
 
@@ -2579,29 +2582,28 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
   size_t size = module_->instance->mem_size;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
 
-  if (offset >= size || (static_cast<uint64_t>(offset) + memsize) > size) {
-    // The access will always throw (unless memory is grown).
-    Node* cond = jsgraph()->Int32Constant(0);
-    trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
-    return;
-  }
-
   // Check against the effective size.
-  size_t effective_size = size - offset - memsize;
+  size_t effective_size;
+  if (offset >= size || (static_cast<uint64_t>(offset) + memsize) > size) {
+    effective_size = 0;
+  } else {
+    effective_size = size - offset - memsize + 1;
+  }
   CHECK(effective_size <= kMaxUInt32);
 
   Uint32Matcher m(index);
   if (m.HasValue()) {
     uint32_t value = m.Value();
-    if (value <= effective_size) {
+    if (value < effective_size) {
       // The bounds check will always succeed.
       return;
     }
   }
 
-  Node* cond = graph()->NewNode(
-      jsgraph()->machine()->Uint32LessThanOrEqual(), index,
-      jsgraph()->Int32Constant(static_cast<uint32_t>(effective_size)));
+  Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index,
+                                jsgraph()->RelocatableInt32Constant(
+                                    static_cast<uint32_t>(effective_size),
+                                    RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 
   trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 }
