@@ -26,52 +26,142 @@ namespace ieee754 {
 
 namespace {
 
-union Float64 {
-  double v;
-  uint64_t w;
-  struct {
-#if V8_TARGET_LITTLE_ENDIAN
-    uint32_t lw;
-    uint32_t hw;
-#else
-    uint32_t hw;
-    uint32_t lw;
+/* Fix-up typedefs so we can use the FreeBSD msun code mostly unmodified. */
+
+#if V8_OS_WIN
+
+typedef uint32_t u_int32_t;
+typedef uint64_t u_int64_t;
+
 #endif
-  } words;
-};
 
-// Extract the less significant 32-bit word from a double.
-V8_INLINE uint32_t extractLowWord32(double v) {
-  Float64 f;
-  f.v = v;
-  return f.words.lw;
-}
+/* Disable "potential divide by 0" warning in Visual Studio compiler. */
 
-// Extract the most significant 32-bit word from a double.
-V8_INLINE uint32_t extractHighWord32(double v) {
-  Float64 f;
-  f.v = v;
-  return f.words.hw;
-}
+#if V8_CC_MSVC
 
-// Insert the most significant 32-bit word into a double.
-V8_INLINE double insertHighWord32(double v, uint32_t hw) {
-  Float64 f;
-  f.v = v;
-  f.words.hw = hw;
-  return f.v;
-}
+#pragma warning(disable : 4723)
 
-double const kLn2Hi = 6.93147180369123816490e-01;  // 3fe62e42 fee00000
-double const kLn2Lo = 1.90821492927058770002e-10;  // 3dea39ef 35793c76
-double const kTwo54 = 1.80143985094819840000e+16;  // 43500000 00000000
-double const kLg1 = 6.666666666666735130e-01;      // 3FE55555 55555593
-double const kLg2 = 3.999999999940941908e-01;      // 3FD99999 9997FA04
-double const kLg3 = 2.857142874366239149e-01;      // 3FD24924 94229359
-double const kLg4 = 2.222219843214978396e-01;      // 3FCC71C5 1D8E78AF
-double const kLg5 = 1.818357216161805012e-01;      // 3FC74664 96CB03DE
-double const kLg6 = 1.531383769920937332e-01;      // 3FC39A09 D078C69F
-double const kLg7 = 1.479819860511658591e-01;      // 3FC2F112 DF3E5244
+#endif
+
+/*
+ * The original fdlibm code used statements like:
+ *  n0 = ((*(int*)&one)>>29)^1;   * index of high word *
+ *  ix0 = *(n0+(int*)&x);     * high word of x *
+ *  ix1 = *((1-n0)+(int*)&x);   * low word of x *
+ * to dig two 32 bit words out of the 64 bit IEEE floating point
+ * value.  That is non-ANSI, and, moreover, the gcc instruction
+ * scheduler gets it wrong.  We instead use the following macros.
+ * Unlike the original code, we determine the endianness at compile
+ * time, not at run time; I don't see much benefit to selecting
+ * endianness at run time.
+ */
+
+/*
+ * A union which permits us to convert between a double and two 32 bit
+ * ints.
+ */
+
+#if V8_TARGET_LITTLE_ENDIAN
+
+typedef union {
+  double value;
+  struct {
+    u_int32_t lsw;
+    u_int32_t msw;
+  } parts;
+  struct {
+    u_int64_t w;
+  } xparts;
+} ieee_double_shape_type;
+
+#else
+
+typedef union {
+  double value;
+  struct {
+    u_int32_t msw;
+    u_int32_t lsw;
+  } parts;
+  struct {
+    u_int64_t w;
+  } xparts;
+} ieee_double_shape_type;
+
+#endif
+
+/* Get two 32 bit ints from a double.  */
+
+#define EXTRACT_WORDS(ix0, ix1, d) \
+  do {                             \
+    ieee_double_shape_type ew_u;   \
+    ew_u.value = (d);              \
+    (ix0) = ew_u.parts.msw;        \
+    (ix1) = ew_u.parts.lsw;        \
+  } while (0)
+
+/* Get a 64-bit int from a double. */
+#define EXTRACT_WORD64(ix, d)    \
+  do {                           \
+    ieee_double_shape_type ew_u; \
+    ew_u.value = (d);            \
+    (ix) = ew_u.xparts.w;        \
+  } while (0)
+
+/* Get the more significant 32 bit int from a double.  */
+
+#define GET_HIGH_WORD(i, d)      \
+  do {                           \
+    ieee_double_shape_type gh_u; \
+    gh_u.value = (d);            \
+    (i) = gh_u.parts.msw;        \
+  } while (0)
+
+/* Get the less significant 32 bit int from a double.  */
+
+#define GET_LOW_WORD(i, d)       \
+  do {                           \
+    ieee_double_shape_type gl_u; \
+    gl_u.value = (d);            \
+    (i) = gl_u.parts.lsw;        \
+  } while (0)
+
+/* Set a double from two 32 bit ints.  */
+
+#define INSERT_WORDS(d, ix0, ix1) \
+  do {                            \
+    ieee_double_shape_type iw_u;  \
+    iw_u.parts.msw = (ix0);       \
+    iw_u.parts.lsw = (ix1);       \
+    (d) = iw_u.value;             \
+  } while (0)
+
+/* Set a double from a 64-bit int. */
+#define INSERT_WORD64(d, ix)     \
+  do {                           \
+    ieee_double_shape_type iw_u; \
+    iw_u.xparts.w = (ix);        \
+    (d) = iw_u.value;            \
+  } while (0)
+
+/* Set the more significant 32 bits of a double from an int.  */
+
+#define SET_HIGH_WORD(d, v)      \
+  do {                           \
+    ieee_double_shape_type sh_u; \
+    sh_u.value = (d);            \
+    sh_u.parts.msw = (v);        \
+    (d) = sh_u.value;            \
+  } while (0)
+
+/* Set the less significant 32 bits of a double from an int.  */
+
+#define SET_LOW_WORD(d, v)       \
+  do {                           \
+    ieee_double_shape_type sl_u; \
+    sl_u.value = (d);            \
+    sl_u.parts.lsw = (v);        \
+    (d) = sl_u.value;            \
+  } while (0)
 
 }  // namespace
 
@@ -126,44 +216,58 @@ double const kLg7 = 1.479819860511658591e-01;      // 3FC2F112 DF3E5244
  * to produce the hexadecimal values shown.
  */
 double log(double x) {
-  double hfsq, f, s, z, r, w, t1, t2, dk;
-  int32_t k = 0, i, j;
-  int32_t hx = extractHighWord32(x);
-  uint32_t lx = extractLowWord32(x);
+  static const double                      /* -- */
+      ln2_hi = 6.93147180369123816490e-01, /* 3fe62e42 fee00000 */
+      ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
+      two54 = 1.80143985094819840000e+16,  /* 43500000 00000000 */
+      Lg1 = 6.666666666666735130e-01,      /* 3FE55555 55555593 */
+      Lg2 = 3.999999999940941908e-01,      /* 3FD99999 9997FA04 */
+      Lg3 = 2.857142874366239149e-01,      /* 3FD24924 94229359 */
+      Lg4 = 2.222219843214978396e-01,      /* 3FCC71C5 1D8E78AF */
+      Lg5 = 1.818357216161805012e-01,      /* 3FC74664 96CB03DE */
+      Lg6 = 1.531383769920937332e-01,      /* 3FC39A09 D078C69F */
+      Lg7 = 1.479819860511658591e-01;      /* 3FC2F112 DF3E5244 */
 
+  static const double zero = 0.0;
+  static volatile double vzero = 0.0;
+
+  double hfsq, f, s, z, R, w, t1, t2, dk;
+  int32_t k, hx, i, j;
+  u_int32_t lx;
+
+  EXTRACT_WORDS(hx, lx, x);
+
+  k = 0;
   if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7fffffff) | lx) == 0) {
-      return -std::numeric_limits<double>::infinity();
-    }
-    if (hx < 0) {
-      return std::numeric_limits<double>::quiet_NaN();
-    }
+    if (((hx & 0x7fffffff) | lx) == 0)
+      return -two54 / vzero;           /* log(+-0)=-inf */
+    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
     k -= 54;
-    x *= kTwo54; /* subnormal number, scale up x */
-    hx = extractHighWord32(x);
+    x *= two54; /* subnormal number, scale up x */
+    GET_HIGH_WORD(hx, x);
   }
   if (hx >= 0x7ff00000) return x + x;
   k += (hx >> 20) - 1023;
   hx &= 0x000fffff;
   i = (hx + 0x95f64) & 0x100000;
-  x = insertHighWord32(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
+  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
   k += (i >> 20);
   f = x - 1.0;
   if ((0x000fffff & (2 + hx)) < 3) { /* -2**-20 <= f < 2**-20 */
-    if (f == 0.0) {
+    if (f == zero) {
       if (k == 0) {
-        return 0.0;
+        return zero;
       } else {
         dk = static_cast<double>(k);
-        return dk * kLn2Hi + dk * kLn2Lo;
+        return dk * ln2_hi + dk * ln2_lo;
       }
     }
-    r = f * f * (0.5 - 0.33333333333333333 * f);
+    R = f * f * (0.5 - 0.33333333333333333 * f);
     if (k == 0) {
-      return f - r;
+      return f - R;
     } else {
       dk = static_cast<double>(k);
-      return dk * kLn2Hi - ((r - dk * kLn2Lo) - f);
+      return dk * ln2_hi - ((R - dk * ln2_lo) - f);
     }
   }
   s = f / (2.0 + f);
@@ -172,23 +276,21 @@ double log(double x) {
   i = hx - 0x6147a;
   w = z * z;
   j = 0x6b851 - hx;
-  t1 = w * (kLg2 + w * (kLg4 + w * kLg6));
-  t2 = z * (kLg1 + w * (kLg3 + w * (kLg5 + w * kLg7)));
+  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
+  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
   i |= j;
-  r = t2 + t1;
+  R = t2 + t1;
   if (i > 0) {
     hfsq = 0.5 * f * f;
-    if (k == 0) {
-      return f - (hfsq - s * (hfsq + r));
-    } else {
-      return dk * kLn2Hi - ((hfsq - (s * (hfsq + r) + dk * kLn2Lo)) - f);
-    }
+    if (k == 0)
+      return f - (hfsq - s * (hfsq + R));
+    else
+      return dk * ln2_hi - ((hfsq - (s * (hfsq + R) + dk * ln2_lo)) - f);
   } else {
-    if (k == 0) {
-      return f - s * (f - r);
-    } else {
-      return dk * kLn2Hi - ((s * (f - r) - dk * kLn2Lo) - f);
-    }
+    if (k == 0)
+      return f - s * (f - R);
+    else
+      return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f);
   }
 }
 
