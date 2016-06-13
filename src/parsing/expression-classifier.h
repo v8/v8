@@ -463,7 +463,6 @@ class ExpressionClassifier {
   // in an inner classifier) or it could be an existing error (in case a
   // copy is needed).
   V8_INLINE void Copy(int i) {
-    DCHECK_LE(reported_errors_end_, i);
     DCHECK_LT(i, reported_errors_->length());
     if (reported_errors_end_ != i)
       reported_errors_->at(reported_errors_end_) = reported_errors_->at(i);
