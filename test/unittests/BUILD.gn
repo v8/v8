@@ -29,7 +29,6 @@ executable("unittests") {
     "char-predicates-unittest.cc",
     "compiler/branch-elimination-unittest.cc",
     "compiler/checkpoint-elimination-unittest.cc",
-    "compiler/coalesced-live-ranges-unittest.cc",
     "compiler/common-operator-reducer-unittest.cc",
     "compiler/common-operator-unittest.cc",
     "compiler/compiler-test-utils.h",
@@ -174,7 +173,10 @@ executable("unittests") {
 
     # Suppress warnings about importing locally defined symbols.
     if (is_component_build) {
-      ldflags = [ "/ignore:4049", "/ignore:4217" ]
+      ldflags = [
+        "/ignore:4049",
+        "/ignore:4217",
+      ]
     }
   }
 }

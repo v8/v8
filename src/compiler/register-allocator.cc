@@ -413,11 +413,6 @@ std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   return os;
 }
 
-
-const float LiveRange::kInvalidWeight = -1;
-const float LiveRange::kMaxWeight = std::numeric_limits<float>::max();
-
-
 LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level)
     : relative_id_(relative_id),
@@ -430,10 +425,7 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
       current_interval_(nullptr),
       last_processed_use_(nullptr),
       current_hint_position_(nullptr),
-      splitting_pointer_(nullptr),
-      size_(kInvalidSize),
-      weight_(kInvalidWeight),
-      group_(nullptr) {
+      splitting_pointer_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedRepresentation(rep));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
           RepresentationField::encode(rep);
@@ -699,10 +691,6 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   last_processed_use_ = nullptr;
   current_interval_ = nullptr;
 
-  // Invalidate size and weight of this range. The child range has them
-  // invalid at construction.
-  size_ = kInvalidSize;
-  weight_ = kInvalidWeight;
 #ifdef DEBUG
   VerifyChildStructure();
   result->VerifyChildStructure();
@@ -817,20 +805,6 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) const {
   }
   return LifetimePosition::Invalid();
 }
-
-
-unsigned LiveRange::GetSize() {
-  if (size_ == kInvalidSize) {
-    size_ = 0;
-    for (const UseInterval* interval = first_interval(); interval != nullptr;
-         interval = interval->next()) {
-      size_ += (interval->end().value() - interval->start().value());
-    }
-  }
-
-  return static_cast<unsigned>(size_);
-}
-
 
 void LiveRange::Print(const RegisterConfiguration* config,
                       bool with_children) const {

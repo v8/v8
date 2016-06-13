@@ -26,7 +26,6 @@
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
-#include "src/compiler/greedy-allocator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/js-builtin-reducer.h"
@@ -1766,13 +1765,8 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     Run<SplinterLiveRangesPhase>();
   }
 
-  if (FLAG_turbo_greedy_regalloc) {
-    Run<AllocateGeneralRegistersPhase<GreedyAllocator>>();
-    Run<AllocateFPRegistersPhase<GreedyAllocator>>();
-  } else {
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-    Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
-  }
+  Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
+  Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
 
   if (FLAG_turbo_preprocess_ranges) {
     Run<MergeSplintersPhase>();

@@ -44,7 +44,6 @@
         'char-predicates-unittest.cc',
         'compiler/branch-elimination-unittest.cc',
         'compiler/checkpoint-elimination-unittest.cc',
-        'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
