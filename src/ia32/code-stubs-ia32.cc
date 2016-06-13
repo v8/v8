@@ -4693,8 +4693,11 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ mov(eax, edi);
     __ Ret();
 
-    // Fall back to %AllocateInNewSpace.
+    // Fall back to %AllocateInNewSpace (if not too big).
+    Label too_big_for_new_space;
     __ bind(&allocate);
+    __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+    __ j(greater, &too_big_for_new_space);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ SmiTag(ecx);
@@ -4707,6 +4710,22 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
       __ Pop(eax);
     }
     __ jmp(&done_allocate);
+
+    // Fall back to %NewRestParameter.
+    __ bind(&too_big_for_new_space);
+    __ PopReturnAddressTo(ecx);
+    // We reload the function from the caller frame due to register pressure
+    // within this stub. This is the slow path, hence reloading is preferable.
+    if (skip_stub_frame()) {
+      // For Ignition we need to skip the handler/stub frame to reach the
+      // JavaScript frame for the function.
+      __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+      __ Push(Operand(edx, StandardFrameConstants::kFunctionOffset));
+    } else {
+      __ Push(Operand(ebp, StandardFrameConstants::kFunctionOffset));
+    }
+    __ PushReturnAddressFrom(ecx);
+    __ TailCallRuntime(Runtime::kNewRestParameter);
   }
 }
 
@@ -5063,8 +5082,11 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ mov(eax, edi);
   __ Ret();
 
-  // Fall back to %AllocateInNewSpace.
+  // Fall back to %AllocateInNewSpace (if not too big).
+  Label too_big_for_new_space;
   __ bind(&allocate);
+  __ cmp(ecx, Immediate(Page::kMaxRegularHeapObjectSize));
+  __ j(greater, &too_big_for_new_space);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ SmiTag(ecx);
@@ -5077,6 +5099,22 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ Pop(eax);
   }
   __ jmp(&done_allocate);
+
+  // Fall back to %NewStrictArguments.
+  __ bind(&too_big_for_new_space);
+  __ PopReturnAddressTo(ecx);
+  // We reload the function from the caller frame due to register pressure
+  // within this stub. This is the slow path, hence reloading is preferable.
+  if (skip_stub_frame()) {
+    // For Ignition we need to skip the handler/stub frame to reach the
+    // JavaScript frame for the function.
+    __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    __ Push(Operand(edx, StandardFrameConstants::kFunctionOffset));
+  } else {
+    __ Push(Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  }
+  __ PushReturnAddressFrom(ecx);
+  __ TailCallRuntime(Runtime::kNewStrictArguments);
 }
 
 

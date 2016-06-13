@@ -4382,6 +4382,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
                              1 * kPointerSize));
 
     // ----------- S t a t e -------------
+    //  -- rdi    : function
     //  -- rsi    : context
     //  -- rax    : number of rest parameters
     //  -- rbx    : pointer to first rest parameters
@@ -4392,7 +4393,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     Label allocate, done_allocate;
     __ leal(rcx, Operand(rax, times_pointer_size,
                          JSArray::kSize + FixedArray::kHeaderSize));
-    __ Allocate(rcx, rdx, rdi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
+    __ Allocate(rcx, rdx, r8, no_reg, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Compute the arguments.length in rdi.
@@ -4430,8 +4431,11 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
     __ Ret();
 
-    // Fall back to %AllocateInNewSpace.
+    // Fall back to %AllocateInNewSpace (if not too big).
+    Label too_big_for_new_space;
     __ bind(&allocate);
+    __ cmpl(rcx, Immediate(Page::kMaxRegularHeapObjectSize));
+    __ j(greater, &too_big_for_new_space);
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Integer32ToSmi(rax, rax);
@@ -4446,6 +4450,13 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
       __ SmiToInteger32(rax, rax);
     }
     __ jmp(&done_allocate);
+
+    // Fall back to %NewRestParameter.
+    __ bind(&too_big_for_new_space);
+    __ PopReturnAddressTo(kScratchRegister);
+    __ Push(rdi);
+    __ PushReturnAddressFrom(kScratchRegister);
+    __ TailCallRuntime(Runtime::kNewRestParameter);
   }
 }
 
@@ -4736,6 +4747,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : number of arguments
   //  -- rbx    : pointer to the first argument
+  //  -- rdi    : function
   //  -- rsi    : context
   //  -- rsp[0] : return address
   // -----------------------------------
@@ -4744,7 +4756,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   Label allocate, done_allocate;
   __ leal(rcx, Operand(rax, times_pointer_size, JSStrictArgumentsObject::kSize +
                                                     FixedArray::kHeaderSize));
-  __ Allocate(rcx, rdx, rdi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
+  __ Allocate(rcx, rdx, r8, no_reg, &allocate, NO_ALLOCATION_FLAGS);
   __ bind(&done_allocate);
 
   // Compute the arguments.length in rdi.
@@ -4782,8 +4794,11 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
   __ Ret();
 
-  // Fall back to %AllocateInNewSpace.
+  // Fall back to %AllocateInNewSpace (if not too big).
+  Label too_big_for_new_space;
   __ bind(&allocate);
+  __ cmpl(rcx, Immediate(Page::kMaxRegularHeapObjectSize));
+  __ j(greater, &too_big_for_new_space);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Integer32ToSmi(rax, rax);
@@ -4798,6 +4813,13 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ SmiToInteger32(rax, rax);
   }
   __ jmp(&done_allocate);
+
+  // Fall back to %NewStrictArguments.
+  __ bind(&too_big_for_new_space);
+  __ PopReturnAddressTo(kScratchRegister);
+  __ Push(rdi);
+  __ PushReturnAddressFrom(kScratchRegister);
+  __ TailCallRuntime(Runtime::kNewStrictArguments);
 }
 
 

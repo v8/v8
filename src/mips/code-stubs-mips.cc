@@ -4640,10 +4640,10 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // specified by the function's internal formal parameter count.
   Label rest_parameters;
   __ lw(a0, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lw(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a1,
-        FieldMemOperand(a1, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Subu(a0, a0, Operand(a1));
+  __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a3,
+        FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Subu(a0, a0, Operand(a3));
   __ Branch(&rest_parameters, gt, a0, Operand(zero_reg));
 
   // Return an empty rest parameter array.
@@ -4690,15 +4690,16 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  -- cp : context
     //  -- a0 : number of rest parameters (tagged)
+    //  -- a1 : function
     //  -- a2 : pointer to first rest parameters
     //  -- ra : return address
     // -----------------------------------
 
     // Allocate space for the rest parameter array plus the backing store.
     Label allocate, done_allocate;
-    __ li(a1, Operand(JSArray::kSize + FixedArray::kHeaderSize));
-    __ Lsa(a1, a1, a0, kPointerSizeLog2 - 1);
-    __ Allocate(a1, v0, a3, t0, &allocate, NO_ALLOCATION_FLAGS);
+    __ li(t0, Operand(JSArray::kSize + FixedArray::kHeaderSize));
+    __ Lsa(t0, t0, a0, kPointerSizeLog2 - 1);
+    __ Allocate(t0, v0, a3, t1, &allocate, NO_ALLOCATION_FLAGS);
     __ bind(&done_allocate);
 
     // Setup the elements array in v0.
@@ -4731,16 +4732,24 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a3);  // In delay slot
 
-    // Fall back to %AllocateInNewSpace.
+    // Fall back to %AllocateInNewSpace (if not too big).
+    Label too_big_for_new_space;
     __ bind(&allocate);
+    __ Branch(&too_big_for_new_space, gt, t0,
+              Operand(Page::kMaxRegularHeapObjectSize));
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(a1);
-      __ Push(a0, a2, a1);
+      __ SmiTag(t0);
+      __ Push(a0, a2, t0);
       __ CallRuntime(Runtime::kAllocateInNewSpace);
       __ Pop(a0, a2);
     }
     __ jmp(&done_allocate);
+
+    // Fall back to %NewStrictArguments.
+    __ bind(&too_big_for_new_space);
+    __ Push(a1);
+    __ TailCallRuntime(Runtime::kNewStrictArguments);
   }
 }
 
@@ -5006,9 +5015,9 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ Branch(&arguments_adaptor, eq, a0,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   {
-    __ lw(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+    __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
     __ lw(a0,
-          FieldMemOperand(a1, SharedFunctionInfo::kFormalParameterCountOffset));
+          FieldMemOperand(t0, SharedFunctionInfo::kFormalParameterCountOffset));
     __ Lsa(a2, a2, a0, kPointerSizeLog2 - 1);
     __ Addu(a2, a2, Operand(StandardFrameConstants::kCallerSPOffset -
                             1 * kPointerSize));
@@ -5026,15 +5035,16 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- cp : context
   //  -- a0 : number of rest parameters (tagged)
+  //  -- a1 : function
   //  -- a2 : pointer to first rest parameters
   //  -- ra : return address
   // -----------------------------------
 
   // Allocate space for the strict arguments object plus the backing store.
   Label allocate, done_allocate;
-  __ li(a1, Operand(JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
-  __ Lsa(a1, a1, a0, kPointerSizeLog2 - 1);
-  __ Allocate(a1, v0, a3, t0, &allocate, NO_ALLOCATION_FLAGS);
+  __ li(t0, Operand(JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
+  __ Lsa(t0, t0, a0, kPointerSizeLog2 - 1);
+  __ Allocate(t0, v0, a3, t1, &allocate, NO_ALLOCATION_FLAGS);
   __ bind(&done_allocate);
 
   // Setup the elements array in v0.
@@ -5067,16 +5077,24 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a3);  // In delay slot
 
-  // Fall back to %AllocateInNewSpace.
+  // Fall back to %AllocateInNewSpace (if not too big).
+  Label too_big_for_new_space;
   __ bind(&allocate);
+  __ Branch(&too_big_for_new_space, gt, t0,
+            Operand(Page::kMaxRegularHeapObjectSize));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ SmiTag(a1);
-    __ Push(a0, a2, a1);
+    __ SmiTag(t0);
+    __ Push(a0, a2, t0);
     __ CallRuntime(Runtime::kAllocateInNewSpace);
     __ Pop(a0, a2);
   }
   __ jmp(&done_allocate);
+
+  // Fall back to %NewStrictArguments.
+  __ bind(&too_big_for_new_space);
+  __ Push(a1);
+  __ TailCallRuntime(Runtime::kNewStrictArguments);
 }
 
 
