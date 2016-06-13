@@ -1322,15 +1322,6 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
-static void f64_atan_wrapper(double* param) {
-  WriteDoubleValue(param, base::ieee754::atan(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_atan_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan_wrapper)));
-}
-
 static void f64_cos_wrapper(double* param) {
   WriteDoubleValue(param, std::cos(ReadDoubleValue(param)));
 }
@@ -1375,30 +1366,6 @@ static void f64_pow_wrapper(double* param0, double* param1) {
 ExternalReference ExternalReference::f64_pow_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_pow_wrapper)));
-}
-
-static void f64_atan2_wrapper(double* param0, double* param1) {
-  double x = ReadDoubleValue(param0);
-  double y = ReadDoubleValue(param1);
-  // TODO(bradnelson): Find a good place to put this to share
-  // with the same code in src/runtime/runtime-math.cc
-  static const double kPiDividedBy4 = 0.78539816339744830962;
-  if (std::isinf(x) && std::isinf(y)) {
-    // Make sure that the result in case of two infinite arguments
-    // is a multiple of Pi / 4. The sign of the result is determined
-    // by the first argument (x) and the sign of the second argument
-    // determines the multiplier: one or three.
-    int multiplier = (x < 0) ? -1 : 1;
-    if (y < 0) multiplier *= 3;
-    WriteDoubleValue(param0, multiplier * kPiDividedBy4);
-  } else {
-    WriteDoubleValue(param0, base::ieee754::atan2(x, y));
-  }
-}
-
-ExternalReference ExternalReference::f64_atan2_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan2_wrapper)));
 }
 
 static void f64_mod_wrapper(double* param0, double* param1) {

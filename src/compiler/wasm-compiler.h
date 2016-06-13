@@ -275,13 +275,11 @@ class WasmGraphBuilder {
 
   Node* BuildF64Acos(Node* input);
   Node* BuildF64Asin(Node* input);
-  Node* BuildF64Atan(Node* input);
   Node* BuildF64Cos(Node* input);
   Node* BuildF64Sin(Node* input);
   Node* BuildF64Tan(Node* input);
   Node* BuildF64Exp(Node* input);
   Node* BuildF64Pow(Node* left, Node* right);
-  Node* BuildF64Atan2(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
 
   Node* BuildIntToFloatConversionInstruction(

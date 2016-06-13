@@ -607,7 +607,8 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
     case wasm::kExprF64Pow:
       return BuildF64Pow(left, right);
     case wasm::kExprF64Atan2:
-      return BuildF64Atan2(left, right);
+      op = m->Float64Atan2();
+      break;
     case wasm::kExprF64Mod:
       return BuildF64Mod(left, right);
     case wasm::kExprI32AsmjsDivS:
@@ -781,9 +782,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
     case wasm::kExprF64Asin: {
       return BuildF64Asin(input);
     }
-    case wasm::kExprF64Atan: {
-      return BuildF64Atan(input);
-    }
+    case wasm::kExprF64Atan:
+      op = m->Float64Atan();
+      break;
     case wasm::kExprF64Cos: {
       return BuildF64Cos(input);
     }
@@ -1348,13 +1349,6 @@ Node* WasmGraphBuilder::BuildF64Asin(Node* input) {
   return BuildCFuncInstruction(ref, type, input);
 }
 
-Node* WasmGraphBuilder::BuildF64Atan(Node* input) {
-  MachineType type = MachineType::Float64();
-  ExternalReference ref =
-      ExternalReference::f64_atan_wrapper_function(jsgraph()->isolate());
-  return BuildCFuncInstruction(ref, type, input);
-}
-
 Node* WasmGraphBuilder::BuildF64Cos(Node* input) {
   MachineType type = MachineType::Float64();
   ExternalReference ref =
@@ -1381,13 +1375,6 @@ Node* WasmGraphBuilder::BuildF64Exp(Node* input) {
   ExternalReference ref =
       ExternalReference::f64_exp_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
-}
-
-Node* WasmGraphBuilder::BuildF64Atan2(Node* left, Node* right) {
-  MachineType type = MachineType::Float64();
-  ExternalReference ref =
-      ExternalReference::f64_atan2_wrapper_function(jsgraph()->isolate());
-  return BuildCFuncInstruction(ref, type, left, right);
 }
 
 Node* WasmGraphBuilder::BuildF64Pow(Node* left, Node* right) {
