@@ -661,6 +661,8 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64LessThanOrEqual();
     case IrOpcode::kNumberLog:
       return machine()->Float64Log();
+    case IrOpcode::kNumberLog1p:
+      return machine()->Float64Log1p();
     default:
       UNREACHABLE();
       return nullptr;

@@ -1414,6 +1414,20 @@ TEST_F(MachineOperatorReducerTest, Float64LogWithConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// Float64Log1p
+
+TEST_F(MachineOperatorReducerTest, Float64Log1pWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Log1p(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::log1p(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Float64InsertLowWord32
 
 TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {

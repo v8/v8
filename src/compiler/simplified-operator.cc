@@ -205,6 +205,7 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   V(NumberCeil, Operator::kNoProperties, 1)                \
   V(NumberFloor, Operator::kNoProperties, 1)               \
   V(NumberLog, Operator::kNoProperties, 1)                 \
+  V(NumberLog1p, Operator::kNoProperties, 1)               \
   V(NumberRound, Operator::kNoProperties, 1)               \
   V(NumberTrunc, Operator::kNoProperties, 1)               \
   V(NumberToInt32, Operator::kNoProperties, 1)             \

@@ -370,6 +370,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // Floating point logarithm (double-precision).
   const Operator* Float64Log();
+  const Operator* Float64Log1p();
 
   // Floating point bit representation.
   const Operator* Float64ExtractLowWord32();

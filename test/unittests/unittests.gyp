@@ -31,6 +31,7 @@
         'base/division-by-constant-unittest.cc',
         'base/flags-unittest.cc',
         'base/functional-unittest.cc',
+        'base/ieee754-unittest.cc',
         'base/logging-unittest.cc',
         'base/iterator-unittest.cc',
         'base/platform/condition-variable-unittest.cc',

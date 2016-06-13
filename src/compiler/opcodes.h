@@ -198,6 +198,7 @@
   V(NumberCeil)                    \
   V(NumberFloor)                   \
   V(NumberLog)                     \
+  V(NumberLog1p)                   \
   V(NumberRound)                   \
   V(NumberTrunc)                   \
   V(NumberToInt32)                 \
@@ -356,6 +357,7 @@
   V(Float64Min)                 \
   V(Float64Abs)                 \
   V(Float64Log)                 \
+  V(Float64Log1p)               \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \

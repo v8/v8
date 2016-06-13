@@ -12,6 +12,10 @@ namespace ieee754 {
 // Returns the natural logarithm of |x|.
 double log(double x);
 
+// Returns a value equivalent to |log(1+x)|, but computed in a way that is
+// accurate even if the value of |x| is near zero.
+double log1p(double x);
+
 }  // namespace ieee754
 }  // namespace base
 }  // namespace v8

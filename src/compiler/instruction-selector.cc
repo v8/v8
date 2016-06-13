@@ -1129,6 +1129,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Abs(node);
     case IrOpcode::kFloat64Log:
       return MarkAsFloat64(node), VisitFloat64Log(node);
+    case IrOpcode::kFloat64Log1p:
+      return MarkAsFloat64(node), VisitFloat64Log1p(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsFloat64(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
@@ -1232,6 +1234,14 @@ void InstructionSelector::VisitLoadFramePointer(Node* node) {
 void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitFloat64Log(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Log);
+}
+
+void InstructionSelector::VisitFloat64Log1p(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Log1p);
 }
 
 void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,

@@ -203,6 +203,50 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
 }
 
 // -----------------------------------------------------------------------------
+// Math.log
+
+TEST_F(JSBuiltinReducerTest, MathLog) {
+  Node* function = MathFunction("log");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberLog(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Math.log1p
+
+TEST_F(JSBuiltinReducerTest, MathLog1p) {
+  Node* function = MathFunction("log1p");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberLog1p(p0));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // String.fromCharCode
 
 TEST_F(JSBuiltinReducerTest, StringFromCharCode) {

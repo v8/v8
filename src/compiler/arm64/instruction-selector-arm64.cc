@@ -1687,13 +1687,6 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kArm64Float64Abs, node);
 }
 
-void InstructionSelector::VisitFloat64Log(Node* node) {
-  Arm64OperandGenerator g(this);
-  Emit(kIeee754Float64Log, g.DefineAsFixed(node, d0),
-       g.UseFixed(node->InputAt(0), d0))
-      ->MarkAsCall();
-}
-
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kArm64Float32Sqrt, node);
 }
@@ -1754,6 +1747,13 @@ void InstructionSelector::VisitFloat32Neg(Node* node) {
 
 void InstructionSelector::VisitFloat64Neg(Node* node) {
   VisitRR(this, kArm64Float64Neg, node);
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
+  Arm64OperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
+      ->MarkAsCall();
 }
 
 void InstructionSelector::EmitPrepareArguments(

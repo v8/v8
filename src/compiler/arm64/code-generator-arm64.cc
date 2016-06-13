@@ -512,6 +512,13 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Dmb(InnerShareable, BarrierAll);                               \
   } while (0)
 
+#define ASSEMBLE_IEEE754_UNOP(name)                                           \
+  do {                                                                        \
+    FrameScope scope(masm(), StackFrame::MANUAL);                             \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     0, 1);                                                   \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   const CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->IsCFunctionCall() || descriptor->UseNativeStack()) {
@@ -792,14 +799,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
-    case kIeee754Float64Log: {
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      DCHECK(d0.is(i.InputDoubleRegister(0)));
-      DCHECK(d0.is(i.OutputDoubleRegister()));
-      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
-                       1);
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
       break;
-    }
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
     case kArm64Float32RoundDown:
       __ Frintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;

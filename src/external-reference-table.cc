@@ -69,6 +69,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "power_double_int_function");
   Add(ExternalReference::ieee754_log_function(isolate).address(),
       "base::ieee754::log");
+  Add(ExternalReference::ieee754_log1p_function(isolate).address(),
+      "base::ieee754::log1p");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");

@@ -114,7 +114,7 @@ class CodeEntry {
 
  private:
   class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
-  class BuiltinIdField : public BitField<Builtins::Name, 8, 8> {};
+  class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
 
   uint32_t bit_field_;
   const char* name_prefix_;
