@@ -16,6 +16,7 @@
     padding: 0.5em;
     z-index: 5;
     opacity: 0.7;
+    cursor: pointer;
 }
 
 .search-input {
@@ -227,7 +228,7 @@ ul.noindent {
   -webkit-margin-after: 0px;
 }
 
-input:hover {
+input:hover, .collapse-pane:hover input {
     opacity: 1;
     cursor: pointer;
 }

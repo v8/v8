@@ -44,6 +44,10 @@ document.onload = (function(d3){
     }
   }
 
+  function toggleSourceExpanded() {
+    setSourceExpanded(!sourceExpanded);
+  }
+
   function setSourceExpanded(newState) {
     sourceExpanded = newState;
     updatePanes();
@@ -58,6 +62,10 @@ document.onload = (function(d3){
       sourceExpandClassList.add(COLLAPSE_PANE_BUTTON_VISIBLE);
       sourceExpandClassList.remove(COLLAPSE_PANE_BUTTON_INVISIBLE);
     }
+  }
+
+  function toggleDisassemblyExpanded() {
+    setDisassemblyExpanded(!disassemblyExpanded);
   }
 
   function setDisassemblyExpanded(newState) {
@@ -118,26 +126,14 @@ document.onload = (function(d3){
   selectionBroker = new SelectionBroker();
 
   function initializeHandlers(g) {
-    d3.select("#source-expand").on("click", function(){
-      setSourceExpanded(true);
+    d3.select("#source-collapse").on("click", function(){
+      toggleSourceExpanded(true);
       setTimeout(function(){
         g.fitGraphViewToWindow();
       }, 1000);
     });
-    d3.select("#source-shrink").on("click", function(){
-      setSourceExpanded(false);
-      setTimeout(function(){
-        g.fitGraphViewToWindow();
-      }, 1000);
-    });
-    d3.select("#disassembly-expand").on("click", function(){
-      setDisassemblyExpanded(true);
-      setTimeout(function(){
-        g.fitGraphViewToWindow();
-      }, 1000);
-    });
-    d3.select("#disassembly-shrink").on("click", function(){
-      setDisassemblyExpanded(false);
+    d3.select("#disassembly-collapse").on("click", function(){
+      toggleDisassemblyExpanded();
       setTimeout(function(){
         g.fitGraphViewToWindow();
       }, 1000);

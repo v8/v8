@@ -76,8 +76,8 @@ class ScheduleView extends TextView {
       ],
       // Parse opcode including []
       [
-        [/^[A-Za-z0-9_]+(\[[^\]]+\])?$/, NODE_STYLE, -1],
-        [/^[A-Za-z0-9_]+(\[[^\]]+\])?/, NODE_STYLE, 3]
+        [/^[A-Za-z0-9_]+(\[.+])?$/, NODE_STYLE, -1],
+        [/^[A-Za-z0-9_]+(\[.+])?/, NODE_STYLE, 3]
       ],
       // Parse optional parameters
       [
@@ -104,5 +104,24 @@ class ScheduleView extends TextView {
     ];
     this.setPatterns(patterns);
     this.setNodePositionMap(nodePositionMap);
+  }
+
+  initializeContent(data, rememberedSelection) {
+    super.initializeContent(data, rememberedSelection);
+    var graph = this;
+    var locations = [];
+    for (var id of rememberedSelection) {
+      locations.push({ node_id : id });
+    }
+    this.selectLocations(locations, true, false);
+  }
+
+  detachSelection() {
+    var selection = this.selection.detachSelection();
+    var s = new Set();
+    for (var i of selection) {
+      s.add(i.location.node_id);
+    };
+    return s;
   }
 }
