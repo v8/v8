@@ -20,25 +20,25 @@ void Isolate::set_context(Context* context) {
 
 Object* Isolate::pending_exception() {
   DCHECK(has_pending_exception());
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   return thread_local_top_.pending_exception_;
 }
 
 
 void Isolate::set_pending_exception(Object* exception_obj) {
-  DCHECK(!exception_obj->IsException());
+  DCHECK(!exception_obj->IsException(this));
   thread_local_top_.pending_exception_ = exception_obj;
 }
 
 
 void Isolate::clear_pending_exception() {
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   thread_local_top_.pending_exception_ = heap_.the_hole_value();
 }
 
 
 bool Isolate::has_pending_exception() {
-  DCHECK(!thread_local_top_.pending_exception_->IsException());
+  DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   return !thread_local_top_.pending_exception_->IsTheHole(this);
 }
 
@@ -50,19 +50,19 @@ void Isolate::clear_pending_message() {
 
 Object* Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_;
 }
 
 
 bool Isolate::has_scheduled_exception() {
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
 }
 
 
 void Isolate::clear_scheduled_exception() {
-  DCHECK(!thread_local_top_.scheduled_exception_->IsException());
+  DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
 }
 

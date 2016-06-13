@@ -1056,7 +1056,7 @@ MUST_USE_RESULT static Object* ConvertCase(
   }
 
   Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException() || answer->IsString()) return answer;
+  if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());
   length = Smi::cast(answer)->value();

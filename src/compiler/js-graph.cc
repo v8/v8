@@ -120,11 +120,11 @@ Node* JSGraph::Constant(Handle<Object> value) {
     return Constant(value->Number());
   } else if (value->IsUndefined(isolate())) {
     return UndefinedConstant();
-  } else if (value->IsTrue()) {
+  } else if (value->IsTrue(isolate())) {
     return TrueConstant();
-  } else if (value->IsFalse()) {
+  } else if (value->IsFalse(isolate())) {
     return FalseConstant();
-  } else if (value->IsNull()) {
+  } else if (value->IsNull(isolate())) {
     return NullConstant();
   } else if (value->IsTheHole(isolate())) {
     return TheHoleConstant();

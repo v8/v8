@@ -131,7 +131,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     return result;
   }
   auto root = handle(receiver->GetRootMap(isolate)->prototype(), isolate);
-  if (root->IsNull()) {
+  if (root->IsNull(isolate)) {
     unsigned int magic = 0xbbbbbbbb;
     isolate->PushStackTraceAndDie(magic, *receiver, NULL, magic);
   }
@@ -373,7 +373,7 @@ void LookupIterator::Delete() {
 void LookupIterator::TransitionToAccessorProperty(
     Handle<Object> getter, Handle<Object> setter,
     PropertyAttributes attributes) {
-  DCHECK(!getter->IsNull() || !setter->IsNull());
+  DCHECK(!getter->IsNull(isolate_) || !setter->IsNull(isolate_));
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.

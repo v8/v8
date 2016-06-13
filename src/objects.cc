@@ -232,10 +232,10 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
 
 bool Object::BooleanValue() {
   if (IsSmi()) return Smi::cast(this)->value() != 0;
-  if (IsBoolean()) return IsTrue();
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
-  if (IsUndefined(isolate) || IsNull()) return false;
+  if (IsBoolean()) return IsTrue(isolate);
+  if (IsUndefined(isolate) || IsNull(isolate)) return false;
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
@@ -694,7 +694,7 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
   Isolate* isolate = receiver->GetIsolate();
   ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
                              JSReceiver::GetProperty(receiver, name), Object);
-  if (func->IsNull() || func->IsUndefined(isolate)) {
+  if (func->IsNull(isolate) || func->IsUndefined(isolate)) {
     return isolate->factory()->undefined_value();
   }
   if (!func->IsCallable()) {
@@ -1111,7 +1111,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
       isolate, handler_proto,
       Execution::Call(isolate, trap, handler, arraysize(argv), argv), Object);
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
-  if (!(handler_proto->IsJSReceiver() || handler_proto->IsNull())) {
+  if (!(handler_proto->IsJSReceiver() || handler_proto->IsNull(isolate))) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid),
                     Object);
@@ -1693,7 +1693,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
           JSReceiver::GetProperty(Handle<JSReceiver>::cast(constructor),
                                   isolate->factory()->species_symbol()),
           Object);
-      if (constructor->IsNull()) {
+      if (constructor->IsNull(isolate)) {
         constructor = isolate->factory()->undefined_value();
       }
     }
@@ -2326,11 +2326,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
         os << "<undefined>";
       } else if (IsTheHole(isolate)) {
         os << "<the hole>";
-      } else if (IsNull()) {
+      } else if (IsNull(isolate)) {
         os << "<null>";
-      } else if (IsTrue()) {
+      } else if (IsTrue(isolate)) {
         os << "<true>";
-      } else if (IsFalse()) {
+      } else if (IsFalse(isolate)) {
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
@@ -6019,7 +6019,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
 
   DCHECK(result->IsBoolean());
   // Rebox CustomArguments::kReturnValueOffset before returning.
-  return Just(result->IsTrue());
+  return Just(result->IsTrue(isolate));
 }
 
 
@@ -8426,9 +8426,9 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
   }
 
   DCHECK(getter->IsCallable() || getter->IsUndefined(isolate) ||
-         getter->IsNull() || getter->IsFunctionTemplateInfo());
+         getter->IsNull(isolate) || getter->IsFunctionTemplateInfo());
   DCHECK(setter->IsCallable() || setter->IsUndefined(isolate) ||
-         setter->IsNull() || getter->IsFunctionTemplateInfo());
+         setter->IsNull(isolate) || getter->IsFunctionTemplateInfo());
   it->TransitionToAccessorProperty(getter, setter, attributes);
 
   return isolate->factory()->undefined_value();
@@ -9249,7 +9249,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
           : &RuntimeCallStats::Map_TransitionToAccessorProperty);
 
   // At least one of the accessors needs to be a new value.
-  DCHECK(!getter->IsNull() || !setter->IsNull());
+  DCHECK(!getter->IsNull(isolate) || !setter->IsNull(isolate));
   DCHECK(name->IsUniqueName());
 
   // Dictionary maps can always have additional data properties.
@@ -9310,11 +9310,13 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
     if (current_pair->Equals(*getter, *setter)) return map;
 
     bool overwriting_accessor = false;
-    if (!getter->IsNull() && !current_pair->get(ACCESSOR_GETTER)->IsNull() &&
+    if (!getter->IsNull(isolate) &&
+        !current_pair->get(ACCESSOR_GETTER)->IsNull(isolate) &&
         current_pair->get(ACCESSOR_GETTER) != *getter) {
       overwriting_accessor = true;
     }
-    if (!setter->IsNull() && !current_pair->get(ACCESSOR_SETTER)->IsNull() &&
+    if (!setter->IsNull(isolate) &&
+        !current_pair->get(ACCESSOR_SETTER)->IsNull(isolate) &&
         current_pair->get(ACCESSOR_SETTER) != *setter) {
       overwriting_accessor = true;
     }
@@ -10090,7 +10092,7 @@ Handle<Object> AccessorPair::GetComponent(Handle<AccessorPair> accessor_pair,
         .ToHandleChecked();
   }
   Isolate* isolate = accessor_pair->GetIsolate();
-  if (accessor->IsNull()) {
+  if (accessor->IsNull(isolate)) {
     return isolate->factory()->undefined_value();
   }
   return handle(accessor, isolate);
@@ -12127,8 +12129,9 @@ void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
   }
   map->set_has_hidden_prototype(is_hidden);
 
-  WriteBarrierMode wb_mode =
-      prototype->IsNull() ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+  WriteBarrierMode wb_mode = prototype->IsNull(map->GetIsolate())
+                                 ? SKIP_WRITE_BARRIER
+                                 : UPDATE_WRITE_BARRIER;
   map->set_prototype(*prototype, wb_mode);
 }
 
@@ -14802,7 +14805,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   STACK_CHECK(isolate, Nothing<bool>());
   Handle<Name> trap_name = isolate->factory()->setPrototypeOf_string();
   // 1. Assert: Either Type(V) is Object or Type(V) is Null.
-  DCHECK(value->IsJSReceiver() || value->IsNull());
+  DCHECK(value->IsJSReceiver() || value->IsNull(isolate));
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
@@ -14889,7 +14892,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
-  if (!value->IsJSReceiver() && !value->IsNull()) return Just(true);
+  if (!value->IsJSReceiver() && !value->IsNull(isolate)) return Just(true);
 
   bool dictionary_elements_in_chain =
       object->map()->DictionaryElementsInPrototypeChainOnly();

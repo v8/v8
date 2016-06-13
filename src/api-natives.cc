@@ -287,7 +287,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, uint32_t serial_number) {
   Handle<Object> result =
       UnseededNumberDictionary::DeleteProperty(cache, entry);
   USE(result);
-  DCHECK(result->IsTrue());
+  DCHECK(result->IsTrue(isolate));
   auto new_cache = UnseededNumberDictionary::Shrink(cache, entry);
   isolate->native_context()->set_template_instantiations_cache(*new_cache);
 }

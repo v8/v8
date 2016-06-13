@@ -4502,8 +4502,8 @@ bool ToBooleanICStub::Types::UpdateStatus(Isolate* isolate,
     return false;
   } else if (object->IsBoolean()) {
     Add(BOOLEAN);
-    return object->IsTrue();
-  } else if (object->IsNull()) {
+    return object->IsTrue(isolate);
+  } else if (object->IsNull(isolate)) {
     Add(NULL_TYPE);
     return false;
   } else if (object->IsSmi()) {

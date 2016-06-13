@@ -142,7 +142,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     // be false, so we'll loop and then check interrupts.
     if (interrupted) {
       Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
-      if (interrupt_object->IsException()) {
+      if (interrupt_object->IsException(isolate)) {
         result = interrupt_object;
         mutex_.Pointer()->Lock();
         break;
