@@ -16,10 +16,18 @@
 namespace v8 {
 namespace internal {
 
-static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
+enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
+
+static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
+                                       RedeclarationType redeclaration_type) {
   HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kVarRedeclaration, name));
+  if (redeclaration_type == RedeclarationType::kSyntaxError) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kVarRedeclaration, name));
+  } else {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, name));
+  }
 }
 
 
@@ -34,13 +42,18 @@ RUNTIME_FUNCTION(Runtime_ThrowConstAssignError) {
 static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
                               Handle<String> name, Handle<Object> value,
                               PropertyAttributes attr, bool is_var,
-                              bool is_function) {
+                              bool is_function,
+                              RedeclarationType redeclaration_type) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
   ScriptContextTable::LookupResult lookup;
   if (ScriptContextTable::Lookup(script_contexts, name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
-    return ThrowRedeclarationError(isolate, name);
+    // ES#sec-globaldeclarationinstantiation 6.a:
+    // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
+    // exception.
+    return ThrowRedeclarationError(isolate, name,
+                                   RedeclarationType::kSyntaxError);
   }
 
   // Do the lookup own properties only, see ES5 erratum.
@@ -67,7 +80,11 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
           (it.state() == LookupIterator::ACCESSOR &&
            it.GetAccessors()->IsAccessorPair())) {
-        return ThrowRedeclarationError(isolate, name);
+        // ES#sec-globaldeclarationinstantiation 5.d:
+        // If hasRestrictedGlobal is true, throw a SyntaxError exception.
+        // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+        // If fnDefinable is false, throw a TypeError exception.
+        return ThrowRedeclarationError(isolate, name, redeclaration_type);
       }
       // If the existing property is not configurable, keep its attributes. Do
       attr = old_attributes;
@@ -130,9 +147,11 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     if (is_function && is_native) attr |= READ_ONLY;
     if (!is_eval) attr |= DONT_DELETE;
 
-    Object* result = DeclareGlobals(isolate, global, name, value,
-                                    static_cast<PropertyAttributes>(attr),
-                                    is_var, is_function);
+    // ES#sec-globaldeclarationinstantiation 5.d:
+    // If hasRestrictedGlobal is true, throw a SyntaxError exception.
+    Object* result = DeclareGlobals(
+        isolate, global, name, value, static_cast<PropertyAttributes>(attr),
+        is_var, is_function, RedeclarationType::kSyntaxError);
     if (isolate->has_pending_exception()) return result;
   });
 
@@ -215,7 +234,13 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
     context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes,
                         &binding_flags);
     if (attributes != ABSENT && binding_flags == BINDING_CHECK_INITIALIZED) {
-      return ThrowRedeclarationError(isolate, name);
+      // ES#sec-evaldeclarationinstantiation 5.a.i.1:
+      // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
+      // exception.
+      // ES#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
+      // Throw a SyntaxError exception.
+      return ThrowRedeclarationError(isolate, name,
+                                     RedeclarationType::kSyntaxError);
     }
     attr = static_cast<PropertyAttributes>(attr & ~EVAL_DECLARED);
   }
@@ -235,26 +260,30 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
   // TODO(verwaest): This case should probably not be covered by this function,
   // but by DeclareGlobals instead.
   if (attributes != ABSENT && holder->IsJSGlobalObject()) {
+    // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+    // If fnDefinable is false, throw a TypeError exception.
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
-                          value, attr, is_var, is_function);
+                          value, attr, is_var, is_function,
+                          RedeclarationType::kTypeError);
   }
   if (context_arg->extension()->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context_arg->extension()), isolate);
     return DeclareGlobals(isolate, global, name, value, attr, is_var,
-                          is_function);
+                          is_function, RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
     DCHECK(context->global_object()->IsJSGlobalObject());
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context->global_object()), isolate);
     return DeclareGlobals(isolate, global, name, value, attr, is_var,
-                          is_function);
+                          is_function, RedeclarationType::kTypeError);
   }
 
   if (attributes != ABSENT) {
     // The name was declared before; check for conflicting re-declarations.
     if ((attributes & READ_ONLY) != 0) {
-      return ThrowRedeclarationError(isolate, name);
+      return ThrowRedeclarationError(isolate, name,
+                                     RedeclarationType::kSyntaxError);
     }
 
     // Skip var re-declarations.
@@ -593,7 +622,11 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
     ScriptContextTable::LookupResult lookup;
     if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
-        return ThrowRedeclarationError(isolate, name);
+        // ES#sec-globaldeclarationinstantiation 5.b:
+        // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
+        // exception.
+        return ThrowRedeclarationError(isolate, name,
+                                       RedeclarationType::kSyntaxError);
       }
     }
 
@@ -603,7 +636,13 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
       if (!maybe.IsJust()) return isolate->heap()->exception();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
-        return ThrowRedeclarationError(isolate, name);
+        // ES#sec-globaldeclarationinstantiation 5.a:
+        // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
+        // exception.
+        // ES#sec-globaldeclarationinstantiation 5.d:
+        // If hasRestrictedGlobal is true, throw a SyntaxError exception.
+        return ThrowRedeclarationError(isolate, name,
+                                       RedeclarationType::kSyntaxError);
       }
 
       JSGlobalObject::InvalidatePropertyCell(global_object, name);
