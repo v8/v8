@@ -183,8 +183,14 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
+  ElementsKind kind = array->GetElementsKind();
 
-  if (array->HasFastStringWrapperElements()) {
+  if (IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind)) {
+    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
+    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
+  }
+
+  if (kind == FAST_STRING_WRAPPER_ELEMENTS) {
     int string_length =
         String::cast(Handle<JSValue>::cast(array)->value())->length();
     int backing_store_length = array->elements()->length();
@@ -193,16 +199,8 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
             static_cast<uint32_t>(Max(string_length, backing_store_length))));
   }
 
-  if (!array->elements()->IsDictionary()) {
-    CHECK(array->HasFastSmiOrObjectElements() ||
-          array->HasFastDoubleElements());
-    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
-    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
-  }
-
   KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
                              ALL_PROPERTIES);
-  // No need to separate prototype levels since we only get element keys.
   for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
