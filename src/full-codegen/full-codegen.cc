@@ -1541,6 +1541,19 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   context()->Plug(result_register());
 }
 
+void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+  Comment cmnt(masm_, "[ RegExpLiteral");
+  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  CallInterfaceDescriptor descriptor = callable.descriptor();
+  LoadFromFrameField(JavaScriptFrameConstants::kFunctionOffset,
+                     descriptor.GetRegisterParameter(0));
+  __ Move(descriptor.GetRegisterParameter(1),
+          Smi::FromInt(expr->literal_index()));
+  __ Move(descriptor.GetRegisterParameter(2), expr->pattern());
+  __ Move(descriptor.GetRegisterParameter(3), Smi::FromInt(expr->flags()));
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  context()->Plug(result_register());
+}
 
 void FullCodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {

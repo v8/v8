@@ -1336,18 +1336,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 }
 
 
-void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  Comment cmnt(masm_, "[ RegExpLiteral");
-  __ LoadP(r6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ LoadSmiLiteral(r5, Smi::FromInt(expr->literal_index()));
-  __ mov(r4, Operand(expr->pattern()));
-  __ LoadSmiLiteral(r3, Smi::FromInt(expr->flags()));
-  FastCloneRegExpStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(r3);
-}
-
-
 void FullCodeGenerator::EmitAccessor(ObjectLiteralProperty* property) {
   Expression* expression = (property == NULL) ? NULL : property->value();
   if (expression == NULL) {
