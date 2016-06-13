@@ -253,7 +253,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InterpreterPushArgsAndConstruct, BUILTIN, kNoExtraICState)               \
   V(InterpreterEnterBytecodeDispatch, BUILTIN, kNoExtraICState)              \
                                                                              \
-  V(LoadIC_Miss, BUILTIN, kNoExtraICState)                                   \
   V(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState)                              \
   V(StoreIC_Miss, BUILTIN, kNoExtraICState)                                  \
   V(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState)                             \
@@ -340,9 +339,13 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(AtomicsLoad, 3)                   \
   V(AtomicsStore, 4)
 
+// Define list of builtins implemented in TurboFan (with CallStub linkage).
+#define BUILTIN_LIST_S(V)                                  \
+  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector) \
+  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)
+
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
-  V(LoadIC_Slow,             LOAD_IC)        \
   V(KeyedLoadIC_Slow,        KEYED_LOAD_IC)  \
   V(StoreIC_Slow,            STORE_IC)       \
   V(KeyedStoreIC_Slow,       KEYED_STORE_IC) \
@@ -378,13 +381,15 @@ class Builtins {
 #define DEF_ENUM_C(name, ignore) k##name,
 #define DEF_ENUM_A(name, kind, extra) k##name,
 #define DEF_ENUM_T(name, argc) k##name,
+#define DEF_ENUM_S(name, kind, extra, interface_descriptor) k##name,
 #define DEF_ENUM_H(name, kind) k##name,
     BUILTIN_LIST_C(DEF_ENUM_C) BUILTIN_LIST_A(DEF_ENUM_A)
-        BUILTIN_LIST_T(DEF_ENUM_T) BUILTIN_LIST_H(DEF_ENUM_H)
-            BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
+        BUILTIN_LIST_T(DEF_ENUM_T) BUILTIN_LIST_S(DEF_ENUM_S)
+            BUILTIN_LIST_H(DEF_ENUM_H) BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
 #undef DEF_ENUM_C
 #undef DEF_ENUM_A
 #undef DEF_ENUM_T
+#undef DEF_ENUM_S
 #undef DEF_ENUM_H
                 builtin_count
   };
@@ -399,15 +404,19 @@ class Builtins {
 #define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_A(name, kind, extra) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_T(name, argc) Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_S(name, kind, extra, interface_descriptor) \
+  Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_H(name, kind) Handle<Code> name();
   BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)
   BUILTIN_LIST_A(DECLARE_BUILTIN_ACCESSOR_A)
   BUILTIN_LIST_T(DECLARE_BUILTIN_ACCESSOR_T)
+  BUILTIN_LIST_S(DECLARE_BUILTIN_ACCESSOR_S)
   BUILTIN_LIST_H(DECLARE_BUILTIN_ACCESSOR_H)
   BUILTIN_LIST_DEBUG_A(DECLARE_BUILTIN_ACCESSOR_A)
 #undef DECLARE_BUILTIN_ACCESSOR_C
 #undef DECLARE_BUILTIN_ACCESSOR_A
 #undef DECLARE_BUILTIN_ACCESSOR_T
+#undef DECLARE_BUILTIN_ACCESSOR_S
 #undef DECLARE_BUILTIN_ACCESSOR_H
 
   // Convenience wrappers.

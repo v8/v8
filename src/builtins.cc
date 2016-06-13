@@ -5334,106 +5334,108 @@ BUILTIN(HandleApiCallAsConstructor) {
   return HandleApiCallAsFunctionOrConstructor(isolate, true, args);
 }
 
+namespace {
 
-static void Generate_LoadIC_Miss(MacroAssembler* masm) {
-  LoadIC::GenerateMiss(masm);
+void Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* slot = assembler->Parameter(2);
+  Node* vector = assembler->Parameter(3);
+  Node* context = assembler->Parameter(4);
+
+  assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
+                             slot, vector);
 }
 
-
-static void Generate_LoadIC_Normal(MacroAssembler* masm) {
+void Generate_LoadIC_Normal(MacroAssembler* masm) {
   LoadIC::GenerateNormal(masm);
 }
 
-
-static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
+void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
+void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
 
-static void Generate_LoadIC_Slow(MacroAssembler* masm) {
-  LoadIC::GenerateRuntimeGetProperty(masm);
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  // Node* slot = assembler->Parameter(2);
+  // Node* vector = assembler->Parameter(3);
+  Node* context = assembler->Parameter(4);
+
+  assembler->TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
-
-static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
+void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
   KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
-
-static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
+void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMiss(masm);
 }
 
-
-static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
+void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
-
-static void Generate_StoreIC_Miss(MacroAssembler* masm) {
+void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
 
-
-static void Generate_StoreIC_Normal(MacroAssembler* masm) {
+void Generate_StoreIC_Normal(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
 }
 
-
-static void Generate_StoreIC_Slow(MacroAssembler* masm) {
+void Generate_StoreIC_Slow(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateSlow(masm);
 }
 
-
-static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
-
-static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
+void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
-static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
+void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm);
 }
 
-static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm);
 }
 
-
-static void Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
+void Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMegamorphic(masm, SLOPPY);
 }
 
-
-static void Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+void Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMegamorphic(masm, STRICT);
 }
 
-
-static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
+void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
 }
 
-
-static void Generate_Return_DebugBreak(MacroAssembler* masm) {
+void Generate_Return_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateDebugBreakStub(masm,
                                        DebugCodegen::SAVE_RESULT_REGISTER);
 }
 
-
-static void Generate_Slot_DebugBreak(MacroAssembler* masm) {
+void Generate_Slot_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateDebugBreakStub(masm,
                                        DebugCodegen::IGNORE_RESULT_REGISTER);
 }
 
-
-static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
+void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
   DebugCodegen::GenerateFrameDropperLiveEdit(masm);
 }
 
+}  // namespace
 
 Builtins::Builtins() : initialized_(false) {
   memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
@@ -5518,11 +5520,31 @@ Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
   return isolate->factory()->NewCode(desc, flags, masm.CodeObject());
 }
 
-Handle<Code> CodeStubAssemblerBuilder(Isolate* isolate,
-                                      BuiltinDesc const* builtin_desc) {
+// Builder for builtins implemented in TurboFan with JS linkage.
+Handle<Code> CodeStubAssemblerBuilderJS(Isolate* isolate,
+                                        BuiltinDesc const* builtin_desc) {
   Zone zone(isolate->allocator());
   CodeStubAssembler assembler(isolate, &zone, builtin_desc->argc,
                               builtin_desc->flags, builtin_desc->s_name);
+  // Generate the code/adaptor.
+  typedef void (*Generator)(CodeStubAssembler*);
+  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
+  g(&assembler);
+  return assembler.GenerateCode();
+}
+
+// Builder for builtins implemented in TurboFan with CallStub linkage.
+Handle<Code> CodeStubAssemblerBuilderCS(Isolate* isolate,
+                                        BuiltinDesc const* builtin_desc) {
+  Zone zone(isolate->allocator());
+  // The interface descriptor with given key must be initialized at this point
+  // and this construction just queries the details from the descriptors table.
+  CallInterfaceDescriptor descriptor(
+      isolate, static_cast<CallDescriptors::Key>(builtin_desc->argc));
+  // Ensure descriptor is already initialized.
+  DCHECK_NOT_NULL(descriptor.GetFunctionType());
+  CodeStubAssembler assembler(isolate, &zone, descriptor, builtin_desc->flags,
+                              builtin_desc->s_name);
   // Generate the code/adaptor.
   typedef void (*Generator)(CodeStubAssembler*);
   Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
@@ -5570,7 +5592,7 @@ void Builtins::InitBuiltinFunctionTable() {
   ++functions;
 
 #define DEF_FUNCTION_PTR_T(aname, aargc)                  \
-  functions->builder = &CodeStubAssemblerBuilder;         \
+  functions->builder = &CodeStubAssemblerBuilderJS;       \
   functions->generator = FUNCTION_ADDR(Generate_##aname); \
   functions->c_code = NULL;                               \
   functions->s_name = #aname;                             \
@@ -5578,6 +5600,17 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
   functions->extra_args = BuiltinExtraArguments::kNone;   \
   functions->argc = aargc;                                \
+  ++functions;
+
+#define DEF_FUNCTION_PTR_S(aname, kind, extra, interface_descriptor) \
+  functions->builder = &CodeStubAssemblerBuilderCS;                  \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);            \
+  functions->c_code = NULL;                                          \
+  functions->s_name = #aname;                                        \
+  functions->name = k##aname;                                        \
+  functions->flags = Code::ComputeFlags(Code::kind, extra);          \
+  functions->extra_args = BuiltinExtraArguments::kNone;              \
+  functions->argc = CallDescriptors::interface_descriptor;           \
   ++functions;
 
 #define DEF_FUNCTION_PTR_H(aname, kind)                     \
@@ -5594,13 +5627,15 @@ void Builtins::InitBuiltinFunctionTable() {
   BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
   BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
   BUILTIN_LIST_T(DEF_FUNCTION_PTR_T)
+  BUILTIN_LIST_S(DEF_FUNCTION_PTR_S)
   BUILTIN_LIST_H(DEF_FUNCTION_PTR_H)
   BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
 
 #undef DEF_FUNCTION_PTR_C
 #undef DEF_FUNCTION_PTR_A
-#undef DEF_FUNCTION_PTR_H
 #undef DEF_FUNCTION_PTR_T
+#undef DEF_FUNCTION_PTR_S
+#undef DEF_FUNCTION_PTR_H
 }
 
 
@@ -5609,6 +5644,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
+
+#define INITIALIZE_CALL_DESCRIPTOR(name, kind, extra, interface_descriptor) \
+  { interface_descriptor##Descriptor descriptor(isolate); }
+  BUILTIN_LIST_S(INITIALIZE_CALL_DESCRIPTOR)
+#undef INITIALIZE_CALL_DESCRIPTOR
 
   const BuiltinDesc* functions = builtin_function_table.functions();
 
@@ -5930,6 +5970,11 @@ Handle<Code> Builtins::name() {                               \
     Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
     return Handle<Code>(code_address);                                        \
   }
+#define DEFINE_BUILTIN_ACCESSOR_S(name, kind, extra, interface_descriptor)    \
+  Handle<Code> Builtins::name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+    return Handle<Code>(code_address);                                        \
+  }
 #define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
 Handle<Code> Builtins::name() {                             \
   Code** code_address =                                     \
@@ -5939,11 +5984,13 @@ Handle<Code> Builtins::name() {                             \
 BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
 BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
 BUILTIN_LIST_T(DEFINE_BUILTIN_ACCESSOR_T)
+BUILTIN_LIST_S(DEFINE_BUILTIN_ACCESSOR_S)
 BUILTIN_LIST_H(DEFINE_BUILTIN_ACCESSOR_H)
 BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
 #undef DEFINE_BUILTIN_ACCESSOR_C
 #undef DEFINE_BUILTIN_ACCESSOR_A
 #undef DEFINE_BUILTIN_ACCESSOR_T
+#undef DEFINE_BUILTIN_ACCESSOR_S
 #undef DEFINE_BUILTIN_ACCESSOR_H
 
 }  // namespace internal
