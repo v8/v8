@@ -260,9 +260,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                              \
   V(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
                                                                              \
-  V(StoreIC_Megamorphic, STORE_IC, kNoExtraICState)                          \
-  V(StoreIC_Megamorphic_Strict, STORE_IC, StoreICState::kStrictModeState)    \
-                                                                             \
   V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)               \
   V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
     StoreICState::kStrictModeState)                                          \

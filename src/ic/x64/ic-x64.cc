@@ -710,13 +710,6 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
-
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  // This shouldn't be called.
-  __ int3();
-}
-
-
 static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();

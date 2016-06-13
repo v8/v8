@@ -363,10 +363,7 @@ class StoreIC : public IC {
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
-  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         LanguageMode language_mode);
 
   static Handle<Code> initialize_stub_in_optimized_code(
       Isolate* isolate, LanguageMode language_mode);
@@ -383,7 +380,9 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> slow_stub() const;
+  Handle<Code> slow_stub() const {
+    return isolate()->builtins()->StoreIC_Slow();
+  }
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.

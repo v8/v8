@@ -1198,7 +1198,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           int index = lookup->GetAccessorIndex();
           Handle<Code> code = compiler.CompileLoadCallback(
               lookup->name(), call_optimization, index);
-          if (FLAG_runtime_call_stats) return slow_stub();
           return code;
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
@@ -1218,7 +1217,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
         NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
         Handle<Code> code = compiler.CompileLoadCallback(lookup->name(), info);
-        if (FLAG_runtime_call_stats) return slow_stub();
         return code;
       }
       UNREACHABLE();
@@ -1565,11 +1563,6 @@ Handle<Code> StoreIC::initialize_stub_in_optimized_code(
   return stub.GetCode();
 }
 
-Handle<Code> StoreIC::slow_stub() const {
-  return isolate()->builtins()->StoreIC_Slow();
-}
-
-
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            JSReceiver::StoreFromKeyed store_mode) {
   if (state() == UNINITIALIZED) {
@@ -1788,7 +1781,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         Handle<Code> code = compiler.CompileStoreCallback(
             receiver, lookup->name(), info, language_mode());
-        if (FLAG_runtime_call_stats) return slow_stub();
         return code;
       } else {
         DCHECK(accessors->IsAccessorPair());
@@ -1803,7 +1795,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           Handle<Code> code = compiler.CompileStoreCallback(
               receiver, lookup->name(), call_optimization,
               lookup->GetAccessorIndex());
-          if (FLAG_runtime_call_stats) return slow_stub();
           return code;
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
@@ -2742,6 +2733,12 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<Object> value = args.at<Object>(4);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
   HandleScope scope(isolate);
+
+  if (FLAG_runtime_call_stats) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Runtime::SetObjectProperty(isolate, receiver, name, value,
+                                            language_mode));
+  }
 
   Handle<AccessorInfo> callback(
       callback_or_cell->IsWeakCell()

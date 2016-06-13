@@ -5418,14 +5418,6 @@ void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
-void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm);
-}
-
-void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateMegamorphic(masm);
-}
-
 void Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMegamorphic(masm, SLOPPY);
 }

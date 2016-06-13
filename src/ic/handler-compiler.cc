@@ -226,7 +226,11 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback) {
   Register reg = Frontend(name);
-  GenerateLoadCallback(reg, callback);
+  if (FLAG_runtime_call_stats) {
+    TailCallBuiltin(masm(), Builtins::kLoadIC_Slow);
+  } else {
+    GenerateLoadCallback(reg, callback);
+  }
   return GetCode(kind(), name);
 }
 
@@ -236,8 +240,12 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     int accessor_index) {
   DCHECK(call_optimization.is_simple_api_call());
   Register holder = Frontend(name);
-  GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
-                          scratch2(), false, no_reg, holder, accessor_index);
+  if (FLAG_runtime_call_stats) {
+    TailCallBuiltin(masm(), Builtins::kLoadIC_Slow);
+  } else {
+    GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
+                            scratch2(), false, no_reg, holder, accessor_index);
+  }
   return GetCode(kind(), name);
 }
 
@@ -561,9 +569,14 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization, int accessor_index) {
   Register holder = Frontend(name);
-  GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
-                          receiver(), scratch2(), true, value(), holder,
-                          accessor_index);
+  if (FLAG_runtime_call_stats) {
+    GenerateRestoreName(name);
+    TailCallBuiltin(masm(), Builtins::kStoreIC_Slow);
+  } else {
+    GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
+                            receiver(), scratch2(), true, value(), holder,
+                            accessor_index);
+  }
   return GetCode(kind(), name);
 }
 

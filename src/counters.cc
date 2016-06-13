@@ -285,8 +285,17 @@ void RuntimeCallStats::Enter(Isolate* isolate, RuntimeCallTimer* timer,
 // static
 void RuntimeCallStats::Leave(Isolate* isolate, RuntimeCallTimer* timer) {
   RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
-  DCHECK_EQ(stats->current_timer_, timer);
-  stats->current_timer_ = timer->Stop();
+
+  if (stats->current_timer_ == timer) {
+    stats->current_timer_ = timer->Stop();
+  } else {
+    // Must be a Threading cctest. Walk the chain of Timers to find the
+    // buried one that's leaving. We don't care about keeping nested timings
+    // accurate, just avoid crashing by keeping the chain intact.
+    RuntimeCallTimer* next = stats->current_timer_;
+    while (next->parent_ != timer) next = next->parent_;
+    next->parent_ = timer->Stop();
+  }
 }
 
 // static
