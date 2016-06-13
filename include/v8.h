@@ -5447,15 +5447,8 @@ class V8_EXPORT EmbedderHeapTracer {
    * Embedder is expected to store them in it's marking deque and trace
    * reachable wrappers from them when asked by AdvanceTracing method.
    */
-  // TODO(hlopko): Make pure virtual after migration
   virtual void RegisterV8References(
-      const std::vector<std::pair<void*, void*> >& internal_fields) {}
-  /**
-   * **Deprecated**
-   */
-  // TODO(hlopko): Remove after migration
-  virtual void TraceWrappersFrom(
-      const std::vector<std::pair<void*, void*> >& internal_fields) {}
+      const std::vector<std::pair<void*, void*> >& internal_fields) = 0;
   /**
    * V8 will call this method at the beginning of the gc cycle.
    */
@@ -5468,11 +5461,8 @@ class V8_EXPORT EmbedderHeapTracer {
    *
    * Returns true if there is still work to do.
    */
-  // TODO(hlopko): Make pure virtual after migration
   virtual bool AdvanceTracing(double deadline_in_ms,
-                              AdvanceTracingActions actions) {
-    return false;
-  }
+                              AdvanceTracingActions actions) = 0;
   /**
    * V8 will call this method at the end of the gc cycle. Allocation is *not*
    * allowed in the TraceEpilogue.
