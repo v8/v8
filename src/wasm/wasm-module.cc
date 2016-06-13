@@ -837,10 +837,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   // Attach an array with function names and an array with offsets into that
   // first array.
   //-------------------------------------------------------------------------
-  {
-    Handle<Object> arr = BuildFunctionNamesTable(isolate, module_env.module);
-    instance.js_object->SetInternalField(kWasmFunctionNamesArray, *arr);
-  }
+  instance.js_object->SetInternalField(
+      kWasmFunctionNamesArray,
+      *BuildFunctionNamesTable(isolate, module_env.module));
 
   code_stats.Report();
 
@@ -983,14 +982,30 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
   return -1;
 }
 
-MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
-                                        uint32_t func_index) {
-  DCHECK(IsWasmObject(wasm));
-  Object* func_names_arr_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
-  Isolate* isolate = wasm->GetIsolate();
-  if (func_names_arr_obj->IsUndefined(isolate)) return Handle<String>::null();
-  return GetWasmFunctionNameFromTable(
-      handle(ByteArray::cast(func_names_arr_obj), isolate), func_index);
+Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
+                                         uint32_t func_index) {
+  if (!wasm->IsUndefined()) {
+    Handle<ByteArray> func_names_arr_obj(
+        ByteArray::cast(Handle<JSObject>::cast(wasm)->GetInternalField(
+            kWasmFunctionNamesArray)),
+        isolate);
+    // TODO(clemens): Extract this from the module bytes; skip whole function
+    // name table.
+    Handle<Object> name;
+    if (GetWasmFunctionNameFromTable(func_names_arr_obj, func_index)
+            .ToHandle(&name)) {
+      return name;
+    }
+  }
+  return isolate->factory()->null_value();
+}
+
+Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
+                                   uint32_t func_index) {
+  Handle<Object> name_or_null =
+      GetWasmFunctionNameOrNull(isolate, wasm, func_index);
+  if (!name_or_null->IsNull()) return Handle<String>::cast(name_or_null);
+  return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 
 bool IsWasmObject(Handle<JSObject> object) {
@@ -998,9 +1013,7 @@ bool IsWasmObject(Handle<JSObject> object) {
   return object->GetInternalFieldCount() == kWasmModuleInternalFieldCount &&
          object->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() &&
          object->GetInternalField(kWasmMemArrayBuffer)->IsJSArrayBuffer() &&
-         (object->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
-          object->GetInternalField(kWasmFunctionNamesArray)
-              ->IsUndefined(object->GetIsolate()));
+         object->GetInternalField(kWasmFunctionNamesArray)->IsByteArray();
 }
 
 }  // namespace wasm

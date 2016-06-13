@@ -605,16 +605,9 @@ class CaptureStackTraceHelper {
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
-      Object* wasm_object = frame->wasm_obj();
-      Handle<String> name;
-      if (!wasm_object->IsUndefined(isolate_)) {
-        Handle<JSObject> wasm = handle(JSObject::cast(wasm_object));
-        wasm::GetWasmFunctionName(wasm, frame->function_index())
-            .ToHandle(&name);
-      }
-      if (name.is_null()) {
-        name = isolate_->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
-      }
+      Handle<String> name = wasm::GetWasmFunctionName(
+          isolate_, handle(frame->wasm_obj(), isolate_),
+          frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number.

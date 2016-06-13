@@ -5,11 +5,10 @@
 #ifndef V8_WASM_MODULE_H_
 #define V8_WASM_MODULE_H_
 
-#include "src/wasm/wasm-opcodes.h"
-#include "src/wasm/wasm-result.h"
-
 #include "src/api.h"
 #include "src/handles.h"
+#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
@@ -319,10 +318,16 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module);
 
 // Extract a function name from the given wasm object.
+// Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
+// valid UTF-8 string.
+Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
+                                   uint32_t func_index);
+
+// Extract a function name from the given wasm object.
 // Returns a null handle if the function is unnamed or the name is not a valid
 // UTF-8 string.
-MaybeHandle<String> GetWasmFunctionName(Handle<JSObject> wasm,
-                                        uint32_t func_index);
+Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
+                                         uint32_t func_index);
 
 // Check whether the given object is a wasm object.
 // This checks the number and type of internal fields, so it's not 100 percent
