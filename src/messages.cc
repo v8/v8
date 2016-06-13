@@ -249,7 +249,7 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  if (!IsJavaScript() || receiver_->IsNull(isolate_) ||
+  if (!IsJavaScript() || receiver_->IsNull() ||
       receiver_->IsUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
@@ -341,7 +341,7 @@ bool CallSite::IsNative() {
 
 bool CallSite::IsToplevel() {
   if (IsWasm()) return false;
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
+  return receiver_->IsJSGlobalProxy() || receiver_->IsNull() ||
          receiver_->IsUndefined(isolate_);
 }
 

@@ -52,7 +52,7 @@ namespace internal {
 // and return.
 #define CONVERT_BOOLEAN_ARG_CHECKED(name, index) \
   RUNTIME_ASSERT(args[index]->IsBoolean());      \
-  bool name = args[index]->IsTrue(isolate);
+  bool name = args[index]->IsTrue();
 
 // Cast the given argument to a Smi and store its value in an int variable
 // with the given name.  If the argument is not a Smi call IllegalOperation

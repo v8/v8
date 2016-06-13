@@ -2420,7 +2420,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
       new(zone) HConstant(1) : new(zone) HConstant(0);
   } else if (handle->IsUndefined(isolate)) {
     res = new (zone) HConstant(std::numeric_limits<double>::quiet_NaN());
-  } else if (handle->IsNull(isolate)) {
+  } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   } else if (handle->IsString()) {
     res = new(zone) HConstant(String::ToNumber(Handle<String>::cast(handle)));

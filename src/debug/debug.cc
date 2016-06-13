@@ -753,7 +753,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   }
 
   // Return whether the break point is triggered.
-  return result->IsTrue(isolate_);
+  return result->IsTrue();
 }
 
 
@@ -1773,7 +1773,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, has_reject_handler,
         PromiseHasUserDefinedRejectHandler(jspromise), /* void */);
-    uncaught = has_reject_handler->IsFalse(isolate_);
+    uncaught = has_reject_handler->IsFalse();
   }
   // Bail out if exception breaks are not active
   if (uncaught) {
@@ -2089,7 +2089,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
           isolate_, is_running, cmd_processor, 1, is_running_args);
       Handle<Object> result;
       if (!maybe_result.ToHandle(&result)) break;
-      running = result->IsTrue(isolate_);
+      running = result->IsTrue();
     } else {
       Handle<Object> exception;
       if (!maybe_exception.ToHandle(&exception)) break;
@@ -2123,7 +2123,7 @@ void Debug::SetEventListener(Handle<Object> callback,
   event_listener_data_ = Handle<Object>();
 
   // Set new entry.
-  if (!callback->IsUndefined(isolate_) && !callback->IsNull(isolate_)) {
+  if (!callback->IsUndefined(isolate_) && !callback->IsNull()) {
     event_listener_ = global_handles->Create(*callback);
     if (data.is_null()) data = isolate_->factory()->undefined_value();
     event_listener_data_ = global_handles->Create(*data);

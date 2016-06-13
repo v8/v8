@@ -967,19 +967,19 @@ void LogRegExpSource(Handle<JSRegExp> regexp, Isolate* isolate,
   // global flag
   Handle<Object> global =
       JSReceiver::GetProperty(isolate, regexp, "global").ToHandleChecked();
-  if (global->IsTrue(isolate)) {
+  if (global->IsTrue()) {
     msg->Append('g');
   }
   // ignorecase flag
   Handle<Object> ignorecase =
       JSReceiver::GetProperty(isolate, regexp, "ignoreCase").ToHandleChecked();
-  if (ignorecase->IsTrue(isolate)) {
+  if (ignorecase->IsTrue()) {
     msg->Append('i');
   }
   // multiline flag
   Handle<Object> multiline =
       JSReceiver::GetProperty(isolate, regexp, "multiline").ToHandleChecked();
-  if (multiline->IsTrue(isolate)) {
+  if (multiline->IsTrue()) {
     msg->Append('m');
   }
 }

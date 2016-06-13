@@ -38,7 +38,7 @@ HType HType::FromValue(Handle<Object> value) {
   if (raw_value->IsSmi()) return HType::Smi();
   DCHECK(raw_value->IsHeapObject());
   Isolate* isolate = HeapObject::cast(*value)->GetIsolate();
-  if (raw_value->IsNull(isolate)) return HType::Null();
+  if (raw_value->IsNull()) return HType::Null();
   if (raw_value->IsHeapNumber()) {
     double n = Handle<v8::internal::HeapNumber>::cast(value)->value();
     return IsSmiDouble(n) ? HType::Smi() : HType::HeapNumber();

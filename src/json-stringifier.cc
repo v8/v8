@@ -274,7 +274,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
+      isolate_->stack_guard()->HandleInterrupts()->IsException()) {
     return EXCEPTION;
   }
   if (object->IsJSReceiver()) {
@@ -360,7 +360,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
   } else if (class_name == isolate_->heap()->Boolean_string()) {
     Object* value = JSValue::cast(*object)->value();
     DCHECK(value->IsBoolean());
-    builder_.AppendCString(value->IsTrue(isolate_) ? "true" : "false");
+    builder_.AppendCString(value->IsTrue() ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object);
@@ -407,8 +407,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException(
-                  isolate_)) {
+              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
             return EXCEPTION;
           }
           Separator(i == 0);
@@ -425,8 +424,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException(
-                  isolate_)) {
+              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
             return EXCEPTION;
           }
           Separator(i == 0);

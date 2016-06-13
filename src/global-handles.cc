@@ -891,7 +891,7 @@ void ObjectGroupsTracer::PrintConstructor(JSObject* js_object) {
     if (name->length() == 0) name = constructor->shared()->inferred_name();
 
     PrintF("%s", name->ToCString().get());
-  } else if (maybe_constructor->IsNull(isolate_)) {
+  } else if (maybe_constructor->IsNull()) {
     if (js_object->IsOddball()) {
       PrintF("<oddball>");
     } else {

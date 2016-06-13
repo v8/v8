@@ -965,7 +965,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
             graph()->NewNode(common()->FinishRegion(), value, effect);
       } else if (property_details.representation().IsSmi()) {
         // Ensure that value is stored as smi.
-        value = boilerplate_value->IsUninitialized(isolate())
+        value = boilerplate_value->IsUninitialized()
                     ? jsgraph()->ZeroConstant()
                     : jsgraph()->Constant(boilerplate_value);
       } else {

@@ -250,7 +250,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
   }
 
   if (stack_check.InterruptRequested() &&
-      isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
+      isolate_->stack_guard()->HandleInterrupts()->IsException()) {
     return Handle<Object>::null();
   }
 

@@ -321,7 +321,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
         DCHECK(map->prototype()->IsJSObject());
-      } else if (map->prototype()->IsNull(isolate())) {
+      } else if (map->prototype()->IsNull()) {
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)

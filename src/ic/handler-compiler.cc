@@ -28,7 +28,7 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
     Handle<Name> name, Handle<Map> receiver_map) {
   Isolate* isolate = name->GetIsolate();
-  if (receiver_map->prototype()->IsNull(isolate)) {
+  if (receiver_map->prototype()->IsNull()) {
     // TODO(jkummerow/verwaest): If there is no prototype and the property
     // is nonexistent, introduce a builtin to handle this (fast properties
     // -> return undefined, dictionary properties -> do negative lookup).
@@ -51,7 +51,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   Handle<JSObject> last(JSObject::cast(receiver_map->prototype()));
   while (true) {
     if (current_map->is_dictionary_map()) cache_name = name;
-    if (current_map->prototype()->IsNull(isolate)) break;
+    if (current_map->prototype()->IsNull()) break;
     if (name->IsPrivate()) {
       // TODO(verwaest): Use nonexistent_private_symbol.
       cache_name = name;

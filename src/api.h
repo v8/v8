@@ -281,9 +281,7 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
   template<class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    DCHECK(obj.is_null() ||
-           (obj->IsSmi() ||
-            !obj->IsTheHole(i::HeapObject::cast(*obj)->GetIsolate())));
+    DCHECK(obj.is_null() || !obj->IsTheHole());
     return Local<To>(reinterpret_cast<To*>(obj.location()));
   }
 

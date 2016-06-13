@@ -441,11 +441,11 @@ void CallPrinter::PrintLiteral(Object* value, bool quote) {
     if (quote) Print("\"");
     Print("%s", String::cast(object)->ToCString().get());
     if (quote) Print("\"");
-  } else if (object->IsNull(isolate_)) {
+  } else if (object->IsNull()) {
     Print("null");
-  } else if (object->IsTrue(isolate_)) {
+  } else if (object->IsTrue()) {
     Print("true");
-  } else if (object->IsFalse(isolate_)) {
+  } else if (object->IsFalse()) {
     Print("false");
   } else if (object->IsUndefined(isolate_)) {
     Print("undefined");
@@ -1069,11 +1069,11 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
       Print("%c", string->Get(i));
     }
     if (quote) Print("\"");
-  } else if (object->IsNull(isolate_)) {
+  } else if (object->IsNull()) {
     Print("null");
-  } else if (object->IsTrue(isolate_)) {
+  } else if (object->IsTrue()) {
     Print("true");
-  } else if (object->IsFalse(isolate_)) {
+  } else if (object->IsFalse()) {
     Print("false");
   } else if (object->IsUndefined(isolate_)) {
     Print("undefined");

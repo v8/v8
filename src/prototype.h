@@ -57,7 +57,7 @@ class PrototypeIterator {
       : object_(receiver_map->prototype()),
         isolate_(receiver_map->GetIsolate()),
         where_to_end_(END_AT_NULL),
-        is_at_end_(object_->IsNull(isolate_)),
+        is_at_end_(object_->IsNull()),
         seen_proxies_(0) {}
 
   explicit PrototypeIterator(Handle<Map> receiver_map)
@@ -65,7 +65,7 @@ class PrototypeIterator {
         handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
         isolate_(receiver_map->GetIsolate()),
         where_to_end_(END_AT_NULL),
-        is_at_end_(handle_->IsNull(isolate_)),
+        is_at_end_(handle_->IsNull()),
         seen_proxies_(0) {}
 
   ~PrototypeIterator() {}
@@ -114,7 +114,7 @@ class PrototypeIterator {
     Object* prototype = map->prototype();
     is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN
                      ? !map->has_hidden_prototype()
-                     : prototype->IsNull(isolate_);
+                     : prototype->IsNull();
 
     if (handle_.is_null()) {
       object_ = prototype;
@@ -153,8 +153,7 @@ class PrototypeIterator {
     MaybeHandle<Object> proto =
         JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
     if (!proto.ToHandle(&handle_)) return false;
-    is_at_end_ =
-        where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull(isolate_);
+    is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull();
     return true;
   }
 

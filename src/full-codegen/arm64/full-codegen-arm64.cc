@@ -531,12 +531,11 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
                                           true,
                                           true_label_,
                                           false_label_);
-  DCHECK(lit->IsNull(isolate()) || lit->IsUndefined(isolate()) ||
+  DCHECK(lit->IsNull() || lit->IsUndefined(isolate()) ||
          !lit->IsUndetectable());
-  if (lit->IsUndefined(isolate()) || lit->IsNull(isolate()) ||
-      lit->IsFalse(isolate())) {
+  if (lit->IsUndefined(isolate()) || lit->IsNull() || lit->IsFalse()) {
     if (false_label_ != fall_through_) __ B(false_label_);
-  } else if (lit->IsTrue(isolate()) || lit->IsJSObject()) {
+  } else if (lit->IsTrue() || lit->IsJSObject()) {
     if (true_label_ != fall_through_) __ B(true_label_);
   } else if (lit->IsString()) {
     if (String::cast(*lit)->length() == 0) {

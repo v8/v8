@@ -1189,7 +1189,7 @@ void LayoutDescriptor::Print() {
 
 void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
   os << "Layout descriptor: ";
-  if (IsOddball() && IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
+  if (IsUninitialized()) {
     os << "<uninitialized>";
   } else if (IsFastPointerLayout()) {
     os << "<all tagged>";

@@ -527,7 +527,7 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate) ||
+  if (receiver->IsNull() || receiver->IsUndefined(isolate) ||
       receiver->IsJSProxy()) {
     print_name = true;
   } else if (isolate->context() != nullptr) {

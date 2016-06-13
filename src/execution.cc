@@ -106,7 +106,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = value->IsException(isolate);
+  bool has_exception = value->IsException();
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     isolate->ReportPendingMessages();

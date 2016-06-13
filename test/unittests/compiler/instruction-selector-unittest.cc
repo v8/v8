@@ -480,7 +480,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined());
   EXPECT_EQ(MachineType::AnyTagged(),
             desc_before->GetType(0));  // function is always
                                        // tagged/any.

@@ -1509,11 +1509,11 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadLiteral(Smi::cast(*value));
     } else if (value->IsUndefined(isolate())) {
       builder()->LoadUndefined();
-    } else if (value->IsTrue(isolate())) {
+    } else if (value->IsTrue()) {
       builder()->LoadTrue();
-    } else if (value->IsFalse(isolate())) {
+    } else if (value->IsFalse()) {
       builder()->LoadFalse();
-    } else if (value->IsNull(isolate())) {
+    } else if (value->IsNull()) {
       builder()->LoadNull();
     } else if (value->IsTheHole(isolate())) {
       builder()->LoadTheHole();
