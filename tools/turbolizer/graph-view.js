@@ -571,6 +571,7 @@ class GraphView extends View {
     }
 
     var allowRepetition = true;
+    var eventHandled = true; // unless the below switch defaults
     switch(d3.event.keyCode) {
     case 49:
     case 50:
@@ -616,6 +617,12 @@ class GraphView extends View {
       selectNodesThroughEdges(d3.event.keyCode == 38, undefined, true);
       break;
     }
+    default:
+      eventHandled = false;
+      break;
+    }
+    if (eventHandled) {
+      d3.event.preventDefault();
     }
     if (!allowRepetition) {
       state.lastKeyDown = d3.event.keyCode;
