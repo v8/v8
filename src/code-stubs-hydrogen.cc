@@ -1363,8 +1363,21 @@ Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
 template <>
 HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
   HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
+  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
+  StoreTransitionStub::StoreMode store_mode = casted_stub()->store_mode();
 
-  switch (casted_stub()->store_mode()) {
+  if (store_mode != StoreTransitionStub::StoreMapOnly) {
+    value = GetParameter(StoreTransitionHelper::ValueIndex());
+    Representation representation = casted_stub()->representation();
+    if (representation.IsDouble()) {
+      // In case we are storing a double, assure that the value is a double
+      // before manipulating the properties backing store. Otherwise the actual
+      // store may deopt, leaving the backing store in an overallocated state.
+      value = AddUncasted<HForceRepresentation>(value, representation);
+    }
+  }
+
+  switch (store_mode) {
     case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
       HValue* properties = Add<HLoadNamedField>(
           object, nullptr, HObjectAccess::ForPropertiesPointer());
@@ -1392,9 +1405,8 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
     // Fall through.
     case StoreTransitionStub::StoreMapAndValue:
       // Store the new value into the "extended" object.
-      BuildStoreNamedField(
-          object, GetParameter(StoreTransitionHelper::ValueIndex()),
-          casted_stub()->index(), casted_stub()->representation(), true);
+      BuildStoreNamedField(object, value, casted_stub()->index(),
+                           casted_stub()->representation(), true);
     // Fall through.
 
     case StoreTransitionStub::StoreMapOnly:
@@ -1403,7 +1415,7 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
                             GetParameter(StoreTransitionHelper::MapIndex()));
       break;
   }
-  return GetParameter(StoreTransitionHelper::ValueIndex());
+  return value;
 }
 
 

@@ -13366,12 +13366,14 @@ std::ostream& operator<<(std::ostream& os, const HEnvironment& env) {
 void HTracer::TraceCompilation(CompilationInfo* info) {
   Tag tag(this, "compilation");
   std::string name;
-  Object* source_name = info->script()->name();
-  if (source_name->IsString()) {
-    String* str = String::cast(source_name);
-    if (str->length() > 0) {
-      name.append(str->ToCString().get());
-      name.append(":");
+  if (info->parse_info()) {
+    Object* source_name = info->script()->name();
+    if (source_name->IsString()) {
+      String* str = String::cast(source_name);
+      if (str->length() > 0) {
+        name.append(str->ToCString().get());
+        name.append(":");
+      }
     }
   }
   base::SmartArrayPointer<char> method_name = info->GetDebugName();

@@ -568,7 +568,7 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
 
 
 void Deoptimizer::PrintFunctionName() {
-  if (function_->IsJSFunction()) {
+  if (function_ != nullptr && function_->IsJSFunction()) {
     function_->ShortPrint(trace_scope_->file());
   } else {
     PrintF(trace_scope_->file(),
