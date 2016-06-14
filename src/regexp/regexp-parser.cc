@@ -362,11 +362,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               if (FLAG_harmony_regexp_property) {
                 ZoneList<CharacterRange>* ranges =
                     new (zone()) ZoneList<CharacterRange>(2, zone());
-                if (!ParsePropertyClass(ranges, p == 'P')) {
+                if (!ParsePropertyClass(ranges)) {
                   return ReportError(CStrVector("Invalid property name"));
                 }
                 RegExpCharacterClass* cc =
-                    new (zone()) RegExpCharacterClass(ranges, false);
+                    new (zone()) RegExpCharacterClass(ranges, p == 'P');
                 builder->AddCharacterClass(cc);
               } else {
                 // With /u, no identity escapes except for syntax characters
@@ -845,9 +845,6 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
 }
 
 #ifdef V8_I18N_SUPPORT
-
-namespace {
-
 bool IsExactPropertyAlias(const char* property_name, UProperty property) {
   const char* short_name = u_getPropertyName(property, U_SHORT_PROPERTY_NAME);
   if (short_name != NULL && strcmp(property_name, short_name) == 0) return true;
@@ -878,7 +875,7 @@ bool IsExactPropertyValueAlias(const char* property_value_name,
 }
 
 bool LookupPropertyValueName(UProperty property,
-                             const char* property_value_name, bool negate,
+                             const char* property_value_name,
                              ZoneList<CharacterRange>* result, Zone* zone) {
   int32_t property_value =
       u_getPropertyValueEnum(property, property_value_name);
@@ -898,7 +895,6 @@ bool LookupPropertyValueName(UProperty property,
 
   if (success) {
     uset_removeAllStrings(set);
-    if (negate) uset_complement(set);
     int item_count = uset_getItemCount(set);
     int item_result = 0;
     for (int i = 0; i < item_count; i++) {
@@ -914,33 +910,7 @@ bool LookupPropertyValueName(UProperty property,
   return success;
 }
 
-template <size_t N>
-inline bool NameEquals(const char* name, const char (&literal)[N]) {
-  return strncmp(name, literal, N + 1) == 0;
-}
-
-bool LookupSpecialPropertyValueName(const char* name,
-                                    ZoneList<CharacterRange>* result,
-                                    bool negate, Zone* zone) {
-  if (NameEquals(name, "Any")) {
-    if (!negate) result->Add(CharacterRange::Everything(), zone);
-  } else if (NameEquals(name, "ASCII")) {
-    result->Add(negate ? CharacterRange::Range(0x80, String::kMaxCodePoint)
-                       : CharacterRange::Range(0x0, 0x7f),
-                zone);
-  } else if (NameEquals(name, "Assigned")) {
-    return LookupPropertyValueName(UCHAR_GENERAL_CATEGORY, "Unassigned",
-                                   !negate, result, zone);
-  } else {
-    return false;
-  }
-  return true;
-}
-
-}  // anonymous namespace
-
-bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
-                                      bool negate) {
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
   // Parse the property class as follows:
   // - In \p{name}, 'name' is interpreted
   //   - either as a general category property value name.
@@ -973,12 +943,8 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
   if (second_part.is_empty()) {
     // First attempt to interpret as general category property value name.
     const char* name = first_part.ToConstVector().start();
-    if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, negate,
-                                result, zone())) {
-      return true;
-    }
-    // Interpret "Any", "ASCII", and "Assigned".
-    if (LookupSpecialPropertyValueName(name, result, negate, zone())) {
+    if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, result,
+                                zone())) {
       return true;
     }
     // Then attempt to interpret as binary property name with value name 'Y'.
@@ -986,8 +952,7 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
     if (property < UCHAR_BINARY_START) return false;
     if (property >= UCHAR_BINARY_LIMIT) return false;
     if (!IsExactPropertyAlias(name, property)) return false;
-    return LookupPropertyValueName(property, negate ? "N" : "Y", false, result,
-                                   zone());
+    return LookupPropertyValueName(property, "Y", result, zone());
   } else {
     // Both property name and value name are specified. Attempt to interpret
     // the property name as enumerated property.
@@ -997,8 +962,7 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
     if (property < UCHAR_INT_START) return false;
     if (property >= UCHAR_INT_LIMIT) return false;
     if (!IsExactPropertyAlias(property_name, property)) return false;
-    return LookupPropertyValueName(property, value_name, negate, result,
-                                   zone());
+    return LookupPropertyValueName(property, value_name, result, zone());
   }
 }
 
@@ -1195,10 +1159,19 @@ bool RegExpParser::ParseClassProperty(ZoneList<CharacterRange>* ranges) {
   bool parse_success = false;
   if (next == 'p') {
     Advance(2);
-    parse_success = ParsePropertyClass(ranges, false);
+    parse_success = ParsePropertyClass(ranges);
   } else if (next == 'P') {
     Advance(2);
-    parse_success = ParsePropertyClass(ranges, true);
+    ZoneList<CharacterRange>* property_class =
+        new (zone()) ZoneList<CharacterRange>(2, zone());
+    parse_success = ParsePropertyClass(property_class);
+    if (parse_success) {
+      ZoneList<CharacterRange>* negated =
+          new (zone()) ZoneList<CharacterRange>(2, zone());
+      CharacterRange::Negate(property_class, negated, zone());
+      const Vector<CharacterRange> negated_vector = negated->ToVector();
+      ranges->AddAll(negated_vector, zone());
+    }
   } else {
     return false;
   }
