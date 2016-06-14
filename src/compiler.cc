@@ -200,10 +200,9 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
     case Code::BYTECODE_HANDLER:
     case Code::HANDLER:
     case Code::BUILTIN:
-    case Code::LOAD_IC:
-    case Code::KEYED_LOAD_IC:
-    case Code::STORE_IC:
-    case Code::KEYED_STORE_IC:
+#define CASE_KIND(kind) case Code::kind:
+      IC_KIND_LIST(CASE_KIND)
+#undef CASE_KIND
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
       return StackFrame::WASM;

@@ -1300,7 +1300,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   __ li(LoadDescriptor::NameRegister(), Operand(var->name()));
   __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
-  CallLoadIC(typeof_mode);
+  CallLoadGlobalIC(typeof_mode);
 }
 
 

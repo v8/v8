@@ -15,7 +15,6 @@
 namespace v8 {
 namespace internal {
 
-
 enum class FeedbackVectorSlotKind {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
@@ -24,6 +23,7 @@ enum class FeedbackVectorSlotKind {
 
   CALL_IC,
   LOAD_IC,
+  LOAD_GLOBAL_IC,
   KEYED_LOAD_IC,
   STORE_IC,
   KEYED_STORE_IC,
@@ -33,7 +33,6 @@ enum class FeedbackVectorSlotKind {
 
   KINDS_NUMBER  // Last value indicating number of kinds.
 };
-
 
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
 
@@ -49,6 +48,10 @@ class FeedbackVectorSpecBase {
 
   FeedbackVectorSlot AddLoadICSlot() {
     return AddSlot(FeedbackVectorSlotKind::LOAD_IC);
+  }
+
+  FeedbackVectorSlot AddLoadGlobalICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
   FeedbackVectorSlot AddKeyedLoadICSlot() {
@@ -159,7 +162,7 @@ class TypeFeedbackMetadata : public FixedArray {
   static const char* Kind2String(FeedbackVectorSlotKind kind);
 
  private:
-  static const int kFeedbackVectorSlotKindBits = 3;
+  static const int kFeedbackVectorSlotKindBits = 4;
   STATIC_ASSERT(static_cast<int>(FeedbackVectorSlotKind::KINDS_NUMBER) <
                 (1 << kFeedbackVectorSlotKindBits));
 
@@ -448,6 +451,24 @@ class LoadICNexus : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const override;
 };
 
+class LoadGlobalICNexus : public FeedbackNexus {
+ public:
+  LoadGlobalICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
+  }
+  LoadGlobalICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
+  }
+
+  void ConfigureMegamorphic() override { UNREACHABLE(); }
+  void Clear(Code* host);
+
+  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
+
+  InlineCacheState StateFromFeedback() const override;
+};
 
 class KeyedLoadICNexus : public FeedbackNexus {
  public:

@@ -139,6 +139,8 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "CALL_IC";
     case FeedbackVectorSlotKind::LOAD_IC:
       return "LOAD_IC";
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      return "LOAD_GLOBAL_IC";
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
       return "KEYED_LOAD_IC";
     case FeedbackVectorSlotKind::STORE_IC:
@@ -233,6 +235,11 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
         }
         case FeedbackVectorSlotKind::LOAD_IC: {
           LoadICNexus nexus(this, slot);
+          nexus.Clear(shared->code());
+          break;
+        }
+        case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+          LoadGlobalICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
@@ -437,6 +444,27 @@ InlineCacheState LoadICNexus::StateFromFeedback() const {
   return UNINITIALIZED;
 }
 
+InlineCacheState LoadGlobalICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+
+  if (feedback == *TypeFeedbackVector::UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  } else if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
+  } else if (feedback == *TypeFeedbackVector::PremonomorphicSentinel(isolate)) {
+    return PREMONOMORPHIC;
+  } else if (feedback->IsFixedArray()) {
+    // Determine state purely by our structure, don't check if the maps are
+    // cleared.
+    return POLYMORPHIC;
+  } else if (feedback->IsWeakCell()) {
+    // Don't check if the map is cleared.
+    return MONOMORPHIC;
+  }
+
+  return UNINITIALIZED;
+}
 
 InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
@@ -583,6 +611,12 @@ void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
   SetFeedbackExtra(*handler);
 }
 
+void LoadGlobalICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
+                                             Handle<Code> handler) {
+  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
+  SetFeedback(*cell);
+  SetFeedbackExtra(*handler);
+}
 
 void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
                                             Handle<Map> receiver_map,
@@ -633,7 +667,6 @@ void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
   SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(isolate),
                    SKIP_WRITE_BARRIER);
 }
-
 
 void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
                                             MapHandleList* maps,
@@ -828,6 +861,9 @@ bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
 
 void LoadICNexus::Clear(Code* host) { LoadIC::Clear(GetIsolate(), host, this); }
 
+void LoadGlobalICNexus::Clear(Code* host) {
+  LoadGlobalIC::Clear(GetIsolate(), host, this);
+}
 
 void KeyedLoadICNexus::Clear(Code* host) {
   KeyedLoadIC::Clear(GetIsolate(), host, this);

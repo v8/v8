@@ -35,6 +35,7 @@ namespace internal {
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
+  V(LoadGlobalICTrampoline)                 \
   V(CallICTrampoline)                       \
   V(LoadIndexedString)                      \
   V(MathPow)                                \
@@ -85,6 +86,7 @@ namespace internal {
   V(TransitionElementsKind)                 \
   V(KeyedLoadIC)                            \
   V(LoadIC)                                 \
+  V(LoadGlobalIC)                           \
   /* TurboFanCodeStubs */                   \
   V(AllocateHeapNumber)                     \
   V(AllocateFloat32x4)                      \
@@ -2378,6 +2380,17 @@ class LoadICTrampolineTFStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(LoadICTrampolineTF, TurboFanCodeStub);
 };
 
+class LoadGlobalICTrampolineStub : public LoadICTrampolineTFStub {
+ public:
+  explicit LoadGlobalICTrampolineStub(Isolate* isolate,
+                                      const LoadICState& state)
+      : LoadICTrampolineTFStub(isolate, state) {}
+
+  Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
+
+  DEFINE_CODE_STUB(LoadGlobalICTrampoline, LoadICTrampolineTFStub);
+};
+
 class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
  public:
   explicit KeyedLoadICTrampolineStub(Isolate* isolate, const LoadICState& state)
@@ -2487,6 +2500,17 @@ class LoadICTFStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_CODE_STUB(LoadICTF, TurboFanCodeStub);
+};
+
+class LoadGlobalICStub : public LoadICTFStub {
+ public:
+  explicit LoadGlobalICStub(Isolate* isolate, const LoadICState& state)
+      : LoadICTFStub(isolate, state) {}
+
+  Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  DEFINE_CODE_STUB(LoadGlobalIC, LoadICTFStub);
 };
 
 class KeyedLoadICStub : public PlatformCodeStub {

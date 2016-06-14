@@ -12,12 +12,12 @@ namespace internal {
 
 
 // static
-Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode) {
+Callable CodeFactory::LoadIC(Isolate* isolate) {
   if (FLAG_tf_load_ic_stub) {
-    LoadICTrampolineTFStub stub(isolate, LoadICState(typeof_mode));
+    LoadICTrampolineTFStub stub(isolate, LoadICState(NOT_INSIDE_TYPEOF));
     return Callable(stub.GetCode(), LoadDescriptor(isolate));
   }
-  LoadICTrampolineStub stub(isolate, LoadICState(typeof_mode));
+  LoadICTrampolineStub stub(isolate, LoadICState(NOT_INSIDE_TYPEOF));
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
@@ -28,13 +28,25 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate,
-                                            TypeofMode typeof_mode) {
+Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(typeof_mode).GetExtraICState());
+      isolate, LoadICState(NOT_INSIDE_TYPEOF).GetExtraICState());
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
+  LoadGlobalICTrampolineStub stub(isolate, LoadICState(typeof_mode));
+  return Callable(stub.GetCode(), LoadDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
+                                                  TypeofMode typeof_mode) {
+  auto code = LoadGlobalIC::initialize_stub_in_optimized_code(
+      isolate, LoadICState(typeof_mode).GetExtraICState());
+  return Callable(code, LoadWithVectorDescriptor(isolate));
+}
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {

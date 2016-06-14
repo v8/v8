@@ -180,8 +180,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
-  Callable callable =
-      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_INSIDE_TYPEOF);
+  Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
   // Load the type feedback vector from the closure.
   Node* literals = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), closure,
@@ -208,7 +207,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
   Callable callable =
-      CodeFactory::LoadICInOptimizedCode(isolate(), p.typeof_mode());
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
   // Load the type feedback vector from the closure.
   Node* literals = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), closure,

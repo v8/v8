@@ -1589,6 +1589,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A load IC from the snapshot";
       tag = Logger::LOAD_IC_TAG;
       break;
+    case AbstractCode::LOAD_GLOBAL_IC:
+      description = "A load global IC from the snapshot";
+      tag = Logger::LOAD_GLOBAL_IC_TAG;
+      break;
     case AbstractCode::CALL_IC:
       description = "A call IC from the snapshot";
       tag = Logger::CALL_IC_TAG;

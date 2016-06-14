@@ -4840,14 +4840,18 @@ Code::Kind Code::kind() {
   return ExtractKindFromFlags(flags());
 }
 
-
 bool Code::IsCodeStubOrIC() {
-  return kind() == STUB || kind() == HANDLER || kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC || kind() == CALL_IC || kind() == STORE_IC ||
-         kind() == KEYED_STORE_IC || kind() == BINARY_OP_IC ||
-         kind() == COMPARE_IC || kind() == TO_BOOLEAN_IC;
+  switch (kind()) {
+    case STUB:
+    case HANDLER:
+#define CASE_KIND(kind) case kind:
+      IC_KIND_LIST(CASE_KIND)
+#undef CASE_KIND
+      return true;
+    default:
+      return false;
+  }
 }
-
 
 ExtraICState Code::extra_ic_state() {
   DCHECK(is_inline_cache_stub() || is_debug_stub());

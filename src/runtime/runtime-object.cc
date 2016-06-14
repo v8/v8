@@ -377,6 +377,36 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
                            Runtime::GetObjectProperty(isolate, object, key));
 }
 
+RUNTIME_FUNCTION(Runtime_GetGlobal) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+
+  Handle<JSGlobalObject> global = isolate->global_object();
+
+  Handle<ScriptContextTable> script_contexts(
+      global->native_context()->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        script_contexts, lookup_result.context_index);
+    Handle<Object> result =
+        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    if (*result == *isolate->factory()->the_hole_value()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+
+    return *result;
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, Runtime::GetObjectProperty(isolate, global, name));
+  return *result;
+}
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {

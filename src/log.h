@@ -129,6 +129,7 @@ class RuntimeCallTimer;
   V(LAZY_COMPILE_TAG, "LazyCompile")                                     \
   V(CALL_IC_TAG, "CallIC")                                               \
   V(LOAD_IC_TAG, "LoadIC")                                               \
+  V(LOAD_GLOBAL_IC_TAG, "LoadGlobalIC")                                  \
   V(LOAD_POLYMORPHIC_IC_TAG, "LoadPolymorphicIC")                        \
   V(REG_EXP_TAG, "RegExp")                                               \
   V(SCRIPT_TAG, "Script")                                                \

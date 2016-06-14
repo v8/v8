@@ -170,13 +170,16 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
   PrepareForBailoutForId(node->id(), state);
 }
 
-
-void FullCodeGenerator::CallLoadIC(TypeofMode typeof_mode,
-                                   TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), typeof_mode).code();
+void FullCodeGenerator::CallLoadIC(TypeFeedbackId id) {
+  Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
   CallIC(ic, id);
 }
 
+void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
+                                         TypeFeedbackId id) {
+  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
+  CallIC(ic, id);
+}
 
 void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
@@ -1059,7 +1062,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ Move(LoadDescriptor::NameRegister(), key->value());
   __ Move(LoadDescriptor::SlotRegister(),
           SmiFromSlot(prop->PropertyFeedbackSlot()));
-  CallLoadIC(NOT_INSIDE_TYPEOF);
+  CallLoadIC();
 }
 
 void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
@@ -1522,7 +1525,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ LoadRoot(LoadDescriptor::NameRegister(),
                 Heap::kprototype_stringRootIndex);
     __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
-    CallLoadIC(NOT_INSIDE_TYPEOF);
+    CallLoadIC();
     PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
     PushOperand(result_register());
 

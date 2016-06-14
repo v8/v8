@@ -410,7 +410,8 @@ Node* Interpreter::BuildLoadGlobal(Callable ic,
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -421,7 +422,8 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
 // Load the global with name in constant pool entry <name_index> into
 // register <reg> using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   Node* destination = __ BytecodeOperandReg(2);
   __ StoreRegister(result, destination);
@@ -433,7 +435,8 @@ void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> inside of a typeof.
 void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -592,7 +595,7 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
 void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -603,7 +606,7 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index> and puts the result into register <reg>.
 void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   Node* destination = __ BytecodeOperandReg(3);
   __ StoreRegister(result, destination);

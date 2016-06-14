@@ -347,7 +347,7 @@ TEST(VectorLoadICSlotSharing) {
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackVectorSlot slot(0);
-  LoadICNexus nexus(feedback_vector, slot);
+  LoadGlobalICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 
@@ -436,9 +436,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
-    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
   {
@@ -454,6 +454,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
   }
 
   {
@@ -467,12 +469,13 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     Handle<JSFunction> f = GetFunction("testpropfunc");
 
-    // There should be 2 LOAD_ICs and 2 CALL_ICs.
+    // There should be 1 LOAD_GLOBAL_IC to load x (in both cases), 2 CALL_ICs
+    // to call x and a LOAD_IC to load blue.
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::CALL_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
@@ -488,12 +491,12 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     Handle<JSFunction> f = GetFunction("testkeyedprop");
 
-    // There should be 1 LOAD_ICs for the load of a, and one KEYED_LOAD_IC for
-    // the load of x[0] in the return statement.
+    // There should be 1 LOAD_GLOBAL_ICs for the load of a, and one
+    // KEYED_LOAD_IC for the load of x[0] in the return statement.
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
@@ -508,11 +511,12 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     Handle<JSFunction> f = GetFunction("testcompound");
 
-    // There should be 3 LOAD_ICs, for load of a and load of x.old and x.young.
+    // There should be 1 LOAD_GLOBAL_IC for load of a and 2 LOAD_ICs, for load
+    // of x.old and x.young.
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(6, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);

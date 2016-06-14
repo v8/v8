@@ -16,6 +16,7 @@ class PlatformInterfaceDescriptor;
 #define INTERFACE_DESCRIPTOR_LIST(V)   \
   V(Void)                              \
   V(Load)                              \
+  V(LoadGlobal)                        \
   V(Store)                             \
   V(StoreTransition)                   \
   V(VectorStoreTransition)             \
@@ -290,6 +291,13 @@ class LoadDescriptor : public CallInterfaceDescriptor {
   static const Register SlotRegister();
 };
 
+class LoadGlobalDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
+                                               CallInterfaceDescriptor)
+
+  enum ParameterIndices { kNameIndex, kSlotIndex, kVectorIndex };
+};
 
 class StoreDescriptor : public CallInterfaceDescriptor {
  public:

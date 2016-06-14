@@ -47,7 +47,8 @@ class IC {
 
 #ifdef DEBUG
   bool IsLoadStub() const {
-    return kind_ == Code::LOAD_IC || kind_ == Code::KEYED_LOAD_IC;
+    return kind_ == Code::LOAD_IC || kind_ == Code::LOAD_GLOBAL_IC ||
+           kind_ == Code::KEYED_LOAD_IC;
   }
   bool IsStoreStub() const {
     return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
@@ -69,9 +70,9 @@ class IC {
   }
 
   static bool ICUseVector(Code::Kind kind) {
-    return kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-           kind == Code::CALL_IC || kind == Code::STORE_IC ||
-           kind == Code::KEYED_STORE_IC;
+    return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
+           kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC ||
+           kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
   }
 
   static InlineCacheState StateFromCode(Code* code);
@@ -278,8 +279,8 @@ class LoadIC : public IC {
     DCHECK(IsLoadStub());
   }
 
-  bool ShouldThrowReferenceError(Handle<Object> receiver) {
-    return receiver->IsJSGlobalObject() && typeof_mode() == NOT_INSIDE_TYPEOF;
+  bool ShouldThrowReferenceError() const {
+    return kind() == Code::LOAD_GLOBAL_IC && typeof_mode() == NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.
@@ -297,7 +298,7 @@ class LoadIC : public IC {
   static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
-  Handle<Code> slow_stub() const {
+  virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->LoadIC_Slow();
   }
 
@@ -316,6 +317,23 @@ class LoadIC : public IC {
   friend class IC;
 };
 
+class LoadGlobalIC : public LoadIC {
+ public:
+  LoadGlobalIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
+      : LoadIC(depth, isolate, nexus) {}
+
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, ExtraICState extra_state);
+
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
+
+  static void Clear(Isolate* isolate, Code* host, LoadGlobalICNexus* nexus);
+
+ protected:
+  Handle<Code> slow_stub() const override {
+    return isolate()->builtins()->LoadGlobalIC_Slow();
+  }
+};
 
 class KeyedLoadIC : public LoadIC {
  public:

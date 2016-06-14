@@ -127,17 +127,17 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
-    if (var()->IsUnallocated()) {
+    if (var()->IsUnallocated() || var()->mode() == DYNAMIC_GLOBAL) {
       ZoneHashMap::Entry* entry = cache->Get(var());
       if (entry != NULL) {
         variable_feedback_slot_ = FeedbackVectorSlot(
             static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
         return;
       }
-    }
-    variable_feedback_slot_ = spec->AddLoadICSlot();
-    if (var()->IsUnallocated()) {
+      variable_feedback_slot_ = spec->AddLoadGlobalICSlot();
       cache->Put(var(), variable_feedback_slot_);
+    } else {
+      variable_feedback_slot_ = spec->AddLoadICSlot();
     }
   }
 }

@@ -32,9 +32,11 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode);
-  static Callable LoadICInOptimizedCode(Isolate* isolate,
-                                        TypeofMode typeof_mode);
+  static Callable LoadIC(Isolate* isolate);
+  static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
+  static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
+                                              TypeofMode typeof_mode);
   static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable CallIC(Isolate* isolate, int argc,

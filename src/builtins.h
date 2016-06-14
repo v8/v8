@@ -338,8 +338,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(AtomicsStore, 4)
 
 // Define list of builtins implemented in TurboFan (with CallStub linkage).
-#define BUILTIN_LIST_S(V)                                  \
-  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector) \
+#define BUILTIN_LIST_S(V)                                         \
+  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobal)      \
+  V(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobal) \
+  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)        \
   V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)
 
 // Define list of builtin handlers implemented in assembly.

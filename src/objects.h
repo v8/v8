@@ -4874,6 +4874,7 @@ class Code: public HeapObject {
 
 #define IC_KIND_LIST(V) \
   V(LOAD_IC)            \
+  V(LOAD_GLOBAL_IC)     \
   V(KEYED_LOAD_IC)      \
   V(CALL_IC)            \
   V(STORE_IC)           \
@@ -4892,10 +4893,6 @@ class Code: public HeapObject {
 #undef DEFINE_CODE_KIND_ENUM
     NUMBER_OF_KINDS
   };
-
-  // No more than 32 kinds. The value is currently encoded in five bits in
-  // Flags.
-  STATIC_ASSERT(NUMBER_OF_KINDS <= 32);
 
   static const char* Kind2String(Kind kind);
 
@@ -5285,6 +5282,7 @@ class Code: public HeapObject {
   class CacheHolderField
       : public BitField<CacheHolderFlag, ICStateField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
+  STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
   class ExtraICStateField : public BitField<ExtraICState, KindField::kNext,
                                             PlatformSmiTagging::kSmiValueSize -
                                                 KindField::kNext + 1> {};
