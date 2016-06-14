@@ -933,12 +933,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
 
-    case IrOpcode::kCheckBounds:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Unsigned31());
-      CheckUpperIs(node, Type::Unsigned31());
-      break;
-
     case IrOpcode::kCheckedUint32ToInt32:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedToInt32:

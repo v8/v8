@@ -1954,11 +1954,6 @@ Type* Typer::Visitor::TypeChangeBitToTagged(Node* node) {
   return ChangeRepresentation(arg, Type::TaggedPointer(), zone());
 }
 
-Type* Typer::Visitor::TypeCheckBounds(Node* node) {
-  // TODO(bmeurer): We could do better here based on the limit.
-  return Type::Unsigned31();
-}
-
 Type* Typer::Visitor::TypeCheckedUint32ToInt32(Node* node) {
   return Type::Signed32();
 }

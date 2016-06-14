@@ -634,17 +634,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               receiver, jsgraph()->HeapConstant(transition_target), context,
               frame_state, transition_effect, transition_control);
         }
-
-        // TODO(turbofan): The effect/control linearization will not find a
-        // FrameState after the StoreField or Call that is generated for the
-        // elements kind transition above. This is because those operatos don't
-        // have the kNoWrite flag on it, even tho they are not JavaScript
-        // observable, but at the same time adding kNoWrite would make them
-        // eliminatable during instruction selection (at least the Call one).
-        transition_effect =
-            graph()->NewNode(common()->Checkpoint(), frame_state,
-                             transition_effect, transition_control);
-
         this_controls.push_back(transition_control);
         this_effects.push_back(transition_effect);
       }
@@ -662,13 +651,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         this_effect =
             graph()->NewNode(common()->EffectPhi(this_control_count),
                              this_control_count + 1, &this_effects.front());
-
-        // TODO(turbofan): This is another work-around, which is necessary
-        // in addition to the Checkpoint above, as the CheckpointElimination
-        // is not really compositional. We really need a way to address the
-        // "no-write" problem on non-side-effecting nodes.
-        this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
-                                       this_effect, this_control);
       }
     }
 
@@ -678,6 +660,30 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       AssumePrototypesStable(receiver_type, native_context, holder);
+    }
+
+    // Check that the {index} is actually a Number.
+    if (!NumberMatcher(this_index).HasValue()) {
+      Node* check =
+          graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
+      this_control = this_effect =
+          graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                           this_effect, this_control);
+      this_index = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
+                                    this_index, this_control);
+    }
+
+    // Convert the {index} to an unsigned32 value and check if the result is
+    // equal to the original {index}.
+    if (!NumberMatcher(this_index).IsInRange(0.0, kMaxUInt32)) {
+      Node* this_index32 =
+          graph()->NewNode(simplified()->NumberToUint32(), this_index);
+      Node* check = graph()->NewNode(simplified()->NumberEqual(), this_index32,
+                                     this_index);
+      this_control = this_effect =
+          graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                           this_effect, this_control);
+      this_index = this_index32;
     }
 
     // TODO(bmeurer): We currently specialize based on elements kind. We should
@@ -715,8 +721,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                   this_elements, this_effect, this_control);
 
     // Check that the {index} is in the valid range for the {receiver}.
-    this_index = this_effect =
-        graph()->NewNode(simplified()->CheckBounds(), this_index, this_length,
+    Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
+                                   this_length);
+    this_control = this_effect =
+        graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
                          this_effect, this_control);
 
     // Compute the element access.
