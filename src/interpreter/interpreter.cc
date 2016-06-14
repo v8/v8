@@ -1792,6 +1792,17 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   Node* generator_reg = __ BytecodeOperandReg(0);
   Node* generator = __ LoadRegister(generator_reg);
 
+  Label if_stepping(assembler, Label::kDeferred), ok(assembler);
+  Node* step_action_address = __ ExternalConstant(
+      ExternalReference::debug_last_step_action_address(isolate_));
+  Node* step_action = __ Load(MachineType::Int8(), step_action_address);
+  STATIC_ASSERT(StepIn > StepNext);
+  STATIC_ASSERT(StepFrame > StepNext);
+  STATIC_ASSERT(LastStepAction == StepFrame);
+  Node* step_next = __ Int32Constant(StepNext);
+  __ BranchIfInt32LessThanOrEqual(step_next, step_action, &if_stepping, &ok);
+  __ Bind(&ok);
+
   Node* array =
       __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset);
   Node* context = __ GetContext();
@@ -1802,6 +1813,13 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
   __ Dispatch();
+
+  __ Bind(&if_stepping);
+  {
+    Node* context = __ GetContext();
+    __ CallRuntime(Runtime::kDebugRecordAsyncFunction, context, generator);
+    __ Goto(&ok);
+  }
 }
 
 // ResumeGenerator <generator>

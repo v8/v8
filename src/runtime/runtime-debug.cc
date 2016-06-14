@@ -1711,6 +1711,15 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugRecordAsyncFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+  CHECK(isolate->debug()->last_step_action() >= StepNext);
+  isolate->debug()->RecordAsyncFunction(generator);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 2);
   HandleScope scope(isolate);

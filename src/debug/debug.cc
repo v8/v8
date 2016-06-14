@@ -1382,8 +1382,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
 void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
   if (last_step_action() <= StepOut) return;
+  if (!generator_object->function()->shared()->is_async()) return;
   DCHECK(!has_suspended_generator());
-  DCHECK(generator_object->function()->shared()->is_async());
   thread_local_.suspended_generator_ = *generator_object;
   ClearStepping();
 }

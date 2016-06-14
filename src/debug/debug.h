@@ -38,9 +38,10 @@ enum StepAction : int8_t {
   StepNext = 1,   // Step to the next statement in the current function.
   StepIn = 2,     // Step into new functions invoked or the next statement
                   // in the current function.
-  StepFrame = 3   // Step into a new frame or return to previous frame.
-};
+  StepFrame = 3,  // Step into a new frame or return to previous frame.
 
+  LastStepAction = StepFrame
+};
 
 // Type of exception break. NOTE: These values are in macros.py as well.
 enum ExceptionBreakType {
