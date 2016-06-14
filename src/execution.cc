@@ -95,6 +95,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::JS_Execution);
+    TRACE_RUNTIME_CALL("JS_Execution");
     value = CALL_GENERATED_CODE(isolate, stub_entry, orig_func, func, recv,
                                 argc, argv);
   }
