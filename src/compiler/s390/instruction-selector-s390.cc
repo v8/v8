@@ -1191,15 +1191,23 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kS390_AbsDouble, node);
 }
 
-void InstructionSelector::VisitFloat64Log(Node* node) {
+void InstructionSelector::VisitFloat32Sqrt(Node* node) {
+  VisitRR(this, kS390_SqrtFloat, node);
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
   S390OperandGenerator g(this);
-  Emit(kS390_LogDouble, g.DefineAsFixed(node, d1),
-       g.UseFixed(node->InputAt(0), d1))
+  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
       ->MarkAsCall();
 }
 
-void InstructionSelector::VisitFloat32Sqrt(Node* node) {
-  VisitRR(this, kS390_SqrtFloat, node);
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  S390OperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0),
+       g.UseFixed(node->InputAt(1), d2))
+      ->MarkAsCall();
 }
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {

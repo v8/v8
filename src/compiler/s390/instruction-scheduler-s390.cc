@@ -62,7 +62,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_ModU32:
     case kS390_ModU64:
     case kS390_ModDouble:
-    case kS390_LogDouble:
     case kS390_Neg:
     case kS390_NegDouble:
     case kS390_SqrtFloat:

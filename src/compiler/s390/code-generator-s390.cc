@@ -385,6 +385,35 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ MovFromFloatResult(i.OutputDoubleRegister());                          \
   } while (0)
 
+#define ASSEMBLE_IEEE754_UNOP(name)                                            \
+  do {                                                                         \
+    /* TODO(bmeurer): We should really get rid of this special instruction, */ \
+    /* and generate a CallAddress instruction instead. */                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    __ PrepareCallCFunction(0, 1, kScratchReg);                                \
+    __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
+                     0, 1);                                                    \
+    /* Move the result in the double result register. */                       \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                           \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
+  } while (0)
+
+#define ASSEMBLE_IEEE754_BINOP(name)                                           \
+  do {                                                                         \
+    /* TODO(bmeurer): We should really get rid of this special instruction, */ \
+    /* and generate a CallAddress instruction instead. */                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    __ PrepareCallCFunction(0, 2, kScratchReg);                                \
+    __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
+                            i.InputDoubleRegister(1));                         \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
+                     0, 2);                                                    \
+    /* Move the result in the double result register. */                       \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                           \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
+  } while (0)
+
 #define ASSEMBLE_FLOAT_MAX(double_scratch_reg, general_scratch_reg) \
   do {                                                              \
     Label ge, done;                                                 \
@@ -1219,18 +1248,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_ModDouble:
       ASSEMBLE_FLOAT_MODULO();
       break;
-    case kS390_LogDouble: {
-      // TODO(bmeurer): We should really get rid of this special instruction,
-      // and generate a CallAddress instruction instead.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      __ PrepareCallCFunction(0, 1, kScratchReg);
-      __ MovToFloatParameter(i.InputDoubleRegister(0));
-      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0,
-                       1);
-      // Move the result in the double result register.
-      __ MovFromFloatResult(i.OutputDoubleRegister());
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
       break;
-    }
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
+      break;
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
     case kS390_Neg:
       __ LoadComplementRR(i.OutputRegister(), i.InputRegister(0));
       break;
