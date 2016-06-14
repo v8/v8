@@ -1255,7 +1255,8 @@ void PatchPositionsInBytecodeArray(Handle<BytecodeArray> bytecode,
                         iterator.is_statement());
   }
 
-  bytecode->set_source_position_table(*builder.ToSourcePositionTable());
+  Handle<ByteArray> source_position_table = builder.ToSourcePositionTable();
+  bytecode->set_source_position_table(*source_position_table);
 }
 }  // namespace
 
