@@ -867,6 +867,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm memory reference";
     case WASM_MEMORY_SIZE_REFERENCE:
       return "wasm memory size reference";
+    case WASM_GLOBAL_REFERENCE:
+      return "wasm global value reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -964,6 +966,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
+    case WASM_GLOBAL_REFERENCE:
     case NONE32:
     case NONE64:
       break;

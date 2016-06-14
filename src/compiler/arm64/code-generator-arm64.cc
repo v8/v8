@@ -210,7 +210,8 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
           return Operand(constant.ToInt32());
         }
       case Constant::kInt64:
-        if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+        if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+            constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
           return Operand(constant.ToInt64(), constant.rmode());
         } else {
           DCHECK(constant.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);

@@ -386,6 +386,7 @@ class RelocInfo {
     EMBEDDED_OBJECT,
     // To relocate pointers into the wasm memory embedded in wasm code
     WASM_MEMORY_REFERENCE,
+    WASM_GLOBAL_REFERENCE,
     WASM_MEMORY_SIZE_REFERENCE,
     CELL,
 
@@ -529,6 +530,9 @@ class RelocInfo {
   static inline bool IsWasmMemorySizeReference(Mode mode) {
     return mode == WASM_MEMORY_SIZE_REFERENCE;
   }
+  static inline bool IsWasmGlobalReference(Mode mode) {
+    return mode == WASM_GLOBAL_REFERENCE;
+  }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -556,9 +560,13 @@ class RelocInfo {
   bool IsInConstantPool();
 
   Address wasm_memory_reference();
+  Address wasm_global_reference();
   uint32_t wasm_memory_size_reference();
   void update_wasm_memory_reference(
       Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH);
+  void update_wasm_global_reference(
+      Address old_base, Address new_base,
       ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH);
 
   // this relocation applies to;
