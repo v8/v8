@@ -59,12 +59,19 @@ bool Expression::IsStringLiteral() const {
 
 
 bool Expression::IsNullLiteral() const {
-  return IsLiteral() && AsLiteral()->value()->IsNull();
+  if (!IsLiteral()) return false;
+  Handle<Object> value = AsLiteral()->value();
+  return !value->IsSmi() &&
+         value->IsNull(HeapObject::cast(*value)->GetIsolate());
 }
 
 bool Expression::IsUndefinedLiteral() const {
-  if (IsLiteral() && AsLiteral()->value()->IsUndefined()) {
-    return true;
+  if (IsLiteral()) {
+    Handle<Object> value = AsLiteral()->value();
+    if (!value->IsSmi() &&
+        value->IsUndefined(HeapObject::cast(*value)->GetIsolate())) {
+      return true;
+    }
   }
 
   const VariableProxy* var_proxy = AsVariableProxy();
@@ -387,7 +394,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     if (property->is_computed_name()) continue;
     if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
     Literal* literal = property->key()->AsLiteral();
-    DCHECK(!literal->value()->IsNull());
+    DCHECK(!literal->IsNullLiteral());
 
     // If there is an existing entry do not emit a store unless the previous
     // entry was also an accessor.
@@ -457,11 +464,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // (value->IsNumber()).
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
-        (value->IsNumber() || value->IsUninitialized())) {
+        (value->IsNumber() || value->IsUninitialized(isolate))) {
       may_store_doubles_ = true;
     }
 
-    is_simple = is_simple && !value->IsUninitialized();
+    is_simple = is_simple && !value->IsUninitialized(isolate);
 
     // Keep track of the number of elements in the object literal and
     // the largest element index.  If the largest element index is
@@ -529,7 +536,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       continue;
     }
 
-    if (boilerplate_value->IsUninitialized()) {
+    if (boilerplate_value->IsUninitialized(isolate)) {
       boilerplate_value = handle(Smi::FromInt(0), isolate);
       is_simple = false;
     }

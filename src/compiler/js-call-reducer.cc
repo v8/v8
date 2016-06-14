@@ -269,7 +269,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
                                          isolate());
       CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
       ConvertReceiverMode const convert_mode =
-          (bound_this->IsNull() || bound_this->IsUndefined(isolate()))
+          (bound_this->IsNull(isolate()) || bound_this->IsUndefined(isolate()))
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
       size_t arity = p.arity();

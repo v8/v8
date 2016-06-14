@@ -314,7 +314,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   update_receiver_map(receiver);
   if (!name->IsString()) return;
   if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
-  if (receiver->IsUndefined(isolate()) || receiver->IsNull()) return;
+  if (receiver->IsUndefined(isolate()) || receiver->IsNull(isolate())) return;
 
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
@@ -597,7 +597,7 @@ void IC::ConfigureVectorState(MapHandleList* maps,
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
-  if (object->IsUndefined(isolate()) || object->IsNull()) {
+  if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
@@ -1534,7 +1534,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
-  if (object->IsUndefined(isolate()) || object->IsNull()) {
+  if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 

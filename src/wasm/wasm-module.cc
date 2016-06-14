@@ -984,7 +984,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
 
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index) {
-  if (!wasm->IsUndefined()) {
+  if (!wasm->IsUndefined(isolate)) {
     Handle<ByteArray> func_names_arr_obj(
         ByteArray::cast(Handle<JSObject>::cast(wasm)->GetInternalField(
             kWasmFunctionNamesArray)),
@@ -1004,7 +1004,9 @@ Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
                                    uint32_t func_index) {
   Handle<Object> name_or_null =
       GetWasmFunctionNameOrNull(isolate, wasm, func_index);
-  if (!name_or_null->IsNull()) return Handle<String>::cast(name_or_null);
+  if (!name_or_null->IsNull(isolate)) {
+    return Handle<String>::cast(name_or_null);
+  }
   return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 

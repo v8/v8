@@ -210,7 +210,7 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   heap::SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Lookup() should not cause GC ever.
-  CHECK(table->Lookup(key)->IsTheHole());
+  CHECK(table->Lookup(key)->IsTheHole(isolate));
 
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();

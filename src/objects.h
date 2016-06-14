@@ -1001,17 +1001,17 @@ template <class C> inline bool Is(Object* obj);
   V(WeakHashTable)                 \
   V(OrderedHashTable)
 
-#define ODDBALL_LIST(V) \
-  V(Undefined)          \
-  V(Null)               \
-  V(TheHole)            \
-  V(Exception)          \
-  V(Uninitialized)      \
-  V(True)               \
-  V(False)              \
-  V(ArgumentsMarker)    \
-  V(OptimizedOut)       \
-  V(StaleRegister)
+#define ODDBALL_LIST(V)                 \
+  V(Undefined, undefined_value)         \
+  V(Null, null_value)                   \
+  V(TheHole, the_hole_value)            \
+  V(Exception, exception)               \
+  V(Uninitialized, uninitialized_value) \
+  V(True, true_value)                   \
+  V(False, false_value)                 \
+  V(ArgumentsMarker, arguments_marker)  \
+  V(OptimizedOut, optimized_out)        \
+  V(StaleRegister, stale_register)
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
@@ -1027,9 +1027,12 @@ class Object {
   // Type testing.
   bool IsObject() const { return true; }
 
-#define IS_TYPE_FUNCTION_DECL(type_)  INLINE(bool Is##type_() const);
+#define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+#define IS_TYPE_FUNCTION_DECL(Type, Value) \
+  INLINE(bool Is##Type(Isolate* isolate) const);
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
@@ -1063,9 +1066,6 @@ class Object {
   INLINE(bool Is##Name() const);
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
-
-  INLINE(bool IsTheHole(Isolate* isolate) const);
-  INLINE(bool IsUndefined(Isolate* isolate) const);
 
   // ES6, section 7.2.2 IsArray.  NOT to be confused with %_IsArray.
   MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object);
@@ -1549,18 +1549,19 @@ class HeapObject: public Object {
   // Convenience method to get current isolate.
   inline Isolate* GetIsolate() const;
 
-// TODO(cbruni): clean up once isolate-based versions are in place.
-#define IS_TYPE_FUNCTION_DECL(type_) INLINE(bool Is##type_() const);
+#define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+
+#define IS_TYPE_FUNCTION_DECL(Type, Value) \
+  INLINE(bool Is##Type(Isolate* isolate) const);
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
+
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
   INLINE(bool Is##Name() const);
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
-
-  INLINE(bool IsTheHole(Isolate* isolate) const);
-  INLINE(bool IsUndefined(Isolate* isolate) const);
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address) {

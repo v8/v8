@@ -77,7 +77,7 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   RUNTIME_ASSERT(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
-                 args[0]->IsNull());
+                 args[0]->IsNull(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
   isolate->debug()->SetEventListener(callback, data);
@@ -566,7 +566,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
         frame_inspector.GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
     // are passed to the debugger. Eventually we should handle them somehow.
-    if (value->IsOptimizedOut()) value = isolate->factory()->undefined_value();
+    if (value->IsOptimizedOut(isolate)) {
+      value = isolate->factory()->undefined_value();
+    }
     locals->set(local * 2 + 1, *value);
     local++;
   }
@@ -1593,7 +1595,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   // additionally subtracting corresponding offsets.
 
   int32_t line;
-  if (args[1]->IsNull() || args[1]->IsUndefined(isolate)) {
+  if (args[1]->IsNull(isolate) || args[1]->IsUndefined(isolate)) {
     line = 0;
   } else {
     RUNTIME_ASSERT(args[1]->IsNumber());
@@ -1601,7 +1603,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   }
 
   int32_t column;
-  if (args[2]->IsNull() || args[2]->IsUndefined(isolate)) {
+  if (args[2]->IsNull(isolate) || args[2]->IsUndefined(isolate)) {
     column = 0;
   } else {
     RUNTIME_ASSERT(args[2]->IsNumber());

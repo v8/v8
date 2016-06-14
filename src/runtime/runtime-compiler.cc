@@ -303,7 +303,7 @@ RUNTIME_FUNCTION(Runtime_TryInstallOptimizedCode) {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,
                                       Handle<Context> context) {
-  DCHECK(context->allow_code_gen_from_strings()->IsFalse());
+  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
   // Check with callback if set.
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
@@ -326,7 +326,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings()->IsFalse() &&
+  if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
       !CodeGenerationFromStringsAllowed(isolate, native_context)) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();

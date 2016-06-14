@@ -162,24 +162,17 @@ SIMD128_TYPES(SIMD128_TYPE_CHECKER)
     return IsHeapObject() && HeapObject::cast(this)->Is##type_(); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool HeapObject::IsTheHole(Isolate* isolate) const {
-  return this == isolate->heap()->the_hole_value();
-}
-
-bool HeapObject::IsUndefined(Isolate* isolate) const {
-  return this == isolate->heap()->undefined_value();
-}
-
-bool Object::IsTheHole(Isolate* isolate) const {
-  return this == isolate->heap()->the_hole_value();
-}
-
-bool Object::IsUndefined(Isolate* isolate) const {
-  return this == isolate->heap()->undefined_value();
-}
+#define IS_TYPE_FUNCTION_DEF(Type, Value)             \
+  bool Object::Is##Type(Isolate* isolate) const {     \
+    return this == isolate->heap()->Value();          \
+  }                                                   \
+  bool HeapObject::Is##Type(Isolate* isolate) const { \
+    return this == isolate->heap()->Value();          \
+  }
+ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
+#undef IS_TYPE_FUNCTION_DEF
 
 bool HeapObject::IsString() const {
   return map()->instance_type() < FIRST_NONSTRING_TYPE;
@@ -301,12 +294,12 @@ bool Object::FilterKey(PropertyFilter filter) {
 Handle<Object> Object::NewStorageFor(Isolate* isolate,
                                      Handle<Object> object,
                                      Representation representation) {
-  if (representation.IsSmi() && object->IsUninitialized()) {
+  if (representation.IsSmi() && object->IsUninitialized(isolate)) {
     return handle(Smi::FromInt(0), isolate);
   }
   if (!representation.IsDouble()) return object;
   double value;
-  if (object->IsUninitialized()) {
+  if (object->IsUninitialized(isolate)) {
     value = 0;
   } else if (object->IsMutableHeapNumber()) {
     value = HeapNumber::cast(*object)->value();
@@ -320,7 +313,7 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate,
 Handle<Object> Object::WrapForRead(Isolate* isolate,
                                    Handle<Object> object,
                                    Representation representation) {
-  DCHECK(!object->IsUninitialized());
+  DCHECK(!object->IsUninitialized(isolate));
   if (!representation.IsDouble()) {
     DCHECK(object->FitsRepresentation(representation));
     return object;
@@ -955,13 +948,6 @@ bool HeapObject::IsStruct() const {
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
-#define MAKE_ODDBALL_PREDICATE(Name)                                       \
-  bool HeapObject::Is##Name() const {                                      \
-    return IsOddball() && Oddball::cast(this)->kind() == Oddball::k##Name; \
-  }
-ODDBALL_LIST(MAKE_ODDBALL_PREDICATE)
-
-#undef MAKE_ODDBALL_PREDICATE
 double Object::Number() const {
   DCHECK(IsNumber());
   return IsSmi()
@@ -987,7 +973,8 @@ Representation Object::OptimalRepresentation() {
     return Representation::Smi();
   } else if (FLAG_track_double_fields && IsHeapNumber()) {
     return Representation::Double();
-  } else if (FLAG_track_computed_fields && IsUninitialized()) {
+  } else if (FLAG_track_computed_fields &&
+             IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
     return Representation::None();
   } else if (FLAG_track_heap_object_fields) {
     DCHECK(IsHeapObject());
@@ -2201,7 +2188,9 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
     // Nothing more to be done.
-    if (value->IsUninitialized()) return;
+    if (value->IsUninitialized(this->GetIsolate())) {
+      return;
+    }
     if (IsUnboxedDoubleField(index)) {
       RawFastDoublePropertyAtPut(index, value->Number());
     } else {
@@ -2298,8 +2287,8 @@ void Object::VerifyApiCallResultType() {
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-        IsSimd128Value() || IsUndefined(isolate) || IsTrue() || IsFalse() ||
-        IsNull())) {
+        IsSimd128Value() || IsUndefined(isolate) || IsTrue(isolate) ||
+        IsFalse(isolate) || IsNull(isolate))) {
     FATAL("API call returned invalid object");
   }
 #endif  // DEBUG
@@ -5294,7 +5283,7 @@ Object* Map::prototype() const {
 
 
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
-  DCHECK(value->IsNull() || value->IsJSReceiver());
+  DCHECK(value->IsNull(GetIsolate()) || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
 }
@@ -7323,8 +7312,9 @@ void AccessorPair::set(AccessorComponent component, Object* value) {
 
 
 void AccessorPair::SetComponents(Object* getter, Object* setter) {
-  if (!getter->IsNull()) set_getter(getter);
-  if (!setter->IsNull()) set_setter(setter);
+  Isolate* isolate = GetIsolate();
+  if (!getter->IsNull(isolate)) set_getter(getter);
+  if (!setter->IsNull(isolate)) set_setter(setter);
 }
 
 

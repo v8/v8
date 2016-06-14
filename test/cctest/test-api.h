@@ -28,7 +28,7 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   CHECK(!(*o)->IsTheHole(isolate) && !(*o)->IsUndefined(isolate));
   rv.Set(v8::Local<v8::Object>());
   CHECK((*o)->IsTheHole(isolate) || (*o)->IsUndefined(isolate));
-  CHECK_EQ(is_runtime, (*o)->IsTheHole());
+  CHECK_EQ(is_runtime, (*o)->IsTheHole(isolate));
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {

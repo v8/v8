@@ -1403,7 +1403,8 @@ TEST(TestCodeFlushingIncremental) {
   // the loop breaks once the function is enqueued as a candidate.
   for (int i = 0; i < kAgingThreshold; i++) {
     heap::SimulateIncrementalMarking(CcTest::heap());
-    if (!function->next_function_link()->IsUndefined()) break;
+    if (!function->next_function_link()->IsUndefined(CcTest::i_isolate()))
+      break;
     CcTest::heap()->CollectAllGarbage();
   }
 
@@ -1682,7 +1683,7 @@ static void OptimizeEmptyFunction(const char* name) {
 int CountNativeContexts() {
   int count = 0;
   Object* object = CcTest::heap()->native_contexts_list();
-  while (!object->IsUndefined()) {
+  while (!object->IsUndefined(CcTest::i_isolate())) {
     count++;
     object = Context::cast(object)->next_context_link();
   }
@@ -1818,7 +1819,7 @@ static int CountNativeContextsWithGC(Isolate* isolate, int n) {
   Heap* heap = isolate->heap();
   int count = 0;
   Handle<Object> object(heap->native_contexts_list(), isolate);
-  while (!object->IsUndefined()) {
+  while (!object->IsUndefined(isolate)) {
     count++;
     if (count == n) heap->CollectAllGarbage();
     object =
@@ -4663,7 +4664,7 @@ TEST(DisableInlineAllocation) {
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Object* site = heap->allocation_sites_list();
-       !(site->IsUndefined());
+       !(site->IsUndefined(heap->isolate()));
        site = AllocationSite::cast(site)->weak_next()) {
     count++;
   }

@@ -185,7 +185,8 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (args.receiver()->IsNull() || args.receiver()->IsUndefined(isolate)) {   \
+  if (args.receiver()->IsNull(isolate) ||                                     \
+      args.receiver()->IsUndefined(isolate)) {                                \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \
@@ -213,11 +214,11 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
       *out = static_cast<int>(value);
     }
     return true;
-  } else if (object->IsUndefined(isolate) || object->IsNull()) {
+  } else if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
     *out = 0;
     return true;
   } else if (object->IsBoolean()) {
-    *out = object->IsTrue();
+    *out = object->IsTrue(isolate);
     return true;
   }
   return false;
@@ -1495,7 +1496,7 @@ BUILTIN(ArrayConcat) {
 
   Handle<Object> receiver = args.receiver();
   // TODO(bmeurer): Do we really care about the exact exception message here?
-  if (receiver->IsNull() || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1675,7 +1676,7 @@ BUILTIN(ObjectAssign) {
 BUILTIN(ObjectCreate) {
   HandleScope scope(isolate);
   Handle<Object> prototype = args.atOrUndefined(isolate, 1);
-  if (!prototype->IsNull() && !prototype->IsJSReceiver()) {
+  if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
   }
@@ -2180,7 +2181,7 @@ namespace {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,
                                       Handle<Context> context) {
-  DCHECK(context->allow_code_gen_from_strings()->IsFalse());
+  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
   // Check with callback if set.
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
@@ -2203,7 +2204,7 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings()->IsFalse() &&
+  if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
       !CodeGenerationFromStringsAllowed(isolate, native_context)) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
@@ -2904,7 +2905,7 @@ BUILTIN(ReflectSetPrototypeOf) {
                                   "Reflect.setPrototypeOf")));
   }
 
-  if (!proto->IsJSReceiver() && !proto->IsNull()) {
+  if (!proto->IsJSReceiver() && !proto->IsNull(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, proto));
   }
@@ -3330,7 +3331,7 @@ double ParseDateTimeString(Handle<String> str) {
   double const time = MakeTime(tmp->get(3)->Number(), tmp->get(4)->Number(),
                                tmp->get(5)->Number(), tmp->get(6)->Number());
   double date = MakeDate(day, time);
-  if (tmp->get(7)->IsNull()) {
+  if (tmp->get(7)->IsNull(isolate)) {
     if (!std::isnan(date)) {
       date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
     }
@@ -5091,7 +5092,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
   Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, *receiver);
 
-  if (raw_holder->IsNull()) {
+  if (raw_holder->IsNull(isolate)) {
     // This function cannot be called with the given receiver.  Abort!
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIllegalInvocation),
                     Object);

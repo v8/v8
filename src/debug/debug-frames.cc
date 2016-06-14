@@ -138,7 +138,9 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
     if (value->IsTheHole(isolate_)) {
       value = isolate_->factory()->undefined_value();
     }
-    if (value->IsOptimizedOut()) value = isolate_->factory()->undefined_value();
+    if (value->IsOptimizedOut(isolate_)) {
+      value = isolate_->factory()->undefined_value();
+    }
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
 }
