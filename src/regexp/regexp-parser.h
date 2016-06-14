@@ -174,7 +174,7 @@ class RegExpParser BASE_EMBEDDED {
   bool ParseHexEscape(int length, uc32* value);
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
-  bool ParsePropertyClass(ZoneList<CharacterRange>* result);
+  bool ParsePropertyClass(ZoneList<CharacterRange>* result, bool negate);
 
   uc32 ParseOctalLiteral();
 
