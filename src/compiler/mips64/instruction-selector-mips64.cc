@@ -1964,6 +1964,9 @@ void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
   VisitRR(this, kMips64Float64ExtractHighWord32, node);
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kMips64Float64SilenceNaN, node);
+}
 
 void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Mips64OperandGenerator g(this);

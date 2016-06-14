@@ -1035,6 +1035,13 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
+    case IrOpcode::kFloat64SilenceNaN:
+      MarkAsFloat64(node);
+      if (CanProduceSignalingNaN(node->InputAt(0))) {
+        return VisitFloat64SilenceNaN(node);
+      } else {
+        return EmitIdentity(node);
+      }
     case IrOpcode::kTruncateFloat64ToUint32:
       return MarkAsWord32(node), VisitTruncateFloat64ToUint32(node);
     case IrOpcode::kTruncateFloat32ToInt32:
@@ -1301,9 +1308,7 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
-  OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+  EmitIdentity(node);
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -1475,12 +1480,7 @@ void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
-void InstructionSelector::VisitFinishRegion(Node* node) {
-  OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-}
-
+void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
@@ -1806,6 +1806,12 @@ Instruction* InstructionSelector::EmitDeoptimize(
               nullptr);
 }
 
+void InstructionSelector::EmitIdentity(Node* node) {
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+}
+
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
   InstructionCode opcode = kArchDeoptimize;
   switch (kind) {
@@ -1834,6 +1840,16 @@ void InstructionSelector::VisitComment(Node* node) {
   OperandGenerator g(this);
   InstructionOperand operand(g.UseImmediate(node));
   Emit(kArchComment, 0, nullptr, 1, &operand);
+}
+
+bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
+  // TODO(jarin) Improve the heuristic here.
+  if (node->opcode() == IrOpcode::kFloat64Add ||
+      node->opcode() == IrOpcode::kFloat64Sub ||
+      node->opcode() == IrOpcode::kFloat64Mul) {
+    return false;
+  }
+  return true;
 }
 
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(

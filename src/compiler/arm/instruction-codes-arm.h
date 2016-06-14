@@ -106,6 +106,7 @@ namespace compiler {
   V(ArmFloat32Min)                 \
   V(ArmFloat64Max)                 \
   V(ArmFloat64Min)                 \
+  V(ArmFloat64SilenceNaN)          \
   V(ArmLdrb)                       \
   V(ArmLdrsb)                      \
   V(ArmStrb)                       \

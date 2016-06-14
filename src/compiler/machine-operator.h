@@ -382,6 +382,10 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64InsertLowWord32();
   const Operator* Float64InsertHighWord32();
 
+  // Change signalling NaN to quiet NaN.
+  // Identity for any input that is not signalling NaN.
+  const Operator* Float64SilenceNaN();
+
   // SIMD operators.
   const Operator* CreateFloat32x4();
   const Operator* Float32x4ExtractLane();

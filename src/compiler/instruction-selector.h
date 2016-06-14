@@ -273,6 +273,9 @@ class InstructionSelector final {
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);
 
+  void EmitIdentity(Node* node);
+  bool CanProduceSignalingNaN(Node* node);
+
   // ===========================================================================
 
   Schedule* schedule() const { return schedule_; }

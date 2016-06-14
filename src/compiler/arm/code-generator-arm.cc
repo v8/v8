@@ -1252,6 +1252,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vsel(gt, result, a, b);
       break;
     }
+    case kArmFloat64SilenceNaN: {
+      DwVfpRegister value = i.InputFloat64Register(0);
+      DwVfpRegister result = i.OutputFloat64Register(0);
+      __ VFPCanonicalizeNaN(result, value);
+      break;
+    }
     case kArmPush:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));

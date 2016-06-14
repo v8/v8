@@ -1398,6 +1398,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float64MoveU64:
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;
+    case kArm64Float64SilenceNaN:
+      __ CanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64U64MoveFloat64:
       __ Fmov(i.OutputRegister(), i.InputDoubleRegister(0));
       break;

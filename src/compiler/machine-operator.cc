@@ -130,6 +130,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                      \
   V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \

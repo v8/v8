@@ -556,7 +556,6 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
   return Type::Unsigned32();
 }
 
-
 // Type checks.
 
 Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
@@ -2306,6 +2305,9 @@ Type* Typer::Visitor::TypeChangeFloat64ToInt32(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
 }
 
+Type* Typer::Visitor::TypeNumberSilenceNaN(Node* node) {
+  return Type::Number();
+}
 
 Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
   return Type::Intersect(Type::Unsigned32(), Type::UntaggedIntegral32(),
@@ -2352,6 +2354,9 @@ Type* Typer::Visitor::TypeChangeInt32ToFloat64(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedFloat64(), zone());
 }
 
+Type* Typer::Visitor::TypeFloat64SilenceNaN(Node* node) {
+  return Type::UntaggedFloat64();
+}
 
 Type* Typer::Visitor::TypeChangeInt32ToInt64(Node* node) {
   return Type::Internal();

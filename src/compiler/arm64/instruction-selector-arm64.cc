@@ -2401,6 +2401,10 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kArm64Float64SilenceNaN, node);
+}
+
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   Arm64OperandGenerator g(this);

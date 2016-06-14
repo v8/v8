@@ -206,6 +206,7 @@
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
   V(NumberIsHoleNaN)               \
+  V(NumberSilenceNaN)              \
   V(StringFromCharCode)            \
   V(StringToNumber)                \
   V(ChangeTaggedSignedToInt32)     \
@@ -314,6 +315,7 @@
   V(ChangeFloat32ToFloat64)     \
   V(ChangeFloat64ToInt32)       \
   V(ChangeFloat64ToUint32)      \
+  V(Float64SilenceNaN)          \
   V(TruncateFloat64ToUint32)    \
   V(TruncateFloat32ToInt32)     \
   V(TruncateFloat32ToUint32)    \

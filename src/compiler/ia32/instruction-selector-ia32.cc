@@ -1600,6 +1600,12 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.Use(right));
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kSSEFloat64SilenceNaN, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||

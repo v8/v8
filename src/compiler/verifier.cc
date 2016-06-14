@@ -970,6 +970,10 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
       CheckNotTyped(node);
       break;
+    case IrOpcode::kNumberSilenceNaN:
+      CheckValueInputIs(node, 0, Type::NumberOrUndefined());
+      CheckUpperIs(node, Type::Number());
+      break;
 
     // Machine operators
     // -----------------------
@@ -1090,6 +1094,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
+    case IrOpcode::kFloat64SilenceNaN:
     case IrOpcode::kTruncateFloat64ToUint32:
     case IrOpcode::kTruncateFloat32ToInt32:
     case IrOpcode::kTruncateFloat32ToUint32:

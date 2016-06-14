@@ -104,6 +104,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64InsertLowWord32:
     case kSSEFloat64InsertHighWord32:
     case kSSEFloat64LoadLowWord32:
+    case kSSEFloat64SilenceNaN:
     case kAVXFloat32Cmp:
     case kAVXFloat32Add:
     case kAVXFloat32Sub:

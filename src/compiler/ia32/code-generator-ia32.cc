@@ -1164,6 +1164,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg, i.InputOperand(0));
       break;
     }
+    case kSSEFloat64SilenceNaN:
+      __ xorpd(kScratchDoubleReg, kScratchDoubleReg);
+      __ subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
+      break;
     case kIA32Movsxbl:
       __ movsx_b(i.OutputRegister(), i.MemoryOperand());
       break;

@@ -164,6 +164,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberToUint32();
   const Operator* NumberIsHoleNaN();
 
+  const Operator* NumberSilenceNaN();
+
   const Operator* SpeculativeNumberAdd(BinaryOperationHints::Hint hint);
   const Operator* SpeculativeNumberSubtract(BinaryOperationHints::Hint hint);
 

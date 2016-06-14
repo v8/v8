@@ -1292,6 +1292,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kMips64Float64SilenceNaN:
+      __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kMips64Float32Max: {
       // (b < a) ? a : b
       if (kArchVariant == kMips64r6) {

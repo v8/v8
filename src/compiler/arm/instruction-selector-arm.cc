@@ -1374,6 +1374,10 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
   VisitRRR(this, kArmFloat64Max, node);
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kArmFloat64SilenceNaN, node);
+}
+
 void InstructionSelector::VisitFloat32Min(Node* node) {
   DCHECK(IsSupported(ARMv8));
   VisitRRR(this, kArmFloat32Min, node);

@@ -1810,6 +1810,9 @@ class RepresentationSelector {
       case IrOpcode::kFloat64RoundUp:
         return VisitUnop(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
+      case IrOpcode::kFloat64SilenceNaN:
+        return VisitUnop(node, UseInfo::TruncatingFloat64(),
+                         MachineRepresentation::kFloat64);
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
@@ -1823,6 +1826,11 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::TruncatingFloat64(),
                           UseInfo::TruncatingWord32(),
                           MachineRepresentation::kFloat64);
+      case IrOpcode::kNumberSilenceNaN:
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
+        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        return;
       case IrOpcode::kLoadStackPointer:
       case IrOpcode::kLoadFramePointer:
       case IrOpcode::kLoadParentFramePointer:

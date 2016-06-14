@@ -1558,6 +1558,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kSSEFloat64SilenceNaN:
+      __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
+      break;
     case kX64Movsxbl:
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
