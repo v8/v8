@@ -78,12 +78,6 @@ TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
 }
 
 
-// static
-int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) {
-  return kReservedIndexCount + slot.ToInt();
-}
-
-
 // Conversion from an integer index to either a slot or an ic slot. The caller
 // should know what kind she expects.
 // static

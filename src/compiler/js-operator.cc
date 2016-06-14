@@ -9,8 +9,8 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
-#include "src/type-feedback-vector-inl.h"
+#include "src/handles-inl.h"
+#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {

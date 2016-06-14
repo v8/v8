@@ -201,7 +201,9 @@ class TypeFeedbackVector : public FixedArray {
   inline TypeFeedbackMetadata* metadata() const;
 
   // Conversion from a slot to an integer index to the underlying array.
-  static inline int GetIndex(FeedbackVectorSlot slot);
+  static int GetIndex(FeedbackVectorSlot slot) {
+    return kReservedIndexCount + slot.ToInt();
+  }
   static int GetIndexFromSpec(const FeedbackVectorSpec* spec,
                               FeedbackVectorSlot slot);
 
