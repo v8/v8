@@ -416,9 +416,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTruncateTaggedToFloat64:
       state = LowerTruncateTaggedToFloat64(node, *effect, *control);
       break;
-    case IrOpcode::kCheckBounds:
-      state = LowerCheckBounds(node, frame_state, *effect, *control);
-      break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
@@ -762,22 +759,6 @@ EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
-                                          Node* effect, Node* control) {
-  Node* index = node->InputAt(0);
-  Node* limit = node->InputAt(1);
-
-  Node* check = graph()->NewNode(machine()->Uint32LessThan(), index, limit);
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, effect, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
-  return ValueEffectControl(index, effect, control);
-}
-
-EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
                                                    Node* frame_state,
                                                    Node* effect,
@@ -865,36 +846,26 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
 
   // In the non-Smi case, check the heap numberness, load the number and convert
   // to int32.
+  // TODO(jarin) Propagate/handle possible truncations here.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  Node* vfalse;
-  {
-    Node* value_map = efalse =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         value, efalse, if_false);
-    Node* check = graph()->NewNode(machine()->WordEqual(), value_map,
-                                   jsgraph()->HeapNumberMapConstant());
-    if_false = efalse = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                         frame_state, efalse, if_false);
-    vfalse = efalse = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
-        efalse, if_false);
-    ValueEffectControl state =
-        BuildCheckedFloat64ToInt32(vfalse, frame_state, efalse, if_false);
-    if_false = state.control;
-    efalse = state.effect;
-    vfalse = state.value;
-  }
+  ValueEffectControl number_state = BuildCheckedHeapNumberOrOddballToFloat64(
+      value, frame_state, effect, if_false);
+  number_state =
+      BuildCheckedFloat64ToInt32(number_state.value, frame_state,
+                                 number_state.effect, number_state.control);
 
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-  value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
-                           vtrue, vfalse, control);
+  Node* merge =
+      graph()->NewNode(common()->Merge(2), if_true, number_state.control);
+  Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), etrue,
+                                      number_state.effect, merge);
+  Node* result =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue,
+                       number_state.value, merge);
 
   // Make sure the lowered node does not appear in any use lists.
   node->TrimInputCount(0);
 
-  return ValueEffectControl(value, effect, control);
+  return ValueEffectControl(result, effect_phi, merge);
 }
 
 EffectControlLinearizer::ValueEffectControl

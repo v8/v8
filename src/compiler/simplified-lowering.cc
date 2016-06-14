@@ -1575,13 +1575,6 @@ class RepresentationSelector {
         }
         return;
       }
-
-      case IrOpcode::kCheckBounds: {
-        VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
-                   UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
-        return;
-      }
-
       case IrOpcode::kAllocate: {
         ProcessInput(node, 0, UseInfo::TruncatingWord32());
         ProcessRemainingInputs(node, 1);

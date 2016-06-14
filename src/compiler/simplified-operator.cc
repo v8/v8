@@ -334,12 +334,6 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckBounds() {
-  // TODO(bmeurer): Cache this operator. Make it pure!
-  return new (zone()) Operator(IrOpcode::kCheckBounds, Operator::kEliminatable,
-                               "CheckBounds", 2, 1, 1, 1, 1, 0);
-}
-
 const Operator* SimplifiedOperatorBuilder::TypeGuard(Type* type) {
   class TypeGuardOperator final : public Operator1<Type*> {
    public:
