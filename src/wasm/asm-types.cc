@@ -29,6 +29,7 @@ std::string AsmType::Name() {
         UNREACHABLE();
     }
   }
+
   return this->AsCallableType()->Name();
 }
 
@@ -42,6 +43,7 @@ bool AsmType::IsExactly(AsmType* that) {
     }
     return avt->Bitset() == tavt->Bitset();
   }
+
   // TODO(jpp): is it useful to allow non-value types to be tested with
   // IsExactly?
   return that == this;
@@ -58,6 +60,7 @@ bool AsmType::IsA(AsmType* that) {
     }
     return (avt->Bitset() & tavt->Bitset()) == tavt->Bitset();
   }
+
   // TODO(jpp): is it useful to allow non-value types to be tested with IsA?
   return that == this;
 }
@@ -130,6 +133,10 @@ AsmType* AsmType::StoreType() {
 }
 
 std::string AsmFunctionType::Name() {
+  if (IsFroundType()) {
+    return "fround";
+  }
+
   std::string ret;
   ret += "(";
   for (size_t ii = 0; ii < args_.size(); ++ii) {
@@ -155,17 +162,31 @@ class AsmFroundType final : public AsmFunctionType {
  private:
   friend AsmType;
 
-  AsmFroundType(Zone* zone, AsmType* src)
-      : AsmFunctionType(zone, AsmType::Float()) {
-    AddArgument(src);
-  }
+  explicit AsmFroundType(Zone* zone)
+      : AsmFunctionType(zone, AsmType::Float()) {}
+
+  AsmType* ValidateCall(AsmType* function_type) override;
 };
 }  // namespace
 
-AsmType* AsmType::FroundType(Zone* zone, AsmType* src) {
-  DCHECK(src->AsValueType() != nullptr);
-  auto* Fround = new (zone) AsmFroundType(zone, src);
+AsmType* AsmType::FroundType(Zone* zone) {
+  auto* Fround = new (zone) AsmFroundType(zone);
   return reinterpret_cast<AsmType*>(Fround);
+}
+
+AsmType* AsmFroundType::ValidateCall(AsmType* function_type) {
+  auto* callable = function_type->AsFunctionType();
+  if (callable->Arguments().size() != 1) {
+    return AsmType::None();
+  }
+
+  auto* arg = callable->Arguments()[0];
+  if (!arg->IsA(AsmType::Floatish()) && !arg->IsA(AsmType::DoubleQ()) &&
+      !arg->IsA(AsmType::Signed()) && !arg->IsA(AsmType::Unsigned())) {
+    return AsmType::None();
+  }
+
+  return AsmType::Float();
 }
 
 namespace {
@@ -176,9 +197,10 @@ class AsmMinMaxType final : public AsmFunctionType {
  private:
   friend AsmType;
 
-  AsmMinMaxType(Zone* zone, AsmType* type) : AsmFunctionType(zone, type) {
-    AddArgument(type);
-    AddArgument(type);
+  AsmMinMaxType(Zone* zone, AsmType* dest, AsmType* src)
+      : AsmFunctionType(zone, dest) {
+    AddArgument(src);
+    AddArgument(src);
   }
 
   AsmType* ValidateCall(AsmType* function_type) override {
@@ -206,9 +228,10 @@ class AsmMinMaxType final : public AsmFunctionType {
 };
 }  // namespace
 
-AsmType* AsmType::MinMaxType(Zone* zone, AsmType* type) {
-  DCHECK(type->AsValueType() != nullptr);
-  auto* MinMax = new (zone) AsmMinMaxType(zone, type);
+AsmType* AsmType::MinMaxType(Zone* zone, AsmType* dest, AsmType* src) {
+  DCHECK(dest->AsValueType() != nullptr);
+  DCHECK(src->AsValueType() != nullptr);
+  auto* MinMax = new (zone) AsmMinMaxType(zone, dest, src);
   return reinterpret_cast<AsmType*>(MinMax);
 }
 

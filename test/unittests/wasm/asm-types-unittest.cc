@@ -149,6 +149,9 @@ TEST_F(AsmTypeTest, ValidateBits) {
 #define V(CamelName, string_name, number, parent_types)                      \
   do {                                                                       \
     ++total_types;                                                           \
+    if (AsmValueTypeParents::CamelName != 0) {                               \
+      EXPECT_NE(0, ParentsOf(AsmType::CamelName()).size()) << #CamelName;    \
+    }                                                                        \
     seen_types.insert(Type::CamelName());                                    \
     seen_numbers.insert(number);                                             \
     /* Every ASM type must have a valid number. */                           \
@@ -216,19 +219,14 @@ TEST_F(AsmTypeTest, Names) {
                   ->Name(),
               StrEq("(double, float) -> int /\\ (int) -> int"));
 
-  EXPECT_THAT(Type::FroundType(zone(), Type::Int())->Name(),
-              StrEq("(int) -> float"));
-  EXPECT_THAT(Type::FroundType(zone(), Type::Floatish())->Name(),
-              StrEq("(floatish) -> float"));
-  EXPECT_THAT(Type::FroundType(zone(), Type::DoubleQ())->Name(),
-              StrEq("(double?) -> float"));
+  EXPECT_THAT(Type::FroundType(zone())->Name(), StrEq("fround"));
 
-  EXPECT_THAT(Type::MinMaxType(zone(), Type::Int())->Name(),
-              StrEq("(int, int...) -> int"));
-  EXPECT_THAT(Type::MinMaxType(zone(), Type::Floatish())->Name(),
-              StrEq("(floatish, floatish...) -> floatish"));
-  EXPECT_THAT(Type::MinMaxType(zone(), Type::DoubleQ())->Name(),
-              StrEq("(double?, double?...) -> double?"));
+  EXPECT_THAT(Type::MinMaxType(zone(), Type::Signed(), Type::Int())->Name(),
+              StrEq("(int, int...) -> signed"));
+  EXPECT_THAT(Type::MinMaxType(zone(), Type::Float(), Type::Floatish())->Name(),
+              StrEq("(floatish, floatish...) -> float"));
+  EXPECT_THAT(Type::MinMaxType(zone(), Type::Double(), Type::Double())->Name(),
+              StrEq("(double, double...) -> double"));
 }
 
 TEST_F(AsmTypeTest, IsExactly) {
@@ -240,8 +238,8 @@ TEST_F(AsmTypeTest, IsExactly) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -263,8 +261,8 @@ TEST_F(AsmTypeTest, IsA) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -279,21 +277,23 @@ TEST_F(AsmTypeTest, IsA) {
 }
 
 TEST_F(AsmTypeTest, ValidateCall) {
-  auto* min_max_int = Type::MinMaxType(zone(), Type::Int());
-  auto* i2i = Function(Type::Int)(Type::Int);
-  auto* ii2i = Function(Type::Int)(Type::Int, Type::Int);
-  auto* iii2i = Function(Type::Int)(Type::Int, Type::Int, Type::Int);
-  auto* iiii2i =
-      Function(Type::Int)(Type::Int, Type::Int, Type::Int, Type::Int);
+  auto* min_max_int = Type::MinMaxType(zone(), Type::Signed(), Type::Int());
+  auto* i2s = Function(Type::Signed)(Type::Int);
+  auto* ii2s = Function(Type::Signed)(Type::Int, Type::Int);
+  auto* iii2s = Function(Type::Signed)(Type::Int, Type::Int, Type::Int);
+  auto* iiii2s =
+      Function(Type::Signed)(Type::Int, Type::Int, Type::Int, Type::Int);
 
-  EXPECT_EQ(Type::Int(),
+  EXPECT_EQ(Type::Signed(),
             min_max_int->AsCallableType()->ValidateCall(min_max_int));
-  EXPECT_EQ(Type::Int(), min_max_int->AsCallableType()->ValidateCall(ii2i));
-  EXPECT_EQ(Type::Int(), min_max_int->AsCallableType()->ValidateCall(iii2i));
-  EXPECT_EQ(Type::Int(), min_max_int->AsCallableType()->ValidateCall(iiii2i));
-  EXPECT_EQ(Type::None(), min_max_int->AsCallableType()->ValidateCall(i2i));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(ii2s));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(iii2s));
+  EXPECT_EQ(Type::Signed(),
+            min_max_int->AsCallableType()->ValidateCall(iiii2s));
+  EXPECT_EQ(Type::None(), min_max_int->AsCallableType()->ValidateCall(i2s));
 
-  auto* min_max_double = Type::MinMaxType(zone(), Type::Double());
+  auto* min_max_double =
+      Type::MinMaxType(zone(), Type::Double(), Type::Double());
   auto* d2d = Function(Type::Double)(Type::Double);
   auto* dd2d = Function(Type::Double)(Type::Double, Type::Double);
   auto* ddd2d =
@@ -312,29 +312,20 @@ TEST_F(AsmTypeTest, ValidateCall) {
 
   auto* min_max = Overload(min_max_int, min_max_double);
   EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(min_max));
-  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(i2i));
+  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(i2s));
   EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(d2d));
-  EXPECT_EQ(Type::Int(), min_max->AsCallableType()->ValidateCall(min_max_int));
-  EXPECT_EQ(Type::Int(), min_max->AsCallableType()->ValidateCall(ii2i));
-  EXPECT_EQ(Type::Int(), min_max->AsCallableType()->ValidateCall(iii2i));
-  EXPECT_EQ(Type::Int(), min_max->AsCallableType()->ValidateCall(iiii2i));
+  EXPECT_EQ(Type::Signed(),
+            min_max->AsCallableType()->ValidateCall(min_max_int));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(ii2s));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(iii2s));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(iiii2s));
   EXPECT_EQ(Type::Double(),
             min_max->AsCallableType()->ValidateCall(min_max_double));
   EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(dd2d));
   EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(ddd2d));
   EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(dddd2d));
 
-  auto* fround_floatish = Type::FroundType(zone(), Type::Floatish());
-  auto* fround_floatq = Type::FroundType(zone(), Type::FloatQ());
-  auto* fround_float = Type::FroundType(zone(), Type::Float());
-  auto* fround_doubleq = Type::FroundType(zone(), Type::DoubleQ());
-  auto* fround_double = Type::FroundType(zone(), Type::Double());
-  auto* fround_signed = Type::FroundType(zone(), Type::Signed());
-  auto* fround_unsigned = Type::FroundType(zone(), Type::Unsigned());
-  auto* fround_fixnum = Type::FroundType(zone(), Type::FixNum());
-  auto* fround =
-      Overload(fround_floatish, fround_floatq, fround_float, fround_doubleq,
-               fround_double, fround_signed, fround_unsigned, fround_fixnum);
+  auto* fround = Type::FroundType(zone());
 
   EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
                                Function(Type::Float)(Type::Floatish)));
@@ -377,8 +368,8 @@ TEST_F(AsmTypeTest, IsReturnType) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   std::unordered_set<Type*> return_types{
@@ -402,8 +393,8 @@ TEST_F(AsmTypeTest, IsParameterType) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   std::unordered_set<Type*> parameter_types{
@@ -428,8 +419,8 @@ TEST_F(AsmTypeTest, IsComparableType) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   std::unordered_set<Type*> comparable_types{
@@ -454,8 +445,8 @@ TEST_F(AsmTypeTest, ElementSizeInBytes) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   auto ElementSizeInBytesForType = [](Type* type) -> int32_t {
@@ -490,8 +481,8 @@ TEST_F(AsmTypeTest, LoadType) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   auto LoadTypeForType = [](Type* type) -> Type* {
@@ -526,8 +517,8 @@ TEST_F(AsmTypeTest, StoreType) {
       Function(Type::Int)(Type::DoubleQ),
       Overload(Function(Type::Int)(Type::Double)),
       Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Int()), Function(Type::Int)(Type::Float),
-      Type::FroundType(zone(), Type::Int()),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
   };
 
   auto StoreTypeForType = [](Type* type) -> Type* {

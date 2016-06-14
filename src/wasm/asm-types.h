@@ -6,7 +6,6 @@
 #define SRC_WASM_ASM_TYPES_H_
 
 #include <string>
-#include <type_traits>
 
 #include "src/base/macros.h"
 #include "src/zone-containers.h"
@@ -47,8 +46,9 @@ class AsmOverloadedFunctionType;
   V(Int32Array, "Int32Array", 19, kAsmHeap)                                   \
   V(Float32Array, "Float32Array", 20, kAsmHeap)                               \
   V(Float64Array, "Float64Array", 21, kAsmHeap)                               \
-  V(FloatishDoubleQ, "floatish|double?", 22, kAsmFloatish | kAsmDoubleQ)      \
-  V(FloatQDoubleQ, "float?|double?", 23, kAsmFloatQ | kAsmDoubleQ)            \
+  /* Pseudo-types used in representing heap access for fp types.*/            \
+  V(FloatishDoubleQ, "floatish|double?", 23, kAsmFloatish | kAsmDoubleQ)      \
+  V(FloatQDoubleQ, "float?|double?", 24, kAsmFloatQ | kAsmDoubleQ)            \
   /* None is used to represent errors in the type checker. */                 \
   V(None, "<none>", 31, 0)
 
@@ -200,10 +200,10 @@ class AsmType {
   }
 
   // The type for fround(src).
-  static AsmType* FroundType(Zone* zone, AsmType* src);
+  static AsmType* FroundType(Zone* zone);
 
   // The (variadic) type for min and max.
-  static AsmType* MinMaxType(Zone* zone, AsmType* type);
+  static AsmType* MinMaxType(Zone* zone, AsmType* dest, AsmType* src);
 
   std::string Name();
   // IsExactly returns true if this is the exact same type as that. For
