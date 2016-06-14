@@ -25,7 +25,7 @@ namespace internal {
 void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ dsll(t9, a0, kPointerSizeLog2);
   __ Daddu(t9, sp, t9);
-  __ sw(a1, MemOperand(t9, 0));
+  __ sd(a1, MemOperand(t9, 0));
   __ Push(a1);
   __ Push(a2);
   __ Daddu(a0, a0, 3);
