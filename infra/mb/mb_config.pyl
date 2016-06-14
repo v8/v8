@@ -14,9 +14,9 @@
 
   'configs': {
     'gyp_swarming_release': [
-      'release_bot', 'swarming_bot', 'gyp'],
+      'release_bot', 'swarming', 'gyp'],
     'gn_swarming_release': [
-      'release_bot', 'swarming_bot', 'gn'],
+      'release_bot', 'swarming', 'gn'],
   },
 
   'mixins': {
@@ -39,16 +39,6 @@
 
     'gyp': {'type': 'gyp'},
 
-    # TODO(machenbach): Remove the following two configs, once the v8 default
-    # has changed.
-    'no_sysroot': {
-      'gn_args': 'use_sysroot=false',
-    },
-
-    'no_icu_data_file': {
-      'gn_args': 'icu_use_data_file=false',
-    },
-
     'release': {
       'gn_args': 'is_debug=false',
     },
@@ -70,10 +60,6 @@
     'swarming': {
       'gn_args': 'v8_test_isolation_mode="prepare"',
       'gyp_defines': 'test_isolation_mode=prepare',
-    },
-
-    'swarming_bot': {
-      'mixins': ['swarming', 'no_sysroot', 'no_icu_data_file'],
     },
   },
 }
