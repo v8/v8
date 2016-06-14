@@ -5214,7 +5214,7 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
   // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
-    for (int i = 0; i < use_counts_[feature]; ++i) {
+    if (use_counts_[feature] > 0) {
       isolate->CountUsage(v8::Isolate::UseCounterFeature(feature));
     }
   }

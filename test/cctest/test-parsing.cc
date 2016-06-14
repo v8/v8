@@ -3569,10 +3569,8 @@ TEST(UseAsmUseCount) {
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("\"use asm\";\n"
              "var foo = 1;\n"
-             "\"use asm\";\n"  // Only the first one counts.
              "function bar() { \"use asm\"; var baz = 1; }");
-  // Optimizing will double-count because the source is parsed twice.
-  CHECK_EQ(i::FLAG_always_opt ? 4 : 2, use_counts[v8::Isolate::kUseAsm]);
+  CHECK_LT(0, use_counts[v8::Isolate::kUseAsm]);
 }
 
 
