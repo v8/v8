@@ -167,8 +167,10 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   ParallelMove* Create(int size) {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
     std::set<InstructionOperand, CompareOperandModuloType> seen;
+    MachineRepresentation rep = RandomRepresentation();
     for (int i = 0; i < size; ++i) {
-      MoveOperands mo(CreateRandomOperand(true), CreateRandomOperand(false));
+      MoveOperands mo(CreateRandomOperand(true, rep),
+                      CreateRandomOperand(false, rep));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
         parallel_move->AddMove(mo.source(), mo.destination());
         seen.insert(mo.destination());
@@ -179,52 +181,43 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
  private:
   MachineRepresentation RandomRepresentation() {
-    int index = rng_->NextInt(3);
+    int index = rng_->NextInt(5);
     switch (index) {
       case 0:
         return MachineRepresentation::kWord32;
       case 1:
         return MachineRepresentation::kWord64;
       case 2:
+        return MachineRepresentation::kFloat32;
+      case 3:
+        return MachineRepresentation::kFloat64;
+      case 4:
         return MachineRepresentation::kTagged;
     }
     UNREACHABLE();
     return MachineRepresentation::kNone;
   }
 
-  MachineRepresentation RandomDoubleRepresentation() {
-    int index = rng_->NextInt(2);
-    if (index == 0) return MachineRepresentation::kFloat64;
-    return MachineRepresentation::kFloat32;
-  }
-
-  InstructionOperand CreateRandomOperand(bool is_source) {
+  InstructionOperand CreateRandomOperand(bool is_source,
+                                         MachineRepresentation rep) {
     int index = rng_->NextInt(7);
     // destination can't be Constant.
-    switch (rng_->NextInt(is_source ? 7 : 6)) {
+    switch (rng_->NextInt(is_source ? 5 : 4)) {
       case 0:
-        return AllocatedOperand(LocationOperand::STACK_SLOT,
-                                RandomRepresentation(), index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, rep, index);
       case 1:
-        return AllocatedOperand(LocationOperand::STACK_SLOT,
-                                RandomDoubleRepresentation(), index);
+        return AllocatedOperand(LocationOperand::REGISTER, rep, index);
       case 2:
-        return AllocatedOperand(LocationOperand::REGISTER,
-                                RandomRepresentation(), index);
-      case 3:
-        return AllocatedOperand(LocationOperand::REGISTER,
-                                RandomDoubleRepresentation(), index);
-      case 4:
         return ExplicitOperand(
-            LocationOperand::REGISTER, RandomRepresentation(),
+            LocationOperand::REGISTER, rep,
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
                 ->GetAllocatableGeneralCode(1));
-      case 5:
+      case 3:
         return ExplicitOperand(
-            LocationOperand::STACK_SLOT, RandomRepresentation(),
+            LocationOperand::STACK_SLOT, rep,
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
                 ->GetAllocatableGeneralCode(index));
-      case 6:
+      case 4:
         return ConstantOperand(index);
     }
     UNREACHABLE();
