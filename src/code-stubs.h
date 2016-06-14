@@ -2734,13 +2734,11 @@ class StoreFastElementStub : public HydrogenCodeStub {
 
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
-  TransitionElementsKindStub(Isolate* isolate,
-                             ElementsKind from_kind,
-                             ElementsKind to_kind,
-                             bool is_js_array) : HydrogenCodeStub(isolate) {
+  TransitionElementsKindStub(Isolate* isolate, ElementsKind from_kind,
+                             ElementsKind to_kind)
+      : HydrogenCodeStub(isolate) {
     set_sub_minor_key(FromKindBits::encode(from_kind) |
-                      ToKindBits::encode(to_kind) |
-                      IsJSArrayBits::encode(is_js_array));
+                      ToKindBits::encode(to_kind));
   }
 
   ElementsKind from_kind() const {
@@ -2749,12 +2747,9 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
 
   ElementsKind to_kind() const { return ToKindBits::decode(sub_minor_key()); }
 
-  bool is_js_array() const { return IsJSArrayBits::decode(sub_minor_key()); }
-
  private:
   class FromKindBits: public BitField<ElementsKind, 8, 8> {};
   class ToKindBits: public BitField<ElementsKind, 0, 8> {};
-  class IsJSArrayBits: public BitField<bool, 16, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TransitionElementsKind);
   DEFINE_HYDROGEN_CODE_STUB(TransitionElementsKind, HydrogenCodeStub);

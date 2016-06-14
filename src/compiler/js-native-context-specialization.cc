@@ -625,8 +625,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           // Instance migration, let the stub deal with the {receiver}.
           TransitionElementsKindStub stub(isolate(),
                                           transition_source->elements_kind(),
-                                          transition_target->elements_kind(),
-                                          transition_source->IsJSArrayMap());
+                                          transition_target->elements_kind());
           CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
               isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 0,
               CallDescriptor::kNeedsFrameState, node->op()->properties());
