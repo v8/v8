@@ -462,7 +462,6 @@ class Debug {
   void PrepareStepOnThrow();
   void ClearStepping();
   void ClearStepOut();
-  void EnableStepIn();
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
 
@@ -546,8 +545,8 @@ class Debug {
     return reinterpret_cast<Address>(&after_break_target_);
   }
 
-  Address step_in_enabled_address() {
-    return reinterpret_cast<Address>(&thread_local_.step_in_enabled_);
+  Address last_step_action_address() {
+    return reinterpret_cast<Address>(&thread_local_.last_step_action_);
   }
 
   Address suspended_generator_address() {
@@ -692,11 +691,6 @@ class Debug {
 
     // Frame pointer of the target frame we want to arrive at.
     Address target_fp_;
-
-    // Whether functions are flooded on entry for step-in and step-frame.
-    // If we stepped out to the embedder, disable flooding to spill stepping
-    // to the next call that the embedder makes.
-    bool step_in_enabled_;
 
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.

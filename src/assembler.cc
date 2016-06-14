@@ -1770,10 +1770,9 @@ ExternalReference ExternalReference::mod_two_doubles_operation(
                                     BUILTIN_FP_FP_CALL));
 }
 
-
-ExternalReference ExternalReference::debug_step_in_enabled_address(
+ExternalReference ExternalReference::debug_last_step_action_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->debug()->step_in_enabled_address());
+  return ExternalReference(isolate->debug()->last_step_action_address());
 }
 
 ExternalReference ExternalReference::debug_suspended_generator_address(

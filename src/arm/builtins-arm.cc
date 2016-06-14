@@ -719,12 +719,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
   Label stepping_prepared;
-  ExternalReference step_in_enabled =
-      ExternalReference::debug_step_in_enabled_address(masm->isolate());
-  __ mov(ip, Operand(step_in_enabled));
-  __ ldrb(ip, MemOperand(ip));
-  __ cmp(ip, Operand(0));
-  __ b(ne, &prepare_step_in_if_stepping);
+  ExternalReference last_step_action =
+      ExternalReference::debug_last_step_action_address(masm->isolate());
+  STATIC_ASSERT(StepFrame > StepIn);
+  __ mov(ip, Operand(last_step_action));
+  __ ldrsb(ip, MemOperand(ip));
+  __ cmp(ip, Operand(StepIn));
+  __ b(ge, &prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =

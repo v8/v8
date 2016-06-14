@@ -189,7 +189,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Debug::after_break_target_address()");
   Add(ExternalReference::debug_is_active_address(isolate).address(),
       "Debug::is_active_address()");
-  Add(ExternalReference::debug_step_in_enabled_address(isolate).address(),
+  Add(ExternalReference::debug_last_step_action_address(isolate).address(),
       "Debug::step_in_enabled_address()");
   Add(ExternalReference::debug_suspended_generator_address(isolate).address(),
       "Debug::step_suspended_generator_address()");

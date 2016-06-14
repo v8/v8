@@ -1717,8 +1717,6 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
   isolate->PushPromise(promise, function);
-  // If we are in step-in mode, flood the handler.
-  isolate->debug()->EnableStepIn();
   return isolate->heap()->undefined_value();
 }
 
