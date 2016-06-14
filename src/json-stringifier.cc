@@ -478,6 +478,12 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
 
 JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Handle<JSReceiver> object, uint32_t start, uint32_t length) {
+  // We need to write out at least two characters per array element.
+  static const int kMaxSerializableArrayLength = String::kMaxLength / 2;
+  if (length > kMaxSerializableArrayLength) {
+    isolate_->Throw(*isolate_->factory()->NewInvalidStringLengthError());
+    return EXCEPTION;
+  }
   for (uint32_t i = start; i < length; i++) {
     Separator(i == 0);
     Handle<Object> element;
@@ -487,6 +493,8 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Result result = SerializeElement(isolate_, element, i);
     if (result == SUCCESS) continue;
     if (result == UNCHANGED) {
+      // Detect overflow sooner for large sparse arrays.
+      if (builder_.HasOverflowed()) return EXCEPTION;
       builder_.AppendCString("null");
     } else {
       return result;

@@ -309,6 +309,8 @@ class IncrementalStringBuilder {
 
   MaybeHandle<String> Finish();
 
+  INLINE(bool HasOverflowed()) const { return overflowed_; }
+
   // Change encoding to two-byte.
   void ChangeEncoding() {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
