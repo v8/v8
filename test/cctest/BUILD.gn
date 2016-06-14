@@ -6,7 +6,7 @@
 
 import("../../gni/v8.gni")
 
-executable("cctest") {
+v8_executable("cctest") {
   testonly = true
 
   sources = [
@@ -283,13 +283,9 @@ executable("cctest") {
     # },
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     "../..:external_config",
     "../..:internal_config_base",
-    "../..:features",
-    "../..:toolchain",
   ]
 
   # TODO(machenbach): Translate from gyp.

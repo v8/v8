@@ -6,7 +6,7 @@
 
 import("../../gni/v8.gni")
 
-executable("unittests") {
+v8_executable("unittests") {
   testonly = true
 
   sources = [
@@ -136,13 +136,9 @@ executable("unittests") {
     sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [
+  configs = [
     "../..:external_config",
     "../..:internal_config_base",
-    "../..:features",
-    "../..:toolchain",
   ]
 
   # TODO(machenbach): Translate from gyp.
