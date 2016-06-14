@@ -205,8 +205,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                                         Register prototype,
                                                         Label* miss);
 
-
-  Register scratch4() { return registers_[5]; }
+  Register scratch3() { return registers_[4]; }
 };
 
 
