@@ -15,7 +15,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/type-cache.h"
 #include "src/type-feedback-vector.h"
 

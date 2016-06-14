@@ -6,8 +6,7 @@
 
 #include "src/factory.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/isolate-inl.h"
 #include "src/objects.h"
 
 #include "src/base/platform/platform.h"

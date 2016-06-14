@@ -9,7 +9,7 @@
 #include "src/compiler/access-info.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/objects-inl.h"
 #include "src/type-cache.h"
 
 namespace v8 {

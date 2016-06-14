@@ -12,7 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/lookup.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/objects-inl.h"
 #include "src/type-cache.h"
 
 namespace v8 {

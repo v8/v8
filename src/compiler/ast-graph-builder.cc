@@ -281,8 +281,6 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
     return NewPathToken(TokenDispenserForFinally::kFallThroughToken);
   }
   Node* NewPathDispatchCondition(Node* t1, Node* t2) {
-    // TODO(mstarzinger): This should be machine()->WordEqual(), but our Phi
-    // nodes all have kRepTagged|kTypeAny, which causes representation mismatch.
     return owner_->NewNode(owner_->javascript()->StrictEqual(), t1, t2);
   }
 
@@ -4305,7 +4303,6 @@ Node* AstGraphBuilder::NewPhi(int count, Node* input, Node* control) {
 }
 
 
-// TODO(mstarzinger): Revisit this once we have proper effect states.
 Node* AstGraphBuilder::NewEffectPhi(int count, Node* input, Node* control) {
   const Operator* phi_op = common()->EffectPhi(count);
   Node** buffer = EnsureInputBufferSize(count + 1);
