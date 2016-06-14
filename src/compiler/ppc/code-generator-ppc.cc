@@ -1351,6 +1351,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(SetRC, i.OutputRCBit());
       break;
 #endif
+    case kPPC_Float64SilenceNaN: {
+      DoubleRegister value = i.InputDoubleRegister(0);
+      DoubleRegister result = i.OutputDoubleRegister();
+      __ CanonicalizeNaN(result, value);
+      break;
+    }
     case kPPC_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ stfdu(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
