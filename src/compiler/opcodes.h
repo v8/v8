@@ -219,7 +219,6 @@
   V(ChangeFloat64ToTagged)         \
   V(ChangeTaggedToBit)             \
   V(ChangeBitToTagged)             \
-  V(CheckBounds)                   \
   V(CheckedUint32ToInt32)          \
   V(CheckedFloat64ToInt32)         \
   V(CheckedTaggedToInt32)          \
