@@ -573,10 +573,13 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
-        HasBuiltinFunctionId() || HasBytecodeArray());
+        HasBytecodeArray());
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kDebugInfoOffset);
+  CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
+        HasBuiltinFunctionId() || HasInferredName());
+  VerifyObjectField(kFunctionIdentifierOffset);
 }
 
 
