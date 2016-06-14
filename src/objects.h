@@ -5281,7 +5281,9 @@ class Code: public HeapObject {
   class ProfilerTicksField : public BitField<int, 4, 28> {};
 
   // Flags layout.  BitField<type, shift, size>.
-  class CacheHolderField : public BitField<CacheHolderFlag, 0, 2> {};
+  class ICStateField : public BitField<InlineCacheState, 0, 3> {};
+  class CacheHolderField
+      : public BitField<CacheHolderFlag, ICStateField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
   class ExtraICStateField : public BitField<ExtraICState, KindField::kNext,
                                             PlatformSmiTagging::kSmiValueSize -
