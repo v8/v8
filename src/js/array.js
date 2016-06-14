@@ -659,7 +659,7 @@ function ArraySlice(start, end) {
 
   if (UseSparseVariant(array, len, IS_ARRAY(array), end_i - start_i)) {
     %NormalizeElements(array);
-    %NormalizeElements(result);
+    if (IS_ARRAY(result)) %NormalizeElements(result);
     SparseSlice(array, start_i, end_i - start_i, len, result);
   } else {
     SimpleSlice(array, start_i, end_i - start_i, len, result);
