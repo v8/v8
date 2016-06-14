@@ -205,10 +205,8 @@ Handle<Object> CallSite::GetFileName() {
 
 Handle<Object> CallSite::GetFunctionName() {
   if (IsWasm()) {
-    MaybeHandle<String> name =
-        wasm::GetWasmFunctionName(wasm_obj_, wasm_func_index_);
-    if (name.is_null()) return isolate_->factory()->null_value();
-    return name.ToHandleChecked();
+    return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_obj_,
+                                           wasm_func_index_);
   }
   Handle<String> result = JSFunction::GetName(fun_);
   if (result->length() != 0) return result;
