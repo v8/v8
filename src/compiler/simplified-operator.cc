@@ -214,6 +214,7 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   V(NumberToUint32, Operator::kNoProperties, 1)            \
   V(NumberIsHoleNaN, Operator::kNoProperties, 1)           \
   V(NumberSilenceNaN, Operator::kNoProperties, 1)          \
+  V(NumberConvertHoleNaN, Operator::kNoProperties, 1)      \
   V(StringFromCharCode, Operator::kNoProperties, 1)        \
   V(StringToNumber, Operator::kNoProperties, 1)            \
   V(PlainPrimitiveToNumber, Operator::kNoWrite, 1)         \

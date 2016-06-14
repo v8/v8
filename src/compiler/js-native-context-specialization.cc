@@ -790,9 +790,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         this_value = graph()->NewNode(simplified()->TypeGuard(element_type),
                                       this_value, this_control);
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
-        // Perform the hole check on the result.
-        Node* check =
-            graph()->NewNode(simplified()->NumberIsHoleNaN(), this_value);
         // Check if we are allowed to return the hole directly.
         Type* initial_holey_array_type = Type::Class(
             handle(isolate()->get_initial_js_array_map(elements_kind)),
@@ -804,11 +801,12 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                  isolate()->initial_object_prototype());
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Turn the hole into undefined.
-          this_value = graph()->NewNode(
-              common()->Select(MachineRepresentation::kTagged,
-                               BranchHint::kFalse),
-              check, jsgraph()->UndefinedConstant(), this_value);
+          this_value = graph()->NewNode(simplified()->NumberConvertHoleNaN(),
+                                        this_value);
         } else {
+          // Perform the hole check on the result.
+          Node* check =
+              graph()->NewNode(simplified()->NumberIsHoleNaN(), this_value);
           // Deoptimize in case of the hole.
           this_control = this_effect =
               graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,

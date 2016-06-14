@@ -1449,6 +1449,41 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kNumberConvertHoleNaN: {
+        if (truncation.TruncatesToFloat64()) {
+          // NumberConvertHoleNaN(x) => x
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kTagged);
+          if (lower()) {
+            // NumberConvertHoleNaN(x) =>
+            //   Select(Word32Equal(Float64ExtractHighWord32(x),
+            //                      #HoleNanUpper32),
+            //          #Undefined,
+            //          ChangeFloat64ToTagged(x))
+            Node* value = node->InputAt(0);
+            node->ReplaceInput(
+                0,
+                jsgraph_->graph()->NewNode(
+                    jsgraph_->machine()->Word32Equal(),
+                    jsgraph_->graph()->NewNode(
+                        jsgraph_->machine()->Float64ExtractHighWord32(), value),
+                    jsgraph_->Int32Constant(kHoleNanUpper32)));
+            node->AppendInput(jsgraph_->zone(), jsgraph_->UndefinedConstant());
+            node->AppendInput(
+                jsgraph_->zone(),
+                jsgraph_->graph()->NewNode(
+                    jsgraph_->simplified()->ChangeFloat64ToTagged(), value));
+            NodeProperties::ChangeOp(
+                node, jsgraph_->common()->Select(MachineRepresentation::kTagged,
+                                                 BranchHint::kFalse));
+          }
+        }
+        return;
+      }
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {

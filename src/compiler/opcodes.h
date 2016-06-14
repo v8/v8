@@ -207,6 +207,7 @@
   V(NumberToUint32)                \
   V(NumberIsHoleNaN)               \
   V(NumberSilenceNaN)              \
+  V(NumberConvertHoleNaN)          \
   V(StringFromCharCode)            \
   V(StringToNumber)                \
   V(ChangeTaggedSignedToInt32)     \

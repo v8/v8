@@ -248,6 +248,7 @@ class Typer::Visitor : public Reducer {
   static Type* NumberTrunc(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
+  static Type* NumberConvertHoleNaN(Type*, Typer*);
 
   static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
@@ -554,6 +555,10 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
         Type::Unsigned32(), t->zone());
   }
   return Type::Unsigned32();
+}
+
+Type* Typer::Visitor::NumberConvertHoleNaN(Type* type, Typer* t) {
+  return Type::Union(type, Type::Undefined(), t->zone());
 }
 
 // Type checks.
@@ -1811,6 +1816,10 @@ Type* Typer::Visitor::TypeNumberToUint32(Node* node) {
 
 Type* Typer::Visitor::TypeNumberIsHoleNaN(Node* node) {
   return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeNumberConvertHoleNaN(Node* node) {
+  return TypeUnaryOp(node, NumberConvertHoleNaN);
 }
 
 // static
