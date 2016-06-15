@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/startup-serializer.h"
 
 #include "src/objects-inl.h"
 
@@ -10,10 +11,8 @@ namespace v8 {
 namespace internal {
 
 PartialSerializer::PartialSerializer(Isolate* isolate,
-                                     Serializer* startup_snapshot_serializer)
-    : Serializer(isolate),
-      startup_serializer_(startup_snapshot_serializer),
-      next_partial_cache_index_(0) {
+                                     StartupSerializer* startup_serializer)
+    : Serializer(isolate), startup_serializer_(startup_serializer) {
   InitializeCodeAddressMap();
 }
 
@@ -61,7 +60,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (ShouldBeInThePartialSnapshotCache(obj)) {
     FlushSkip(skip);
 
-    int cache_index = PartialSnapshotCacheIndex(obj);
+    int cache_index = startup_serializer_->PartialSnapshotCacheIndex(obj);
     sink_.Put(kPartialSnapshotCache + how_to_code + where_to_point,
               "PartialSnapshotCache");
     sink_.PutInt(cache_index, "partial_snapshot_cache_index");
@@ -91,19 +90,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_, how_to_code, where_to_point);
   serializer.Serialize();
-}
-
-int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  int index = partial_cache_index_map_.LookupOrInsert(
-      heap_object, next_partial_cache_index_);
-  if (index == PartialCacheIndexMap::kInvalidIndex) {
-    // This object is not part of the partial snapshot cache yet. Add it to the
-    // startup snapshot so we can refer to it via partial snapshot index from
-    // the partial snapshot.
-    startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
-    return next_partial_cache_index_++;
-  }
-  return index;
 }
 
 bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {

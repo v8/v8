@@ -429,13 +429,15 @@ Isolate* SnapshotCreator::GetIsolate() {
   return SnapshotCreatorData::cast(data_)->isolate_;
 }
 
-void SnapshotCreator::AddContext(Local<Context> context) {
+size_t SnapshotCreator::AddContext(Local<Context> context) {
   DCHECK(!context.IsEmpty());
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   DCHECK(!data->created_);
   Isolate* isolate = data->isolate_;
   CHECK_EQ(isolate, context->GetIsolate());
+  size_t index = static_cast<int>(data->contexts_.Size());
   data->contexts_.Append(context);
+  return index;
 }
 
 StartupData SnapshotCreator::CreateBlob(
@@ -464,13 +466,25 @@ StartupData SnapshotCreator::CreateBlob(
   i::StartupSerializer startup_serializer(isolate, function_code_handling);
   startup_serializer.SerializeStrongReferences();
 
-  i::PartialSerializer context_serializer(isolate, &startup_serializer);
-  context_serializer.Serialize(&contexts[0]);
-  startup_serializer.SerializeWeakReferencesAndDeferred();
+  // Serialize each context with a new partial serializer.
+  i::List<i::SnapshotData*> context_snapshots(num_contexts);
+  for (int i = 0; i < num_contexts; i++) {
+    i::PartialSerializer partial_serializer(isolate, &startup_serializer);
+    partial_serializer.Serialize(&contexts[i]);
+    context_snapshots.Add(new i::SnapshotData(&partial_serializer));
+  }
 
+  startup_serializer.SerializeWeakReferencesAndDeferred();
+  i::SnapshotData startup_snapshot(&startup_serializer);
+  StartupData result =
+      i::Snapshot::CreateSnapshotBlob(&startup_snapshot, &context_snapshots);
+
+  // Delete heap-allocated context snapshot instances.
+  for (const auto& context_snapshot : context_snapshots) {
+    delete context_snapshot;
+  }
   data->created_ = true;
-  return i::Snapshot::CreateSnapshotBlob(&startup_serializer,
-                                         &context_serializer);
+  return result;
 }
 
 StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
@@ -5532,11 +5546,10 @@ const char* v8::V8::GetVersion() {
   return i::Version::GetVersion();
 }
 
-
 static i::Handle<i::Context> CreateEnvironment(
     i::Isolate* isolate, v8::ExtensionConfiguration* extensions,
     v8::Local<ObjectTemplate> global_template,
-    v8::Local<Value> maybe_global_proxy) {
+    v8::Local<Value> maybe_global_proxy, size_t context_snapshot_index) {
   i::Handle<i::Context> env;
 
   // Enter V8 via an ENTER_V8 scope.
@@ -5581,7 +5594,7 @@ static i::Handle<i::Context> CreateEnvironment(
     }
     // Create the environment.
     env = isolate->bootstrapper()->CreateEnvironment(
-        maybe_proxy, proxy_template, extensions);
+        maybe_proxy, proxy_template, extensions, context_snapshot_index);
 
     // Restore the access check info on the global template.
     if (!global_template.IsEmpty()) {
@@ -5601,14 +5614,16 @@ static i::Handle<i::Context> CreateEnvironment(
 Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::ExtensionConfiguration* extensions,
                                 v8::Local<ObjectTemplate> global_template,
-                                v8::Local<Value> global_object) {
+                                v8::Local<Value> global_object,
+                                size_t context_snapshot_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   LOG_API(isolate, Context, New);
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;
   i::Handle<i::Context> env =
-      CreateEnvironment(isolate, extensions, global_template, global_object);
+      CreateEnvironment(isolate, extensions, global_template, global_object,
+                        context_snapshot_index);
   if (env.is_null()) {
     if (isolate->has_pending_exception()) {
       isolate->OptionalRescheduleException(true);

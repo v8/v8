@@ -138,7 +138,7 @@ class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
-          v8::ExtensionConfiguration* extensions,
+          v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
           GlobalContextType context_type);
   ~Genesis() { }
 
@@ -324,10 +324,11 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
 Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
-    v8::ExtensionConfiguration* extensions, GlobalContextType context_type) {
+    v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
+    GlobalContextType context_type) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                  extensions, context_type);
+                  extensions, context_snapshot_index, context_type);
   Handle<Context> env = genesis.result();
   if (env.is_null() ||
       (context_type != THIN_CONTEXT && !InstallExtensions(env, extensions))) {
@@ -3800,7 +3801,7 @@ Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template,
                  v8::ExtensionConfiguration* extensions,
-                 GlobalContextType context_type)
+                 size_t context_snapshot_index, GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
@@ -3829,7 +3830,8 @@ Genesis::Genesis(Isolate* isolate,
   // a snapshot. Otherwise we have to build the context from scratch.
   // Also create a context from scratch to expose natives, if required by flag.
   if (!isolate->initialized_from_snapshot() ||
-      !Snapshot::NewContextFromSnapshot(isolate, global_proxy)
+      !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
+                                        context_snapshot_index)
            .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }

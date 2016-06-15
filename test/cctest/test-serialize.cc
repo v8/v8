@@ -1882,6 +1882,71 @@ TEST(CodeSerializerCell) {
 }
 #endif  // V8_TARGET_ARCH_X64
 
+TEST(SnapshotCreatorMultipleContexts) {
+  DisableTurbofan();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun("var f = function() { return 1; }");
+      CHECK_EQ(0, creator.AddContext(context));
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun("var f = function() { return 2; }");
+      CHECK_EQ(1, creator.AddContext(context));
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK_EQ(2, creator.AddContext(context));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &blob;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::ExtensionConfiguration* no_extension = nullptr;
+    v8::Local<v8::ObjectTemplate> no_template = v8::Local<v8::ObjectTemplate>();
+    v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, no_extension, no_template, no_object, 0);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 1);
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, no_extension, no_template, no_object, 1);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 2);
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, no_extension, no_template, no_object, 2);
+      v8::Context::Scope context_scope(context);
+      ExpectUndefined("this.f");
+    }
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
+}
+
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;

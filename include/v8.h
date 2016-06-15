@@ -6787,8 +6787,9 @@ class SnapshotCreator {
 
   /**
    * Add a context to be included in the snapshot blob.
+   * \returns the index of the context in the snapshot blob.
    */
-  void AddContext(Local<Context> context);
+  size_t AddContext(Local<Context> context);
 
   /**
    * Created a snapshot data blob.
@@ -7092,7 +7093,8 @@ class V8_EXPORT Context {
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = NULL,
       Local<ObjectTemplate> global_template = Local<ObjectTemplate>(),
-      Local<Value> global_object = Local<Value>());
+      Local<Value> global_object = Local<Value>(),
+      size_t context_snapshot_index = 0);
 
   /**
    * Sets the security token for the context.  To access an object in

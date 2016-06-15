@@ -90,6 +90,17 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   Pad();
 }
 
+int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
+  int index;
+  if (!partial_cache_index_map_.LookupOrInsert(heap_object, &index)) {
+    // This object is not part of the partial snapshot cache yet. Add it to the
+    // startup snapshot so we can refer to it via partial snapshot index from
+    // the partial snapshot.
+    VisitPointer(reinterpret_cast<Object**>(&heap_object));
+  }
+  return index;
+}
+
 void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   // We expect the builtins tag after builtins have been serialized.
   DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
