@@ -246,7 +246,7 @@ FOREACH_INT_CHECKED_STORE_OP(INT_STORE_TEST)
 
 TEST(RunWasm_AsmCheckedLoadFloat32RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<float_t> r(&module, MachineType::Uint32());
+  WasmRunner<float> r(&module, MachineType::Uint32());
   BUILD(r, WASM_UNOP(kExprF32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
@@ -255,7 +255,7 @@ TEST(RunWasm_AsmCheckedLoadFloat32RelocInfo) {
 
 TEST(RunWasm_AsmCheckedStoreFloat32RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<float_t> r(&module, MachineType::Uint32(), MachineType::Float32());
+  WasmRunner<float> r(&module, MachineType::Uint32(), MachineType::Float32());
   BUILD(r, WASM_BINOP(kExprF32AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
@@ -265,7 +265,7 @@ TEST(RunWasm_AsmCheckedStoreFloat32RelocInfo) {
 
 TEST(RunWasm_AsmCheckedLoadFloat64RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<double_t> r(&module, MachineType::Uint32());
+  WasmRunner<double> r(&module, MachineType::Uint32());
   BUILD(r, WASM_UNOP(kExprF64AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
@@ -274,8 +274,7 @@ TEST(RunWasm_AsmCheckedLoadFloat64RelocInfo) {
 
 TEST(RunWasm_AsmCheckedStoreFloat64RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<double_t> r(&module, MachineType::Uint32(),
-                         MachineType::Float64());
+  WasmRunner<double> r(&module, MachineType::Uint32(), MachineType::Float64());
   BUILD(r, WASM_BINOP(kExprF64AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
