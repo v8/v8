@@ -4,6 +4,7 @@
 
 #include "src/base/file-utils.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "src/base/platform/platform.h"
