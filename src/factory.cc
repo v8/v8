@@ -292,12 +292,10 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
   return result;
 }
 
-
-MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
+                                                  int length,
                                                   PretenureFlag pretenure) {
-  int length = string.length();
-  const uc16* start = string.start();
-  if (String::IsOneByte(start, length)) {
+  if (String::IsOneByte(string, length)) {
     if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -305,7 +303,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
         result,
         NewRawOneByteString(length, pretenure),
         String);
-    CopyChars(result->GetChars(), start, length);
+    CopyChars(result->GetChars(), string, length);
     return result;
   } else {
     Handle<SeqTwoByteString> result;
@@ -314,11 +312,21 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
         result,
         NewRawTwoByteString(length, pretenure),
         String);
-    CopyChars(result->GetChars(), start, length);
+    CopyChars(result->GetChars(), string, length);
     return result;
   }
 }
 
+MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+                                                  PretenureFlag pretenure) {
+  return NewStringFromTwoByte(string.start(), string.length(), pretenure);
+}
+
+MaybeHandle<String> Factory::NewStringFromTwoByte(
+    const ZoneVector<uc16>* string, PretenureFlag pretenure) {
+  return NewStringFromTwoByte(string->data(), static_cast<int>(string->size()),
+                              pretenure);
+}
 
 Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
                                                       int chars,
