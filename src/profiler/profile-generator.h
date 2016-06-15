@@ -228,7 +228,7 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(Isolate* isolate, const char* title, bool record_samples);
+  CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
@@ -246,6 +246,7 @@ class CpuProfile {
 
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks end_time() const { return end_time_; }
+  CpuProfiler* cpu_profiler() const { return profiler_; }
 
   void UpdateTicksScale();
 
@@ -259,6 +260,7 @@ class CpuProfile {
   List<ProfileNode*> samples_;
   List<base::TimeTicks> timestamps_;
   ProfileTree top_down_;
+  CpuProfiler* const profiler_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
@@ -289,9 +291,10 @@ class CodeMap {
 
 class CpuProfilesCollection {
  public:
-  explicit CpuProfilesCollection(Heap* heap);
+  explicit CpuProfilesCollection(Isolate* isolate);
   ~CpuProfilesCollection();
 
+  void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
   bool StartProfiling(const char* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
   List<CpuProfile*>* profiles() { return &finished_profiles_; }
@@ -330,8 +333,7 @@ class CpuProfilesCollection {
   StringsStorage function_and_resource_names_;
   List<CodeEntry*> code_entries_;
   List<CpuProfile*> finished_profiles_;
-
-  Isolate* isolate_;
+  CpuProfiler* profiler_;
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;

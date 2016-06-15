@@ -9,6 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
+#include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
 #include "src/unicode.h"
@@ -365,12 +366,13 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
   }
 }
 
-
-CpuProfile::CpuProfile(Isolate* isolate, const char* title, bool record_samples)
+CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
+                       bool record_samples)
     : title_(title),
       record_samples_(record_samples),
       start_time_(base::TimeTicks::HighResolutionNow()),
-      top_down_(isolate) {}
+      top_down_(profiler->isolate()),
+      profiler_(profiler) {}
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const std::vector<CodeEntry*>& path, int src_line,
@@ -432,11 +434,10 @@ void CodeMap::Print() {
   }
 }
 
-CpuProfilesCollection::CpuProfilesCollection(Heap* heap)
-    : function_and_resource_names_(heap),
-      isolate_(heap->isolate()),
+CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
+    : function_and_resource_names_(isolate->heap()),
+      profiler_(nullptr),
       current_profiles_semaphore_(1) {}
-
 
 static void DeleteCodeEntry(CodeEntry** entry_ptr) {
   delete *entry_ptr;
@@ -470,7 +471,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
       return true;
     }
   }
-  current_profiles_.Add(new CpuProfile(isolate_, title, record_samples));
+  current_profiles_.Add(new CpuProfile(profiler_, title, record_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }

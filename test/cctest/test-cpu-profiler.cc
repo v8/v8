@@ -31,12 +31,12 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/platform.h"
-#include "src/base/smart-pointers.h"
 #include "src/deoptimizer.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
+
 using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;
@@ -47,8 +47,6 @@ using i::ProfileNode;
 using i::ProfilerEventsProcessor;
 using i::ScopedVector;
 using i::Vector;
-using v8::base::SmartPointer;
-
 
 // Helper methods
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
@@ -57,29 +55,25 @@ static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
       env->Global()->Get(env, v8_str(name)).ToLocalChecked());
 }
 
-
 static size_t offset(const char* src, const char* substring) {
   const char* it = strstr(src, substring);
   CHECK(it);
   return static_cast<size_t>(it - src);
 }
 
-
 static const char* reason(const i::Deoptimizer::DeoptReason reason) {
   return i::Deoptimizer::GetDeoptReason(reason);
 }
 
-
 TEST(StartStop) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  CpuProfilesCollection profiles(isolate->heap());
+  CpuProfilesCollection profiles(CcTest::i_isolate());
   ProfileGenerator generator(&profiles);
-  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-      &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
+  std::unique_ptr<ProfilerEventsProcessor> processor(
+      new ProfilerEventsProcessor(&generator, nullptr,
+                                  v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   processor->StopSynchronously();
 }
-
 
 static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
                                    i::Address frame1,
@@ -157,13 +151,13 @@ TEST(CodeEvents) {
   i::AbstractCode* args3_code = CreateCode(&env);
   i::AbstractCode* args4_code = CreateCode(&env);
 
-  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      generator, nullptr, v8::base::TimeDelta::FromMicroseconds(100));
+  CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
-  ProfileGenerator generator(profiles);
-  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -177,26 +171,27 @@ TEST(CodeEvents) {
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor.get(), aaa_code->address());
+  EnqueueTickSampleEvent(processor, aaa_code->address());
 
   processor->StopSynchronously();
 
   // Check the state of profile generator.
-  CodeEntry* aaa = generator.code_map()->FindEntry(aaa_code->address());
+  CodeEntry* aaa = generator->code_map()->FindEntry(aaa_code->address());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
-  CodeEntry* comment = generator.code_map()->FindEntry(comment_code->address());
+  CodeEntry* comment =
+      generator->code_map()->FindEntry(comment_code->address());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CodeEntry* args5 = generator.code_map()->FindEntry(args5_code->address());
+  CodeEntry* args5 = generator->code_map()->FindEntry(args5_code->address());
   CHECK(args5);
   CHECK_EQ(0, strcmp("5", args5->name()));
 
-  CHECK(!generator.code_map()->FindEntry(comment2_code->address()));
+  CHECK(!generator->code_map()->FindEntry(comment2_code->address()));
 
-  CodeEntry* comment2 = generator.code_map()->FindEntry(moved_code->address());
+  CodeEntry* comment2 = generator->code_map()->FindEntry(moved_code->address());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -216,28 +211,26 @@ TEST(TickEvents) {
   i::AbstractCode* frame2_code = CreateCode(&env);
   i::AbstractCode* frame3_code = CreateCode(&env);
 
-  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      generator, nullptr, v8::base::TimeDelta::FromMicroseconds(100));
+  CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
-  ProfileGenerator generator(profiles);
-  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(processor.get(), frame1_code->instruction_start());
+  EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
   EnqueueTickSampleEvent(
-      processor.get(),
+      processor,
       frame2_code->instruction_start() + frame2_code->ExecutableSize() / 2,
       frame1_code->instruction_start() + frame2_code->ExecutableSize() / 2);
-  EnqueueTickSampleEvent(
-      processor.get(),
-      frame3_code->instruction_end() - 1,
-      frame2_code->instruction_end() - 1,
-      frame1_code->instruction_end() - 1);
+  EnqueueTickSampleEvent(processor, frame3_code->instruction_end() - 1,
+                         frame2_code->instruction_end() - 1,
+                         frame1_code->instruction_end() - 1);
 
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
@@ -283,13 +276,13 @@ TEST(Issue1398) {
 
   i::AbstractCode* code = CreateCode(&env);
 
-  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      generator, nullptr, v8::base::TimeDelta::FromMicroseconds(100));
+  CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
-  ProfileGenerator generator(profiles);
-  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
@@ -1021,13 +1014,13 @@ static void TickLines(bool optimize) {
   i::Address code_address = code->instruction_start();
   CHECK(code_address);
 
-  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      generator, nullptr, v8::base::TimeDelta::FromMicroseconds(100));
+  CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
-  ProfileGenerator generator(profiles);
-  SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-      &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
-  CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
@@ -1037,7 +1030,7 @@ static void TickLines(bool optimize) {
                            line, column);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor.get(), code_address);
+  EnqueueTickSampleEvent(processor, code_address);
 
   processor->StopSynchronously();
 
@@ -1045,7 +1038,7 @@ static void TickLines(bool optimize) {
   CHECK(profile);
 
   // Check the state of profile generator.
-  CodeEntry* func_entry = generator.code_map()->FindEntry(code_address);
+  CodeEntry* func_entry = generator->code_map()->FindEntry(code_address);
   CHECK(func_entry);
   CHECK_EQ(0, strcmp(func_name, func_entry->name()));
   const i::JITLineInfoTable* line_info = func_entry->line_info();

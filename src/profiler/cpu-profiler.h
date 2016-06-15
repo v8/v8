@@ -5,6 +5,8 @@
 #ifndef V8_PROFILER_CPU_PROFILER_H_
 #define V8_PROFILER_CPU_PROFILER_H_
 
+#include <memory>
+
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
@@ -193,8 +195,7 @@ class CpuProfiler : public CodeEventListener {
  public:
   explicit CpuProfiler(Isolate* isolate);
 
-  CpuProfiler(Isolate* isolate,
-              CpuProfilesCollection* test_collection,
+  CpuProfiler(Isolate* isolate, CpuProfilesCollection* profiles,
               ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
@@ -241,8 +242,8 @@ class CpuProfiler : public CodeEventListener {
 
   bool is_profiling() const { return is_profiling_; }
 
-  ProfileGenerator* generator() const { return generator_; }
-  ProfilerEventsProcessor* processor() const { return processor_; }
+  ProfileGenerator* generator() const { return generator_.get(); }
+  ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
 
  private:
@@ -255,11 +256,11 @@ class CpuProfiler : public CodeEventListener {
   void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
   Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
-  CpuProfilesCollection* profiles_;
-  ProfileGenerator* generator_;
-  ProfilerEventsProcessor* processor_;
+  std::unique_ptr<CpuProfilesCollection> profiles_;
+  std::unique_ptr<ProfileGenerator> generator_;
+  std::unique_ptr<ProfilerEventsProcessor> processor_;
   bool saved_is_logging_;
   bool is_profiling_;
 

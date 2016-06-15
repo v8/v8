@@ -499,15 +499,12 @@ CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
       sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
-      profiles_(new CpuProfilesCollection(isolate->heap())),
-      generator_(NULL),
-      processor_(NULL),
+      profiles_(new CpuProfilesCollection(isolate)),
       is_profiling_(false) {
+  profiles_->set_cpu_profiler(this);
 }
 
-
-CpuProfiler::CpuProfiler(Isolate* isolate,
-                         CpuProfilesCollection* test_profiles,
+CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilesCollection* test_profiles,
                          ProfileGenerator* test_generator,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
@@ -517,28 +514,25 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
       generator_(test_generator),
       processor_(test_processor),
       is_profiling_(false) {
+  profiles_->set_cpu_profiler(this);
 }
-
 
 CpuProfiler::~CpuProfiler() {
   DCHECK(!is_profiling_);
-  delete profiles_;
 }
-
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
   DCHECK(!is_profiling_);
   sampling_interval_ = value;
 }
 
-
 void CpuProfiler::ResetProfiles() {
-  delete profiles_;
-  profiles_ = new CpuProfilesCollection(isolate()->heap());
+  profiles_.reset(new CpuProfilesCollection(isolate_));
+  profiles_->set_cpu_profiler(this);
 }
 
 void CpuProfiler::CollectSample() {
-  if (processor_ != NULL) {
+  if (processor_) {
     processor_->AddCurrentStack(isolate_);
   }
 }
@@ -557,7 +551,7 @@ void CpuProfiler::StartProfiling(String* title, bool record_samples) {
 
 
 void CpuProfiler::StartProcessorIfNotStarted() {
-  if (processor_ != NULL) {
+  if (processor_) {
     processor_->AddCurrentStack(isolate_);
     return;
   }
@@ -565,10 +559,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  generator_ = new ProfileGenerator(profiles_);
   sampler::Sampler* sampler = logger->sampler();
-  processor_ = new ProfilerEventsProcessor(
-      generator_, sampler, sampling_interval_);
+  generator_.reset(new ProfileGenerator(profiles_.get()));
+  processor_.reset(new ProfilerEventsProcessor(generator_.get(), sampler,
+                                               sampling_interval_));
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
@@ -588,10 +582,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
-  if (!is_profiling_) return NULL;
+  if (!is_profiling_) return nullptr;
   StopProcessorIfLastProfile(title);
   CpuProfile* result = profiles_->StopProfiling(title);
-  if (result != NULL) {
+  if (result) {
     result->Print();
   }
   return result;
@@ -599,7 +593,7 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
 
 
 CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  if (!is_profiling_) return NULL;
+  if (!is_profiling_) return nullptr;
   const char* profile_title = profiles_->GetName(title);
   StopProcessorIfLastProfile(profile_title);
   return profiles_->StopProfiling(profile_title);
@@ -607,7 +601,9 @@ CpuProfile* CpuProfiler::StopProfiling(String* title) {
 
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (profiles_->IsLastProfile(title)) StopProcessor();
+  if (profiles_->IsLastProfile(title)) {
+    StopProcessor();
+  }
 }
 
 
@@ -618,10 +614,8 @@ void CpuProfiler::StopProcessor() {
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
   processor_->StopSynchronously();
-  delete processor_;
-  delete generator_;
-  processor_ = NULL;
-  generator_ = NULL;
+  processor_.reset();
+  generator_.reset();
   sampler->SetHasProcessingThread(false);
   sampler->DecreaseProfilingDepth();
   logger->is_logging_ = saved_is_logging_;

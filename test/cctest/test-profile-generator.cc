@@ -344,7 +344,8 @@ class TestSetup {
 
 TEST(RecordTickSample) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::heap());
+  CpuProfilesCollection profiles(CcTest::i_isolate());
+  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -410,7 +411,8 @@ static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
 
 TEST(SampleIds) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::heap());
+  CpuProfilesCollection profiles(CcTest::i_isolate());
+  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", true);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -461,7 +463,8 @@ TEST(SampleIds) {
 
 TEST(NoSamples) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::heap());
+  CpuProfilesCollection profiles(CcTest::i_isolate());
+  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = profiles.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -544,7 +547,8 @@ TEST(RecordStackTraceAtStartProfiling) {
 
 
 TEST(Issue51919) {
-  CpuProfilesCollection collection(CcTest::heap());
+  CpuProfilesCollection collection(CcTest::i_isolate());
+  collection.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   i::EmbeddedVector<char*,
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
@@ -618,15 +622,11 @@ TEST(ProfileNodeScriptId) {
   CHECK_EQ(script_a->GetUnboundScript()->GetId(), current->GetScriptId());
 }
 
-
-
-
 static const char* line_number_test_source_existing_functions =
 "function foo_at_the_first_line() {\n"
 "}\n"
 "foo_at_the_first_line();\n"
 "function lazy_func_at_forth_line() {}\n";
-
 
 static const char* line_number_test_source_profile_time_functions =
 "// Empty first line\n"
@@ -651,7 +651,6 @@ int GetFunctionLineNumber(LocalContext* env, const char* name) {
     FATAL(name);
   return func_entry->line_number();
 }
-
 
 TEST(LineNumber) {
   i::FLAG_use_inlining = false;
@@ -682,8 +681,6 @@ TEST(LineNumber) {
 
   profiler->StopProfiling("LineNumber");
 }
-
-
 
 TEST(BailoutReason) {
   v8::HandleScope scope(CcTest::isolate());
