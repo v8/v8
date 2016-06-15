@@ -770,7 +770,7 @@ DEFINE_BOOL(use_idle_notification, true,
 DEFINE_BOOL(use_ic, true, "use inline caching")
 DEFINE_BOOL(trace_ic, false, "trace inline cache state transitions")
 DEFINE_BOOL(tf_load_ic_stub, true, "use TF LoadIC stub")
-DEFINE_BOOL_READONLY(new_load_global_ic, false,
+DEFINE_BOOL_READONLY(new_load_global_ic, true,
                      "use shortcut-style load global IC")
 
 // macro-assembler-ia32.cc
