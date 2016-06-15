@@ -789,6 +789,7 @@ v8_source_set("v8_base") {
     "src/char-predicates.cc",
     "src/char-predicates.h",
     "src/checks.h",
+    "src/code-events.h",
     "src/code-factory.cc",
     "src/code-factory.h",
     "src/code-stub-assembler.cc",

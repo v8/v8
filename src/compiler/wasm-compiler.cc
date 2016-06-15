@@ -30,7 +30,6 @@
 #include "src/code-stubs.h"
 #include "src/factory.h"
 #include "src/log-inl.h"
-#include "src/profiler/cpu-profiler.h"
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module.h"
@@ -2934,7 +2933,7 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, pos);
 }
 
-static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
+static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                       CompilationInfo* info,
                                       const char* message, uint32_t index,
                                       wasm::WasmName func_name) {
@@ -3037,7 +3036,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(
     }
 
     RecordFunctionCompilation(
-        Logger::FUNCTION_TAG, &info, "js-to-wasm", index,
+        CodeEventListener::FUNCTION_TAG, &info, "js-to-wasm", index,
         module->module->GetName(func->name_offset, func->name_length));
     // Set the JSFunction's machine code.
     function->set_code(*code);
@@ -3110,8 +3109,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
       buffer.Dispose();
     }
 
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", 0,
-                              module_name);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info,
+                              "wasm-to-js", 0, module_name);
   }
   return code;
 }
@@ -3275,7 +3274,8 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
   DCHECK(!code.is_null());
 
   RecordFunctionCompilation(
-      Logger::FUNCTION_TAG, &info_, "WASM_function", function_->func_index,
+      CodeEventListener::FUNCTION_TAG, &info_, "WASM_function",
+      function_->func_index,
       module_env_->module->GetName(function_->name_offset,
                                    function_->name_length));
 

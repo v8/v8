@@ -204,14 +204,13 @@ void CpuProfiler::CallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name));
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name));
   rec->size = 1;
   processor_->Enqueue(evt_rec);
 }
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                   AbstractCode* code, const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -225,7 +224,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   processor_->Enqueue(evt_rec);
 }
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                   AbstractCode* code, Name* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -239,7 +238,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   processor_->Enqueue(evt_rec);
 }
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                   AbstractCode* code,
                                   SharedFunctionInfo* shared,
                                   Name* script_name) {
@@ -258,7 +257,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   processor_->Enqueue(evt_rec);
 }
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                   AbstractCode* abstract_code,
                                   SharedFunctionInfo* shared, Name* script_name,
                                   int line, int column) {
@@ -312,7 +311,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
   processor_->Enqueue(evt_rec);
 }
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                   AbstractCode* code, int args_count) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -359,10 +358,8 @@ void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      "get ");
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name), "get ");
   rec->size = 1;
   processor_->Enqueue(evt_rec);
 }
@@ -372,7 +369,7 @@ void CpuProfiler::RegExpCodeCreateEvent(AbstractCode* code, String* source) {
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
-      Logger::REG_EXP_TAG, profiles_->GetName(source), "RegExp: ",
+      CodeEventListener::REG_EXP_TAG, profiles_->GetName(source), "RegExp: ",
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
   rec->size = code->ExecutableSize();
@@ -384,10 +381,8 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = entry_point;
-  rec->entry = profiles_->NewCodeEntry(
-      Logger::CALLBACK_TAG,
-      profiles_->GetName(name),
-      "set ");
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name), "set ");
   rec->size = 1;
   processor_->Enqueue(evt_rec);
 }
@@ -567,6 +562,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
+  isolate_->code_event_dispatcher()->AddListener(this);
   if (!FLAG_prof_browser_mode) {
     logger->LogCodeObjects();
   }
@@ -613,6 +609,7 @@ void CpuProfiler::StopProcessor() {
       reinterpret_cast<sampler::Sampler*>(logger->ticker_);
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
+  isolate_->code_event_dispatcher()->RemoveListener(this);
   processor_->StopSynchronously();
   processor_.reset();
   generator_.reset();

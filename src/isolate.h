@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include <memory>
 #include <queue>
 #include <set>
 
@@ -42,6 +43,8 @@ namespace internal {
 class BasicBlockProfiler;
 class Bootstrapper;
 class CallInterfaceDescriptorData;
+class CodeAgingHelper;
+class CodeEventDispatcher;
 class CodeGenerator;
 class CodeRange;
 class CodeStubDescriptor;
@@ -66,7 +69,7 @@ class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
-class CodeAgingHelper;
+class PositionsRecorder;
 class RegExpStack;
 class SaveContext;
 class StatsTable;
@@ -919,6 +922,9 @@ class Isolate {
   Debug* debug() { return debug_; }
 
   bool* is_profiling_address() { return &is_profiling_; }
+  CodeEventDispatcher* code_event_dispatcher() const {
+    return code_event_dispatcher_.get();
+  }
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
@@ -1338,6 +1344,7 @@ class Isolate {
   Debug* debug_;
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
+  std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
 
   interpreter::Interpreter* interpreter_;

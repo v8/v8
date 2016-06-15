@@ -47,7 +47,6 @@
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/regexp/jsregexp.h"

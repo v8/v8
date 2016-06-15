@@ -470,6 +470,7 @@
         'char-predicates-inl.h',
         'char-predicates.h',
         'checks.h',
+        'code-events.h',
         'code-factory.cc',
         'code-factory.h',
         'code-stub-assembler.cc',

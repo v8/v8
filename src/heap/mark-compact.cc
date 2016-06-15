@@ -25,7 +25,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
 

@@ -13,7 +13,6 @@
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 

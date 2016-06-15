@@ -162,13 +162,16 @@ TEST(CodeEvents) {
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
-  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code, *aaa_name);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code, "comment2");
+  profiler.CodeCreateEvent(i::CodeEventListener::FUNCTION_TAG, aaa_code,
+                           *aaa_name);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, comment_code,
+                           "comment");
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args5_code, 5);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, comment2_code,
+                           "comment2");
   profiler.CodeMoveEvent(comment2_code, moved_code->address());
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args3_code, 3);
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args4_code, 4);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->address());
@@ -219,9 +222,11 @@ TEST(TickEvents) {
   profiles->StartProfiling("", false);
   processor->Start();
 
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, frame1_code,
+                           "bbb");
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, frame2_code, 5);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, frame3_code,
+                           "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
   EnqueueTickSampleEvent(
@@ -284,7 +289,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("", false);
   processor->Start();
 
-  profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, code, "bbb");
 
   i::TickSample* sample = processor->StartTickSample();
   sample->pc = code->address();
@@ -1026,8 +1031,8 @@ static void TickLines(bool optimize) {
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, code, func->shared(), *str,
-                           line, column);
+  profiler.CodeCreateEvent(i::CodeEventListener::FUNCTION_TAG, code,
+                           func->shared(), *str, line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);

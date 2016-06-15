@@ -22,7 +22,6 @@
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/messages.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/string-builder.h"
@@ -5701,8 +5700,8 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       Handle<Code> code = (*functions[i].builder)(isolate, functions + i);
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
-              CodeCreateEvent(Logger::BUILTIN_TAG, AbstractCode::cast(*code),
-                              functions[i].s_name));
+              CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
+                              AbstractCode::cast(*code), functions[i].s_name));
       builtins_[i] = *code;
       code->set_builtin_index(i);
 #ifdef ENABLE_DISASSEMBLER

@@ -38,7 +38,7 @@ class JITLineInfoTable : public Malloced {
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
-  inline CodeEntry(Logger::LogEventsAndTags tag, const char* name,
+  inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                    const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
@@ -105,7 +105,9 @@ class CodeEntry {
   bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
-  Logger::LogEventsAndTags tag() const { return TagField::decode(bit_field_); }
+  CodeEventListener::LogEventsAndTags tag() const {
+    return TagField::decode(bit_field_);
+  }
 
   static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
@@ -314,7 +316,7 @@ class CpuProfilesCollection {
   void RemoveProfile(CpuProfile* profile);
 
   CodeEntry* NewCodeEntry(
-      Logger::LogEventsAndTags tag, const char* name,
+      CodeEventListener::LogEventsAndTags tag, const char* name,
       const char* name_prefix = CodeEntry::kEmptyNamePrefix,
       const char* resource_name = CodeEntry::kEmptyResourceName,
       int line_number = v8::CpuProfileNode::kNoLineNumberInfo,

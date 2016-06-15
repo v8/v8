@@ -27,7 +27,6 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/typing-asm.h"
@@ -379,7 +378,7 @@ bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
              Script::COMPILATION_TYPE_EVAL;
 }
 
-void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
+void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -402,7 +401,8 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     String* script_name = script->name()->IsString()
                               ? String::cast(script->name())
                               : info->isolate()->heap()->empty_string();
-    Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
+    CodeEventListener::LogEventsAndTags log_tag =
+        Logger::ToNativeByScript(tag, *script);
     PROFILE(info->isolate(),
             CodeCreateEvent(log_tag, *abstract_code, *shared, script_name,
                             line_num, column_num));
@@ -551,7 +551,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   InstallSharedCompilationResult(info, shared);
 
   // Record the function compilation event.
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
 
   return info->code();
 }
@@ -673,7 +673,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   job->RecordOptimizationStats();
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
   return true;
 }
 
@@ -952,7 +952,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   InstallSharedCompilationResult(&info, shared);
 
   // Record the function compilation event.
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, &info);
 
   return info.code();
 }
@@ -1110,10 +1110,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         script->name()->IsString()
             ? Handle<String>(String::cast(script->name()))
             : isolate->factory()->empty_string();
-    Logger::LogEventsAndTags log_tag =
+    CodeEventListener::LogEventsAndTags log_tag =
         parse_info->is_eval()
-            ? Logger::EVAL_TAG
-            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);
+            ? CodeEventListener::EVAL_TAG
+            : Logger::ToNativeByScript(CodeEventListener::SCRIPT_TAG, *script);
 
     PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
                                      *script_name));
@@ -1371,7 +1371,8 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     shared->EnableDeoptimizationSupport(*unoptimized.code());
 
     // The existing unoptimized code was replaced with the new one.
-    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized);
+    RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
+                              &unoptimized);
   }
   return true;
 }
@@ -1687,7 +1688,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   if (maybe_existing.is_null()) {
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info);
   }
 
   return result;
@@ -1759,7 +1760,7 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->GenerateCode() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizationStats();
-      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+      RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
                                          info->osr_ast_id()).code == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info);

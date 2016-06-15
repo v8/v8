@@ -62,10 +62,11 @@ void Interpreter::Initialize() {
       size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
       dispatch_table_[index] = code->entry();                                  \
       TraceCodegen(code);                                                      \
-      LOG_CODE_EVENT(                                                          \
+      PROFILE(                                                                 \
           isolate_,                                                            \
           CodeCreateEvent(                                                     \
-              Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(*code),         \
+              CodeEventListener::BYTECODE_HANDLER_TAG,                         \
+              AbstractCode::cast(*code),                                       \
               Bytecodes::ToString(Bytecode::k##Name, operand_scale).c_str())); \
     }                                                                          \
   }

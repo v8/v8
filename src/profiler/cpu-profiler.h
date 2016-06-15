@@ -12,6 +12,7 @@
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
+#include "src/isolate.h"
 #include "src/libsampler/v8-sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
@@ -182,15 +183,6 @@ class ProfilerEventsProcessor : public base::Thread {
   unsigned last_processed_code_event_id_;
 };
 
-#define PROFILE(IsolateGetter, Call)                                       \
-  do {                                                                     \
-    Isolate* the_isolate = (IsolateGetter);                                \
-    v8::internal::Logger* logger = the_isolate->logger();                  \
-    if (logger->is_logging_code_events() || the_isolate->is_profiling()) { \
-      logger->Call;                                                        \
-    }                                                                      \
-  } while (false)
-
 class CpuProfiler : public CodeEventListener {
  public:
   explicit CpuProfiler(Isolate* isolate);
@@ -219,22 +211,22 @@ class CpuProfiler : public CodeEventListener {
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
   void CallbackEvent(Name* name, Address entry_point) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        const char* comment) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        Name* name) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* script_name) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* script_name, int line,
                        int column) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        int args_count) override;
   void CodeMovingGCEvent() override {}
   void CodeMoveEvent(AbstractCode* from, Address to) override;
   void CodeDisableOptEvent(AbstractCode* code,
                            SharedFunctionInfo* shared) override;
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override;
   void GetterCallbackEvent(Name* name, Address entry_point) override;
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
   void SetterCallbackEvent(Name* name, Address entry_point) override;

@@ -1862,6 +1862,7 @@ Isolate::Isolate(bool enable_serializer)
       is_tail_call_elimination_enabled_(true),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
+      code_event_dispatcher_(new CodeEventDispatcher()),
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compile_dispatcher_(NULL),
@@ -2018,6 +2019,8 @@ void Isolate::Deinit() {
 
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
+
+  code_event_dispatcher_.reset();
 
   delete root_index_map_;
   root_index_map_ = NULL;

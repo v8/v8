@@ -94,7 +94,7 @@ bool CodeEntry::IsSameFunctionAs(CodeEntry* entry) const {
 
 
 void CodeEntry::SetBuiltinId(Builtins::Name id) {
-  bit_field_ = TagField::update(bit_field_, Logger::BUILTIN_TAG);
+  bit_field_ = TagField::update(bit_field_, CodeEventListener::BUILTIN_TAG);
   bit_field_ = BuiltinIdField::update(bit_field_, id);
 }
 
@@ -269,15 +269,13 @@ class DeleteNodesCallback {
   void AfterChildTraversed(ProfileNode*, ProfileNode*) { }
 };
 
-
 ProfileTree::ProfileTree(Isolate* isolate)
-    : root_entry_(Logger::FUNCTION_TAG, "(root)"),
+    : root_entry_(CodeEventListener::FUNCTION_TAG, "(root)"),
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)),
       isolate_(isolate),
       next_function_id_(1),
       function_ids_(ProfileNode::CodeEntriesMatch) {}
-
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
@@ -529,11 +527,10 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   current_profiles_semaphore_.Signal();
 }
 
-
 CodeEntry* CpuProfilesCollection::NewCodeEntry(
-    Logger::LogEventsAndTags tag, const char* name, const char* name_prefix,
-    const char* resource_name, int line_number, int column_number,
-    JITLineInfoTable* line_info, Address instruction_start) {
+    CodeEventListener::LogEventsAndTags tag, const char* name,
+    const char* name_prefix, const char* resource_name, int line_number,
+    int column_number, JITLineInfoTable* line_info, Address instruction_start) {
   CodeEntry* code_entry =
       new CodeEntry(tag, name, name_prefix, resource_name, line_number,
                     column_number, line_info, instruction_start);
@@ -551,21 +548,16 @@ const char* const ProfileGenerator::kGarbageCollectorEntryName =
 const char* const ProfileGenerator::kUnresolvedFunctionName =
     "(unresolved function)";
 
-
 ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
     : profiles_(profiles),
-      program_entry_(
-          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kProgramEntryName)),
-      idle_entry_(
-          profiles->NewCodeEntry(Logger::FUNCTION_TAG, kIdleEntryName)),
-      gc_entry_(
-          profiles->NewCodeEntry(Logger::BUILTIN_TAG,
-                                 kGarbageCollectorEntryName)),
-      unresolved_entry_(
-          profiles->NewCodeEntry(Logger::FUNCTION_TAG,
-                                 kUnresolvedFunctionName)) {
-}
-
+      program_entry_(profiles->NewCodeEntry(CodeEventListener::FUNCTION_TAG,
+                                            kProgramEntryName)),
+      idle_entry_(profiles->NewCodeEntry(CodeEventListener::FUNCTION_TAG,
+                                         kIdleEntryName)),
+      gc_entry_(profiles->NewCodeEntry(CodeEventListener::BUILTIN_TAG,
+                                       kGarbageCollectorEntryName)),
+      unresolved_entry_(profiles->NewCodeEntry(CodeEventListener::FUNCTION_TAG,
+                                               kUnresolvedFunctionName)) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   std::vector<CodeEntry*> entries;
