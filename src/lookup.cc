@@ -352,8 +352,6 @@ void LookupIterator::Delete() {
         isolate_, is_prototype_map
                       ? &RuntimeCallStats::PrototypeObject_DeleteProperty
                       : &RuntimeCallStats::Object_DeleteProperty);
-    TRACE_RUNTIME_CALL(is_prototype_map ? "PrototypeObject_DeleteProperty"
-                                        : "Object_DeleteProperty");
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;

@@ -73,7 +73,6 @@ namespace v8 {
 #define LOG_API(isolate, class_name, function_name)                       \
   i::RuntimeCallTimerScope _runtime_timer(                                \
       isolate, &i::RuntimeCallStats::API_##class_name##_##function_name); \
-  TRACE_RUNTIME_CALL(#class_name "::" #function_name);                    \
   LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
 
 #define ENTER_V8(isolate) i::VMState<v8::OTHER> __state__((isolate))
@@ -1765,7 +1764,6 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> receiver = isolate->global_proxy();
   Local<Value> result;
@@ -1820,7 +1818,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     TRACE_EVENT0("v8", "V8.CompileScript");
-    TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
     int line_offset = 0;
@@ -4357,7 +4354,6 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -4386,7 +4382,6 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4437,7 +4432,6 @@ MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4463,7 +4457,6 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   TRACE_EVENT0("v8", "V8.Execute");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -5611,8 +5604,6 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::Local<Value> global_object) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   LOG_API(isolate, Context, New);
-  TRACE_EVENT0("v8", "V8.NewContext");
-  TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING();
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;
@@ -8802,7 +8793,6 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::AccessorGetterCallback);
-  TRACE_RUNTIME_CALL("AccessorGetterCallback");
   Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
       getter));
   VMState<EXTERNAL> state(isolate);
@@ -8816,7 +8806,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::InvokeFunctionCallback);
-  TRACE_RUNTIME_CALL("InvokeFunctionCallback");
   Address callback_address =
       reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
   VMState<EXTERNAL> state(isolate);
