@@ -6,10 +6,6 @@
 
 #include "src/v8.h"
 
-// A global flag used as a shortcut to check for the
-// v8.runtime category due to its high frequency use.
-TRACE_EVENT_API_ATOMIC_BYTE g_runtime_calls_trace_enabled = 0;
-
 namespace v8 {
 namespace internal {
 namespace tracing {

@@ -133,7 +133,6 @@ enum CategoryGroupEnabledFlags {
       ->UpdateTraceEventDuration
 
 // Defines atomic operations used internally by the tracing system.
-#define TRACE_EVENT_API_ATOMIC_BYTE v8::base::Atomic8
 #define TRACE_EVENT_API_ATOMIC_WORD v8::base::AtomicWord
 #define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::NoBarrier_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
@@ -594,32 +593,5 @@ class TraceEventSamplingStateScope {
 }  // namespace tracing
 }  // namespace internal
 }  // namespace v8
-
-// V8 Specific macros
-
-// Runtime calls happen at a high frequency, the following set of macros
-// minimizes the tracing overhead of those calls. A global variable is set
-// when top level V8 API is called, and checked per runtime call.
-extern TRACE_EVENT_API_ATOMIC_BYTE g_runtime_calls_trace_enabled;
-
-#define TRACE_IS_RUNTIME_CALLS_TRACING_ENABLED() \
-  TRACE_EVENT_API_ATOMIC_LOAD(g_runtime_calls_trace_enabled)
-
-#define TRACE_CHECK_AND_SET_RUNTIME_CALLS_TRACING()                            \
-  do {                                                                         \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                    \
-        TRACE_DISABLED_BY_DEFAULT("v8.runtime"));                              \
-    TRACE_EVENT_API_ATOMIC_STORE(g_runtime_calls_trace_enabled,                \
-        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() ? 1   \
-                                                                         : 0); \
-  } while (0)
-
-#define TRACE_RUNTIME_CALL(name)                                               \
-  do {                                                                         \
-    if (V8_UNLIKELY(TRACE_IS_RUNTIME_CALLS_TRACING_ENABLED())) {               \
-      INTERNAL_TRACE_EVENT_ADD_SCOPED(TRACE_DISABLED_BY_DEFAULT("v8.runtime"), \
-                                      name);                                   \
-    }                                                                          \
-  } while (0)
 
 #endif  // SRC_TRACING_TRACE_EVENT_H_
