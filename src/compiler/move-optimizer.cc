@@ -27,6 +27,22 @@ struct MoveKeyCompare {
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
+bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
+  if (!operand.IsFPRegister()) return set.find(operand) != set.end();
+
+  const LocationOperand& loc = LocationOperand::cast(operand);
+  if (loc.representation() == MachineRepresentation::kFloat64) {
+    return set.find(operand) != set.end() ||
+           set.find(LocationOperand(loc.kind(), loc.location_kind(),
+                                    MachineRepresentation::kFloat32,
+                                    loc.register_code())) != set.end();
+  }
+  DCHECK_EQ(MachineRepresentation::kFloat32, loc.representation());
+  return set.find(operand) != set.end() ||
+         set.find(LocationOperand(loc.kind(), loc.location_kind(),
+                                  MachineRepresentation::kFloat64,
+                                  loc.register_code())) != set.end();
+}
 
 int FindFirstNonEmptySlot(const Instruction* instr) {
   int i = Instruction::FIRST_GAP_POSITION;
@@ -165,7 +181,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   // destination operands are eligible for being moved down.
   for (MoveOperands* move : *from_moves) {
     if (move->IsRedundant()) continue;
-    if (dst_cant_be.find(move->destination()) == dst_cant_be.end()) {
+    if (!Blocks(dst_cant_be, move->destination())) {
       MoveKey key = {move->source(), move->destination()};
       move_candidates.insert(key);
     }
@@ -180,7 +196,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
       auto current = iter;
       ++iter;
       InstructionOperand src = current->source;
-      if (src_cant_be.find(src) != src_cant_be.end()) {
+      if (Blocks(src_cant_be, src)) {
         src_cant_be.insert(current->destination);
         move_candidates.erase(current);
         changed = true;

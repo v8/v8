@@ -59,6 +59,11 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
   return condition;
 }
 
+bool InstructionOperand::InterferesWith(const InstructionOperand& that) const {
+  if (!IsFPRegister() || !that.IsFPRegister()) return EqualsCanonicalized(that);
+  return LocationOperand::cast(this)->register_code() ==
+         LocationOperand::cast(that).register_code();
+}
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {
   OFStream os(stdout);
@@ -74,7 +79,6 @@ void InstructionOperand::Print() const {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
   Print(config);
 }
-
 
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
@@ -180,7 +184,6 @@ std::ostream& operator<<(std::ostream& os,
   UNREACHABLE();
   return os;
 }
-
 
 void MoveOperands::Print(const RegisterConfiguration* config) const {
   OFStream os(stdout);

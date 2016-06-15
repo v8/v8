@@ -75,7 +75,7 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // This move's source may have changed due to swaps to resolve cycles and so
   // it may now be the last move in the cycle.  If so remove it.
   InstructionOperand source = move->source();
-  if (source.EqualsCanonicalized(destination)) {
+  if (source.InterferesWith(destination)) {
     move->Eliminate();
     return;
   }

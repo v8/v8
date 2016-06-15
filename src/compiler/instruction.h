@@ -103,6 +103,8 @@ class InstructionOperand {
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
+  bool InterferesWith(const InstructionOperand& that) const;
+
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
@@ -602,14 +604,13 @@ bool InstructionOperand::IsSimd128StackSlot() const {
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
-    // TODO(dcarney): put machine type last and mask.
-    MachineRepresentation canonicalized_representation =
-        IsFloatingPoint(LocationOperand::cast(this)->representation())
-            ? MachineRepresentation::kFloat64
-            : MachineRepresentation::kNone;
+    MachineRepresentation rep = LocationOperand::cast(this)->representation();
+    // Preserve FP representation so we can check for interference on
+    // architectures with complex register aliasing.
+    MachineRepresentation canonical =
+        IsFPRegister() ? rep : MachineRepresentation::kNone;
     return InstructionOperand::KindField::update(
-        LocationOperand::RepresentationField::update(
-            this->value_, canonicalized_representation),
+        LocationOperand::RepresentationField::update(this->value_, canonical),
         LocationOperand::EXPLICIT);
   }
   return this->value_;
@@ -650,9 +651,9 @@ class MoveOperands final : public ZoneObject {
   }
   void SetPending() { destination_ = InstructionOperand(); }
 
-  // True if this move a move into the given destination operand.
-  bool Blocks(const InstructionOperand& operand) const {
-    return !IsEliminated() && source().EqualsCanonicalized(operand);
+  // True if this move is a move into the given destination operand.
+  bool Blocks(const InstructionOperand& destination) const {
+    return !IsEliminated() && source().InterferesWith(destination);
   }
 
   // A move is redundant if it's been eliminated or if its source and
