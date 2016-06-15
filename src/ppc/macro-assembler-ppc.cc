@@ -1386,12 +1386,14 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
                                              const ParameterCount& expected,
                                              const ParameterCount& actual) {
   Label skip_flooding;
-  ExternalReference step_in_enabled =
-      ExternalReference::debug_step_in_enabled_address(isolate());
-  mov(r7, Operand(step_in_enabled));
-  lbz(r7, MemOperand(r7));
-  cmpi(r7, Operand::Zero());
-  beq(&skip_flooding);
+  ExternalReference last_step_action =
+      ExternalReference::debug_last_step_action_address(isolate());
+  STATIC_ASSERT(StepFrame > StepIn);
+  mov(r7, Operand(last_step_action));
+  LoadByte(r7, MemOperand(r7), r0);
+  extsb(r7, r7);
+  cmpi(r7, Operand(StepIn));
+  blt(&skip_flooding);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
