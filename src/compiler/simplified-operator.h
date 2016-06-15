@@ -103,6 +103,28 @@ std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
+enum class CheckFloat64HoleMode : uint8_t {
+  kNeverReturnHole,  // Never return the hole (deoptimize instead).
+  kAllowReturnHole   // Allow to return the hole (signaling NaN).
+};
+
+size_t hash_value(CheckFloat64HoleMode);
+
+std::ostream& operator<<(std::ostream&, CheckFloat64HoleMode);
+
+CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator*) WARN_UNUSED_RESULT;
+
+enum class CheckTaggedHoleMode : uint8_t {
+  kNeverReturnHole,        // Never return the hole (deoptimize instead).
+  kConvertHoleToUndefined  // Convert the hole to undefined.
+};
+
+size_t hash_value(CheckTaggedHoleMode);
+
+std::ostream& operator<<(std::ostream&, CheckTaggedHoleMode);
+
+CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator*) WARN_UNUSED_RESULT;
+
 Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
@@ -164,8 +186,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberTrunc();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
-  const Operator* NumberIsHoleNaN();
-  const Operator* NumberConvertHoleNaN();
 
   const Operator* NumberSilenceNaN();
 
@@ -202,6 +222,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedTaggedToInt32();
   const Operator* CheckedTaggedToFloat64();
 
+  const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
+  const Operator* CheckTaggedHole(CheckTaggedHoleMode);
   const Operator* CheckIf();
 
   const Operator* ObjectIsCallable();

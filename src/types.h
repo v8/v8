@@ -231,6 +231,7 @@ namespace internal {
   V(StringOrReceiver,         kString | kReceiver) \
   V(Unique,                   kBoolean | kUniqueName | kNull | kUndefined | \
                               kReceiver) \
+  V(NonInternal,              kPrimitive | kReceiver) \
   V(NonNumber,                kUnique | kString | kInternal) \
   V(Any,                      0xfffffffeu)
 

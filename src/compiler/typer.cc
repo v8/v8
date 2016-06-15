@@ -248,7 +248,6 @@ class Typer::Visitor : public Reducer {
   static Type* NumberTrunc(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
-  static Type* NumberConvertHoleNaN(Type*, Typer*);
 
   static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
@@ -555,10 +554,6 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
         Type::Unsigned32(), t->zone());
   }
   return Type::Unsigned32();
-}
-
-Type* Typer::Visitor::NumberConvertHoleNaN(Type* type, Typer* t) {
-  return Type::Union(type, Type::Undefined(), t->zone());
 }
 
 // Type checks.
@@ -1818,14 +1813,6 @@ Type* Typer::Visitor::TypeNumberToUint32(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeNumberIsHoleNaN(Node* node) {
-  return Type::Boolean();
-}
-
-Type* Typer::Visitor::TypeNumberConvertHoleNaN(Node* node) {
-  return TypeUnaryOp(node, NumberConvertHoleNaN);
-}
-
 // static
 Type* Typer::Visitor::ReferenceEqualTyper(Type* lhs, Type* rhs, Typer* t) {
   if (lhs->IsConstant() && rhs->Is(lhs)) {
@@ -1972,6 +1959,29 @@ Type* Typer::Visitor::TypeCheckedTaggedToInt32(Node* node) {
 
 Type* Typer::Visitor::TypeCheckedTaggedToFloat64(Node* node) {
   return Type::Number();
+}
+
+Type* Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
+  Type* type = Operand(node, 0);
+  return type;
+}
+
+Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
+  CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
+  Type* type = Operand(node, 0);
+  type = Type::Intersect(type, Type::NonInternal(), zone());
+  switch (mode) {
+    case CheckTaggedHoleMode::kConvertHoleToUndefined: {
+      // The hole is turned into undefined.
+      type = Type::Union(type, Type::Undefined(), zone());
+      break;
+    }
+    case CheckTaggedHoleMode::kNeverReturnHole: {
+      // We deoptimize in case of the hole.
+      break;
+    }
+  }
+  return type;
 }
 
 Type* Typer::Visitor::TypeCheckIf(Node* node) {

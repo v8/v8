@@ -766,16 +766,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Unsigned32());
       break;
-    case IrOpcode::kNumberIsHoleNaN:
-      // Number -> Boolean
-      CheckValueInputIs(node, 0, Type::Number());
-      CheckUpperIs(node, Type::Boolean());
-      break;
-    case IrOpcode::kNumberConvertHoleNaN:
-      // Number -> Number \/ Undefined
-      CheckValueInputIs(node, 0, Type::Number());
-      CheckUpperIs(node, Type::NumberOrUndefined());
-      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       // Type is Number.
       CheckUpperIs(node, Type::Number());
@@ -938,6 +928,15 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedToFloat64:
+      break;
+
+    case IrOpcode::kCheckFloat64Hole:
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckUpperIs(node, Type::Number());
+      break;
+    case IrOpcode::kCheckTaggedHole:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckUpperIs(node, Type::Any());
       break;
 
     case IrOpcode::kLoadField:

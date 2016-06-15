@@ -841,6 +841,8 @@
   'harmony/generators-turbo': [PASS, FAST_VARIANTS],
   'regress/regress-crbug-352058': [SKIP],
 
+  # TODO(jarin): No truncations on CheckFloat64Hole.
+  'getters-on-elements': [SKIP],
 }],  # ignition or ignition_turbofan
 
 ['(ignition or ignition_turbofan) and arch == arm64', {

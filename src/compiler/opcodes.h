@@ -207,9 +207,7 @@
   V(NumberTrunc)                   \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
-  V(NumberIsHoleNaN)               \
   V(NumberSilenceNaN)              \
-  V(NumberConvertHoleNaN)          \
   V(StringFromCharCode)            \
   V(StringToNumber)                \
   V(ChangeTaggedSignedToInt32)     \
@@ -226,6 +224,8 @@
   V(CheckedFloat64ToInt32)         \
   V(CheckedTaggedToInt32)          \
   V(CheckedTaggedToFloat64)        \
+  V(CheckFloat64Hole)              \
+  V(CheckTaggedHole)               \
   V(CheckIf)                       \
   V(TruncateTaggedToWord32)        \
   V(TruncateTaggedToFloat64)       \

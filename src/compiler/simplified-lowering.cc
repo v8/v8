@@ -1446,57 +1446,6 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
-      case IrOpcode::kNumberIsHoleNaN: {
-        VisitUnop(node, UseInfo::TruncatingFloat64(),
-                  MachineRepresentation::kBit);
-        if (lower()) {
-          // NumberIsHoleNaN(x) => Word32Equal(Float64ExtractHighWord32(x),
-          //                                   #HoleNanUpper32)
-          node->ReplaceInput(
-              0, jsgraph_->graph()->NewNode(
-                     lowering->machine()->Float64ExtractHighWord32(),
-                     node->InputAt(0)));
-          node->AppendInput(jsgraph_->zone(),
-                            jsgraph_->Int32Constant(kHoleNanUpper32));
-          NodeProperties::ChangeOp(node, jsgraph_->machine()->Word32Equal());
-        }
-        return;
-      }
-      case IrOpcode::kNumberConvertHoleNaN: {
-        if (truncation.TruncatesToFloat64()) {
-          // NumberConvertHoleNaN(x) => x
-          VisitUnop(node, UseInfo::TruncatingFloat64(),
-                    MachineRepresentation::kFloat64);
-          if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          VisitUnop(node, UseInfo::TruncatingFloat64(),
-                    MachineRepresentation::kTagged);
-          if (lower()) {
-            // NumberConvertHoleNaN(x) =>
-            //   Select(Word32Equal(Float64ExtractHighWord32(x),
-            //                      #HoleNanUpper32),
-            //          #Undefined,
-            //          ChangeFloat64ToTagged(x))
-            Node* value = node->InputAt(0);
-            node->ReplaceInput(
-                0,
-                jsgraph_->graph()->NewNode(
-                    jsgraph_->machine()->Word32Equal(),
-                    jsgraph_->graph()->NewNode(
-                        jsgraph_->machine()->Float64ExtractHighWord32(), value),
-                    jsgraph_->Int32Constant(kHoleNanUpper32)));
-            node->AppendInput(jsgraph_->zone(), jsgraph_->UndefinedConstant());
-            node->AppendInput(
-                jsgraph_->zone(),
-                jsgraph_->graph()->NewNode(
-                    jsgraph_->simplified()->ChangeFloat64ToTagged(), value));
-            NodeProperties::ChangeOp(
-                node, jsgraph_->common()->Select(MachineRepresentation::kTagged,
-                                                 BranchHint::kFalse));
-          }
-        }
-        return;
-      }
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {
@@ -1732,6 +1681,23 @@ class RepresentationSelector {
       case IrOpcode::kObjectIsUndetectable: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         SetOutput(node, MachineRepresentation::kBit);
+        return;
+      }
+      case IrOpcode::kCheckFloat64Hole: {
+        CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
+        ProcessInput(node, 0, UseInfo::TruncatingFloat64());
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, MachineRepresentation::kFloat64);
+        if (truncation.TruncatesToFloat64() &&
+            mode == CheckFloat64HoleMode::kAllowReturnHole) {
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        }
+        return;
+      }
+      case IrOpcode::kCheckTaggedHole: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, MachineRepresentation::kTagged);
         return;
       }
 

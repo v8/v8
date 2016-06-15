@@ -652,6 +652,14 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             graph()->NewNode(common()->EffectPhi(this_control_count),
                              this_control_count + 1, &this_effects.front());
       }
+
+      // TODO(turbofan): The effect/control linearization will not find a
+      // FrameState after the StoreField or Call that is generated for the
+      // elements kind transition above. This is because those operators
+      // don't have the kNoWrite flag on it, even though they are not
+      // observable by JavaScript.
+      this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
+                                     this_effect, this_control);
     }
 
     // Certain stores need a prototype chain check because shape changes
@@ -762,42 +770,26 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       if (elements_kind == FAST_HOLEY_ELEMENTS ||
           elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
         // Perform the hole check on the result.
-        Node* check =
-            graph()->NewNode(simplified()->ReferenceEqual(element_access.type),
-                             this_value, jsgraph()->TheHoleConstant());
+        CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
         // Check if we are allowed to turn the hole into undefined.
         Type* initial_holey_array_type = Type::Class(
             handle(isolate()->get_initial_js_array_map(elements_kind)),
             graph()->zone());
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check, this_control);
-          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
           // Add a code dependency on the array protector cell.
           AssumePrototypesStable(receiver_type, native_context,
                                  isolate()->initial_object_prototype());
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Turn the hole into undefined.
-          this_control =
-              graph()->NewNode(common()->Merge(2), if_true, if_false);
-          this_value = graph()->NewNode(
-              common()->Phi(MachineRepresentation::kTagged, 2),
-              jsgraph()->UndefinedConstant(), this_value, this_control);
-          element_type =
-              Type::Union(element_type, Type::Undefined(), graph()->zone());
-        } else {
-          // Deoptimize in case of the hole.
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
-                               this_effect, this_control);
+          mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
         }
-        // Rename the result to represent the actual type (not polluted by the
-        // hole).
-        this_value = graph()->NewNode(simplified()->TypeGuard(element_type),
-                                      this_value, this_control);
+        this_value = this_effect =
+            graph()->NewNode(simplified()->CheckTaggedHole(mode), this_value,
+                             this_effect, this_control);
       } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+        // Perform the hole check on the result.
+        CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
         // Check if we are allowed to return the hole directly.
         Type* initial_holey_array_type = Type::Class(
             handle(isolate()->get_initial_js_array_map(elements_kind)),
@@ -808,18 +800,12 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           AssumePrototypesStable(receiver_type, native_context,
                                  isolate()->initial_object_prototype());
           dependencies()->AssumePropertyCell(factory()->array_protector());
-          // Turn the hole into undefined.
-          this_value = graph()->NewNode(simplified()->NumberConvertHoleNaN(),
-                                        this_value);
-        } else {
-          // Perform the hole check on the result.
-          Node* check =
-              graph()->NewNode(simplified()->NumberIsHoleNaN(), this_value);
-          // Deoptimize in case of the hole.
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
-                               this_effect, this_control);
+          // Return the signaling NaN hole directly if all uses are truncating.
+          mode = CheckFloat64HoleMode::kAllowReturnHole;
         }
+        this_value = this_effect =
+            graph()->NewNode(simplified()->CheckFloat64Hole(mode), this_value,
+                             this_effect, this_control);
       }
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);

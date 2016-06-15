@@ -455,6 +455,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckFloat64Hole:
+      state = LowerCheckFloat64Hole(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckTaggedHole:
+      state = LowerCheckTaggedHole(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       state = LowerPlainPrimitiveToNumber(node, *effect, *control);
       break;
@@ -1294,6 +1300,51 @@ EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
   node->InsertInput(graph()->zone(), 1, frame_state);
   NodeProperties::ChangeOp(node, common()->DeoptimizeIf());
   return ValueEffectControl(node, node, node);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckFloat64Hole(Node* node, Node* frame_state,
+                                               Node* effect, Node* control) {
+  // If we reach this point w/o eliminating the {node} that's marked
+  // with allow-return-hole, we cannot do anything, so just deoptimize
+  // in case of the hole NaN (similar to Crankshaft).
+  Node* value = node->InputAt(0);
+  Node* check = graph()->NewNode(
+      machine()->Word32Equal(),
+      graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
+      jsgraph()->Int32Constant(kHoleNanUpper32));
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckTaggedHole(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
+  Node* value = node->InputAt(0);
+  Node* check = graph()->NewNode(machine()->WordEqual(), value,
+                                 jsgraph()->TheHoleConstant());
+  switch (mode) {
+    case CheckTaggedHoleMode::kConvertHoleToUndefined:
+      value = graph()->NewNode(
+          common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+          check, jsgraph()->UndefinedConstant(), value);
+      break;
+    case CheckTaggedHoleMode::kNeverReturnHole:
+      control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                          frame_state, effect, control);
+      break;
+  }
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

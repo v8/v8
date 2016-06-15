@@ -172,6 +172,46 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   return OpParameter<ElementAccess>(op);
 }
 
+size_t hash_value(CheckFloat64HoleMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+std::ostream& operator<<(std::ostream& os, CheckFloat64HoleMode mode) {
+  switch (mode) {
+    case CheckFloat64HoleMode::kAllowReturnHole:
+      return os << "allow-return-hole";
+    case CheckFloat64HoleMode::kNeverReturnHole:
+      return os << "never-return-hole";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kCheckFloat64Hole, op->opcode());
+  return OpParameter<CheckFloat64HoleMode>(op);
+}
+
+size_t hash_value(CheckTaggedHoleMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+std::ostream& operator<<(std::ostream& os, CheckTaggedHoleMode mode) {
+  switch (mode) {
+    case CheckTaggedHoleMode::kConvertHoleToUndefined:
+      return os << "convert-hole-to-undefined";
+    case CheckTaggedHoleMode::kNeverReturnHole:
+      return os << "never-return-hole";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kCheckTaggedHole, op->opcode());
+  return OpParameter<CheckTaggedHoleMode>(op);
+}
+
 Type* TypeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
   return OpParameter<Type*>(op);
@@ -214,9 +254,7 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   V(NumberTrunc, Operator::kNoProperties, 1)               \
   V(NumberToInt32, Operator::kNoProperties, 1)             \
   V(NumberToUint32, Operator::kNoProperties, 1)            \
-  V(NumberIsHoleNaN, Operator::kNoProperties, 1)           \
   V(NumberSilenceNaN, Operator::kNoProperties, 1)          \
-  V(NumberConvertHoleNaN, Operator::kNoProperties, 1)      \
   V(StringFromCharCode, Operator::kNoProperties, 1)        \
   V(StringToNumber, Operator::kNoProperties, 1)            \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)    \
@@ -270,6 +308,31 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
+
+  template <CheckFloat64HoleMode kMode>
+  struct CheckFloat64HoleNaNOperatortor final
+      : public Operator1<CheckFloat64HoleMode> {
+    CheckFloat64HoleNaNOperatortor()
+        : Operator1<CheckFloat64HoleMode>(
+              IrOpcode::kCheckFloat64Hole, Operator::kFoldable,
+              "CheckFloat64Hole", 1, 1, 1, 1, 1, 0, kMode) {}
+  };
+  CheckFloat64HoleNaNOperatortor<CheckFloat64HoleMode::kAllowReturnHole>
+      kCheckFloat64HoleAllowReturnHoleOperator;
+  CheckFloat64HoleNaNOperatortor<CheckFloat64HoleMode::kNeverReturnHole>
+      kCheckFloat64HoleNeverReturnHoleOperator;
+
+  template <CheckTaggedHoleMode kMode>
+  struct CheckTaggedHoleOperator final : public Operator1<CheckTaggedHoleMode> {
+    CheckTaggedHoleOperator()
+        : Operator1<CheckTaggedHoleMode>(IrOpcode::kCheckTaggedHole,
+                                         Operator::kFoldable, "CheckTaggedHole",
+                                         1, 1, 1, 1, 1, 0, kMode) {}
+  };
+  CheckTaggedHoleOperator<CheckTaggedHoleMode::kConvertHoleToUndefined>
+      kCheckTaggedHoleConvertHoleToUndefinedOperator;
+  CheckTaggedHoleOperator<CheckTaggedHoleMode::kNeverReturnHole>
+      kCheckTaggedHoleNeverReturnHoleOperator;
 
   struct CheckIfOperator final : public Operator {
     CheckIfOperator()
@@ -325,6 +388,30 @@ PURE_OP_LIST(GET_FROM_CACHE)
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
+    CheckFloat64HoleMode mode) {
+  switch (mode) {
+    case CheckFloat64HoleMode::kAllowReturnHole:
+      return &cache_.kCheckFloat64HoleAllowReturnHoleOperator;
+    case CheckFloat64HoleMode::kNeverReturnHole:
+      return &cache_.kCheckFloat64HoleNeverReturnHoleOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckTaggedHole(
+    CheckTaggedHoleMode mode) {
+  switch (mode) {
+    case CheckTaggedHoleMode::kConvertHoleToUndefined:
+      return &cache_.kCheckTaggedHoleConvertHoleToUndefinedOperator;
+    case CheckTaggedHoleMode::kNeverReturnHole:
+      return &cache_.kCheckTaggedHoleNeverReturnHoleOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* SimplifiedOperatorBuilder::CheckIf() {
   return &cache_.kCheckIf;
