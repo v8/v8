@@ -91,16 +91,131 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph)
       jsgraph_(jsgraph),
       type_cache_(TypeCache::Get()) {}
 
-// ECMA-262, section 15.8.2.11.
+// ES6 section 20.2.2.6 Math.atan ( x )
+Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.atan(a:plain-primitive) -> NumberAtan(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAtan(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.8 Math.atan2 ( y, x )
+Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchTwo(Type::PlainPrimitive(), Type::PlainPrimitive())) {
+    // Math.atan2(a:plain-primitive,
+    //            b:plain-primitive) -> NumberAtan2(ToNumber(a),
+    //                                              ToNumber(b))
+    Node* left = ToNumber(r.left());
+    Node* right = ToNumber(r.right());
+    Node* value = graph()->NewNode(simplified()->NumberAtan2(), left, right);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.10 Math.ceil ( x )
+Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.ceil(a:plain-primitive) -> NumberCeil(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberCeil(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.11 Math.clz32 ( x )
+Reduction JSBuiltinReducer::ReduceMathClz32(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.clz32(a:plain-primitive) -> NumberClz32(ToUint32(a))
+    Node* input = ToUint32(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberClz32(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.16 Math.floor ( x )
+Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.floor(a:plain-primitive) -> NumberFloor(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberFloor(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.17 Math.fround ( x )
+Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.fround(a:plain-primitive) -> NumberFround(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberFround(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.19 Math.imul ( x, y )
+Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchTwo(Type::PlainPrimitive(), Type::PlainPrimitive())) {
+    // Math.imul(a:plain-primitive,
+    //           b:plain-primitive) -> NumberImul(ToUint32(a),
+    //                                            ToUint32(b))
+    Node* left = ToUint32(r.left());
+    Node* right = ToUint32(r.right());
+    Node* value = graph()->NewNode(simplified()->NumberImul(), left, right);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.20 Math.log ( x )
+Reduction JSBuiltinReducer::ReduceMathLog(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.log(a:plain-primitive) -> NumberLog(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberLog(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.21 Math.log1p ( x )
+Reduction JSBuiltinReducer::ReduceMathLog1p(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.log1p(a:plain-primitive) -> NumberLog1p(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberLog1p(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.24 Math.max ( value1, value2, ...values )
 Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   JSCallReduction r(node);
   if (r.InputsMatchZero()) {
     // Math.max() -> -Infinity
     return Replace(jsgraph()->Constant(-V8_INFINITY));
   }
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.max(a:number) -> a
-    return Replace(r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.max(a:plain-primitive) -> ToNumber(a)
+    Node* value = ToNumber(r.GetJSCallInput(0));
+    return Replace(value);
   }
   if (r.InputsMatchAll(Type::Integral32())) {
     // Math.max(a:int32, b:int32, ...)
@@ -117,112 +232,28 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   return NoChange();
 }
 
-// ES6 section 20.2.2.19 Math.imul ( x, y )
-Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
+// ES6 section 20.2.2.25 Math.min ( value1, value2, ...values )
+Reduction JSBuiltinReducer::ReduceMathMin(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchTwo(Type::Number(), Type::Number())) {
-    // Math.imul(a:number, b:number) -> NumberImul(NumberToUint32(a),
-    //                                             NumberToUint32(b))
-    Node* a = graph()->NewNode(simplified()->NumberToUint32(), r.left());
-    Node* b = graph()->NewNode(simplified()->NumberToUint32(), r.right());
-    Node* value = graph()->NewNode(simplified()->NumberImul(), a, b);
+  if (r.InputsMatchZero()) {
+    // Math.min() -> Infinity
+    return Replace(jsgraph()->Constant(V8_INFINITY));
+  }
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.min(a:plain-primitive) -> ToNumber(a)
+    Node* value = ToNumber(r.GetJSCallInput(0));
     return Replace(value);
   }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.10 Math.ceil ( x )
-Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.ceil(a:number) -> NumberCeil(a)
-    Node* value = graph()->NewNode(simplified()->NumberCeil(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.11 Math.clz32 ( x )
-Reduction JSBuiltinReducer::ReduceMathClz32(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Unsigned32())) {
-    // Math.clz32(a:unsigned32) -> NumberClz32(a)
-    Node* value = graph()->NewNode(simplified()->NumberClz32(), r.left());
-    return Replace(value);
-  }
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.clz32(a:number) -> NumberClz32(NumberToUint32(a))
-    Node* value = graph()->NewNode(
-        simplified()->NumberClz32(),
-        graph()->NewNode(simplified()->NumberToUint32(), r.left()));
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 draft 08-24-14, section 20.2.2.16.
-Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.floor(a:number) -> NumberFloor(a)
-    Node* value = graph()->NewNode(simplified()->NumberFloor(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 draft 08-24-14, section 20.2.2.17.
-Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::NumberOrUndefined())) {
-    // Math.fround(a:number) -> TruncateFloat64ToFloat32(a)
-    Node* value =
-        graph()->NewNode(machine()->TruncateFloat64ToFloat32(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.6 Math.atan ( x )
-Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.atan(a:number) -> NumberAtan(a)
-    Node* value = graph()->NewNode(simplified()->NumberAtan(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.8 Math.atan2 ( y, x )
-Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchTwo(Type::Number(), Type::Number())) {
-    // Math.atan2(a:number, b:number) -> NumberAtan2(a, b)
-    Node* value =
-        graph()->NewNode(simplified()->NumberAtan2(), r.left(), r.right());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.20 Math.log ( x )
-Reduction JSBuiltinReducer::ReduceMathLog(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.log(a:number) -> NumberLog(a)
-    Node* value = graph()->NewNode(simplified()->NumberLog(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.21 Math.log1p ( x )
-Reduction JSBuiltinReducer::ReduceMathLog1p(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.log1p(a:number) -> NumberLog1p(a)
-    Node* value = graph()->NewNode(simplified()->NumberLog1p(), r.left());
+  if (r.InputsMatchAll(Type::Integral32())) {
+    // Math.min(a:int32, b:int32, ...)
+    Node* value = r.GetJSCallInput(0);
+    for (int i = 1; i < r.GetJSCallArity(); i++) {
+      Node* const input = r.GetJSCallInput(i);
+      value = graph()->NewNode(
+          common()->Select(MachineRepresentation::kNone),
+          graph()->NewNode(simplified()->NumberLessThan(), input, value), input,
+          value);
+    }
     return Replace(value);
   }
   return NoChange();
@@ -231,9 +262,10 @@ Reduction JSBuiltinReducer::ReduceMathLog1p(Node* node) {
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.round(a:number) -> NumberRound(a)
-    Node* value = graph()->NewNode(simplified()->NumberRound(), r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.round(a:plain-primitive) -> NumberRound(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberRound(), input);
     return Replace(value);
   }
   return NoChange();
@@ -242,9 +274,10 @@ Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
 // ES6 section 20.2.2.32 Math.sqrt ( x )
 Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.sqrt(a:number) -> Float64Sqrt(a)
-    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.sqrt(a:plain-primitive) -> NumberSqrt(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberSqrt(), input);
     return Replace(value);
   }
   return NoChange();
@@ -253,9 +286,10 @@ Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
 // ES6 section 20.2.2.35 Math.trunc ( x )
 Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.trunc(a:number) -> NumberTrunc(a)
-    Node* value = graph()->NewNode(simplified()->NumberTrunc(), r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.trunc(a:plain-primitive) -> NumberTrunc(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberTrunc(), input);
     return Replace(value);
   }
   return NoChange();
@@ -264,10 +298,10 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
 // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
 Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // String.fromCharCode(a:number) -> StringFromCharCode(a)
-    Node* value =
-        graph()->NewNode(simplified()->StringFromCharCode(), r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // String.fromCharCode(a:plain-primitive) -> StringFromCharCode(a)
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->StringFromCharCode(), input);
     return Replace(value);
   }
   return NoChange();
@@ -280,11 +314,11 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
-    case kMathMax:
-      reduction = ReduceMathMax(node);
+    case kMathAtan:
+      reduction = ReduceMathAtan(node);
       break;
-    case kMathImul:
-      reduction = ReduceMathImul(node);
+    case kMathAtan2:
+      reduction = ReduceMathAtan2(node);
       break;
     case kMathClz32:
       reduction = ReduceMathClz32(node);
@@ -298,17 +332,20 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathFround:
       reduction = ReduceMathFround(node);
       break;
-    case kMathAtan:
-      reduction = ReduceMathAtan(node);
-      break;
-    case kMathAtan2:
-      reduction = ReduceMathAtan2(node);
+    case kMathImul:
+      reduction = ReduceMathImul(node);
       break;
     case kMathLog:
       reduction = ReduceMathLog(node);
       break;
     case kMathLog1p:
       reduction = ReduceMathLog1p(node);
+      break;
+    case kMathMax:
+      reduction = ReduceMathMax(node);
+      break;
+    case kMathMin:
+      reduction = ReduceMathMin(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
@@ -333,6 +370,18 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   return reduction;
 }
 
+Node* JSBuiltinReducer::ToNumber(Node* input) {
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Number())) return input;
+  return graph()->NewNode(simplified()->PlainPrimitiveToNumber(), input);
+}
+
+Node* JSBuiltinReducer::ToUint32(Node* input) {
+  input = ToNumber(input);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Unsigned32())) return input;
+  return graph()->NewNode(simplified()->NumberToUint32(), input);
+}
 
 Graph* JSBuiltinReducer::graph() const { return jsgraph()->graph(); }
 
@@ -342,11 +391,6 @@ Isolate* JSBuiltinReducer::isolate() const { return jsgraph()->isolate(); }
 
 CommonOperatorBuilder* JSBuiltinReducer::common() const {
   return jsgraph()->common();
-}
-
-
-MachineOperatorBuilder* JSBuiltinReducer::machine() const {
-  return jsgraph()->machine();
 }
 
 

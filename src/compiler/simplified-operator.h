@@ -154,11 +154,13 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberClz32();
   const Operator* NumberCeil();
   const Operator* NumberFloor();
+  const Operator* NumberFround();
   const Operator* NumberAtan();
   const Operator* NumberAtan2();
   const Operator* NumberLog();
   const Operator* NumberLog1p();
   const Operator* NumberRound();
+  const Operator* NumberSqrt();
   const Operator* NumberTrunc();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();

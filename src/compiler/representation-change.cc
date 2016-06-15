@@ -663,10 +663,14 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Atan();
     case IrOpcode::kNumberAtan2:
       return machine()->Float64Atan2();
+    case IrOpcode::kNumberFround:
+      return machine()->TruncateFloat64ToFloat32();
     case IrOpcode::kNumberLog:
       return machine()->Float64Log();
     case IrOpcode::kNumberLog1p:
       return machine()->Float64Log1p();
+    case IrOpcode::kNumberSqrt:
+      return machine()->Float64Sqrt();
     case IrOpcode::kNumberSilenceNaN:
       return machine()->Float64SilenceNaN();
     default:

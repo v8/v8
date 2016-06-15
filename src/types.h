@@ -219,6 +219,7 @@ namespace internal {
   V(BooleanOrNullOrUndefined, kBoolean | kNull | kUndefined) \
   V(NullOrUndefined,          kNull | kUndefined) \
   V(Undetectable,             kNullOrUndefined | kOtherUndetectable) \
+  V(NumberOrOddball,          kNumber | kNullOrUndefined | kBoolean) \
   V(NumberOrSimdOrString,     kNumber | kSimd | kString) \
   V(NumberOrString,           kNumber | kString) \
   V(NumberOrUndefined,        kNumber | kUndefined) \

@@ -1788,6 +1788,8 @@ Type* Typer::Visitor::TypeNumberFloor(Node* node) {
   return TypeUnaryOp(node, NumberFloor);
 }
 
+Type* Typer::Visitor::TypeNumberFround(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberAtan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
@@ -1799,6 +1801,8 @@ Type* Typer::Visitor::TypeNumberLog1p(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeNumberRound(Node* node) {
   return TypeUnaryOp(node, NumberRound);
 }
+
+Type* Typer::Visitor::TypeNumberSqrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberTrunc(Node* node) {
   return TypeUnaryOp(node, NumberTrunc);
@@ -1902,7 +1906,7 @@ Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
 
 Type* Typer::Visitor::TypeTruncateTaggedToFloat64(Node* node) {
   Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::NumberOrUndefined()));
+  DCHECK(arg->Is(Type::NumberOrOddball()));
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 

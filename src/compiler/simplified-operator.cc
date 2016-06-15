@@ -204,11 +204,13 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   V(NumberClz32, Operator::kNoProperties, 1)               \
   V(NumberCeil, Operator::kNoProperties, 1)                \
   V(NumberFloor, Operator::kNoProperties, 1)               \
+  V(NumberFround, Operator::kNoProperties, 1)              \
   V(NumberAtan, Operator::kNoProperties, 1)                \
   V(NumberAtan2, Operator::kNoProperties, 2)               \
   V(NumberLog, Operator::kNoProperties, 1)                 \
   V(NumberLog1p, Operator::kNoProperties, 1)               \
   V(NumberRound, Operator::kNoProperties, 1)               \
+  V(NumberSqrt, Operator::kNoProperties, 1)                \
   V(NumberTrunc, Operator::kNoProperties, 1)               \
   V(NumberToInt32, Operator::kNoProperties, 1)             \
   V(NumberToUint32, Operator::kNoProperties, 1)            \
@@ -217,9 +219,9 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   V(NumberConvertHoleNaN, Operator::kNoProperties, 1)      \
   V(StringFromCharCode, Operator::kNoProperties, 1)        \
   V(StringToNumber, Operator::kNoProperties, 1)            \
-  V(PlainPrimitiveToNumber, Operator::kNoWrite, 1)         \
-  V(PlainPrimitiveToWord32, Operator::kNoWrite, 1)         \
-  V(PlainPrimitiveToFloat64, Operator::kNoWrite, 1)        \
+  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)    \
+  V(PlainPrimitiveToWord32, Operator::kNoProperties, 1)    \
+  V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1)   \
   V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1) \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)       \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1)      \

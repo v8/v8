@@ -45,7 +45,7 @@ class JSBinopReduction final {
     return BinaryOperationHints::kAny;
   }
 
-  void ConvertInputsToNumberOrUndefined(Node* frame_state) {
+  void ConvertInputsToNumber(Node* frame_state) {
     // To convert the inputs to numbers, we have to provide frame states
     // for lazy bailouts in the ToNumber conversions.
     // We use a little hack here: we take the frame state before the binary
@@ -64,11 +64,11 @@ class JSBinopReduction final {
       ConvertBothInputsToNumber(&left_input, &right_input, frame_state);
     } else {
       left_input = left_is_primitive
-                       ? ConvertPlainPrimitiveToNumberOrUndefined(left())
+                       ? ConvertPlainPrimitiveToNumber(left())
                        : ConvertSingleInputToNumber(
                              left(), CreateFrameStateForLeftInput(frame_state));
       right_input = right_is_primitive
-                        ? ConvertPlainPrimitiveToNumberOrUndefined(right())
+                        ? ConvertPlainPrimitiveToNumber(right())
                         : ConvertSingleInputToNumber(
                               right(), CreateFrameStateForRightInput(
                                            frame_state, left_input));
@@ -281,12 +281,12 @@ class JSBinopReduction final {
         frame_state->InputAt(kFrameStateOuterStateInput));
   }
 
-  Node* ConvertPlainPrimitiveToNumberOrUndefined(Node* node) {
+  Node* ConvertPlainPrimitiveToNumber(Node* node) {
     DCHECK(NodeProperties::GetType(node)->Is(Type::PlainPrimitive()));
     // Avoid inserting too many eager ToNumber() operations.
     Reduction const reduction = lowering_->ReduceJSToNumberInput(node);
     if (reduction.Changed()) return reduction.replacement();
-    if (NodeProperties::GetType(node)->Is(Type::NumberOrUndefined())) {
+    if (NodeProperties::GetType(node)->Is(Type::Number())) {
       return node;
     }
     return graph()->NewNode(simplified()->PlainPrimitiveToNumber(), node);
@@ -409,16 +409,16 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberAdd(feedback));
   }
-  if (r.BothInputsAre(Type::NumberOrUndefined())) {
+  if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
     Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumberOrUndefined(frame_state);
+    r.ConvertInputsToNumber(frame_state);
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumberOrUndefined(frame_state);
+    r.ConvertInputsToNumber(frame_state);
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.OneInputIs(Type::String())) {
@@ -468,7 +468,7 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
         simplified()->SpeculativeNumberSubtract(feedback));
   }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumberOrUndefined(frame_state);
+  r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(simplified()->NumberSubtract(), Type::Number());
 }
 
@@ -476,7 +476,7 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumberOrUndefined(frame_state);
+  r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(simplified()->NumberMultiply(), Type::Number());
 }
 
@@ -484,7 +484,7 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumberOrUndefined(frame_state);
+  r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
 }
 
@@ -494,7 +494,7 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
 
   JSBinopReduction r(this, node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumberOrUndefined(frame_state);
+  r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(kSigned, kSigned);
   return r.ChangeToPureOperator(intOp, Type::Integral32());
 }
@@ -507,7 +507,7 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
 
   JSBinopReduction r(this, node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumberOrUndefined(frame_state);
+  r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(left_signedness, kUnsigned);
   return r.ChangeToPureOperator(shift_op);
 }
@@ -553,7 +553,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     } else {
       // TODO(turbofan): mixed signed/unsigned int32 comparisons.
       Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      r.ConvertInputsToNumberOrUndefined(frame_state);
+      r.ConvertInputsToNumber(frame_state);
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
     }
@@ -722,7 +722,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
-  if (r.BothInputsAre(Type::NumberOrUndefined())) {
+  if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
   }
   // TODO(turbofan): js-typed-lowering of StrictEqual(mixed types)
@@ -1073,7 +1073,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* control = NodeProperties::GetControlInput(node);
         // Convert to a number first.
-        if (!value_type->Is(Type::NumberOrUndefined())) {
+        if (!value_type->Is(Type::Number())) {
           Reduction number_reduction = ReduceJSToNumberInput(value);
           if (number_reduction.Changed()) {
             value = number_reduction.replacement();

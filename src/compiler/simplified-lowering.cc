@@ -611,16 +611,17 @@ class RepresentationSelector {
 
   Type* GetUpperBound(Node* node) { return NodeProperties::GetType(node); }
 
+  bool InputIs(Node* node, Type* type) {
+    DCHECK_EQ(1, node->InputCount());
+    return GetUpperBound(node->InputAt(0))->Is(type);
+  }
+
   bool BothInputsAreSigned32(Node* node) {
-    DCHECK_EQ(2, node->InputCount());
-    return GetUpperBound(node->InputAt(0))->Is(Type::Signed32()) &&
-           GetUpperBound(node->InputAt(1))->Is(Type::Signed32());
+    return BothInputsAre(node, Type::Signed32());
   }
 
   bool BothInputsAreUnsigned32(Node* node) {
-    DCHECK_EQ(2, node->InputCount());
-    return GetUpperBound(node->InputAt(0))->Is(Type::Unsigned32()) &&
-           GetUpperBound(node->InputAt(1))->Is(Type::Unsigned32());
+    return BothInputsAre(node, Type::Unsigned32());
   }
 
   bool BothInputsAre(Node* node, Type* type) {
@@ -1393,6 +1394,12 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, lowering->Float64Floor(node));
         return;
       }
+      case IrOpcode::kNumberFround: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat32);
+        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        return;
+      }
       case IrOpcode::kNumberAtan2: {
         VisitBinop(node, UseInfo::TruncatingFloat64(),
                    MachineRepresentation::kFloat64);
@@ -1411,6 +1418,12 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Round(node));
+        return;
+      }
+      case IrOpcode::kNumberSqrt: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kFloat64);
+        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
       }
       case IrOpcode::kNumberTrunc: {
@@ -1683,21 +1696,36 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kPlainPrimitiveToNumber:
-        ProcessInput(node, 0, UseInfo::AnyTagged());
         if (truncation.TruncatesToWord32()) {
-          SetOutput(node, MachineRepresentation::kWord32);
-          if (lower()) {
-            NodeProperties::ChangeOp(node,
-                                     simplified()->PlainPrimitiveToWord32());
+          // TODO(jarin): Extend this to Number \/ Oddball
+          if (InputIs(node, Type::NumberOrUndefined())) {
+            VisitUnop(node, UseInfo::TruncatingWord32(),
+                      MachineRepresentation::kWord32);
+            if (lower()) DeferReplacement(node, node->InputAt(0));
+          } else {
+            VisitUnop(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kWord32);
+            if (lower()) {
+              NodeProperties::ChangeOp(node,
+                                       simplified()->PlainPrimitiveToWord32());
+            }
           }
         } else if (truncation.TruncatesToFloat64()) {
-          SetOutput(node, MachineRepresentation::kFloat64);
-          if (lower()) {
-            NodeProperties::ChangeOp(node,
-                                     simplified()->PlainPrimitiveToFloat64());
+          // TODO(jarin): Extend this to Number \/ Oddball
+          if (InputIs(node, Type::NumberOrUndefined())) {
+            VisitUnop(node, UseInfo::TruncatingFloat64(),
+                      MachineRepresentation::kFloat64);
+            if (lower()) DeferReplacement(node, node->InputAt(0));
+          } else {
+            VisitUnop(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kFloat64);
+            if (lower()) {
+              NodeProperties::ChangeOp(node,
+                                       simplified()->PlainPrimitiveToFloat64());
+            }
           }
         } else {
-          SetOutput(node, MachineRepresentation::kTagged);
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
         return;
       case IrOpcode::kObjectIsCallable:

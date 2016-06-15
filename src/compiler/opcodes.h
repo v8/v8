@@ -197,11 +197,13 @@
   V(NumberClz32)                   \
   V(NumberCeil)                    \
   V(NumberFloor)                   \
+  V(NumberFround)                  \
   V(NumberAtan)                    \
   V(NumberAtan2)                   \
   V(NumberLog)                     \
   V(NumberLog1p)                   \
   V(NumberRound)                   \
+  V(NumberSqrt)                    \
   V(NumberTrunc)                   \
   V(NumberToInt32)                 \
   V(NumberToUint32)                \
