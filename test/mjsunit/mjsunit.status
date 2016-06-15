@@ -553,6 +553,9 @@
   'try': [PASS, NO_IGNITION],
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [PASS, NO_IGNITION],
+
+  # Too slow.
+  'harmony/regexp-property-lu-ui': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
