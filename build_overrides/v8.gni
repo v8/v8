@@ -18,7 +18,6 @@ if (((v8_target_arch == "ia32" ||
   v8_enable_gdbjit = true
 }
 
-icu_use_data_file = false
 v8_imminent_deprecation_warnings = true
 
 # Add simple extras solely for the purpose of the cctests.
