@@ -1509,7 +1509,7 @@ class RepresentationSelector {
         if (lower()) {
           // StringEqual(x, y) => Call(StringEqualStub, x, y, no-context)
           Operator::Properties properties =
-              Operator::kCommutative | Operator::kNoThrow;
+              Operator::kCommutative | Operator::kEliminatable;
           Callable callable = CodeFactory::StringEqual(jsgraph_->isolate());
           CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
           CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -1519,7 +1519,6 @@ class RepresentationSelector {
                             jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
           node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
         return;
@@ -1528,7 +1527,7 @@ class RepresentationSelector {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         if (lower()) {
           // StringLessThan(x, y) => Call(StringLessThanStub, x, y, no-context)
-          Operator::Properties properties = Operator::kNoThrow;
+          Operator::Properties properties = Operator::kEliminatable;
           Callable callable = CodeFactory::StringLessThan(jsgraph_->isolate());
           CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
           CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -1537,7 +1536,6 @@ class RepresentationSelector {
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
@@ -1548,7 +1546,7 @@ class RepresentationSelector {
         if (lower()) {
           // StringLessThanOrEqual(x, y)
           //   => Call(StringLessThanOrEqualStub, x, y, no-context)
-          Operator::Properties properties = Operator::kNoThrow;
+          Operator::Properties properties = Operator::kEliminatable;
           Callable callable =
               CodeFactory::StringLessThanOrEqual(jsgraph_->isolate());
           CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
@@ -1558,7 +1556,6 @@ class RepresentationSelector {
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
@@ -1573,7 +1570,7 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         if (lower()) {
           // StringToNumber(x) => Call(StringToNumber, x, no-context)
-          Operator::Properties properties = Operator::kNoThrow;
+          Operator::Properties properties = Operator::kEliminatable;
           Callable callable = CodeFactory::StringToNumber(jsgraph_->isolate());
           CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
           CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -1582,7 +1579,6 @@ class RepresentationSelector {
           node->InsertInput(jsgraph_->zone(), 0,
                             jsgraph_->HeapConstant(callable.code()));
           node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
