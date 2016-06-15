@@ -4503,8 +4503,17 @@ BUILTIN(GeneratorFunctionConstructor) {
 
 BUILTIN(AsyncFunctionConstructor) {
   HandleScope scope(isolate);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, CreateDynamicFunction(isolate, args, "async function"));
+  Handle<JSFunction> func;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, func, CreateDynamicFunction(isolate, args, "async function"));
+
+  // Do not lazily compute eval position for AsyncFunction, as they may not be
+  // determined after the function is resumed.
+  Handle<Script> script = handle(Script::cast(func->shared()->script()));
+  int position = script->GetEvalPosition();
+  USE(position);
+
+  return *func;
 }
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.

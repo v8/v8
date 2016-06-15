@@ -1627,6 +1627,21 @@ class MultipleFunctionTarget {
     return false;
   }
 
+  void set_status(LiveEdit::FunctionPatchabilityStatus status) {
+    Isolate* isolate = old_shared_array_->GetIsolate();
+    int len = GetArrayLength(old_shared_array_);
+    for (int i = 0; i < len; ++i) {
+      Handle<Object> old_element =
+          JSReceiver::GetElement(isolate, result_, i).ToHandleChecked();
+      if (!old_element->IsSmi() ||
+          Smi::cast(*old_element)->value() ==
+              LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {
+        SetElementSloppy(result_, i,
+                         Handle<Smi>(Smi::FromInt(status), isolate));
+      }
+    }
+  }
+
  private:
   Handle<JSArray> old_shared_array_;
   Handle<JSArray> new_shared_array_;
@@ -1702,6 +1717,13 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
       if (frame->is_java_script()) {
         if (target.MatchActivation(frame, non_droppable_reason)) {
           // Fail.
+          return NULL;
+        }
+        if (non_droppable_reason ==
+                LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR &&
+            !target_frame_found) {
+          // Fail.
+          target.set_status(non_droppable_reason);
           return NULL;
         }
       }
