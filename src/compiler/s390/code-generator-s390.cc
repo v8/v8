@@ -396,7 +396,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
                      0, 1);                                                    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
@@ -411,7 +410,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
                      0, 2);                                                    \
     /* Move the result in the double result register. */                       \
     __ MovFromFloatResult(i.OutputDoubleRegister());                           \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MAX(double_scratch_reg, general_scratch_reg) \
@@ -1345,6 +1343,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 #endif
+    case kS390_Float64SilenceNaN: {
+      DoubleRegister value = i.InputDoubleRegister(0);
+      DoubleRegister result = i.OutputDoubleRegister();
+      __ CanonicalizeNaN(result, value);
+      break;
+    }
     case kS390_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ lay(sp, MemOperand(sp, -kDoubleSize));

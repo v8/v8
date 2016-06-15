@@ -1179,6 +1179,10 @@ void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kS390_Float64SilenceNaN, node);
+}
+
 void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
