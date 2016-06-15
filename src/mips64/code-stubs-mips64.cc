@@ -5127,36 +5127,6 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
 }
 
 
-void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
-  Register context_reg = cp;
-  Register slot_reg = a2;
-  Register result_reg = v0;
-  Label slow_case;
-
-  // Go up context chain to the script context.
-  for (int i = 0; i < depth(); ++i) {
-    __ ld(result_reg, ContextMemOperand(context_reg, Context::PREVIOUS_INDEX));
-    context_reg = result_reg;
-  }
-
-  // Load the PropertyCell value at the specified slot.
-  __ Dlsa(at, context_reg, slot_reg, kPointerSizeLog2);
-  __ ld(result_reg, ContextMemOperand(at, 0));
-  __ ld(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
-
-  // Check that value is not the_hole.
-  __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-  __ Branch(&slow_case, eq, result_reg, Operand(at));
-  __ Ret();
-
-  // Fallback to the runtime.
-  __ bind(&slow_case);
-  __ SmiTag(slot_reg);
-  __ Push(slot_reg);
-  __ TailCallRuntime(Runtime::kLoadGlobalViaContext);
-}
-
-
 void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = cp;
   Register slot_reg = a2;

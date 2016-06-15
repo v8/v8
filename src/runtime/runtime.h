@@ -389,7 +389,6 @@ namespace internal {
   F(GetProperty, 2, 1)                               \
   F(GetGlobal, 1, 1)                                 \
   F(KeyedGetProperty, 2, 1)                          \
-  F(LoadGlobalViaContext, 1, 1)                      \
   F(StoreGlobalViaContext_Sloppy, 2, 1)              \
   F(StoreGlobalViaContext_Strict, 2, 1)              \
   F(AddNamedProperty, 4, 1)                          \

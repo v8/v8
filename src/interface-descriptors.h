@@ -17,6 +17,7 @@ class PlatformInterfaceDescriptor;
   V(Void)                              \
   V(Load)                              \
   V(LoadGlobal)                        \
+  V(LoadGlobalWithVector)              \
   V(Store)                             \
   V(StoreTransition)                   \
   V(VectorStoreTransition)             \
@@ -80,7 +81,6 @@ class PlatformInterfaceDescriptor;
   V(ApiCallbackWith6Args)              \
   V(ApiCallbackWith7Args)              \
   V(ApiGetter)                         \
-  V(LoadGlobalViaContext)              \
   V(StoreGlobalViaContext)             \
   V(MathPowTagged)                     \
   V(MathPowInteger)                    \
@@ -294,6 +294,14 @@ class LoadDescriptor : public CallInterfaceDescriptor {
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
+                                               CallInterfaceDescriptor)
+
+  enum ParameterIndices { kNameIndex, kSlotIndex };
+};
+
+class LoadGlobalWithVectorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
                                                CallInterfaceDescriptor)
 
   enum ParameterIndices { kNameIndex, kSlotIndex, kVectorIndex };
@@ -549,15 +557,6 @@ class CallConstructDescriptor : public CallInterfaceDescriptor {
 class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
-};
-
-
-class LoadGlobalViaContextDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalViaContextDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register SlotRegister();
 };
 
 

@@ -123,6 +123,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMap(compiler::Node* object);
   // Load the instance type of an HeapObject.
   compiler::Node* LoadInstanceType(compiler::Node* object);
+  // Checks that given heap object has given instance type.
+  void AssertInstanceType(compiler::Node* object, InstanceType instance_type);
   // Load the properties backing store of a JSObject.
   compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.
@@ -156,7 +158,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a JSValue object.
   compiler::Node* LoadJSValueValue(compiler::Node* object);
   // Load value field of a WeakCell object.
-  compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell);
+  compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell,
+                                    Label* if_cleared = nullptr);
 
   compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
 
@@ -352,7 +355,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_handler, Variable* var_handler,
                          Label* if_miss);
 
-  void LoadIC(const LoadICParameters* p, Label* if_miss);
+  void LoadIC(const LoadICParameters* p);
+  void LoadGlobalIC(const LoadICParameters* p);
 
  private:
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,

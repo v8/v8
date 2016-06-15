@@ -179,10 +179,25 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
   DCHECK_EQ(*factory->uninitialized_symbol(), *uninitialized_sentinel);
-  for (int i = kReservedIndexCount; i < length; i++) {
-    array->set(i, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
-  }
+  for (int i = 0; i < slot_count;) {
+    FeedbackVectorSlot slot(i);
+    FeedbackVectorSlotKind kind = metadata->GetKind(slot);
+    int index = TypeFeedbackVector::GetIndex(slot);
+    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
+    Object* value;
+    if (FLAG_new_load_global_ic &&
+        kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
+      value = *factory->empty_weak_cell();
+    } else {
+      value = *uninitialized_sentinel;
+    }
+    array->set(index, value, SKIP_WRITE_BARRIER);
+    for (int j = 1; j < entry_size; j++) {
+      array->set(index + j, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+    }
+    i += entry_size;
+  }
   return Handle<TypeFeedbackVector>::cast(array);
 }
 
@@ -448,21 +463,30 @@ InlineCacheState LoadGlobalICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
 
-  if (feedback == *TypeFeedbackVector::UninitializedSentinel(isolate)) {
-    return UNINITIALIZED;
-  } else if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate)) {
-    return MEGAMORPHIC;
-  } else if (feedback == *TypeFeedbackVector::PremonomorphicSentinel(isolate)) {
-    return PREMONOMORPHIC;
-  } else if (feedback->IsFixedArray()) {
-    // Determine state purely by our structure, don't check if the maps are
-    // cleared.
-    return POLYMORPHIC;
-  } else if (feedback->IsWeakCell()) {
-    // Don't check if the map is cleared.
-    return MONOMORPHIC;
-  }
+  if (FLAG_new_load_global_ic) {
+    Object* extra = GetFeedbackExtra();
+    if (!WeakCell::cast(feedback)->cleared() ||
+        extra != *TypeFeedbackVector::UninitializedSentinel(isolate)) {
+      return MONOMORPHIC;
+    }
 
+  } else {
+    if (feedback == *TypeFeedbackVector::UninitializedSentinel(isolate)) {
+      return UNINITIALIZED;
+    } else if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate)) {
+      return MEGAMORPHIC;
+    } else if (feedback ==
+               *TypeFeedbackVector::PremonomorphicSentinel(isolate)) {
+      return PREMONOMORPHIC;
+    } else if (feedback->IsFixedArray()) {
+      // Determine state purely by our structure, don't check if the maps are
+      // cleared.
+      return POLYMORPHIC;
+    } else if (feedback->IsWeakCell()) {
+      // Don't check if the map is cleared.
+      return MONOMORPHIC;
+    }
+  }
   return UNINITIALIZED;
 }
 
@@ -615,6 +639,25 @@ void LoadGlobalICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                              Handle<Code> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   SetFeedback(*cell);
+  SetFeedbackExtra(*handler);
+}
+
+void LoadGlobalICNexus::ConfigureUninitialized() {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
+}
+
+void LoadGlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*isolate->factory()->NewWeakCell(cell));
+  SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
+}
+
+void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Code> handler) {
+  SetFeedback(GetIsolate()->heap()->empty_weak_cell());
   SetFeedbackExtra(*handler);
 }
 

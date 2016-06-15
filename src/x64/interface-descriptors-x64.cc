@@ -47,9 +47,6 @@ const Register VectorStoreTransitionDescriptor::MapRegister() { return r11; }
 const Register StoreTransitionDescriptor::MapRegister() { return rbx; }
 
 
-const Register LoadGlobalViaContextDescriptor::SlotRegister() { return rbx; }
-
-
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return rbx; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return rax; }
 

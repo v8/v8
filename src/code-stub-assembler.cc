@@ -507,6 +507,11 @@ Node* CodeStubAssembler::LoadInstanceType(Node* object) {
   return LoadMapInstanceType(LoadMap(object));
 }
 
+void CodeStubAssembler::AssertInstanceType(Node* object,
+                                           InstanceType instance_type) {
+  Assert(Word32Equal(LoadInstanceType(object), Int32Constant(instance_type)));
+}
+
 Node* CodeStubAssembler::LoadProperties(Node* object) {
   return LoadObjectField(object, JSObject::kPropertiesOffset);
 }
@@ -570,8 +575,12 @@ Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
   return LoadObjectField(object, JSValue::kValueOffset);
 }
 
-Node* CodeStubAssembler::LoadWeakCellValue(Node* weak_cell) {
-  return LoadObjectField(weak_cell, WeakCell::kValueOffset);
+Node* CodeStubAssembler::LoadWeakCellValue(Node* weak_cell, Label* if_cleared) {
+  Node* value = LoadObjectField(weak_cell, WeakCell::kValueOffset);
+  if (if_cleared != nullptr) {
+    GotoIf(WordEqual(value, IntPtrConstant(0)), if_cleared);
+  }
+  return value;
 }
 
 Node* CodeStubAssembler::AllocateUninitializedFixedArray(Node* length) {
@@ -1828,7 +1837,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   Bind(&if_isfaststringwrapper);
   {
-    Assert(Word32Equal(LoadInstanceType(object), Int32Constant(JS_VALUE_TYPE)));
+    AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
     Assert(Int32LessThan(LoadInstanceType(string),
                          Int32Constant(FIRST_NONSTRING_TYPE)));
@@ -1838,7 +1847,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   Bind(&if_isslowstringwrapper);
   {
-    Assert(Word32Equal(LoadInstanceType(object), Int32Constant(JS_VALUE_TYPE)));
+    AssertInstanceType(object, JS_VALUE_TYPE);
     Node* string = LoadJSValueValue(object);
     Assert(Int32LessThan(LoadInstanceType(string),
                          Int32Constant(FIRST_NONSTRING_TYPE)));
@@ -2265,11 +2274,12 @@ void CodeStubAssembler::TryProbeStubCache(
   }
 }
 
-void CodeStubAssembler::LoadIC(const LoadICParameters* p, Label* if_miss) {
+void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
   // TODO(ishell): defer blocks when it works.
   Label if_handler(this, &var_handler), try_polymorphic(this),
-      try_megamorphic(this /*, Label::kDeferred*/);
+      try_megamorphic(this /*, Label::kDeferred*/),
+      miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
 
@@ -2290,7 +2300,7 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p, Label* if_miss) {
         WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
         &try_megamorphic);
     HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
-                          if_miss, 2);
+                          &miss, 2);
   }
 
   Bind(&try_megamorphic);
@@ -2298,13 +2308,55 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p, Label* if_miss) {
     // Check megamorphic case.
     GotoUnless(
         WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-        if_miss);
+        &miss);
 
     Code::Flags code_flags =
         Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
 
     TryProbeStubCache(isolate()->stub_cache(), code_flags, p->receiver, p->name,
-                      &if_handler, &var_handler, if_miss);
+                      &if_handler, &var_handler, &miss);
+  }
+  Bind(&miss);
+  {
+    TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
+                    p->slot, p->vector);
+  }
+}
+
+void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
+  Label try_handler(this), miss(this);
+  Node* weak_cell =
+      LoadFixedArrayElement(p->vector, p->slot, 0, SMI_PARAMETERS);
+  AssertInstanceType(weak_cell, WEAK_CELL_TYPE);
+
+  // Load value or try handler case if the {weak_cell} is cleared.
+  Node* property_cell = LoadWeakCellValue(weak_cell, &try_handler);
+  AssertInstanceType(property_cell, PROPERTY_CELL_TYPE);
+
+  Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
+  GotoIf(WordEqual(value, TheHoleConstant()), &miss);
+  Return(value);
+
+  Bind(&try_handler);
+  {
+    Node* handler =
+        LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
+    GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+           &miss);
+
+    // In this case {handler} must be a Code object.
+    AssertInstanceType(handler, CODE_TYPE);
+    LoadWithVectorDescriptor descriptor(isolate());
+    Node* native_context = LoadNativeContext(p->context);
+    Node* receiver = LoadFixedArrayElement(
+        native_context, Int32Constant(Context::EXTENSION_INDEX));
+    TailCallStub(descriptor, handler, p->context, receiver, p->name, p->slot,
+                 p->vector);
+  }
+  Bind(&miss);
+  {
+    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->name, p->slot,
+                    p->vector);
   }
 }
 

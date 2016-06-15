@@ -71,7 +71,6 @@ namespace internal {
   V(FastNewStrictArguments)                 \
   V(GrowArrayElements)                      \
   V(KeyedLoadGeneric)                       \
-  V(LoadGlobalViaContext)                   \
   V(LoadScriptContextField)                 \
   V(LoadDictionaryElement)                  \
   V(NameDictionaryLookup)                   \
@@ -1737,26 +1736,6 @@ class StoreGlobalStub : public HandlerStub {
 };
 
 
-class LoadGlobalViaContextStub final : public PlatformCodeStub {
- public:
-  static const int kMaximumDepth = 15;
-
-  LoadGlobalViaContextStub(Isolate* isolate, int depth)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = DepthBits::encode(depth);
-  }
-
-  int depth() const { return DepthBits::decode(minor_key_); }
-
- private:
-  class DepthBits : public BitField<int, 0, 4> {};
-  STATIC_ASSERT(DepthBits::kMax == kMaximumDepth);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalViaContext);
-  DEFINE_PLATFORM_CODE_STUB(LoadGlobalViaContext, PlatformCodeStub);
-};
-
-
 class StoreGlobalViaContextStub final : public PlatformCodeStub {
  public:
   static const int kMaximumDepth = 15;
@@ -2386,8 +2365,17 @@ class LoadGlobalICTrampolineStub : public LoadICTrampolineTFStub {
                                       const LoadICState& state)
       : LoadICTrampolineTFStub(isolate, state) {}
 
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
+  //  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    if (!FLAG_new_load_global_ic) {
+      return LoadICTrampolineTFStub::GetCallInterfaceDescriptor();
+    }
+    return LoadGlobalDescriptor(isolate());
+  }
   DEFINE_CODE_STUB(LoadGlobalICTrampoline, LoadICTrampolineTFStub);
 };
 
@@ -2507,9 +2495,17 @@ class LoadGlobalICStub : public LoadICTFStub {
   explicit LoadGlobalICStub(Isolate* isolate, const LoadICState& state)
       : LoadICTFStub(isolate, state) {}
 
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
+  //  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
+    if (!FLAG_new_load_global_ic) {
+      return LoadICTFStub::GetCallInterfaceDescriptor();
+    }
+    return LoadGlobalWithVectorDescriptor(isolate());
+  }
   DEFINE_CODE_STUB(LoadGlobalIC, LoadICTFStub);
 };
 

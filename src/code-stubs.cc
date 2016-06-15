@@ -421,7 +421,6 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
 void LoadICTrampolineTFStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
 
   Node* receiver = assembler->Parameter(0);
   Node* name = assembler->Parameter(1);
@@ -430,17 +429,11 @@ void LoadICTrampolineTFStub::GenerateAssembly(
   Node* vector = assembler->LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  Label miss(assembler);
-  assembler->LoadIC(&p, &miss);
-
-  assembler->Bind(&miss);
-  assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
-                             slot, vector);
+  assembler->LoadIC(&p);
 }
 
 void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
 
   Node* receiver = assembler->Parameter(0);
   Node* name = assembler->Parameter(1);
@@ -449,12 +442,38 @@ void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* context = assembler->Parameter(4);
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
-  Label miss(assembler);
-  assembler->LoadIC(&p, &miss);
+  assembler->LoadIC(&p);
+}
 
-  assembler->Bind(&miss);
-  assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
-                             slot, vector);
+void LoadGlobalICTrampolineStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  if (!FLAG_new_load_global_ic) {
+    return LoadICTrampolineTFStub::GenerateAssembly(assembler);
+  }
+  typedef compiler::Node Node;
+
+  Node* name = assembler->Parameter(0);
+  Node* slot = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+
+  CodeStubAssembler::LoadICParameters p(context, nullptr, name, slot, vector);
+  assembler->LoadGlobalIC(&p);
+}
+
+void LoadGlobalICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  if (!FLAG_new_load_global_ic) {
+    return LoadICTFStub::GenerateAssembly(assembler);
+  }
+  typedef compiler::Node Node;
+
+  Node* name = assembler->Parameter(0);
+  Node* slot = assembler->Parameter(1);
+  Node* vector = assembler->Parameter(2);
+  Node* context = assembler->Parameter(3);
+
+  CodeStubAssembler::LoadICParameters p(context, nullptr, name, slot, vector);
+  assembler->LoadGlobalIC(&p);
 }
 
 void AllocateHeapNumberStub::GenerateAssembly(

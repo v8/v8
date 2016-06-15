@@ -467,7 +467,11 @@ void LoadIC::Clear(Isolate* isolate, Code* host, LoadICNexus* nexus) {
 void LoadGlobalIC::Clear(Isolate* isolate, Code* host,
                          LoadGlobalICNexus* nexus) {
   if (IsCleared(nexus)) return;
-  nexus->ConfigureUninitialized();
+  if (FLAG_new_load_global_ic) {
+    nexus->ConfigureUninitialized();
+  } else {
+    nexus->ConfigurePremonomorphic();
+  }
   OnTypeFeedbackChanged(isolate, host);
 }
 
@@ -549,7 +553,11 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     nexus->ConfigureMonomorphic(map, handler);
   } else if (kind() == Code::LOAD_GLOBAL_IC) {
     LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-    nexus->ConfigureMonomorphic(map, handler);
+    if (FLAG_new_load_global_ic) {
+      nexus->ConfigureHandlerMode(handler);
+    } else {
+      nexus->ConfigureMonomorphic(map, handler);
+    }
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
     nexus->ConfigureMonomorphic(name, map, handler);
@@ -914,7 +922,8 @@ bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
 
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  if (state() == UNINITIALIZED) {
+  if (state() == UNINITIALIZED &&
+      (!FLAG_new_load_global_ic || kind() != Code::LOAD_GLOBAL_IC)) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
@@ -936,7 +945,20 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       code = slow_stub();
     }
   } else {
-    if (lookup->state() == LookupIterator::ACCESSOR) {
+    if (FLAG_new_load_global_ic && kind() == Code::LOAD_GLOBAL_IC &&
+        lookup->state() == LookupIterator::DATA &&
+        lookup->GetHolder<Object>()->IsJSGlobalObject()) {
+#if DEBUG
+      Handle<Object> holder = lookup->GetHolder<Object>();
+      Handle<Object> receiver = lookup->GetReceiver();
+      DCHECK_EQ(*receiver, *holder);
+#endif
+      // Now update the cell in the feedback vector.
+      LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
+      nexus->ConfigurePropertyCellMode(lookup->GetPropertyCell());
+      TRACE_IC("LoadGlobalIC", lookup->name());
+      return;
+    } else if (lookup->state() == LookupIterator::ACCESSOR) {
       if (!IsCompatibleReceiver(lookup, receiver_map())) {
         TRACE_GENERIC_IC(isolate(), "LoadIC", "incompatible receiver type");
         code = slow_stub();

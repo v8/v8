@@ -464,10 +464,27 @@ class LoadGlobalICNexus : public FeedbackNexus {
     DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
   }
 
+  int ExtractMaps(MapHandleList* maps) const final {
+    // LoadGlobalICs don't record map feedback.
+    return 0;
+  }
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(CodeHandleList* code_list, int length = -1) const final {
+    return length == 0;
+  }
+
   void ConfigureMegamorphic() override { UNREACHABLE(); }
   void Clear(Code* host);
 
+  // TODO(ishell): remove LoadIC-style mode support.
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
+
+  // PropertyCell shortcut mode.
+  void ConfigureUninitialized() override;
+  void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
+  void ConfigureHandlerMode(Handle<Code> handler);
 
   InlineCacheState StateFromFeedback() const override;
 };

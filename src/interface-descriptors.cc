@@ -101,6 +101,24 @@ FunctionType* LoadGlobalDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
+  function->InitParameter(0, AnyTagged(zone));
+  function->InitParameter(1, SmiType(zone));
+  return function;
+}
+
+void LoadGlobalDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {LoadWithVectorDescriptor::NameRegister(),
+                          LoadWithVectorDescriptor::SlotRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+FunctionType*
+LoadGlobalWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
   function->InitParameter(0, AnyTagged(zone));
   function->InitParameter(1, SmiType(zone));
@@ -108,7 +126,7 @@ FunctionType* LoadGlobalDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
-void LoadGlobalDescriptor::InitializePlatformSpecific(
+void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {LoadWithVectorDescriptor::NameRegister(),
                           LoadWithVectorDescriptor::SlotRegister(),
@@ -157,23 +175,6 @@ StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
   function->InitParameter(2, AnyTagged(zone));  // Value
   function->InitParameter(3, AnyTagged(zone));  // Map
   return function;
-}
-
-FunctionType*
-LoadGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 1, zone)->AsFunction();
-  function->InitParameter(0, UntaggedIntegral32(zone));
-  return function;
-}
-
-
-void LoadGlobalViaContextDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {SlotRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 FunctionType*
