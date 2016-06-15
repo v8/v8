@@ -404,6 +404,14 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
 
   BinaryOperationHints::Hint feedback = r.GetUsableNumberFeedback();
+  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+      r.BothInputsAre(Type::PlainPrimitive()) &&
+      r.NeitherInputCanBe(Type::StringOrReceiver())) {
+    // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+    r.ConvertInputsToNumber(frame_state);
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
+  }
   if (feedback != BinaryOperationHints::kAny) {
     // Lower to the optimistic number binop.
     return r.ChangeToSpeculativeOperator(
@@ -462,6 +470,15 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetUsableNumberFeedback();
+  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+      r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSSubtract(x:plain-primitive, y:plain-primitive)
+    //   => NumberSubtract(ToNumber(x), ToNumber(y))
+    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+    r.ConvertInputsToNumber(frame_state);
+    return r.ChangeToPureOperator(simplified()->NumberSubtract(),
+                                  Type::Number());
+  }
   if (feedback != BinaryOperationHints::kAny) {
     // Lower to the optimistic number binop.
     return r.ChangeToSpeculativeOperator(
