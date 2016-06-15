@@ -3,33 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 
 LocalArrayBufferTracker::~LocalArrayBufferTracker() {
   CHECK(array_buffers_.empty());
-}
-
-void LocalArrayBufferTracker::Add(Key key, const Value& value) {
-  auto ret = array_buffers_.insert(std::make_pair(key, value));
-  USE(ret);
-  // Check that we indeed inserted a new value and did not overwrite an existing
-  // one (which would be a bug).
-  DCHECK(ret.second);
-}
-
-LocalArrayBufferTracker::Value LocalArrayBufferTracker::Remove(Key key) {
-  TrackingMap::iterator it = array_buffers_.find(key);
-  DCHECK(it != array_buffers_.end());
-  Value value = it->second;
-  array_buffers_.erase(it);
-  return value;
 }
 
 template <LocalArrayBufferTracker::FreeMode free_mode>
@@ -90,44 +71,6 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     heap_->update_amount_of_external_allocated_freed_memory(
         static_cast<intptr_t>(freed_memory));
   }
-}
-
-void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
-  void* data = buffer->backing_store();
-  if (!data) return;
-
-  size_t length = NumberToSize(heap->isolate(), buffer->byte_length());
-  Page* page = Page::FromAddress(buffer->address());
-  {
-    base::LockGuard<base::Mutex> guard(page->mutex());
-    LocalArrayBufferTracker* tracker = page->local_tracker();
-    if (tracker == nullptr) {
-      page->AllocateLocalTracker();
-      tracker = page->local_tracker();
-    }
-    DCHECK_NOT_NULL(tracker);
-    tracker->Add(buffer, std::make_pair(data, length));
-  }
-  // We may go over the limit of externally allocated memory here. We call the
-  // api function to trigger a GC in this case.
-  reinterpret_cast<v8::Isolate*>(heap->isolate())
-      ->AdjustAmountOfExternalAllocatedMemory(length);
-}
-
-void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
-  void* data = buffer->backing_store();
-  if (!data) return;
-
-  Page* page = Page::FromAddress(buffer->address());
-  size_t length = 0;
-  {
-    base::LockGuard<base::Mutex> guard(page->mutex());
-    LocalArrayBufferTracker* tracker = page->local_tracker();
-    DCHECK_NOT_NULL(tracker);
-    length = tracker->Remove(buffer).second;
-  }
-  heap->update_amount_of_external_allocated_memory(
-      -static_cast<intptr_t>(length));
 }
 
 void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {

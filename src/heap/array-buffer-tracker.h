@@ -30,8 +30,8 @@ class ArrayBufferTracker : public AllStatic {
 
   // Register/unregister a new JSArrayBuffer |buffer| for tracking. Guards all
   // access to the tracker by taking the page lock for the corresponding page.
-  static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
-  static void Unregister(Heap* heap, JSArrayBuffer* buffer);
+  inline static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
+  inline static void Unregister(Heap* heap, JSArrayBuffer* buffer);
 
   // Frees all backing store pointers for dead JSArrayBuffers in new space.
   // Does not take any locks and can only be called during Scavenge.
@@ -68,8 +68,8 @@ class LocalArrayBufferTracker {
   explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~LocalArrayBufferTracker();
 
-  void Add(Key key, const Value& value);
-  Value Remove(Key key);
+  inline void Add(Key key, const Value& value);
+  inline Value Remove(Key key);
 
   // Frees up array buffers determined by |free_mode|.
   template <FreeMode free_mode>

@@ -831,6 +831,7 @@
         'handles.cc',
         'handles.h',
         'heap-symbols.h',
+        'heap/array-buffer-tracker-inl.h',
         'heap/array-buffer-tracker.cc',
         'heap/array-buffer-tracker.h',
         'heap/memory-reducer.cc',
