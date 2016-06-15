@@ -205,6 +205,7 @@ DEFINE_IMPLICATION(es_staging, harmony_async_await)
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_restrictive_generators,                                     \
     "harmony restrictions on generator declarations")                   \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_for_in, "harmony for-in syntax")                            \
   V(harmony_async_await, "harmony async-await")

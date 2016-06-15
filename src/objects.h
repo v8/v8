@@ -7935,7 +7935,6 @@ class JSRegExp: public JSObject {
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
   // ATOM: A simple string to match against using an indexOf operation.
   // IRREGEXP: Compiled with Irregexp.
-  // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
   enum Flag {
     kNone = 0,
@@ -8028,8 +8027,11 @@ class JSRegExp: public JSObject {
   static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
   // Number of captures in the compiled regexp.
   static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
+  // Maps names of named capture groups (at indices 2i) to their corresponding
+  // capture group indices (at indices 2i + 1).
+  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
 
-  static const int kIrregexpDataSize = kIrregexpCaptureCountIndex + 1;
+  static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
 
   // Offsets directly into the data fixed array.
   static const int kDataTagOffset =

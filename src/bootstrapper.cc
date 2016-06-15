@@ -2645,6 +2645,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_for_in)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_iterator_close)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_exec)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
@@ -3243,6 +3244,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
   static const char* harmony_instanceof_natives[] = {nullptr};
   static const char* harmony_restrictive_declarations_natives[] = {nullptr};
+  static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_name_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
