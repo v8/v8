@@ -302,8 +302,8 @@ struct SimplifiedOperatorGlobalCache final {
 #define CHECKED(Name)                                                        \
   struct Name##Operator final : public Operator {                            \
     Name##Operator()                                                         \
-        : Operator(IrOpcode::k##Name, Operator::kNoThrow, #Name, 1, 1, 1, 1, \
-                   1, 0) {}                                                  \
+        : Operator(IrOpcode::k##Name, Operator::kPure, #Name, 1, 1, 1, 1, 1, \
+                   0) {}                                                     \
   };                                                                         \
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
@@ -313,9 +313,9 @@ struct SimplifiedOperatorGlobalCache final {
   struct CheckFloat64HoleNaNOperatortor final
       : public Operator1<CheckFloat64HoleMode> {
     CheckFloat64HoleNaNOperatortor()
-        : Operator1<CheckFloat64HoleMode>(
-              IrOpcode::kCheckFloat64Hole, Operator::kFoldable,
-              "CheckFloat64Hole", 1, 1, 1, 1, 1, 0, kMode) {}
+        : Operator1<CheckFloat64HoleMode>(IrOpcode::kCheckFloat64Hole,
+                                          Operator::kPure, "CheckFloat64Hole",
+                                          1, 1, 1, 1, 1, 0, kMode) {}
   };
   CheckFloat64HoleNaNOperatortor<CheckFloat64HoleMode::kAllowReturnHole>
       kCheckFloat64HoleAllowReturnHoleOperator;
@@ -326,8 +326,8 @@ struct SimplifiedOperatorGlobalCache final {
   struct CheckTaggedHoleOperator final : public Operator1<CheckTaggedHoleMode> {
     CheckTaggedHoleOperator()
         : Operator1<CheckTaggedHoleMode>(IrOpcode::kCheckTaggedHole,
-                                         Operator::kFoldable, "CheckTaggedHole",
-                                         1, 1, 1, 1, 1, 0, kMode) {}
+                                         Operator::kPure, "CheckTaggedHole", 1,
+                                         1, 1, 1, 1, 0, kMode) {}
   };
   CheckTaggedHoleOperator<CheckTaggedHoleMode::kConvertHoleToUndefined>
       kCheckTaggedHoleConvertHoleToUndefinedOperator;
@@ -336,8 +336,8 @@ struct SimplifiedOperatorGlobalCache final {
 
   struct CheckIfOperator final : public Operator {
     CheckIfOperator()
-        : Operator(IrOpcode::kCheckIf, Operator::kFoldable, "CheckIf", 1, 1, 1,
-                   0, 1, 0) {}
+        : Operator(IrOpcode::kCheckIf, Operator::kPure, "CheckIf", 1, 1, 1, 0,
+                   1, 0) {}
   };
   CheckIfOperator kCheckIf;
 
@@ -425,7 +425,7 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
 
 const Operator* SimplifiedOperatorBuilder::CheckBounds() {
   // TODO(bmeurer): Cache this operator. Make it pure!
-  return new (zone()) Operator(IrOpcode::kCheckBounds, Operator::kEliminatable,
+  return new (zone()) Operator(IrOpcode::kCheckBounds, Operator::kPure,
                                "CheckBounds", 2, 1, 1, 1, 1, 0);
 }
 
@@ -486,14 +486,14 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
 const Operator* SimplifiedOperatorBuilder::SpeculativeNumberAdd(
     BinaryOperationHints::Hint hint) {
   return new (zone()) Operator1<BinaryOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberAdd, Operator::kNoThrow,
-      "SpeculativeNumberAdd", 2, 1, 1, 1, 1, 1, hint);
+      IrOpcode::kSpeculativeNumberAdd, Operator::kPure, "SpeculativeNumberAdd",
+      2, 1, 1, 1, 1, 1, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeNumberSubtract(
     BinaryOperationHints::Hint hint) {
   return new (zone()) Operator1<BinaryOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberSubtract, Operator::kNoThrow,
+      IrOpcode::kSpeculativeNumberSubtract, Operator::kPure,
       "SpeculativeNumberSubtract", 2, 1, 1, 1, 1, 1, hint);
 }
 
