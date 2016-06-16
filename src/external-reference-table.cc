@@ -75,6 +75,10 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "base::ieee754::log");
   Add(ExternalReference::ieee754_log1p_function(isolate).address(),
       "base::ieee754::log1p");
+  Add(ExternalReference::ieee754_log2_function(isolate).address(),
+      "base::ieee754::log2");
+  Add(ExternalReference::ieee754_log10_function(isolate).address(),
+      "base::ieee754::log10");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");

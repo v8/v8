@@ -91,6 +91,33 @@ TEST(Ieee754, Log1p) {
   EXPECT_EQ(0.8109302162163288, log1p(1.25));
 }
 
+TEST(Ieee754, Log2) {
+  EXPECT_THAT(log2(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(log2(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(log2(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(log2(-1.0), IsNaN());
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log2(0.0));
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log2(-0.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(),
+            log2(std::numeric_limits<double>::infinity()));
+}
+
+TEST(Ieee754, Log10) {
+  EXPECT_THAT(log10(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(log10(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(log10(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(log10(-1.0), IsNaN());
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log10(0.0));
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log10(-0.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(),
+            log10(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(3.0, log10(1000.0));
+  EXPECT_EQ(14.0, log10(100000000000000));  // log10(10 ^ 14)
+  EXPECT_EQ(3.7389561269540406, log10(5482.2158));
+  EXPECT_EQ(14.661551142893833, log10(458723662312872.125782332587));
+  EXPECT_EQ(-0.9083828622192334, log10(0.12348583358871));
+}
+
 }  // namespace ieee754
 }  // namespace base
 }  // namespace v8

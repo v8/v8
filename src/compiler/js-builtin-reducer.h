@@ -38,6 +38,8 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathLog(Node* node);
   Reduction ReduceMathLog1p(Node* node);
+  Reduction ReduceMathLog2(Node* node);
+  Reduction ReduceMathLog10(Node* node);
   Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathMin(Node* node);
   Reduction ReduceMathRound(Node* node);

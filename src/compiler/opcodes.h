@@ -205,6 +205,8 @@
   V(NumberAtan2)                      \
   V(NumberLog)                        \
   V(NumberLog1p)                      \
+  V(NumberLog2)                       \
+  V(NumberLog10)                      \
   V(NumberRound)                      \
   V(NumberSqrt)                       \
   V(NumberTrunc)                      \
@@ -371,6 +373,8 @@
   V(Float64Atan2)               \
   V(Float64Log)                 \
   V(Float64Log1p)               \
+  V(Float64Log2)                \
+  V(Float64Log10)               \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \

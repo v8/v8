@@ -1804,6 +1804,10 @@ Type* Typer::Visitor::TypeNumberLog(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberLog1p(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeNumberLog2(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberLog10(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberRound(Node* node) {
   return TypeUnaryOp(node, NumberRound);
 }
@@ -2558,6 +2562,10 @@ Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeFloat64Log(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log1p(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Log2(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Log10(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sqrt(Node* node) { return Type::Number(); }
 

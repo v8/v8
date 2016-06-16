@@ -397,7 +397,7 @@ double atan2(double y, double x) {
  *
  * Method :
  *   1. Argument Reduction: find k and f such that
- *      x = 2^k * (1+f),
+ *     x = 2^k * (1+f),
  *     where  sqrt(2)/2 < 1+f < sqrt(2) .
  *
  *   2. Approximation of log(1+f).
@@ -683,6 +683,307 @@ double log1p(double x) {
     return f - (hfsq - s * (hfsq + R));
   else
     return k * ln2_hi - ((hfsq - (s * (hfsq + R) + (k * ln2_lo + c))) - f);
+}
+
+/*
+ * k_log1p(f):
+ * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].
+ *
+ * The following describes the overall strategy for computing
+ * logarithms in base e.  The argument reduction and adding the final
+ * term of the polynomial are done by the caller for increased accuracy
+ * when different bases are used.
+ *
+ * Method :
+ *   1. Argument Reduction: find k and f such that
+ *         x = 2^k * (1+f),
+ *         where  sqrt(2)/2 < 1+f < sqrt(2) .
+ *
+ *   2. Approximation of log(1+f).
+ *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
+ *            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
+ *            = 2s + s*R
+ *      We use a special Reme algorithm on [0,0.1716] to generate
+ *      a polynomial of degree 14 to approximate R The maximum error
+ *      of this polynomial approximation is bounded by 2**-58.45. In
+ *      other words,
+ *          2      4      6      8      10      12      14
+ *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
+ *      (the values of Lg1 to Lg7 are listed in the program)
+ *      and
+ *          |      2          14          |     -58.45
+ *          | Lg1*s +...+Lg7*s    -  R(z) | <= 2
+ *          |                             |
+ *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
+ *      In order to guarantee error in log below 1ulp, we compute log
+ *      by
+ *          log(1+f) = f - s*(f - R)            (if f is not too large)
+ *          log(1+f) = f - (hfsq - s*(hfsq+R)). (better accuracy)
+ *
+ *   3. Finally,  log(x) = k*ln2 + log(1+f).
+ *          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
+ *      Here ln2 is split into two floating point number:
+ *          ln2_hi + ln2_lo,
+ *      where n*ln2_hi is always exact for |n| < 2000.
+ *
+ * Special cases:
+ *      log(x) is NaN with signal if x < 0 (including -INF) ;
+ *      log(+INF) is +INF; log(0) is -INF with signal;
+ *      log(NaN) is that NaN with no signal.
+ *
+ * Accuracy:
+ *      according to an error analysis, the error is always less than
+ *      1 ulp (unit in the last place).
+ *
+ * Constants:
+ * The hexadecimal values are the intended ones for the following
+ * constants. The decimal values may be used, provided that the
+ * compiler will convert from decimal to binary accurately enough
+ * to produce the hexadecimal values shown.
+ */
+
+static const double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
+    Lg2 = 3.999999999940941908e-01,                 /* 3FD99999 9997FA04 */
+    Lg3 = 2.857142874366239149e-01,                 /* 3FD24924 94229359 */
+    Lg4 = 2.222219843214978396e-01,                 /* 3FCC71C5 1D8E78AF */
+    Lg5 = 1.818357216161805012e-01,                 /* 3FC74664 96CB03DE */
+    Lg6 = 1.531383769920937332e-01,                 /* 3FC39A09 D078C69F */
+    Lg7 = 1.479819860511658591e-01;                 /* 3FC2F112 DF3E5244 */
+
+/*
+ * We always inline k_log1p(), since doing so produces a
+ * substantial performance improvement (~40% on amd64).
+ */
+static inline double k_log1p(double f) {
+  double hfsq, s, z, R, w, t1, t2;
+
+  s = f / (2.0 + f);
+  z = s * s;
+  w = z * z;
+  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
+  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
+  R = t2 + t1;
+  hfsq = 0.5 * f * f;
+  return s * (hfsq + R);
+}
+
+// ES6 draft 09-27-13, section 20.2.2.22.
+// Return the base 2 logarithm of x
+//
+// fdlibm does not have an explicit log2 function, but fdlibm's pow
+// function does implement an accurate log2 function as part of the
+// pow implementation.  This extracts the core parts of that as a
+// separate log2 function.
+//
+// Method:
+// Compute log2(x) in two pieces:
+// log2(x) = w1 + w2
+// where w1 has 53-24 = 29 bits of trailing zeroes.
+double log2(double x) {
+  static const double
+      bp[] = {1.0, 1.5},
+      dp_h[] = {0.0, 5.84962487220764160156e-01}, /* 0x3FE2B803, 0x40000000 */
+      dp_l[] = {0.0, 1.35003920212974897128e-08}, /* 0x3E4CFDEB, 0x43CFD006 */
+      zero = 0.0, one = 1.0,
+      // Polynomial coefficients for (3/2)*(log2(x) - 2*s - 2/3*s^3)
+      L1 = 5.99999999999994648725e-01, L2 = 4.28571428578550184252e-01,
+      L3 = 3.33333329818377432918e-01, L4 = 2.72728123808534006489e-01,
+      L5 = 2.30660745775561754067e-01, L6 = 2.06975017800338417784e-01,
+      // cp = 2/(3*ln(2)). Note that cp_h + cp_l is cp, but with more accuracy.
+      cp = 9.61796693925975554329e-01, cp_h = 9.61796700954437255859e-01,
+      cp_l = -7.02846165095275826516e-09, two53 = 9007199254740992, /* 2^53 */
+      two54 = 1.80143985094819840000e+16; /* 0x43500000, 0x00000000 */
+
+  static volatile double vzero = 0.0;
+  double ax, z_h, z_l, p_h, p_l;
+  double t1, t2, r, t, u, v;
+  int32_t j, k, n;
+  int32_t ix, hx;
+  u_int32_t lx;
+
+  EXTRACT_WORDS(hx, lx, x);
+  ix = hx & 0x7fffffff;
+
+  // Handle special cases.
+  // log2(+/- 0) = -Infinity
+  if ((ix | lx) == 0) return -two54 / vzero; /* log(+-0)=-inf */
+
+  // log(x) = NaN, if x < 0
+  if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+
+  // log2(Infinity) = Infinity, log2(NaN) = NaN
+  if (ix >= 0x7ff00000) return x;
+
+  ax = fabs(x);
+
+  double ss, s2, s_h, s_l, t_h, t_l;
+  n = 0;
+
+  /* take care subnormal number */
+  if (ix < 0x00100000) {
+    ax *= two53;
+    n -= 53;
+    GET_HIGH_WORD(ix, ax);
+  }
+
+  n += ((ix) >> 20) - 0x3ff;
+  j = ix & 0x000fffff;
+
+  /* determine interval */
+  ix = j | 0x3ff00000; /* normalize ix */
+  if (j <= 0x3988E) {
+    k = 0; /* |x|<sqrt(3/2) */
+  } else if (j < 0xBB67A) {
+    k = 1; /* |x|<sqrt(3)   */
+  } else {
+    k = 0;
+    n += 1;
+    ix -= 0x00100000;
+  }
+  SET_HIGH_WORD(ax, ix);
+
+  /* compute ss = s_h+s_l = (x-1)/(x+1) or (x-1.5)/(x+1.5) */
+  u = ax - bp[k]; /* bp[0]=1.0, bp[1]=1.5 */
+  v = one / (ax + bp[k]);
+  ss = u * v;
+  s_h = ss;
+  SET_LOW_WORD(s_h, 0);
+  /* t_h=ax+bp[k] High */
+  t_h = zero;
+  SET_HIGH_WORD(t_h, ((ix >> 1) | 0x20000000) + 0x00080000 + (k << 18));
+  t_l = ax - (t_h - bp[k]);
+  s_l = v * ((u - s_h * t_h) - s_h * t_l);
+  /* compute log(ax) */
+  s2 = ss * ss;
+  r = s2 * s2 * (L1 + s2 * (L2 + s2 * (L3 + s2 * (L4 + s2 * (L5 + s2 * L6)))));
+  r += s_l * (s_h + ss);
+  s2 = s_h * s_h;
+  t_h = 3.0 + s2 + r;
+  SET_LOW_WORD(t_h, 0);
+  t_l = r - ((t_h - 3.0) - s2);
+  /* u+v = ss*(1+...) */
+  u = s_h * t_h;
+  v = s_l * t_h + t_l * ss;
+  /* 2/(3log2)*(ss+...) */
+  p_h = u + v;
+  SET_LOW_WORD(p_h, 0);
+  p_l = v - (p_h - u);
+  z_h = cp_h * p_h; /* cp_h+cp_l = 2/(3*log2) */
+  z_l = cp_l * p_h + p_l * cp + dp_l[k];
+  /* log2(ax) = (ss+..)*2/(3*log2) = n + dp_h + z_h + z_l */
+  t = static_cast<double>(n);
+  t1 = (((z_h + z_l) + dp_h[k]) + t);
+  SET_LOW_WORD(t1, 0);
+  t2 = z_l - (((t1 - t) - dp_h[k]) - z_h);
+
+  // t1 + t2 = log2(ax), sum up because we do not care about extra precision.
+  return t1 + t2;
+}
+
+/*
+ * Return the base 10 logarithm of x.  See e_log.c and k_log.h for most
+ * comments.
+ *
+ *    log10(x) = (f - 0.5*f*f + k_log1p(f)) / ln10 + k * log10(2)
+ * in not-quite-routine extra precision.
+ */
+double log10Old(double x) {
+  static const double
+      two54 = 1.80143985094819840000e+16,     /* 0x43500000, 0x00000000 */
+      ivln10hi = 4.34294481878168880939e-01,  /* 0x3fdbcb7b, 0x15200000 */
+      ivln10lo = 2.50829467116452752298e-11,  /* 0x3dbb9438, 0xca9aadd5 */
+      log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
+      log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
+
+  static const double zero = 0.0;
+  static volatile double vzero = 0.0;
+
+  double f, hfsq, hi, lo, r, val_hi, val_lo, w, y, y2;
+  int32_t i, k, hx;
+  u_int32_t lx;
+
+  EXTRACT_WORDS(hx, lx, x);
+
+  k = 0;
+  if (hx < 0x00100000) { /* x < 2**-1022  */
+    if (((hx & 0x7fffffff) | lx) == 0)
+      return -two54 / vzero;           /* log(+-0)=-inf */
+    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    k -= 54;
+    x *= two54; /* subnormal number, scale up x */
+    GET_HIGH_WORD(hx, x);
+  }
+  if (hx >= 0x7ff00000) return x + x;
+  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
+  k += (hx >> 20) - 1023;
+  hx &= 0x000fffff;
+  i = (hx + 0x95f64) & 0x100000;
+  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
+  k += (i >> 20);
+  y = static_cast<double>(k);
+  f = x - 1.0;
+  hfsq = 0.5 * f * f;
+  r = k_log1p(f);
+
+  /* See e_log2.c for most details. */
+  hi = f - hfsq;
+  SET_LOW_WORD(hi, 0);
+  lo = (f - hi) - hfsq + r;
+  val_hi = hi * ivln10hi;
+  y2 = y * log10_2hi;
+  val_lo = y * log10_2lo + (lo + hi) * ivln10lo + lo * ivln10hi;
+
+  /*
+   * Extra precision in for adding y*log10_2hi is not strictly needed
+   * since there is no very large cancellation near x = sqrt(2) or
+   * x = 1/sqrt(2), but we do it anyway since it costs little on CPUs
+   * with some parallelism and it reduces the error for many args.
+   */
+  w = y2 + val_hi;
+  val_lo += (y2 - w) + val_hi;
+  val_hi = w;
+
+  return val_lo + val_hi;
+}
+
+double log10(double x) {
+  static const double
+      two54 = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
+      ivln10 = 4.34294481903251816668e-01,
+      log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
+      log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
+
+  static const double zero = 0.0;
+  static volatile double vzero = 0.0;
+
+  double y;
+  int32_t i, k, hx;
+  u_int32_t lx;
+
+  EXTRACT_WORDS(hx, lx, x);
+
+  k = 0;
+  if (hx < 0x00100000) { /* x < 2**-1022  */
+    if (((hx & 0x7fffffff) | lx) == 0)
+      return -two54 / vzero;           /* log(+-0)=-inf */
+    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    k -= 54;
+    x *= two54; /* subnormal number, scale up x */
+    GET_HIGH_WORD(hx, x);
+    GET_LOW_WORD(lx, x);
+  }
+  if (hx >= 0x7ff00000) return x + x;
+  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
+  k += (hx >> 20) - 1023;
+
+  i = (k & 0x80000000) >> 31;
+  hx = (hx & 0x000fffff) | ((0x3ff - i) << 20);
+  y = k + i;
+  SET_HIGH_WORD(x, hx);
+  SET_LOW_WORD(x, lx);
+
+  double z = y * log10_2lo + ivln10 * log(x);
+  return z + y * log10_2hi;
 }
 
 }  // namespace ieee754

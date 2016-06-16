@@ -24,6 +24,12 @@ double log(double x);
 // accurate even if the value of |x| is near zero.
 double log1p(double x);
 
+// Return the base 2 logarithm of |x|.
+double log2(double x);
+
+// Return the base 10 logarithm of |x|.
+double log10(double x);
+
 }  // namespace ieee754
 }  // namespace base
 }  // namespace v8

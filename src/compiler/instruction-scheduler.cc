@@ -228,6 +228,8 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kIeee754Float64Atan2:
     case kIeee754Float64Log:
     case kIeee754Float64Log1p:
+    case kIeee754Float64Log2:
+    case kIeee754Float64Log10:
       return kNoOpcodeFlags;
 
     case kArchStackPointer:

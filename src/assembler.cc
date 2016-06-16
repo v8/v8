@@ -1638,6 +1638,16 @@ ExternalReference ExternalReference::ieee754_log1p_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::log1p), BUILTIN_FP_CALL));
 }
 
+ExternalReference ExternalReference::ieee754_log2_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log2), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_log10_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
+}
+
 ExternalReference ExternalReference::math_exp_constants(int constant_index) {
   DCHECK(math_exp_data_initialized);
   return ExternalReference(

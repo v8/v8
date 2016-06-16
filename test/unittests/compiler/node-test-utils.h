@@ -233,6 +233,8 @@ Matcher<Node*> IsNumberFloor(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberFround(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog1p(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberLog2(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberLog10(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTrunc(const Matcher<Node*>& value_matcher);

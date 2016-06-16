@@ -1142,6 +1142,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Log(node);
     case IrOpcode::kFloat64Log1p:
       return MarkAsFloat64(node), VisitFloat64Log1p(node);
+    case IrOpcode::kFloat64Log2:
+      return MarkAsFloat64(node), VisitFloat64Log2(node);
+    case IrOpcode::kFloat64Log10:
+      return MarkAsFloat64(node), VisitFloat64Log10(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsFloat64(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
@@ -1261,6 +1265,14 @@ void InstructionSelector::VisitFloat64Log(Node* node) {
 
 void InstructionSelector::VisitFloat64Log1p(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log1p);
+}
+
+void InstructionSelector::VisitFloat64Log2(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Log2);
+}
+
+void InstructionSelector::VisitFloat64Log10(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
 }
 
 void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,

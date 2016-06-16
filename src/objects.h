@@ -6589,6 +6589,8 @@ class Script: public Struct {
   V(Math, abs, MathAbs)                                     \
   V(Math, log, MathLog)                                     \
   V(Math, log1p, MathLog1p)                                 \
+  V(Math, log2, MathLog2)                                   \
+  V(Math, log10, MathLog10)                                 \
   V(Math, exp, MathExp)                                     \
   V(Math, sqrt, MathSqrt)                                   \
   V(Math, pow, MathPow)                                     \
