@@ -1145,6 +1145,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(i.OutputRegister(), i.InputFloat32Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmVmovF32U32:
+      __ vmov(i.OutputFloat32Register(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmVmovLowU32F64:
       __ VmovLow(i.OutputRegister(), i.InputFloat64Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

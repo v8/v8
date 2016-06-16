@@ -1211,19 +1211,13 @@ void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
   VisitRR(this, kArmVcvtS32F64, node);
 }
 
-
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   VisitRR(this, kArmVmovU32F32, node);
 }
 
-
 void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
-  ArmOperandGenerator g(this);
-  Emit(kArmVmovLowF64U32, g.DefineAsRegister(node),
-       ImmediateOperand(ImmediateOperand::INLINE, 0),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kArmVmovF32U32, node);
 }
-
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
   ArmOperandGenerator g(this);
