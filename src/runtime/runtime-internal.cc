@@ -141,8 +141,9 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     if (it.IsFound()) {
       DCHECK(JSReceiver::GetDataProperty(&it)->IsSmi());
+      // Make column number 1-based here.
       Maybe<bool> data_set = JSReceiver::SetDataProperty(
-          &it, handle(Smi::FromInt(byte_offset), isolate));
+          &it, handle(Smi::FromInt(byte_offset + 1), isolate));
       DCHECK(data_set.IsJust() && data_set.FromJust() == true);
       USE(data_set);
     }

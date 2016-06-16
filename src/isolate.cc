@@ -621,6 +621,8 @@ class CaptureStackTraceHelper {
       Code* code = frame->LookupCode();
       int offset = static_cast<int>(frame->pc() - code->instruction_start());
       int position = code->SourcePosition(offset);
+      // Make position 1-based.
+      if (position >= 0) ++position;
       JSObject::AddProperty(stack_frame, column_key_,
                             isolate_->factory()->NewNumberFromInt(position),
                             NONE);
