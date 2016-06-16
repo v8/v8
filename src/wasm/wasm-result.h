@@ -38,8 +38,7 @@ enum ErrorCode {
 // The overall result of decoding a function or a module.
 template <typename T>
 struct Result {
-  Result()
-      : val(nullptr), error_code(kSuccess), start(nullptr), error_pc(nullptr) {
+  Result() : val(), error_code(kSuccess), start(nullptr), error_pc(nullptr) {
     error_msg.Reset(nullptr);
   }
 

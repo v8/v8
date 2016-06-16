@@ -307,6 +307,8 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
 typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
+typedef std::vector<std::pair<int, int>> FunctionOffsets;
+typedef Result<FunctionOffsets> FunctionOffsetsResult;
 
 // For testing. Decode, verify, and run the last exported function in the
 // given encoded module.

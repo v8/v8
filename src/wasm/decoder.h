@@ -316,7 +316,7 @@ class Decoder {
     } else {
       result.error_code = kSuccess;
     }
-    result.val = val;
+    result.val = std::move(val);
     return result;
   }
 

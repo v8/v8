@@ -25,6 +25,8 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
+namespace {
+
 // The main logic for decoding the bytes of a module.
 class ModuleDecoder : public Decoder {
  public:
@@ -719,6 +721,45 @@ class FunctionError : public FunctionResult {
   }
 };
 
+Vector<const byte> FindSection(const byte* module_start, const byte* module_end,
+                               WasmSection::Code code) {
+  Decoder decoder(module_start, module_end);
+
+  uint32_t magic_word = decoder.consume_u32("wasm magic");
+  if (magic_word != kWasmMagic) decoder.error("wrong magic word");
+
+  uint32_t magic_version = decoder.consume_u32("wasm version");
+  if (magic_version != kWasmVersion) decoder.error("wrong wasm version");
+
+  while (decoder.more() && decoder.ok()) {
+    // Read the section name.
+    int string_leb_length = 0;
+    uint32_t string_length =
+        decoder.consume_u32v(&string_leb_length, "section name length");
+    const byte* section_name_start = decoder.pc();
+    decoder.consume_bytes(string_length);
+    if (decoder.failed()) break;
+
+    WasmSection::Code section =
+        WasmSection::lookup(section_name_start, string_length);
+
+    // Read and check the section size.
+    int section_leb_length = 0;
+    uint32_t section_length =
+        decoder.consume_u32v(&section_leb_length, "section length");
+
+    const byte* section_start = decoder.pc();
+    decoder.consume_bytes(section_length);
+    if (section == code && decoder.ok()) {
+      return Vector<const uint8_t>(section_start, section_length);
+    }
+  }
+
+  return Vector<const uint8_t>();
+}
+
+}  // namespace
+
 ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                               const byte* module_start, const byte* module_end,
                               bool verify_functions, ModuleOrigin origin) {
@@ -762,6 +803,34 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);
 }
+
+FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
+                                                const byte* module_end) {
+  Vector<const byte> code_section =
+      FindSection(module_start, module_end, WasmSection::Code::FunctionBodies);
+  Decoder decoder(code_section.start(), code_section.end());
+  if (!code_section.start()) decoder.error("no code section");
+
+  int length;
+  uint32_t functions_count = decoder.consume_u32v(&length, "functions count");
+  FunctionOffsets table;
+  // Take care of invalid input here.
+  if (functions_count < static_cast<unsigned>(code_section.length()) / 2)
+    table.reserve(functions_count);
+  int section_offset = static_cast<int>(code_section.start() - module_start);
+  DCHECK_LE(0, section_offset);
+  for (uint32_t i = 0; i < functions_count && decoder.ok(); i++) {
+    uint32_t size = decoder.consume_u32v(&length, "body size");
+    int offset = static_cast<int>(section_offset + decoder.pc_offset());
+    table.push_back(std::make_pair(offset, static_cast<int>(size)));
+    DCHECK(table.back().first >= 0 && table.back().second >= 0);
+    decoder.consume_bytes(size);
+  }
+  if (decoder.more()) decoder.error("unexpected additional bytes");
+
+  return decoder.toResult(std::move(table));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
