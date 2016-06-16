@@ -166,6 +166,12 @@ uint32_t RelocInfo::wasm_memory_size_reference() {
      reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
 }
 
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+
 void RelocInfo::update_wasm_memory_reference(
     Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
     ICacheFlushMode icache_flush_mode) {
@@ -191,6 +197,17 @@ void RelocInfo::update_wasm_memory_reference(
   } else {
     UNREACHABLE();
   }
+}
+
+void RelocInfo::update_wasm_global_reference(
+    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  Address updated_reference;
+  DCHECK(old_base <= wasm_global_reference());
+  updated_reference = new_base + (wasm_global_reference() - old_base);
+  DCHECK(new_base <= updated_reference);
+  Assembler::set_target_address_at(isolate_, pc_, host_, updated_reference,
+                                   icache_flush_mode);
 }
 
 // -----------------------------------------------------------------------------
