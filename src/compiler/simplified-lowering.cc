@@ -1038,7 +1038,7 @@ class RepresentationSelector {
     Node* control = NodeProperties::GetControlInput(node);
     Node* arith = graph()->NewNode(op, node->InputAt(0), node->InputAt(1));
     Node* overflow = graph()->NewNode(common()->Projection(1), arith);
-    control = effect =
+    effect =
         graph()->NewNode(simplified()->CheckIf(), overflow, effect, control);
 
     Node* value = graph()->NewNode(common()->Projection(0), arith);

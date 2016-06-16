@@ -303,7 +303,7 @@ struct SimplifiedOperatorGlobalCache final {
   struct Name##Operator final : public Operator {                            \
     Name##Operator()                                                         \
         : Operator(IrOpcode::k##Name, Operator::kNoThrow, #Name, 1, 1, 1, 1, \
-                   1, 1) {}                                                  \
+                   1, 0) {}                                                  \
   };                                                                         \
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
@@ -337,7 +337,7 @@ struct SimplifiedOperatorGlobalCache final {
   struct CheckIfOperator final : public Operator {
     CheckIfOperator()
         : Operator(IrOpcode::kCheckIf, Operator::kFoldable, "CheckIf", 1, 1, 1,
-                   0, 1, 1) {}
+                   0, 1, 0) {}
   };
   CheckIfOperator kCheckIf;
 

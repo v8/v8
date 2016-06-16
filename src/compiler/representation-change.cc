@@ -451,8 +451,7 @@ Node* RepresentationChanger::InsertConversion(Node* node, const Operator* op,
     Node* effect = NodeProperties::GetEffectInput(use_node);
     Node* control = NodeProperties::GetControlInput(use_node);
     Node* conversion = jsgraph()->graph()->NewNode(op, node, effect, control);
-    NodeProperties::ReplaceControlInput(use_node, control);
-    NodeProperties::ReplaceEffectInput(use_node, effect);
+    NodeProperties::ReplaceEffectInput(use_node, conversion);
     return conversion;
   }
   return jsgraph()->graph()->NewNode(op, node);
