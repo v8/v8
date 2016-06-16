@@ -225,7 +225,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, native_context, holder);
+      this_effect = CheckPrototypeMaps(receiver_type, native_context, holder,
+                                       this_effect, this_control);
     }
 
     // Generate the actual property access.
@@ -668,7 +669,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // not compatible with (monomorphic) keyed stores.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, native_context, holder);
+      this_effect = CheckPrototypeMaps(receiver_type, native_context, holder,
+                                       this_effect, this_control);
     }
 
     // TODO(bmeurer): We currently specialize based on elements kind. We should
@@ -753,8 +755,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
           // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type, native_context,
-                                 isolate()->initial_object_prototype());
+          this_effect = CheckPrototypeMaps(
+              receiver_type, native_context,
+              isolate()->initial_object_prototype(), this_effect, this_control);
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Turn the hole into undefined.
           mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
@@ -772,8 +775,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
           // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type, native_context,
-                                 isolate()->initial_object_prototype());
+          this_effect = CheckPrototypeMaps(
+              receiver_type, native_context,
+              isolate()->initial_object_prototype(), this_effect, this_control);
           dependencies()->AssumePropertyCell(factory()->array_protector());
           // Return the signaling NaN hole directly if all uses are truncating.
           mode = CheckFloat64HoleMode::kAllowReturnHole;
@@ -956,10 +960,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
                            p.language_mode(), store_mode);
 }
 
-
-void JSNativeContextSpecialization::AssumePrototypesStable(
+Node* JSNativeContextSpecialization::CheckPrototypeMaps(
     Type* receiver_type, Handle<Context> native_context,
-    Handle<JSObject> holder) {
+    Handle<JSObject> holder, Node* effect, Node* control) {
   // Determine actual holder and perform prototype chain checks.
   for (auto i = receiver_type->Classes(); !i.Done(); i.Advance()) {
     Handle<Map> map = i.Current();
@@ -970,8 +973,28 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
             .ToHandle(&constructor)) {
       map = handle(constructor->initial_map(), isolate());
     }
-    dependencies()->AssumePrototypeMapsStable(map, holder);
+    for (PrototypeIterator j(map); !j.IsAtEnd(); j.Advance()) {
+      Handle<JSReceiver> const current =
+          PrototypeIterator::GetCurrent<JSReceiver>(j);
+      Handle<Map> current_map(current->map(), isolate());
+      if (current_map->is_stable()) {
+        dependencies()->AssumeMapStable(current_map);
+      } else {
+        // TODO(bmeurer): Introduce a dedicated CheckMaps operator.
+        Node* prototype = jsgraph()->HeapConstant(current);
+        Node* prototype_map = effect =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             prototype, effect, control);
+        Node* check = graph()->NewNode(
+            simplified()->ReferenceEqual(Type::Internal()), prototype_map,
+            jsgraph()->HeapConstant(current_map));
+        effect =
+            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+      }
+      if (holder.is_identical_to(current)) break;
+    }
   }
+  return effect;
 }
 
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
