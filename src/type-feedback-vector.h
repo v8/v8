@@ -478,10 +478,6 @@ class LoadGlobalICNexus : public FeedbackNexus {
   void ConfigureMegamorphic() override { UNREACHABLE(); }
   void Clear(Code* host);
 
-  // TODO(ishell): remove LoadIC-style mode support.
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
-
-  // PropertyCell shortcut mode.
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   void ConfigureHandlerMode(Handle<Code> handler);

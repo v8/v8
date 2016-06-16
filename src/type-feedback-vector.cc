@@ -186,8 +186,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
     Object* value;
-    if (FLAG_new_load_global_ic &&
-        kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
+    if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
       value = *factory->empty_weak_cell();
     } else {
       value = *uninitialized_sentinel;
@@ -463,29 +462,10 @@ InlineCacheState LoadGlobalICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
 
-  if (FLAG_new_load_global_ic) {
-    Object* extra = GetFeedbackExtra();
-    if (!WeakCell::cast(feedback)->cleared() ||
-        extra != *TypeFeedbackVector::UninitializedSentinel(isolate)) {
-      return MONOMORPHIC;
-    }
-
-  } else {
-    if (feedback == *TypeFeedbackVector::UninitializedSentinel(isolate)) {
-      return UNINITIALIZED;
-    } else if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate)) {
-      return MEGAMORPHIC;
-    } else if (feedback ==
-               *TypeFeedbackVector::PremonomorphicSentinel(isolate)) {
-      return PREMONOMORPHIC;
-    } else if (feedback->IsFixedArray()) {
-      // Determine state purely by our structure, don't check if the maps are
-      // cleared.
-      return POLYMORPHIC;
-    } else if (feedback->IsWeakCell()) {
-      // Don't check if the map is cleared.
-      return MONOMORPHIC;
-    }
+  Object* extra = GetFeedbackExtra();
+  if (!WeakCell::cast(feedback)->cleared() ||
+      extra != *TypeFeedbackVector::UninitializedSentinel(isolate)) {
+    return MONOMORPHIC;
   }
   return UNINITIALIZED;
 }
@@ -630,13 +610,6 @@ void CallICNexus::ConfigureMegamorphic(int call_count) {
 
 void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
                                        Handle<Code> handler) {
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  SetFeedback(*cell);
-  SetFeedbackExtra(*handler);
-}
-
-void LoadGlobalICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
-                                             Handle<Code> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   SetFeedback(*cell);
   SetFeedbackExtra(*handler);

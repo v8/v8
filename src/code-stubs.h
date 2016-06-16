@@ -2359,24 +2359,24 @@ class LoadICTrampolineTFStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(LoadICTrampolineTF, TurboFanCodeStub);
 };
 
-class LoadGlobalICTrampolineStub : public LoadICTrampolineTFStub {
+class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadGlobalICTrampolineStub(Isolate* isolate,
                                       const LoadICState& state)
-      : LoadICTrampolineTFStub(isolate, state) {}
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
-  //  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (!FLAG_new_load_global_ic) {
-      return LoadICTrampolineTFStub::GetCallInterfaceDescriptor();
-    }
-    return LoadGlobalDescriptor(isolate());
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
   }
-  DEFINE_CODE_STUB(LoadGlobalICTrampoline, LoadICTrampolineTFStub);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
+  DEFINE_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
 };
 
 class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
@@ -2490,23 +2490,23 @@ class LoadICTFStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(LoadICTF, TurboFanCodeStub);
 };
 
-class LoadGlobalICStub : public LoadICTFStub {
+class LoadGlobalICStub : public TurboFanCodeStub {
  public:
   explicit LoadGlobalICStub(Isolate* isolate, const LoadICState& state)
-      : LoadICTFStub(isolate, state) {}
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
 
-  //  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (!FLAG_new_load_global_ic) {
-      return LoadICTFStub::GetCallInterfaceDescriptor();
-    }
-    return LoadGlobalWithVectorDescriptor(isolate());
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
   }
-  DEFINE_CODE_STUB(LoadGlobalIC, LoadICTFStub);
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
+  DEFINE_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
 };
 
 class KeyedLoadICStub : public PlatformCodeStub {

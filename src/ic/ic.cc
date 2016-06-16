@@ -467,11 +467,7 @@ void LoadIC::Clear(Isolate* isolate, Code* host, LoadICNexus* nexus) {
 void LoadGlobalIC::Clear(Isolate* isolate, Code* host,
                          LoadGlobalICNexus* nexus) {
   if (IsCleared(nexus)) return;
-  if (FLAG_new_load_global_ic) {
-    nexus->ConfigureUninitialized();
-  } else {
-    nexus->ConfigurePremonomorphic();
-  }
+  nexus->ConfigureUninitialized();
   OnTypeFeedbackChanged(isolate, host);
 }
 
@@ -553,11 +549,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     nexus->ConfigureMonomorphic(map, handler);
   } else if (kind() == Code::LOAD_GLOBAL_IC) {
     LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-    if (FLAG_new_load_global_ic) {
-      nexus->ConfigureHandlerMode(handler);
-    } else {
-      nexus->ConfigureMonomorphic(map, handler);
-    }
+    nexus->ConfigureHandlerMode(handler);
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
     nexus->ConfigureMonomorphic(name, map, handler);
@@ -922,8 +914,7 @@ bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
 
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  if (state() == UNINITIALIZED &&
-      (!FLAG_new_load_global_ic || kind() != Code::LOAD_GLOBAL_IC)) {
+  if (state() == UNINITIALIZED && kind() != Code::LOAD_GLOBAL_IC) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
@@ -945,7 +936,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       code = slow_stub();
     }
   } else {
-    if (FLAG_new_load_global_ic && kind() == Code::LOAD_GLOBAL_IC &&
+    if (kind() == Code::LOAD_GLOBAL_IC &&
         lookup->state() == LookupIterator::DATA &&
         lookup->GetHolder<Object>()->IsJSGlobalObject()) {
 #if DEBUG

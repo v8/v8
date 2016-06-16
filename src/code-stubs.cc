@@ -446,9 +446,6 @@ void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 
 void LoadGlobalICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
-  if (!FLAG_new_load_global_ic) {
-    return LoadICTrampolineTFStub::GenerateAssembly(assembler);
-  }
   typedef compiler::Node Node;
 
   Node* name = assembler->Parameter(0);
@@ -461,9 +458,6 @@ void LoadGlobalICTrampolineStub::GenerateAssembly(
 }
 
 void LoadGlobalICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  if (!FLAG_new_load_global_ic) {
-    return LoadICTFStub::GenerateAssembly(assembler);
-  }
   typedef compiler::Node Node;
 
   Node* name = assembler->Parameter(0);
