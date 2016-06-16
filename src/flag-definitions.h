@@ -202,6 +202,7 @@ DEFINE_IMPLICATION(es_staging, harmony_async_await)
   V(harmony_function_sent, "harmony function.sent")                     \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_simd, "harmony simd")                                       \
+  V(harmony_explicit_tailcalls, "harmony explicit tail calls")          \
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_restrictive_generators,                                     \
     "harmony restrictions on generator declarations")                   \
@@ -214,7 +215,6 @@ DEFINE_IMPLICATION(es_staging, harmony_async_await)
 #define HARMONY_STAGED_BASE(V)                                               \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")                  \
   V(harmony_tailcalls, "harmony tail calls")                                 \
-  V(harmony_explicit_tailcalls, "harmony explicit tail calls")               \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
