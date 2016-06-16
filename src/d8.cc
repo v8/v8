@@ -928,12 +928,12 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
     int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
-    if (maybeline.IsJust()) {
+    Local<String> sourceline;
+    if (message->GetSourceLine(isolate->GetCurrentContext())
+            .ToLocal(&sourceline)) {
       // Print line of source code.
-      v8::String::Utf8Value sourceline(
-          message->GetSourceLine(isolate->GetCurrentContext())
-              .ToLocalChecked());
-      const char* sourceline_string = ToCString(sourceline);
+      v8::String::Utf8Value sourcelinevalue(sourceline);
+      const char* sourceline_string = ToCString(sourcelinevalue);
       printf("%s\n", sourceline_string);
       // Print wavy underline (GetUnderline is deprecated).
       int start =
