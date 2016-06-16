@@ -59,17 +59,6 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathExpRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  isolate->counters()->math_exp_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  lazily_initialize_fast_exp(isolate);
-  return *isolate->factory()->NewNumber(fast_exp(x, isolate));
-}
-
-
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if VFP3 is not available.
 RUNTIME_FUNCTION(Runtime_MathPow) {

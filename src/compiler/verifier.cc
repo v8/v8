@@ -753,6 +753,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberFround:
     case IrOpcode::kNumberAtan:
+    case IrOpcode::kNumberExp:
     case IrOpcode::kNumberLog:
     case IrOpcode::kNumberLog1p:
     case IrOpcode::kNumberLog2:
@@ -1070,6 +1071,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Abs:
     case IrOpcode::kFloat64Atan:
     case IrOpcode::kFloat64Atan2:
+    case IrOpcode::kFloat64Exp:
     case IrOpcode::kFloat64Log:
     case IrOpcode::kFloat64Log1p:
     case IrOpcode::kFloat64Log2:

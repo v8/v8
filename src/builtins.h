@@ -320,6 +320,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(MathAtan2, 3)                     \
   V(MathCeil, 2)                      \
   V(MathClz32, 2)                     \
+  V(MathExp, 2)                       \
   V(MathFloor, 2)                     \
   V(MathLog, 2)                       \
   V(MathLog1p, 2)                     \
@@ -634,6 +635,8 @@ class Builtins {
   static void Generate_MathCeil(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.11 Math.clz32 ( x )
   static void Generate_MathClz32(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.14 Math.exp ( x )
+  static void Generate_MathExp(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
   static void Generate_MathFloor(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.20 Math.log ( x )

@@ -91,6 +91,7 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(AtomicStoreWord32)                    \
   V(Ieee754Float64Atan)                   \
   V(Ieee754Float64Atan2)                  \
+  V(Ieee754Float64Exp)                    \
   V(Ieee754Float64Log)                    \
   V(Ieee754Float64Log1p)                  \
   V(Ieee754Float64Log2)                   \

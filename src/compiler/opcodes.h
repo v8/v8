@@ -203,6 +203,7 @@
   V(NumberFround)                     \
   V(NumberAtan)                       \
   V(NumberAtan2)                      \
+  V(NumberExp)                        \
   V(NumberLog)                        \
   V(NumberLog1p)                      \
   V(NumberLog2)                       \
@@ -371,6 +372,7 @@
   V(Float64Abs)                 \
   V(Float64Atan)                \
   V(Float64Atan2)               \
+  V(Float64Exp)                 \
   V(Float64Log)                 \
   V(Float64Log1p)               \
   V(Float64Log2)                \

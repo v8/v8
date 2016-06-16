@@ -671,6 +671,8 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Atan();
     case IrOpcode::kNumberAtan2:
       return machine()->Float64Atan2();
+    case IrOpcode::kNumberExp:
+      return machine()->Float64Exp();
     case IrOpcode::kNumberFround:
       return machine()->TruncateFloat64ToFloat32();
     case IrOpcode::kNumberLog:

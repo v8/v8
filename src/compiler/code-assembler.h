@@ -108,6 +108,7 @@ class Schedule;
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
   V(Float64Atan)                        \
+  V(Float64Exp)                         \
   V(Float64Log)                         \
   V(Float64Log1p)                       \
   V(Float64Log2)                        \

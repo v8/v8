@@ -28,22 +28,6 @@ class StringCharLoadGenerator : public AllStatic {
 };
 
 
-class MathExpGenerator : public AllStatic {
- public:
-  // Register input isn't modified. All other registers are clobbered.
-  static void EmitMathExp(MacroAssembler* masm,
-                          DwVfpRegister input,
-                          DwVfpRegister result,
-                          DwVfpRegister double_scratch1,
-                          DwVfpRegister double_scratch2,
-                          Register temp1,
-                          Register temp2,
-                          Register temp3);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
 }  // namespace internal
 }  // namespace v8
 
