@@ -2578,7 +2578,7 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                       uint32_t offset,
                                       wasm::WasmCodePosition position) {
   DCHECK(module_ && module_->instance);
-  size_t size = module_->instance->mem_size;
+  uint32_t size = module_->instance->mem_size;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
 
   // Check against the effective size.

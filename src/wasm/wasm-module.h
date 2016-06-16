@@ -225,7 +225,7 @@ struct WasmModuleInstance {
   std::vector<Handle<Code>> import_code;    // code objects for each import.
   // -- raw memory ------------------------------------------------------------
   byte* mem_start;  // start of linear memory.
-  size_t mem_size;  // size of the linear memory.
+  uint32_t mem_size;  // size of the linear memory.
   // -- raw globals -----------------------------------------------------------
   byte* globals_start;  // start of the globals area.
 

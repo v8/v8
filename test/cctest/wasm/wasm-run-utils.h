@@ -96,7 +96,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
-  byte* AddMemory(size_t size) {
+  byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
@@ -107,7 +107,7 @@ class TestingModule : public ModuleEnv {
   }
 
   template <typename T>
-  T* AddMemoryElems(size_t count) {
+  T* AddMemoryElems(uint32_t count) {
     AddMemory(count * sizeof(T));
     return raw_mem_start<T>();
   }
