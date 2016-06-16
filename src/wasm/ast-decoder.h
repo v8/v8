@@ -213,6 +213,11 @@ struct FunctionBody {
   const byte* end;    // end of the function body
 };
 
+static inline FunctionBody FunctionBodyForTesting(const byte* start,
+                                                  const byte* end) {
+  return {nullptr, nullptr, start, start, end};
+}
+
 struct Tree;
 typedef Result<Tree*> TreeResult;
 
@@ -222,7 +227,9 @@ TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
                           FunctionBody& body);
 TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
                         TFBuilder* builder, FunctionBody& body);
-void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body);
+bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
+              std::ostream& os,
+              std::vector<std::tuple<uint32_t, int, int>>* offset_table);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintAstForDebugging(const byte* start, const byte* end);

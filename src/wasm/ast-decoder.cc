@@ -157,10 +157,17 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
+  inline bool Complete(const byte* pc, CallFunctionOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->functions.size()) {
       operand.sig = m->module->functions[operand.index].sig;
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1,
@@ -174,10 +181,17 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
+  inline bool Complete(const byte* pc, CallIndirectOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->signatures.size()) {
       operand.sig = m->module->signatures[operand.index];
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1,
@@ -191,10 +205,17 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallImportOperand& operand) {
+  inline bool Complete(const byte* pc, CallImportOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->import_table.size()) {
       operand.sig = m->module->import_table[operand.index].sig;
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallImportOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1, "arity mismatch in import call (expected %u, got %u)",
@@ -391,7 +412,7 @@ class WasmDecoder : public Decoder {
 // shift-reduce strategy with multiple internal stacks.
 class SR_WasmDecoder : public WasmDecoder {
  public:
-  SR_WasmDecoder(Zone* zone, TFBuilder* builder, FunctionBody& body)
+  SR_WasmDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
       : WasmDecoder(body.module, body.sig, body.start, body.end),
         zone_(zone),
         builder_(builder),
@@ -1526,20 +1547,22 @@ int OpcodeArity(const byte* pc, const byte* end) {
 }
 
 void PrintAstForDebugging(const byte* start, const byte* end) {
-  FunctionBody body = {nullptr, nullptr, start, start, end};
   base::AccountingAllocator allocator;
-  PrintAst(&allocator, body);
+  OFStream os(stdout);
+  PrintAst(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
 }
 
-void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
+bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
+              std::ostream& os,
+              std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator);
   SR_WasmDecoder decoder(&zone, nullptr, body);
-
-  OFStream os(stdout);
+  int line_nr = 0;
 
   // Print the function signature.
   if (body.sig) {
     os << "// signature: " << *body.sig << std::endl;
+    ++line_nr;
   }
 
   // Print the local declarations.
@@ -1556,24 +1579,35 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
     os << std::endl;
 
     for (const byte* locals = body.start; locals < pc; locals++) {
-      printf(" 0x%02x,", *locals);
+      os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
     }
     os << std::endl;
+    ++line_nr;
   }
 
-  os << "// body: \n";
-  int control_depth = 0;
+  os << "// body: " << std::endl;
+  ++line_nr;
+  unsigned control_depth = 0;
   while (pc < body.end) {
     size_t length = decoder.OpcodeLength(pc);
 
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     if (opcode == kExprElse) control_depth--;
 
-    for (int i = 0; i < control_depth && i < 32; i++) printf("  ");
-    printf("k%s,", WasmOpcodes::OpcodeName(opcode));
+    int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
+    if (offset_table) {
+      offset_table->push_back(
+          std::make_tuple(pc - body.start, line_nr, num_whitespaces));
+    }
+
+    // 64 whitespaces
+    const char* padding =
+        "                                                                ";
+    os.write(padding, num_whitespaces);
+    os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
 
     for (size_t i = 1; i < length; i++) {
-      printf(" 0x%02x,", pc[i]);
+      os << " " << AsHex(pc[i], 2) << ",";
     }
 
     switch (opcode) {
@@ -1606,7 +1640,7 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
       }
       case kExprCallIndirect: {
         CallIndirectOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        if (decoder.Complete(pc, operand)) {
           os << "   // sig #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " sig #" << operand.index;
@@ -1615,7 +1649,7 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
       }
       case kExprCallImport: {
         CallImportOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        if (decoder.Complete(pc, operand)) {
           os << "   // import #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " import #" << operand.index;
@@ -1624,7 +1658,7 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
       }
       case kExprCallFunction: {
         CallFunctionOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        if (decoder.Complete(pc, operand)) {
           os << "   // function #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " function #" << operand.index;
@@ -1642,7 +1676,10 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
 
     pc += length;
     os << std::endl;
+    ++line_nr;
   }
+
+  return decoder.ok();
 }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,

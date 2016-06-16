@@ -3152,7 +3152,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   int index = static_cast<int>(function_->func_index);
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
-    PrintAst(isolate_->allocator(), body);
+    OFStream os(stdout);
+    PrintAst(isolate_->allocator(), body, os, nullptr);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
