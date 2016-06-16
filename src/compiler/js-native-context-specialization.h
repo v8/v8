@@ -80,12 +80,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceSoftDeoptimize(Node* node);
 
   // Adds stability dependencies on all prototypes of every class in
-  // {receiver_type} up to (and including) the {holder} if the maps
-  // are stable, otherwise falls back to inserting runtime map checks
-  // on the prototypes.
-  Node* CheckPrototypeMaps(Type* receiver_type, Handle<Context> native_context,
-                           Handle<JSObject> holder, Node* effect,
-                           Node* control);
+  // {receiver_type} up to (and including) the {holder}.
+  void AssumePrototypesStable(Type* receiver_type,
+                              Handle<Context> native_context,
+                              Handle<JSObject> holder);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
