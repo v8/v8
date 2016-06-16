@@ -112,7 +112,6 @@
         'heap/test-incremental-marking.cc',
         'heap/test-lab.cc',
         'heap/test-mark-compact.cc',
-        'heap/test-page-promotion.cc',
         'heap/test-spaces.cc',
         'libsampler/test-sampler.cc',
         'print-extension.cc',

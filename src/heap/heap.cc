@@ -1611,8 +1611,6 @@ void Heap::Scavenge() {
   // Pause the inline allocation steps.
   PauseAllocationObserversScope pause_observers(this);
 
-  mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
-
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
 #endif

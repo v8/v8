@@ -425,10 +425,6 @@ class MemoryChunk {
     // from new to old space during evacuation.
     PAGE_NEW_OLD_PROMOTION,
 
-    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
-    // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION,
-
     // A black page has all mark bits set to 1 (black). A black page currently
     // cannot be iterated because it is not swept. Moreover live bytes are also
     // not updated.
@@ -2435,8 +2431,6 @@ class SemiSpace : public Space {
   // than the current capacity.
   bool ShrinkTo(int new_capacity);
 
-  bool EnsureCurrentCapacity();
-
   // Returns the start address of the first page of the space.
   Address space_start() {
     DCHECK_NE(anchor_.next_page(), anchor());
@@ -2465,8 +2459,7 @@ class SemiSpace : public Space {
   // Resets the space to using the first page.
   void Reset();
 
-  void RemovePage(Page* page);
-  void PrependPage(Page* page);
+  bool ReplaceWithEmptyPage(Page* page);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -2542,9 +2535,8 @@ class SemiSpace : public Space {
   Page anchor_;
   Page* current_page_;
 
-  friend class NewSpace;
-  friend class NewSpacePageIterator;
   friend class SemiSpaceIterator;
+  friend class NewSpacePageIterator;
 };
 
 
@@ -2723,14 +2715,11 @@ class NewSpace : public Space {
     return static_cast<size_t>(allocated);
   }
 
-  void MovePageFromSpaceToSpace(Page* page) {
+  bool ReplaceWithEmptyPage(Page* page) {
+    // This method is called after flipping the semispace.
     DCHECK(page->InFromSpace());
-    from_space_.RemovePage(page);
-    to_space_.PrependPage(page);
-    pages_used_++;
+    return from_space_.ReplaceWithEmptyPage(page);
   }
-
-  bool Rebalance();
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
