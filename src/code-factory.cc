@@ -14,10 +14,10 @@ namespace internal {
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate) {
   if (FLAG_tf_load_ic_stub) {
-    LoadICTrampolineTFStub stub(isolate, LoadICState(NOT_INSIDE_TYPEOF));
+    LoadICTrampolineTFStub stub(isolate);
     return Callable(stub.GetCode(), LoadDescriptor(isolate));
   }
-  LoadICTrampolineStub stub(isolate, LoadICState(NOT_INSIDE_TYPEOF));
+  LoadICTrampolineStub stub(isolate);
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
@@ -29,14 +29,13 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
-  auto code = LoadIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(NOT_INSIDE_TYPEOF).GetExtraICState());
+  auto code = LoadIC::initialize_stub_in_optimized_code(isolate);
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
-  LoadGlobalICTrampolineStub stub(isolate, LoadICState(typeof_mode));
+  LoadGlobalICTrampolineStub stub(isolate, LoadGlobalICState(typeof_mode));
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 
@@ -44,13 +43,13 @@ Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
 Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
   auto code = LoadGlobalIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(typeof_mode).GetExtraICState());
+      isolate, LoadGlobalICState(typeof_mode).GetExtraICState());
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  KeyedLoadICTrampolineStub stub(isolate, LoadICState(kNoExtraICState));
+  KeyedLoadICTrampolineStub stub(isolate);
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
 

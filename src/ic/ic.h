@@ -269,10 +269,6 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  TypeofMode typeof_mode() const {
-    return LoadICState::GetTypeofMode(extra_ic_state());
-  }
-
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
@@ -280,7 +276,9 @@ class LoadIC : public IC {
   }
 
   bool ShouldThrowReferenceError() const {
-    return kind() == Code::LOAD_GLOBAL_IC && typeof_mode() == NOT_INSIDE_TYPEOF;
+    return kind() == Code::LOAD_GLOBAL_IC &&
+           LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
+               NOT_INSIDE_TYPEOF;
   }
 
   // Code generator routines.
@@ -289,8 +287,7 @@ class LoadIC : public IC {
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
+  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);

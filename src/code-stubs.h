@@ -2285,51 +2285,30 @@ class StringCharAtGenerator {
 
 class LoadDictionaryElementStub : public HydrogenCodeStub {
  public:
-  explicit LoadDictionaryElementStub(Isolate* isolate, const LoadICState& state)
-      : HydrogenCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit LoadDictionaryElementStub(Isolate* isolate)
+      : HydrogenCodeStub(isolate) {}
 
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return LoadWithVectorDescriptor(isolate());
-  }
-
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
 
 class KeyedLoadGenericStub : public HydrogenCodeStub {
  public:
-  explicit KeyedLoadGenericStub(Isolate* isolate, const LoadICState& state)
-      : HydrogenCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit KeyedLoadGenericStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-
   DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
 };
 
 
 class LoadICTrampolineStub : public PlatformCodeStub {
  public:
-  LoadICTrampolineStub(Isolate* isolate, const LoadICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit LoadICTrampolineStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- protected:
-  LoadICState state() const {
-    return LoadICState(static_cast<ExtraICState>(minor_key_));
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadICTrampoline, PlatformCodeStub);
@@ -2337,23 +2316,12 @@ class LoadICTrampolineStub : public PlatformCodeStub {
 
 class LoadICTrampolineTFStub : public TurboFanCodeStub {
  public:
-  LoadICTrampolineTFStub(Isolate* isolate, const LoadICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit LoadICTrampolineTFStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- protected:
-  LoadICState state() const {
-    return LoadICState(static_cast<ExtraICState>(minor_key_));
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_CODE_STUB(LoadICTrampolineTF, TurboFanCodeStub);
@@ -2362,7 +2330,7 @@ class LoadICTrampolineTFStub : public TurboFanCodeStub {
 class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadGlobalICTrampolineStub(Isolate* isolate,
-                                      const LoadICState& state)
+                                      const LoadGlobalICState& state)
       : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2381,8 +2349,8 @@ class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
 
 class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
  public:
-  explicit KeyedLoadICTrampolineStub(Isolate* isolate, const LoadICState& state)
-      : LoadICTrampolineStub(isolate, state) {}
+  explicit KeyedLoadICTrampolineStub(Isolate* isolate)
+      : LoadICTrampolineStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
 
@@ -2451,18 +2419,11 @@ class CallICTrampolineStub : public PlatformCodeStub {
 
 class LoadICStub : public PlatformCodeStub {
  public:
-  explicit LoadICStub(Isolate* isolate, const LoadICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit LoadICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_PLATFORM_CODE_STUB(LoadIC, PlatformCodeStub);
@@ -2473,18 +2434,11 @@ class LoadICStub : public PlatformCodeStub {
 
 class LoadICTFStub : public TurboFanCodeStub {
  public:
-  explicit LoadICTFStub(Isolate* isolate, const LoadICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit LoadICTFStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_CODE_STUB(LoadICTF, TurboFanCodeStub);
@@ -2492,7 +2446,7 @@ class LoadICTFStub : public TurboFanCodeStub {
 
 class LoadGlobalICStub : public TurboFanCodeStub {
  public:
-  explicit LoadGlobalICStub(Isolate* isolate, const LoadICState& state)
+  explicit LoadGlobalICStub(Isolate* isolate, const LoadGlobalICState& state)
       : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2511,18 +2465,11 @@ class LoadGlobalICStub : public TurboFanCodeStub {
 
 class KeyedLoadICStub : public PlatformCodeStub {
  public:
-  explicit KeyedLoadICStub(Isolate* isolate, const LoadICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
+  explicit KeyedLoadICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
   void GenerateForTrampoline(MacroAssembler* masm);
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadIC, PlatformCodeStub);

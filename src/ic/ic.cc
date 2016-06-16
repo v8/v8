@@ -501,8 +501,9 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
 // static
 Handle<Code> KeyedLoadIC::ChooseMegamorphicStub(Isolate* isolate,
                                                 ExtraICState extra_state) {
+  // TODO(ishell): remove extra_ic_state
   if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericStub(isolate, LoadICState(extra_state)).GetCode();
+    return KeyedLoadGenericStub(isolate).GetCode();
   } else {
     return isolate->builtins()->KeyedLoadIC_Megamorphic();
   }
@@ -833,22 +834,22 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
   }
 }
 
-Handle<Code> LoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, ExtraICState extra_state) {
+Handle<Code> LoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
   if (FLAG_tf_load_ic_stub) {
-    return LoadICTFStub(isolate, LoadICState(extra_state)).GetCode();
+    return LoadICTFStub(isolate).GetCode();
   }
-  return LoadICStub(isolate, LoadICState(extra_state)).GetCode();
+  return LoadICStub(isolate).GetCode();
 }
 
 Handle<Code> LoadGlobalIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state) {
-  return LoadGlobalICStub(isolate, LoadICState(extra_state)).GetCode();
+  return LoadGlobalICStub(isolate, LoadGlobalICState(extra_state)).GetCode();
 }
 
 Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
     Isolate* isolate, ExtraICState extra_state) {
-  return KeyedLoadICStub(isolate, LoadICState(extra_state)).GetCode();
+  // TODO(ishell): remove extra_ic_state
+  return KeyedLoadICStub(isolate).GetCode();
 }
 
 Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(

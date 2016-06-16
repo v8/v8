@@ -202,7 +202,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           if (kind == Code::LOAD_GLOBAL_IC &&
-              LoadICState::GetTypeofMode(code->extra_ic_state()) ==
+              LoadGlobalICState::GetTypeofMode(code->extra_ic_state()) ==
                   INSIDE_TYPEOF) {
             out.AddFormatted(" inside typeof,");
           }

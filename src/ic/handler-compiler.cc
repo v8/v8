@@ -615,8 +615,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
                                           convert_hole_to_undefined).GetCode();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
-        LoadICState state = LoadICState(kNoExtraICState);
-        cached_stub = LoadDictionaryElementStub(isolate(), state).GetCode();
+        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 
