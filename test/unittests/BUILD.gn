@@ -122,7 +122,7 @@ v8_executable("unittests") {
     sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
   } else if (v8_target_arch == "arm64") {
     sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
-  } else if (v8_target_arch == "ia32") {
+  } else if (v8_target_arch == "x86") {
     sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
   } else if (v8_target_arch == "mips" || v8_target_arch == "mipsel") {
     sources += [ "compiler/mips/instruction-selector-mips-unittest.cc" ]

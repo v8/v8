@@ -194,7 +194,7 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-arm64.cc",
       "test-utils-arm64.cc",
     ]
-  } else if (v8_target_arch == "ia32") {
+  } else if (v8_target_arch == "x86") {
     sources += [
       "test-assembler-ia32.cc",
       "test-code-stubs-ia32.cc",
