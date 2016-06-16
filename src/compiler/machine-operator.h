@@ -372,9 +372,6 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64Atan();
   const Operator* Float64Atan2();
 
-  // Floating point exponential functions.
-  const Operator* Float64Exp();
-
   // Floating point logarithm (double-precision).
   const Operator* Float64Log();
   const Operator* Float64Log1p();

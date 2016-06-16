@@ -93,13 +93,16 @@ class CodeGenerator {
 // generated code both in runtime and compiled code.
 typedef double (*UnaryMathFunctionWithIsolate)(double x, Isolate* isolate);
 
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate);
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate);
 
 
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
+double fast_exp(double input, Isolate* isolate);
 double fast_sqrt(double input, Isolate* isolate);
+void lazily_initialize_fast_exp(Isolate* isolate);
 void lazily_initialize_fast_sqrt(Isolate* isolate);
 
 

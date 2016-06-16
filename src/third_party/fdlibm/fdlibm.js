@@ -31,11 +31,13 @@
 var GlobalFloat64Array = global.Float64Array;
 var GlobalMath = global.Math;
 var MathAbs;
+var MathExp;
 var NaN = %GetRootNaN();
 var rempio2result;
 
 utils.Import(function(from) {
   MathAbs = from.MathAbs;
+  MathExp = from.MathExp;
 });
 
 utils.CreateDoubleResultArray = function(global) {
@@ -632,11 +634,11 @@ function MathSinh(x) {
     return h * (t + t / (t + 1));
   }
   // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
-  if (ax < LOG_MAXD) return h * %math_exp(ax);
+  if (ax < LOG_MAXD) return h * MathExp(ax);
   // |x| in [log(maxdouble), overflowthreshold]
   // overflowthreshold = 710.4758600739426
   if (ax <= KSINH_OVERFLOW) {
-    var w = %math_exp(0.5 * ax);
+    var w = MathExp(0.5 * ax);
     var t = h * w;
     return t * w;
   }
@@ -682,14 +684,14 @@ function MathCosh(x) {
   }
   // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
   if (ix < 0x40360000) {
-    var t = %math_exp(MathAbs(x));
+    var t = MathExp(MathAbs(x));
     return 0.5 * t + 0.5 / t;
   }
   // |x| in [22, log(maxdouble)], return half*exp(|x|)
-  if (ix < 0x40862e42) return 0.5 * %math_exp(MathAbs(x));
+  if (ix < 0x40862e42) return 0.5 * MathExp(MathAbs(x));
   // |x| in [log(maxdouble), overflowthreshold]
   if (MathAbs(x) <= KCOSH_OVERFLOW) {
-    var w = %math_exp(0.5 * MathAbs(x));
+    var w = MathExp(0.5 * MathAbs(x));
     var t = 0.5 * w;
     return t * w;
   }

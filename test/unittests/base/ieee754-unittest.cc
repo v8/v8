@@ -54,23 +54,6 @@ TEST(Ieee754, Atan2) {
                          -std::numeric_limits<double>::infinity()));
 }
 
-TEST(Ieee754, Exp) {
-  EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_EQ(0.0, exp(-std::numeric_limits<double>::infinity()));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            exp(std::numeric_limits<double>::infinity()));
-  EXPECT_EQ(3.307553003638408e-308, exp(-708.0));
-  EXPECT_EQ(2.2250738585072626e-308, exp(-708.39641853226408));
-  EXPECT_EQ(0.36787944117144233, exp(-1.0));
-  EXPECT_EQ(1.0, exp(-0.0));
-  EXPECT_EQ(1.0, exp(0.0));
-  EXPECT_EQ(2.7182818284590455, exp(1.0));
-  EXPECT_EQ(2.6881171418161356e+43, exp(100.0));
-  EXPECT_EQ(8.218407461554972e+307, exp(709.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(710.0));
-}
-
 TEST(Ieee754, Log) {
   EXPECT_THAT(log(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(log(std::numeric_limits<double>::signaling_NaN()), IsNaN());

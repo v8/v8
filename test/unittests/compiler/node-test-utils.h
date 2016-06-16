@@ -229,7 +229,6 @@ Matcher<Node*> IsNumberAtan2(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberCeil(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberClz32(const Matcher<Node*>& value_matcher);
-Matcher<Node*> IsNumberExp(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberFloor(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberFround(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog(const Matcher<Node*>& value_matcher);

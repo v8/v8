@@ -60,6 +60,7 @@ double modulo(double x, double y) {
   }
 
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
+UNARY_MATH_FUNCTION(exp, CreateExpFunction)
 
 #undef UNARY_MATH_FUNCTION
 

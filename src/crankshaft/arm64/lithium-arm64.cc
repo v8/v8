@@ -2462,9 +2462,14 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     case kMathExp: {
       DCHECK(instr->representation().IsDouble());
       DCHECK(instr->value()->representation().IsDouble());
-      LOperand* input = UseFixedDouble(instr->value(), d0);
-      LMathExp* result = new (zone()) LMathExp(input);
-      return MarkAsCall(DefineFixedDouble(result, d0), instr);
+      LOperand* input = UseRegister(instr->value());
+      LOperand* double_temp1 = TempDoubleRegister();
+      LOperand* temp1 = TempRegister();
+      LOperand* temp2 = TempRegister();
+      LOperand* temp3 = TempRegister();
+      LMathExp* result = new(zone()) LMathExp(input, double_temp1,
+                                              temp1, temp2, temp3);
+      return DefineAsRegister(result);
     }
     case kMathFloor: {
       DCHECK(instr->value()->representation().IsDouble());

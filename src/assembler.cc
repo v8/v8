@@ -178,6 +178,11 @@ static DoubleConstant double_constants;
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
+static bool math_exp_data_initialized = false;
+static base::Mutex* math_exp_data_mutex = NULL;
+static double* math_exp_constants_array = NULL;
+static double* math_exp_log_table_array = NULL;
+
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
@@ -1001,6 +1006,61 @@ void ExternalReference::SetUp() {
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
+
+  math_exp_data_mutex = new base::Mutex();
+}
+
+
+void ExternalReference::InitializeMathExpData() {
+  // Early return?
+  if (math_exp_data_initialized) return;
+
+  base::LockGuard<base::Mutex> lock_guard(math_exp_data_mutex);
+  if (!math_exp_data_initialized) {
+    // If this is changed, generated code must be adapted too.
+    const int kTableSizeBits = 11;
+    const int kTableSize = 1 << kTableSizeBits;
+    const double kTableSizeDouble = static_cast<double>(kTableSize);
+
+    math_exp_constants_array = new double[9];
+    // Input values smaller than this always return 0.
+    math_exp_constants_array[0] = -708.39641853226408;
+    // Input values larger than this always return +Infinity.
+    math_exp_constants_array[1] = 709.78271289338397;
+    math_exp_constants_array[2] = V8_INFINITY;
+    // The rest is black magic. Do not attempt to understand it. It is
+    // loosely based on the "expd" function published at:
+    // http://herumi.blogspot.com/2011/08/fast-double-precision-exponential.html
+    const double constant3 = (1 << kTableSizeBits) / base::ieee754::log(2.0);
+    math_exp_constants_array[3] = constant3;
+    math_exp_constants_array[4] =
+        static_cast<double>(static_cast<int64_t>(3) << 51);
+    math_exp_constants_array[5] = 1 / constant3;
+    math_exp_constants_array[6] = 3.0000000027955394;
+    math_exp_constants_array[7] = 0.16666666685227835;
+    math_exp_constants_array[8] = 1;
+
+    math_exp_log_table_array = new double[kTableSize];
+    for (int i = 0; i < kTableSize; i++) {
+      double value = std::pow(2, i / kTableSizeDouble);
+      uint64_t bits = bit_cast<uint64_t, double>(value);
+      bits &= (static_cast<uint64_t>(1) << 52) - 1;
+      double mantissa = bit_cast<double, uint64_t>(bits);
+      math_exp_log_table_array[i] = mantissa;
+    }
+
+    math_exp_data_initialized = true;
+  }
+}
+
+
+void ExternalReference::TearDownMathExpData() {
+  delete[] math_exp_constants_array;
+  math_exp_constants_array = NULL;
+  delete[] math_exp_log_table_array;
+  math_exp_log_table_array = NULL;
+  delete math_exp_data_mutex;
+  math_exp_data_mutex = NULL;
 }
 
 
@@ -1293,7 +1353,7 @@ ExternalReference ExternalReference::f64_tan_wrapper_function(
 }
 
 static void f64_exp_wrapper(double* param) {
-  WriteDoubleValue(param, base::ieee754::exp(ReadDoubleValue(param)));
+  WriteDoubleValue(param, std::exp(ReadDoubleValue(param)));
 }
 
 ExternalReference ExternalReference::f64_exp_wrapper_function(
@@ -1568,11 +1628,6 @@ ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
       isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
 }
 
-ExternalReference ExternalReference::ieee754_exp_function(Isolate* isolate) {
-  return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
-}
-
 ExternalReference ExternalReference::ieee754_log_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::log), BUILTIN_FP_CALL));
@@ -1592,6 +1647,19 @@ ExternalReference ExternalReference::ieee754_log10_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
 }
+
+ExternalReference ExternalReference::math_exp_constants(int constant_index) {
+  DCHECK(math_exp_data_initialized);
+  return ExternalReference(
+      reinterpret_cast<void*>(math_exp_constants_array + constant_index));
+}
+
+
+ExternalReference ExternalReference::math_exp_log_table() {
+  DCHECK(math_exp_data_initialized);
+  return ExternalReference(reinterpret_cast<void*>(math_exp_log_table_array));
+}
+
 
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +

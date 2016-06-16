@@ -1448,19 +1448,6 @@ TEST_F(MachineOperatorReducerTest, Float64Atan2WithNaN) {
 }
 
 // -----------------------------------------------------------------------------
-// Float64Exp
-
-TEST_F(MachineOperatorReducerTest, Float64ExpWithConstant) {
-  TRACED_FOREACH(double, x, kFloat64Values) {
-    Reduction const r =
-        Reduce(graph()->NewNode(machine()->Float64Exp(), Float64Constant(x)));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(),
-                IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::exp(x))));
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Float64Log
 
 TEST_F(MachineOperatorReducerTest, Float64LogWithConstant) {

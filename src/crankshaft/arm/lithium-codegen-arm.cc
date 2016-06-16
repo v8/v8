@@ -3540,10 +3540,16 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  __ PrepareCallCFunction(0, 1, scratch0());
-  __ MovToFloatParameter(ToDoubleRegister(instr->value()));
-  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 0, 1);
-  __ MovFromFloatResult(ToDoubleRegister(instr->result()));
+  DwVfpRegister input = ToDoubleRegister(instr->value());
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  DwVfpRegister double_scratch1 = ToDoubleRegister(instr->double_temp());
+  DwVfpRegister double_scratch2 = double_scratch0();
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+
+  MathExpGenerator::EmitMathExp(
+      masm(), input, result, double_scratch1, double_scratch2,
+      temp1, temp2, scratch0());
 }
 
 

@@ -3548,10 +3548,17 @@ void LCodeGen::DoMathAbsTagged(LMathAbsTagged* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  DCHECK(instr->IsMarkedAsCall());
-  DCHECK(ToDoubleRegister(instr->value()).is(d0));
-  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 0, 1);
-  DCHECK(ToDoubleRegister(instr->result()).Is(d0));
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  DoubleRegister double_temp1 = ToDoubleRegister(instr->double_temp1());
+  DoubleRegister double_temp2 = double_scratch();
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+  Register temp3 = ToRegister(instr->temp3());
+
+  MathExpGenerator::EmitMathExp(masm(), input, result,
+                                double_temp1, double_temp2,
+                                temp1, temp2, temp3);
 }
 
 

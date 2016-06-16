@@ -897,6 +897,8 @@ class ExternalReference BASE_EMBEDDED {
   };
 
   static void SetUp();
+  static void InitializeMathExpData();
+  static void TearDownMathExpData();
 
   typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
                                             Type type);
@@ -1042,11 +1044,13 @@ class ExternalReference BASE_EMBEDDED {
   // IEEE 754 functions.
   static ExternalReference ieee754_atan_function(Isolate* isolate);
   static ExternalReference ieee754_atan2_function(Isolate* isolate);
-  static ExternalReference ieee754_exp_function(Isolate* isolate);
   static ExternalReference ieee754_log_function(Isolate* isolate);
   static ExternalReference ieee754_log1p_function(Isolate* isolate);
   static ExternalReference ieee754_log2_function(Isolate* isolate);
   static ExternalReference ieee754_log10_function(Isolate* isolate);
+
+  static ExternalReference math_exp_constants(int constant_index);
+  static ExternalReference math_exp_log_table();
 
   static ExternalReference page_flags(Page* page);
 

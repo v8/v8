@@ -264,45 +264,6 @@ TEST_F(JSBuiltinReducerTest, MathClz32WithPlainPrimitive) {
 }
 
 // -----------------------------------------------------------------------------
-// Math.exp
-
-TEST_F(JSBuiltinReducerTest, MathExpWithNumber) {
-  Node* function = MathFunction("exp");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
-                                  UndefinedConstant(), p0, context, frame_state,
-                                  effect, control);
-    Reduction r = Reduce(call);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberExp(p0));
-  }
-}
-
-TEST_F(JSBuiltinReducerTest, MathExpWithPlainPrimitive) {
-  Node* function = MathFunction("exp");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
-  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
-                                UndefinedConstant(), p0, context, frame_state,
-                                effect, control);
-  Reduction r = Reduce(call);
-
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsNumberExp(IsPlainPrimitiveToNumber(p0)));
-}
-
-// -----------------------------------------------------------------------------
 // Math.floor
 
 TEST_F(JSBuiltinReducerTest, MathFloorWithNumber) {

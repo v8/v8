@@ -142,18 +142,6 @@ Reduction JSBuiltinReducer::ReduceMathClz32(Node* node) {
   return NoChange();
 }
 
-// ES6 section 20.2.2.14 Math.exp ( x )
-Reduction JSBuiltinReducer::ReduceMathExp(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::PlainPrimitive())) {
-    // Math.exp(a:plain-primitive) -> NumberExp(ToNumber(a))
-    Node* input = ToNumber(r.GetJSCallInput(0));
-    Node* value = graph()->NewNode(simplified()->NumberExp(), input);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 20.2.2.16 Math.floor ( x )
 Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
   JSCallReduction r(node);
@@ -359,9 +347,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathCeil:
       reduction = ReduceMathCeil(node);
-      break;
-    case kMathExp:
-      reduction = ReduceMathExp(node);
       break;
     case kMathFloor:
       reduction = ReduceMathFloor(node);

@@ -16,6 +16,68 @@ namespace internal {
 
 #define __ masm.
 
+
+#if defined(USE_SIMULATOR)
+byte* fast_exp_arm_machine_code = nullptr;
+double fast_exp_simulator(double x, Isolate* isolate) {
+  return Simulator::current(isolate)
+      ->CallFPReturnsDouble(fast_exp_arm_machine_code, x, 0);
+}
+#endif
+
+
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
+  size_t actual_size;
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == nullptr) return nullptr;
+  ExternalReference::InitializeMathExpData();
+
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
+
+  {
+    DwVfpRegister input = d0;
+    DwVfpRegister result = d1;
+    DwVfpRegister double_scratch1 = d2;
+    DwVfpRegister double_scratch2 = d3;
+    Register temp1 = r4;
+    Register temp2 = r5;
+    Register temp3 = r6;
+
+    if (masm.use_eabi_hardfloat()) {
+      // Input value is in d0 anyway, nothing to do.
+    } else {
+      __ vmov(input, r0, r1);
+    }
+    __ Push(temp3, temp2, temp1);
+    MathExpGenerator::EmitMathExp(
+        &masm, input, result, double_scratch1, double_scratch2,
+        temp1, temp2, temp3);
+    __ Pop(temp3, temp2, temp1);
+    if (masm.use_eabi_hardfloat()) {
+      __ vmov(d0, result);
+    } else {
+      __ vmov(r0, r1, result);
+    }
+    __ Ret();
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
+
+  Assembler::FlushICache(isolate, buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
+
+#if !defined(USE_SIMULATOR)
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
+#else
+  fast_exp_arm_machine_code = buffer;
+  return &fast_exp_simulator;
+#endif
+}
+
 #if defined(V8_HOST_ARCH_ARM)
 MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
                                                 MemCopyUint8Function stub) {
@@ -729,6 +791,94 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&one_byte);
   // One-byte string.
   __ ldrb(result, MemOperand(string, index));
+  __ bind(&done);
+}
+
+
+static MemOperand ExpConstant(int index, Register base) {
+  return MemOperand(base, index * kDoubleSize);
+}
+
+
+void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
+                                   DwVfpRegister input,
+                                   DwVfpRegister result,
+                                   DwVfpRegister double_scratch1,
+                                   DwVfpRegister double_scratch2,
+                                   Register temp1,
+                                   Register temp2,
+                                   Register temp3) {
+  DCHECK(!input.is(result));
+  DCHECK(!input.is(double_scratch1));
+  DCHECK(!input.is(double_scratch2));
+  DCHECK(!result.is(double_scratch1));
+  DCHECK(!result.is(double_scratch2));
+  DCHECK(!double_scratch1.is(double_scratch2));
+  DCHECK(!temp1.is(temp2));
+  DCHECK(!temp1.is(temp3));
+  DCHECK(!temp2.is(temp3));
+  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
+
+  Label zero, infinity, done;
+
+  __ mov(temp3, Operand(ExternalReference::math_exp_constants(0)));
+
+  __ vldr(double_scratch1, ExpConstant(0, temp3));
+  __ VFPCompareAndSetFlags(double_scratch1, input);
+  __ b(ge, &zero);
+
+  __ vldr(double_scratch2, ExpConstant(1, temp3));
+  __ VFPCompareAndSetFlags(input, double_scratch2);
+  __ b(ge, &infinity);
+
+  __ vldr(double_scratch1, ExpConstant(3, temp3));
+  __ vldr(result, ExpConstant(4, temp3));
+  __ vmul(double_scratch1, double_scratch1, input);
+  __ vadd(double_scratch1, double_scratch1, result);
+  __ VmovLow(temp2, double_scratch1);
+  __ vsub(double_scratch1, double_scratch1, result);
+  __ vldr(result, ExpConstant(6, temp3));
+  __ vldr(double_scratch2, ExpConstant(5, temp3));
+  __ vmul(double_scratch1, double_scratch1, double_scratch2);
+  __ vsub(double_scratch1, double_scratch1, input);
+  __ vsub(result, result, double_scratch1);
+  __ vmul(double_scratch2, double_scratch1, double_scratch1);
+  __ vmul(result, result, double_scratch2);
+  __ vldr(double_scratch2, ExpConstant(7, temp3));
+  __ vmul(result, result, double_scratch2);
+  __ vsub(result, result, double_scratch1);
+  // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
+  DCHECK(*reinterpret_cast<double*>
+         (ExternalReference::math_exp_constants(8).address()) == 1);
+  __ vmov(double_scratch2, 1);
+  __ vadd(result, result, double_scratch2);
+  __ mov(temp1, Operand(temp2, LSR, 11));
+  __ Ubfx(temp2, temp2, 0, 11);
+  __ add(temp1, temp1, Operand(0x3ff));
+
+  // Must not call ExpConstant() after overwriting temp3!
+  __ mov(temp3, Operand(ExternalReference::math_exp_log_table()));
+  __ add(temp3, temp3, Operand(temp2, LSL, 3));
+  __ ldm(ia, temp3, temp2.bit() | temp3.bit());
+  // The first word is loaded is the lower number register.
+  if (temp2.code() < temp3.code()) {
+    __ orr(temp1, temp3, Operand(temp1, LSL, 20));
+    __ vmov(double_scratch1, temp2, temp1);
+  } else {
+    __ orr(temp1, temp2, Operand(temp1, LSL, 20));
+    __ vmov(double_scratch1, temp3, temp1);
+  }
+  __ vmul(result, result, double_scratch1);
+  __ b(&done);
+
+  __ bind(&zero);
+  __ vmov(result, kDoubleRegZero);
+  __ b(&done);
+
+  __ bind(&infinity);
+  __ vldr(result, ExpConstant(2, temp3));
+
   __ bind(&done);
 }
 

@@ -17,9 +17,6 @@ double atan(double x);
 // the two arguments to determine the quadrant of the result.
 double atan2(double y, double x);
 
-// Returns the base-e exponential of |x|.
-double exp(double x);
-
 // Returns the natural logarithm of |x|.
 double log(double x);
 

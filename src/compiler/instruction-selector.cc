@@ -1138,8 +1138,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Atan(node);
     case IrOpcode::kFloat64Atan2:
       return MarkAsFloat64(node), VisitFloat64Atan2(node);
-    case IrOpcode::kFloat64Exp:
-      return MarkAsFloat64(node), VisitFloat64Exp(node);
     case IrOpcode::kFloat64Log:
       return MarkAsFloat64(node), VisitFloat64Log(node);
     case IrOpcode::kFloat64Log1p:
@@ -1259,10 +1257,6 @@ void InstructionSelector::VisitFloat64Atan(Node* node) {
 
 void InstructionSelector::VisitFloat64Atan2(Node* node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
-}
-
-void InstructionSelector::VisitFloat64Exp(Node* node) {
-  VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
 
 void InstructionSelector::VisitFloat64Log(Node* node) {

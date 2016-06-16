@@ -86,10 +86,9 @@ enum BindingFlags {
   V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
-  V(MATH_EXP_INDEX, JSFunction, math_exp)                               \
-  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
-  V(MATH_LOG_INDEX, JSFunction, math_log)                               \
-  V(MATH_SQRT_INDEX, JSFunction, math_sqrt)
+  V(MATH_FLOOR, JSFunction, math_floor)                                 \
+  V(MATH_LOG, JSFunction, math_log)                                     \
+  V(MATH_SQRT, JSFunction, math_sqrt)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                   \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                           \

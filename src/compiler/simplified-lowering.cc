@@ -1442,7 +1442,6 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberAtan:
-      case IrOpcode::kNumberExp:
       case IrOpcode::kNumberLog:
       case IrOpcode::kNumberLog1p:
       case IrOpcode::kNumberLog2:

@@ -1181,8 +1181,11 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* input = UseRegisterAtStart(instr->value());
-  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathExp(input)), instr);
+  LOperand* value = UseTempRegister(instr->value());
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
+  LMathExp* result = new(zone()) LMathExp(value, temp1, temp2);
+  return DefineAsRegister(result);
 }
 
 

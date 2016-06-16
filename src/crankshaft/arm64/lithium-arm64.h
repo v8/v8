@@ -1763,9 +1763,26 @@ class LMathAbsTagged: public LTemplateInstruction<1, 2, 3> {
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
-class LMathExp final : public LUnaryMathOperation<0> {
+
+class LMathExp final : public LUnaryMathOperation<4> {
  public:
-  explicit LMathExp(LOperand* value) : LUnaryMathOperation<0>(value) {}
+  LMathExp(LOperand* value,
+                LOperand* double_temp1,
+                LOperand* temp1,
+                LOperand* temp2,
+                LOperand* temp3)
+      : LUnaryMathOperation<4>(value) {
+    temps_[0] = double_temp1;
+    temps_[1] = temp1;
+    temps_[2] = temp2;
+    temps_[3] = temp3;
+    ExternalReference::InitializeMathExpData();
+  }
+
+  LOperand* double_temp1() { return temps_[0]; }
+  LOperand* temp1() { return temps_[1]; }
+  LOperand* temp2() { return temps_[2]; }
+  LOperand* temp3() { return temps_[3]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
 };

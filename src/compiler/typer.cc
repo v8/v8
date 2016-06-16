@@ -1543,10 +1543,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathTrunc:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         // Unary math functions.
-        case kMathExp:
-          return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
         case kMathAbs:
         case kMathLog:
+        case kMathExp:
         case kMathSqrt:
         case kMathCos:
         case kMathSin:
@@ -1800,10 +1799,6 @@ Type* Typer::Visitor::TypeNumberFround(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeNumberAtan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
-
-Type* Typer::Visitor::TypeNumberExp(Node* node) {
-  return Type::Union(Type::PlainNumber(), Type::NaN(), zone());
-}
 
 Type* Typer::Visitor::TypeNumberLog(Node* node) { return Type::Number(); }
 
@@ -2563,8 +2558,6 @@ Type* Typer::Visitor::TypeFloat64Abs(Node* node) {
 Type* Typer::Visitor::TypeFloat64Atan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
-
-Type* Typer::Visitor::TypeFloat64Exp(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log(Node* node) { return Type::Number(); }
 

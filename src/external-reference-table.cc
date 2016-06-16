@@ -71,8 +71,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "base::ieee754::atan");
   Add(ExternalReference::ieee754_atan2_function(isolate).address(),
       "base::ieee754::atan2");
-  Add(ExternalReference::ieee754_exp_function(isolate).address(),
-      "base::ieee754::exp");
   Add(ExternalReference::ieee754_log_function(isolate).address(),
       "base::ieee754::log");
   Add(ExternalReference::ieee754_log1p_function(isolate).address(),

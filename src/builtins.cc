@@ -2452,18 +2452,6 @@ void Builtins::Generate_MathClz32(CodeStubAssembler* assembler) {
   }
 }
 
-// ES6 section 20.2.2.14 Math.exp ( x )
-void Builtins::Generate_MathExp(CodeStubAssembler* assembler) {
-  using compiler::Node;
-
-  Node* x = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
-  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
-  Node* value = assembler->Float64Exp(x_value);
-  Node* result = assembler->ChangeFloat64ToTagged(value);
-  assembler->Return(result);
-}
-
 // ES6 section 20.2.2.16 Math.floor ( x )
 void Builtins::Generate_MathFloor(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Floor);

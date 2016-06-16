@@ -29,6 +29,11 @@ function MathAbs(x) {
   return (x > 0) ? x : 0 - x;
 }
 
+// ECMA 262 - 15.8.2.8
+function MathExp(x) {
+  return %MathExpRT(TO_NUMBER(x));
+}
+
 // ECMA 262 - 15.8.2.13
 function MathPowJS(x, y) {
   return %_MathPow(TO_NUMBER(x), TO_NUMBER(y));
@@ -179,6 +184,7 @@ utils.InstallConstants(GlobalMath, [
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
+  "exp", MathExp,
   "pow", MathPowJS,
   "sign", MathSign,
   "asinh", MathAsinh,
@@ -197,6 +203,7 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 
 utils.Export(function(to) {
   to.MathAbs = MathAbs;
+  to.MathExp = MathExp;
   to.IntRandom = MathRandomRaw;
 });
 

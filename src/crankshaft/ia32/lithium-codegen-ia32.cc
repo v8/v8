@@ -3425,16 +3425,11 @@ void LCodeGen::DoMathClz32(LMathClz32* instr) {
 void LCodeGen::DoMathExp(LMathExp* instr) {
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());
-  // Pass one double as argument on the stack.
-  __ PrepareCallCFunction(2, eax);
-  __ movsd(Operand(esp, 0 * kDoubleSize), input);
-  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 2);
-  // Return value is in st(0) on ia32.
-  // Store it into the result register.
-  __ sub(esp, Immediate(kDoubleSize));
-  __ fstp_d(Operand(esp, 0));
-  __ movsd(result, Operand(esp, 0));
-  __ add(esp, Immediate(kDoubleSize));
+  XMMRegister temp0 = double_scratch0();
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+
+  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
 }
 
 void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
