@@ -360,6 +360,32 @@ class ModuleDecoder : public Decoder {
             exp->func_index = consume_func_index(module, &func);
             exp->name_offset = consume_string(&exp->name_length, true);
           }
+          // Check for duplicate exports.
+          if (ok() && module->export_table.size() > 1) {
+            std::vector<WasmExport> sorted_exports(module->export_table);
+            const byte* base = start_;
+            auto cmp_less = [base](const WasmExport& a, const WasmExport& b) {
+              // Return true if a < b.
+              uint32_t len = a.name_length;
+              if (len != b.name_length) return len < b.name_length;
+              return memcmp(base + a.name_offset, base + b.name_offset, len) <
+                     0;
+            };
+            std::stable_sort(sorted_exports.begin(), sorted_exports.end(),
+                             cmp_less);
+            auto it = sorted_exports.begin();
+            WasmExport* last = &*it++;
+            for (auto end = sorted_exports.end(); it != end; last = &*it++) {
+              DCHECK(!cmp_less(*it, *last));  // Vector must be sorted.
+              if (!cmp_less(*last, *it)) {
+                const byte* pc = start_ + it->name_offset;
+                error(pc, pc,
+                      "Duplicate export name '%.*s' for functions %d and %d",
+                      it->name_length, pc, last->func_index, it->func_index);
+                break;
+              }
+            }
+          }
           break;
         }
         case WasmSection::Code::Max:
