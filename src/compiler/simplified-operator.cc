@@ -223,6 +223,13 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   return OpParameter<BinaryOperationHints::Hint>(op);
 }
 
+CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
+         op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
+         op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual);
+  return OpParameter<CompareOperationHints::Hint>(op);
+}
+
 #define PURE_OP_LIST(V)                                    \
   V(BooleanNot, Operator::kNoProperties, 1)                \
   V(BooleanToNumber, Operator::kNoProperties, 1)           \
@@ -495,6 +502,27 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberSubtract(
   return new (zone()) Operator1<BinaryOperationHints::Hint>(
       IrOpcode::kSpeculativeNumberSubtract, Operator::kPure,
       "SpeculativeNumberSubtract", 2, 1, 1, 1, 1, 1, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
+    CompareOperationHints::Hint hint) {
+  return new (zone()) Operator1<CompareOperationHints::Hint>(
+      IrOpcode::kSpeculativeNumberEqual, Operator::kPure,
+      "SpeculativeNumberEqual", 2, 1, 1, 1, 1, 1, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThan(
+    CompareOperationHints::Hint hint) {
+  return new (zone()) Operator1<CompareOperationHints::Hint>(
+      IrOpcode::kSpeculativeNumberLessThan, Operator::kPure,
+      "SpeculativeNumberLessThan", 2, 1, 1, 1, 1, 1, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThanOrEqual(
+    CompareOperationHints::Hint hint) {
+  return new (zone()) Operator1<CompareOperationHints::Hint>(
+      IrOpcode::kSpeculativeNumberLessThanOrEqual, Operator::kPure,
+      "SpeculativeNumberLessThanOrEqual", 2, 1, 1, 1, 1, 1, hint);
 }
 
 #define ACCESS_OP_LIST(V)                                    \

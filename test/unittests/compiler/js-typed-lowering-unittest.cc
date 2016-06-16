@@ -384,8 +384,9 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const context = UndefinedConstant();
   TRACED_FOREACH(Type*, type, kJSTypes) {
     Node* const lhs = Parameter(type);
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->StrictEqual(), lhs, the_hole, context));
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->StrictEqual(CompareOperationHints::Any()), lhs, the_hole,
+        context));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsFalseConstant());
   }
@@ -396,8 +397,9 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
   Node* const lhs = Parameter(Type::Unique(), 0);
   Node* const rhs = Parameter(Type::Unique(), 1);
   Node* const context = Parameter(Type::Any(), 2);
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->StrictEqual(), lhs, rhs, context));
+  Reduction r = Reduce(
+      graph()->NewNode(javascript()->StrictEqual(CompareOperationHints::Any()),
+                       lhs, rhs, context));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsReferenceEqual(Type::Unique(), lhs, rhs));
 }

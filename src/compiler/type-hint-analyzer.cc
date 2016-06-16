@@ -16,7 +16,7 @@ namespace compiler {
 namespace {
 
 // TODO(bmeurer): This detour via types is ugly.
-BinaryOperationHints::Hint ToHint(Type* type) {
+BinaryOperationHints::Hint ToBinaryOperationHint(Type* type) {
   if (type->Is(Type::None())) return BinaryOperationHints::kNone;
   if (type->Is(Type::SignedSmall())) return BinaryOperationHints::kSignedSmall;
   if (type->Is(Type::Signed32())) return BinaryOperationHints::kSigned32;
@@ -25,8 +25,34 @@ BinaryOperationHints::Hint ToHint(Type* type) {
   return BinaryOperationHints::kAny;
 }
 
-}  // namespace
+CompareOperationHints::Hint ToCompareOperationHint(
+    CompareICState::State state) {
+  switch (state) {
+    case CompareICState::UNINITIALIZED:
+      return CompareOperationHints::kNone;
+    case CompareICState::BOOLEAN:
+      return CompareOperationHints::kBoolean;
+    case CompareICState::SMI:
+      return CompareOperationHints::kSignedSmall;
+    case CompareICState::NUMBER:
+      return CompareOperationHints::kNumber;
+    case CompareICState::STRING:
+      return CompareOperationHints::kString;
+    case CompareICState::INTERNALIZED_STRING:
+      return CompareOperationHints::kInternalizedString;
+    case CompareICState::UNIQUE_NAME:
+      return CompareOperationHints::kUniqueName;
+    case CompareICState::RECEIVER:
+    case CompareICState::KNOWN_RECEIVER:
+      return CompareOperationHints::kReceiver;
+    case CompareICState::GENERIC:
+      return CompareOperationHints::kAny;
+  }
+  UNREACHABLE();
+  return CompareOperationHints::kAny;
+}
 
+}  // namespace
 
 bool TypeHintAnalysis::GetBinaryOperationHints(
     TypeFeedbackId id, BinaryOperationHints* hints) const {
@@ -35,12 +61,29 @@ bool TypeHintAnalysis::GetBinaryOperationHints(
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(code->GetIsolate(), code->extra_ic_state());
-  *hints = BinaryOperationHints(ToHint(state.GetLeftType()),
-                                ToHint(state.GetRightType()),
-                                ToHint(state.GetResultType()));
+  *hints = BinaryOperationHints(ToBinaryOperationHint(state.GetLeftType()),
+                                ToBinaryOperationHint(state.GetRightType()),
+                                ToBinaryOperationHint(state.GetResultType()));
   return true;
 }
 
+bool TypeHintAnalysis::GetCompareOperationHints(
+    TypeFeedbackId id, CompareOperationHints* hints) const {
+  auto i = infos_.find(id);
+  if (i == infos_.end()) return false;
+  Handle<Code> code = i->second;
+  DCHECK_EQ(Code::COMPARE_IC, code->kind());
+
+  Handle<Map> map;
+  Map* raw_map = code->FindFirstMap();
+  if (raw_map != nullptr) Map::TryUpdate(handle(raw_map)).ToHandle(&map);
+
+  CompareICStub stub(code->stub_key(), code->GetIsolate());
+  *hints = CompareOperationHints(ToCompareOperationHint(stub.left()),
+                                 ToCompareOperationHint(stub.right()),
+                                 ToCompareOperationHint(stub.state()));
+  return true;
+}
 
 bool TypeHintAnalysis::GetToBooleanHints(TypeFeedbackId id,
                                          ToBooleanHints* hints) const {
@@ -67,7 +110,6 @@ bool TypeHintAnalysis::GetToBooleanHints(TypeFeedbackId id,
   return true;
 }
 
-
 TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   DisallowHeapAllocation no_gc;
   TypeHintAnalysis::Infos infos(zone());
@@ -79,6 +121,7 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
     Code* target = Code::GetCodeFromTargetAddress(target_address);
     switch (target->kind()) {
       case Code::BINARY_OP_IC:
+      case Code::COMPARE_IC:
       case Code::TO_BOOLEAN_IC: {
         // Add this feedback to the {infos}.
         TypeFeedbackId id(static_cast<unsigned>(rinfo->data()));
@@ -90,7 +133,7 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
         break;
     }
   }
-  return new (zone()) TypeHintAnalysis(infos);
+  return new (zone()) TypeHintAnalysis(infos, zone());
 }
 
 }  // namespace compiler

@@ -1040,7 +1040,6 @@ class RepresentationSelector {
     Node* overflow = graph()->NewNode(common()->Projection(1), arith);
     effect =
         graph()->NewNode(simplified()->CheckIf(), overflow, effect, control);
-
     Node* value = graph()->NewNode(common()->Projection(0), arith);
     ReplaceEffectControlUses(node, effect, control);
     DeferReplacement(node, value);
@@ -1219,11 +1218,13 @@ class RepresentationSelector {
       case IrOpcode::kNumberLessThan:
       case IrOpcode::kNumberLessThanOrEqual: {
         // Number comparisons reduce to integer comparisons for integer inputs.
-        if (BothInputsAreSigned32(node)) {
+        if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
+            TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
           // => signed Int32Cmp
           VisitInt32Cmp(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (BothInputsAreUnsigned32(node)) {
+        } else if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
+                   TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
           // => unsigned Int32Cmp
           VisitUint32Cmp(node);
           if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
@@ -1238,6 +1239,40 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberAdd:
       case IrOpcode::kSpeculativeNumberSubtract:
         return VisitSpeculativeAdditiveOp(node, truncation, lowering);
+
+      case IrOpcode::kSpeculativeNumberLessThan:
+      case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+      case IrOpcode::kSpeculativeNumberEqual: {
+        // Number comparisons reduce to integer comparisons for integer inputs.
+        if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
+            TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
+          // => signed Int32Cmp
+          VisitInt32Cmp(node);
+          if (lower()) ChangeToPureOp(node, Int32Op(node));
+          return;
+        } else if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
+                   TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
+          // => unsigned Int32Cmp
+          VisitUint32Cmp(node);
+          if (lower()) ChangeToPureOp(node, Uint32Op(node));
+          return;
+        }
+        // Try to use type feedback.
+        CompareOperationHints::Hint hint = CompareOperationHintOf(node->op());
+
+        if (hint == CompareOperationHints::kSignedSmall) {
+          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                     MachineRepresentation::kBit);
+          if (lower()) ChangeToPureOp(node, Int32Op(node));
+          return;
+        }
+        DCHECK_EQ(CompareOperationHints::kNumber, hint);
+        // default case => Float64 comparison
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kBit);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
 
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {

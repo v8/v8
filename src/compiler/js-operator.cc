@@ -377,20 +377,33 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
 }
 
 const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSAdd ||
-         op->opcode() == IrOpcode::kJSSubtract);
+  DCHECK(op->opcode() == IrOpcode::kJSBitwiseOr ||
+         op->opcode() == IrOpcode::kJSBitwiseXor ||
+         op->opcode() == IrOpcode::kJSBitwiseAnd ||
+         op->opcode() == IrOpcode::kJSShiftLeft ||
+         op->opcode() == IrOpcode::kJSShiftRight ||
+         op->opcode() == IrOpcode::kJSShiftRightLogical ||
+         op->opcode() == IrOpcode::kJSAdd ||
+         op->opcode() == IrOpcode::kJSSubtract ||
+         op->opcode() == IrOpcode::kJSMultiply ||
+         op->opcode() == IrOpcode::kJSDivide ||
+         op->opcode() == IrOpcode::kJSModulus);
   return OpParameter<BinaryOperationHints>(op);
 }
 
+const CompareOperationHints& CompareOperationHintsOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSEqual ||
+         op->opcode() == IrOpcode::kJSNotEqual ||
+         op->opcode() == IrOpcode::kJSStrictEqual ||
+         op->opcode() == IrOpcode::kJSStrictNotEqual ||
+         op->opcode() == IrOpcode::kJSLessThan ||
+         op->opcode() == IrOpcode::kJSGreaterThan ||
+         op->opcode() == IrOpcode::kJSLessThanOrEqual ||
+         op->opcode() == IrOpcode::kJSGreaterThanOrEqual);
+  return OpParameter<CompareOperationHints>(op);
+}
+
 #define CACHED_OP_LIST(V)                                   \
-  V(Equal, Operator::kNoProperties, 2, 1)                   \
-  V(NotEqual, Operator::kNoProperties, 2, 1)                \
-  V(StrictEqual, Operator::kPure, 2, 1)                     \
-  V(StrictNotEqual, Operator::kPure, 2, 1)                  \
-  V(LessThan, Operator::kNoProperties, 2, 1)                \
-  V(GreaterThan, Operator::kNoProperties, 2, 1)             \
-  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)         \
-  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)      \
   V(ToInteger, Operator::kNoProperties, 1, 1)               \
   V(ToLength, Operator::kNoProperties, 1, 1)                \
   V(ToName, Operator::kNoProperties, 1, 1)                  \
@@ -544,6 +557,79 @@ const Operator* JSOperatorBuilder::Modulus(BinaryOperationHints hints) {
       hints);                                           // parameter
 }
 
+const Operator* JSOperatorBuilder::Equal(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(  //--
+      IrOpcode::kJSEqual, Operator::kNoProperties,       // opcode
+      "JSEqual",                                         // name
+      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
+      hints);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::NotEqual(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(  //--
+      IrOpcode::kJSNotEqual, Operator::kNoProperties,    // opcode
+      "JSNotEqual",                                      // name
+      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
+      hints);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::StrictEqual(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(  //--
+      IrOpcode::kJSStrictEqual, Operator::kPure,         // opcode
+      "JSStrictEqual",                                   // name
+      2, 0, 0, 1, 0, 0,                                  // inputs/outputs
+      hints);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::StrictNotEqual(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(  //--
+      IrOpcode::kJSStrictNotEqual, Operator::kPure,      // opcode
+      "JSStrictNotEqual",                                // name
+      2, 0, 0, 1, 0, 0,                                  // inputs/outputs
+      hints);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::LessThan(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(  //--
+      IrOpcode::kJSLessThan, Operator::kNoProperties,    // opcode
+      "JSLessThan",                                      // name
+      2, 1, 1, 1, 1, 2,                                  // inputs/outputs
+      hints);                                            // parameter
+}
+
+const Operator* JSOperatorBuilder::GreaterThan(CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(   //--
+      IrOpcode::kJSGreaterThan, Operator::kNoProperties,  // opcode
+      "JSGreaterThan",                                    // name
+      2, 1, 1, 1, 1, 2,                                   // inputs/outputs
+      hints);                                             // parameter
+}
+
+const Operator* JSOperatorBuilder::LessThanOrEqual(
+    CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(       //--
+      IrOpcode::kJSLessThanOrEqual, Operator::kNoProperties,  // opcode
+      "JSLessThanOrEqual",                                    // name
+      2, 1, 1, 1, 1, 2,                                       // inputs/outputs
+      hints);                                                 // parameter
+}
+
+const Operator* JSOperatorBuilder::GreaterThanOrEqual(
+    CompareOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<CompareOperationHints>(          //--
+      IrOpcode::kJSGreaterThanOrEqual, Operator::kNoProperties,  // opcode
+      "JSGreaterThanOrEqual",                                    // name
+      2, 1, 1, 1, 1, 2,  // inputs/outputs
+      hints);            // parameter
+}
 
 const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
   // TODO(turbofan): Cache most important versions of this operator.

@@ -376,6 +376,8 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
 const BinaryOperationHints& BinaryOperationHintsOf(const Operator* op);
 
+const CompareOperationHints& CompareOperationHintsOf(const Operator* op);
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -383,14 +385,14 @@ class JSOperatorBuilder final : public ZoneObject {
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
-  const Operator* Equal();
-  const Operator* NotEqual();
-  const Operator* StrictEqual();
-  const Operator* StrictNotEqual();
-  const Operator* LessThan();
-  const Operator* GreaterThan();
-  const Operator* LessThanOrEqual();
-  const Operator* GreaterThanOrEqual();
+  const Operator* Equal(CompareOperationHints hints);
+  const Operator* NotEqual(CompareOperationHints hints);
+  const Operator* StrictEqual(CompareOperationHints hints);
+  const Operator* StrictNotEqual(CompareOperationHints hints);
+  const Operator* LessThan(CompareOperationHints hints);
+  const Operator* GreaterThan(CompareOperationHints hints);
+  const Operator* LessThanOrEqual(CompareOperationHints hints);
+  const Operator* GreaterThanOrEqual(CompareOperationHints hints);
   const Operator* BitwiseOr(BinaryOperationHints hints);
   const Operator* BitwiseXor(BinaryOperationHints hints);
   const Operator* BitwiseAnd(BinaryOperationHints hints);

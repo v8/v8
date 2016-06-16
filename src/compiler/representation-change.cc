@@ -583,10 +583,13 @@ const Operator* RepresentationChanger::Int32OperatorFor(
     case IrOpcode::kNumberBitwiseAnd:
       return machine()->Word32And();
     case IrOpcode::kNumberEqual:
+    case IrOpcode::kSpeculativeNumberEqual:
       return machine()->Word32Equal();
     case IrOpcode::kNumberLessThan:
+    case IrOpcode::kSpeculativeNumberLessThan:
       return machine()->Int32LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return machine()->Int32LessThanOrEqual();
     default:
       UNREACHABLE();
@@ -621,10 +624,13 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
     case IrOpcode::kNumberModulus:
       return machine()->Uint32Mod();
     case IrOpcode::kNumberEqual:
+    case IrOpcode::kSpeculativeNumberEqual:
       return machine()->Word32Equal();
     case IrOpcode::kNumberLessThan:
+    case IrOpcode::kSpeculativeNumberLessThan:
       return machine()->Uint32LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return machine()->Uint32LessThanOrEqual();
     case IrOpcode::kNumberClz32:
       return machine()->Word32Clz();
@@ -653,10 +659,13 @@ const Operator* RepresentationChanger::Float64OperatorFor(
     case IrOpcode::kNumberModulus:
       return machine()->Float64Mod();
     case IrOpcode::kNumberEqual:
+    case IrOpcode::kSpeculativeNumberEqual:
       return machine()->Float64Equal();
     case IrOpcode::kNumberLessThan:
+    case IrOpcode::kSpeculativeNumberLessThan:
       return machine()->Float64LessThan();
     case IrOpcode::kNumberLessThanOrEqual:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return machine()->Float64LessThanOrEqual();
     case IrOpcode::kNumberAtan:
       return machine()->Float64Atan();

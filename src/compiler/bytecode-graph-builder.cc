@@ -1224,31 +1224,38 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* js_op) {
 }
 
 void BytecodeGraphBuilder::VisitTestEqual() {
-  BuildCompareOp(javascript()->Equal());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->Equal(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestNotEqual() {
-  BuildCompareOp(javascript()->NotEqual());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->NotEqual(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
-  BuildCompareOp(javascript()->StrictEqual());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->StrictEqual(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
-  BuildCompareOp(javascript()->LessThan());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->LessThan(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
-  BuildCompareOp(javascript()->GreaterThan());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->GreaterThan(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
-  BuildCompareOp(javascript()->LessThanOrEqual());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->LessThanOrEqual(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
-  BuildCompareOp(javascript()->GreaterThanOrEqual());
+  CompareOperationHints hints = CompareOperationHints::Any();
+  BuildCompareOp(javascript()->GreaterThanOrEqual(hints));
 }
 
 void BytecodeGraphBuilder::VisitTestIn() {
@@ -1518,7 +1525,8 @@ void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
 void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition =
-      NewNode(javascript()->StrictEqual(), accumulator, comperand);
+      NewNode(javascript()->StrictEqual(CompareOperationHints::Any()),
+              accumulator, comperand);
   BuildConditionalJump(condition);
 }
 
@@ -1527,14 +1535,17 @@ void BytecodeGraphBuilder::BuildJumpIfToBooleanEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
   Node* to_boolean =
       NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
-  Node* condition = NewNode(javascript()->StrictEqual(), to_boolean, comperand);
+  Node* condition =
+      NewNode(javascript()->StrictEqual(CompareOperationHints::Any()),
+              to_boolean, comperand);
   BuildConditionalJump(condition);
 }
 
 void BytecodeGraphBuilder::BuildJumpIfNotHole() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition = NewNode(javascript()->StrictEqual(), accumulator,
-                            jsgraph()->TheHoleConstant());
+  Node* condition =
+      NewNode(javascript()->StrictEqual(CompareOperationHints::Any()),
+              accumulator, jsgraph()->TheHoleConstant());
   Node* node =
       NewNode(common()->Select(MachineRepresentation::kTagged), condition,
               jsgraph()->FalseConstant(), jsgraph()->TrueConstant());

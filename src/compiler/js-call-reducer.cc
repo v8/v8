@@ -323,8 +323,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
-                                   array_function, context);
+    Node* check = graph()->NewNode(
+        javascript()->StrictEqual(CompareOperationHints::Any()), target,
+        array_function, context);
     control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                         frame_state, effect, control);
 
@@ -340,8 +341,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
-                                     target_function, context);
+      Node* check = graph()->NewNode(
+          javascript()->StrictEqual(CompareOperationHints::Any()), target,
+          target_function, context);
       control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                           frame_state, effect, control);
 
@@ -443,8 +445,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
-                                   array_function, context);
+    Node* check = graph()->NewNode(
+        javascript()->StrictEqual(CompareOperationHints::Any()), target,
+        array_function, context);
     control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                         frame_state, effect, control);
 
@@ -465,8 +468,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(javascript()->StrictEqual(), target,
-                                     target_function, context);
+      Node* check = graph()->NewNode(
+          javascript()->StrictEqual(CompareOperationHints::Any()), target,
+          target_function, context);
       control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                           frame_state, effect, control);
 

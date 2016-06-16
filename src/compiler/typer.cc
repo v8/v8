@@ -873,7 +873,6 @@ Type* Typer::Visitor::JSGreaterThanOrEqualTyper(
   return FalsifyUndefined(Invert(JSCompareTyper(lhs, rhs, t), t), t);
 }
 
-
 // JS bitwise operators.
 
 
@@ -1707,6 +1706,18 @@ Type* Typer::Visitor::TypeNumberEqual(Node* node) { return Type::Boolean(); }
 Type* Typer::Visitor::TypeNumberLessThan(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeNumberLessThanOrEqual(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberEqual(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberLessThan(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 

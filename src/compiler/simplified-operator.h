@@ -129,6 +129,8 @@ Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
 
+CompareOperationHints::Hint CompareOperationHintOf(const Operator* op);
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -191,6 +193,11 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   const Operator* SpeculativeNumberAdd(BinaryOperationHints::Hint hint);
   const Operator* SpeculativeNumberSubtract(BinaryOperationHints::Hint hint);
+
+  const Operator* SpeculativeNumberLessThan(CompareOperationHints::Hint hint);
+  const Operator* SpeculativeNumberLessThanOrEqual(
+      CompareOperationHints::Hint hint);
+  const Operator* SpeculativeNumberEqual(CompareOperationHints::Hint hint);
 
   const Operator* ReferenceEqual(Type* type);
 

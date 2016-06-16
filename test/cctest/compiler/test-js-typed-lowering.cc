@@ -47,7 +47,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
-  BinaryOperationHints const hints = BinaryOperationHints::Any();
+  BinaryOperationHints const binop_hints = BinaryOperationHints::Any();
+  CompareOperationHints const compare_hints = CompareOperationHints::Any();
 
   Node* Parameter(Type* t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -255,11 +256,11 @@ TEST(AddNumber1) {
 TEST(NumberBinops) {
   JSTypedLoweringTester R;
   const Operator* ops[] = {
-      R.javascript.Add(R.hints),      R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.hints),   R.simplified.NumberDivide(),
-      R.javascript.Modulus(R.hints),  R.simplified.NumberModulus(),
+      R.javascript.Add(R.binop_hints),      R.simplified.NumberAdd(),
+      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
+      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
+      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
+      R.javascript.Modulus(R.binop_hints),  R.simplified.NumberModulus(),
   };
 
   for (size_t i = 0; i < arraysize(kNumberTypes); ++i) {
@@ -301,11 +302,11 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseShiftTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.ShiftLeft(hints), true);
+    set(i++, javascript.ShiftLeft(binop_hints), true);
     set(i++, simplified.NumberShiftLeft(), false);
-    set(i++, javascript.ShiftRight(hints), true);
+    set(i++, javascript.ShiftRight(binop_hints), true);
     set(i++, simplified.NumberShiftRight(), false);
-    set(i++, javascript.ShiftRightLogical(hints), false);
+    set(i++, javascript.ShiftRightLogical(binop_hints), false);
     set(i++, simplified.NumberShiftRightLogical(), false);
   }
   static const int kNumberOps = 6;
@@ -357,11 +358,11 @@ class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.BitwiseOr(hints), true);
+    set(i++, javascript.BitwiseOr(binop_hints), true);
     set(i++, simplified.NumberBitwiseOr(), true);
-    set(i++, javascript.BitwiseXor(hints), true);
+    set(i++, javascript.BitwiseXor(binop_hints), true);
     set(i++, simplified.NumberBitwiseXor(), true);
-    set(i++, javascript.BitwiseAnd(hints), true);
+    set(i++, javascript.BitwiseAnd(binop_hints), true);
     set(i++, simplified.NumberBitwiseAnd(), true);
   }
   static const int kNumberOps = 6;
@@ -571,10 +572,14 @@ TEST(StringComparison) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.LessThan(),           R.simplified.StringLessThan(),
-      R.javascript.LessThanOrEqual(),    R.simplified.StringLessThanOrEqual(),
-      R.javascript.GreaterThan(),        R.simplified.StringLessThan(),
-      R.javascript.GreaterThanOrEqual(), R.simplified.StringLessThanOrEqual()};
+      R.javascript.LessThan(CompareOperationHints::Any()),
+      R.simplified.StringLessThan(),
+      R.javascript.LessThanOrEqual(CompareOperationHints::Any()),
+      R.simplified.StringLessThanOrEqual(),
+      R.javascript.GreaterThan(CompareOperationHints::Any()),
+      R.simplified.StringLessThan(),
+      R.javascript.GreaterThanOrEqual(CompareOperationHints::Any()),
+      R.simplified.StringLessThanOrEqual()};
 
   for (size_t i = 0; i < arraysize(kStringTypes); i++) {
     Node* p0 = R.Parameter(kStringTypes[i], 0);
@@ -618,10 +623,14 @@ TEST(NumberComparison) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.LessThan(),           R.simplified.NumberLessThan(),
-      R.javascript.LessThanOrEqual(),    R.simplified.NumberLessThanOrEqual(),
-      R.javascript.GreaterThan(),        R.simplified.NumberLessThan(),
-      R.javascript.GreaterThanOrEqual(), R.simplified.NumberLessThanOrEqual()};
+      R.javascript.LessThan(CompareOperationHints::Any()),
+      R.simplified.NumberLessThan(),
+      R.javascript.LessThanOrEqual(CompareOperationHints::Any()),
+      R.simplified.NumberLessThanOrEqual(),
+      R.javascript.GreaterThan(CompareOperationHints::Any()),
+      R.simplified.NumberLessThan(),
+      R.javascript.GreaterThanOrEqual(CompareOperationHints::Any()),
+      R.simplified.NumberLessThanOrEqual()};
 
   Node* const p0 = R.Parameter(Type::Number(), 0);
   Node* const p1 = R.Parameter(Type::Number(), 1);
@@ -655,7 +664,8 @@ TEST(MixedComparison1) {
     for (size_t j = 0; j < arraysize(types); j++) {
       Node* p1 = R.Parameter(types[j], 1);
       {
-        const Operator* less_than = R.javascript.LessThan();
+        const Operator* less_than =
+            R.javascript.LessThan(CompareOperationHints::Any());
         Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
         if (types[i]->Is(Type::String()) && types[j]->Is(Type::String())) {
@@ -700,14 +710,14 @@ TEST(RemoveToNumberEffects) {
       case 2:
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
       case 3:
-        effect_use =
-            R.graph.NewNode(R.javascript.Add(R.hints), ton, ton, R.context(),
-                            frame_state, frame_state, ton, R.start());
+        effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), ton, ton,
+                                     R.context(), frame_state, frame_state, ton,
+                                     R.start());
         break;
       case 4:
-        effect_use =
-            R.graph.NewNode(R.javascript.Add(R.hints), p0, p0, R.context(),
-                            frame_state, frame_state, ton, R.start());
+        effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), p0, p0,
+                                     R.context(), frame_state, frame_state, ton,
+                                     R.start());
         break;
       case 5:
         effect_use = R.graph.NewNode(R.common.Return(), p0, ton, R.start());
@@ -801,7 +811,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
 
     {
       const Operator* op =
-          strict ? R->javascript.StrictEqual() : R->javascript.Equal();
+          strict ? R->javascript.StrictEqual(CompareOperationHints::Any())
+                 : R->javascript.Equal(CompareOperationHints::Any());
       Node* eq = R->Binop(op, p0, p1);
       Node* r = R->reduce(eq);
       R->CheckBinop(expected, r);
@@ -809,7 +820,8 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
 
     {
       const Operator* op =
-          strict ? R->javascript.StrictNotEqual() : R->javascript.NotEqual();
+          strict ? R->javascript.StrictNotEqual(CompareOperationHints::Any())
+                 : R->javascript.NotEqual(CompareOperationHints::Any());
       Node* ne = R->Binop(op, p0, p1);
       Node* n = R->reduce(ne);
       CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());
@@ -876,14 +888,22 @@ TEST(RemovePureNumberBinopEffects) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.Equal(),           R.simplified.NumberEqual(),
-      R.javascript.Add(R.hints),      R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.hints),   R.simplified.NumberDivide(),
-      R.javascript.Modulus(R.hints),  R.simplified.NumberModulus(),
-      R.javascript.LessThan(),        R.simplified.NumberLessThan(),
-      R.javascript.LessThanOrEqual(), R.simplified.NumberLessThanOrEqual(),
+      R.javascript.Equal(R.compare_hints),
+      R.simplified.NumberEqual(),
+      R.javascript.Add(R.binop_hints),
+      R.simplified.NumberAdd(),
+      R.javascript.Subtract(R.binop_hints),
+      R.simplified.NumberSubtract(),
+      R.javascript.Multiply(R.binop_hints),
+      R.simplified.NumberMultiply(),
+      R.javascript.Divide(R.binop_hints),
+      R.simplified.NumberDivide(),
+      R.javascript.Modulus(R.binop_hints),
+      R.simplified.NumberModulus(),
+      R.javascript.LessThan(R.compare_hints),
+      R.simplified.NumberLessThan(),
+      R.javascript.LessThanOrEqual(R.compare_hints),
+      R.simplified.NumberLessThanOrEqual(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -904,9 +924,9 @@ TEST(OrderNumberBinopEffects1) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.Subtract(R.hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.hints),   R.simplified.NumberDivide(),
+      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
+      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
+      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -929,10 +949,10 @@ TEST(OrderNumberBinopEffects2) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.Add(R.hints),      R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.hints),   R.simplified.NumberDivide(),
+      R.javascript.Add(R.binop_hints),      R.simplified.NumberAdd(),
+      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
+      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
+      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -967,8 +987,9 @@ TEST(OrderCompareEffects) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.GreaterThan(), R.simplified.NumberLessThan(),
-      R.javascript.GreaterThanOrEqual(), R.simplified.NumberLessThanOrEqual(),
+      R.javascript.GreaterThan(R.compare_hints), R.simplified.NumberLessThan(),
+      R.javascript.GreaterThanOrEqual(R.compare_hints),
+      R.simplified.NumberLessThanOrEqual(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -1178,16 +1199,16 @@ TEST(Int32Comparisons) {
   };
 
   Entry ops[] = {
-      {R.javascript.LessThan(), R.machine.Uint32LessThan(),
+      {R.javascript.LessThan(R.compare_hints), R.machine.Uint32LessThan(),
        R.machine.Int32LessThan(), R.simplified.NumberLessThan(), false},
-      {R.javascript.LessThanOrEqual(), R.machine.Uint32LessThanOrEqual(),
-       R.machine.Int32LessThanOrEqual(), R.simplified.NumberLessThanOrEqual(),
-       false},
-      {R.javascript.GreaterThan(), R.machine.Uint32LessThan(),
+      {R.javascript.LessThanOrEqual(R.compare_hints),
+       R.machine.Uint32LessThanOrEqual(), R.machine.Int32LessThanOrEqual(),
+       R.simplified.NumberLessThanOrEqual(), false},
+      {R.javascript.GreaterThan(R.compare_hints), R.machine.Uint32LessThan(),
        R.machine.Int32LessThan(), R.simplified.NumberLessThan(), true},
-      {R.javascript.GreaterThanOrEqual(), R.machine.Uint32LessThanOrEqual(),
-       R.machine.Int32LessThanOrEqual(), R.simplified.NumberLessThanOrEqual(),
-       true}};
+      {R.javascript.GreaterThanOrEqual(R.compare_hints),
+       R.machine.Uint32LessThanOrEqual(), R.machine.Int32LessThanOrEqual(),
+       R.simplified.NumberLessThanOrEqual(), true}};
 
   for (size_t o = 0; o < arraysize(ops); o++) {
     for (size_t i = 0; i < arraysize(kNumberTypes); i++) {

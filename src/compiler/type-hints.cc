@@ -27,11 +27,39 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, BinaryOperationHints hints) {
   return os << hints.left() << "*" << hints.right() << "->" << hints.result();
 }
 
+std::ostream& operator<<(std::ostream& os, CompareOperationHints::Hint hint) {
+  switch (hint) {
+    case CompareOperationHints::kNone:
+      return os << "None";
+    case CompareOperationHints::kBoolean:
+      return os << "Boolean";
+    case CompareOperationHints::kSignedSmall:
+      return os << "SignedSmall";
+    case CompareOperationHints::kNumber:
+      return os << "Number";
+    case CompareOperationHints::kString:
+      return os << "String";
+    case CompareOperationHints::kInternalizedString:
+      return os << "InternalizedString";
+    case CompareOperationHints::kUniqueName:
+      return os << "UniqueName";
+    case CompareOperationHints::kReceiver:
+      return os << "Receiver";
+    case CompareOperationHints::kAny:
+      return os << "Any";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, CompareOperationHints hints) {
+  return os << hints.left() << "*" << hints.right() << " (" << hints.combined()
+            << ")";
+}
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   switch (hint) {
@@ -61,7 +89,6 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   UNREACHABLE();
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   if (hints == ToBooleanHint::kAny) return os << "Any";
