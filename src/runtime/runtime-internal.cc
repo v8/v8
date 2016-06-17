@@ -619,9 +619,9 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
 RUNTIME_FUNCTION(Runtime_IsWasmObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  bool is_wasm_object = object->IsJSObject() &&
-                        wasm::IsWasmObject(Handle<JSObject>::cast(object));
+  CONVERT_ARG_CHECKED(Object, object, 0);
+  bool is_wasm_object =
+      object->IsJSObject() && wasm::IsWasmObject(JSObject::cast(object));
   return *isolate->factory()->ToBoolean(is_wasm_object);
 }
 

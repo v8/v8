@@ -12,6 +12,7 @@
 
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-function-name-table.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
@@ -205,12 +206,15 @@ class WasmLinker {
 
 namespace {
 // Internal constants for the layout of the module object.
-const int kWasmModuleInternalFieldCount = 5;
 const int kWasmModuleFunctionTable = 0;
 const int kWasmModuleCodeTable = 1;
 const int kWasmMemArrayBuffer = 2;
 const int kWasmGlobalsArrayBuffer = 3;
+// TODO(clemensh): Remove function name array, extract names from module bytes.
 const int kWasmFunctionNamesArray = 4;
+const int kWasmModuleBytesString = 5;
+const int kWasmDebugInfo = 6;
+const int kWasmModuleInternalFieldCount = 7;
 
 void LoadDataSegments(const WasmModule* module, byte* mem_addr,
                       size_t mem_size) {
@@ -701,6 +705,16 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   Handle<FixedArray> code_table =
       factory->NewFixedArray(static_cast<int>(functions.size()), TENURED);
   instance.js_object->SetInternalField(kWasmModuleCodeTable, *code_table);
+  size_t module_bytes_len =
+      instance.module->module_end - instance.module->module_start;
+  DCHECK_LE(module_bytes_len, static_cast<size_t>(kMaxInt));
+  Vector<const uint8_t> module_bytes_vec(instance.module->module_start,
+                                         static_cast<int>(module_bytes_len));
+  Handle<String> module_bytes_string =
+      factory->NewStringFromOneByte(module_bytes_vec, TENURED)
+          .ToHandleChecked();
+  instance.js_object->SetInternalField(kWasmModuleBytesString,
+                                       *module_bytes_string);
 
   //-------------------------------------------------------------------------
   // Allocate and initialize the linear memory.
@@ -1010,12 +1024,36 @@ Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
   return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 
-bool IsWasmObject(Handle<JSObject> object) {
-  // TODO(clemensh): Check wasm byte header once we store a copy of the bytes.
-  return object->GetInternalFieldCount() == kWasmModuleInternalFieldCount &&
-         object->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() &&
-         object->GetInternalField(kWasmMemArrayBuffer)->IsJSArrayBuffer() &&
-         object->GetInternalField(kWasmFunctionNamesArray)->IsByteArray();
+bool IsWasmObject(Object* object) {
+  if (!object->IsJSObject()) return false;
+  JSObject* obj = JSObject::cast(object);
+  if (obj->GetInternalFieldCount() != kWasmModuleInternalFieldCount ||
+      !obj->GetInternalField(kWasmModuleCodeTable)->IsFixedArray() ||
+      !obj->GetInternalField(kWasmMemArrayBuffer)->IsJSArrayBuffer() ||
+      !obj->GetInternalField(kWasmFunctionNamesArray)->IsByteArray() ||
+      !obj->GetInternalField(kWasmModuleBytesString)->IsSeqOneByteString()) {
+    return false;
+  }
+  DisallowHeapAllocation no_gc;
+  SeqOneByteString* bytes =
+      SeqOneByteString::cast(obj->GetInternalField(kWasmModuleBytesString));
+  if (bytes->length() < 4) return false;
+  if (memcmp(bytes->GetChars(), "\0asm", 4)) return false;
+
+  // All checks passed.
+  return true;
+}
+
+SeqOneByteString* GetWasmBytes(JSObject* wasm) {
+  return SeqOneByteString::cast(wasm->GetInternalField(kWasmModuleBytesString));
+}
+
+WasmDebugInfo* GetDebugInfo(JSObject* wasm) {
+  Object* info = wasm->GetInternalField(kWasmDebugInfo);
+  if (!info->IsUndefined(wasm->GetIsolate())) return WasmDebugInfo::cast(info);
+  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(handle(wasm));
+  wasm->SetInternalField(kWasmDebugInfo, *new_info);
+  return *new_info;
 }
 
 }  // namespace wasm

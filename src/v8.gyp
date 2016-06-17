@@ -1162,6 +1162,8 @@
         'wasm/module-decoder.h',
         'wasm/switch-logic.h',
         'wasm/switch-logic.cc',
+        'wasm/wasm-debug.cc',
+        'wasm/wasm-debug.h',
         'wasm/wasm-external-refs.cc',
         'wasm/wasm-external-refs.h',
         'wasm/wasm-function-name-table.cc',

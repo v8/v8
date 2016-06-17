@@ -73,6 +73,8 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
 #define WASM_SECTION_FUNCTION_BODIES_SIZE ((size_t)5)
 #define WASM_SECTION_NAMES_SIZE ((size_t)5)
 
+class WasmDebugInfo;
+
 struct WasmSection {
   enum class Code : uint32_t {
 #define F(enumerator, order, string) enumerator,
@@ -331,12 +333,19 @@ Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> wasm,
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index);
 
+// Return the binary source bytes of a wasm module.
+SeqOneByteString* GetWasmBytes(JSObject* wasm);
+
+// Get the debug info associated with the given wasm object.
+// If no debug info exists yet, it is created automatically.
+WasmDebugInfo* GetDebugInfo(JSObject* wasm);
+
 // Check whether the given object is a wasm object.
 // This checks the number and type of internal fields, so it's not 100 percent
 // secure. If it turns out that we need more complete checks, we could add a
 // special marker as internal field, which will definitely never occur anywhere
 // else.
-bool IsWasmObject(Handle<JSObject> object);
+bool IsWasmObject(Object* object);
 
 }  // namespace wasm
 }  // namespace internal
