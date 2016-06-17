@@ -11,7 +11,7 @@ if (is_android) {
   import("//build/config/android/config.gni")
 }
 
-if (((v8_target_cpu == "ia32" ||
+if (((v8_target_cpu == "x86" ||
       v8_target_cpu == "x64" ||
       v8_target_cpu=="x87") &&
      (is_linux || is_mac)) ||
