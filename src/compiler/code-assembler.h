@@ -340,6 +340,13 @@ class CodeAssembler {
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);
 
+  Node* CallJS(Callable const& callable, Node* context, Node* function,
+               Node* receiver, size_t result_size = 1);
+  Node* CallJS(Callable const& callable, Node* context, Node* function,
+               Node* receiver, Node* arg1, size_t result_size = 1);
+  Node* CallJS(Callable const& callable, Node* context, Node* function,
+               Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
+
   // Branching helpers.
   void BranchIf(Node* condition, Label* if_true, Label* if_false);
 

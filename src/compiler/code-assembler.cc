@@ -174,9 +174,10 @@ void CodeAssembler::Comment(const char* format, ...) {
 
   // Copy the string before recording it in the assembler to avoid
   // issues when the stack allocated buffer goes out of scope.
-  size_t length = builder.position() + 3;
-  char* copy = reinterpret_cast<char*>(malloc(static_cast<int>(length)));
-  MemCopy(copy + 2, builder.Finalize(), length);
+  const int prefix_len = 2;
+  int length = builder.position() + 1;
+  char* copy = reinterpret_cast<char*>(malloc(length + prefix_len));
+  MemCopy(copy + prefix_len, builder.Finalize(), length);
   copy[0] = ';';
   copy[1] = ' ';
   raw_assembler_->Comment(copy);
@@ -575,6 +576,66 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
       isolate(), zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount());
   return raw_assembler_->TailCallN(descriptor, code_target_address, args);
+}
+
+Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
+                            Node* function, Node* receiver,
+                            size_t result_size) {
+  const int argc = 0;
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), argc + 1,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+  Node* target = HeapConstant(callable.code());
+
+  Node** args = zone()->NewArray<Node*>(argc + 4);
+  args[0] = function;
+  args[1] = Int32Constant(argc);
+  args[2] = receiver;
+  args[3] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
+                            Node* function, Node* receiver, Node* arg1,
+                            size_t result_size) {
+  const int argc = 1;
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), argc + 1,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+  Node* target = HeapConstant(callable.code());
+
+  Node** args = zone()->NewArray<Node*>(argc + 4);
+  args[0] = function;
+  args[1] = Int32Constant(argc);
+  args[2] = receiver;
+  args[3] = arg1;
+  args[4] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
+                            Node* function, Node* receiver, Node* arg1,
+                            Node* arg2, size_t result_size) {
+  const int argc = 2;
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), argc + 1,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+  Node* target = HeapConstant(callable.code());
+
+  Node** args = zone()->NewArray<Node*>(argc + 4);
+  args[0] = function;
+  args[1] = Int32Constant(argc);
+  args[2] = receiver;
+  args[3] = arg1;
+  args[4] = arg2;
+  args[5] = context;
+
+  return CallN(call_descriptor, target, args);
 }
 
 void CodeAssembler::Goto(CodeAssembler::Label* label) {

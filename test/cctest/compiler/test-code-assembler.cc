@@ -124,6 +124,91 @@ TEST(SimpleTailCallRuntime2Arg) {
   CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
+namespace {
+
+Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester& ft) {
+  const char* source =
+      "(function() {\n"
+      "  var sum = 0 + this;\n"
+      "  for (var i = 0; i < arguments.length; i++) {\n"
+      "    sum += arguments[i];\n"
+      "  }\n"
+      "  return sum;\n"
+      "})";
+  return ft.NewFunction(source);
+}
+
+}  // namespace
+
+TEST(SimpleCallJSFunction0Arg) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester m(isolate, kNumParams);
+  {
+    Node* function = m.Parameter(0);
+    Node* context = m.Parameter(kNumParams + 2);
+
+    Node* receiver = SmiTag(m, m.Int32Constant(42));
+
+    Callable callable = CodeFactory::Call(isolate);
+    Node* result = m.CallJS(callable, context, function, receiver);
+    m.Return(result);
+  }
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
+  MaybeHandle<Object> result = ft.Call(sum);
+  CHECK_EQ(Smi::FromInt(42), *result.ToHandleChecked());
+}
+
+TEST(SimpleCallJSFunction1Arg) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester m(isolate, kNumParams);
+  {
+    Node* function = m.Parameter(0);
+    Node* context = m.Parameter(1);
+
+    Node* receiver = SmiTag(m, m.Int32Constant(42));
+    Node* a = SmiTag(m, m.Int32Constant(13));
+
+    Callable callable = CodeFactory::Call(isolate);
+    Node* result = m.CallJS(callable, context, function, receiver, a);
+    m.Return(result);
+  }
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
+  MaybeHandle<Object> result = ft.Call(sum);
+  CHECK_EQ(Smi::FromInt(55), *result.ToHandleChecked());
+}
+
+TEST(SimpleCallJSFunction2Arg) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester m(isolate, kNumParams);
+  {
+    Node* function = m.Parameter(0);
+    Node* context = m.Parameter(1);
+
+    Node* receiver = SmiTag(m, m.Int32Constant(42));
+    Node* a = SmiTag(m, m.Int32Constant(13));
+    Node* b = SmiTag(m, m.Int32Constant(153));
+
+    Callable callable = CodeFactory::Call(isolate);
+    Node* result = m.CallJS(callable, context, function, receiver, a, b);
+    m.Return(result);
+  }
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
+  MaybeHandle<Object> result = ft.Call(sum);
+  CHECK_EQ(Smi::FromInt(208), *result.ToHandleChecked());
+}
+
 TEST(VariableMerge1) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
