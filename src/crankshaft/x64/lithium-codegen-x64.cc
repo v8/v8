@@ -3600,13 +3600,10 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  XMMRegister input = ToDoubleRegister(instr->value());
-  XMMRegister result = ToDoubleRegister(instr->result());
-  XMMRegister temp0 = double_scratch0();
-  Register temp1 = ToRegister(instr->temp1());
-  Register temp2 = ToRegister(instr->temp2());
-
-  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 1);
 }
 
 

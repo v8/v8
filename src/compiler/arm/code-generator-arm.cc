@@ -709,6 +709,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Atan2:
       ASSEMBLE_IEEE754_BINOP(atan2);
       break;
+    case kIeee754Float64Exp:
+      ASSEMBLE_IEEE754_UNOP(exp);
+      break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);
       break;

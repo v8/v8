@@ -29,19 +29,6 @@ class StringCharLoadGenerator : public AllStatic {
 };
 
 
-class MathExpGenerator : public AllStatic {
- public:
-  static void EmitMathExp(MacroAssembler* masm,
-                          XMMRegister input,
-                          XMMRegister result,
-                          XMMRegister double_scratch,
-                          Register temp1,
-                          Register temp2);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
 }  // namespace internal
 }  // namespace v8
 

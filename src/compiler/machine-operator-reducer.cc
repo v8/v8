@@ -396,6 +396,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kFloat64Exp: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::exp(m.Value()));
+      break;
+    }
     case IrOpcode::kFloat64Log: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::log(m.Value()));

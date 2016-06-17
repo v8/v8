@@ -8856,8 +8856,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
   // we inline here do not observe if they were tail called or not.
   switch (id) {
     case kMathExp:
-      if (!FLAG_fast_math) break;
-      // Fall through if FLAG_fast_math.
     case kMathRound:
     case kMathFround:
     case kMathFloor:

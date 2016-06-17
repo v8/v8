@@ -54,6 +54,34 @@ TEST(Ieee754, Atan2) {
                          -std::numeric_limits<double>::infinity()));
 }
 
+TEST(Ieee754, Exp) {
+  EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_EQ(0.0, exp(-std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(0.0, exp(-1000));
+  EXPECT_EQ(0.0, exp(-745.1332191019412));
+  EXPECT_EQ(2.2250738585072626e-308, exp(-708.39641853226408));
+  EXPECT_EQ(3.307553003638408e-308, exp(-708.0));
+  EXPECT_EQ(4.9406564584124654e-324, exp(-7.45133219101941108420e+02));
+  EXPECT_EQ(0.36787944117144233, exp(-1.0));
+  EXPECT_EQ(1.0, exp(-0.0));
+  EXPECT_EQ(1.0, exp(0.0));
+  EXPECT_EQ(1.0, exp(2.2250738585072014e-308));
+  EXPECT_GE(exp(1.0), exp(0.9999999999999999));
+  EXPECT_LE(exp(1.0), exp(1.0000000000000002));
+  EXPECT_EQ(2.7182818284590455, exp(1.0));
+  EXPECT_EQ(7.38905609893065e0, exp(2.0));
+  EXPECT_EQ(1.7976931348622732e308, exp(7.09782712893383973096e+02));
+  EXPECT_EQ(2.6881171418161356e+43, exp(100.0));
+  EXPECT_EQ(8.218407461554972e+307, exp(709.0));
+  EXPECT_EQ(1.7968190737295725e308, exp(709.7822265625e0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(709.7827128933841e0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(710.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(1000.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(),
+            exp(std::numeric_limits<double>::infinity()));
+}
+
 TEST(Ieee754, Log) {
   EXPECT_THAT(log(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(log(std::numeric_limits<double>::signaling_NaN()), IsNaN());

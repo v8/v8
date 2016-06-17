@@ -3423,8 +3423,7 @@ HInstruction* HUnaryMathOperation::New(Isolate* isolate, Zone* zone,
     }
     switch (op) {
       case kMathExp:
-        lazily_initialize_fast_exp(isolate);
-        return H_CONSTANT_DOUBLE(fast_exp(d, isolate));
+        return H_CONSTANT_DOUBLE(base::ieee754::exp(d));
       case kMathLog:
         return H_CONSTANT_DOUBLE(base::ieee754::log(d));
       case kMathSqrt:

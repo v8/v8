@@ -45,7 +45,6 @@ void V8::TearDown() {
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
-  ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
   sampler::Sampler::TearDown();
