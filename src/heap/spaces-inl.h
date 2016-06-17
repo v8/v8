@@ -260,6 +260,7 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
                                        : MemoryChunk::IN_TO_SPACE));
   Page* page = static_cast<Page*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
+  page->AllocateLocalTracker();
   return page;
 }
 
