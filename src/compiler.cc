@@ -656,6 +656,8 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   JSFunction::EnsureLiterals(info->closure());
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::RecompileSynchronous);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
@@ -707,6 +709,8 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::RecompileSynchronous);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
@@ -774,6 +778,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT0("v8", "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
@@ -962,6 +967,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileCodeLazy);
   TRACE_EVENT0("v8", "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -1016,6 +1023,7 @@ Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0("v8", "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
@@ -1481,6 +1489,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         !isolate->debug()->is_loaded()) {
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
+      RuntimeCallTimerScope runtimeTimer(isolate,
+                                         &RuntimeCallStats::CompileDeserialize);
       TRACE_EVENT0("v8", "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
@@ -1552,6 +1562,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
           compile_options == ScriptCompiler::kProduceCodeCache) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
+        RuntimeCallTimerScope runtimeTimer(isolate,
+                                           &RuntimeCallStats::CompileSerialize);
         TRACE_EVENT0("v8", "V8.CompileSerialize");
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
@@ -1668,6 +1680,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0("v8", "V8.CompileCode");
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
@@ -1741,6 +1754,8 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::RecompileSynchronous);
   TRACE_EVENT0("v8", "V8.RecompileSynchronous");
 
   Handle<SharedFunctionInfo> shared = info->shared_info();

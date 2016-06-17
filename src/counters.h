@@ -662,6 +662,7 @@ class RuntimeCallTimer {
   V(AccessorNameSetterCallback)                     \
   V(Compile)                                        \
   V(CompileCode)                                    \
+  V(CompileCodeLazy)                                \
   V(CompileDeserialize)                             \
   V(CompileEval)                                    \
   V(CompileFullCode)                                \
