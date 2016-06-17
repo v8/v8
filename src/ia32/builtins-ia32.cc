@@ -1193,6 +1193,9 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
                                                int field_index) {
   // ----------- S t a t e -------------
+  //  -- eax    : number of arguments
+  //  -- edi    : function
+  //  -- esi    : context
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
@@ -1235,7 +1238,11 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   __ bind(&receiver_not_date);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ EnterFrame(StackFrame::INTERNAL);
+    __ Push(ebp);
+    __ Move(ebp, esp);
+    __ Push(esi);
+    __ Push(edi);
+    __ Push(Immediate(0));
     __ CallRuntime(Runtime::kThrowNotDateError);
   }
 }
