@@ -173,7 +173,7 @@ v8_executable("cctest") {
     "wasm/wasm-run-utils.h",
   ]
 
-  if (v8_target_arch == "arm") {
+  if (v8_target_cpu == "arm") {
     sources += [
       "test-assembler-arm.cc",
       "test-code-stubs-arm.cc",
@@ -182,7 +182,7 @@ v8_executable("cctest") {
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
     ]
-  } else if (v8_target_arch == "arm64") {
+  } else if (v8_target_cpu == "arm64") {
     sources += [
       "test-assembler-arm64.cc",
       "test-code-stubs-arm64.cc",
@@ -194,7 +194,7 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-arm64.cc",
       "test-utils-arm64.cc",
     ]
-  } else if (v8_target_arch == "x86") {
+  } else if (v8_target_cpu == "x86") {
     sources += [
       "test-assembler-ia32.cc",
       "test-code-stubs-ia32.cc",
@@ -204,7 +204,7 @@ v8_executable("cctest") {
       "test-macro-assembler-ia32.cc",
       "test-run-wasm-relocation-ia32.cc",
     ]
-  } else if (v8_target_arch == "mips") {
+  } else if (v8_target_cpu == "mips") {
     sources += [
       "test-assembler-mips.cc",
       "test-code-stubs-mips.cc",
@@ -212,7 +212,7 @@ v8_executable("cctest") {
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
     ]
-  } else if (v8_target_arch == "mipsel") {
+  } else if (v8_target_cpu == "mipsel") {
     sources += [
       "test-assembler-mips.cc",
       "test-code-stubs-mips.cc",
@@ -220,7 +220,7 @@ v8_executable("cctest") {
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
     ]
-  } else if (v8_target_arch == "mips64") {
+  } else if (v8_target_cpu == "mips64") {
     sources += [
       "test-assembler-mips64.cc",
       "test-code-stubs-mips64.cc",
@@ -228,7 +228,7 @@ v8_executable("cctest") {
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
-  } else if (v8_target_arch == "mips64el") {
+  } else if (v8_target_cpu == "mips64el") {
     sources += [
       "test-assembler-mips64.cc",
       "test-code-stubs-mips64.cc",
@@ -236,7 +236,7 @@ v8_executable("cctest") {
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
-  } else if (v8_target_arch == "x64") {
+  } else if (v8_target_cpu == "x64") {
     sources += [
       "test-assembler-x64.cc",
       "test-code-stubs-x64.cc",
@@ -246,7 +246,7 @@ v8_executable("cctest") {
       "test-macro-assembler-x64.cc",
       "test-run-wasm-relocation-x64.cc",
     ]
-  } else if (v8_target_arch == "x87") {
+  } else if (v8_target_cpu == "x87") {
     sources += [
       "test-assembler-x87.cc",
       "test-code-stubs-x87.cc",
@@ -256,13 +256,13 @@ v8_executable("cctest") {
       "test-macro-assembler-x87.cc",
       "test-run-wasm-relocation-x87.cc",
     ]
-  } else if (v8_target_arch == "ppc" || v8_target_arch == "ppc64") {
+  } else if (v8_target_cpu == "ppc" || v8_target_cpu == "ppc64") {
     sources += [
       "test-assembler-ppc.cc",
       "test-code-stubs.cc",
       "test-disasm-ppc.cc",
     ]
-  } else if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
+  } else if (v8_target_cpu == "s390" || v8_target_cpu == "s390x") {
     sources += [
       "test-assembler-s390.cc",
       "test-code-stubs.cc",
@@ -290,9 +290,9 @@ v8_executable("cctest") {
   ]
 
   # TODO(machenbach): Translate from gyp.
-  #['v8_target_arch=="ppc" or v8_target_arch=="ppc64" \
-  #  or v8_target_arch=="arm" or v8_target_arch=="arm64" \
-  #  or v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+  #['v8_target_cpu=="ppc" or v8_target_cpu=="ppc64" \
+  #  or v8_target_cpu=="arm" or v8_target_cpu=="arm64" \
+  #  or v8_target_cpu=="s390" or v8_target_cpu=="s390x"', {
   #  # disable fmadd/fmsub so that expected results match generated code in
   #  # RunFloat64MulAndFloat64Add1 and friends.
   #  'cflags': ['-ffp-contract=off'],

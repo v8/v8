@@ -165,7 +165,7 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  if (v8_target_arch == "arm") {
+  if (v8_target_cpu == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
     if (arm_version == 7) {
       defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
@@ -196,12 +196,12 @@ config("toolchain") {
       }
     }
   }
-  if (v8_target_arch == "arm64") {
+  if (v8_target_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
 
   # TODO(jochen): Add support for mips.
-  if (v8_target_arch == "mipsel") {
+  if (v8_target_cpu == "mipsel") {
     defines += [ "V8_TARGET_ARCH_MIPS" ]
     if (v8_can_use_fpu_instructions) {
       defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
@@ -236,7 +236,7 @@ config("toolchain") {
   }
 
   # TODO(jochen): Add support for mips64.
-  if (v8_target_arch == "mips64el") {
+  if (v8_target_cpu == "mips64el") {
     defines += [ "V8_TARGET_ARCH_MIPS64" ]
     if (v8_can_use_fpu_instructions) {
       defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
@@ -258,19 +258,19 @@ config("toolchain") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
-  if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
+  if (v8_target_cpu == "s390" || v8_target_cpu == "s390x") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-    if (v8_target_arch == "s390x") {
+    if (v8_target_cpu == "s390x") {
       defines += [ "V8_TARGET_ARCH_S390X" ]
     }
     if (host_cpu == "x64" || host_cpu == "x86") {
       defines += [ "V8_TARGET_ARCH_S390_LE_SIM" ]
     }
   }
-  if (v8_target_arch == "x86") {
+  if (v8_target_cpu == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
   }
-  if (v8_target_arch == "x64") {
+  if (v8_target_cpu == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
   }
 
@@ -1499,7 +1499,7 @@ v8_source_set("v8_base") {
     "src/zone.h",
   ]
 
-  if (v8_target_arch == "x86") {
+  if (v8_target_cpu == "x86") {
     sources += [
       "src/compiler/ia32/code-generator-ia32.cc",
       "src/compiler/ia32/instruction-codes-ia32.h",
@@ -1537,7 +1537,7 @@ v8_source_set("v8_base") {
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
     ]
-  } else if (v8_target_arch == "x64") {
+  } else if (v8_target_cpu == "x64") {
     sources += [
       "src/compiler/x64/code-generator-x64.cc",
       "src/compiler/x64/instruction-codes-x64.h",
@@ -1575,7 +1575,7 @@ v8_source_set("v8_base") {
       "src/x64/macro-assembler-x64.cc",
       "src/x64/macro-assembler-x64.h",
     ]
-  } else if (v8_target_arch == "arm") {
+  } else if (v8_target_cpu == "arm") {
     sources += [
       "src/arm/assembler-arm-inl.h",
       "src/arm/assembler-arm.cc",
@@ -1618,7 +1618,7 @@ v8_source_set("v8_base") {
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
     ]
-  } else if (v8_target_arch == "arm64") {
+  } else if (v8_target_cpu == "arm64") {
     sources += [
       "src/arm64/assembler-arm64-inl.h",
       "src/arm64/assembler-arm64.cc",
@@ -1674,7 +1674,7 @@ v8_source_set("v8_base") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
     ]
-  } else if (v8_target_arch == "mipsel") {
+  } else if (v8_target_cpu == "mipsel") {
     sources += [
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
@@ -1716,7 +1716,7 @@ v8_source_set("v8_base") {
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
     ]
-  } else if (v8_target_arch == "mips64el") {
+  } else if (v8_target_cpu == "mips64el") {
     sources += [
       "src/compiler/mips64/code-generator-mips64.cc",
       "src/compiler/mips64/instruction-codes-mips64.h",
@@ -1758,7 +1758,7 @@ v8_source_set("v8_base") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
     ]
-  } else if (v8_target_arch == "s390" || v8_target_arch == "s390x") {
+  } else if (v8_target_cpu == "s390" || v8_target_cpu == "s390x") {
     sources += [
       "src/compiler/s390/code-generator-s390.cc",
       "src/compiler/s390/instruction-codes-s390.h",

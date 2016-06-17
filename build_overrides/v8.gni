@@ -4,17 +4,18 @@
 
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
+import("//build/config/v8_target_cpu.gni")
 import("//gni/v8.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
 }
 
-if (((v8_target_arch == "ia32" ||
-      v8_target_arch == "x64" ||
-      v8_target_arch=="x87") &&
+if (((v8_target_cpu == "ia32" ||
+      v8_target_cpu == "x64" ||
+      v8_target_cpu=="x87") &&
      (is_linux || is_mac)) ||
-    (v8_target_arch == "ppc64" && is_linux)) {
+    (v8_target_cpu == "ppc64" && is_linux)) {
   v8_enable_gdbjit = true
 }
 
