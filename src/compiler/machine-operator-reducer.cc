@@ -153,14 +153,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kWord32Shl:
       return ReduceWord32Shl(node);
-    case IrOpcode::kWord32Shr: {
-      Uint32BinopMatcher m(node);
-      if (m.right().Is(0)) return Replace(m.left().node());  // x >>> 0 => x
-      if (m.IsFoldable()) {                                  // K >>> K => K
-        return ReplaceInt32(m.left().Value() >> m.right().Value());
-      }
-      return ReduceWord32Shifts(node);
-    }
+    case IrOpcode::kWord32Shr:
+      return ReduceWord32Shr(node);
     case IrOpcode::kWord32Sar:
       return ReduceWord32Sar(node);
     case IrOpcode::kWord32Ror: {
@@ -825,6 +819,25 @@ Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
   return ReduceWord32Shifts(node);
 }
 
+Reduction MachineOperatorReducer::ReduceWord32Shr(Node* node) {
+  Uint32BinopMatcher m(node);
+  if (m.right().Is(0)) return Replace(m.left().node());  // x >>> 0 => x
+  if (m.IsFoldable()) {                                  // K >>> K => K
+    return ReplaceInt32(m.left().Value() >> m.right().Value());
+  }
+  if (m.left().IsWord32And() && m.right().HasValue()) {
+    Uint32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      uint32_t shift = m.right().Value() & 0x1f;
+      uint32_t mask = mleft.right().Value();
+      if ((mask >> shift) == 0) {
+        // (m >>> s) == 0 implies ((x & m) >>> s) == 0
+        return ReplaceInt32(0);
+      }
+    }
+  }
+  return ReduceWord32Shifts(node);
+}
 
 Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
   Int32BinopMatcher m(node);

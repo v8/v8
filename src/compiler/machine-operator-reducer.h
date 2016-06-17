@@ -74,6 +74,7 @@ class MachineOperatorReducer final : public Reducer {
   Reduction ReduceProjection(size_t index, Node* node);
   Reduction ReduceWord32Shifts(Node* node);
   Reduction ReduceWord32Shl(Node* node);
+  Reduction ReduceWord32Shr(Node* node);
   Reduction ReduceWord32Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
   Reduction ReduceWord32Or(Node* node);

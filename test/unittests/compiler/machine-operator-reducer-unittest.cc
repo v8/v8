@@ -850,8 +850,24 @@ TEST_F(MachineOperatorReducerTest, Word32SarWithWord32ShlAndLoad) {
 
 
 // -----------------------------------------------------------------------------
-// Word32Shl
+// Word32Shr
 
+TEST_F(MachineOperatorReducerTest, Word32ShrWithWord32And) {
+  Node* const p0 = Parameter(0);
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    uint32_t mask = (1 << shift) - 1;
+    Node* node = graph()->NewNode(
+        machine()->Word32Shr(),
+        graph()->NewNode(machine()->Word32And(), p0, Int32Constant(mask)),
+        Int32Constant(shift));
+    Reduction r = Reduce(node);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Constant(0));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Word32Shl
 
 TEST_F(MachineOperatorReducerTest, Word32ShlWithZeroShift) {
   Node* p0 = Parameter(0);
