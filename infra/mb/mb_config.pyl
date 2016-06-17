@@ -6,26 +6,60 @@
   # This is a map of buildbot master names -> buildbot builder names ->
   # config names (where each config name is a key in the 'configs' dict,
   # below). MB uses this dict to look up which config to use for a given bot.
+  # Bots are ordered by appearance on waterfall.
   'masters': {
     'client.v8': {
-      'V8 Linux - swarming staging': 'gn_swarming_release',
+      # Linux64.
+      'V8 Linux64 - builder': 'gyp_release_x64',
+      'V8 Linux64 - debug builder': 'gyp_debug_valgrind_x64',
+      'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_custom_x64',
+      'V8 Linux64 - internal snapshot': 'gyp_release_internal_x64',
+      # FYI.
+      'V8 Linux - swarming staging': 'gn_release_x64',
+    },
+    'tryserver.v8': {
+      'v8_linux64_rel_ng': 'gyp_release_x64_trybot',
+      'v8_linux64_avx2_rel_ng': 'gyp_release_x64_trybot',
+      'v8_linux64_avx2_dbg': 'gyp_debug_x64_trybot',
     },
   },
 
   'configs': {
-    'gyp_swarming_release': [
-      'release_bot', 'swarming', 'gyp'],
-    'gn_swarming_release': [
-      'release_bot', 'swarming', 'gn'],
+    'gyp_debug_custom_x64': [
+      'gyp', 'debug_bot', 'swarming', 'v8_snapshot_custom', 'x64'],
+    'gyp_debug_valgrind_x64': [
+      'gyp', 'debug_bot', 'swarming', 'valgrind', 'x64'],
+    'gyp_debug_x64_trybot': [
+      'gyp', 'debug_trybot', 'swarming', 'x64'],
+    'gyp_release_x64': [
+      'gyp', 'release_bot', 'swarming', 'x64'],
+    'gyp_release_x64_trybot': [
+      'gyp', 'release_trybot', 'swarming', 'x64'],
+    'gyp_release_internal_x64': [
+      'gyp', 'release_bot', 'swarming', 'v8_snapshot_internal', 'x64'],
+    'gn_release_x64': [
+      'gn', 'release_bot', 'swarming', 'x64'],
   },
 
   'mixins': {
+    'dcheck_always_on': {
+      'gn_args': 'dcheck_always_on=true',
+      'gyp_defines': 'dcheck_always_on=1',
+    },
+
     'debug': {
+      'gyp_defines': 'v8_enable_slow_dchecks=1 v8_optimized_debug=1',
       'gn_args': 'is_debug=true',
     },
 
     'debug_bot': {
-      'mixins': ['debug', 'static', 'goma'],
+      'mixins': [
+        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
+        'v8_optimized_debug'],
+    },
+
+    'debug_trybot': {
+      'mixins': ['debug_bot', 'minimal_symbols'],
     },
 
     'gn': {'type': 'gn'},
@@ -39,12 +73,21 @@
 
     'gyp': {'type': 'gyp'},
 
+    'minimal_symbols': {
+      'gn_args': 'symbol_level=1',
+      'gyp_defines': 'fastbuild=1',
+    },
+
     'release': {
       'gn_args': 'is_debug=false',
     },
 
     'release_bot': {
       'mixins': ['release', 'static', 'goma'],
+    },
+
+    'release_trybot': {
+      'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
     },
 
     'shared': {
@@ -60,6 +103,43 @@
     'swarming': {
       'gn_args': 'v8_test_isolation_mode="prepare"',
       'gyp_defines': 'test_isolation_mode=prepare',
+    },
+
+    'valgrind': {
+      # TODO(machenbach): Add this to gn.
+      'gn_args': 'has_valgrind=true',
+      'gyp_defines': 'has_valgrind=1',
+    },
+
+    'v8_enable_slow_dchecks': {
+      'gn_args': v8_enable_slow_dchecks=true',
+      'gyp_defines': 'v8_enable_slow_dchecks=1',
+    },
+
+    'v8_optimized_debug': {
+      # This is the default in gn for debug.
+      'gyp_defines': 'v8_optimized_debug=1',
+    },
+
+    'v8_snapshot_custom': {
+      # TODO(machenbach): Add this to gn.
+      # Path needs to be relative to src/v8.gyp.
+      'gyp_defines': 'embed_script=../test/mjsunit/mjsunit.js',
+    },
+
+    'v8_snapshot_internal': {
+      'gn_args': 'v8_use_external_startup_data=false',
+      'gyp_defines': 'v8_use_external_startup_data=0',
+    },
+
+    'x64': {
+      'gn_args': 'target_cpu="x64"',
+      'gyp_defines': 'target_arch=x64',
+    },
+
+    'x86': {
+      'gn_args': 'target_cpu="x86"',
+      'gyp_defines': 'target_arch=ia32',
     },
   },
 }
