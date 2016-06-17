@@ -454,10 +454,14 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           if (code_obj->is_interpreter_trampoline_builtin()) {
             return INTERPRETED;
           }
-          // We treat frames for BUILTIN Code objects as OptimizedFrame for now
-          // (all the builtins with JavaScript linkage are actually generated
-          // with TurboFan currently, so this is sound).
-          return OPTIMIZED;
+          if (code_obj->is_turbofanned()) {
+            // TODO(bmeurer): We treat frames for BUILTIN Code objects as
+            // OptimizedFrame for now (all the builtins with JavaScript
+            // linkage are actually generated with TurboFan currently, so
+            // this is sound).
+            return OPTIMIZED;
+          }
+          return BUILTIN;
         case Code::FUNCTION:
           return JAVA_SCRIPT;
         case Code::OPTIMIZED_FUNCTION:
@@ -692,6 +696,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
       case JAVA_SCRIPT:
       case OPTIMIZED:
       case INTERPRETED:
+      case BUILTIN:
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
         UNREACHABLE();
@@ -1289,11 +1294,6 @@ int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
   return Smi::cast(GetExpression(0))->value();
 }
 
-
-Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  return fp() + StandardFrameConstants::kCallerSPOffset;
-}
-
 int ArgumentsAdaptorFrame::GetLength(Address fp) {
   const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
   return Smi::cast(Memory::Object_at(fp + offset))->value();
@@ -1302,6 +1302,15 @@ int ArgumentsAdaptorFrame::GetLength(Address fp) {
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return isolate()->builtins()->builtin(
       Builtins::kArgumentsAdaptorTrampoline);
+}
+
+void BuiltinFrame::Print(StringStream* accumulator, PrintMode mode,
+                         int index) const {
+  // TODO(bmeurer)
+}
+
+int BuiltinFrame::GetNumberOfIncomingArguments() const {
+  return Smi::cast(GetExpression(0))->value();
 }
 
 Address InternalFrame::GetCallerStackPointer() const {

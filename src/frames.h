@@ -111,7 +111,8 @@ class StackHandler BASE_EMBEDDED {
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
   V(INTERNAL, InternalFrame)                             \
   V(CONSTRUCT, ConstructFrame)                           \
-  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
+  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)            \
+  V(BUILTIN, BuiltinFrame)
 
 // Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
 // two slots.
@@ -280,6 +281,14 @@ class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(2);
 };
 
+class BuiltinFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+
 class InternalFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
@@ -411,6 +420,7 @@ class StackFrame BASE_EMBEDDED {
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
+  bool is_builtin() const { return type() == BUILTIN; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_stub_failure_trampoline() const {
     return type() == STUB_FAILURE_TRAMPOLINE;
@@ -421,7 +431,7 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script() const {
     Type type = this->type();
     return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
-           (type == INTERPRETED);
+           (type == INTERPRETED) || (type == BUILTIN);
   }
 
   // Accessors.
@@ -950,7 +960,28 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
 
   int GetNumberOfIncomingArguments() const override;
 
-  Address GetCallerStackPointer() const override;
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+// Builtin frames are built for builtins with JavaScript linkage, such as
+// various standard library functions (i.e. Math.asin, Math.floor, etc.).
+class BuiltinFrame final : public JavaScriptFrame {
+ public:
+  Type type() const final { return BUILTIN; }
+
+  static BuiltinFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_builtin());
+    return static_cast<BuiltinFrame*>(frame);
+  }
+
+  // Printing support.
+  void Print(StringStream* accumulator, PrintMode mode, int index) const final;
+
+ protected:
+  inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
+
+  int GetNumberOfIncomingArguments() const final;
 
  private:
   friend class StackFrameIteratorBase;

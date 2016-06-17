@@ -141,6 +141,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
   //  -- x0                 : number of arguments
+  //  -- x1                 : function
+  //  -- cp                 : context
   //  -- lr                 : return address
   //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- sp[(argc + 1) * 8] : receiver
@@ -152,9 +154,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
                                      : Heap::kMinusInfinityValueRootIndex;
 
   // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in x1 and the double value in d1.
-  __ LoadRoot(x1, root_index);
-  __ Ldr(d1, FieldMemOperand(x1, HeapNumber::kValueOffset));
+  // +Infinity), with the tagged value in x5 and the double value in d5.
+  __ LoadRoot(x5, root_index);
+  __ Ldr(d5, FieldMemOperand(x5, HeapNumber::kValueOffset));
 
   // Remember how many slots to drop (including the receiver).
   __ Add(x4, x0, 1);
@@ -176,24 +178,28 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ JumpIfHeapNumber(x2, &convert_number);
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ Push(lr, fp);
+      __ Move(fp, jssp);
+      __ Push(cp, x1);
       __ SmiTag(x0);
       __ SmiTag(x4);
-      __ Push(x0, x1, x4);
+      __ Push(x0, x5, x4);
       __ Mov(x0, x2);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ Mov(x2, x0);
-      __ Pop(x4, x1, x0);
+      __ Pop(x4, x5, x0);
       {
-        // Restore the double accumulator value (d1).
+        // Restore the double accumulator value (d5).
         Label done_restore;
-        __ SmiUntagToDouble(d1, x1, kSpeculativeUntag);
-        __ JumpIfSmi(x1, &done_restore);
-        __ Ldr(d1, FieldMemOperand(x1, HeapNumber::kValueOffset));
+        __ SmiUntagToDouble(d5, x5, kSpeculativeUntag);
+        __ JumpIfSmi(x5, &done_restore);
+        __ Ldr(d5, FieldMemOperand(x5, HeapNumber::kValueOffset));
         __ Bind(&done_restore);
       }
       __ SmiUntag(x4);
       __ SmiUntag(x0);
+      __ Pop(x1, cp, fp, lr);
     }
     __ AssertNumber(x2);
     __ JumpIfSmi(x2, &convert_smi);
@@ -208,22 +214,22 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
 
     // We can use a single fmin/fmax for the operation itself, but we then need
     // to work out which HeapNumber (or smi) the result came from.
-    __ Fmov(x11, d1);
+    __ Fmov(x11, d5);
     if (kind == MathMaxMinKind::kMin) {
-      __ Fmin(d1, d1, d2);
+      __ Fmin(d5, d5, d2);
     } else {
       DCHECK(kind == MathMaxMinKind::kMax);
-      __ Fmax(d1, d1, d2);
+      __ Fmax(d5, d5, d2);
     }
-    __ Fmov(x10, d1);
+    __ Fmov(x10, d5);
     __ Cmp(x10, x11);
-    __ Csel(x1, x1, x2, eq);
+    __ Csel(x5, x5, x2, eq);
     __ B(&loop);
   }
 
   __ Bind(&done_loop);
-  __ Mov(x0, x1);
   __ Drop(x4);
+  __ Mov(x0, x5);
   __ Ret();
 }
 

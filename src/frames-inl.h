@@ -233,6 +233,9 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
     StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }
 
+inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
+
 inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 

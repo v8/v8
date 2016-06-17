@@ -144,6 +144,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
   //  -- a0                 : number of arguments
+  //  -- a1                 : function
+  //  -- cp                 : context
   //  -- ra                 : return address
   //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- sp[(argc + 1) * 8] : receiver
@@ -153,9 +155,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
                                      : Heap::kMinusInfinityValueRootIndex;
 
   // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in a1 and the double value in f0.
-  __ LoadRoot(a1, root_index);
-  __ ldc1(f0, FieldMemOperand(a1, HeapNumber::kValueOffset));
+  // +Infinity), with the tagged value in t1 and the double value in f0.
+  __ LoadRoot(t1, root_index);
+  __ ldc1(f0, FieldMemOperand(t1, HeapNumber::kValueOffset));
   __ Addu(a3, a0, 1);
 
   Label done_loop, loop;
@@ -178,26 +180,31 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ JumpIfRoot(a4, Heap::kHeapNumberMapRootIndex, &convert_number);
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ Push(ra, fp);
+      __ Move(fp, sp);
+      __ Push(cp, a1);
       __ SmiTag(a0);
       __ SmiTag(a3);
-      __ Push(a0, a1, a3);
+      __ Push(a0, t1, a3);
       __ mov(a0, a2);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ mov(a2, v0);
-      __ Pop(a0, a1, a3);
+      __ Pop(a0, t1, a3);
       {
         // Restore the double accumulator value (f0).
         Label restore_smi, done_restore;
-        __ JumpIfSmi(a1, &restore_smi);
-        __ ldc1(f0, FieldMemOperand(a1, HeapNumber::kValueOffset));
+        __ JumpIfSmi(t1, &restore_smi);
+        __ ldc1(f0, FieldMemOperand(t1, HeapNumber::kValueOffset));
         __ jmp(&done_restore);
         __ bind(&restore_smi);
-        __ SmiToDoubleFPURegister(a1, f0, a4);
+        __ SmiToDoubleFPURegister(t1, f0, a4);
         __ bind(&done_restore);
       }
       __ SmiUntag(a3);
       __ SmiUntag(a0);
+      __ Pop(cp, a1);
+      __ Pop(ra, fp);
     }
     __ jmp(&convert);
     __ bind(&convert_number);
@@ -222,20 +229,20 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     }
     __ Move(at, f0);
     __ Branch(&loop, eq, a4, Operand(at));
-    __ mov(a1, a2);
+    __ mov(t1, a2);
     __ jmp(&loop);
 
     // At least one side is NaN, which means that the result will be NaN too.
     __ bind(&compare_nan);
-    __ LoadRoot(a1, Heap::kNanValueRootIndex);
-    __ ldc1(f0, FieldMemOperand(a1, HeapNumber::kValueOffset));
+    __ LoadRoot(t1, Heap::kNanValueRootIndex);
+    __ ldc1(f0, FieldMemOperand(t1, HeapNumber::kValueOffset));
     __ jmp(&loop);
   }
 
   __ bind(&done_loop);
   __ Dlsa(sp, sp, a3, kPointerSizeLog2);
   __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a1);  // In delay slot.
+  __ mov(v0, t1);  // In delay slot.
 }
 
 // static
