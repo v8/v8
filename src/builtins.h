@@ -310,6 +310,7 @@ class CodeStubAssembler;
   V(MathCbrt, 2)                      \
   V(MathExpm1, 2)                     \
   V(MathClz32, 2)                     \
+  V(MathCos, 2)                       \
   V(MathExp, 2)                       \
   V(MathFloor, 2)                     \
   V(MathLog, 2)                       \
@@ -317,6 +318,7 @@ class CodeStubAssembler;
   V(MathLog2, 2)                      \
   V(MathLog10, 2)                     \
   V(MathRound, 2)                     \
+  V(MathSin, 2)                       \
   V(MathSqrt, 2)                      \
   V(MathTrunc, 2)                     \
   V(ObjectHasOwnProperty, 2)          \
@@ -629,6 +631,8 @@ class Builtins {
   static void Generate_MathExpm1(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.11 Math.clz32 ( x )
   static void Generate_MathClz32(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.12 Math.cos ( x )
+  static void Generate_MathCos(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.14 Math.exp ( x )
   static void Generate_MathExp(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
@@ -653,6 +657,8 @@ class Builtins {
   }
   // ES6 section 20.2.2.28 Math.round ( x )
   static void Generate_MathRound(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.20 Math.sin ( x )
+  static void Generate_MathSin(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.32 Math.sqrt ( x )
   static void Generate_MathSqrt(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.35 Math.trunc ( x )

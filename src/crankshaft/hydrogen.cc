@@ -8855,11 +8855,13 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
   // We intentionally ignore expr->tail_call_mode() here because builtins
   // we inline here do not observe if they were tail called or not.
   switch (id) {
+    case kMathCos:
     case kMathExp:
     case kMathRound:
     case kMathFround:
     case kMathFloor:
     case kMathAbs:
+    case kMathSin:
     case kMathSqrt:
     case kMathLog:
     case kMathClz32:
@@ -9036,13 +9038,13 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         return true;
       }
       break;
+    case kMathCos:
     case kMathExp:
-      if (!FLAG_fast_math) break;
-      // Fall through if FLAG_fast_math.
     case kMathRound:
     case kMathFround:
     case kMathFloor:
     case kMathAbs:
+    case kMathSin:
     case kMathSqrt:
     case kMathLog:
     case kMathClz32:

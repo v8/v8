@@ -791,7 +791,7 @@ bool IsCompiled(const char* name) {
 
 TEST(SnapshotDataBlobWithWarmup) {
   DisableTurbofan();
-  const char* warmup = "Math.tan(1); Math.sin = 1;";
+  const char* warmup = "Math.tanh(1); Math.sinh = 1;";
 
   v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
   v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
@@ -810,9 +810,9 @@ TEST(SnapshotDataBlobWithWarmup) {
     v8::Context::Scope c_scope(context);
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
-    CHECK(IsCompiled("Math.tan"));
-    CHECK(!IsCompiled("Math.cos"));
-    CHECK(CompileRun("Math.sin")->IsFunction());
+    CHECK(IsCompiled("Math.tanh"));
+    CHECK(!IsCompiled("Math.cosh"));
+    CHECK(CompileRun("Math.sinh")->IsFunction());
   }
   isolate->Dispose();
 }
@@ -820,9 +820,9 @@ TEST(SnapshotDataBlobWithWarmup) {
 TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
-      "function f() { return Math.sin(1); }\n"
-      "function g() { return Math.cos(1); }\n"
-      "Math.tan(1);"
+      "function f() { return Math.sinh(1); }\n"
+      "function g() { return Math.cosh(1); }\n"
+      "Math.tanh(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -844,10 +844,10 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("f"));
-    CHECK(IsCompiled("Math.sin"));
+    CHECK(IsCompiled("Math.sinh"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Math.cos"));
-    CHECK(!IsCompiled("Math.tan"));
+    CHECK(!IsCompiled("Math.cosh"));
+    CHECK(!IsCompiled("Math.tanh"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();

@@ -2453,9 +2453,11 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
       return Representation::Tagged();
     } else {
       switch (op_) {
+        case kMathCos:
         case kMathFloor:
         case kMathRound:
         case kMathFround:
+        case kMathSin:
         case kMathSqrt:
         case kMathPowHalf:
         case kMathLog:
@@ -2524,9 +2526,11 @@ class HUnaryMathOperation final : public HTemplateInstruction<2> {
         // is tagged, and not when it is an unboxed double or unboxed integer.
         SetChangesFlag(kNewSpacePromotion);
         break;
+      case kMathCos:
       case kMathFround:
       case kMathLog:
       case kMathExp:
+      case kMathSin:
       case kMathSqrt:
       case kMathPowHalf:
         set_representation(Representation::Double());

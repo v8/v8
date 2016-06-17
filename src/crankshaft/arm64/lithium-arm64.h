@@ -104,6 +104,8 @@ class LCodeGen;
   V(MathAbs)                                 \
   V(MathAbsTagged)                           \
   V(MathClz32)                               \
+  V(MathCos)                                 \
+  V(MathSin)                                 \
   V(MathExp)                                 \
   V(MathFloorD)                              \
   V(MathFloorI)                              \
@@ -1761,6 +1763,20 @@ class LMathAbsTagged: public LTemplateInstruction<1, 2, 3> {
 
   DECLARE_CONCRETE_INSTRUCTION(MathAbsTagged, "math-abs-tagged")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+class LMathCos final : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathCos(LOperand* value) : LUnaryMathOperation<0>(value) {}
+
+  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
+};
+
+class LMathSin final : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathSin(LOperand* value) : LUnaryMathOperation<0>(value) {}
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
 };
 
 class LMathExp final : public LUnaryMathOperation<0> {

@@ -134,103 +134,6 @@ macro REMPIO2(X)
 endmacro
 
 
-// __kernel_sin(X, Y, IY)
-// kernel sin function on [-pi/4, pi/4], pi/4 ~ 0.7854
-// Input X is assumed to be bounded by ~pi/4 in magnitude.
-// Input Y is the tail of X so that x = X + Y.
-//
-// Algorithm
-//  1. Since ieee_sin(-x) = -ieee_sin(x), we need only to consider positive x.
-//  2. ieee_sin(x) is approximated by a polynomial of degree 13 on
-//     [0,pi/4]
-//                           3            13
-//          sin(x) ~ x + S1*x + ... + S6*x
-//     where
-//
-//    |ieee_sin(x)    2     4     6     8     10     12  |     -58
-//    |----- - (1+S1*x +S2*x +S3*x +S4*x +S5*x  +S6*x   )| <= 2
-//    |  x                                               |
-//
-//  3. ieee_sin(X+Y) = ieee_sin(X) + sin'(X')*Y
-//              ~ ieee_sin(X) + (1-X*X/2)*Y
-//     For better accuracy, let
-//               3      2      2      2      2
-//          r = X *(S2+X *(S3+X *(S4+X *(S5+X *S6))))
-//     then                   3    2
-//          sin(x) = X + (S1*X + (X *(r-Y/2)+Y))
-//
-define S1 = -1.66666666666666324348e-01;
-define S2 = 8.33333333332248946124e-03;
-define S3 = -1.98412698298579493134e-04;
-define S4 = 2.75573137070700676789e-06;
-define S5 = -2.50507602534068634195e-08;
-define S6 = 1.58969099521155010221e-10;
-
-macro RETURN_KERNELSIN(X, Y, SIGN)
-  var z = X * X;
-  var v = z * X;
-  var r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
-  return (X - ((z * (0.5 * Y - v * r) - Y) - v * S1)) SIGN;
-endmacro
-
-// __kernel_cos(X, Y)
-// kernel cos function on [-pi/4, pi/4], pi/4 ~ 0.785398164
-// Input X is assumed to be bounded by ~pi/4 in magnitude.
-// Input Y is the tail of X so that x = X + Y.
-//
-// Algorithm
-//  1. Since ieee_cos(-x) = ieee_cos(x), we need only to consider positive x.
-//  2. ieee_cos(x) is approximated by a polynomial of degree 14 on
-//     [0,pi/4]
-//                                   4            14
-//          cos(x) ~ 1 - x*x/2 + C1*x + ... + C6*x
-//     where the remez error is
-//
-//  |                   2     4     6     8     10    12     14 |     -58
-//  |ieee_cos(x)-(1-.5*x +C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  )| <= 2
-//  |                                                           |
-//
-//                 4     6     8     10    12     14
-//  3. let r = C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  , then
-//         ieee_cos(x) = 1 - x*x/2 + r
-//     since ieee_cos(X+Y) ~ ieee_cos(X) - ieee_sin(X)*Y
-//                    ~ ieee_cos(X) - X*Y,
-//     a correction term is necessary in ieee_cos(x) and hence
-//         cos(X+Y) = 1 - (X*X/2 - (r - X*Y))
-//     For better accuracy when x > 0.3, let qx = |x|/4 with
-//     the last 32 bits mask off, and if x > 0.78125, let qx = 0.28125.
-//     Then
-//         cos(X+Y) = (1-qx) - ((X*X/2-qx) - (r-X*Y)).
-//     Note that 1-qx and (X*X/2-qx) is EXACT here, and the
-//     magnitude of the latter is at least a quarter of X*X/2,
-//     thus, reducing the rounding error in the subtraction.
-//
-define C1 = 4.16666666666666019037e-02;
-define C2 = -1.38888888888741095749e-03;
-define C3 = 2.48015872894767294178e-05;
-define C4 = -2.75573143513906633035e-07;
-define C5 = 2.08757232129817482790e-09;
-define C6 = -1.13596475577881948265e-11;
-
-macro RETURN_KERNELCOS(X, Y, SIGN)
-  var ix = %_DoubleHi(X) & 0x7fffffff;
-  var z = X * X;
-  var r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
-  if (ix < 0x3fd33333) {  // |x| ~< 0.3
-    return (1 - (0.5 * z - (z * r - X * Y))) SIGN;
-  } else {
-    var qx;
-    if (ix > 0x3fe90000) {  // |x| > 0.78125
-      qx = 0.28125;
-    } else {
-      qx = %_ConstructDouble(%_DoubleHi(0.25 * X), 0);
-    }
-    var hz = 0.5 * z - qx;
-    return (1 - qx - (hz - (z * r - X * Y))) SIGN;
-  }
-endmacro
-
-
 // kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
 // Input x is assumed to be bounded by ~pi/4 in magnitude.
 // Input y is the tail of x.
@@ -343,47 +246,6 @@ function KernelTan(x, y, returnTan) {
     s = 1 + t * z;
     return t + a * (s + t * v);
   }
-}
-
-function MathSinSlow(x) {
-  REMPIO2(x);
-  var sign = 1 - (n & 2);
-  if (n & 1) {
-    RETURN_KERNELCOS(y0, y1, * sign);
-  } else {
-    RETURN_KERNELSIN(y0, y1, * sign);
-  }
-}
-
-function MathCosSlow(x) {
-  REMPIO2(x);
-  if (n & 1) {
-    var sign = (n & 2) - 1;
-    RETURN_KERNELSIN(y0, y1, * sign);
-  } else {
-    var sign = 1 - (n & 2);
-    RETURN_KERNELCOS(y0, y1, * sign);
-  }
-}
-
-// ECMA 262 - 15.8.2.16
-function MathSin(x) {
-  x = +x;  // Convert to number.
-  if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
-    // |x| < pi/4, approximately.  No reduction needed.
-    RETURN_KERNELSIN(x, 0, /* empty */);
-  }
-  return +MathSinSlow(x);
-}
-
-// ECMA 262 - 15.8.2.7
-function MathCos(x) {
-  x = +x;  // Convert to number.
-  if ((%_DoubleHi(x) & 0x7fffffff) <= 0x3fe921fb) {
-    // |x| < pi/4, approximately.  No reduction needed.
-    RETURN_KERNELCOS(x, 0, /* empty */);
-  }
-  return +MathCosSlow(x);
 }
 
 // ECMA 262 - 15.8.2.18
@@ -564,15 +426,10 @@ function MathTanh(x) {
 //-------------------------------------------------------------------
 
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
-  "cos", MathCos,
-  "sin", MathSin,
   "tan", MathTan,
   "sinh", MathSinh,
   "cosh", MathCosh,
   "tanh", MathTanh
 ]);
-
-%SetForceInlineFlag(MathSin);
-%SetForceInlineFlag(MathCos);
 
 })

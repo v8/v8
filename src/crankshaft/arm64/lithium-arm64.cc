@@ -2459,6 +2459,20 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return result;
       }
     }
+    case kMathCos: {
+      DCHECK(instr->representation().IsDouble());
+      DCHECK(instr->value()->representation().IsDouble());
+      LOperand* input = UseFixedDouble(instr->value(), d0);
+      LMathCos* result = new (zone()) LMathCos(input);
+      return MarkAsCall(DefineFixedDouble(result, d0), instr);
+    }
+    case kMathSin: {
+      DCHECK(instr->representation().IsDouble());
+      DCHECK(instr->value()->representation().IsDouble());
+      LOperand* input = UseFixedDouble(instr->value(), d0);
+      LMathSin* result = new (zone()) LMathSin(input);
+      return MarkAsCall(DefineFixedDouble(result, d0), instr);
+    }
     case kMathExp: {
       DCHECK(instr->representation().IsDouble());
       DCHECK(instr->value()->representation().IsDouble());

@@ -3598,6 +3598,12 @@ void LCodeGen::DoPower(LPower* instr) {
   }
 }
 
+void LCodeGen::DoMathCos(LMathCos* instr) {
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_cos_function(isolate()), 1);
+}
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
@@ -3606,6 +3612,12 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
   __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 1);
 }
 
+void LCodeGen::DoMathSin(LMathSin* instr) {
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_sin_function(isolate()), 1);
+}
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
   DCHECK(ToDoubleRegister(instr->value()).is(xmm0));

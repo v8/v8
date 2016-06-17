@@ -655,6 +655,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Atan2:
       ASSEMBLE_IEEE754_BINOP(atan2);
       break;
+    case kIeee754Float64Cbrt:
+      ASSEMBLE_IEEE754_UNOP(cbrt);
+      break;
+    case kIeee754Float64Cos:
+      ASSEMBLE_IEEE754_UNOP(cos);
+      break;
+    case kIeee754Float64Expm1:
+      ASSEMBLE_IEEE754_UNOP(expm1);
+      break;
     case kIeee754Float64Exp:
       ASSEMBLE_IEEE754_UNOP(exp);
       break;
@@ -673,11 +682,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Cbrt:
-      ASSEMBLE_IEEE754_UNOP(cbrt);
-      break;
-    case kIeee754Float64Expm1:
-      ASSEMBLE_IEEE754_UNOP(expm1);
+    case kIeee754Float64Sin:
+      ASSEMBLE_IEEE754_UNOP(sin);
       break;
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {

@@ -1042,17 +1042,16 @@ class ExternalReference BASE_EMBEDDED {
   // IEEE 754 functions.
   static ExternalReference ieee754_atan_function(Isolate* isolate);
   static ExternalReference ieee754_atan2_function(Isolate* isolate);
-  static ExternalReference ieee754_exp_function(Isolate* isolate);
-  static ExternalReference ieee754_log_function(Isolate* isolate);
-  static ExternalReference ieee754_log1p_function(Isolate* isolate);
-  static ExternalReference ieee754_log2_function(Isolate* isolate);
-  static ExternalReference ieee754_log10_function(Isolate* isolate);
   static ExternalReference ieee754_atanh_function(Isolate* isolate);
   static ExternalReference ieee754_cbrt_function(Isolate* isolate);
+  static ExternalReference ieee754_cos_function(Isolate* isolate);
+  static ExternalReference ieee754_exp_function(Isolate* isolate);
   static ExternalReference ieee754_expm1_function(Isolate* isolate);
-
-  static ExternalReference math_exp_constants(int constant_index);
-  static ExternalReference math_exp_log_table();
+  static ExternalReference ieee754_log_function(Isolate* isolate);
+  static ExternalReference ieee754_log1p_function(Isolate* isolate);
+  static ExternalReference ieee754_log10_function(Isolate* isolate);
+  static ExternalReference ieee754_log2_function(Isolate* isolate);
+  static ExternalReference ieee754_sin_function(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

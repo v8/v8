@@ -3546,6 +3546,19 @@ void LCodeGen::DoMathAbsTagged(LMathAbsTagged* instr) {
   __ Bind(&done);
 }
 
+void LCodeGen::DoMathCos(LMathCos* instr) {
+  DCHECK(instr->IsMarkedAsCall());
+  DCHECK(ToDoubleRegister(instr->value()).is(d0));
+  __ CallCFunction(ExternalReference::ieee754_cos_function(isolate()), 0, 1);
+  DCHECK(ToDoubleRegister(instr->result()).Is(d0));
+}
+
+void LCodeGen::DoMathSin(LMathSin* instr) {
+  DCHECK(instr->IsMarkedAsCall());
+  DCHECK(ToDoubleRegister(instr->value()).is(d0));
+  __ CallCFunction(ExternalReference::ieee754_sin_function(isolate()), 0, 1);
+  DCHECK(ToDoubleRegister(instr->result()).Is(d0));
+}
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
   DCHECK(instr->IsMarkedAsCall());

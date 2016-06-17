@@ -199,6 +199,7 @@
   V(NumberImul)                       \
   V(NumberClz32)                      \
   V(NumberCeil)                       \
+  V(NumberCos)                        \
   V(NumberFloor)                      \
   V(NumberFround)                     \
   V(NumberAtan)                       \
@@ -212,6 +213,7 @@
   V(NumberLog10)                      \
   V(NumberCbrt)                       \
   V(NumberRound)                      \
+  V(NumberSin)                        \
   V(NumberSqrt)                       \
   V(NumberTrunc)                      \
   V(NumberToInt32)                    \
@@ -376,13 +378,15 @@
   V(Float64Atan)                \
   V(Float64Atan2)               \
   V(Float64Atanh)               \
+  V(Float64Cbrt)                \
+  V(Float64Cos)                 \
   V(Float64Exp)                 \
   V(Float64Expm1)               \
   V(Float64Log)                 \
   V(Float64Log1p)               \
-  V(Float64Log2)                \
   V(Float64Log10)               \
-  V(Float64Cbrt)                \
+  V(Float64Log2)                \
+  V(Float64Sin)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \

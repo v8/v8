@@ -153,6 +153,18 @@ Reduction JSBuiltinReducer::ReduceMathClz32(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.12 Math.cos ( x )
+Reduction JSBuiltinReducer::ReduceMathCos(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.cos(a:plain-primitive) -> NumberCos(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberCos(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.14 Math.exp ( x )
 Reduction JSBuiltinReducer::ReduceMathExp(Node* node) {
   JSCallReduction r(node);
@@ -239,6 +251,28 @@ Reduction JSBuiltinReducer::ReduceMathLog1p(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.22 Math.log10 ( x )
+Reduction JSBuiltinReducer::ReduceMathLog10(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.log10(a:number) -> NumberLog10(a)
+    Node* value = graph()->NewNode(simplified()->NumberLog10(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.23 Math.log2 ( x )
+Reduction JSBuiltinReducer::ReduceMathLog2(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.log2(a:number) -> NumberLog(a)
+    Node* value = graph()->NewNode(simplified()->NumberLog2(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.24 Math.max ( value1, value2, ...values )
 Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   JSCallReduction r(node);
@@ -293,23 +327,13 @@ Reduction JSBuiltinReducer::ReduceMathMin(Node* node) {
   return NoChange();
 }
 
-// ES6 section 20.2.2.23 Math.log2 ( x )
-Reduction JSBuiltinReducer::ReduceMathLog2(Node* node) {
+// ES6 section 20.2.2.28 Math.round ( x )
+Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.log2(a:number) -> NumberLog(a)
-    Node* value = graph()->NewNode(simplified()->NumberLog2(), r.left());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.22 Math.log10 ( x )
-Reduction JSBuiltinReducer::ReduceMathLog10(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.log10(a:number) -> NumberLog10(a)
-    Node* value = graph()->NewNode(simplified()->NumberLog10(), r.left());
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.round(a:plain-primitive) -> NumberRound(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberRound(), input);
     return Replace(value);
   }
   return NoChange();
@@ -326,13 +350,13 @@ Reduction JSBuiltinReducer::ReduceMathCbrt(Node* node) {
   return NoChange();
 }
 
-// ES6 section 20.2.2.28 Math.round ( x )
-Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
+// ES6 section 20.2.2.30 Math.sin ( x )
+Reduction JSBuiltinReducer::ReduceMathSin(Node* node) {
   JSCallReduction r(node);
   if (r.InputsMatchOne(Type::PlainPrimitive())) {
-    // Math.round(a:plain-primitive) -> NumberRound(ToNumber(a))
+    // Math.sin(a:plain-primitive) -> NumberSin(ToNumber(a))
     Node* input = ToNumber(r.GetJSCallInput(0));
-    Node* value = graph()->NewNode(simplified()->NumberRound(), input);
+    Node* value = graph()->NewNode(simplified()->NumberSin(), input);
     return Replace(value);
   }
   return NoChange();
@@ -396,6 +420,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathCeil:
       reduction = ReduceMathCeil(node);
       break;
+    case kMathCos:
+      reduction = ReduceMathCos(node);
+      break;
     case kMathExp:
       reduction = ReduceMathExp(node);
       break;
@@ -417,11 +444,11 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathLog1p:
       reduction = ReduceMathLog1p(node);
       break;
-    case kMathLog2:
-      reduction = ReduceMathLog2(node);
-      break;
     case kMathLog10:
       reduction = ReduceMathLog10(node);
+      break;
+    case kMathLog2:
+      reduction = ReduceMathLog2(node);
       break;
     case kMathMax:
       reduction = ReduceMathMax(node);
@@ -434,6 +461,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
+      break;
+    case kMathSin:
+      reduction = ReduceMathSin(node);
       break;
     case kMathSqrt:
       reduction = ReduceMathSqrt(node);

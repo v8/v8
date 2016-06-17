@@ -109,6 +109,7 @@ class Schedule;
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
   V(Float64Atan)                        \
   V(Float64Atanh)                       \
+  V(Float64Cos)                         \
   V(Float64Exp)                         \
   V(Float64Expm1)                       \
   V(Float64Log)                         \
@@ -117,6 +118,7 @@ class Schedule;
   V(Float64Log10)                       \
   V(Float64Cbrt)                        \
   V(Float64Neg)                         \
+  V(Float64Sin)                         \
   V(Float64Sqrt)                        \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \

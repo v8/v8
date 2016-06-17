@@ -17,6 +17,9 @@ double atan(double x);
 // the two arguments to determine the quadrant of the result.
 double atan2(double y, double x);
 
+// Returns the cosine of |x|, where |x| is given in radians.
+double cos(double x);
+
 // Returns the base-e exponential of |x|.
 double exp(double x);
 
@@ -29,17 +32,20 @@ double log(double x);
 // accurate even if the value of |x| is near zero.
 double log1p(double x);
 
-// Return the base 2 logarithm of |x|.
+// Returns the base 2 logarithm of |x|.
 double log2(double x);
 
-// Return the base 10 logarithm of |x|.
+// Returns the base 10 logarithm of |x|.
 double log10(double x);
 
-// Return cube root of |x|.
+// Returns the cube root of |x|.
 double cbrt(double x);
 
 // Returns exp(x)-1, the exponential of |x| minus 1.
 double expm1(double x);
+
+// Returns the sine of |x|, where |x| is given in radians.
+double sin(double x);
 
 }  // namespace ieee754
 }  // namespace base

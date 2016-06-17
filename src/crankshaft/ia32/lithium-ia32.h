@@ -102,6 +102,7 @@ class LCodeGen;
   V(LoadRoot)                                \
   V(MathAbs)                                 \
   V(MathClz32)                               \
+  V(MathCos)                                 \
   V(MathExp)                                 \
   V(MathFloorD)                              \
   V(MathFloorI)                              \
@@ -111,6 +112,7 @@ class LCodeGen;
   V(MathPowHalf)                             \
   V(MathRoundD)                              \
   V(MathRoundI)                              \
+  V(MathSin)                                 \
   V(MathSqrt)                                \
   V(MaybeGrowElements)                       \
   V(ModByConstI)                             \
@@ -910,6 +912,24 @@ class LMathClz32 final : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathClz32, "math-clz32")
+};
+
+class LMathCos final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathCos(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
+};
+
+class LMathSin final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathSin(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
 };
 
 class LMathExp final : public LTemplateInstruction<1, 1, 0> {
@@ -2542,6 +2562,8 @@ class LChunkBuilder final : public LChunkBuilderBase {
   LInstruction* DoMathFround(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);
   LInstruction* DoMathLog(HUnaryMathOperation* instr);
+  LInstruction* DoMathCos(HUnaryMathOperation* instr);
+  LInstruction* DoMathSin(HUnaryMathOperation* instr);
   LInstruction* DoMathExp(HUnaryMathOperation* instr);
   LInstruction* DoMathSqrt(HUnaryMathOperation* instr);
   LInstruction* DoMathPowHalf(HUnaryMathOperation* instr);

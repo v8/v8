@@ -1090,10 +1090,14 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return DoMathFround(instr);
     case kMathAbs:
       return DoMathAbs(instr);
+    case kMathCos:
+      return DoMathCos(instr);
     case kMathLog:
       return DoMathLog(instr);
     case kMathExp:
       return DoMathExp(instr);
+    case kMathSin:
+      return DoMathSin(instr);
     case kMathSqrt:
       return DoMathSqrt(instr);
     case kMathPowHalf:
@@ -1167,6 +1171,13 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
   return DefineAsRegister(result);
 }
 
+LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseFixedDouble(instr->value(), xmm0);
+  return MarkAsCall(DefineFixedDouble(new (zone()) LMathCos(input), xmm0),
+                    instr);
+}
 
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
@@ -1176,6 +1187,13 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
                     instr);
 }
 
+LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseFixedDouble(instr->value(), xmm0);
+  return MarkAsCall(DefineFixedDouble(new (zone()) LMathSin(input), xmm0),
+                    instr);
+}
 
 LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
   LOperand* input = UseAtStart(instr->value());

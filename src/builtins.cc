@@ -2421,6 +2421,18 @@ void Builtins::Generate_MathClz32(CodeStubAssembler* assembler) {
   }
 }
 
+// ES6 section 20.2.2.12 Math.cos ( x )
+void Builtins::Generate_MathCos(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Cos(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.14 Math.exp ( x )
 void Builtins::Generate_MathExp(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2523,6 +2535,18 @@ void Builtins::Generate_MathExpm1(CodeStubAssembler* assembler) {
 // ES6 section 20.2.2.28 Math.round ( x )
 void Builtins::Generate_MathRound(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Round);
+}
+
+// ES6 section 20.2.2.30 Math.sin ( x )
+void Builtins::Generate_MathSin(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Sin(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
 // ES6 section 20.2.2.32 Math.sqrt ( x )

@@ -1140,6 +1140,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Atan2(node);
     case IrOpcode::kFloat64Atanh:
       return MarkAsFloat64(node), VisitFloat64Atanh(node);
+    case IrOpcode::kFloat64Cbrt:
+      return MarkAsFloat64(node), VisitFloat64Cbrt(node);
+    case IrOpcode::kFloat64Cos:
+      return MarkAsFloat64(node), VisitFloat64Cos(node);
     case IrOpcode::kFloat64Exp:
       return MarkAsFloat64(node), VisitFloat64Exp(node);
     case IrOpcode::kFloat64Expm1:
@@ -1148,12 +1152,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Log(node);
     case IrOpcode::kFloat64Log1p:
       return MarkAsFloat64(node), VisitFloat64Log1p(node);
-    case IrOpcode::kFloat64Log2:
-      return MarkAsFloat64(node), VisitFloat64Log2(node);
     case IrOpcode::kFloat64Log10:
       return MarkAsFloat64(node), VisitFloat64Log10(node);
-    case IrOpcode::kFloat64Cbrt:
-      return MarkAsFloat64(node), VisitFloat64Cbrt(node);
+    case IrOpcode::kFloat64Log2:
+      return MarkAsFloat64(node), VisitFloat64Log2(node);
+    case IrOpcode::kFloat64Sin:
+      return MarkAsFloat64(node), VisitFloat64Sin(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsFloat64(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
@@ -1271,6 +1275,14 @@ void InstructionSelector::VisitFloat64Atanh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atanh);
 }
 
+void InstructionSelector::VisitFloat64Cbrt(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Cbrt);
+}
+
+void InstructionSelector::VisitFloat64Cos(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Cos);
+}
+
 void InstructionSelector::VisitFloat64Exp(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
@@ -1295,8 +1307,8 @@ void InstructionSelector::VisitFloat64Log10(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
 }
 
-void InstructionSelector::VisitFloat64Cbrt(Node* node) {
-  VisitFloat64Ieee754Unop(node, kIeee754Float64Cbrt);
+void InstructionSelector::VisitFloat64Sin(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Sin);
 }
 
 void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,

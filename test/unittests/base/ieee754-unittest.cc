@@ -63,6 +63,48 @@ TEST(Ieee754, Atanh) {
   EXPECT_DOUBLE_EQ(0.54930614433405478, atanh(0.5));
 }
 
+TEST(Ieee754, Cos) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(cos(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(cos(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(cos(std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(cos(-std::numeric_limits<double>::infinity()), IsNaN());
+
+  // Tests for cos for |x| < pi/4
+  EXPECT_EQ(1.0, 1 / cos(-0.0));
+  EXPECT_EQ(1.0, 1 / cos(0.0));
+  // cos(x) = 1 for |x| < 2^-27
+  EXPECT_EQ(1, cos(2.3283064365386963e-10));
+  EXPECT_EQ(1, cos(-2.3283064365386963e-10));
+  // Test KERNELCOS for |x| < 0.3.
+  // cos(pi/20) = sqrt(sqrt(2)*sqrt(sqrt(5)+5)+4)/2^(3/2)
+  EXPECT_EQ(0.9876883405951378, cos(0.15707963267948966));
+  // Test KERNELCOS for x ~= 0.78125
+  EXPECT_EQ(0.7100335477927638, cos(0.7812504768371582));
+  EXPECT_EQ(0.7100338835660797, cos(0.78125));
+  // Test KERNELCOS for |x| > 0.3.
+  // cos(pi/8) = sqrt(sqrt(2)+1)/2^(3/4)
+  EXPECT_EQ(0.9238795325112867, cos(0.39269908169872414));
+  // Test KERNELTAN for |x| < 0.67434.
+  EXPECT_EQ(0.9238795325112867, cos(-0.39269908169872414));
+
+  // Tests for cos.
+  EXPECT_EQ(1, cos(3.725290298461914e-9));
+  // Cover different code paths in KERNELCOS.
+  EXPECT_EQ(0.9689124217106447, cos(0.25));
+  EXPECT_EQ(0.8775825618903728, cos(0.5));
+  EXPECT_EQ(0.7073882691671998, cos(0.785));
+  // Test that cos(Math.PI/2) != 0 since Math.PI is not exact.
+  EXPECT_EQ(6.123233995736766e-17, cos(1.5707963267948966));
+  // Test cos for various phases.
+  EXPECT_EQ(0.7071067811865474, cos(7.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(0.7071067811865477, cos(9.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(-0.7071067811865467, cos(11.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(-0.7071067811865471, cos(13.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(0.9367521275331447, cos(1000000.0));
+  EXPECT_EQ(-3.435757038074824e-12, cos(1048575.0 / 2 * 3.141592653589793));
+}
+
 TEST(Ieee754, Exp) {
   EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
@@ -170,7 +212,7 @@ TEST(Ieee754, Log10) {
   EXPECT_EQ(5.0, log10(100000.0));
 }
 
-TEST(Ieee754, cbrt) {
+TEST(Ieee754, Cbrt) {
   EXPECT_THAT(cbrt(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(cbrt(std::numeric_limits<double>::signaling_NaN()), IsNaN());
   EXPECT_EQ(std::numeric_limits<double>::infinity(),
@@ -180,6 +222,39 @@ TEST(Ieee754, cbrt) {
   EXPECT_EQ(1.4422495703074083, cbrt(3));
   EXPECT_EQ(100, cbrt(100 * 100 * 100));
   EXPECT_EQ(46.415888336127786, cbrt(100000));
+}
+
+TEST(Ieee754, Sin) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(sin(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(sin(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(sin(std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(sin(-std::numeric_limits<double>::infinity()), IsNaN());
+
+  // Tests for sin for |x| < pi/4
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), 1 / sin(-0.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), 1 / sin(0.0));
+  // sin(x) = x for x < 2^-27
+  EXPECT_EQ(2.3283064365386963e-10, sin(2.3283064365386963e-10));
+  EXPECT_EQ(-2.3283064365386963e-10, sin(-2.3283064365386963e-10));
+  // sin(pi/8) = sqrt(sqrt(2)-1)/2^(3/4)
+  EXPECT_EQ(0.3826834323650898, sin(0.39269908169872414));
+  EXPECT_EQ(-0.3826834323650898, sin(-0.39269908169872414));
+
+  // Tests for sin.
+  EXPECT_EQ(0.479425538604203, sin(0.5));
+  EXPECT_EQ(-0.479425538604203, sin(-0.5));
+  EXPECT_EQ(1, sin(1.5707963267948966));
+  EXPECT_EQ(-1, sin(-1.5707963267948966));
+  // Test that sin(Math.PI) != 0 since Math.PI is not exact.
+  EXPECT_EQ(1.2246467991473532e-16, sin(3.141592653589793));
+  EXPECT_EQ(-7.047032979958965e-14, sin(2200 * 3.141592653589793));
+  // Test sin for various phases.
+  EXPECT_EQ(-0.7071067811865477, sin(7.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(0.7071067811865474, sin(9.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(0.7071067811865483, sin(11.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(-0.7071067811865479, sin(13.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(-3.2103381051568376e-11, sin(1048576.0 / 4 * 3.141592653589793));
 }
 
 }  // namespace ieee754
