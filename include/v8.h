@@ -5470,6 +5470,12 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void TraceEpilogue() = 0;
 
   /**
+   * Let embedder know v8 entered final marking pause (no more incremental steps
+   * will follow).
+   */
+  virtual void EnterFinalPause() {}
+
+  /**
    * Throw away all intermediate data and reset to the initial state.
    */
   virtual void AbortTracing() {}

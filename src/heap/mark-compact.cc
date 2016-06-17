@@ -868,6 +868,10 @@ void MarkCompactCollector::Prepare() {
     }
   }
 
+  if (UsingEmbedderHeapTracer()) {
+    embedder_heap_tracer()->EnterFinalPause();
+  }
+
   // Don't start compaction if we are in the middle of incremental
   // marking cycle. We did not collect any slots.
   if (!FLAG_never_compact && !was_marked_incrementally_) {
