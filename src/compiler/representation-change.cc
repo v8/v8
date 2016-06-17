@@ -675,6 +675,8 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Exp();
     case IrOpcode::kNumberFround:
       return machine()->TruncateFloat64ToFloat32();
+    case IrOpcode::kNumberAtanh:
+      return machine()->Float64Atanh();
     case IrOpcode::kNumberLog:
       return machine()->Float64Log();
     case IrOpcode::kNumberLog1p:
@@ -685,6 +687,10 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Log10();
     case IrOpcode::kNumberSqrt:
       return machine()->Float64Sqrt();
+    case IrOpcode::kNumberCbrt:
+      return machine()->Float64Cbrt();
+    case IrOpcode::kNumberExpm1:
+      return machine()->Float64Expm1();
     case IrOpcode::kNumberSilenceNaN:
       return machine()->Float64SilenceNaN();
     default:

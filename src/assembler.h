@@ -1047,6 +1047,12 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_log1p_function(Isolate* isolate);
   static ExternalReference ieee754_log2_function(Isolate* isolate);
   static ExternalReference ieee754_log10_function(Isolate* isolate);
+  static ExternalReference ieee754_atanh_function(Isolate* isolate);
+  static ExternalReference ieee754_cbrt_function(Isolate* isolate);
+  static ExternalReference ieee754_expm1_function(Isolate* isolate);
+
+  static ExternalReference math_exp_constants(int constant_index);
+  static ExternalReference math_exp_log_table();
 
   static ExternalReference page_flags(Page* page);
 

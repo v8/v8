@@ -1801,9 +1801,14 @@ Type* Typer::Visitor::TypeNumberAtan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeNumberAtanh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberExp(Node* node) {
   return Type::Union(Type::PlainNumber(), Type::NaN(), zone());
 }
+
+// TODO(mvstanton): Is this type sufficient, or should it look like Exp()?
+Type* Typer::Visitor::TypeNumberExpm1(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberLog(Node* node) { return Type::Number(); }
 
@@ -1812,6 +1817,8 @@ Type* Typer::Visitor::TypeNumberLog1p(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeNumberLog2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberLog10(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberCbrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberRound(Node* node) {
   return TypeUnaryOp(node, NumberRound);
@@ -2564,7 +2571,11 @@ Type* Typer::Visitor::TypeFloat64Atan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64Atanh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeFloat64Exp(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Expm1(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log(Node* node) { return Type::Number(); }
 
@@ -2573,6 +2584,8 @@ Type* Typer::Visitor::TypeFloat64Log1p(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeFloat64Log2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log10(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Cbrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sqrt(Node* node) { return Type::Number(); }
 

@@ -2316,6 +2316,18 @@ void Builtins::Generate_MathAtan2(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+// ES6 section 20.2.2.7 Math.atanh ( x )
+void Builtins::Generate_MathAtanh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Atanh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 namespace {
 
 void Generate_MathRoundingOperation(
@@ -2382,6 +2394,18 @@ void Generate_MathRoundingOperation(
 // ES6 section 20.2.2.10 Math.ceil ( x )
 void Builtins::Generate_MathCeil(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Ceil);
+}
+
+// ES6 section 20.2.2.9 Math.cbrt ( x )
+void Builtins::Generate_MathCbrt(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Cbrt(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
 // ES6 section 20.2.2.11 Math.clz32 ( x )
@@ -2535,6 +2559,18 @@ void Builtins::Generate_MathLog10(CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(4);
   Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
   Node* value = assembler->Float64Log10(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.15 Math.expm1 ( x )
+void Builtins::Generate_MathExpm1(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Expm1(x_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
 }

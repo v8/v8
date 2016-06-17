@@ -203,11 +203,14 @@
   V(NumberFround)                     \
   V(NumberAtan)                       \
   V(NumberAtan2)                      \
+  V(NumberAtanh)                      \
   V(NumberExp)                        \
+  V(NumberExpm1)                      \
   V(NumberLog)                        \
   V(NumberLog1p)                      \
   V(NumberLog2)                       \
   V(NumberLog10)                      \
+  V(NumberCbrt)                       \
   V(NumberRound)                      \
   V(NumberSqrt)                       \
   V(NumberTrunc)                      \
@@ -372,11 +375,14 @@
   V(Float64Abs)                 \
   V(Float64Atan)                \
   V(Float64Atan2)               \
+  V(Float64Atanh)               \
   V(Float64Exp)                 \
+  V(Float64Expm1)               \
   V(Float64Log)                 \
   V(Float64Log1p)               \
   V(Float64Log2)                \
   V(Float64Log10)               \
+  V(Float64Cbrt)                \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \

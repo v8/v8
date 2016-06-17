@@ -181,11 +181,14 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberFround();
   const Operator* NumberAtan();
   const Operator* NumberAtan2();
+  const Operator* NumberAtanh();
   const Operator* NumberExp();
+  const Operator* NumberExpm1();
   const Operator* NumberLog();
   const Operator* NumberLog1p();
   const Operator* NumberLog2();
   const Operator* NumberLog10();
+  const Operator* NumberCbrt();
   const Operator* NumberRound();
   const Operator* NumberSqrt();
   const Operator* NumberTrunc();

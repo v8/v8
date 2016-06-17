@@ -538,6 +538,49 @@ double exp(double x) {
   }
 }
 
+/*
+ * Method :
+ *    1.Reduced x to positive by atanh(-x) = -atanh(x)
+ *    2.For x>=0.5
+ *              1              2x                          x
+ *  atanh(x) = --- * log(1 + -------) = 0.5 * log1p(2 * --------)
+ *              2             1 - x                      1 - x
+ *
+ *   For x<0.5
+ *  atanh(x) = 0.5*log1p(2x+2x*x/(1-x))
+ *
+ * Special cases:
+ *  atanh(x) is NaN if |x| > 1 with signal;
+ *  atanh(NaN) is that NaN with no signal;
+ *  atanh(+-1) is +-INF with signal.
+ *
+ */
+double atanh(double x) {
+  static const double one = 1.0, huge = 1e300;
+  static const double zero = 0.0;
+
+  double t;
+  int32_t hx, ix;
+  u_int32_t lx;
+  EXTRACT_WORDS(hx, lx, x);
+  ix = hx & 0x7fffffff;
+  if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3ff00000) /* |x|>1 */
+    return (x - x) / (x - x);
+  if (ix == 0x3ff00000) return x / zero;
+  if (ix < 0x3e300000 && (huge + x) > zero) return x; /* x<2**-28 */
+  SET_HIGH_WORD(x, ix);
+  if (ix < 0x3fe00000) { /* x < 0.5 */
+    t = x + x;
+    t = 0.5 * log1p(t + t * x / (one - x));
+  } else {
+    t = 0.5 * log1p((x + x) / (one - x));
+  }
+  if (hx >= 0)
+    return t;
+  else
+    return -t;
+}
+
 /* log(x)
  * Return the logrithm of x
  *
@@ -831,88 +874,6 @@ double log1p(double x) {
     return k * ln2_hi - ((hfsq - (s * (hfsq + R) + (k * ln2_lo + c))) - f);
 }
 
-/*
- * k_log1p(f):
- * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].
- *
- * The following describes the overall strategy for computing
- * logarithms in base e.  The argument reduction and adding the final
- * term of the polynomial are done by the caller for increased accuracy
- * when different bases are used.
- *
- * Method :
- *   1. Argument Reduction: find k and f such that
- *         x = 2^k * (1+f),
- *         where  sqrt(2)/2 < 1+f < sqrt(2) .
- *
- *   2. Approximation of log(1+f).
- *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *            = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate
- *      a polynomial of degree 14 to approximate R The maximum error
- *      of this polynomial approximation is bounded by 2**-58.45. In
- *      other words,
- *          2      4      6      8      10      12      14
- *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
- *      (the values of Lg1 to Lg7 are listed in the program)
- *      and
- *          |      2          14          |     -58.45
- *          | Lg1*s +...+Lg7*s    -  R(z) | <= 2
- *          |                             |
- *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *      In order to guarantee error in log below 1ulp, we compute log
- *      by
- *          log(1+f) = f - s*(f - R)            (if f is not too large)
- *          log(1+f) = f - (hfsq - s*(hfsq+R)). (better accuracy)
- *
- *   3. Finally,  log(x) = k*ln2 + log(1+f).
- *          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *      Here ln2 is split into two floating point number:
- *          ln2_hi + ln2_lo,
- *      where n*ln2_hi is always exact for |n| < 2000.
- *
- * Special cases:
- *      log(x) is NaN with signal if x < 0 (including -INF) ;
- *      log(+INF) is +INF; log(0) is -INF with signal;
- *      log(NaN) is that NaN with no signal.
- *
- * Accuracy:
- *      according to an error analysis, the error is always less than
- *      1 ulp (unit in the last place).
- *
- * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
- * to produce the hexadecimal values shown.
- */
-
-static const double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
-    Lg2 = 3.999999999940941908e-01,                 /* 3FD99999 9997FA04 */
-    Lg3 = 2.857142874366239149e-01,                 /* 3FD24924 94229359 */
-    Lg4 = 2.222219843214978396e-01,                 /* 3FCC71C5 1D8E78AF */
-    Lg5 = 1.818357216161805012e-01,                 /* 3FC74664 96CB03DE */
-    Lg6 = 1.531383769920937332e-01,                 /* 3FC39A09 D078C69F */
-    Lg7 = 1.479819860511658591e-01;                 /* 3FC2F112 DF3E5244 */
-
-/*
- * We always inline k_log1p(), since doing so produces a
- * substantial performance improvement (~40% on amd64).
- */
-static inline double k_log1p(double f) {
-  double hfsq, s, z, R, w, t1, t2;
-
-  s = f / (2.0 + f);
-  z = s * s;
-  w = z * z;
-  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
-  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
-  R = t2 + t1;
-  hfsq = 0.5 * f * f;
-  return s * (hfsq + R);
-}
-
 // ES6 draft 09-27-13, section 20.2.2.22.
 // Return the base 2 logarithm of x
 //
@@ -1026,72 +987,6 @@ double log2(double x) {
   return t1 + t2;
 }
 
-/*
- * Return the base 10 logarithm of x.  See e_log.c and k_log.h for most
- * comments.
- *
- *    log10(x) = (f - 0.5*f*f + k_log1p(f)) / ln10 + k * log10(2)
- * in not-quite-routine extra precision.
- */
-double log10Old(double x) {
-  static const double
-      two54 = 1.80143985094819840000e+16,     /* 0x43500000, 0x00000000 */
-      ivln10hi = 4.34294481878168880939e-01,  /* 0x3fdbcb7b, 0x15200000 */
-      ivln10lo = 2.50829467116452752298e-11,  /* 0x3dbb9438, 0xca9aadd5 */
-      log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
-      log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
-
-  static const double zero = 0.0;
-  static volatile double vzero = 0.0;
-
-  double f, hfsq, hi, lo, r, val_hi, val_lo, w, y, y2;
-  int32_t i, k, hx;
-  u_int32_t lx;
-
-  EXTRACT_WORDS(hx, lx, x);
-
-  k = 0;
-  if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7fffffff) | lx) == 0)
-      return -two54 / vzero;           /* log(+-0)=-inf */
-    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
-    k -= 54;
-    x *= two54; /* subnormal number, scale up x */
-    GET_HIGH_WORD(hx, x);
-  }
-  if (hx >= 0x7ff00000) return x + x;
-  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
-  k += (hx >> 20) - 1023;
-  hx &= 0x000fffff;
-  i = (hx + 0x95f64) & 0x100000;
-  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
-  k += (i >> 20);
-  y = static_cast<double>(k);
-  f = x - 1.0;
-  hfsq = 0.5 * f * f;
-  r = k_log1p(f);
-
-  /* See e_log2.c for most details. */
-  hi = f - hfsq;
-  SET_LOW_WORD(hi, 0);
-  lo = (f - hi) - hfsq + r;
-  val_hi = hi * ivln10hi;
-  y2 = y * log10_2hi;
-  val_lo = y * log10_2lo + (lo + hi) * ivln10lo + lo * ivln10hi;
-
-  /*
-   * Extra precision in for adding y*log10_2hi is not strictly needed
-   * since there is no very large cancellation near x = sqrt(2) or
-   * x = 1/sqrt(2), but we do it anyway since it costs little on CPUs
-   * with some parallelism and it reduces the error for many args.
-   */
-  w = y2 + val_hi;
-  val_lo += (y2 - w) + val_hi;
-  val_hi = w;
-
-  return val_lo + val_hi;
-}
-
 double log10(double x) {
   static const double
       two54 = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
@@ -1130,6 +1025,305 @@ double log10(double x) {
 
   double z = y * log10_2lo + ivln10 * log(x);
   return z + y * log10_2hi;
+}
+
+/* expm1(x)
+ * Returns exp(x)-1, the exponential of x minus 1.
+ *
+ * Method
+ *   1. Argument reduction:
+ *  Given x, find r and integer k such that
+ *
+ *               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658
+ *
+ *      Here a correction term c will be computed to compensate
+ *  the error in r when rounded to a floating-point number.
+ *
+ *   2. Approximating expm1(r) by a special rational function on
+ *  the interval [0,0.34658]:
+ *  Since
+ *      r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 - r^4/360 + ...
+ *  we define R1(r*r) by
+ *      r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 * R1(r*r)
+ *  That is,
+ *      R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
+ *         = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
+ *         = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
+ *      We use a special Reme algorithm on [0,0.347] to generate
+ *   a polynomial of degree 5 in r*r to approximate R1. The
+ *  maximum error of this polynomial approximation is bounded
+ *  by 2**-61. In other words,
+ *      R1(z) ~ 1.0 + Q1*z + Q2*z**2 + Q3*z**3 + Q4*z**4 + Q5*z**5
+ *  where   Q1  =  -1.6666666666666567384E-2,
+ *     Q2  =   3.9682539681370365873E-4,
+ *     Q3  =  -9.9206344733435987357E-6,
+ *     Q4  =   2.5051361420808517002E-7,
+ *     Q5  =  -6.2843505682382617102E-9;
+ *    z   =  r*r,
+ *  with error bounded by
+ *      |                  5           |     -61
+ *      | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2
+ *      |                              |
+ *
+ *  expm1(r) = exp(r)-1 is then computed by the following
+ *   specific way which minimize the accumulation rounding error:
+ *             2     3
+ *            r     r    [ 3 - (R1 + R1*r/2)  ]
+ *        expm1(r) = r + --- + --- * [--------------------]
+ *                  2     2    [ 6 - r*(3 - R1*r/2) ]
+ *
+ *  To compensate the error in the argument reduction, we use
+ *    expm1(r+c) = expm1(r) + c + expm1(r)*c
+ *         ~ expm1(r) + c + r*c
+ *  Thus c+r*c will be added in as the correction terms for
+ *  expm1(r+c). Now rearrange the term to avoid optimization
+ *   screw up:
+ *            (      2                                    2 )
+ *            ({  ( r    [ R1 -  (3 - R1*r/2) ]  )  }    r  )
+ *   expm1(r+c)~r - ({r*(--- * [--------------------]-c)-c} - --- )
+ *                  ({  ( 2    [ 6 - r*(3 - R1*r/2) ]  )  }    2  )
+ *                      (                                             )
+ *
+ *       = r - E
+ *   3. Scale back to obtain expm1(x):
+ *  From step 1, we have
+ *     expm1(x) = either 2^k*[expm1(r)+1] - 1
+ *        = or     2^k*[expm1(r) + (1-2^-k)]
+ *   4. Implementation notes:
+ *  (A). To save one multiplication, we scale the coefficient Qi
+ *       to Qi*2^i, and replace z by (x^2)/2.
+ *  (B). To achieve maximum accuracy, we compute expm1(x) by
+ *    (i)   if x < -56*ln2, return -1.0, (raise inexact if x!=inf)
+ *    (ii)  if k=0, return r-E
+ *    (iii) if k=-1, return 0.5*(r-E)-0.5
+ *        (iv)  if k=1 if r < -0.25, return 2*((r+0.5)- E)
+ *                  else       return  1.0+2.0*(r-E);
+ *    (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
+ *    (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
+ *    (vii) return 2^k(1-((E+2^-k)-r))
+ *
+ * Special cases:
+ *  expm1(INF) is INF, expm1(NaN) is NaN;
+ *  expm1(-INF) is -1, and
+ *  for finite argument, only expm1(0)=0 is exact.
+ *
+ * Accuracy:
+ *  according to an error analysis, the error is always less than
+ *  1 ulp (unit in the last place).
+ *
+ * Misc. info.
+ *  For IEEE double
+ *      if x >  7.09782712893383973096e+02 then expm1(x) overflow
+ *
+ * Constants:
+ * The hexadecimal values are the intended ones for the following
+ * constants. The decimal values may be used, provided that the
+ * compiler will convert from decimal to binary accurately enough
+ * to produce the hexadecimal values shown.
+ */
+double expm1(double x) {
+  static const double
+      one = 1.0,
+      tiny = 1.0e-300,
+      o_threshold = 7.09782712893383973096e+02, /* 0x40862E42, 0xFEFA39EF */
+      ln2_hi = 6.93147180369123816490e-01,      /* 0x3fe62e42, 0xfee00000 */
+      ln2_lo = 1.90821492927058770002e-10,      /* 0x3dea39ef, 0x35793c76 */
+      invln2 = 1.44269504088896338700e+00,      /* 0x3ff71547, 0x652b82fe */
+      /* Scaled Q's: Qn_here = 2**n * Qn_above, for R(2*z) where z = hxs =
+         x*x/2: */
+      Q1 = -3.33333333333331316428e-02, /* BFA11111 111110F4 */
+      Q2 = 1.58730158725481460165e-03,  /* 3F5A01A0 19FE5585 */
+      Q3 = -7.93650757867487942473e-05, /* BF14CE19 9EAADBB7 */
+      Q4 = 4.00821782732936239552e-06,  /* 3ED0CFCA 86E65239 */
+      Q5 = -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
+
+  static volatile double huge = 1.0e+300;
+
+  double y, hi, lo, c, t, e, hxs, hfx, r1, twopk;
+  int32_t k, xsb;
+  u_int32_t hx;
+
+  GET_HIGH_WORD(hx, x);
+  xsb = hx & 0x80000000; /* sign bit of x */
+  hx &= 0x7fffffff;      /* high word of |x| */
+
+  /* filter out huge and non-finite argument */
+  if (hx >= 0x4043687A) {   /* if |x|>=56*ln2 */
+    if (hx >= 0x40862E42) { /* if |x|>=709.78... */
+      if (hx >= 0x7ff00000) {
+        u_int32_t low;
+        GET_LOW_WORD(low, x);
+        if (((hx & 0xfffff) | low) != 0)
+          return x + x; /* NaN */
+        else
+          return (xsb == 0) ? x : -1.0; /* exp(+-inf)={inf,-1} */
+      }
+      if (x > o_threshold) return huge * huge; /* overflow */
+    }
+    if (xsb != 0) {        /* x < -56*ln2, return -1.0 with inexact */
+      if (x + tiny < 0.0)  /* raise inexact */
+        return tiny - one; /* return -1 */
+    }
+  }
+
+  /* argument reduction */
+  if (hx > 0x3fd62e42) {   /* if  |x| > 0.5 ln2 */
+    if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
+      if (xsb == 0) {
+        hi = x - ln2_hi;
+        lo = ln2_lo;
+        k = 1;
+      } else {
+        hi = x + ln2_hi;
+        lo = -ln2_lo;
+        k = -1;
+      }
+    } else {
+      k = invln2 * x + ((xsb == 0) ? 0.5 : -0.5);
+      t = k;
+      hi = x - t * ln2_hi; /* t*ln2_hi is exact here */
+      lo = t * ln2_lo;
+    }
+    STRICT_ASSIGN(double, x, hi - lo);
+    c = (hi - x) - lo;
+  } else if (hx < 0x3c900000) { /* when |x|<2**-54, return x */
+    t = huge + x;               /* return x with inexact flags when x!=0 */
+    return x - (t - (huge + x));
+  } else {
+    k = 0;
+  }
+
+  /* x is now in primary range */
+  hfx = 0.5 * x;
+  hxs = x * hfx;
+  r1 = one + hxs * (Q1 + hxs * (Q2 + hxs * (Q3 + hxs * (Q4 + hxs * Q5))));
+  t = 3.0 - r1 * hfx;
+  e = hxs * ((r1 - t) / (6.0 - x * t));
+  if (k == 0) {
+    return x - (x * e - hxs); /* c is 0 */
+  } else {
+    INSERT_WORDS(twopk, 0x3ff00000 + (k << 20), 0); /* 2^k */
+    e = (x * (e - c) - c);
+    e -= hxs;
+    if (k == -1) return 0.5 * (x - e) - 0.5;
+    if (k == 1) {
+      if (x < -0.25)
+        return -2.0 * (e - (x + 0.5));
+      else
+        return one + 2.0 * (x - e);
+    }
+    if (k <= -2 || k > 56) { /* suffice to return exp(x)-1 */
+      y = one - (e - x);
+      // TODO(mvstanton): is this replacement for the hex float
+      // sufficient?
+      // if (k == 1024) y = y*2.0*0x1p1023;
+      if (k == 1024)
+        y = y * 2.0 * 8.98846567431158e+307;
+      else
+        y = y * twopk;
+      return y - one;
+    }
+    t = one;
+    if (k < 20) {
+      SET_HIGH_WORD(t, 0x3ff00000 - (0x200000 >> k)); /* t=1-2^-k */
+      y = t - (e - x);
+      y = y * twopk;
+    } else {
+      SET_HIGH_WORD(t, ((0x3ff - k) << 20)); /* 2^-k */
+      y = x - (e + t);
+      y += one;
+      y = y * twopk;
+    }
+  }
+  return y;
+}
+
+double cbrt(double x) {
+  static const u_int32_t
+      B1 = 715094163, /* B1 = (1023-1023/3-0.03306235651)*2**20 */
+      B2 = 696219795; /* B2 = (1023-1023/3-54/3-0.03306235651)*2**20 */
+
+  /* |1/cbrt(x) - p(x)| < 2**-23.5 (~[-7.93e-8, 7.929e-8]). */
+  static const double P0 = 1.87595182427177009643, /* 0x3ffe03e6, 0x0f61e692 */
+      P1 = -1.88497979543377169875,                /* 0xbffe28e0, 0x92f02420 */
+      P2 = 1.621429720105354466140,                /* 0x3ff9f160, 0x4a49d6c2 */
+      P3 = -0.758397934778766047437,               /* 0xbfe844cb, 0xbee751d9 */
+      P4 = 0.145996192886612446982;                /* 0x3fc2b000, 0xd4e4edd7 */
+
+  int32_t hx;
+  union {
+    double value;
+    uint64_t bits;
+  } u;
+  double r, s, t = 0.0, w;
+  u_int32_t sign;
+  u_int32_t high, low;
+
+  EXTRACT_WORDS(hx, low, x);
+  sign = hx & 0x80000000; /* sign= sign(x) */
+  hx ^= sign;
+  if (hx >= 0x7ff00000) return (x + x); /* cbrt(NaN,INF) is itself */
+
+  /*
+   * Rough cbrt to 5 bits:
+   *    cbrt(2**e*(1+m) ~= 2**(e/3)*(1+(e%3+m)/3)
+   * where e is integral and >= 0, m is real and in [0, 1), and "/" and
+   * "%" are integer division and modulus with rounding towards minus
+   * infinity.  The RHS is always >= the LHS and has a maximum relative
+   * error of about 1 in 16.  Adding a bias of -0.03306235651 to the
+   * (e%3+m)/3 term reduces the error to about 1 in 32. With the IEEE
+   * floating point representation, for finite positive normal values,
+   * ordinary integer divison of the value in bits magically gives
+   * almost exactly the RHS of the above provided we first subtract the
+   * exponent bias (1023 for doubles) and later add it back.  We do the
+   * subtraction virtually to keep e >= 0 so that ordinary integer
+   * division rounds towards minus infinity; this is also efficient.
+   */
+  if (hx < 0x00100000) {             /* zero or subnormal? */
+    if ((hx | low) == 0) return (x); /* cbrt(0) is itself */
+    SET_HIGH_WORD(t, 0x43500000);    /* set t= 2**54 */
+    t *= x;
+    GET_HIGH_WORD(high, t);
+    INSERT_WORDS(t, sign | ((high & 0x7fffffff) / 3 + B2), 0);
+  } else {
+    INSERT_WORDS(t, sign | (hx / 3 + B1), 0);
+  }
+
+  /*
+   * New cbrt to 23 bits:
+   *    cbrt(x) = t*cbrt(x/t**3) ~= t*P(t**3/x)
+   * where P(r) is a polynomial of degree 4 that approximates 1/cbrt(r)
+   * to within 2**-23.5 when |r - 1| < 1/10.  The rough approximation
+   * has produced t such than |t/cbrt(x) - 1| ~< 1/32, and cubing this
+   * gives us bounds for r = t**3/x.
+   *
+   * Try to optimize for parallel evaluation as in k_tanf.c.
+   */
+  r = (t * t) * (t / x);
+  t = t * ((P0 + r * (P1 + r * P2)) + ((r * r) * r) * (P3 + r * P4));
+
+  /*
+   * Round t away from zero to 23 bits (sloppily except for ensuring that
+   * the result is larger in magnitude than cbrt(x) but not much more than
+   * 2 23-bit ulps larger).  With rounding towards zero, the error bound
+   * would be ~5/6 instead of ~4/6.  With a maximum error of 2 23-bit ulps
+   * in the rounded t, the infinite-precision error in the Newton
+   * approximation barely affects third digit in the final error
+   * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
+   * before the final error is larger than 0.667 ulps.
+   */
+  u.value = t;
+  u.bits = (u.bits + 0x80000000) & 0xffffffffc0000000ULL;
+  t = u.value;
+
+  /* one step Newton iteration to 53 bits with error < 0.667 ulps */
+  s = t * t;             /* t*t is exact */
+  r = x / s;             /* error <= 0.5 ulps; |r| < |t| */
+  w = t + t;             /* t+t is exact */
+  r = (r - t) / (w + r); /* r-t is exact; w+r ~= 3*t */
+  t = t + t * r;         /* error <= 0.5 + 0.5/3 + epsilon */
+
+  return (t);
 }
 
 }  // namespace ieee754

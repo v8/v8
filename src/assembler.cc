@@ -1568,6 +1568,11 @@ ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
       isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
 }
 
+ExternalReference ExternalReference::ieee754_atanh_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::atanh), BUILTIN_FP_FP_CALL));
+}
+
 ExternalReference ExternalReference::ieee754_exp_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
@@ -1591,6 +1596,16 @@ ExternalReference ExternalReference::ieee754_log2_function(Isolate* isolate) {
 ExternalReference ExternalReference::ieee754_log10_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::log10), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_cbrt_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(base::ieee754::cbrt),
+                                    BUILTIN_FP_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_expm1_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::expm1), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::page_flags(Page* page) {

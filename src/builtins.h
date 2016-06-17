@@ -318,7 +318,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(GeneratorPrototypeThrow, 2)       \
   V(MathAtan, 2)                      \
   V(MathAtan2, 3)                     \
+  V(MathAtanh, 2)                     \
   V(MathCeil, 2)                      \
+  V(MathCbrt, 2)                      \
+  V(MathExpm1, 2)                     \
   V(MathClz32, 2)                     \
   V(MathExp, 2)                       \
   V(MathFloor, 2)                     \
@@ -631,8 +634,14 @@ class Builtins {
   static void Generate_MathAtan(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.8 Math.atan2 ( y, x )
   static void Generate_MathAtan2(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.7 Math.atanh ( x )
+  static void Generate_MathAtanh(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.10 Math.ceil ( x )
   static void Generate_MathCeil(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.9 Math.ceil ( x )
+  static void Generate_MathCbrt(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.15 Math.expm1 ( x )
+  static void Generate_MathExpm1(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.11 Math.clz32 ( x )
   static void Generate_MathClz32(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.14 Math.exp ( x )

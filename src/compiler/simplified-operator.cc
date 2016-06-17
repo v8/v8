@@ -254,11 +254,14 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberFround, Operator::kNoProperties, 1)              \
   V(NumberAtan, Operator::kNoProperties, 1)                \
   V(NumberAtan2, Operator::kNoProperties, 2)               \
+  V(NumberAtanh, Operator::kNoProperties, 1)               \
   V(NumberExp, Operator::kNoProperties, 1)                 \
+  V(NumberExpm1, Operator::kNoProperties, 1)               \
   V(NumberLog, Operator::kNoProperties, 1)                 \
   V(NumberLog1p, Operator::kNoProperties, 1)               \
   V(NumberLog2, Operator::kNoProperties, 1)                \
   V(NumberLog10, Operator::kNoProperties, 1)               \
+  V(NumberCbrt, Operator::kNoProperties, 1)                \
   V(NumberRound, Operator::kNoProperties, 1)               \
   V(NumberSqrt, Operator::kNoProperties, 1)                \
   V(NumberTrunc, Operator::kNoProperties, 1)               \

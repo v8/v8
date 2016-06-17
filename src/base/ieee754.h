@@ -20,6 +20,8 @@ double atan2(double y, double x);
 // Returns the base-e exponential of |x|.
 double exp(double x);
 
+double atanh(double x);
+
 // Returns the natural logarithm of |x|.
 double log(double x);
 
@@ -32,6 +34,12 @@ double log2(double x);
 
 // Return the base 10 logarithm of |x|.
 double log10(double x);
+
+// Return cube root of |x|.
+double cbrt(double x);
+
+// Returns exp(x)-1, the exponential of |x| minus 1.
+double expm1(double x);
 
 }  // namespace ieee754
 }  // namespace base

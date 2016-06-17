@@ -118,6 +118,17 @@ Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.7 Math.atanh ( x )
+Reduction JSBuiltinReducer::ReduceMathAtanh(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.atanh(a:number) -> NumberAtanh(a)
+    Node* value = graph()->NewNode(simplified()->NumberAtanh(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.10 Math.ceil ( x )
 Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
   JSCallReduction r(node);
@@ -149,6 +160,17 @@ Reduction JSBuiltinReducer::ReduceMathExp(Node* node) {
     // Math.exp(a:plain-primitive) -> NumberExp(ToNumber(a))
     Node* input = ToNumber(r.GetJSCallInput(0));
     Node* value = graph()->NewNode(simplified()->NumberExp(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.15 Math.expm1 ( x )
+Reduction JSBuiltinReducer::ReduceMathExpm1(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.expm1(a:number) -> NumberExpm1(a)
+    Node* value = graph()->NewNode(simplified()->NumberExpm1(), r.left());
     return Replace(value);
   }
   return NoChange();
@@ -293,6 +315,17 @@ Reduction JSBuiltinReducer::ReduceMathLog10(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.9 Math.cbrt ( x )
+Reduction JSBuiltinReducer::ReduceMathCbrt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.cbrt(a:number) -> NumberCbrt(a)
+    Node* value = graph()->NewNode(simplified()->NumberCbrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
@@ -354,6 +387,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathAtan2:
       reduction = ReduceMathAtan2(node);
       break;
+    case kMathAtanh:
+      reduction = ReduceMathAtanh(node);
+      break;
     case kMathClz32:
       reduction = ReduceMathClz32(node);
       break;
@@ -362,6 +398,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathExp:
       reduction = ReduceMathExp(node);
+      break;
+    case kMathExpm1:
+      reduction = ReduceMathExpm1(node);
       break;
     case kMathFloor:
       reduction = ReduceMathFloor(node);
@@ -389,6 +428,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathMin:
       reduction = ReduceMathMin(node);
+      break;
+    case kMathCbrt:
+      reduction = ReduceMathCbrt(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);

@@ -1674,7 +1674,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "asin", Builtins::kMathAsin, 1, true);
     SimpleInstallFunction(math, "atan", Builtins::kMathAtan, 1, true);
     SimpleInstallFunction(math, "atan2", Builtins::kMathAtan2, 2, true);
+    SimpleInstallFunction(math, "atanh", Builtins::kMathAtanh, 1, true);
     SimpleInstallFunction(math, "ceil", Builtins::kMathCeil, 1, true);
+    SimpleInstallFunction(math, "cbrt", Builtins::kMathCbrt, 1, true);
+    SimpleInstallFunction(math, "expm1", Builtins::kMathExpm1, 1, true);
     SimpleInstallFunction(math, "clz32", Builtins::kMathClz32, 1, true);
     Handle<JSFunction> math_exp =
         SimpleInstallFunction(math, "exp", Builtins::kMathExp, 1, true);
@@ -2582,6 +2585,13 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
           script_is_embedder_debug_script, attribs);
       script_map->AppendDescriptor(&d);
+    }
+
+    {
+      // TODO(mvstanton): Remove this when MathSinh, MathCosh and MathTanh are
+      // no longer implemented in fdlibm.js.
+      SimpleInstallFunction(container, "MathExpm1", Builtins::kMathExpm1, 1,
+                            true);
     }
 
     {

@@ -54,6 +54,15 @@ TEST(Ieee754, Atan2) {
                          -std::numeric_limits<double>::infinity()));
 }
 
+TEST(Ieee754, Atanh) {
+  EXPECT_THAT(atanh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(atanh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(atanh(std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), atanh(1));
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), atanh(-1));
+  EXPECT_DOUBLE_EQ(0.54930614433405478, atanh(0.5));
+}
+
 TEST(Ieee754, Exp) {
   EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
@@ -80,6 +89,20 @@ TEST(Ieee754, Exp) {
   EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(1000.0));
   EXPECT_EQ(std::numeric_limits<double>::infinity(),
             exp(std::numeric_limits<double>::infinity()));
+}
+
+TEST(Ieee754, Expm1) {
+  EXPECT_THAT(expm1(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(expm1(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_EQ(-1.0, expm1(-std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(),
+            expm1(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(0.0, expm1(-0.0));
+  EXPECT_EQ(0.0, expm1(0.0));
+  EXPECT_EQ(1.718281828459045, expm1(1.0));
+  EXPECT_EQ(2.6881171418161356e+43, expm1(100.0));
+  EXPECT_EQ(8.218407461554972e+307, expm1(709.0));
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), expm1(710.0));
 }
 
 TEST(Ieee754, Log) {
@@ -144,6 +167,18 @@ TEST(Ieee754, Log10) {
   EXPECT_EQ(3.7389561269540406, log10(5482.2158));
   EXPECT_EQ(14.661551142893833, log10(458723662312872.125782332587));
   EXPECT_EQ(-0.9083828622192334, log10(0.12348583358871));
+}
+
+TEST(Ieee754, cbrt) {
+  EXPECT_THAT(cbrt(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(cbrt(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_EQ(std::numeric_limits<double>::infinity(),
+            cbrt(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(),
+            cbrt(-std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(1.4422495703074083, cbrt(3));
+  EXPECT_EQ(100, cbrt(100 * 100 * 100));
+  EXPECT_EQ(46.415888336127786, cbrt(100000));
 }
 
 }  // namespace ieee754

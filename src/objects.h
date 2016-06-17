@@ -6591,7 +6591,9 @@ class Script: public Struct {
   V(Math, log1p, MathLog1p)                                 \
   V(Math, log2, MathLog2)                                   \
   V(Math, log10, MathLog10)                                 \
+  V(Math, cbrt, MathCbrt)                                   \
   V(Math, exp, MathExp)                                     \
+  V(Math, expm1, MathExpm1)                                 \
   V(Math, sqrt, MathSqrt)                                   \
   V(Math, pow, MathPow)                                     \
   V(Math, max, MathMax)                                     \
@@ -6603,6 +6605,7 @@ class Script: public Struct {
   V(Math, asin, MathAsin)                                   \
   V(Math, atan, MathAtan)                                   \
   V(Math, atan2, MathAtan2)                                 \
+  V(Math, atanh, MathAtanh)                                 \
   V(Math, imul, MathImul)                                   \
   V(Math, clz32, MathClz32)                                 \
   V(Math, fround, MathFround)                               \

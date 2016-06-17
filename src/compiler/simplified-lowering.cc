@@ -1442,11 +1442,14 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberAtan:
+      case IrOpcode::kNumberAtanh:
       case IrOpcode::kNumberExp:
+      case IrOpcode::kNumberExpm1:
       case IrOpcode::kNumberLog:
       case IrOpcode::kNumberLog1p:
       case IrOpcode::kNumberLog2:
-      case IrOpcode::kNumberLog10: {
+      case IrOpcode::kNumberLog10:
+      case IrOpcode::kNumberCbrt: {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));

@@ -88,16 +88,6 @@ function MathAcosh(x) {
   return %math_log(x + %math_sqrt(x + 1) * %math_sqrt(x - 1));
 }
 
-// ES6 draft 09-27-13, section 20.2.2.7.
-function MathAtanh(x) {
-  x = TO_NUMBER(x);
-  // Idempotent for +/-0.
-  if (x === 0) return x;
-  // Returns NaN for NaN and +/- Infinity.
-  if (!NUMBER_IS_FINITE(x)) return NaN;
-  return 0.5 * %math_log((1 + x) / (1 - x));
-}
-
 // ES6 draft 09-27-13, section 20.2.2.17.
 function MathHypot(x, y) {  // Function length is 2.
   // We may want to introduce fast paths for two arguments and when
@@ -125,29 +115,6 @@ function MathHypot(x, y) {  // Function length is 2.
     sum = preliminary;
   }
   return %math_sqrt(sum) * max;
-}
-
-// ES6 draft 09-27-13, section 20.2.2.9.
-// Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
-// Using initial approximation adapted from Kahan's cbrt and 4 iterations
-// of Newton's method.
-function MathCbrt(x) {
-  x = TO_NUMBER(x);
-  if (x == 0 || !NUMBER_IS_FINITE(x)) return x;
-  return x >= 0 ? CubeRoot(x) : -CubeRoot(-x);
-}
-
-macro NEWTON_ITERATION_CBRT(x, approx)
-  (1.0 / 3.0) * (x / (approx * approx) + 2 * approx);
-endmacro
-
-function CubeRoot(x) {
-  var approx_hi = %math_floor(%_DoubleHi(x) / 3) + 0x2A9F7893;
-  var approx = %_ConstructDouble(approx_hi | 0, 0);
-  approx = NEWTON_ITERATION_CBRT(x, approx);
-  approx = NEWTON_ITERATION_CBRT(x, approx);
-  approx = NEWTON_ITERATION_CBRT(x, approx);
-  return NEWTON_ITERATION_CBRT(x, approx);
 }
 
 // -------------------------------------------------------------------
@@ -183,9 +150,7 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "sign", MathSign,
   "asinh", MathAsinh,
   "acosh", MathAcosh,
-  "atanh", MathAtanh,
   "hypot", MathHypot,
-  "cbrt", MathCbrt
 ]);
 
 %SetForceInlineFlag(MathAbs);
