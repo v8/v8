@@ -1154,6 +1154,7 @@ class Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
 
   void punpckldq(XMMRegister dst, XMMRegister src);
+  void punpckldq(XMMRegister dst, const Operand& src);
   void punpckhdq(XMMRegister dst, XMMRegister src);
 
   // SSE 4.1 instruction
@@ -1195,8 +1196,6 @@ class Assembler : public AssemblerBase {
   void pmulld(XMMRegister dst, const Operand& src);
   void pmuludq(XMMRegister dst, XMMRegister src);
   void pmuludq(XMMRegister dst, const Operand& src);
-  void punpackldq(XMMRegister dst, XMMRegister src);
-  void punpackldq(XMMRegister dst, const Operand& src);
   void psrldq(XMMRegister dst, uint8_t shift);
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void cvtps2dq(XMMRegister dst, XMMRegister src);

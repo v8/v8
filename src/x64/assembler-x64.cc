@@ -3790,6 +3790,14 @@ void Assembler::punpckldq(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::punpckldq(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x62);
+  emit_sse_operand(dst, src);
+}
 
 void Assembler::punpckhdq(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
@@ -4434,7 +4442,8 @@ void Assembler::pmulld(XMMRegister dst, const Operand& src) {
   emit(0x66);
   emit_optional_rex_32(dst, src);
   emit(0x0F);
-  emit(0xF4);
+  emit(0x38);
+  emit(0x40);
   emit_sse_operand(dst, src);
 }
 
@@ -4453,24 +4462,6 @@ void Assembler::pmuludq(XMMRegister dst, const Operand& src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xF4);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::punpackldq(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x62);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::punpackldq(XMMRegister dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x62);
   emit_sse_operand(dst, src);
 }
 

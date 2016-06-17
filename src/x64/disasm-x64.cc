@@ -1513,7 +1513,16 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   if (operand_size_ == 0x66) {
     // 0x66 0x0F prefix.
     int mod, regop, rm;
-    if (opcode == 0x3A) {
+    if (opcode == 0x38) {
+      byte third_byte = *current;
+      current = data + 3;
+      if (third_byte == 0x40) {
+        // pmulld xmm, xmm/m128
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pmulld %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+      }
+    } else if (opcode == 0x3A) {
       byte third_byte = *current;
       current = data + 3;
       if (third_byte == 0x17) {
@@ -1536,10 +1545,17 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x16) {
-        get_modrm(*current, &mod, &rm, &regop);
+        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pextrd ");  // reg/m32, xmm, imm8
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
+        current += 1;
+      } else if (third_byte == 0x21) {
+        get_modrm(*current, &mod, &regop, &rm);
+        // insertps xmm, xmm/m32, imm8
+        AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x22) {
         get_modrm(*current, &mod, &regop, &rm);
@@ -1596,6 +1612,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x50) {
         AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x70) {
+        AppendToBuffer("pshufd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current);
+        current += 1;
       } else if (opcode == 0x72) {
         current += 1;
         AppendToBuffer("%s %s,%d", (regop == 6) ? "pslld" : "psrld",
@@ -1616,6 +1637,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "orpd";
         } else  if (opcode == 0x57) {
           mnemonic = "xorpd";
+        } else if (opcode == 0x5B) {
+          mnemonic = "cvtps2dq";
         } else if (opcode == 0x2E) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
@@ -1626,6 +1649,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "punpckldq";
         } else if (opcode == 0x6A) {
           mnemonic = "punpckhdq";
+        } else if (opcode == 0xF4) {
+          mnemonic = "pmuludq";
+        } else if (opcode == 0xFA) {
+          mnemonic = "psubd";
+        } else if (opcode == 0xFE) {
+          mnemonic = "paddd";
         } else {
           UnimplementedInstruction();
         }
@@ -1767,6 +1796,19 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else {
       UnimplementedInstruction();
     }
+  } else if (opcode == 0x10 || opcode == 0x11) {
+    // movups xmm, xmm/m128
+    // movups xmm/m128, xmm
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movups ");
+    if (opcode == 0x11) {
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
+    } else {
+      AppendToBuffer("%s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
+    }
   } else if (opcode == 0x1F) {
     // NOP
     int mod, regop, rm;
@@ -1813,29 +1855,28 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     byte_size_operand_ = idesc.byte_size_operation;
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
 
-  } else if (opcode >= 0x53 && opcode <= 0x5F) {
+  } else if (opcode >= 0x51 && opcode <= 0x5F) {
     const char* const pseudo_op[] = {
-      "rcpps",
-      "andps",
-      "andnps",
-      "orps",
-      "xorps",
-      "addps",
-      "mulps",
-      "cvtps2pd",
-      "cvtdq2ps",
-      "subps",
-      "minps",
-      "divps",
-      "maxps",
+        "sqrtps",   "rsqrtps", "rcpps", "andps", "andnps",
+        "orps",     "xorps",   "addps", "mulps", "cvtps2pd",
+        "cvtdq2ps", "subps",   "minps", "divps", "maxps",
     };
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
-    AppendToBuffer("%s %s,",
-                   pseudo_op[opcode - 0x53],
+    AppendToBuffer("%s %s,", pseudo_op[opcode - 0x51],
                    NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
+  } else if (opcode == 0xC2) {
+    // cmpps xmm, xmm/m128, imm8
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    const char* const pseudo_op[] = {"cmpeqps",    "cmpltps",  "cmpleps",
+                                     "cmpunordps", "cmpneqps", "cmpnltps",
+                                     "cmpnleps",   "cmpordps"};
+    AppendToBuffer("%s %s,%s", pseudo_op[current[1]], NameOfXMMRegister(regop),
+                   NameOfXMMRegister(rm));
+    current += 2;
   } else if (opcode == 0xC6) {
     // shufps xmm, xmm/m128, imm8
     int mod, regop, rm;
@@ -1844,7 +1885,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %d", (*current) & 3);
     current += 1;
-
   } else if (opcode == 0x50) {
     // movmskps reg, xmm
     int mod, regop, rm;

@@ -458,6 +458,7 @@ TEST(DisasmX64) {
     __ pcmpeqd(xmm1, xmm0);
 
     __ punpckldq(xmm1, xmm11);
+    __ punpckldq(xmm5, Operand(rdx, 4));
     __ punpckhdq(xmm8, xmm15);
   }
 
@@ -518,8 +519,6 @@ TEST(DisasmX64) {
       __ pmulld(xmm5, Operand(rdx, 4));
       __ pmuludq(xmm5, xmm1);
       __ pmuludq(xmm5, Operand(rdx, 4));
-      __ punpackldq(xmm5, xmm1);
-      __ punpackldq(xmm5, Operand(rdx, 4));
       __ psrldq(xmm5, 123);
       __ pshufd(xmm5, xmm1, 3);
       __ cvtps2dq(xmm5, xmm1);
