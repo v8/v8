@@ -48,7 +48,6 @@
     },
 
     'debug': {
-      'gyp_defines': 'v8_enable_slow_dchecks=1 v8_optimized_debug=1',
       'gn_args': 'is_debug=true',
     },
 
