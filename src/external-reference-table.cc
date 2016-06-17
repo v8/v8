@@ -240,7 +240,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   };
 
   static const RefTableEntry c_builtins[] = {
-#define DEF_ENTRY_C(name, ignored) {Builtins::c_##name, "Builtins::" #name},
+#define DEF_ENTRY_C(name) {Builtins::c_##name, "Builtins::" #name},
       BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
   };
@@ -252,7 +252,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   }
 
   static const RefTableEntry builtins[] = {
-#define DEF_ENTRY_C(name, ignored) {Builtins::k##name, "Builtins::" #name},
+#define DEF_ENTRY_C(name) {Builtins::k##name, "Builtins::" #name},
 #define DEF_ENTRY_A(name, i1, i2) {Builtins::k##name, "Builtins::" #name},
       BUILTIN_LIST_C(DEF_ENTRY_C) BUILTIN_LIST_A(DEF_ENTRY_A)
           BUILTIN_LIST_DEBUG_A(DEF_ENTRY_A)

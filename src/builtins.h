@@ -14,19 +14,6 @@ namespace internal {
 // Forward declarations.
 class CodeStubAssembler;
 
-// Specifies extra arguments required by a C++ builtin.
-enum class BuiltinExtraArguments : uint8_t {
-  kNone = 0u,
-  kTarget = 1u << 0,
-  kNewTarget = 1u << 1,
-  kTargetAndNewTarget = kTarget | kNewTarget
-};
-
-inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
-  return static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs);
-}
-
-
 #define CODE_AGE_LIST_WITH_ARG(V, A)     \
   V(Quadragenarian, A)                   \
   V(Quinquagenarian, A)                  \
@@ -51,144 +38,144 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(Make##C##CodeYoungAgainEvenMarking, BUILTIN, kNoExtraICState)
 
 // Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                                      \
-  V(Illegal, kNone)                                            \
-                                                               \
-  V(EmptyFunction, kNone)                                      \
-                                                               \
-  V(ArrayConcat, kNone)                                        \
-  V(ArrayPop, kNone)                                           \
-  V(ArrayPush, kNone)                                          \
-  V(ArrayShift, kNone)                                         \
-  V(ArraySlice, kNone)                                         \
-  V(ArraySplice, kNone)                                        \
-  V(ArrayUnshift, kNone)                                       \
-                                                               \
-  V(ArrayBufferConstructor, kTarget)                           \
-  V(ArrayBufferConstructor_ConstructStub, kTargetAndNewTarget) \
-  V(ArrayBufferIsView, kNone)                                  \
-                                                               \
-  V(BooleanConstructor, kNone)                                 \
-  V(BooleanConstructor_ConstructStub, kTargetAndNewTarget)     \
-  V(BooleanPrototypeToString, kNone)                           \
-  V(BooleanPrototypeValueOf, kNone)                            \
-                                                               \
-  V(DataViewConstructor, kNone)                                \
-  V(DataViewConstructor_ConstructStub, kTargetAndNewTarget)    \
-  V(DataViewPrototypeGetBuffer, kNone)                         \
-  V(DataViewPrototypeGetByteLength, kNone)                     \
-  V(DataViewPrototypeGetByteOffset, kNone)                     \
-                                                               \
-  V(DateConstructor, kNone)                                    \
-  V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
-  V(DateNow, kNone)                                            \
-  V(DateParse, kNone)                                          \
-  V(DateUTC, kNone)                                            \
-  V(DatePrototypeSetDate, kNone)                               \
-  V(DatePrototypeSetFullYear, kNone)                           \
-  V(DatePrototypeSetHours, kNone)                              \
-  V(DatePrototypeSetMilliseconds, kNone)                       \
-  V(DatePrototypeSetMinutes, kNone)                            \
-  V(DatePrototypeSetMonth, kNone)                              \
-  V(DatePrototypeSetSeconds, kNone)                            \
-  V(DatePrototypeSetTime, kNone)                               \
-  V(DatePrototypeSetUTCDate, kNone)                            \
-  V(DatePrototypeSetUTCFullYear, kNone)                        \
-  V(DatePrototypeSetUTCHours, kNone)                           \
-  V(DatePrototypeSetUTCMilliseconds, kNone)                    \
-  V(DatePrototypeSetUTCMinutes, kNone)                         \
-  V(DatePrototypeSetUTCMonth, kNone)                           \
-  V(DatePrototypeSetUTCSeconds, kNone)                         \
-  V(DatePrototypeToDateString, kNone)                          \
-  V(DatePrototypeToISOString, kNone)                           \
-  V(DatePrototypeToPrimitive, kNone)                           \
-  V(DatePrototypeToUTCString, kNone)                           \
-  V(DatePrototypeToString, kNone)                              \
-  V(DatePrototypeToTimeString, kNone)                          \
-  V(DatePrototypeValueOf, kNone)                               \
-  V(DatePrototypeGetYear, kNone)                               \
-  V(DatePrototypeSetYear, kNone)                               \
-  V(DatePrototypeToJson, kNone)                                \
-                                                               \
-  V(FunctionConstructor, kTargetAndNewTarget)                  \
-  V(FunctionPrototypeBind, kNone)                              \
-  V(FunctionPrototypeToString, kNone)                          \
-                                                               \
-  V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
-  V(AsyncFunctionConstructor, kTargetAndNewTarget)             \
-                                                               \
-  V(GlobalDecodeURI, kNone)                                    \
-  V(GlobalDecodeURIComponent, kNone)                           \
-  V(GlobalEncodeURI, kNone)                                    \
-  V(GlobalEncodeURIComponent, kNone)                           \
-  V(GlobalEscape, kNone)                                       \
-  V(GlobalUnescape, kNone)                                     \
-                                                               \
-  V(GlobalEval, kTarget)                                       \
-                                                               \
-  V(JsonParse, kNone)                                          \
-  V(JsonStringify, kNone)                                      \
-                                                               \
-  V(MathAcos, kNone)                                           \
-  V(MathAsin, kNone)                                           \
-  V(MathFround, kNone)                                         \
-  V(MathImul, kNone)                                           \
-                                                               \
-  V(ObjectAssign, kNone)                                       \
-  V(ObjectCreate, kNone)                                       \
-  V(ObjectDefineGetter, kNone)                                 \
-  V(ObjectDefineProperties, kNone)                             \
-  V(ObjectDefineProperty, kNone)                               \
-  V(ObjectDefineSetter, kNone)                                 \
-  V(ObjectEntries, kNone)                                      \
-  V(ObjectFreeze, kNone)                                       \
-  V(ObjectGetOwnPropertyDescriptor, kNone)                     \
-  V(ObjectGetOwnPropertyDescriptors, kNone)                    \
-  V(ObjectGetOwnPropertyNames, kNone)                          \
-  V(ObjectGetOwnPropertySymbols, kNone)                        \
-  V(ObjectGetPrototypeOf, kNone)                               \
-  V(ObjectIs, kNone)                                           \
-  V(ObjectIsExtensible, kNone)                                 \
-  V(ObjectIsFrozen, kNone)                                     \
-  V(ObjectIsSealed, kNone)                                     \
-  V(ObjectKeys, kNone)                                         \
-  V(ObjectLookupGetter, kNone)                                 \
-  V(ObjectLookupSetter, kNone)                                 \
-  V(ObjectPreventExtensions, kNone)                            \
-  V(ObjectProtoToString, kNone)                                \
-  V(ObjectSeal, kNone)                                         \
-  V(ObjectValues, kNone)                                       \
-                                                               \
-  V(ProxyConstructor, kNone)                                   \
-  V(ProxyConstructor_ConstructStub, kTarget)                   \
-                                                               \
-  V(ReflectDefineProperty, kNone)                              \
-  V(ReflectDeleteProperty, kNone)                              \
-  V(ReflectGet, kNone)                                         \
-  V(ReflectGetOwnPropertyDescriptor, kNone)                    \
-  V(ReflectGetPrototypeOf, kNone)                              \
-  V(ReflectHas, kNone)                                         \
-  V(ReflectIsExtensible, kNone)                                \
-  V(ReflectOwnKeys, kNone)                                     \
-  V(ReflectPreventExtensions, kNone)                           \
-  V(ReflectSet, kNone)                                         \
-  V(ReflectSetPrototypeOf, kNone)                              \
-                                                               \
-  V(StringPrototypeTrim, kNone)                                \
-  V(StringPrototypeTrimLeft, kNone)                            \
-  V(StringPrototypeTrimRight, kNone)                           \
-                                                               \
-  V(SymbolConstructor, kNone)                                  \
-  V(SymbolConstructor_ConstructStub, kTarget)                  \
-                                                               \
-  V(TypedArrayPrototypeBuffer, kNone)                          \
-                                                               \
-  V(HandleApiCall, kTargetAndNewTarget)                        \
-  V(HandleApiCallAsFunction, kNone)                            \
-  V(HandleApiCallAsConstructor, kNone)                         \
-                                                               \
-  V(RestrictedFunctionPropertiesThrower, kNone)                \
-  V(RestrictedStrictArgumentsPropertiesThrower, kNone)
+#define BUILTIN_LIST_C(V)                 \
+  V(Illegal)                              \
+                                          \
+  V(EmptyFunction)                        \
+                                          \
+  V(ArrayConcat)                          \
+  V(ArrayPop)                             \
+  V(ArrayPush)                            \
+  V(ArrayShift)                           \
+  V(ArraySlice)                           \
+  V(ArraySplice)                          \
+  V(ArrayUnshift)                         \
+                                          \
+  V(ArrayBufferConstructor)               \
+  V(ArrayBufferConstructor_ConstructStub) \
+  V(ArrayBufferIsView)                    \
+                                          \
+  V(BooleanConstructor)                   \
+  V(BooleanConstructor_ConstructStub)     \
+  V(BooleanPrototypeToString)             \
+  V(BooleanPrototypeValueOf)              \
+                                          \
+  V(DataViewConstructor)                  \
+  V(DataViewConstructor_ConstructStub)    \
+  V(DataViewPrototypeGetBuffer)           \
+  V(DataViewPrototypeGetByteLength)       \
+  V(DataViewPrototypeGetByteOffset)       \
+                                          \
+  V(DateConstructor)                      \
+  V(DateConstructor_ConstructStub)        \
+  V(DateNow)                              \
+  V(DateParse)                            \
+  V(DateUTC)                              \
+  V(DatePrototypeSetDate)                 \
+  V(DatePrototypeSetFullYear)             \
+  V(DatePrototypeSetHours)                \
+  V(DatePrototypeSetMilliseconds)         \
+  V(DatePrototypeSetMinutes)              \
+  V(DatePrototypeSetMonth)                \
+  V(DatePrototypeSetSeconds)              \
+  V(DatePrototypeSetTime)                 \
+  V(DatePrototypeSetUTCDate)              \
+  V(DatePrototypeSetUTCFullYear)          \
+  V(DatePrototypeSetUTCHours)             \
+  V(DatePrototypeSetUTCMilliseconds)      \
+  V(DatePrototypeSetUTCMinutes)           \
+  V(DatePrototypeSetUTCMonth)             \
+  V(DatePrototypeSetUTCSeconds)           \
+  V(DatePrototypeToDateString)            \
+  V(DatePrototypeToISOString)             \
+  V(DatePrototypeToPrimitive)             \
+  V(DatePrototypeToUTCString)             \
+  V(DatePrototypeToString)                \
+  V(DatePrototypeToTimeString)            \
+  V(DatePrototypeValueOf)                 \
+  V(DatePrototypeGetYear)                 \
+  V(DatePrototypeSetYear)                 \
+  V(DatePrototypeToJson)                  \
+                                          \
+  V(FunctionConstructor)                  \
+  V(FunctionPrototypeBind)                \
+  V(FunctionPrototypeToString)            \
+                                          \
+  V(GeneratorFunctionConstructor)         \
+  V(AsyncFunctionConstructor)             \
+                                          \
+  V(GlobalDecodeURI)                      \
+  V(GlobalDecodeURIComponent)             \
+  V(GlobalEncodeURI)                      \
+  V(GlobalEncodeURIComponent)             \
+  V(GlobalEscape)                         \
+  V(GlobalUnescape)                       \
+                                          \
+  V(GlobalEval)                           \
+                                          \
+  V(JsonParse)                            \
+  V(JsonStringify)                        \
+                                          \
+  V(MathAcos)                             \
+  V(MathAsin)                             \
+  V(MathFround)                           \
+  V(MathImul)                             \
+                                          \
+  V(ObjectAssign)                         \
+  V(ObjectCreate)                         \
+  V(ObjectDefineGetter)                   \
+  V(ObjectDefineProperties)               \
+  V(ObjectDefineProperty)                 \
+  V(ObjectDefineSetter)                   \
+  V(ObjectEntries)                        \
+  V(ObjectFreeze)                         \
+  V(ObjectGetOwnPropertyDescriptor)       \
+  V(ObjectGetOwnPropertyDescriptors)      \
+  V(ObjectGetOwnPropertyNames)            \
+  V(ObjectGetOwnPropertySymbols)          \
+  V(ObjectGetPrototypeOf)                 \
+  V(ObjectIs)                             \
+  V(ObjectIsExtensible)                   \
+  V(ObjectIsFrozen)                       \
+  V(ObjectIsSealed)                       \
+  V(ObjectKeys)                           \
+  V(ObjectLookupGetter)                   \
+  V(ObjectLookupSetter)                   \
+  V(ObjectPreventExtensions)              \
+  V(ObjectProtoToString)                  \
+  V(ObjectSeal)                           \
+  V(ObjectValues)                         \
+                                          \
+  V(ProxyConstructor)                     \
+  V(ProxyConstructor_ConstructStub)       \
+                                          \
+  V(ReflectDefineProperty)                \
+  V(ReflectDeleteProperty)                \
+  V(ReflectGet)                           \
+  V(ReflectGetOwnPropertyDescriptor)      \
+  V(ReflectGetPrototypeOf)                \
+  V(ReflectHas)                           \
+  V(ReflectIsExtensible)                  \
+  V(ReflectOwnKeys)                       \
+  V(ReflectPreventExtensions)             \
+  V(ReflectSet)                           \
+  V(ReflectSetPrototypeOf)                \
+                                          \
+  V(StringPrototypeTrim)                  \
+  V(StringPrototypeTrimLeft)              \
+  V(StringPrototypeTrimRight)             \
+                                          \
+  V(SymbolConstructor)                    \
+  V(SymbolConstructor_ConstructStub)      \
+                                          \
+  V(TypedArrayPrototypeBuffer)            \
+                                          \
+  V(HandleApiCall)                        \
+  V(HandleApiCallAsFunction)              \
+  V(HandleApiCallAsConstructor)           \
+                                          \
+  V(RestrictedFunctionPropertiesThrower)  \
+  V(RestrictedStrictArgumentsPropertiesThrower)
 
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                                    \
@@ -384,7 +371,7 @@ class Builtins {
   const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM_C(name, ignore) k##name,
+#define DEF_ENUM_C(name) k##name,
 #define DEF_ENUM_A(name, kind, extra) k##name,
 #define DEF_ENUM_T(name, argc) k##name,
 #define DEF_ENUM_S(name, kind, extra, interface_descriptor) k##name,
@@ -401,13 +388,13 @@ class Builtins {
   };
 
   enum CFunctionId {
-#define DEF_ENUM_C(name, ignore) c_##name,
+#define DEF_ENUM_C(name) c_##name,
     BUILTIN_LIST_C(DEF_ENUM_C)
 #undef DEF_ENUM_C
     cfunction_count
   };
 
-#define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR_C(name) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_A(name, kind, extra) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_T(name, argc) Handle<Code> name();
 #define DECLARE_BUILTIN_ACCESSOR_S(name, kind, extra, interface_descriptor) \
@@ -472,9 +459,7 @@ class Builtins {
   Object* builtins_[builtin_count];
   const char* names_[builtin_count];
 
-  static void Generate_Adaptor(MacroAssembler* masm,
-                               CFunctionId id,
-                               BuiltinExtraArguments extra_args);
+  static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id);
   static void Generate_AllocateInNewSpace(MacroAssembler* masm);
   static void Generate_AllocateInOldSpace(MacroAssembler* masm);
   static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
