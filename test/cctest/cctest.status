@@ -295,25 +295,6 @@
 }],  # 'system == windows'
 
 ##############################################################################
-['byteorder == big', {
-  # TODO(mips-team): Fix Wasm for big-endian.
-  'test-run-wasm-module/Run_WasmModule_CallAdd': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CallMain_recursive': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_ReadLoadedDataSegment': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_Return114': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
-  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_signext': [SKIP],
-  'test-run-wasm/RunWasmCompiled_Int32LoadInt16_zeroext': [SKIP],
-  'test-run-wasm/RunWasmCompiled_MixedGlobals': [SKIP],
-  'test-run-wasm-64/RunWasmCompiled_I64*': [SKIP],
-  'test-run-wasm-64/RunWasmCompiled_LoadStoreI64_sx': [SKIP],
-  'test-run-wasm-64/Run_TestI64WasmRunner': [SKIP],
-  'test-run-wasm-64/RunWasmCompiled_Call_Int64Sub': [SKIP],
-  'test-run-wasm-64/RunWasmCompiled_MemI64_Sum': [SKIP],
-}],  # 'byteorder == big'
-
-##############################################################################
 ['arch == arm', {
 
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
