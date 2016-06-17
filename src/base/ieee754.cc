@@ -874,119 +874,203 @@ double log1p(double x) {
     return k * ln2_hi - ((hfsq - (s * (hfsq + R) + (k * ln2_lo + c))) - f);
 }
 
-// ES6 draft 09-27-13, section 20.2.2.22.
-// Return the base 2 logarithm of x
-//
-// fdlibm does not have an explicit log2 function, but fdlibm's pow
-// function does implement an accurate log2 function as part of the
-// pow implementation.  This extracts the core parts of that as a
-// separate log2 function.
-//
-// Method:
-// Compute log2(x) in two pieces:
-// log2(x) = w1 + w2
-// where w1 has 53-24 = 29 bits of trailing zeroes.
+/*
+ * k_log1p(f):
+ * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].
+ *
+ * The following describes the overall strategy for computing
+ * logarithms in base e.  The argument reduction and adding the final
+ * term of the polynomial are done by the caller for increased accuracy
+ * when different bases are used.
+ *
+ * Method :
+ *   1. Argument Reduction: find k and f such that
+ *         x = 2^k * (1+f),
+ *         where  sqrt(2)/2 < 1+f < sqrt(2) .
+ *
+ *   2. Approximation of log(1+f).
+ *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
+ *            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
+ *            = 2s + s*R
+ *      We use a special Reme algorithm on [0,0.1716] to generate
+ *      a polynomial of degree 14 to approximate R The maximum error
+ *      of this polynomial approximation is bounded by 2**-58.45. In
+ *      other words,
+ *          2      4      6      8      10      12      14
+ *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
+ *      (the values of Lg1 to Lg7 are listed in the program)
+ *      and
+ *          |      2          14          |     -58.45
+ *          | Lg1*s +...+Lg7*s    -  R(z) | <= 2
+ *          |                             |
+ *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
+ *      In order to guarantee error in log below 1ulp, we compute log
+ *      by
+ *          log(1+f) = f - s*(f - R)            (if f is not too large)
+ *          log(1+f) = f - (hfsq - s*(hfsq+R)). (better accuracy)
+ *
+ *   3. Finally,  log(x) = k*ln2 + log(1+f).
+ *          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
+ *      Here ln2 is split into two floating point number:
+ *          ln2_hi + ln2_lo,
+ *      where n*ln2_hi is always exact for |n| < 2000.
+ *
+ * Special cases:
+ *      log(x) is NaN with signal if x < 0 (including -INF) ;
+ *      log(+INF) is +INF; log(0) is -INF with signal;
+ *      log(NaN) is that NaN with no signal.
+ *
+ * Accuracy:
+ *      according to an error analysis, the error is always less than
+ *      1 ulp (unit in the last place).
+ *
+ * Constants:
+ * The hexadecimal values are the intended ones for the following
+ * constants. The decimal values may be used, provided that the
+ * compiler will convert from decimal to binary accurately enough
+ * to produce the hexadecimal values shown.
+ */
+
+static const double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
+    Lg2 = 3.999999999940941908e-01,                 /* 3FD99999 9997FA04 */
+    Lg3 = 2.857142874366239149e-01,                 /* 3FD24924 94229359 */
+    Lg4 = 2.222219843214978396e-01,                 /* 3FCC71C5 1D8E78AF */
+    Lg5 = 1.818357216161805012e-01,                 /* 3FC74664 96CB03DE */
+    Lg6 = 1.531383769920937332e-01,                 /* 3FC39A09 D078C69F */
+    Lg7 = 1.479819860511658591e-01;                 /* 3FC2F112 DF3E5244 */
+
+/*
+ * We always inline k_log1p(), since doing so produces a
+ * substantial performance improvement (~40% on amd64).
+ */
+static inline double k_log1p(double f) {
+  double hfsq, s, z, R, w, t1, t2;
+
+  s = f / (2.0 + f);
+  z = s * s;
+  w = z * z;
+  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
+  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
+  R = t2 + t1;
+  hfsq = 0.5 * f * f;
+  return s * (hfsq + R);
+}
+
+/*
+ * Return the base 2 logarithm of x.  See e_log.c and k_log.h for most
+ * comments.
+ *
+ * This reduces x to {k, 1+f} exactly as in e_log.c, then calls the kernel,
+ * then does the combining and scaling steps
+ *    log2(x) = (f - 0.5*f*f + k_log1p(f)) / ln2 + k
+ * in not-quite-routine extra precision.
+ */
 double log2(double x) {
   static const double
-      bp[] = {1.0, 1.5},
-      dp_h[] = {0.0, 5.84962487220764160156e-01}, /* 0x3FE2B803, 0x40000000 */
-      dp_l[] = {0.0, 1.35003920212974897128e-08}, /* 0x3E4CFDEB, 0x43CFD006 */
-      zero = 0.0, one = 1.0,
-      // Polynomial coefficients for (3/2)*(log2(x) - 2*s - 2/3*s^3)
-      L1 = 5.99999999999994648725e-01, L2 = 4.28571428578550184252e-01,
-      L3 = 3.33333329818377432918e-01, L4 = 2.72728123808534006489e-01,
-      L5 = 2.30660745775561754067e-01, L6 = 2.06975017800338417784e-01,
-      // cp = 2/(3*ln(2)). Note that cp_h + cp_l is cp, but with more accuracy.
-      cp = 9.61796693925975554329e-01, cp_h = 9.61796700954437255859e-01,
-      cp_l = -7.02846165095275826516e-09, two53 = 9007199254740992, /* 2^53 */
-      two54 = 1.80143985094819840000e+16; /* 0x43500000, 0x00000000 */
+      two54 = 1.80143985094819840000e+16,   /* 0x43500000, 0x00000000 */
+      ivln2hi = 1.44269504072144627571e+00, /* 0x3ff71547, 0x65200000 */
+      ivln2lo = 1.67517131648865118353e-10; /* 0x3de705fc, 0x2eefa200 */
 
+  static const double zero = 0.0;
   static volatile double vzero = 0.0;
-  double ax, z_h, z_l, p_h, p_l;
-  double t1, t2, r, t, u, v;
-  int32_t j, k, n;
-  int32_t ix, hx;
+
+  double f, hfsq, hi, lo, r, val_hi, val_lo, w, y;
+  int32_t i, k, hx;
   u_int32_t lx;
 
   EXTRACT_WORDS(hx, lx, x);
-  ix = hx & 0x7fffffff;
 
-  // Handle special cases.
-  // log2(+/- 0) = -Infinity
-  if ((ix | lx) == 0) return -two54 / vzero; /* log(+-0)=-inf */
-
-  // log(x) = NaN, if x < 0
-  if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
-
-  // log2(Infinity) = Infinity, log2(NaN) = NaN
-  if (ix >= 0x7ff00000) return x;
-
-  ax = fabs(x);
-
-  double ss, s2, s_h, s_l, t_h, t_l;
-  n = 0;
-
-  /* take care subnormal number */
-  if (ix < 0x00100000) {
-    ax *= two53;
-    n -= 53;
-    GET_HIGH_WORD(ix, ax);
+  k = 0;
+  if (hx < 0x00100000) { /* x < 2**-1022  */
+    if (((hx & 0x7fffffff) | lx) == 0)
+      return -two54 / vzero;           /* log(+-0)=-inf */
+    if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
+    k -= 54;
+    x *= two54; /* subnormal number, scale up x */
+    GET_HIGH_WORD(hx, x);
   }
+  if (hx >= 0x7ff00000) return x + x;
+  if (hx == 0x3ff00000 && lx == 0) return zero; /* log(1) = +0 */
+  k += (hx >> 20) - 1023;
+  hx &= 0x000fffff;
+  i = (hx + 0x95f64) & 0x100000;
+  SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)); /* normalize x or x/2 */
+  k += (i >> 20);
+  y = static_cast<double>(k);
+  f = x - 1.0;
+  hfsq = 0.5 * f * f;
+  r = k_log1p(f);
 
-  n += ((ix) >> 20) - 0x3ff;
-  j = ix & 0x000fffff;
+  /*
+   * f-hfsq must (for args near 1) be evaluated in extra precision
+   * to avoid a large cancellation when x is near sqrt(2) or 1/sqrt(2).
+   * This is fairly efficient since f-hfsq only depends on f, so can
+   * be evaluated in parallel with R.  Not combining hfsq with R also
+   * keeps R small (though not as small as a true `lo' term would be),
+   * so that extra precision is not needed for terms involving R.
+   *
+   * Compiler bugs involving extra precision used to break Dekker's
+   * theorem for spitting f-hfsq as hi+lo, unless double_t was used
+   * or the multi-precision calculations were avoided when double_t
+   * has extra precision.  These problems are now automatically
+   * avoided as a side effect of the optimization of combining the
+   * Dekker splitting step with the clear-low-bits step.
+   *
+   * y must (for args near sqrt(2) and 1/sqrt(2)) be added in extra
+   * precision to avoid a very large cancellation when x is very near
+   * these values.  Unlike the above cancellations, this problem is
+   * specific to base 2.  It is strange that adding +-1 is so much
+   * harder than adding +-ln2 or +-log10_2.
+   *
+   * This uses Dekker's theorem to normalize y+val_hi, so the
+   * compiler bugs are back in some configurations, sigh.  And I
+   * don't want to used double_t to avoid them, since that gives a
+   * pessimization and the support for avoiding the pessimization
+   * is not yet available.
+   *
+   * The multi-precision calculations for the multiplications are
+   * routine.
+   */
+  hi = f - hfsq;
+  SET_LOW_WORD(hi, 0);
+  lo = (f - hi) - hfsq + r;
+  val_hi = hi * ivln2hi;
+  val_lo = (lo + hi) * ivln2lo + lo * ivln2hi;
 
-  /* determine interval */
-  ix = j | 0x3ff00000; /* normalize ix */
-  if (j <= 0x3988E) {
-    k = 0; /* |x|<sqrt(3/2) */
-  } else if (j < 0xBB67A) {
-    k = 1; /* |x|<sqrt(3)   */
-  } else {
-    k = 0;
-    n += 1;
-    ix -= 0x00100000;
-  }
-  SET_HIGH_WORD(ax, ix);
+  /* spadd(val_hi, val_lo, y), except for not using double_t: */
+  w = y + val_hi;
+  val_lo += (y - w) + val_hi;
+  val_hi = w;
 
-  /* compute ss = s_h+s_l = (x-1)/(x+1) or (x-1.5)/(x+1.5) */
-  u = ax - bp[k]; /* bp[0]=1.0, bp[1]=1.5 */
-  v = one / (ax + bp[k]);
-  ss = u * v;
-  s_h = ss;
-  SET_LOW_WORD(s_h, 0);
-  /* t_h=ax+bp[k] High */
-  t_h = zero;
-  SET_HIGH_WORD(t_h, ((ix >> 1) | 0x20000000) + 0x00080000 + (k << 18));
-  t_l = ax - (t_h - bp[k]);
-  s_l = v * ((u - s_h * t_h) - s_h * t_l);
-  /* compute log(ax) */
-  s2 = ss * ss;
-  r = s2 * s2 * (L1 + s2 * (L2 + s2 * (L3 + s2 * (L4 + s2 * (L5 + s2 * L6)))));
-  r += s_l * (s_h + ss);
-  s2 = s_h * s_h;
-  t_h = 3.0 + s2 + r;
-  SET_LOW_WORD(t_h, 0);
-  t_l = r - ((t_h - 3.0) - s2);
-  /* u+v = ss*(1+...) */
-  u = s_h * t_h;
-  v = s_l * t_h + t_l * ss;
-  /* 2/(3log2)*(ss+...) */
-  p_h = u + v;
-  SET_LOW_WORD(p_h, 0);
-  p_l = v - (p_h - u);
-  z_h = cp_h * p_h; /* cp_h+cp_l = 2/(3*log2) */
-  z_l = cp_l * p_h + p_l * cp + dp_l[k];
-  /* log2(ax) = (ss+..)*2/(3*log2) = n + dp_h + z_h + z_l */
-  t = static_cast<double>(n);
-  t1 = (((z_h + z_l) + dp_h[k]) + t);
-  SET_LOW_WORD(t1, 0);
-  t2 = z_l - (((t1 - t) - dp_h[k]) - z_h);
-
-  // t1 + t2 = log2(ax), sum up because we do not care about extra precision.
-  return t1 + t2;
+  return val_lo + val_hi;
 }
 
+/*
+ * Return the base 10 logarithm of x
+ *
+ * Method :
+ *      Let log10_2hi = leading 40 bits of log10(2) and
+ *          log10_2lo = log10(2) - log10_2hi,
+ *          ivln10   = 1/log(10) rounded.
+ *      Then
+ *              n = ilogb(x),
+ *              if(n<0)  n = n+1;
+ *              x = scalbn(x,-n);
+ *              log10(x) := n*log10_2hi + (n*log10_2lo + ivln10*log(x))
+ *
+ *  Note 1:
+ *     To guarantee log10(10**n)=n, where 10**n is normal, the rounding
+ *     mode must set to Round-to-Nearest.
+ *  Note 2:
+ *      [1/log(10)] rounded to 53 bits has error .198 ulps;
+ *      log10 is monotonic at all binary break points.
+ *
+ *  Special cases:
+ *      log10(x) is NaN if x < 0;
+ *      log10(+INF) is +INF; log10(0) is -INF;
+ *      log10(NaN) is that NaN;
+ *      log10(10**N) = N  for N=0,1,...,22.
+ */
 double log10(double x) {
   static const double
       two54 = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
