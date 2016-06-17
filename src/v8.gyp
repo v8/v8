@@ -387,8 +387,7 @@
       },
       'include_dirs+': [
         '..',
-        # To be able to find base/trace_event/common/trace_event_common.h
-        '../..',
+        '<(DEPTH)',
       ],
       'sources': [  ### gcmole(all) ###
         '../include/v8-debug.h',
