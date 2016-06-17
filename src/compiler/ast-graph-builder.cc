@@ -4075,6 +4075,11 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
 }
 
 void AstGraphBuilder::PrepareEagerCheckpoint(BailoutId ast_id) {
+  if (environment()->GetEffectDependency()->opcode() == IrOpcode::kCheckpoint) {
+    // We skip preparing a checkpoint if there already is one the current effect
+    // dependency. This is just an optimization and not need for correctness.
+    return;
+  }
   if (ast_id != BailoutId::None()) {
     Node* node = NewNode(common()->Checkpoint());
     DCHECK_EQ(IrOpcode::kDead,
