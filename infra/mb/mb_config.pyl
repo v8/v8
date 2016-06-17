@@ -112,7 +112,7 @@
     },
 
     'v8_enable_slow_dchecks': {
-      'gn_args': v8_enable_slow_dchecks=true',
+      'gn_args': 'v8_enable_slow_dchecks=true',
       'gyp_defines': 'v8_enable_slow_dchecks=1',
     },
 
