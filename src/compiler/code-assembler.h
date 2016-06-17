@@ -366,8 +366,6 @@ class CodeAssembler {
   virtual void CallEpilogue();
 
  private:
-  friend class CodeAssemblerTester;
-
   CodeAssembler(Isolate* isolate, Zone* zone, CallDescriptor* call_descriptor,
                 Code::Flags flags, const char* name);
 
