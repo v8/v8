@@ -448,6 +448,10 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	        cut -f 2 -d " " | cut -f 1 -d "-" ))
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst s390x,s390,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst powerpc,ppc,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst ppc64,ppc,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst ppcle,ppc,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/gypfiles:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
