@@ -90,10 +90,10 @@
       'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
     },
 
-    'shared': {
-      'gn_args': 'is_component_build=true',
-      'gyp_defines': 'component=shared_library',
-    },
+    #'shared': {
+    #  'gn_args': 'is_component_build=true',
+    #  'gyp_defines': 'component=shared_library',
+    #},
 
     'static': {
       'gn_args': 'is_component_build=false',
@@ -137,9 +137,9 @@
       'gyp_defines': 'target_arch=x64',
     },
 
-    'x86': {
-      'gn_args': 'target_cpu="x86"',
-      'gyp_defines': 'target_arch=ia32',
-    },
+    #'x86': {
+    #  'gn_args': 'target_cpu="x86"',
+    #  'gyp_defines': 'target_arch=ia32',
+    #},
   },
 }
