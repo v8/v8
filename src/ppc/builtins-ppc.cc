@@ -17,8 +17,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
-                                BuiltinExtraArguments extra_args) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // ----------- S t a t e -------------
   //  -- r3                 : number of arguments excluding receiver
   //  -- r4                 : target
@@ -37,24 +36,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
 
   // Insert extra arguments.
-  int num_extra_args = 0;
-  switch (extra_args) {
-    case BuiltinExtraArguments::kTarget:
-      __ Push(r4);
-      ++num_extra_args;
-      break;
-    case BuiltinExtraArguments::kNewTarget:
-      __ Push(r6);
-      ++num_extra_args;
-      break;
-    case BuiltinExtraArguments::kTargetAndNewTarget:
-      __ Push(r4, r6);
-      num_extra_args += 2;
-      break;
-    case BuiltinExtraArguments::kNone:
-      break;
-  }
-
+  const int num_extra_args = 2;
+  __ Push(r4, r6);
   // JumpToExternalReference expects r3 to contain the number of arguments
   // including the receiver and the extra arguments.
   __ addi(r3, r3, Operand(num_extra_args + 1));
