@@ -99,12 +99,12 @@ class FinalAssessment final : public Assessment {
         virtual_register_(virtual_register),
         original_pending_assessment_(original_pending) {}
 
-  int virtual_register() const { return virtual_register_; }
   static const FinalAssessment* cast(const Assessment* assessment) {
     CHECK(assessment->kind() == Final);
     return static_cast<const FinalAssessment*>(assessment);
   }
 
+  int virtual_register() const { return virtual_register_; }
   const PendingAssessment* original_pending_assessment() const {
     return original_pending_assessment_;
   }
@@ -116,17 +116,11 @@ class FinalAssessment final : public Assessment {
   DISALLOW_COPY_AND_ASSIGN(FinalAssessment);
 };
 
-struct OperandAsKeyLess {
-  bool operator()(const InstructionOperand& a,
-                  const InstructionOperand& b) const {
-    return a.CompareCanonicalized(b);
-  }
-};
-
 // Assessments associated with a basic block.
 class BlockAssessments : public ZoneObject {
  public:
-  typedef ZoneMap<InstructionOperand, Assessment*, OperandAsKeyLess> OperandMap;
+  typedef ZoneMap<InstructionOperand, Assessment*, CompareOperandModuloType>
+      OperandMap;
   explicit BlockAssessments(Zone* zone)
       : map_(zone), map_for_moves_(zone), zone_(zone) {}
   void Drop(InstructionOperand operand) { map_.erase(operand); }
@@ -204,11 +198,11 @@ class RegisterAllocatorVerifier final : public ZoneObject {
 
   class DelayedAssessments : public ZoneObject {
    public:
+    typedef ZoneMap<InstructionOperand, int, CompareOperandModuloType>
+        OperandMap;
     explicit DelayedAssessments(Zone* zone) : map_(zone) {}
 
-    const ZoneMap<InstructionOperand, int, OperandAsKeyLess>& map() const {
-      return map_;
-    }
+    const OperandMap& map() const { return map_; }
 
     void AddDelayedAssessment(InstructionOperand op, int vreg) {
       auto it = map_.find(op);
@@ -220,7 +214,7 @@ class RegisterAllocatorVerifier final : public ZoneObject {
     }
 
    private:
-    ZoneMap<InstructionOperand, int, OperandAsKeyLess> map_;
+    OperandMap map_;
   };
 
   Zone* zone() const { return zone_; }
