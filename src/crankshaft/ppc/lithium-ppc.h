@@ -902,21 +902,11 @@ class LMathClz32 final : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathExp final : public LTemplateInstruction<1, 1, 3> {
+class LMathExp final : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathExp(LOperand* value, LOperand* double_temp, LOperand* temp1,
-           LOperand* temp2) {
-    inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-    temps_[2] = double_temp;
-    ExternalReference::InitializeMathExpData();
-  }
+  explicit LMathExp(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-  LOperand* double_temp() { return temps_[2]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
 };

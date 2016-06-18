@@ -1146,8 +1146,8 @@ LInstruction* LChunkBuilder::DoMathAbs(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathLog(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* input = UseFixedDouble(instr->value(), d1);
-  return MarkAsCall(DefineFixedDouble(new (zone()) LMathLog(input), d1), instr);
+  LOperand* input = UseFixedDouble(instr->value(), d0);
+  return MarkAsCall(DefineFixedDouble(new (zone()) LMathLog(input), d0), instr);
 }
 
 
@@ -1161,12 +1161,8 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* input = UseRegister(instr->value());
-  LOperand* temp1 = TempRegister();
-  LOperand* temp2 = TempRegister();
-  LOperand* double_temp = TempDoubleRegister();
-  LMathExp* result = new (zone()) LMathExp(input, double_temp, temp1, temp2);
-  return DefineAsRegister(result);
+  LOperand* input = UseFixedDouble(instr->value(), d0);
+  return MarkAsCall(DefineFixedDouble(new (zone()) LMathExp(input), d0), instr);
 }
 
 
