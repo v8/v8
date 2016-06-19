@@ -1056,7 +1056,7 @@ class RepresentationSelector {
     }
 
     // Use truncation if available.
-    if (BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
+    if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         truncation.TruncatesToWord32()) {
       // safe-int + safe-int = x (truncated to int32)
       // => signed Int32Add/Sub (truncated)
@@ -1282,7 +1282,8 @@ class RepresentationSelector {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
+        } else if (BothInputsAre(node,
+                                 type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
                    truncation.TruncatesToWord32()) {
           // safe-int + safe-int = x (truncated to int32)
           // => signed Int32Add/Sub (truncated)
@@ -1305,7 +1306,8 @@ class RepresentationSelector {
             return;
           }
           if (truncation.TruncatesToWord32() &&
-              NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger)) {
+              NodeProperties::GetType(node)->Is(
+                  type_cache_.kSafeIntegerOrMinusZero)) {
             // Multiply reduces to Int32Mul if the inputs are integers,
             // the uses are truncating and the result is in the safe
             // integer range.
