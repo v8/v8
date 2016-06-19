@@ -2552,17 +2552,20 @@ void RegisterAllocator::Spill(LiveRange* range) {
   range->Spill();
 }
 
-const char* RegisterAllocator::RegisterName(MachineRepresentation rep,
-                                            int code) const {
-  switch (rep) {
-    case MachineRepresentation::kFloat32:
-      return data()->config()->GetFloatRegisterName(code);
-    case MachineRepresentation::kFloat64:
-      return data()->config()->GetDoubleRegisterName(code);
-    default:
-      break;
+
+const ZoneVector<TopLevelLiveRange*>& RegisterAllocator::GetFixedRegisters()
+    const {
+  return mode() == FP_REGISTERS ? data()->fixed_double_live_ranges()
+                                : data()->fixed_live_ranges();
+}
+
+
+const char* RegisterAllocator::RegisterName(int register_code) const {
+  if (mode() == GENERAL_REGISTERS) {
+    return data()->config()->GetGeneralRegisterName(register_code);
+  } else {
+    return data()->config()->GetDoubleRegisterName(register_code);
   }
-  return data()->config()->GetGeneralRegisterName(code);
 }
 
 
@@ -2603,14 +2606,11 @@ void LinearScanAllocator::AllocateRegisters() {
   SortUnhandled();
   DCHECK(UnhandledIsSorted());
 
-  if (mode() == GENERAL_REGISTERS) {
-    for (TopLevelLiveRange* current : data()->fixed_live_ranges()) {
-      if (current != nullptr) AddToInactive(current);
-    }
-  } else {
-    DCHECK(mode() == FP_REGISTERS);
-    for (TopLevelLiveRange* current : data()->fixed_double_live_ranges()) {
-      if (current != nullptr) AddToInactive(current);
+  auto& fixed_ranges = GetFixedRegisters();
+  for (TopLevelLiveRange* current : fixed_ranges) {
+    if (current != nullptr) {
+      DCHECK_EQ(mode(), current->kind());
+      AddToInactive(current);
     }
   }
 
@@ -2778,7 +2778,6 @@ void LinearScanAllocator::InactiveToActive(LiveRange* range) {
 
 
 bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
-  MachineRepresentation rep = current->representation();
   LifetimePosition free_until_pos[RegisterConfiguration::kMaxFPRegisters];
 
   for (int i = 0; i < num_registers(); i++) {
@@ -2786,10 +2785,10 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   }
 
   for (LiveRange* cur_active : active_live_ranges()) {
-    int cur_reg = cur_active->assigned_register();
-    free_until_pos[cur_reg] = LifetimePosition::GapFromInstructionIndex(0);
+    free_until_pos[cur_active->assigned_register()] =
+        LifetimePosition::GapFromInstructionIndex(0);
     TRACE("Register %s is free until pos %d (1)\n",
-          RegisterName(cur_active->representation(), cur_reg),
+          RegisterName(cur_active->assigned_register()),
           LifetimePosition::GapFromInstructionIndex(0).value());
   }
 
@@ -2800,8 +2799,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
     if (!next_intersection.IsValid()) continue;
     int cur_reg = cur_inactive->assigned_register();
     free_until_pos[cur_reg] = Min(free_until_pos[cur_reg], next_intersection);
-    TRACE("Register %s is free until pos %d (2)\n",
-          RegisterName(cur_inactive->representation(), cur_reg),
+    TRACE("Register %s is free until pos %d (2)\n", RegisterName(cur_reg),
           Min(free_until_pos[cur_reg], next_intersection).value());
   }
 
@@ -2809,14 +2807,14 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   if (current->FirstHintPosition(&hint_register) != nullptr) {
     TRACE(
         "Found reg hint %s (free until [%d) for live range %d:%d (end %d[).\n",
-        RegisterName(rep, hint_register), free_until_pos[hint_register].value(),
+        RegisterName(hint_register), free_until_pos[hint_register].value(),
         current->TopLevel()->vreg(), current->relative_id(),
         current->End().value());
 
     // The desired register is free until the end of the current live range.
     if (free_until_pos[hint_register] >= current->End()) {
       TRACE("Assigning preferred reg %s to live range %d:%d\n",
-            RegisterName(rep, hint_register), current->TopLevel()->vreg(),
+            RegisterName(hint_register), current->TopLevel()->vreg(),
             current->relative_id());
       SetLiveRangeAssignedRegister(current, hint_register);
       return true;
@@ -2849,7 +2847,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(LiveRange* current) {
   // Register reg is available at the range start and is free until
   // the range end.
   DCHECK(pos >= current->End());
-  TRACE("Assigning free reg %s to live range %d:%d\n", RegisterName(rep, reg),
+  TRACE("Assigning free reg %s to live range %d:%d\n", RegisterName(reg),
         current->TopLevel()->vreg(), current->relative_id());
   SetLiveRangeAssignedRegister(current, reg);
 
@@ -2934,8 +2932,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
 
   // Register reg is not blocked for the whole range.
   DCHECK(block_pos[reg] >= current->End());
-  TRACE("Assigning blocked reg %s to live range %d:%d\n",
-        RegisterName(current->representation(), reg),
+  TRACE("Assigning blocked reg %s to live range %d:%d\n", RegisterName(reg),
         current->TopLevel()->vreg(), current->relative_id());
   SetLiveRangeAssignedRegister(current, reg);
 

@@ -999,7 +999,8 @@ class RegisterAllocator : public ZoneObject {
   LifetimePosition FindOptimalSpillingPos(LiveRange* range,
                                           LifetimePosition pos);
 
-  const char* RegisterName(MachineRepresentation rep, int code) const;
+  const ZoneVector<TopLevelLiveRange*>& GetFixedRegisters() const;
+  const char* RegisterName(int allocation_index) const;
 
  private:
   RegisterAllocationData* const data_;
