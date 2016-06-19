@@ -201,6 +201,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   const Operator* SpeculativeNumberAdd(BinaryOperationHints::Hint hint);
   const Operator* SpeculativeNumberSubtract(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberMultiply(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberDivide(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberModulus(BinaryOperationHints::Hint hint);
 
   const Operator* SpeculativeNumberLessThan(CompareOperationHints::Hint hint);
   const Operator* SpeculativeNumberLessThanOrEqual(

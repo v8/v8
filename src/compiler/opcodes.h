@@ -182,6 +182,9 @@
   V(BooleanToNumber)                  \
   V(SpeculativeNumberAdd)             \
   V(SpeculativeNumberSubtract)        \
+  V(SpeculativeNumberMultiply)        \
+  V(SpeculativeNumberDivide)          \
+  V(SpeculativeNumberModulus)         \
   V(SpeculativeNumberEqual)           \
   V(SpeculativeNumberLessThan)        \
   V(SpeculativeNumberLessThanOrEqual) \

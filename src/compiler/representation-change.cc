@@ -570,10 +570,13 @@ const Operator* RepresentationChanger::Int32OperatorFor(
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
+    case IrOpcode::kSpeculativeNumberMultiply:
     case IrOpcode::kNumberMultiply:
       return machine()->Int32Mul();
+    case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kNumberDivide:
       return machine()->Int32Div();
+    case IrOpcode::kSpeculativeNumberModulus:
     case IrOpcode::kNumberModulus:
       return machine()->Int32Mod();
     case IrOpcode::kNumberBitwiseOr:
@@ -617,10 +620,13 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
       return machine()->Int32Add();
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
+    case IrOpcode::kSpeculativeNumberMultiply:
     case IrOpcode::kNumberMultiply:
       return machine()->Int32Mul();
+    case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kNumberDivide:
       return machine()->Uint32Div();
+    case IrOpcode::kSpeculativeNumberModulus:
     case IrOpcode::kNumberModulus:
       return machine()->Uint32Mod();
     case IrOpcode::kNumberEqual:
@@ -652,10 +658,13 @@ const Operator* RepresentationChanger::Float64OperatorFor(
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Float64Sub();
+    case IrOpcode::kSpeculativeNumberMultiply:
     case IrOpcode::kNumberMultiply:
       return machine()->Float64Mul();
+    case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kNumberDivide:
       return machine()->Float64Div();
+    case IrOpcode::kSpeculativeNumberModulus:
     case IrOpcode::kNumberModulus:
       return machine()->Float64Mod();
     case IrOpcode::kNumberEqual:

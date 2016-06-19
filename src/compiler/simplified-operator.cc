@@ -219,7 +219,10 @@ Type* TypeOf(const Operator* op) {
 
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
-         op->opcode() == IrOpcode::kSpeculativeNumberSubtract);
+         op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+         op->opcode() == IrOpcode::kSpeculativeNumberMultiply ||
+         op->opcode() == IrOpcode::kSpeculativeNumberDivide ||
+         op->opcode() == IrOpcode::kSpeculativeNumberModulus);
   return OpParameter<BinaryOperationHints::Hint>(op);
 }
 
@@ -296,6 +299,13 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(StringEqual, Operator::kCommutative, 2)                \
   V(StringLessThan, Operator::kNoProperties, 2)            \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2)
+
+#define SPECULATIVE_BINOP_LIST(V) \
+  V(SpeculativeNumberAdd)         \
+  V(SpeculativeNumberSubtract)    \
+  V(SpeculativeNumberDivide)      \
+  V(SpeculativeNumberMultiply)    \
+  V(SpeculativeNumberModulus)
 
 #define CHECKED_OP_LIST(V) \
   V(CheckedUint32ToInt32)  \
@@ -498,19 +508,14 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
   return nullptr;
 }
 
-const Operator* SimplifiedOperatorBuilder::SpeculativeNumberAdd(
-    BinaryOperationHints::Hint hint) {
-  return new (zone()) Operator1<BinaryOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberAdd, Operator::kPure, "SpeculativeNumberAdd",
-      2, 1, 1, 1, 1, 1, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeNumberSubtract(
-    BinaryOperationHints::Hint hint) {
-  return new (zone()) Operator1<BinaryOperationHints::Hint>(
-      IrOpcode::kSpeculativeNumberSubtract, Operator::kPure,
-      "SpeculativeNumberSubtract", 2, 1, 1, 1, 1, 1, hint);
-}
+#define SPECULATIVE_BINOP_DEF(Name)                                         \
+  const Operator* SimplifiedOperatorBuilder::Name(                          \
+      BinaryOperationHints::Hint hint) {                                    \
+    return new (zone()) Operator1<BinaryOperationHints::Hint>(              \
+        IrOpcode::k##Name, Operator::kPure, #Name, 2, 1, 1, 1, 1, 1, hint); \
+  }
+SPECULATIVE_BINOP_LIST(SPECULATIVE_BINOP_DEF)
+#undef SPECULATIVE_BINOP_DEF
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
     CompareOperationHints::Hint hint) {

@@ -473,12 +473,16 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
     // JSModulus(x:number, x:number) => NumberModulus(x, y)
     return r.ChangeToPureOperator(simplified()->NumberModulus(),
                                   Type::Number());
+  }
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberModulus(feedback), Type::Number());
   }
   return NoChange();
 }
@@ -509,6 +513,13 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
+
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberMultiply(feedback), Type::Number());
+  }
+
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(simplified()->NumberMultiply(), Type::Number());
@@ -517,6 +528,11 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
 Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberDivide(feedback), Type::Number());
+  }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());

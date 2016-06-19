@@ -1734,6 +1734,18 @@ Type* Typer::Visitor::TypeSpeculativeNumberSubtract(Node* node) {
   return Type::Number();
 }
 
+Type* Typer::Visitor::TypeSpeculativeNumberMultiply(Node* node) {
+  return Type::Number();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberDivide(Node* node) {
+  return Type::Number();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberModulus(Node* node) {
+  return Type::Number();
+}
+
 Type* Typer::Visitor::TypeNumberMultiply(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberDivide(Node* node) { return Type::Number(); }
@@ -1924,7 +1936,9 @@ Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
 
 Type* Typer::Visitor::TypeTruncateTaggedToFloat64(Node* node) {
   Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::NumberOrOddball()));
+  // TODO(jarin) This DCHECK does not work because of speculative feedback.
+  // Re-enable once we record the speculative feedback in types.
+  // DCHECK(arg->Is(Type::NumberOrOddball()));
   return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
 }
 

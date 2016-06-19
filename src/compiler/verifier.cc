@@ -689,6 +689,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberDivide:
+    case IrOpcode::kSpeculativeNumberModulus:
       CheckUpperIs(node, Type::Number());
       break;
     case IrOpcode::kSpeculativeNumberEqual:

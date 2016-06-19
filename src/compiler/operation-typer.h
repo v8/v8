@@ -34,6 +34,9 @@ class OperationTyper {
 
   Type* NumericAdd(Type* lhs, Type* rhs);
   Type* NumericSubtract(Type* lhs, Type* rhs);
+  Type* NumericMultiply(Type* lhs, Type* rhs);
+  Type* NumericDivide(Type* lhs, Type* rhs);
+  Type* NumericModulus(Type* lhs, Type* rhs);
 
   enum ComparisonOutcomeFlags {
     kComparisonTrue = 1,
@@ -60,6 +63,7 @@ class OperationTyper {
   Type* Rangify(Type*);
   Type* AddRanger(RangeType* lhs, RangeType* rhs);
   Type* SubtractRanger(RangeType* lhs, RangeType* rhs);
+  Type* MultiplyRanger(Type* lhs, Type* rhs);
   Type* ModulusRanger(RangeType* lhs, RangeType* rhs);
 
   Zone* zone() { return zone_; }

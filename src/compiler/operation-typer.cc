@@ -233,6 +233,36 @@ Type* OperationTyper::ModulusRanger(RangeType* lhs, RangeType* rhs) {
   return result;
 }
 
+Type* OperationTyper::MultiplyRanger(Type* lhs, Type* rhs) {
+  double results[4];
+  double lmin = lhs->AsRange()->Min();
+  double lmax = lhs->AsRange()->Max();
+  double rmin = rhs->AsRange()->Min();
+  double rmax = rhs->AsRange()->Max();
+  results[0] = lmin * rmin;
+  results[1] = lmin * rmax;
+  results[2] = lmax * rmin;
+  results[3] = lmax * rmax;
+  // If the result may be nan, we give up on calculating a precise type,
+  // because
+  // the discontinuity makes it too complicated.  Note that even if none of
+  // the
+  // "results" above is nan, the actual result may still be, so we have to do
+  // a
+  // different check:
+  bool maybe_nan = (lhs->Maybe(cache_.kSingletonZero) &&
+                    (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
+                   (rhs->Maybe(cache_.kSingletonZero) &&
+                    (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
+  if (maybe_nan) return cache_.kIntegerOrMinusZeroOrNaN;  // Giving up.
+  bool maybe_minuszero = (lhs->Maybe(cache_.kSingletonZero) && rmin < 0) ||
+                         (rhs->Maybe(cache_.kSingletonZero) && lmin < 0);
+  Type* range =
+      Type::Range(array_min(results, 4), array_max(results, 4), zone());
+  return maybe_minuszero ? Type::Union(range, Type::MinusZero(), zone())
+                         : range;
+}
+
 Type* OperationTyper::ToNumber(Type* type) {
   if (type->Is(Type::Number())) return type;
   if (type->Is(Type::NullOrUndefined())) {
@@ -280,6 +310,50 @@ Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {
   }
   // TODO(neis): Deal with numeric bitsets here and elsewhere.
   return Type::Number();
+}
+
+Type* OperationTyper::NumericMultiply(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+  lhs = Rangify(lhs);
+  rhs = Rangify(rhs);
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+  if (lhs->IsRange() && rhs->IsRange()) {
+    return MultiplyRanger(lhs, rhs);
+  }
+  return Type::Number();
+}
+
+Type* OperationTyper::NumericDivide(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+  // Division is tricky, so all we do is try ruling out nan.
+  bool maybe_nan =
+      lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
+      ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
+       (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
+  return maybe_nan ? Type::Number() : Type::OrderedNumber();
+}
+
+Type* OperationTyper::NumericModulus(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
+      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
+    // Result maybe NaN.
+    return Type::Number();
+  }
+
+  lhs = Rangify(lhs);
+  rhs = Rangify(rhs);
+  if (lhs->IsRange() && rhs->IsRange()) {
+    return ModulusRanger(lhs->AsRange(), rhs->AsRange());
+  }
+  return Type::OrderedNumber();
 }
 
 Type* OperationTyper::ToPrimitive(Type* type) {

@@ -398,6 +398,66 @@ class RepresentationSelector {
         break;
       }
 
+      case IrOpcode::kSpeculativeNumberMultiply: {
+        Type* lhs = FeedbackTypeOf(node->InputAt(0));
+        Type* rhs = FeedbackTypeOf(node->InputAt(1));
+        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
+        // TODO(jarin) The ToNumber conversion is too conservative here,
+        // e.g. it will treat true as 1 even though the number check will
+        // fail on a boolean. OperationTyper should have a function that
+        // computes a more precise type.
+        lhs = op_typer_.ToNumber(lhs);
+        rhs = op_typer_.ToNumber(rhs);
+        Type* static_type = op_typer_.NumericMultiply(lhs, rhs);
+        if (info->type_check() == TypeCheckKind::kNone) {
+          new_type = static_type;
+        } else {
+          Type* feedback_type = TypeOfSpeculativeOp(info->type_check());
+          new_type = Type::Intersect(static_type, feedback_type, graph_zone());
+        }
+        break;
+      }
+
+      case IrOpcode::kSpeculativeNumberDivide: {
+        Type* lhs = FeedbackTypeOf(node->InputAt(0));
+        Type* rhs = FeedbackTypeOf(node->InputAt(1));
+        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
+        // TODO(jarin) The ToNumber conversion is too conservative here,
+        // e.g. it will treat true as 1 even though the number check will
+        // fail on a boolean. OperationTyper should have a function that
+        // computes a more precise type.
+        lhs = op_typer_.ToNumber(lhs);
+        rhs = op_typer_.ToNumber(rhs);
+        Type* static_type = op_typer_.NumericDivide(lhs, rhs);
+        if (info->type_check() == TypeCheckKind::kNone) {
+          new_type = static_type;
+        } else {
+          Type* feedback_type = TypeOfSpeculativeOp(info->type_check());
+          new_type = Type::Intersect(static_type, feedback_type, graph_zone());
+        }
+        break;
+      }
+
+      case IrOpcode::kSpeculativeNumberModulus: {
+        Type* lhs = FeedbackTypeOf(node->InputAt(0));
+        Type* rhs = FeedbackTypeOf(node->InputAt(1));
+        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
+        // TODO(jarin) The ToNumber conversion is too conservative here,
+        // e.g. it will treat true as 1 even though the number check will
+        // fail on a boolean. OperationTyper should have a function that
+        // computes a more precise type.
+        lhs = op_typer_.ToNumber(lhs);
+        rhs = op_typer_.ToNumber(rhs);
+        Type* static_type = op_typer_.NumericModulus(lhs, rhs);
+        if (info->type_check() == TypeCheckKind::kNone) {
+          new_type = static_type;
+        } else {
+          Type* feedback_type = TypeOfSpeculativeOp(info->type_check());
+          new_type = Type::Intersect(static_type, feedback_type, graph_zone());
+        }
+        break;
+      }
+
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);
         if (type != nullptr) {
@@ -1003,24 +1063,6 @@ class RepresentationSelector {
     return jsgraph_->simplified();
   }
 
-  void ChangeToPureOp(Node* node, const Operator* new_op) {
-    // Disconnect the node from effect and control chains.
-    Node* control = NodeProperties::GetControlInput(node);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    for (Edge edge : node->use_edges()) {
-      if (NodeProperties::IsControlEdge(edge)) {
-        edge.UpdateTo(control);
-      } else if (NodeProperties::IsEffectEdge(edge)) {
-        edge.UpdateTo(effect);
-      } else {
-        DCHECK(NodeProperties::IsValueEdge(edge));
-      }
-    }
-
-    node->TrimInputCount(new_op->ValueInputCount());
-    NodeProperties::ChangeOp(node, new_op);
-  }
-
   void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
     for (Edge edge : node->use_edges()) {
       if (NodeProperties::IsControlEdge(edge)) {
@@ -1031,6 +1073,21 @@ class RepresentationSelector {
         DCHECK(NodeProperties::IsValueEdge(edge));
       }
     }
+  }
+
+  void ChangeToPureOp(Node* node, const Operator* new_op) {
+    if (node->op()->EffectInputCount() > 0) {
+      DCHECK_LT(0, node->op()->ControlInputCount());
+      // Disconnect the node from effect and control chains.
+      Node* control = NodeProperties::GetControlInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      ReplaceEffectControlUses(node, effect, control);
+      node->TrimInputCount(new_op->ValueInputCount());
+    } else {
+      DCHECK_EQ(0, node->op()->ControlInputCount());
+    }
+
+    NodeProperties::ChangeOp(node, new_op);
   }
 
   void ChangeToInt32OverflowOp(Node* node, const Operator* op) {
@@ -1296,13 +1353,14 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeNumberMultiply:
       case IrOpcode::kNumberMultiply: {
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
             // Multiply reduces to Int32Mul if the inputs and the output
             // are integers.
             VisitInt32Binop(node);
-            if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+            if (lower()) ChangeToPureOp(node, Int32Op(node));
             return;
           }
           if (truncation.TruncatesToWord32() &&
@@ -1312,15 +1370,24 @@ class RepresentationSelector {
             // the uses are truncating and the result is in the safe
             // integer range.
             VisitWord32TruncatingBinop(node);
-            if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+            if (lower()) ChangeToPureOp(node, Int32Op(node));
             return;
           }
         }
-        // => Float64Mul
-        VisitFloat64Binop(node);
-        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        // Number x Number => Float64Mul
+        if (BothInputsAre(node, Type::NumberOrUndefined())) {
+          VisitFloat64Binop(node);
+          if (lower()) ChangeToPureOp(node, Float64Op(node));
+          return;
+        }
+        // Checked float64 x float64 => float64
+        DCHECK_EQ(IrOpcode::kSpeculativeNumberMultiply, node->opcode());
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kSpeculativeNumberDivide:
       case IrOpcode::kNumberDivide: {
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
@@ -1342,11 +1409,20 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
           return;
         }
-        // => Float64Div
-        VisitFloat64Binop(node);
-        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        // Number x Number => Float64Div
+        if (BothInputsAre(node, Type::NumberOrUndefined())) {
+          VisitFloat64Binop(node);
+          if (lower()) ChangeToPureOp(node, Float64Op(node));
+          return;
+        }
+        // Checked float64 x float64 => float64
+        DCHECK_EQ(IrOpcode::kSpeculativeNumberDivide, node->opcode());
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kSpeculativeNumberModulus:
       case IrOpcode::kNumberModulus: {
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
@@ -1368,9 +1444,18 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
           return;
         }
-        // => Float64Mod
-        VisitFloat64Binop(node);
-        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        // Number x Number => Float64Mod
+        if (BothInputsAre(node, Type::NumberOrUndefined())) {
+          // => Float64Mod
+          VisitFloat64Binop(node);
+          if (lower()) ChangeToPureOp(node, Float64Op(node));
+          return;
+        }
+        // Checked float64 x float64 => float64
+        DCHECK_EQ(IrOpcode::kSpeculativeNumberModulus, node->opcode());
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
       case IrOpcode::kNumberBitwiseOr:
@@ -1936,6 +2021,17 @@ class RepresentationSelector {
     TRACE("defer replacement #%d:%s with #%d:%s\n", node->id(),
           node->op()->mnemonic(), replacement->id(),
           replacement->op()->mnemonic());
+
+    // Disconnect the node from effect and control chains, if necessary.
+    if (node->op()->EffectInputCount() > 0) {
+      DCHECK_LT(0, node->op()->ControlInputCount());
+      // Disconnect the node from effect and control chains.
+      Node* control = NodeProperties::GetControlInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      ReplaceEffectControlUses(node, effect, control);
+    } else {
+      DCHECK_EQ(0, node->op()->ControlInputCount());
+    }
 
     if (replacement->id() < count_ &&
         GetUpperBound(node)->Is(GetUpperBound(replacement)) &&
