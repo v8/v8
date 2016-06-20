@@ -1849,30 +1849,33 @@ Reduction JSTypedLowering::Reduce(Node* node) {
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&
       node->op()->HasProperty(Operator::kEliminatable)) {
     Type* upper = NodeProperties::GetType(node);
-    if (upper->IsConstant()) {
-      Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
-    } else if (upper->Is(Type::MinusZero())) {
-      Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
-    } else if (upper->Is(Type::NaN())) {
-      Node* replacement = jsgraph()->NaNConstant();
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
-    } else if (upper->Is(Type::Null())) {
-      Node* replacement = jsgraph()->NullConstant();
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
-    } else if (upper->Is(Type::PlainNumber()) && upper->Min() == upper->Max()) {
-      Node* replacement = jsgraph()->Constant(upper->Min());
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
-    } else if (upper->Is(Type::Undefined())) {
-      Node* replacement = jsgraph()->UndefinedConstant();
-      ReplaceWithValue(node, replacement);
-      return Changed(replacement);
+    if (upper->IsInhabited()) {
+      if (upper->IsConstant()) {
+        Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      } else if (upper->Is(Type::MinusZero())) {
+        Node* replacement = jsgraph()->Constant(factory()->minus_zero_value());
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      } else if (upper->Is(Type::NaN())) {
+        Node* replacement = jsgraph()->NaNConstant();
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      } else if (upper->Is(Type::Null())) {
+        Node* replacement = jsgraph()->NullConstant();
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      } else if (upper->Is(Type::PlainNumber()) &&
+                 upper->Min() == upper->Max()) {
+        Node* replacement = jsgraph()->Constant(upper->Min());
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      } else if (upper->Is(Type::Undefined())) {
+        Node* replacement = jsgraph()->UndefinedConstant();
+        ReplaceWithValue(node, replacement);
+        return Changed(replacement);
+      }
     }
   }
   switch (node->opcode()) {
