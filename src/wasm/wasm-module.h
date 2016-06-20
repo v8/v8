@@ -212,6 +212,8 @@ struct WasmModule {
   // Creates a new instantiation of the module in the given isolate.
   MaybeHandle<JSObject> Instantiate(Isolate* isolate, Handle<JSReceiver> ffi,
                                     Handle<JSArrayBuffer> memory) const;
+
+  Handle<FixedArray> CompileFunctions(Isolate* isolate) const;
 };
 
 // An instantiated WASM module, including memory, function table, etc.
@@ -234,21 +236,21 @@ struct WasmModuleInstance {
   explicit WasmModuleInstance(const WasmModule* m)
       : module(m),
         function_code(m->functions.size()),
+        import_code(m->import_table.size()),
         mem_start(nullptr),
         mem_size(0),
         globals_start(nullptr) {}
 };
-
-// forward declaration.
-class WasmLinker;
 
 // Interface provided to the decoder/graph builder which contains only
 // minimal information about the globals, functions, and function tables.
 struct ModuleEnv {
   const WasmModule* module;
   WasmModuleInstance* instance;
-  WasmLinker* linker;
   ModuleOrigin origin;
+  // TODO(mtrofin): remove this once we introduce WASM_DIRECT_CALL
+  // reloc infos.
+  std::vector<Handle<Code>> placeholders;
 
   bool IsValidGlobal(uint32_t index) {
     return module && index < module->globals.size();

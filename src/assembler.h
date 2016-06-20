@@ -449,8 +449,7 @@ class RelocInfo {
   }
 
   static inline bool IsRealRelocMode(Mode mode) {
-    return mode >= FIRST_REAL_RELOC_MODE &&
-        mode <= LAST_REAL_RELOC_MODE;
+    return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
   }
   static inline bool IsCodeTarget(Mode mode) {
     return mode <= LAST_CODE_ENUM;
@@ -572,36 +571,30 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   INLINE(Address target_address());
-  INLINE(void set_target_address(Address target,
-                                 WriteBarrierMode write_barrier_mode =
-                                     UPDATE_WRITE_BARRIER,
-                                 ICacheFlushMode icache_flush_mode =
-                                     FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_address(
+      Address target,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
-  INLINE(void set_target_object(Object* target,
-                                WriteBarrierMode write_barrier_mode =
-                                    UPDATE_WRITE_BARRIER,
-                                ICacheFlushMode icache_flush_mode =
-                                    FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_object(
+      Object* target,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
-  INLINE(void set_target_runtime_entry(Address target,
-                                       WriteBarrierMode write_barrier_mode =
-                                           UPDATE_WRITE_BARRIER,
-                                       ICacheFlushMode icache_flush_mode =
-                                           FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_runtime_entry(
+      Address target,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Cell* target_cell());
   INLINE(Handle<Cell> target_cell_handle());
-  INLINE(void set_target_cell(Cell* cell,
-                              WriteBarrierMode write_barrier_mode =
-                                  UPDATE_WRITE_BARRIER,
-                              ICacheFlushMode icache_flush_mode =
-                                  FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_target_cell(
+      Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Handle<Object> code_age_stub_handle(Assembler* origin));
   INLINE(Code* code_age_stub());
-  INLINE(void set_code_age_stub(Code* stub,
-                                ICacheFlushMode icache_flush_mode =
-                                    FLUSH_ICACHE_IF_NEEDED));
+  INLINE(void set_code_age_stub(
+      Code* stub, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Returns the address of the constant pool entry where the target address
   // is held.  This should only be called if IsInConstantPool returns true.
@@ -682,6 +675,11 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
+  void unchecked_update_wasm_memory_reference(Address address,
+                                              ICacheFlushMode flush_mode);
+  void unchecked_update_wasm_memory_size(uint32_t size,
+                                         ICacheFlushMode flush_mode);
+
   Isolate* isolate_;
   // On ARM, note that pc_ is the address of the constant pool entry
   // to be relocated and not the address of the instruction

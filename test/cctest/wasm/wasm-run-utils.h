@@ -84,7 +84,6 @@ class TestingModule : public ModuleEnv {
     module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    linker = nullptr;
     origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }

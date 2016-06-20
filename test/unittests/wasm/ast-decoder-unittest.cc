@@ -1156,7 +1156,6 @@ class TestModuleEnv : public ModuleEnv {
   TestModuleEnv() {
     instance = nullptr;
     module = &mod;
-    linker = nullptr;
   }
   byte AddGlobal(MachineType mem_type) {
     mod.globals.push_back({0, 0, mem_type, 0, false});

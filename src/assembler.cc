@@ -372,6 +372,49 @@ const int kNonstatementPositionTag = 1;
 const int kStatementPositionTag = 2;
 const int kDeoptReasonTag = 3;
 
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
+  if (IsWasmMemoryReference(rmode_)) {
+    Address updated_reference;
+    DCHECK(old_size == 0 || Memory::IsAddressInRange(
+                                old_base, wasm_memory_reference(), old_size));
+    updated_reference = new_base + (wasm_memory_reference() - old_base);
+    DCHECK(new_size == 0 ||
+           Memory::IsAddressInRange(new_base, updated_reference, new_size));
+    unchecked_update_wasm_memory_reference(updated_reference,
+                                           icache_flush_mode);
+  } else if (IsWasmMemorySizeReference(rmode_)) {
+    uint32_t updated_size_reference;
+    DCHECK(old_size == 0 || wasm_memory_size_reference() <= old_size);
+    updated_size_reference =
+        new_size + (wasm_memory_size_reference() - old_size);
+    DCHECK(updated_size_reference <= new_size);
+    unchecked_update_wasm_memory_size(updated_size_reference,
+                                      icache_flush_mode);
+  } else {
+    UNREACHABLE();
+  }
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
+  }
+}
+
+void RelocInfo::update_wasm_global_reference(
+    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  Address updated_reference;
+  DCHECK(reinterpret_cast<uintptr_t>(old_base) <=
+         reinterpret_cast<uintptr_t>(wasm_global_reference()));
+  updated_reference = new_base + (wasm_global_reference() - old_base);
+  DCHECK(reinterpret_cast<uintptr_t>(new_base) <=
+         reinterpret_cast<uintptr_t>(updated_reference));
+  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
+  }
+}
 
 uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   // Return if the pc_delta can fit in kSmallPCDeltaBits bits.
