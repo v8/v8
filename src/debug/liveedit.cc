@@ -1226,18 +1226,13 @@ Handle<Code> PatchPositionsInCode(Handle<Code> code,
   }
 
   Vector<byte> buffer = buffer_writer.GetResult();
+  Handle<ByteArray> reloc_info =
+      isolate->factory()->NewByteArray(buffer.length(), TENURED);
 
-  if (buffer.length() == code->relocation_size()) {
-    // Simply patch relocation area of code.
-    MemCopy(code->relocation_start(), buffer.start(), buffer.length());
-    return code;
-  } else {
-    // Relocation info section now has different size. We cannot simply
-    // rewrite it inside code object. Instead we have to create a new
-    // code object.
-    Handle<Code> result(isolate->factory()->CopyCode(code, buffer));
-    return result;
-  }
+  DisallowHeapAllocation no_gc;
+  code->set_relocation_info(*reloc_info);
+  CopyBytes(code->relocation_start(), buffer.start(), buffer.length());
+  return code;
 }
 
 void PatchPositionsInBytecodeArray(Handle<BytecodeArray> bytecode,

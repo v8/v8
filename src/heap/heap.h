@@ -1834,11 +1834,6 @@ class Heap {
   AllocateBytecodeArray(int length, const byte* raw_bytecodes, int frame_size,
                         int parameter_count, FixedArray* constant_pool);
 
-  // Copy the code and scope info part of the code object, but insert
-  // the provided data as the relocation information.
-  MUST_USE_RESULT AllocationResult CopyCode(Code* code,
-                                            Vector<byte> reloc_info);
-
   MUST_USE_RESULT AllocationResult CopyCode(Code* code);
 
   MUST_USE_RESULT AllocationResult

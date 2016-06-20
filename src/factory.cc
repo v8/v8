@@ -1488,12 +1488,6 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 }
 
 
-Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->CopyCode(*code, reloc_info),
-                     Code);
-}
-
 Handle<BytecodeArray> Factory::CopyBytecodeArray(
     Handle<BytecodeArray> bytecode_array) {
   CALL_HEAP_FUNCTION(isolate(),
