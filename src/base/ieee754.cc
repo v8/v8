@@ -27,15 +27,6 @@ namespace ieee754 {
 
 namespace {
 
-/* Fix-up typedefs so we can use the FreeBSD msun code mostly unmodified. */
-
-#if V8_OS_WIN
-
-typedef uint32_t u_int32_t;
-typedef uint64_t u_int64_t;
-
-#endif
-
 /* Disable "potential divide by 0" warning in Visual Studio compiler. */
 
 #if V8_CC_MSVC
@@ -67,11 +58,11 @@ typedef uint64_t u_int64_t;
 typedef union {
   double value;
   struct {
-    u_int32_t lsw;
-    u_int32_t msw;
+    uint32_t lsw;
+    uint32_t msw;
   } parts;
   struct {
-    u_int64_t w;
+    uint64_t w;
   } xparts;
 } ieee_double_shape_type;
 
@@ -80,11 +71,11 @@ typedef union {
 typedef union {
   double value;
   struct {
-    u_int32_t msw;
-    u_int32_t lsw;
+    uint32_t msw;
+    uint32_t lsw;
   } parts;
   struct {
-    u_int64_t w;
+    uint64_t w;
   } xparts;
 } ieee_double_shape_type;
 
@@ -230,7 +221,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
   double z, w, t, r, fn;
   double tx[3];
   int32_t e0, i, j, nx, n, ix, hx;
-  u_int32_t low;
+  uint32_t low;
 
   z = 0;
   GET_HIGH_WORD(hx, x); /* high word of x */
@@ -274,7 +265,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
     if (n < 32 && ix != npio2_hw[n - 1]) {
       y[0] = r - w; /* quick check no cancellation */
     } else {
-      u_int32_t high;
+      uint32_t high;
       j = ix >> 20;
       y[0] = r - w;
       GET_HIGH_WORD(high, y[0]);
@@ -825,7 +816,7 @@ double __kernel_tan(double x, double y, int iy) {
   ix = hx & 0x7fffffff;             /* high word of |x| */
   if (ix < 0x3e300000) {            /* x < 2**-28 */
     if (static_cast<int>(x) == 0) { /* generate inexact */
-      u_int32_t low;
+      uint32_t low;
       GET_LOW_WORD(low, x);
       if (((ix | low) | (iy + 1)) == 0) {
         return one / fabs(x);
@@ -956,7 +947,7 @@ double atan(double x) {
   GET_HIGH_WORD(hx, x);
   ix = hx & 0x7fffffff;
   if (ix >= 0x44100000) { /* if |x| >= 2^66 */
-    u_int32_t low;
+    uint32_t low;
     GET_LOW_WORD(low, x);
     if (ix > 0x7ff00000 || (ix == 0x7ff00000 && (low != 0)))
       return x + x; /* NaN */
@@ -1043,7 +1034,7 @@ double atan2(double y, double x) {
 
   double z;
   int32_t k, m, hx, hy, ix, iy;
-  u_int32_t lx, ly;
+  uint32_t lx, ly;
 
   EXTRACT_WORDS(hx, lx, x);
   ix = hx & 0x7fffffff;
@@ -1268,7 +1259,7 @@ double exp(double x) {
 
   double y, hi = 0.0, lo = 0.0, c, t, twopk;
   int32_t k = 0, xsb;
-  u_int32_t hx;
+  uint32_t hx;
 
   GET_HIGH_WORD(hx, x);
   xsb = (hx >> 31) & 1; /* sign bit of x */
@@ -1277,7 +1268,7 @@ double exp(double x) {
   /* filter out non-finite argument */
   if (hx >= 0x40862E42) { /* if |x|>=709.78... */
     if (hx >= 0x7ff00000) {
-      u_int32_t lx;
+      uint32_t lx;
       GET_LOW_WORD(lx, x);
       if (((hx & 0xfffff) | lx) != 0)
         return x + x; /* NaN */
@@ -1351,7 +1342,7 @@ double atanh(double x) {
 
   double t;
   int32_t hx, ix;
-  u_int32_t lx;
+  uint32_t lx;
   EXTRACT_WORDS(hx, lx, x);
   ix = hx & 0x7fffffff;
   if ((ix | ((lx | -static_cast<int32_t>(lx)) >> 31)) > 0x3ff00000) /* |x|>1 */
@@ -1439,7 +1430,7 @@ double log(double x) {
 
   double hfsq, f, s, z, R, w, t1, t2, dk;
   int32_t k, hx, i, j;
-  u_int32_t lx;
+  uint32_t lx;
 
   EXTRACT_WORDS(hx, lx, x);
 
@@ -1766,7 +1757,7 @@ double log2(double x) {
 
   double f, hfsq, hi, lo, r, val_hi, val_lo, w, y;
   int32_t i, k, hx;
-  u_int32_t lx;
+  uint32_t lx;
 
   EXTRACT_WORDS(hx, lx, x);
 
@@ -1873,7 +1864,7 @@ double log10(double x) {
 
   double y;
   int32_t i, k, hx;
-  u_int32_t lx;
+  uint32_t lx;
 
   EXTRACT_WORDS(hx, lx, x);
 
@@ -2015,7 +2006,7 @@ double expm1(double x) {
 
   double y, hi, lo, c, t, e, hxs, hfx, r1, twopk;
   int32_t k, xsb;
-  u_int32_t hx;
+  uint32_t hx;
 
   GET_HIGH_WORD(hx, x);
   xsb = hx & 0x80000000; /* sign bit of x */
@@ -2025,7 +2016,7 @@ double expm1(double x) {
   if (hx >= 0x4043687A) {   /* if |x|>=56*ln2 */
     if (hx >= 0x40862E42) { /* if |x|>=709.78... */
       if (hx >= 0x7ff00000) {
-        u_int32_t low;
+        uint32_t low;
         GET_LOW_WORD(low, x);
         if (((hx & 0xfffff) | low) != 0)
           return x + x; /* NaN */
@@ -2113,7 +2104,7 @@ double expm1(double x) {
 }
 
 double cbrt(double x) {
-  static const u_int32_t
+  static const uint32_t
       B1 = 715094163, /* B1 = (1023-1023/3-0.03306235651)*2**20 */
       B2 = 696219795; /* B2 = (1023-1023/3-54/3-0.03306235651)*2**20 */
 
@@ -2130,8 +2121,8 @@ double cbrt(double x) {
     uint64_t bits;
   } u;
   double r, s, t = 0.0, w;
-  u_int32_t sign;
-  u_int32_t high, low;
+  uint32_t sign;
+  uint32_t high, low;
 
   EXTRACT_WORDS(hx, low, x);
   sign = hx & 0x80000000; /* sign= sign(x) */
