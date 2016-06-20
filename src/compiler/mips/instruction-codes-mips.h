@@ -46,6 +46,7 @@ namespace compiler {
   V(MipsCmpS)                      \
   V(MipsAddS)                      \
   V(MipsSubS)                      \
+  V(MipsSubPreserveNanS)           \
   V(MipsMulS)                      \
   V(MipsDivS)                      \
   V(MipsModS)                      \
@@ -56,6 +57,7 @@ namespace compiler {
   V(MipsCmpD)                      \
   V(MipsAddD)                      \
   V(MipsSubD)                      \
+  V(MipsSubPreserveNanD)           \
   V(MipsMulD)                      \
   V(MipsDivD)                      \
   V(MipsModD)                      \

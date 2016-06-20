@@ -61,6 +61,7 @@ namespace compiler {
   V(Mips64CmpS)                     \
   V(Mips64AddS)                     \
   V(Mips64SubS)                     \
+  V(Mips64SubPreserveNanS)          \
   V(Mips64MulS)                     \
   V(Mips64DivS)                     \
   V(Mips64ModS)                     \
@@ -71,6 +72,7 @@ namespace compiler {
   V(Mips64CmpD)                     \
   V(Mips64AddD)                     \
   V(Mips64SubD)                     \
+  V(Mips64SubPreserveNanD)          \
   V(Mips64MulD)                     \
   V(Mips64DivD)                     \
   V(Mips64ModD)                     \

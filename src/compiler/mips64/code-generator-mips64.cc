@@ -1172,6 +1172,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sub_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
+    case kMips64SubPreserveNanS:
+      __ SubNanPreservePayloadAndSign_s(i.OutputDoubleRegister(),
+                                        i.InputDoubleRegister(0),
+                                        i.InputDoubleRegister(1));
+      break;
     case kMips64MulS:
       // TODO(plind): add special case: right op is -1.0, see arm port.
       __ mul_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1221,6 +1226,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64SubD:
       __ sub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
+      break;
+    case kMips64SubPreserveNanD:
+      __ SubNanPreservePayloadAndSign_d(i.OutputDoubleRegister(),
+                                        i.InputDoubleRegister(0),
+                                        i.InputDoubleRegister(1));
       break;
     case kMips64MulD:
       // TODO(plind): add special case: right op is -1.0, see arm port.

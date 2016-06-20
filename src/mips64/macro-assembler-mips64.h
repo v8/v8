@@ -929,6 +929,12 @@ class MacroAssembler: public Assembler {
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
 
+  // Preserve value of a NaN operand
+  void SubNanPreservePayloadAndSign_s(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
+  void SubNanPreservePayloadAndSign_d(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
+
   void Madd_d(FPURegister fd,
               FPURegister fr,
               FPURegister fs,
