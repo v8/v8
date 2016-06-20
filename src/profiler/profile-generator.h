@@ -114,45 +114,7 @@ class CodeEntry {
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;
 
-  static const char* const kProgramEntryName;
-  static const char* const kIdleEntryName;
-  static const char* const kGarbageCollectorEntryName;
-  // Used to represent frames for which we have no reliable way to
-  // detect function.
-  static const char* const kUnresolvedFunctionName;
-
-  V8_INLINE static CodeEntry* program_entry() {
-    return kProgramEntry.Pointer();
-  }
-  V8_INLINE static CodeEntry* idle_entry() { return kIdleEntry.Pointer(); }
-  V8_INLINE static CodeEntry* gc_entry() { return kGCEntry.Pointer(); }
-  V8_INLINE static CodeEntry* unresolved_entry() {
-    return kUnresolvedEntry.Pointer();
-  }
-
  private:
-  struct ProgramEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct IdleEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct GCEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-  struct UnresolvedEntryCreateTrait {
-    static CodeEntry* Create();
-  };
-
-  static base::LazyDynamicInstance<CodeEntry, ProgramEntryCreateTrait>::type
-      kProgramEntry;
-  static base::LazyDynamicInstance<CodeEntry, IdleEntryCreateTrait>::type
-      kIdleEntry;
-  static base::LazyDynamicInstance<CodeEntry, GCEntryCreateTrait>::type
-      kGCEntry;
-  static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
-      kUnresolvedEntry;
-
   class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
   class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
 
@@ -338,9 +300,28 @@ class CpuProfilesCollection {
   bool StartProfiling(const char* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
   List<CpuProfile*>* profiles() { return &finished_profiles_; }
-  const char* GetName(Name* name) { return resource_names_.GetName(name); }
+  const char* GetName(Name* name) {
+    return function_and_resource_names_.GetName(name);
+  }
+  const char* GetName(int args_count) {
+    return function_and_resource_names_.GetName(args_count);
+  }
+  const char* GetFunctionName(Name* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
+  const char* GetFunctionName(const char* name) {
+    return function_and_resource_names_.GetFunctionName(name);
+  }
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
+
+  CodeEntry* NewCodeEntry(
+      CodeEventListener::LogEventsAndTags tag, const char* name,
+      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
+      const char* resource_name = CodeEntry::kEmptyResourceName,
+      int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
+      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
+      JITLineInfoTable* line_info = NULL, Address instruction_start = NULL);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(base::TimeTicks timestamp,
@@ -351,7 +332,8 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  StringsStorage resource_names_;
+  StringsStorage function_and_resource_names_;
+  List<CodeEntry*> code_entries_;
   List<CpuProfile*> finished_profiles_;
   CpuProfiler* profiler_;
 
@@ -371,11 +353,22 @@ class ProfileGenerator {
 
   CodeMap* code_map() { return &code_map_; }
 
+  static const char* const kProgramEntryName;
+  static const char* const kIdleEntryName;
+  static const char* const kGarbageCollectorEntryName;
+  // Used to represent frames for which we have no reliable way to
+  // detect function.
+  static const char* const kUnresolvedFunctionName;
+
  private:
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
+  CodeEntry* program_entry_;
+  CodeEntry* idle_entry_;
+  CodeEntry* gc_entry_;
+  CodeEntry* unresolved_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };

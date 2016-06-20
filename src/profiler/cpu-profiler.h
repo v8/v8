@@ -16,7 +16,6 @@
 #include "src/libsampler/v8-sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
-#include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 
 namespace v8 {
@@ -86,8 +85,6 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   const char* deopt_reason;
   SourcePosition position;
   int deopt_id;
-  void* pc;
-  int fp_to_sp_delta;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -186,7 +183,7 @@ class ProfilerEventsProcessor : public base::Thread {
   unsigned last_processed_code_event_id_;
 };
 
-class CpuProfiler : public CodeEventObserver {
+class CpuProfiler : public CodeEventListener {
  public:
   explicit CpuProfiler(Isolate* isolate);
 
@@ -207,11 +204,33 @@ class CpuProfiler : public CodeEventObserver {
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
 
-  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
-
   // Invoked from stack sampler (thread or signal handler.)
   inline TickSample* StartTickSample();
   inline void FinishTickSample();
+
+  // Must be called via PROFILE macro, otherwise will crash when
+  // profiling is not enabled.
+  void CallbackEvent(Name* name, Address entry_point) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       const char* comment) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       Name* name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* script_name) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, Name* script_name, int line,
+                       int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       int args_count) override;
+  void CodeMovingGCEvent() override {}
+  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override;
+  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override;
+  void GetterCallbackEvent(Name* name, Address entry_point) override;
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void SetterCallbackEvent(Name* name, Address entry_point) override;
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
 
   bool is_profiling() const { return is_profiling_; }
 
@@ -225,6 +244,9 @@ class CpuProfiler : public CodeEventObserver {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
+  Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
   Isolate* const isolate_;
   base::TimeDelta sampling_interval_;

@@ -199,23 +199,294 @@ void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   }
 }
 
-void CpuProfiler::CodeEventHandler(const CodeEventsContainer& evt_rec) {
-  switch (evt_rec.generic.type) {
-    case CodeEventRecord::CODE_CREATION:
-    case CodeEventRecord::CODE_MOVE:
-    case CodeEventRecord::CODE_DISABLE_OPT:
-      processor_->Enqueue(evt_rec);
-      break;
-    case CodeEventRecord::CODE_DEOPT: {
-      const CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
-      Address pc = reinterpret_cast<Address>(rec->pc);
-      int fp_to_sp_delta = rec->fp_to_sp_delta;
-      processor_->Enqueue(evt_rec);
-      processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
-      break;
+
+void CpuProfiler::CallbackEvent(Name* name, Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = entry_point;
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name));
+  rec->size = 1;
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                  AbstractCode* code, const char* name) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->address();
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
+  rec->size = code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                  AbstractCode* code, Name* name) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->address();
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
+  rec->size = code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                  AbstractCode* code,
+                                  SharedFunctionInfo* shared,
+                                  Name* script_name) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->address();
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(shared->DebugName()),
+      CodeEntry::kEmptyNamePrefix,
+      profiles_->GetName(InferScriptName(script_name, shared)),
+      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
+      NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
+  rec->entry->FillFunctionInfo(shared);
+  rec->size = code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                  AbstractCode* abstract_code,
+                                  SharedFunctionInfo* shared, Name* script_name,
+                                  int line, int column) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = abstract_code->address();
+  Script* script = Script::cast(shared->script());
+  JITLineInfoTable* line_table = NULL;
+  if (script) {
+    if (abstract_code->IsCode()) {
+      Code* code = abstract_code->GetCode();
+      int start_position = shared->start_position();
+      int end_position = shared->end_position();
+      line_table = new JITLineInfoTable();
+      for (RelocIterator it(code); !it.done(); it.next()) {
+        RelocInfo* reloc_info = it.rinfo();
+        if (!RelocInfo::IsPosition(reloc_info->rmode())) continue;
+        int position = static_cast<int>(reloc_info->data());
+        // TODO(alph): in case of inlining the position may correspond
+        // to an inlined function source code. Do not collect positions
+        // that fall beyond the function source code. There's however a
+        // chance the inlined function has similar positions but in another
+        // script. So the proper fix is to store script_id in some form
+        // along with the inlined function positions.
+        if (position < start_position || position >= end_position) continue;
+        int pc_offset = static_cast<int>(reloc_info->pc() - code->address());
+        int line_number = script->GetLineNumber(position) + 1;
+        line_table->SetPosition(pc_offset, line_number);
+      }
+    } else {
+      BytecodeArray* bytecode = abstract_code->GetBytecodeArray();
+      line_table = new JITLineInfoTable();
+      interpreter::SourcePositionTableIterator it(
+          bytecode->source_position_table());
+      for (; !it.done(); it.Advance()) {
+        int line_number = script->GetLineNumber(it.source_position()) + 1;
+        int pc_offset = it.bytecode_offset() + BytecodeArray::kHeaderSize;
+        line_table->SetPosition(pc_offset, line_number);
+      }
     }
-    default:
-      UNREACHABLE();
+  }
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(shared->DebugName()),
+      CodeEntry::kEmptyNamePrefix,
+      profiles_->GetName(InferScriptName(script_name, shared)), line, column,
+      line_table, abstract_code->instruction_start());
+  RecordInliningInfo(rec->entry, abstract_code);
+  RecordDeoptInlinedFrames(rec->entry, abstract_code);
+  rec->entry->FillFunctionInfo(shared);
+  rec->size = abstract_code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                                  AbstractCode* code, int args_count) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->address();
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetName(args_count), "args_count: ",
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
+  rec->size = code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeMoveEvent(AbstractCode* from, Address to) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
+  CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
+  rec->from = from->address();
+  rec->to = to;
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeDisableOptEvent(AbstractCode* code,
+                                      SharedFunctionInfo* shared) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
+  CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
+  rec->start = code->address();
+  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
+  CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
+  Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
+  rec->start = code->address();
+  rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
+  rec->position = info.position;
+  rec->deopt_id = info.deopt_id;
+  processor_->Enqueue(evt_rec);
+  processor_->AddDeoptStack(isolate_, pc, fp_to_sp_delta);
+}
+
+void CpuProfiler::GetterCallbackEvent(Name* name, Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = entry_point;
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name), "get ");
+  rec->size = 1;
+  processor_->Enqueue(evt_rec);
+}
+
+void CpuProfiler::RegExpCodeCreateEvent(AbstractCode* code, String* source) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = code->address();
+  rec->entry = profiles_->NewCodeEntry(
+      CodeEventListener::REG_EXP_TAG, profiles_->GetName(source), "RegExp: ",
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  rec->size = code->ExecutableSize();
+  processor_->Enqueue(evt_rec);
+}
+
+
+void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = entry_point;
+  rec->entry = profiles_->NewCodeEntry(CodeEventListener::CALLBACK_TAG,
+                                       profiles_->GetName(name), "set ");
+  rec->size = 1;
+  processor_->Enqueue(evt_rec);
+}
+
+Name* CpuProfiler::InferScriptName(Name* name, SharedFunctionInfo* info) {
+  if (name->IsString() && String::cast(name)->length()) return name;
+  if (!info->script()->IsScript()) return name;
+  Object* source_url = Script::cast(info->script())->source_url();
+  return source_url->IsName() ? Name::cast(source_url) : name;
+}
+
+void CpuProfiler::RecordInliningInfo(CodeEntry* entry,
+                                     AbstractCode* abstract_code) {
+  if (!abstract_code->IsCode()) return;
+  Code* code = abstract_code->GetCode();
+  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
+  DeoptimizationInputData* deopt_input_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int deopt_count = deopt_input_data->DeoptCount();
+  for (int i = 0; i < deopt_count; i++) {
+    int pc_offset = deopt_input_data->Pc(i)->value();
+    if (pc_offset == -1) continue;
+    int translation_index = deopt_input_data->TranslationIndex(i)->value();
+    TranslationIterator it(deopt_input_data->TranslationByteArray(),
+                           translation_index);
+    Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+    DCHECK_EQ(Translation::BEGIN, opcode);
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+    int depth = 0;
+    std::vector<CodeEntry*> inline_stack;
+    while (it.HasNext() &&
+           Translation::BEGIN !=
+               (opcode = static_cast<Translation::Opcode>(it.Next()))) {
+      if (opcode != Translation::JS_FRAME &&
+          opcode != Translation::INTERPRETED_FRAME) {
+        it.Skip(Translation::NumberOfOperandsFor(opcode));
+        continue;
+      }
+      it.Next();  // Skip ast_id
+      int shared_info_id = it.Next();
+      it.Next();  // Skip height
+      SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
+          deopt_input_data->LiteralArray()->get(shared_info_id));
+      if (!depth++) continue;  // Skip the current function itself.
+      CodeEntry* inline_entry = new CodeEntry(
+          entry->tag(), profiles_->GetFunctionName(shared_info->DebugName()),
+          CodeEntry::kEmptyNamePrefix, entry->resource_name(),
+          CpuProfileNode::kNoLineNumberInfo,
+          CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      inline_entry->FillFunctionInfo(shared_info);
+      inline_stack.push_back(inline_entry);
+    }
+    if (!inline_stack.empty()) {
+      entry->AddInlineStack(pc_offset, inline_stack);
+      DCHECK(inline_stack.empty());
+    }
+  }
+}
+
+void CpuProfiler::RecordDeoptInlinedFrames(CodeEntry* entry,
+                                           AbstractCode* abstract_code) {
+  if (abstract_code->kind() != AbstractCode::OPTIMIZED_FUNCTION) return;
+  Code* code = abstract_code->GetCode();
+  DeoptimizationInputData* deopt_input_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int const mask = RelocInfo::ModeMask(RelocInfo::DEOPT_ID);
+  for (RelocIterator rit(code, mask); !rit.done(); rit.next()) {
+    RelocInfo* reloc_info = rit.rinfo();
+    DCHECK(RelocInfo::IsDeoptId(reloc_info->rmode()));
+    int deopt_id = static_cast<int>(reloc_info->data());
+    int translation_index =
+        deopt_input_data->TranslationIndex(deopt_id)->value();
+    TranslationIterator it(deopt_input_data->TranslationByteArray(),
+                           translation_index);
+    Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+    DCHECK_EQ(Translation::BEGIN, opcode);
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+    std::vector<CodeEntry::DeoptInlinedFrame> inlined_frames;
+    while (it.HasNext() &&
+           Translation::BEGIN !=
+               (opcode = static_cast<Translation::Opcode>(it.Next()))) {
+      if (opcode != Translation::JS_FRAME &&
+          opcode != Translation::INTERPRETED_FRAME) {
+        it.Skip(Translation::NumberOfOperandsFor(opcode));
+        continue;
+      }
+      BailoutId ast_id = BailoutId(it.Next());
+      int shared_info_id = it.Next();
+      it.Next();  // Skip height
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(
+          deopt_input_data->LiteralArray()->get(shared_info_id));
+      int source_position = Deoptimizer::ComputeSourcePosition(shared, ast_id);
+      int script_id = v8::UnboundScript::kNoScriptId;
+      if (shared->script()->IsScript()) {
+        Script* script = Script::cast(shared->script());
+        script_id = script->id();
+      }
+      CodeEntry::DeoptInlinedFrame frame = {source_position, script_id};
+      inlined_frames.push_back(frame);
+    }
+    if (!inlined_frames.empty() && !entry->HasDeoptInlinedFramesFor(deopt_id)) {
+      entry->AddDeoptInlinedFrames(deopt_id, inlined_frames);
+      DCHECK(inlined_frames.empty());
+    }
   }
 }
 
@@ -287,13 +558,11 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   generator_.reset(new ProfileGenerator(profiles_.get()));
   processor_.reset(new ProfilerEventsProcessor(generator_.get(), sampler,
                                                sampling_interval_));
-  logger->SetUpProfilerListener();
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->AddObserver(this);
   is_profiling_ = true;
   isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
+  isolate_->code_event_dispatcher()->AddListener(this);
   if (!FLAG_prof_browser_mode) {
     logger->LogCodeObjects();
   }
@@ -340,10 +609,8 @@ void CpuProfiler::StopProcessor() {
       reinterpret_cast<sampler::Sampler*>(logger->ticker_);
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
-  ProfilerListener* profiler_listener = logger->profiler_listener();
-  profiler_listener->RemoveObserver(this);
+  isolate_->code_event_dispatcher()->RemoveListener(this);
   processor_->StopSynchronously();
-  logger->TearDownProfilerListener();
   processor_.reset();
   generator_.reset();
   sampler->SetHasProcessingThread(false);
@@ -364,6 +631,7 @@ void CpuProfiler::LogBuiltins() {
     processor_->Enqueue(evt_rec);
   }
 }
+
 
 }  // namespace internal
 }  // namespace v8

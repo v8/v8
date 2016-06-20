@@ -1322,8 +1322,6 @@ v8_source_set("v8_base") {
     "src/profiler/profile-generator-inl.h",
     "src/profiler/profile-generator.cc",
     "src/profiler/profile-generator.h",
-    "src/profiler/profiler-listener.cc",
-    "src/profiler/profiler-listener.h",
     "src/profiler/sampling-heap-profiler.cc",
     "src/profiler/sampling-heap-profiler.h",
     "src/profiler/strings-storage.cc",

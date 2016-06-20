@@ -33,7 +33,6 @@
 #include "src/base/platform/platform.h"
 #include "src/deoptimizer.h"
 #include "src/profiler/cpu-profiler-inl.h"
-#include "src/profiler/profiler-listener.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
@@ -46,7 +45,6 @@ using i::Heap;
 using i::ProfileGenerator;
 using i::ProfileNode;
 using i::ProfilerEventsProcessor;
-using i::ProfilerListener;
 using i::ScopedVector;
 using i::Vector;
 
@@ -160,29 +158,24 @@ TEST(CodeEvents) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
-  profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code,
-                                    *aaa_name);
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code,
-                                    "comment");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
-                                    "comment2");
-  profiler_listener.CodeMoveEvent(comment2_code, moved_code->address());
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
+  profiler.CodeCreateEvent(i::CodeEventListener::FUNCTION_TAG, aaa_code,
+                           *aaa_name);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, comment_code,
+                           "comment");
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args5_code, 5);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, comment2_code,
+                           "comment2");
+  profiler.CodeMoveEvent(comment2_code, moved_code->address());
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args3_code, 3);
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, args4_code, 4);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->address());
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
@@ -228,13 +221,12 @@ TEST(TickEvents) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
 
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, frame1_code,
+                           "bbb");
+  profiler.CodeCreateEvent(i::CodeEventListener::STUB_TAG, frame2_code, 5);
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, frame3_code,
+                           "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
   EnqueueTickSampleEvent(
@@ -245,8 +237,6 @@ TEST(TickEvents) {
                          frame2_code->instruction_end() - 1,
                          frame1_code->instruction_end() - 1);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -267,8 +257,6 @@ TEST(TickEvents) {
   const i::List<ProfileNode*>* top_down_ddd_children =
       top_down_stub_children->last()->children();
   CHECK_EQ(0, top_down_ddd_children->length());
-
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
 }
 
 // http://crbug/51594
@@ -300,11 +288,8 @@ TEST(Issue1398) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
 
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
+  profiler.CodeCreateEvent(i::CodeEventListener::BUILTIN_TAG, code, "bbb");
 
   i::TickSample* sample = processor->StartTickSample();
   sample->pc = code->address();
@@ -315,8 +300,6 @@ TEST(Issue1398) {
   }
   processor->FinishTickSample();
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling("");
   CHECK(profile);
@@ -1043,22 +1026,17 @@ static void TickLines(bool optimize) {
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
-  ProfilerListener profiler_listener(isolate);
-  isolate->code_event_dispatcher()->AddListener(&profiler_listener);
-  profiler_listener.AddObserver(&profiler);
 
   // Enqueue code creation events.
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, code,
-                                    func->shared(), *str, line, column);
+  profiler.CodeCreateEvent(i::CodeEventListener::FUNCTION_TAG, code,
+                           func->shared(), *str, line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);
 
-  profiler_listener.RemoveObserver(&profiler);
-  isolate->code_event_dispatcher()->RemoveListener(&profiler_listener);
   processor->StopSynchronously();
 
   CpuProfile* profile = profiles->StopProfiling("");
@@ -1151,8 +1129,8 @@ TEST(FunctionCallSample) {
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
   GetChild(env.local(), start_node, "bar");
 
-  const v8::CpuProfileNode* unresolved_node =
-      FindChild(env.local(), root, i::CodeEntry::kUnresolvedFunctionName);
+  const v8::CpuProfileNode* unresolved_node = FindChild(
+      env.local(), root, i::ProfileGenerator::kUnresolvedFunctionName);
   CHECK(!unresolved_node || GetChild(env.local(), unresolved_node, "call"));
 
   profile->Delete();
@@ -1207,8 +1185,8 @@ TEST(FunctionApplySample) {
       GetChild(env.local(), start_node, "test");
   GetChild(env.local(), test_node, "bar");
 
-  const v8::CpuProfileNode* unresolved_node =
-      FindChild(env.local(), start_node, CodeEntry::kUnresolvedFunctionName);
+  const v8::CpuProfileNode* unresolved_node = FindChild(
+      env.local(), start_node, ProfileGenerator::kUnresolvedFunctionName);
   CHECK(!unresolved_node || GetChild(env.local(), unresolved_node, "apply"));
 
   profile->Delete();
@@ -1615,12 +1593,12 @@ TEST(IdleTime) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* program_node =
-      GetChild(env.local(), root, CodeEntry::kProgramEntryName);
+      GetChild(env.local(), root, ProfileGenerator::kProgramEntryName);
   CHECK_EQ(0, program_node->GetChildrenCount());
   CHECK_GE(program_node->GetHitCount(), 2u);
 
   const v8::CpuProfileNode* idle_node =
-      GetChild(env.local(), root, CodeEntry::kIdleEntryName);
+      GetChild(env.local(), root, ProfileGenerator::kIdleEntryName);
   CHECK_EQ(0, idle_node->GetChildrenCount());
   CHECK_GE(idle_node->GetHitCount(), 3u);
 

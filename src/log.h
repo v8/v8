@@ -89,7 +89,6 @@ class JitLogger;
 class PerfBasicLogger;
 class LowLevelLogger;
 class PerfJitLogger;
-class ProfilerListener;
 
 class Logger : public CodeEventListener {
  public:
@@ -102,15 +101,7 @@ class Logger : public CodeEventListener {
   void SetCodeEventHandler(uint32_t options,
                            JitCodeEventHandler event_handler);
 
-  // Sets up ProfilerListener.
-  void SetUpProfilerListener();
-
-  // Tear down ProfilerListener if it has no observers.
-  void TearDownProfilerListener();
-
   sampler::Sampler* sampler();
-
-  ProfilerListener* profiler_listener() { return profiler_listener_.get(); }
 
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
@@ -341,7 +332,6 @@ class Logger : public CodeEventListener {
   PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
-  std::unique_ptr<ProfilerListener> profiler_listener_;
   List<CodeEventListener*> listeners_;
 
   // Guards against multiple calls to TearDown() that can happen in some tests.
