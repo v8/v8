@@ -896,10 +896,6 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 }
 
 
-const char* const Isolate::kStackOverflowMessage =
-  "Uncaught RangeError: Maximum call stack size exceeded";
-
-
 Object* Isolate::StackOverflow() {
   HandleScope scope(this);
   // At this point we cannot create an Error object using its javascript

@@ -792,8 +792,6 @@ class Isolate {
   char* ArchiveThread(char* to);
   char* RestoreThread(char* from);
 
-  static const char* const kStackOverflowMessage;
-
   static const int kUC16AlphabetSize = 256;  // See StringSearchBase.
   static const int kBMMaxShift = 250;        // See StringSearchBase.
 
