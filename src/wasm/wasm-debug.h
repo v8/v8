@@ -24,12 +24,14 @@ class WasmDebugInfo : public FixedArray {
   bool SetBreakPoint(int byte_offset);
 
   // Disassemble the specified function from this module.
-  Handle<String> DisassembleFunction(int func_index);
+  static Handle<String> DisassembleFunction(Handle<WasmDebugInfo> debug_info,
+                                            int func_index);
 
   // Get the offset table for the specified function.
   // Returns an array with three entries per instruction: byte offset, line and
   // column.
-  Handle<FixedArray> GetFunctionOffsetTable(int func_index);
+  static Handle<FixedArray> GetFunctionOffsetTable(
+      Handle<WasmDebugInfo> debug_info, int func_index);
 };
 
 }  // namespace wasm

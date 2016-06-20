@@ -23,7 +23,7 @@ enum {
   kWasmDebugInfoNumEntries
 };
 
-ByteArray *GetOrCreateFunctionOffsetTable(WasmDebugInfo *debug_info) {
+ByteArray *GetOrCreateFunctionOffsetTable(Handle<WasmDebugInfo> debug_info) {
   Object *offset_table = debug_info->get(kWasmDebugInfoFunctionByteOffsets);
   Isolate *isolate = debug_info->GetIsolate();
   if (!offset_table->IsUndefined(isolate)) return ByteArray::cast(offset_table);
@@ -53,7 +53,7 @@ ByteArray *GetOrCreateFunctionOffsetTable(WasmDebugInfo *debug_info) {
   return arr;
 }
 
-std::pair<int, int> GetFunctionOffsetAndLength(WasmDebugInfo *debug_info,
+std::pair<int, int> GetFunctionOffsetAndLength(Handle<WasmDebugInfo> debug_info,
                                                int func_index) {
   ByteArray *arr = GetOrCreateFunctionOffsetTable(debug_info);
   DCHECK(func_index >= 0 && func_index < arr->length() / kIntSize / 2);
@@ -65,9 +65,8 @@ std::pair<int, int> GetFunctionOffsetAndLength(WasmDebugInfo *debug_info,
   return {offset, length};
 }
 
-Vector<const uint8_t> GetFunctionBytes(WasmDebugInfo *debug_info,
+Vector<const uint8_t> GetFunctionBytes(Handle<WasmDebugInfo> debug_info,
                                        int func_index) {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
   SeqOneByteString *module_bytes =
       wasm::GetWasmBytes(debug_info->wasm_object());
   std::pair<int, int> offset_and_length =
@@ -123,12 +122,13 @@ bool WasmDebugInfo::SetBreakPoint(int byte_offset) {
   return false;
 }
 
-Handle<String> WasmDebugInfo::DisassembleFunction(int func_index) {
+Handle<String> WasmDebugInfo::DisassembleFunction(
+    Handle<WasmDebugInfo> debug_info, int func_index) {
   std::ostringstream disassembly_os;
 
   {
+    Vector<const uint8_t> bytes_vec = GetFunctionBytes(debug_info, func_index);
     DisallowHeapAllocation no_gc;
-    Vector<const uint8_t> bytes_vec = GetFunctionBytes(this, func_index);
 
     base::AccountingAllocator allocator;
     bool ok = PrintAst(
@@ -141,14 +141,14 @@ Handle<String> WasmDebugInfo::DisassembleFunction(int func_index) {
   // Unfortunately, we have to copy the string here.
   std::string code_str = disassembly_os.str();
   CHECK_LE(code_str.length(), static_cast<size_t>(kMaxInt));
-  return GetIsolate()
-      ->factory()
-      ->NewStringFromAscii(Vector<const char>(
-          code_str.data(), static_cast<int>(code_str.length())))
-      .ToHandleChecked();
+  Factory *factory = debug_info->GetIsolate()->factory();
+  Vector<const char> code_vec(code_str.data(),
+                              static_cast<int>(code_str.length()));
+  return factory->NewStringFromAscii(code_vec).ToHandleChecked();
 }
 
-Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(int func_index) {
+Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(
+    Handle<WasmDebugInfo> debug_info, int func_index) {
   class NullBuf : public std::streambuf {};
   NullBuf null_buf;
   std::ostream null_stream(&null_buf);
@@ -156,8 +156,8 @@ Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(int func_index) {
   std::vector<std::tuple<uint32_t, int, int>> offset_table_vec;
 
   {
+    Vector<const uint8_t> bytes_vec = GetFunctionBytes(debug_info, func_index);
     DisallowHeapAllocation no_gc;
-    Vector<const uint8_t> bytes_vec = GetFunctionBytes(this, func_index);
 
     v8::base::AccountingAllocator allocator;
     bool ok = PrintAst(
@@ -169,8 +169,9 @@ Handle<FixedArray> WasmDebugInfo::GetFunctionOffsetTable(int func_index) {
 
   size_t arr_size = 3 * offset_table_vec.size();
   CHECK_LE(arr_size, static_cast<size_t>(kMaxInt));
-  Handle<FixedArray> offset_table = GetIsolate()->factory()->NewFixedArray(
-      static_cast<int>(arr_size), TENURED);
+  Factory *factory = debug_info->GetIsolate()->factory();
+  Handle<FixedArray> offset_table =
+      factory->NewFixedArray(static_cast<int>(arr_size), TENURED);
 
   int idx = 0;
   for (std::tuple<uint32_t, int, int> elem : offset_table_vec) {
