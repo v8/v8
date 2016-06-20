@@ -70,6 +70,7 @@ v8_executable("cctest") {
     "heap/test-incremental-marking.cc",
     "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
+    "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",

@@ -1386,7 +1386,6 @@ void NewSpace::TearDown() {
   from_space_.TearDown();
 }
 
-
 void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
 
 
@@ -1432,6 +1431,48 @@ void NewSpace::Shrink() {
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
+bool NewSpace::Rebalance() {
+  CHECK(heap()->promotion_queue()->is_empty());
+  // Order here is important to make use of the page pool.
+  return to_space_.EnsureCurrentCapacity() &&
+         from_space_.EnsureCurrentCapacity();
+}
+
+bool SemiSpace::EnsureCurrentCapacity() {
+  if (is_committed()) {
+    const int expected_pages = current_capacity_ / Page::kPageSize;
+    int actual_pages = 0;
+    Page* current_page = anchor()->next_page();
+    while (current_page != anchor()) {
+      actual_pages++;
+      current_page = current_page->next_page();
+      if (actual_pages > expected_pages) {
+        Page* to_remove = current_page->prev_page();
+        // Make sure we don't overtake the actual top pointer.
+        CHECK_NE(to_remove, current_page_);
+        to_remove->Unlink();
+        heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
+            to_remove);
+      }
+    }
+    while (actual_pages < expected_pages) {
+      actual_pages++;
+      current_page =
+          heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
+              Page::kAllocatableMemory, this, executable());
+      if (current_page == nullptr) return false;
+      DCHECK_NOT_NULL(current_page);
+      current_page->InsertAfter(anchor());
+      Bitmap::Clear(current_page);
+      current_page->SetFlags(anchor()->prev_page()->GetFlags(),
+                             Page::kCopyAllFlags);
+      heap()->CreateFillerObjectAt(current_page->area_start(),
+                                   current_page->area_size(),
+                                   ClearRecordedSlots::kNo);
+    }
+  }
+  return true;
+}
 
 void LocalAllocationBuffer::Close() {
   if (IsValid()) {
@@ -1488,7 +1529,6 @@ void NewSpace::ResetAllocationInfo() {
   Address old_top = allocation_info_.top();
   to_space_.Reset();
   UpdateAllocationInfo();
-  pages_used_ = 0;
   // Clear all mark-bits in the to-space.
   NewSpacePageIterator it(&to_space_);
   while (it.has_next()) {
@@ -1534,7 +1574,6 @@ bool NewSpace::AddFreshPage() {
 
   int remaining_in_page = static_cast<int>(limit - top);
   heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
-  pages_used_++;
   UpdateAllocationInfo();
 
   return true;
@@ -1872,23 +1911,21 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
 void SemiSpace::Reset() {
   DCHECK_NE(anchor_.next_page(), &anchor_);
   current_page_ = anchor_.next_page();
+  pages_used_ = 0;
 }
 
-bool SemiSpace::ReplaceWithEmptyPage(Page* old_page) {
-  // TODO(mlippautz): We do not have to get a new page here when the semispace
-  // is uncommitted later on.
-  Page* new_page = heap()->memory_allocator()->AllocatePage(
-      Page::kAllocatableMemory, this, executable());
-  if (new_page == nullptr) return false;
-  Bitmap::Clear(new_page);
-  new_page->SetFlags(old_page->GetFlags(), Page::kCopyAllFlags);
-  new_page->set_next_page(old_page->next_page());
-  new_page->set_prev_page(old_page->prev_page());
-  old_page->next_page()->set_prev_page(new_page);
-  old_page->prev_page()->set_next_page(new_page);
-  heap()->CreateFillerObjectAt(new_page->area_start(), new_page->area_size(),
-                               ClearRecordedSlots::kNo);
-  return true;
+void SemiSpace::RemovePage(Page* page) {
+  if (current_page_ == page) {
+    current_page_ = page->prev_page();
+  }
+  page->Unlink();
+}
+
+void SemiSpace::PrependPage(Page* page) {
+  page->SetFlags(current_page()->GetFlags(), Page::kCopyAllFlags);
+  page->set_owner(this);
+  page->InsertAfter(anchor());
+  pages_used_++;
 }
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {

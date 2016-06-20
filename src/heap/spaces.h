@@ -425,6 +425,10 @@ class MemoryChunk {
     // from new to old space during evacuation.
     PAGE_NEW_OLD_PROMOTION,
 
+    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
+    // within the new space during evacuation.
+    PAGE_NEW_NEW_PROMOTION,
+
     // A black page has all mark bits set to 1 (black). A black page currently
     // cannot be iterated because it is not swept. Moreover live bytes are also
     // not updated.
@@ -2408,7 +2412,8 @@ class SemiSpace : public Space {
         committed_(false),
         id_(semispace),
         anchor_(this),
-        current_page_(nullptr) {}
+        current_page_(nullptr),
+        pages_used_(0) {}
 
   inline bool Contains(HeapObject* o);
   inline bool Contains(Object* o);
@@ -2431,6 +2436,8 @@ class SemiSpace : public Space {
   // than the current capacity.
   bool ShrinkTo(int new_capacity);
 
+  bool EnsureCurrentCapacity();
+
   // Returns the start address of the first page of the space.
   Address space_start() {
     DCHECK_NE(anchor_.next_page(), anchor());
@@ -2439,6 +2446,7 @@ class SemiSpace : public Space {
 
   Page* first_page() { return anchor_.next_page(); }
   Page* current_page() { return current_page_; }
+  int pages_used() { return pages_used_; }
 
   // Returns one past the end address of the space.
   Address space_end() { return anchor_.prev_page()->area_end(); }
@@ -2451,15 +2459,19 @@ class SemiSpace : public Space {
 
   bool AdvancePage() {
     Page* next_page = current_page_->next_page();
-    if (next_page == anchor()) return false;
+    if (next_page == anchor() || pages_used_ == max_pages()) {
+      return false;
+    }
     current_page_ = next_page;
+    pages_used_++;
     return true;
   }
 
   // Resets the space to using the first page.
   void Reset();
 
-  bool ReplaceWithEmptyPage(Page* page);
+  void RemovePage(Page* page);
+  void PrependPage(Page* page);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
@@ -2513,6 +2525,7 @@ class SemiSpace : public Space {
   void RewindPages(Page* start, int num_pages);
 
   inline Page* anchor() { return &anchor_; }
+  inline int max_pages() { return current_capacity_ / Page::kPageSize; }
 
   // Copies the flags into the masked positions on all pages in the space.
   void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
@@ -2520,7 +2533,8 @@ class SemiSpace : public Space {
   // The currently committed space capacity.
   int current_capacity_;
 
-  // The maximum capacity that can be used by this space.
+  // The maximum capacity that can be used by this space. A space cannot grow
+  // beyond that size.
   int maximum_capacity_;
 
   // The minimum capacity for the space. A space cannot shrink below this size.
@@ -2534,9 +2548,11 @@ class SemiSpace : public Space {
 
   Page anchor_;
   Page* current_page_;
+  int pages_used_;
 
-  friend class SemiSpaceIterator;
+  friend class NewSpace;
   friend class NewSpacePageIterator;
+  friend class SemiSpaceIterator;
 };
 
 
@@ -2606,7 +2622,6 @@ class NewSpace : public Space {
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        pages_used_(0),
         top_on_previous_step_(0),
         allocated_histogram_(nullptr),
         promoted_histogram_(nullptr) {}
@@ -2638,7 +2653,7 @@ class NewSpace : public Space {
 
   // Return the allocated bytes in the active semispace.
   intptr_t Size() override {
-    return pages_used_ * Page::kAllocatableMemory +
+    return to_space_.pages_used() * Page::kAllocatableMemory +
            static_cast<int>(top() - to_space_.page_low());
   }
 
@@ -2715,11 +2730,13 @@ class NewSpace : public Space {
     return static_cast<size_t>(allocated);
   }
 
-  bool ReplaceWithEmptyPage(Page* page) {
-    // This method is called after flipping the semispace.
+  void MovePageFromSpaceToSpace(Page* page) {
     DCHECK(page->InFromSpace());
-    return from_space_.ReplaceWithEmptyPage(page);
+    from_space_.RemovePage(page);
+    to_space_.PrependPage(page);
   }
+
+  bool Rebalance();
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
@@ -2873,7 +2890,6 @@ class NewSpace : public Space {
   SemiSpace to_space_;
   SemiSpace from_space_;
   base::VirtualMemory reservation_;
-  int pages_used_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.
