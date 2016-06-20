@@ -239,6 +239,19 @@
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
 
+  # We do not expose Array.prototype.values due to webcompat issues.
+  # Most recent incompatability: https://crbug.com/615873
+  # https://code.google.com/p/v8/issues/detail?id=4247
+  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
+  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
+  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
+  'built-ins/Array/prototype/values/prop-desc': [FAIL],
+  'built-ins/Array/prototype/values/name': [FAIL],
+  'built-ins/Array/prototype/values/length': [FAIL],
+  'built-ins/Array/prototype/values/iteration': [FAIL],
+  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
+  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
+
   ############################ INVALID TESTS #############################
 
   # The reference value calculated by Test262 is incorrect if you run these
