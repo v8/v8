@@ -524,7 +524,7 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
       BinaryOperationHints::Hint hint) {                                       \
     return new (zone()) Operator1<BinaryOperationHints::Hint>(                 \
         IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, #Name, 2, \
-        1, 1, 1, 1, 1, hint);                                                  \
+        1, 1, 1, 1, 0, hint);                                                  \
   }
 SPECULATIVE_BINOP_LIST(SPECULATIVE_BINOP_DEF)
 #undef SPECULATIVE_BINOP_DEF
@@ -534,7 +534,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
   return new (zone()) Operator1<CompareOperationHints::Hint>(
       IrOpcode::kSpeculativeNumberEqual,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeNumberEqual", 2, 1,
-      1, 1, 1, 1, hint);
+      1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThan(
@@ -542,7 +542,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThan(
   return new (zone()) Operator1<CompareOperationHints::Hint>(
       IrOpcode::kSpeculativeNumberLessThan,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeNumberLessThan", 2,
-      1, 1, 1, 1, 1, hint);
+      1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThanOrEqual(
@@ -550,7 +550,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThanOrEqual(
   return new (zone()) Operator1<CompareOperationHints::Hint>(
       IrOpcode::kSpeculativeNumberLessThanOrEqual,
       Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeNumberLessThanOrEqual", 2, 1, 1, 1, 1, 1, hint);
+      "SpeculativeNumberLessThanOrEqual", 2, 1, 1, 1, 1, 0, hint);
 }
 
 #define ACCESS_OP_LIST(V)                                    \

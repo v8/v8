@@ -147,7 +147,7 @@ class JSBinopReduction final {
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(1, op->ControlInputCount());
-    DCHECK_EQ(1, op->ControlOutputCount());
+    DCHECK_EQ(0, op->ControlOutputCount());
     DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
     DCHECK_EQ(2, op->ValueInputCount());
 
@@ -165,7 +165,7 @@ class JSBinopReduction final {
       DCHECK(!user->IsDead());
       if (NodeProperties::IsControlEdge(edge)) {
         if (user->opcode() == IrOpcode::kIfSuccess) {
-          user->ReplaceUses(node_);
+          user->ReplaceUses(NodeProperties::GetControlInput(node_));
           user->Kill();
         } else {
           DCHECK_EQ(user->opcode(), IrOpcode::kIfException);
