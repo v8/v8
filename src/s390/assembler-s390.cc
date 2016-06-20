@@ -2520,7 +2520,6 @@ void Assembler::srdl(Register r1, const Operand& opnd) {
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
 
   int32_t target_index = emit_code_target(target, rmode, ast_id);

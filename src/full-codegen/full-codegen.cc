@@ -617,16 +617,13 @@ void FullCodeGenerator::EmitHasProperty() {
 
 bool RecordStatementPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;
-  masm->positions_recorder()->RecordStatementPosition(pos);
-  masm->positions_recorder()->RecordPosition(pos);
-  return masm->positions_recorder()->WriteRecordedPositions();
+  return masm->positions_recorder()->RecordStatementPosition(pos);
 }
 
 
 bool RecordPosition(MacroAssembler* masm, int pos) {
   if (pos == RelocInfo::kNoPosition) return false;
-  masm->positions_recorder()->RecordPosition(pos);
-  return masm->positions_recorder()->WriteRecordedPositions();
+  return masm->positions_recorder()->RecordPosition(pos);
 }
 
 

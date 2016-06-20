@@ -70,10 +70,6 @@ void MacroAssembler::Call(Register target) {
   Label start;
   bind(&start);
 
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
-
   // Branch to target via indirect branch
   basr(r14, target);
 
@@ -121,10 +117,6 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
   Label start;
   bind(&start);
 #endif
-
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
 
   mov(ip, Operand(reinterpret_cast<intptr_t>(target), rmode));
   basr(r14, ip);
@@ -4757,7 +4749,6 @@ void MacroAssembler::Branch(Condition c, const Operand& opnd) {
 // Branch On Count.  Decrement R1, and branch if R1 != 0.
 void MacroAssembler::BranchOnCount(Register r1, Label* l) {
   int32_t offset = branch_offset(l);
-  positions_recorder()->WriteRecordedPositions();
   if (is_int16(offset)) {
 #if V8_TARGET_ARCH_S390X
     brctg(r1, Operand(offset));

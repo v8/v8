@@ -399,7 +399,6 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   if (source_position.IsUnknown()) return;
   int code_pos = source_position.raw();
   masm()->positions_recorder()->RecordPosition(code_pos);
-  masm()->positions_recorder()->WriteRecordedPositions();
   if (FLAG_code_comments) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;

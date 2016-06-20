@@ -1971,9 +1971,6 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
   Label start_call;
   Bind(&start_call);
 #endif
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
 
   // Addresses always have 64 bits, so we shouldn't encounter NONE32.
   DCHECK(rmode != RelocInfo::NONE32);

@@ -84,10 +84,6 @@ void MacroAssembler::Call(Register target) {
   Label start;
   bind(&start);
 
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
-
   // branch via link register and set LK bit for return point
   mtctr(target);
   bctrl();
@@ -128,11 +124,6 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
   Label start;
   bind(&start);
 #endif
-
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
-
   // This can likely be optimized to make use of bc() with 24bit relative
   //
   // RecordRelocInfo(x.rmode_, x.imm_);

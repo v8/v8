@@ -833,7 +833,6 @@ void Assembler::bsfq(Register dst, const Operand& src) {
 
 
 void Assembler::call(Label* L) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
@@ -855,7 +854,6 @@ void Assembler::call(Label* L) {
 
 void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
@@ -866,7 +864,6 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
 void Assembler::call(Handle<Code> target,
                      RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
@@ -875,7 +872,6 @@ void Assembler::call(Handle<Code> target,
 
 
 void Assembler::call(Register adr) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // Opcode: FF /2 r64.
   emit_optional_rex_32(adr);
@@ -885,7 +881,6 @@ void Assembler::call(Register adr) {
 
 
 void Assembler::call(const Operand& op) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // Opcode: FF /2 m64.
   emit_optional_rex_32(op);
@@ -899,7 +894,6 @@ void Assembler::call(const Operand& op) {
 // same Code object. Should not be used when generating new code (use labels),
 // but only when patching existing code.
 void Assembler::call(Address target) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);

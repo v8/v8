@@ -1035,7 +1035,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     // zLinux ABI requires caller's frame to have sufficient space for callee
     // preserved regsiter save area.
     // __ lay(sp, MemOperand(sp, -kCalleeRegisterSaveAreaSize));
-    __ positions_recorder()->WriteRecordedPositions();
     __ b(target);
     __ bind(&return_label);
     // __ la(sp, MemOperand(sp, +kCalleeRegisterSaveAreaSize));
@@ -3093,10 +3092,6 @@ void CompareICStub::GenerateMiss(MacroAssembler* masm) {
 // This stub is paired with DirectCEntryStub::GenerateCall
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
   __ CleanseP(r14);
-
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  __ positions_recorder()->WriteRecordedPositions();
 
   __ b(ip);  // Callee will return to R14 directly
 }

@@ -732,13 +732,11 @@ int Assembler::link(Label* L) {
 
 
 void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
 }
 
 
 void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
 }
 
@@ -755,9 +753,6 @@ void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 
 
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm16 = branch_offset;
   CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
   emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
@@ -765,9 +760,6 @@ void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
 
 
 void Assembler::b(int branch_offset, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm26 = branch_offset;
   CHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
   emit(BX | (imm26 & kImm26Mask) | lk);

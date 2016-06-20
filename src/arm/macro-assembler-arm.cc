@@ -120,12 +120,6 @@ void MacroAssembler::Call(Address target,
   //  blx   ip
   //                      @ return address
 
-  // Statement positions are expected to be recorded when the target
-  // address is loaded. The mov method will automatically record
-  // positions when pc is the target, since this is not the case here
-  // we have to do it explicitly.
-  positions_recorder()->WriteRecordedPositions();
-
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 

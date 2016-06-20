@@ -4031,9 +4031,6 @@ void MacroAssembler::Call(Address target,
   Label start;
   bind(&start);
   int64_t target_int = reinterpret_cast<int64_t>(target);
-  // Must record previous source positions before the
-  // li() generates a new code target.
-  positions_recorder()->WriteRecordedPositions();
   li(t9, Operand(target_int, rmode), ADDRESS_LOAD);
   Call(t9, cond, rs, rt, bd);
   DCHECK_EQ(CallSize(target, rmode, cond, rs, rt, bd),

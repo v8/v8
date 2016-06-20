@@ -1142,42 +1142,32 @@ std::ostream& operator<<(std::ostream&, ExternalReference);
 // -----------------------------------------------------------------------------
 // Position recording support
 
-struct PositionState {
-  PositionState() : current_position(RelocInfo::kNoPosition),
-                    written_position(RelocInfo::kNoPosition),
-                    current_statement_position(RelocInfo::kNoPosition),
-                    written_statement_position(RelocInfo::kNoPosition) {}
-
-  int current_position;
-  int written_position;
-
-  int current_statement_position;
-  int written_statement_position;
-};
-
 class AssemblerPositionsRecorder : public PositionsRecorder {
  public:
   explicit AssemblerPositionsRecorder(Assembler* assembler)
-      : assembler_(assembler) {}
+      : assembler_(assembler),
+        current_position_(RelocInfo::kNoPosition),
+        written_position_(RelocInfo::kNoPosition),
+        current_statement_position_(RelocInfo::kNoPosition),
+        written_statement_position_(RelocInfo::kNoPosition) {}
 
   // Set current position to pos.
-  void RecordPosition(int pos);
+  bool RecordPosition(int pos);
 
   // Set current statement position to pos.
-  void RecordStatementPosition(int pos);
+  bool RecordStatementPosition(int pos);
 
+ private:
   // Write recorded positions to relocation information.
   bool WriteRecordedPositions();
 
-  int current_position() const { return state_.current_position; }
-
-  int current_statement_position() const {
-    return state_.current_statement_position;
-  }
-
- private:
   Assembler* assembler_;
-  PositionState state_;
+
+  int current_position_;
+  int written_position_;
+
+  int current_statement_position_;
+  int written_statement_position_;
 
   DISALLOW_COPY_AND_ASSIGN(AssemblerPositionsRecorder);
 };

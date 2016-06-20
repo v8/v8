@@ -548,7 +548,6 @@ class Assembler : public AssemblerBase {
 
   // Helper for unconditional branch to Label with update to save register
   void b(Register r, Label* l) {
-    positions_recorder()->WriteRecordedPositions();
     int32_t halfwords = branch_offset(l) / 2;
     brasl(r, Operand(halfwords));
   }

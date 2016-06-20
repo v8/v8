@@ -448,7 +448,6 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
 void LCodeGen::RecordAndWritePosition(int position) {
   if (position == RelocInfo::kNoPosition) return;
   masm()->positions_recorder()->RecordPosition(position);
-  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 

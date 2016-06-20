@@ -1826,25 +1826,27 @@ std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   return os;
 }
 
-void AssemblerPositionsRecorder::RecordPosition(int pos) {
+bool AssemblerPositionsRecorder::RecordPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
-  state_.current_position = pos;
+  current_position_ = pos;
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddPositionEvent(jit_handler_data_,
                                                  assembler_->pc_offset(),
                                                  pos));
+  return WriteRecordedPositions();
 }
 
-void AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
+bool AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
-  state_.current_statement_position = pos;
+  current_statement_position_ = pos;
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddStatementPositionEvent(
                      jit_handler_data_,
                      assembler_->pc_offset(),
                      pos));
+  return RecordPosition(pos);
 }
 
 bool AssemblerPositionsRecorder::WriteRecordedPositions() {
@@ -1852,21 +1854,21 @@ bool AssemblerPositionsRecorder::WriteRecordedPositions() {
 
   // Write the statement position if it is different from what was written last
   // time.
-  if (state_.current_statement_position != state_.written_statement_position) {
+  if (current_statement_position_ != written_statement_position_) {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::STATEMENT_POSITION,
-                                state_.current_statement_position);
-    state_.written_position = state_.current_statement_position;
-    state_.written_statement_position = state_.current_statement_position;
+                                current_statement_position_);
+    written_position_ = current_statement_position_;
+    written_statement_position_ = current_statement_position_;
     written = true;
   }
 
   // Write the position if it is different from what was written last time and
   // also different from the statement position that was just written.
-  if (state_.current_position != state_.written_position) {
+  if (current_position_ != written_position_) {
     EnsureSpace ensure_space(assembler_);
-    assembler_->RecordRelocInfo(RelocInfo::POSITION, state_.current_position);
-    state_.written_position = state_.current_position;
+    assembler_->RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
     written = true;
   }
 

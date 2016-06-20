@@ -971,14 +971,12 @@ void Assembler::EndBlockVeneerPool() {
 
 
 void Assembler::br(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
 void Assembler::blr(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
@@ -988,7 +986,6 @@ void Assembler::blr(const Register& xn) {
 
 
 void Assembler::ret(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(RET | Rn(xn));
 }
@@ -1000,7 +997,6 @@ void Assembler::b(int imm26) {
 
 
 void Assembler::b(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1011,47 +1007,40 @@ void Assembler::b(int imm19, Condition cond) {
 
 
 void Assembler::b(Label* label, Condition cond) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label), cond);
 }
 
 
 void Assembler::bl(int imm26) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(BL | ImmUncondBranch(imm26));
 }
 
 
 void Assembler::bl(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   bl(LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbnz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1059,7 +1048,6 @@ void Assembler::cbnz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1068,7 +1056,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1076,7 +1063,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1085,7 +1071,6 @@ void Assembler::tbnz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 

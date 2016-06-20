@@ -1378,7 +1378,6 @@ void Assembler::b(int branch_offset, Condition cond) {
 
 
 void Assembler::bl(int branch_offset, Condition cond) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK((branch_offset & 3) == 0);
   int imm24 = branch_offset >> 2;
   CHECK(is_int24(imm24));
@@ -1387,7 +1386,6 @@ void Assembler::bl(int branch_offset, Condition cond) {
 
 
 void Assembler::blx(int branch_offset) {  // v5 and above
-  positions_recorder()->WriteRecordedPositions();
   DCHECK((branch_offset & 1) == 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
@@ -1397,14 +1395,12 @@ void Assembler::blx(int branch_offset) {  // v5 and above
 
 
 void Assembler::blx(Register target, Condition cond) {  // v5 and above
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(!target.is(pc));
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BLX | target.code());
 }
 
 
 void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | BX | target.code());
 }
@@ -1512,9 +1508,6 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
 
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
-  if (dst.is(pc)) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   // Don't allow nop instructions in the form mov rn, rn to be generated using
   // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
   // or MarkCode(int/NopMarkerTypes) pseudo instructions.
@@ -2003,9 +1996,6 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 
 // Load/Store instructions.
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
-  if (dst.is(pc)) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   addrmod2(cond | B26 | L, dst, src);
 }
 
