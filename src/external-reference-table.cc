@@ -172,14 +172,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
       "f64_asin_wrapper");
-  Add(ExternalReference::f64_cos_wrapper_function(isolate).address(),
-      "f64_cos_wrapper");
-  Add(ExternalReference::f64_sin_wrapper_function(isolate).address(),
-      "f64_sin_wrapper");
-  Add(ExternalReference::f64_tan_wrapper_function(isolate).address(),
-      "f64_tan_wrapper");
-  Add(ExternalReference::f64_exp_wrapper_function(isolate).address(),
-      "f64_exp_wrapper");
   Add(ExternalReference::f64_pow_wrapper_function(isolate).address(),
       "f64_pow_wrapper");
   Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),

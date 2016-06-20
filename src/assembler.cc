@@ -1308,42 +1308,6 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
-static void f64_cos_wrapper(double* param) {
-  WriteDoubleValue(param, std::cos(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_cos_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_cos_wrapper)));
-}
-
-static void f64_sin_wrapper(double* param) {
-  WriteDoubleValue(param, std::sin(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_sin_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_sin_wrapper)));
-}
-
-static void f64_tan_wrapper(double* param) {
-  WriteDoubleValue(param, std::tan(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_tan_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_tan_wrapper)));
-}
-
-static void f64_exp_wrapper(double* param) {
-  WriteDoubleValue(param, base::ieee754::exp(ReadDoubleValue(param)));
-}
-
-ExternalReference ExternalReference::f64_exp_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
-}
-
 static void f64_pow_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0, power_double_double(ReadDoubleValue(param0),
                                                ReadDoubleValue(param1)));
