@@ -164,6 +164,7 @@ config("toolchain") {
 
   defines = []
   cflags = []
+  ldflags = []
 
   if (v8_target_cpu == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
@@ -269,16 +270,22 @@ config("toolchain") {
   }
   if (v8_target_cpu == "x86") {
     defines += [ "V8_TARGET_ARCH_IA32" ]
+    if (is_win) {
+      # Ensure no surprising artifacts from 80bit double math with x86.
+      cflags += [ "/arch:SSE2" ]
+    }
   }
   if (v8_target_cpu == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
+    if (is_win) {
+      # Increase the initial stack size. The default is 1MB, this is 2MB. This
+      # applies only to executables and shared libraries produced by V8 since
+      # ldflags are not pushed to dependants.
+      ldflags += [ "/STACK:2097152" ]
+    }
   }
 
-  if (is_win) {
-    defines += [ "WIN32" ]
-    # TODO(jochen): Support v8_enable_prof.
-  }
-
+  # TODO(jochen): Support v8_enable_prof on Windows.
   # TODO(jochen): Add support for compiling with simulators.
 
   if (is_debug) {
