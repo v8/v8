@@ -763,14 +763,11 @@ void FullCodeGenerator::VisitVariableDeclaration(
 
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ VariableDeclaration");
-      __ mov(r5, Operand(variable->name()));
-      // Declaration nodes are always introduced in one of four modes.
-      DCHECK(IsDeclaredVariableMode(mode));
+      DCHECK_EQ(VAR, mode);
       DCHECK(!hole_init);
-      __ LoadSmiLiteral(r3, Smi::FromInt(0));  // Indicates no initial value.
-      __ Push(r5, r3);
-      __ Push(Smi::FromInt(variable->DeclarationPropertyAttributes()));
-      __ CallRuntime(Runtime::kDeclareLookupSlot);
+      __ mov(r5, Operand(variable->name()));
+      __ Push(r5);
+      __ CallRuntime(Runtime::kDeclareEvalVar);
       PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       break;
     }
@@ -823,8 +820,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       PushOperand(r5);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
-      PushOperand(Smi::FromInt(variable->DeclarationPropertyAttributes()));
-      CallRuntimeWithOperands(Runtime::kDeclareLookupSlot);
+      CallRuntimeWithOperands(Runtime::kDeclareEvalFunction);
       PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       break;
     }
