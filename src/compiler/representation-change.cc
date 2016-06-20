@@ -698,6 +698,8 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Log10();
     case IrOpcode::kNumberSin:
       return machine()->Float64Sin();
+    case IrOpcode::kNumberTan:
+      return machine()->Float64Tan();
     case IrOpcode::kNumberSqrt:
       return machine()->Float64Sqrt();
     case IrOpcode::kNumberCbrt:
