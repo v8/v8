@@ -1183,8 +1183,6 @@
         'zone.h',
         'zone-allocator.h',
         'zone-containers.h',
-        'third_party/fdlibm/fdlibm.cc',
-        'third_party/fdlibm/fdlibm.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {

@@ -120,6 +120,7 @@ class Schedule;
   V(Float64Neg)                         \
   V(Float64Sin)                         \
   V(Float64Sqrt)                        \
+  V(Float64Tan)                         \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
   V(BitcastWordToTagged)                \

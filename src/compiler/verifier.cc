@@ -769,6 +769,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberSin:
     case IrOpcode::kNumberSqrt:
+    case IrOpcode::kNumberTan:
     case IrOpcode::kNumberTrunc:
       // Number -> Number
       CheckValueInputIs(node, 0, Type::Number());
@@ -1091,6 +1092,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Cbrt:
     case IrOpcode::kFloat64Sin:
     case IrOpcode::kFloat64Sqrt:
+    case IrOpcode::kFloat64Tan:
     case IrOpcode::kFloat32RoundDown:
     case IrOpcode::kFloat64RoundDown:
     case IrOpcode::kFloat32RoundUp:

@@ -77,7 +77,6 @@ class LChunkBuilder;
   V(CompareObjectEqAndBranch)                 \
   V(CompareMap)                               \
   V(Constant)                                 \
-  V(ConstructDouble)                          \
   V(Context)                                  \
   V(DebugBreak)                               \
   V(DeclareGlobals)                           \
@@ -1688,34 +1687,6 @@ class HDoubleBits final : public HUnaryOperation {
   bool IsDeletable() const override { return true; }
 
   Bits bits_;
-};
-
-
-class HConstructDouble final : public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HConstructDouble, HValue*, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Integer32();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble)
-
-  HValue* hi() { return OperandAt(0); }
-  HValue* lo() { return OperandAt(1); }
-
- protected:
-  bool DataEquals(HValue* other) override { return true; }
-
- private:
-  explicit HConstructDouble(HValue* hi, HValue* lo) {
-    set_representation(Representation::Double());
-    SetFlag(kUseGVN);
-    SetOperandAt(0, hi);
-    SetOperandAt(1, lo);
-  }
-
-  bool IsDeletable() const override { return true; }
 };
 
 

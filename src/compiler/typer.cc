@@ -1623,8 +1623,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleLo:
     case Runtime::kInlineDoubleHi:
       return Type::Signed32();
-    case Runtime::kInlineConstructDouble:
-      return Type::Number();
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
@@ -1854,6 +1852,8 @@ Type* Typer::Visitor::TypeNumberRound(Node* node) {
 Type* Typer::Visitor::TypeNumberSin(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberSqrt(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberTan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberTrunc(Node* node) {
   return TypeUnaryOp(node, NumberTrunc);
@@ -2629,6 +2629,7 @@ Type* Typer::Visitor::TypeFloat64Sin(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sqrt(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64Tan(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Equal(Node* node) { return Type::Boolean(); }
 

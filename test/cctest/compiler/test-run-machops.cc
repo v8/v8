@@ -5639,6 +5639,14 @@ TEST(RunFloat64Sin) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::sin(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Tan) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Tan(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::tan(*i), m.Call(*i)); }
+}
+
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.
 static double two_52 = two_30 * (1 << 22);  // 2^52 is a precision boundary.
 static double kValues[] = {0.1,

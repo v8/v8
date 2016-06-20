@@ -785,7 +785,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCompareNumericAndBranch:
     case HValue::kCompareObjectEqAndBranch:
     case HValue::kConstant:
-    case HValue::kConstructDouble:
     case HValue::kContext:
     case HValue::kDebugBreak:
     case HValue::kDeclareGlobals:

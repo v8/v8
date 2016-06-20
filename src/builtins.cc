@@ -2561,6 +2561,18 @@ void Builtins::Generate_MathSqrt(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+// ES6 section 20.2.2.33 Math.tan ( x )
+void Builtins::Generate_MathTan(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Tan(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.35 Math.trunc ( x )
 void Builtins::Generate_MathTrunc(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Trunc);

@@ -353,8 +353,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MATHS(F) \
   F(DoubleHi, 1, 1)                 \
   F(DoubleLo, 1, 1)                 \
-  F(ConstructDouble, 2, 1)          \
-  F(RemPiO2, 2, 1)                  \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
   F(GenerateRandomNumbers, 1, 1)
@@ -848,6 +846,7 @@ namespace internal {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \
+  F(ConstructDouble, 2, 1)                    \
   F(DeoptimizeFunction, 1, 1)                 \
   F(DeoptimizeNow, 0, 1)                      \
   F(RunningInSimulator, 0, 1)                 \

@@ -16,6 +16,13 @@ namespace v8 {
 namespace base {
 namespace ieee754 {
 
+namespace {
+
+double const kPI = 3.141592653589793;
+double const kTwo120 = 1.329227995784916e+36;
+
+}  // namespace
+
 TEST(Ieee754, Atan) {
   EXPECT_THAT(atan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(atan(std::numeric_limits<double>::signaling_NaN()), IsNaN());
@@ -97,12 +104,16 @@ TEST(Ieee754, Cos) {
   // Test that cos(Math.PI/2) != 0 since Math.PI is not exact.
   EXPECT_EQ(6.123233995736766e-17, cos(1.5707963267948966));
   // Test cos for various phases.
-  EXPECT_EQ(0.7071067811865474, cos(7.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(0.7071067811865477, cos(9.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(-0.7071067811865467, cos(11.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(-0.7071067811865471, cos(13.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(0.7071067811865474, cos(7.0 / 4 * kPI));
+  EXPECT_EQ(0.7071067811865477, cos(9.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865467, cos(11.0 / 4 * kPI));
+  EXPECT_EQ(-0.7071067811865471, cos(13.0 / 4 * kPI));
   EXPECT_EQ(0.9367521275331447, cos(1000000.0));
-  EXPECT_EQ(-3.435757038074824e-12, cos(1048575.0 / 2 * 3.141592653589793));
+  EXPECT_EQ(-3.435757038074824e-12, cos(1048575.0 / 2 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(-0.9258790228548379e0, cos(kTwo120));
+  EXPECT_EQ(-0.9258790228548379e0, cos(-kTwo120));
 }
 
 TEST(Ieee754, Exp) {
@@ -244,17 +255,58 @@ TEST(Ieee754, Sin) {
   // Tests for sin.
   EXPECT_EQ(0.479425538604203, sin(0.5));
   EXPECT_EQ(-0.479425538604203, sin(-0.5));
-  EXPECT_EQ(1, sin(1.5707963267948966));
-  EXPECT_EQ(-1, sin(-1.5707963267948966));
+  EXPECT_EQ(1, sin(kPI / 2.0));
+  EXPECT_EQ(-1, sin(-kPI / 2.0));
   // Test that sin(Math.PI) != 0 since Math.PI is not exact.
-  EXPECT_EQ(1.2246467991473532e-16, sin(3.141592653589793));
-  EXPECT_EQ(-7.047032979958965e-14, sin(2200 * 3.141592653589793));
+  EXPECT_EQ(1.2246467991473532e-16, sin(kPI));
+  EXPECT_EQ(-7.047032979958965e-14, sin(2200.0 * kPI));
   // Test sin for various phases.
-  EXPECT_EQ(-0.7071067811865477, sin(7.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(0.7071067811865474, sin(9.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(0.7071067811865483, sin(11.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(-0.7071067811865479, sin(13.0 / 4 * 3.141592653589793));
-  EXPECT_EQ(-3.2103381051568376e-11, sin(1048576.0 / 4 * 3.141592653589793));
+  EXPECT_EQ(-0.7071067811865477, sin(7.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865474, sin(9.0 / 4.0 * kPI));
+  EXPECT_EQ(0.7071067811865483, sin(11.0 / 4.0 * kPI));
+  EXPECT_EQ(-0.7071067811865479, sin(13.0 / 4.0 * kPI));
+  EXPECT_EQ(-3.2103381051568376e-11, sin(1048576.0 / 4 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(0.377820109360752e0, sin(kTwo120));
+  EXPECT_EQ(-0.377820109360752e0, sin(-kTwo120));
+}
+
+TEST(Ieee754, Tan) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(tan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(tan(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(tan(std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(tan(-std::numeric_limits<double>::infinity()), IsNaN());
+
+  // Tests for tan for |x| < pi/4
+  EXPECT_EQ(std::numeric_limits<double>::infinity(), 1 / tan(0.0));
+  EXPECT_EQ(-std::numeric_limits<double>::infinity(), 1 / tan(-0.0));
+  // tan(x) = x for |x| < 2^-28
+  EXPECT_EQ(2.3283064365386963e-10, tan(2.3283064365386963e-10));
+  EXPECT_EQ(-2.3283064365386963e-10, tan(-2.3283064365386963e-10));
+  // Test KERNELTAN for |x| > 0.67434.
+  EXPECT_EQ(0.8211418015898941, tan(11.0 / 16.0));
+  EXPECT_EQ(-0.8211418015898941, tan(-11.0 / 16.0));
+  EXPECT_EQ(0.41421356237309503, tan(0.39269908169872414));
+  // crbug/427468
+  EXPECT_EQ(0.7993357819992383, tan(0.6743358));
+
+  // Tests for tan.
+  EXPECT_EQ(3.725290298461914e-9, tan(3.725290298461914e-9));
+  // Test that tan(PI/2) != Infinity since PI is not exact.
+  EXPECT_EQ(1.633123935319537e16, tan(kPI / 2));
+  // Cover different code paths in KERNELTAN (tangent and cotangent)
+  EXPECT_EQ(0.5463024898437905, tan(0.5));
+  EXPECT_EQ(2.0000000000000027, tan(1.107148717794091));
+  EXPECT_EQ(-1.0000000000000004, tan(7.0 / 4.0 * kPI));
+  EXPECT_EQ(0.9999999999999994, tan(9.0 / 4.0 * kPI));
+  EXPECT_EQ(-6.420676210313675e-11, tan(1048576.0 / 2.0 * kPI));
+  EXPECT_EQ(2.910566692924059e11, tan(1048575.0 / 2.0 * kPI));
+
+  // Test Hayne-Panek reduction.
+  EXPECT_EQ(-0.40806638884180424e0, tan(kTwo120));
+  EXPECT_EQ(0.40806638884180424e0, tan(-kTwo120));
 }
 
 }  // namespace ieee754

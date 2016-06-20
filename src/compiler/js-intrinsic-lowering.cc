@@ -30,8 +30,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
   if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
-    case Runtime::kInlineConstructDouble:
-      return ReduceConstructDouble(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
     case Runtime::kInlineDeoptimizeNow:
@@ -106,19 +104,6 @@ Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   return Change(node, javascript()->CreateIterResultObject(), value, done,
                 context, effect);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
-  Node* high = NodeProperties::GetValueInput(node, 0);
-  Node* low = NodeProperties::GetValueInput(node, 1);
-  Node* value =
-      graph()->NewNode(machine()->Float64InsertHighWord32(),
-                       graph()->NewNode(machine()->Float64InsertLowWord32(),
-                                        jsgraph()->Constant(0), low),
-                       high);
-  ReplaceWithValue(node, value);
-  return Replace(value);
 }
 
 

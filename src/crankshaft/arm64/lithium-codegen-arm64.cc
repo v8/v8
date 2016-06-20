@@ -2218,18 +2218,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 }
 
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
-
-  // Insert the least significant 32 bits of hi_reg into the most significant
-  // 32 bits of lo_reg, and move to a floating point register.
-  __ Bfi(lo_reg, hi_reg, 32, 32);
-  __ Fmov(result_reg, lo_reg);
-}
-
-
 void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   Handle<String> class_name = instr->hydrogen()->class_name();
   Label* true_label = instr->TrueLabel(chunk_);

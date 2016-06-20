@@ -475,6 +475,7 @@ class RawMachineAssembler {
   Node* Float64Log2(Node* a) { return AddNode(machine()->Float64Log2(), a); }
   Node* Float64Sin(Node* a) { return AddNode(machine()->Float64Sin(), a); }
   Node* Float64Sqrt(Node* a) { return AddNode(machine()->Float64Sqrt(), a); }
+  Node* Float64Tan(Node* a) { return AddNode(machine()->Float64Tan(), a); }
   Node* Float64Equal(Node* a, Node* b) {
     return AddNode(machine()->Float64Equal(), a, b);
   }

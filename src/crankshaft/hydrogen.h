@@ -2296,7 +2296,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   /* ArrayBuffer */                    \
   F(ArrayBufferGetByteLength)          \
   /* Maths */                          \
-  F(ConstructDouble)                   \
   F(DoubleHi)                          \
   F(DoubleLo)                          \
   /* ES6 Collections */                \

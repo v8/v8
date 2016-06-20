@@ -47,6 +47,9 @@ double expm1(double x);
 // Returns the sine of |x|, where |x| is given in radians.
 double sin(double x);
 
+// Returns the tangent of |x|, where |x| is given in radians.
+double tan(double x);
+
 }  // namespace ieee754
 }  // namespace base
 }  // namespace v8

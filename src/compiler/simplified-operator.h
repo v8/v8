@@ -193,6 +193,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberRound();
   const Operator* NumberSin();
   const Operator* NumberSqrt();
+  const Operator* NumberTan();
   const Operator* NumberTrunc();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();

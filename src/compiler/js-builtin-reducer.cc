@@ -374,6 +374,18 @@ Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.33 Math.tan ( x )
+Reduction JSBuiltinReducer::ReduceMathTan(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.tan(a:plain-primitive) -> NumberTan(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberTan(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.35 Math.trunc ( x )
 Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   JSCallReduction r(node);
@@ -467,6 +479,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathSqrt:
       reduction = ReduceMathSqrt(node);
+      break;
+    case kMathTan:
+      reduction = ReduceMathTan(node);
       break;
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);

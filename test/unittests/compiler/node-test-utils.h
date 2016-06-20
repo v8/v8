@@ -243,6 +243,7 @@ Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberCbrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSin(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberTan(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTrunc(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsStringFromCharCode(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,

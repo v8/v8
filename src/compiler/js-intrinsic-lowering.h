@@ -37,7 +37,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceConstructDouble(Node* node);
   Reduction ReduceCreateIterResultObject(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceDoubleHi(Node* node);

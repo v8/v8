@@ -1050,6 +1050,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_log10_function(Isolate* isolate);
   static ExternalReference ieee754_log2_function(Isolate* isolate);
   static ExternalReference ieee754_sin_function(Isolate* isolate);
+  static ExternalReference ieee754_tan_function(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

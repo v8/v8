@@ -1701,6 +1701,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> math_sqrt =
         SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
     native_context()->set_math_sqrt(*math_sqrt);
+    SimpleInstallFunction(math, "tan", Builtins::kMathTan, 1, true);
     SimpleInstallFunction(math, "trunc", Builtins::kMathTrunc, 1, true);
   }
 

@@ -5096,17 +5096,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 }
 
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  XMMRegister result_reg = ToDoubleRegister(instr->result());
-  __ movl(kScratchRegister, hi_reg);
-  __ shlq(kScratchRegister, Immediate(32));
-  __ orq(kScratchRegister, lo_reg);
-  __ Movq(result_reg, kScratchRegister);
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:

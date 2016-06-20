@@ -14,6 +14,15 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_ConstructDouble) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
+  uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
+  return *isolate->factory()->NewNumber(uint64_to_double(result));
+}
+
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

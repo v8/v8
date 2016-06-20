@@ -319,6 +319,7 @@ class CodeStubAssembler;
   V(MathLog10, 2)                     \
   V(MathRound, 2)                     \
   V(MathSin, 2)                       \
+  V(MathTan, 2)                       \
   V(MathSqrt, 2)                      \
   V(MathTrunc, 2)                     \
   V(ObjectHasOwnProperty, 2)          \
@@ -661,6 +662,8 @@ class Builtins {
   static void Generate_MathSin(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.32 Math.sqrt ( x )
   static void Generate_MathSqrt(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.33 Math.sin ( x )
+  static void Generate_MathTan(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.35 Math.trunc ( x )
   static void Generate_MathTrunc(CodeStubAssembler* assembler);
 

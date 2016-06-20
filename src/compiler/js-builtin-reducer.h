@@ -50,6 +50,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathRound(Node* node);
   Reduction ReduceMathSin(Node* node);
   Reduction ReduceMathSqrt(Node* node);
+  Reduction ReduceMathTan(Node* node);
   Reduction ReduceMathTrunc(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
 

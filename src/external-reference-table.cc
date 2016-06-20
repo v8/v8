@@ -73,6 +73,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "base::ieee754::atan2");
   Add(ExternalReference::ieee754_atanh_function(isolate).address(),
       "base::ieee754::atanh");
+  Add(ExternalReference::ieee754_cbrt_function(isolate).address(),
+      "base::ieee754::cbrt");
   Add(ExternalReference::ieee754_cos_function(isolate).address(),
       "base::ieee754::cos");
   Add(ExternalReference::ieee754_exp_function(isolate).address(),
@@ -83,14 +85,14 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "base::ieee754::log");
   Add(ExternalReference::ieee754_log1p_function(isolate).address(),
       "base::ieee754::log1p");
-  Add(ExternalReference::ieee754_log2_function(isolate).address(),
-      "base::ieee754::log2");
   Add(ExternalReference::ieee754_log10_function(isolate).address(),
       "base::ieee754::log10");
-  Add(ExternalReference::ieee754_cbrt_function(isolate).address(),
-      "base::ieee754::cbrt");
+  Add(ExternalReference::ieee754_log2_function(isolate).address(),
+      "base::ieee754::log2");
   Add(ExternalReference::ieee754_sin_function(isolate).address(),
       "base::ieee754::sin");
+  Add(ExternalReference::ieee754_tan_function(isolate).address(),
+      "base::ieee754::tan");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");

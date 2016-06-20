@@ -753,6 +753,45 @@ TEST_F(JSBuiltinReducerTest, MathRoundWithPlainPrimitive) {
 }
 
 // -----------------------------------------------------------------------------
+// Math.sin
+
+TEST_F(JSBuiltinReducerTest, MathSinWithNumber) {
+  Node* function = MathFunction("sin");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberSin(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathSinWithPlainPrimitive) {
+  Node* function = MathFunction("sin");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberSin(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
 // Math.sqrt
 
 TEST_F(JSBuiltinReducerTest, MathSqrtWithNumber) {
@@ -789,6 +828,45 @@ TEST_F(JSBuiltinReducerTest, MathSqrtWithPlainPrimitive) {
 
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberSqrt(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.tan
+
+TEST_F(JSBuiltinReducerTest, MathTanWithNumber) {
+  Node* function = MathFunction("tan");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberTan(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathTanWithPlainPrimitive) {
+  Node* function = MathFunction("tan");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberTan(IsPlainPrimitiveToNumber(p0)));
 }
 
 // -----------------------------------------------------------------------------

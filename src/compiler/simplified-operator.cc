@@ -269,6 +269,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberRound, Operator::kNoProperties, 1)               \
   V(NumberSin, Operator::kNoProperties, 1)                 \
   V(NumberSqrt, Operator::kNoProperties, 1)                \
+  V(NumberTan, Operator::kNoProperties, 1)                 \
   V(NumberTrunc, Operator::kNoProperties, 1)               \
   V(NumberToInt32, Operator::kNoProperties, 1)             \
   V(NumberToUint32, Operator::kNoProperties, 1)            \

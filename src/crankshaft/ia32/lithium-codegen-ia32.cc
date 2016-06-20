@@ -4824,25 +4824,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 }
 
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  XMMRegister result_reg = ToDoubleRegister(instr->result());
-
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope scope2(masm(), SSE4_1);
-    __ movd(result_reg, lo_reg);
-    __ pinsrd(result_reg, hi_reg, 1);
-  } else {
-    XMMRegister xmm_scratch = double_scratch0();
-    __ movd(result_reg, hi_reg);
-    __ psllq(result_reg, 32);
-    __ movd(xmm_scratch, lo_reg);
-    __ orps(result_reg, xmm_scratch);
-  }
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:

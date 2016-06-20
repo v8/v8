@@ -100,7 +100,8 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(Ieee754Float64Log1p)                  \
   V(Ieee754Float64Log10)                  \
   V(Ieee754Float64Log2)                   \
-  V(Ieee754Float64Sin)
+  V(Ieee754Float64Sin)                    \
+  V(Ieee754Float64Tan)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \

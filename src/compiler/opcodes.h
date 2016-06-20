@@ -218,6 +218,7 @@
   V(NumberRound)                      \
   V(NumberSin)                        \
   V(NumberSqrt)                       \
+  V(NumberTan)                        \
   V(NumberTrunc)                      \
   V(NumberToInt32)                    \
   V(NumberToUint32)                   \
@@ -392,6 +393,7 @@
   V(Float64Log2)                \
   V(Float64Sin)                 \
   V(Float64Sqrt)                \
+  V(Float64Tan)                 \
   V(Float64RoundDown)           \
   V(Float32RoundUp)             \
   V(Float64RoundUp)             \

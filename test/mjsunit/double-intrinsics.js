@@ -7,10 +7,10 @@
 function assertDoubleBits(hi, lo, x) {
   hi = hi | 0;
   lo = lo | 0;
-  assertEquals(x, %_ConstructDouble(hi, lo));
+  assertEquals(x, %ConstructDouble(hi, lo));
   assertEquals(hi, %_DoubleHi(x));
   assertEquals(lo, %_DoubleLo(x));
-  assertEquals(x, %_ConstructDouble(%_DoubleHi(x), %_DoubleLo(x)));
+  assertEquals(x, %ConstructDouble(%_DoubleHi(x), %_DoubleLo(x)));
 }
 
 

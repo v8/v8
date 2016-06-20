@@ -51,27 +51,6 @@ class JSIntrinsicLoweringTest : public GraphTest {
 
 
 // -----------------------------------------------------------------------------
-// %_ConstructDouble
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineOptimizedConstructDouble) {
-  Node* const input0 = Parameter(0);
-  Node* const input1 = Parameter(1);
-  Node* const context = Parameter(2);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineConstructDouble, 2), input0,
-      input1, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64InsertHighWord32(
-                                   IsFloat64InsertLowWord32(
-                                       IsNumberConstant(BitEq(0.0)), input1),
-                                   input0));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_DoubleLo
 
 
