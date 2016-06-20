@@ -2052,11 +2052,6 @@ Type* Typer::Visitor::TypeCheckIf(Node* node) {
   return nullptr;
 }
 
-Type* Typer::Visitor::TypeCheckUnless(Node* node) {
-  UNREACHABLE();
-  return nullptr;
-}
-
 Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {
   Type* arg = Operand(node, 0);
   // TODO(jarin): DCHECK(arg->Is(Type::NumberOrUndefined()));

@@ -1192,11 +1192,6 @@ class RepresentationSelector {
       case IrOpcode::kHeapConstant:
         return VisitLeaf(node, MachineRepresentation::kTagged);
 
-      case IrOpcode::kCheckIf:
-      case IrOpcode::kCheckUnless:
-        ProcessInput(node, 0, UseInfo::Bool());
-        ProcessRemainingInputs(node, 1);
-        return;
       case IrOpcode::kDeoptimizeIf:
       case IrOpcode::kDeoptimizeUnless:
         ProcessInput(node, 0, UseInfo::Bool());

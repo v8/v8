@@ -573,9 +573,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           // TODO(turbofan): This is ugly as hell! We should probably introduce
           // macro-ish operators for property access that encapsulate this whole
           // mess.
-          Node* deoptimize = graph()->NewNode(
-              simplified()->CheckUnless(), check, effect, fallthrough_control);
-          this_controls.push_back(fallthrough_control);
+          Node* deoptimize =
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               effect, fallthrough_control);
+          this_controls.push_back(deoptimize);
           this_effects.push_back(deoptimize);
           fallthrough_control = nullptr;
         } else {

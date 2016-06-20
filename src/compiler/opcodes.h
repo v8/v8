@@ -243,7 +243,6 @@
   V(CheckFloat64Hole)                 \
   V(CheckTaggedHole)                  \
   V(CheckIf)                          \
-  V(CheckUnless)                      \
   V(TruncateTaggedToWord32)           \
   V(TruncateTaggedToFloat64)          \
   V(Allocate)                         \

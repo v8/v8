@@ -279,7 +279,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kCheckIf:
-    case IrOpcode::kCheckUnless:
       // Type is empty.
       CheckNotTyped(node);
       break;
