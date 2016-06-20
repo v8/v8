@@ -9,36 +9,109 @@
   # Bots are ordered by appearance on waterfall.
   'masters': {
     'client.v8': {
+      # Linux.
+      'V8 Linux - builder': 'gyp_release_x86_gcmole',
+      'V8 Linux - debug builder': 'gyp_debug_x86',
+      'V8 Linux - nosnap builder': 'gyp_release_x86_no_snap',
+      'V8 Linux - nosnap debug builder': 'gyp_debug_x86_no_snap',
+      'V8 Linux - shared': 'gyp_release_x86_shared_verify_heap',
+      'V8 Linux - noi18n - debug': 'gyp_debug_x86_no_i18n',
       # Linux64.
       'V8 Linux64 - builder': 'gyp_release_x64',
-      'V8 Linux64 - debug builder': 'gyp_debug_valgrind_x64',
-      'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_custom_x64',
-      'V8 Linux64 - internal snapshot': 'gyp_release_internal_x64',
+      'V8 Linux64 - debug builder': 'gyp_debug_x64_valgrind',
+      'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_x64_custom',
+      'V8 Linux64 - internal snapshot': 'gyp_release_x64_internal',
+      # Misc.
+      'V8 Linux gcc 4.8': 'gyp_release_x86_gcc',
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
+      'V8 Linux - vtunejit': 'gyp_debug_x86_vtunejit',
+      'V8 Linux - predictable': 'gyp_release_x86_predictable',
+      'V8 Linux - full debug': 'gyp_full_debug_x86',
+      'V8 Linux - interpreted regexp': 'gyp_release_x86_interpreted_regexp',
+      'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
     },
     'tryserver.v8': {
+      'v8_linux_rel_ng': 'gyp_release_x86_gcmole_trybot',
+      'v8_linux_avx2_dbg': 'gyp_debug_x86_trybot',
+      'v8_linux_nodcheck_rel_ng': 'gyp_release_x86_minimal_symbols',
+      'v8_linux_dbg_ng': 'gyp_debug_x86_trybot',
+      'v8_linux_noi18n_rel_ng': 'gyp_release_x86_no_i18n_trybot',
+      'v8_linux_gc_stress_dbg': 'gyp_debug_x86_trybot',
+      'v8_linux_nosnap_rel': 'gyp_release_x86_no_snap_trybot',
+      'v8_linux_nosnap_dbg': 'gyp_debug_x86_no_snap_trybot',
+      'v8_linux_gcc_compile_rel': 'gyp_release_x86_gcc_minimal_symbols',
+      'v8_linux_gcc_rel': 'gyp_release_x86_gcc_minimal_symbols',
       'v8_linux64_rel_ng': 'gyp_release_x64_trybot',
       'v8_linux64_avx2_rel_ng': 'gyp_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gyp_debug_x64_trybot',
     },
   },
 
+
+  # To ease readability, config values are ordered by:
+  # gyp/gn, release/debug, arch type, other values alphabetically.
   'configs': {
-    'gyp_debug_custom_x64': [
-      'gyp', 'debug_bot', 'swarming', 'v8_snapshot_custom', 'x64'],
-    'gyp_debug_valgrind_x64': [
-      'gyp', 'debug_bot', 'swarming', 'valgrind', 'x64'],
-    'gyp_debug_x64_trybot': [
-      'gyp', 'debug_trybot', 'swarming', 'x64'],
-    'gyp_release_x64': [
-      'gyp', 'release_bot', 'swarming', 'x64'],
-    'gyp_release_x64_trybot': [
-      'gyp', 'release_trybot', 'swarming', 'x64'],
-    'gyp_release_internal_x64': [
-      'gyp', 'release_bot', 'swarming', 'v8_snapshot_internal', 'x64'],
+    # GN release configs x64.
     'gn_release_x64': [
-      'gn', 'release_bot', 'swarming', 'x64'],
+      'gn', 'release_bot', 'x64', 'swarming'],
+
+    # Gyp debug configs x64.
+    'gyp_debug_x64_custom': [
+      'gyp', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+    'gyp_debug_x64_trybot': [
+      'gyp', 'debug_trybot', 'x64', 'swarming'],
+    'gyp_debug_x64_valgrind': [
+      'gyp', 'debug_bot', 'x64', 'swarming', 'valgrind'],
+
+    # Gyp debug configs x86.
+    'gyp_debug_x86': [
+      'gyp', 'debug_bot', 'x86', 'swarming'],
+    'gyp_debug_x86_trybot': [
+      'gyp', 'debug_trybot', 'x86', 'swarming'],
+    'gyp_debug_x86_no_i18n': [
+      'gyp', 'debug_bot', 'x86', 'v8_no_i18n'],
+    'gyp_debug_x86_no_snap': [
+      'gyp', 'debug_bot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gyp_debug_x86_no_snap_trybot': [
+      'gyp', 'debug_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gyp_debug_x86_vtunejit': [
+      'gyp', 'debug_bot', 'x86', 'v8_enable_vtunejit'],
+    'gyp_full_debug_x86': [
+      'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+
+    # Gyp release configs x64.
+    'gyp_release_x64': [
+      'gyp', 'release_bot', 'x64', 'swarming'],
+    'gyp_release_x64_internal': [
+      'gyp', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
+    'gyp_release_x64_trybot': [
+      'gyp', 'release_trybot', 'x64', 'swarming'],
+
+    # Gyp release configs x86.
+    'gyp_release_x86_gcc': [
+      'gyp', 'release_bot', 'x86', 'gcc'],
+    'gyp_release_x86_gcc_minimal_symbols': [
+      'gyp', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+    'gyp_release_x86_interpreted_regexp': [
+      'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
+    'gyp_release_x86_gcmole': [
+      'gyp', 'release_bot', 'x86', 'gcmole', 'swarming'],
+    'gyp_release_x86_gcmole_trybot': [
+      'gyp', 'release_trybot', 'x86', 'gcmole', 'swarming'],
+    'gyp_release_x86_minimal_symbols': [
+      'gyp', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
+    'gyp_release_x86_no_i18n_trybot': [
+      'gyp', 'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
+    'gyp_release_x86_no_snap': [
+      'gyp', 'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gyp_release_x86_no_snap_trybot': [
+      'gyp', 'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gyp_release_x86_predictable': [
+      'gyp', 'release_bot', 'x86', 'v8_enable_verify_predictable'],
+    'gyp_release_x86_shared_verify_heap': [
+      'gyp', 'release_bot', 'x86', 'shared', 'swarming', 'v8_verify_heap'],
   },
 
   'mixins': {
@@ -59,6 +132,17 @@
 
     'debug_trybot': {
       'mixins': ['debug_bot', 'minimal_symbols'],
+    },
+
+    'gcc': {
+      'gn_args': 'clang=false',
+      'gyp_defines': 'clang=0',
+    },
+
+    'gcmole': {
+      # TODO(machenbach): Add this to gn.
+      'gn_args': 'gcmole=true',
+      'gyp_defines': 'gcmole=1',
     },
 
     'gn': {'type': 'gn'},
@@ -89,10 +173,10 @@
       'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
     },
 
-    #'shared': {
-    #  'gn_args': 'is_component_build=true',
-    #  'gyp_defines': 'component=shared_library',
-    #},
+    'shared': {
+      'gn_args': 'is_component_build=true',
+      'gyp_defines': 'component=shared_library',
+    },
 
     'static': {
       'gn_args': 'is_component_build=false',
@@ -110,9 +194,34 @@
       'gyp_defines': 'has_valgrind=1',
     },
 
+    'v8_no_i18n': {
+      'gn_args': 'v8_enable_i18n_support=false',
+      'gyp_defines': 'v8_enable_i18n_support=0',
+    },
+
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
       'gyp_defines': 'v8_enable_slow_dchecks=1',
+    },
+
+    'v8_enable_verify_predictable': {
+      'gn_args': 'v8_enable_verify_predictable=true',
+      'gyp_defines': 'v8_enable_verify_predictable=1',
+    },
+
+    'v8_enable_vtunejit': {
+      'gn_args': 'v8_enable_vtunejit=true',
+      'gyp_defines': 'v8_enable_vtunejit=1',
+    },
+
+    'v8_full_debug': {
+      'gn_args': 'v8_optimized_debug=false',
+      'gyp_defines': 'v8_optimized_debug=0',
+    },
+
+    'v8_interpreted_regexp': {
+      'gn_args': 'v8_interpreted_regexp=true',
+      'gyp_defines': 'v8_interpreted_regexp=1',
     },
 
     'v8_optimized_debug': {
@@ -131,14 +240,24 @@
       'gyp_defines': 'v8_use_external_startup_data=0',
     },
 
+    'v8_snapshot_none': {
+      'gn_args': 'v8_use_snapshot=false',
+      'gyp_defines': 'v8_use_snapshot=false',
+    },
+
+    'v8_verify_heap': {
+      'gn_args': 'v8_enable_verify_heap=true',
+      'gyp_defines': 'v8_enable_verify_heap=1',
+    },
+
     'x64': {
       'gn_args': 'target_cpu="x64"',
       'gyp_defines': 'target_arch=x64',
     },
 
-    #'x86': {
-    #  'gn_args': 'target_cpu="x86"',
-    #  'gyp_defines': 'target_arch=ia32',
-    #},
+    'x86': {
+      'gn_args': 'target_cpu="x86"',
+      'gyp_defines': 'target_arch=ia32',
+    },
   },
 }
