@@ -1790,7 +1790,7 @@ std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   return os;
 }
 
-bool AssemblerPositionsRecorder::RecordPosition(int pos) {
+void AssemblerPositionsRecorder::RecordPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   current_position_ = pos;
@@ -1798,10 +1798,10 @@ bool AssemblerPositionsRecorder::RecordPosition(int pos) {
                  CodeLinePosInfoAddPositionEvent(jit_handler_data_,
                                                  assembler_->pc_offset(),
                                                  pos));
-  return WriteRecordedPositions();
+  WriteRecordedPositions();
 }
 
-bool AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
+void AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   current_statement_position_ = pos;
@@ -1810,12 +1810,10 @@ bool AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
                      jit_handler_data_,
                      assembler_->pc_offset(),
                      pos));
-  return RecordPosition(pos);
+  RecordPosition(pos);
 }
 
-bool AssemblerPositionsRecorder::WriteRecordedPositions() {
-  bool written = false;
-
+void AssemblerPositionsRecorder::WriteRecordedPositions() {
   // Write the statement position if it is different from what was written last
   // time.
   if (current_statement_position_ != written_statement_position_) {
@@ -1824,7 +1822,6 @@ bool AssemblerPositionsRecorder::WriteRecordedPositions() {
                                 current_statement_position_);
     written_position_ = current_statement_position_;
     written_statement_position_ = current_statement_position_;
-    written = true;
   }
 
   // Write the position if it is different from what was written last time and
@@ -1833,11 +1830,7 @@ bool AssemblerPositionsRecorder::WriteRecordedPositions() {
     EnsureSpace ensure_space(assembler_);
     assembler_->RecordRelocInfo(RelocInfo::POSITION, current_position_);
     written_position_ = current_position_;
-    written = true;
   }
-
-  // Return whether something was written.
-  return written;
 }
 
 

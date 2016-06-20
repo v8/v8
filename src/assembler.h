@@ -1148,14 +1148,14 @@ class AssemblerPositionsRecorder : public PositionsRecorder {
         written_statement_position_(RelocInfo::kNoPosition) {}
 
   // Set current position to pos.
-  bool RecordPosition(int pos);
+  void RecordPosition(int pos);
 
   // Set current statement position to pos.
-  bool RecordStatementPosition(int pos);
+  void RecordStatementPosition(int pos);
 
  private:
   // Write recorded positions to relocation information.
-  bool WriteRecordedPositions();
+  void WriteRecordedPositions();
 
   Assembler* assembler_;
 
