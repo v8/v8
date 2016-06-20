@@ -5,6 +5,8 @@
 #ifndef V8_PROFILER_STRINGS_STORAGE_H_
 #define V8_PROFILER_STRINGS_STORAGE_H_
 
+#include <stdarg.h>
+
 #include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"

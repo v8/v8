@@ -9,6 +9,8 @@
 #ifndef V8_BASE_HASHMAP_H_
 #define V8_BASE_HASHMAP_H_
 
+#include <stdlib.h>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 
