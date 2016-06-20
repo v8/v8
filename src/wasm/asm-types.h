@@ -16,8 +16,10 @@ namespace internal {
 namespace wasm {
 
 class AsmType;
+class AsmFFIType;
 class AsmFunctionType;
 class AsmOverloadedFunctionType;
+class AsmFunctionTableType;
 
 // List of V(CamelName, string_name, number, parent_types)
 #define FOR_EACH_ASM_VALUE_TYPE_LIST(V)                                       \
@@ -47,15 +49,17 @@ class AsmOverloadedFunctionType;
   V(Float32Array, "Float32Array", 20, kAsmHeap)                               \
   V(Float64Array, "Float64Array", 21, kAsmHeap)                               \
   /* Pseudo-types used in representing heap access for fp types.*/            \
-  V(FloatishDoubleQ, "floatish|double?", 23, kAsmFloatish | kAsmDoubleQ)      \
-  V(FloatQDoubleQ, "float?|double?", 24, kAsmFloatQ | kAsmDoubleQ)            \
+  V(FloatishDoubleQ, "floatish|double?", 22, kAsmFloatish | kAsmDoubleQ)      \
+  V(FloatQDoubleQ, "float?|double?", 23, kAsmFloatQ | kAsmDoubleQ)            \
   /* None is used to represent errors in the type checker. */                 \
   V(None, "<none>", 31, 0)
 
 // List of V(CamelName)
 #define FOR_EACH_ASM_CALLABLE_TYPE_LIST(V) \
   V(FunctionType)                          \
-  V(OverloadedFunctionType)
+  V(FFIType)                               \
+  V(OverloadedFunctionType)                \
+  V(FunctionTableType)
 
 class AsmValueType {
  public:
@@ -101,7 +105,8 @@ class AsmValueType {
 class AsmCallableType : public ZoneObject {
  public:
   virtual std::string Name() = 0;
-  virtual AsmType* ValidateCall(AsmType* function_type) = 0;
+  virtual AsmType* ValidateCall(AsmType* return_type,
+                                const ZoneVector<AsmType*>& args) = 0;
 
 #define DECLARE_CAST(CamelName) \
   virtual Asm##CamelName* As##CamelName() { return nullptr; }
@@ -135,7 +140,8 @@ class AsmFunctionType : public AsmCallableType {
   friend AsmType;
 
   std::string Name() override;
-  AsmType* ValidateCall(AsmType* function_type) override;
+  AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
 
   AsmType* return_type_;
   ZoneVector<AsmType*> args_;
@@ -157,11 +163,50 @@ class AsmOverloadedFunctionType final : public AsmCallableType {
   explicit AsmOverloadedFunctionType(Zone* zone) : overloads_(zone) {}
 
   std::string Name() override;
-  AsmType* ValidateCall(AsmType* function_type) override;
+  AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
 
   ZoneVector<AsmType*> overloads_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmOverloadedFunctionType);
+};
+
+class AsmFFIType final : public AsmCallableType {
+ public:
+  AsmFFIType* AsFFIType() override { return this; }
+
+  std::string Name() override { return "Function"; }
+  AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+
+ private:
+  friend AsmType;
+
+  AsmFFIType() = default;
+
+  DISALLOW_COPY_AND_ASSIGN(AsmFFIType);
+};
+
+class AsmFunctionTableType : public AsmCallableType {
+ public:
+  AsmFunctionTableType* AsFunctionTableType() override { return this; }
+
+  std::string Name() override;
+
+  AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+
+  size_t length() const { return length_; }
+
+ private:
+  friend class AsmType;
+
+  AsmFunctionTableType(size_t length, AsmType* signature);
+
+  size_t length_;
+  AsmType* signature_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AsmFunctionTableType);
 };
 
 class AsmType {
@@ -205,6 +250,19 @@ class AsmType {
   // The (variadic) type for min and max.
   static AsmType* MinMaxType(Zone* zone, AsmType* dest, AsmType* src);
 
+  // The type for foreign functions.
+  static AsmType* FFIType(Zone* zone) {
+    auto* f = new (zone) AsmFFIType();
+    return reinterpret_cast<AsmType*>(f);
+  }
+
+  // The type for function tables.
+  static AsmType* FunctionTableType(Zone* zone, size_t length,
+                                    AsmType* signature) {
+    auto* f = new (zone) AsmFunctionTableType(length, signature);
+    return reinterpret_cast<AsmType*>(f);
+  }
+
   std::string Name();
   // IsExactly returns true if this is the exact same type as that. For
   // non-value types (e.g., callables), this returns this == that.
@@ -221,10 +279,41 @@ class AsmType {
            this == AsmType::Signed() || this == AsmType::Float();
   }
 
+  // Converts this to the corresponding valid argument type.
+  AsmType* ToReturnType() {
+    if (this->IsA(AsmType::Signed())) {
+      return AsmType::Signed();
+    }
+    if (this->IsA(AsmType::Double())) {
+      return AsmType::Double();
+    }
+    if (this->IsA(AsmType::Float())) {
+      return AsmType::Float();
+    }
+    if (this->IsA(AsmType::Void())) {
+      return AsmType::Void();
+    }
+    return AsmType::None();
+  }
+
   // Types allowed to be parameters in asm functions.
   bool IsParameterType() {
     return this == AsmType::Double() || this == AsmType::Int() ||
            this == AsmType::Float();
+  }
+
+  // Converts this to the corresponding valid argument type.
+  AsmType* ToParameterType() {
+    if (this->IsA(AsmType::Int())) {
+      return AsmType::Int();
+    }
+    if (this->IsA(AsmType::Double())) {
+      return AsmType::Double();
+    }
+    if (this->IsA(AsmType::Float())) {
+      return AsmType::Float();
+    }
+    return AsmType::None();
   }
 
   // Types allowed to be compared using the comparison operators.

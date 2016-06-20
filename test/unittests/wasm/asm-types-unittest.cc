@@ -225,8 +225,14 @@ TEST_F(AsmTypeTest, Names) {
               StrEq("(int, int...) -> signed"));
   EXPECT_THAT(Type::MinMaxType(zone(), Type::Float(), Type::Floatish())->Name(),
               StrEq("(floatish, floatish...) -> float"));
-  EXPECT_THAT(Type::MinMaxType(zone(), Type::Double(), Type::Double())->Name(),
-              StrEq("(double, double...) -> double"));
+  EXPECT_THAT(Type::MinMaxType(zone(), Type::Double(), Type::DoubleQ())->Name(),
+              StrEq("(double?, double?...) -> double"));
+
+  EXPECT_THAT(Type::FFIType(zone())->Name(), StrEq("Function"));
+
+  auto* ft =
+      Type::FunctionTableType(zone(), 15, Function(Type::Double)(Type::Int));
+  EXPECT_THAT(ft->Name(), StrEq("(int) -> double[15]"));
 }
 
 TEST_F(AsmTypeTest, IsExactly) {
@@ -240,6 +246,8 @@ TEST_F(AsmTypeTest, IsExactly) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -263,6 +271,8 @@ TEST_F(AsmTypeTest, IsA) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -284,13 +294,21 @@ TEST_F(AsmTypeTest, ValidateCall) {
   auto* iiii2s =
       Function(Type::Signed)(Type::Int, Type::Int, Type::Int, Type::Int);
 
-  EXPECT_EQ(Type::Signed(),
-            min_max_int->AsCallableType()->ValidateCall(min_max_int));
-  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(ii2s));
-  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(iii2s));
-  EXPECT_EQ(Type::Signed(),
-            min_max_int->AsCallableType()->ValidateCall(iiii2s));
-  EXPECT_EQ(Type::None(), min_max_int->AsCallableType()->ValidateCall(i2s));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(
+                                min_max_int->AsFunctionType()->ReturnType(),
+                                min_max_int->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(
+                                ii2s->AsFunctionType()->ReturnType(),
+                                ii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(
+                                iii2s->AsFunctionType()->ReturnType(),
+                                iii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max_int->AsCallableType()->ValidateCall(
+                                iiii2s->AsFunctionType()->ReturnType(),
+                                iiii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), min_max_int->AsCallableType()->ValidateCall(
+                              i2s->AsFunctionType()->ReturnType(),
+                              i2s->AsFunctionType()->Arguments()));
 
   auto* min_max_double =
       Type::MinMaxType(zone(), Type::Double(), Type::Double());
@@ -300,49 +318,88 @@ TEST_F(AsmTypeTest, ValidateCall) {
       Function(Type::Double)(Type::Double, Type::Double, Type::Double);
   auto* dddd2d = Function(Type::Double)(Type::Double, Type::Double,
                                         Type::Double, Type::Double);
-  EXPECT_EQ(Type::Double(),
-            min_max_double->AsCallableType()->ValidateCall(min_max_double));
-  EXPECT_EQ(Type::Double(),
-            min_max_double->AsCallableType()->ValidateCall(dd2d));
-  EXPECT_EQ(Type::Double(),
-            min_max_double->AsCallableType()->ValidateCall(ddd2d));
-  EXPECT_EQ(Type::Double(),
-            min_max_double->AsCallableType()->ValidateCall(dddd2d));
-  EXPECT_EQ(Type::None(), min_max_double->AsCallableType()->ValidateCall(d2d));
+  EXPECT_EQ(Type::Double(), min_max_double->AsCallableType()->ValidateCall(
+                                min_max_double->AsFunctionType()->ReturnType(),
+                                min_max_double->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max_double->AsCallableType()->ValidateCall(
+                                dd2d->AsFunctionType()->ReturnType(),
+                                dd2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max_double->AsCallableType()->ValidateCall(
+                                ddd2d->AsFunctionType()->ReturnType(),
+                                ddd2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max_double->AsCallableType()->ValidateCall(
+                                dddd2d->AsFunctionType()->ReturnType(),
+                                dddd2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), min_max_double->AsCallableType()->ValidateCall(
+                              d2d->AsFunctionType()->ReturnType(),
+                              d2d->AsFunctionType()->Arguments()));
 
   auto* min_max = Overload(min_max_int, min_max_double);
-  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(min_max));
-  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(i2s));
-  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(d2d));
-  EXPECT_EQ(Type::Signed(),
-            min_max->AsCallableType()->ValidateCall(min_max_int));
-  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(ii2s));
-  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(iii2s));
-  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(iiii2s));
-  EXPECT_EQ(Type::Double(),
-            min_max->AsCallableType()->ValidateCall(min_max_double));
-  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(dd2d));
-  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(ddd2d));
-  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(dddd2d));
+  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(
+                              i2s->AsFunctionType()->ReturnType(),
+                              i2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), min_max->AsCallableType()->ValidateCall(
+                              d2d->AsFunctionType()->ReturnType(),
+                              d2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(
+                                min_max_int->AsFunctionType()->ReturnType(),
+                                min_max_int->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(
+                                ii2s->AsFunctionType()->ReturnType(),
+                                ii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(
+                                iii2s->AsFunctionType()->ReturnType(),
+                                iii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Signed(), min_max->AsCallableType()->ValidateCall(
+                                iiii2s->AsFunctionType()->ReturnType(),
+                                iiii2s->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(
+                                min_max_double->AsFunctionType()->ReturnType(),
+                                min_max_double->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(
+                                dd2d->AsFunctionType()->ReturnType(),
+                                dd2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(
+                                ddd2d->AsFunctionType()->ReturnType(),
+                                ddd2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), min_max->AsCallableType()->ValidateCall(
+                                dddd2d->AsFunctionType()->ReturnType(),
+                                dddd2d->AsFunctionType()->Arguments()));
 
   auto* fround = Type::FroundType(zone());
 
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::Floatish)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::FloatQ)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::Float)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::DoubleQ)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::Double)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::Signed)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::Unsigned)));
-  EXPECT_EQ(Type::Float(), fround->AsCallableType()->ValidateCall(
-                               Function(Type::Float)(Type::FixNum)));
+  ZoneVector<AsmType*> arg(zone());
+  arg.push_back(Type::Floatish());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::FloatQ());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::Float());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::DoubleQ());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::Double());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::Signed());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::Unsigned());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
+  arg.clear();
+  arg.push_back(Type::FixNum());
+  EXPECT_EQ(Type::Float(),
+            fround->AsCallableType()->ValidateCall(Type::Float(), arg));
 
   auto* idf2v = Function(Type::Void)(Type::Int, Type::Double, Type::Float);
   auto* i2d = Function(Type::Double)(Type::Int);
@@ -351,12 +408,88 @@ TEST_F(AsmTypeTest, ValidateCall) {
   auto* idif2i =
       Function(Type::Int)(Type::Int, Type::Double, Type::Int, Type::Float);
   auto* overload = Overload(idf2v, i2f, /*i2d missing, */ fi2d, idif2i);
-  EXPECT_EQ(Type::Void(), overload->AsCallableType()->ValidateCall(idf2v));
-  EXPECT_EQ(Type::Float(), overload->AsCallableType()->ValidateCall(i2f));
-  EXPECT_EQ(Type::Double(), overload->AsCallableType()->ValidateCall(fi2d));
-  EXPECT_EQ(Type::Int(), overload->AsCallableType()->ValidateCall(idif2i));
-  EXPECT_EQ(Type::None(), overload->AsCallableType()->ValidateCall(i2d));
-  EXPECT_EQ(Type::None(), i2f->AsCallableType()->ValidateCall(i2d));
+  EXPECT_EQ(Type::Void(), overload->AsCallableType()->ValidateCall(
+                              idf2v->AsFunctionType()->ReturnType(),
+                              idf2v->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Float(), overload->AsCallableType()->ValidateCall(
+                               i2f->AsFunctionType()->ReturnType(),
+                               i2f->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Double(), overload->AsCallableType()->ValidateCall(
+                                fi2d->AsFunctionType()->ReturnType(),
+                                fi2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::Int(), overload->AsCallableType()->ValidateCall(
+                             idif2i->AsFunctionType()->ReturnType(),
+                             idif2i->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), overload->AsCallableType()->ValidateCall(
+                              i2d->AsFunctionType()->ReturnType(),
+                              i2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), i2f->AsCallableType()->ValidateCall(
+                              i2d->AsFunctionType()->ReturnType(),
+                              i2d->AsFunctionType()->Arguments()));
+
+  auto* ffi = Type::FFIType(zone());
+  AsmType* (*kReturnTypes[])() = {
+      Type::Void, Type::Double, Type::Signed,
+  };
+  AsmType* (*kParameterTypes[])() = {
+      Type::Double, Type::Signed, Type::FixNum,
+  };
+  for (size_t ii = 0; ii < arraysize(kReturnTypes); ++ii) {
+    for (size_t jj = 0; jj < arraysize(kParameterTypes); ++jj) {
+      auto* f = Function(kReturnTypes[ii])(kParameterTypes[jj]);
+      EXPECT_EQ(kReturnTypes[ii](), ffi->AsCallableType()->ValidateCall(
+                                        f->AsFunctionType()->ReturnType(),
+                                        f->AsFunctionType()->Arguments()))
+          << kReturnTypes[ii]()->Name();
+
+      // Call with non-parameter type type should fail.
+      f = Function(kReturnTypes[ii])(kParameterTypes[jj], Type::Int);
+      EXPECT_EQ(Type::None(), ffi->AsCallableType()->ValidateCall(
+                                  f->AsFunctionType()->ReturnType(),
+                                  f->AsFunctionType()->Arguments()))
+          << kReturnTypes[ii]()->Name();
+    }
+  }
+
+  auto* ft0 = Type::FunctionTableType(zone(), 10, fi2d);
+  EXPECT_EQ(Type::Double(), ft0->AsCallableType()->ValidateCall(
+                                fi2d->AsFunctionType()->ReturnType(),
+                                fi2d->AsFunctionType()->Arguments()));
+  EXPECT_EQ(Type::None(), ft0->AsCallableType()->ValidateCall(
+                              i2d->AsFunctionType()->ReturnType(),
+                              i2d->AsFunctionType()->Arguments()));
+}
+
+TEST_F(AsmTypeTest, ToReturnType) {
+  std::unordered_map<AsmType*, AsmType*> kToReturnType = {
+      {Type::Signed(), Type::Signed()}, {Type::FixNum(), Type::Signed()},
+      {Type::Double(), Type::Double()}, {Type::Float(), Type::Float()},
+      {Type::Void(), Type::Void()},
+  };
+
+  Type* test_types[] = {
+#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
+      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
+#undef CREATE
+          Function(Type::Int)(Type::Double),
+      Function(Type::Int)(Type::DoubleQ),
+      Overload(Function(Type::Int)(Type::Double)),
+      Function(Type::Int)(Type::Int, Type::Int),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
+  };
+
+  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
+    auto* return_type = Type::None();
+    auto to_return_type_iter = kToReturnType.find(test_types[ii]);
+    if (to_return_type_iter != kToReturnType.end()) {
+      return_type = to_return_type_iter->second;
+    }
+    EXPECT_EQ(return_type, test_types[ii]->ToReturnType())
+        << return_type->Name() << " != " << test_types[ii]->ToReturnType();
+  }
 }
 
 TEST_F(AsmTypeTest, IsReturnType) {
@@ -370,6 +503,8 @@ TEST_F(AsmTypeTest, IsReturnType) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   std::unordered_set<Type*> return_types{
@@ -384,6 +519,39 @@ TEST_F(AsmTypeTest, IsReturnType) {
   }
 }
 
+TEST_F(AsmTypeTest, ToParameterType) {
+  std::unordered_map<AsmType*, AsmType*> kToParameterType = {
+      {Type::Int(), Type::Int()},       {Type::Signed(), Type::Int()},
+      {Type::Unsigned(), Type::Int()},  {Type::FixNum(), Type::Int()},
+      {Type::Double(), Type::Double()}, {Type::Float(), Type::Float()},
+  };
+
+  Type* test_types[] = {
+#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
+      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
+#undef CREATE
+          Function(Type::Int)(Type::Double),
+      Function(Type::Int)(Type::DoubleQ),
+      Overload(Function(Type::Int)(Type::Double)),
+      Function(Type::Int)(Type::Int, Type::Int),
+      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
+      Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
+  };
+
+  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
+    auto* parameter_type = Type::None();
+    auto to_parameter_type_iter = kToParameterType.find(test_types[ii]);
+    if (to_parameter_type_iter != kToParameterType.end()) {
+      parameter_type = to_parameter_type_iter->second;
+    }
+    EXPECT_EQ(parameter_type, test_types[ii]->ToParameterType())
+        << parameter_type->Name()
+        << " != " << test_types[ii]->ToParameterType();
+  }
+}
+
 TEST_F(AsmTypeTest, IsParameterType) {
   Type* test_types[] = {
 #define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
@@ -395,6 +563,8 @@ TEST_F(AsmTypeTest, IsParameterType) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   std::unordered_set<Type*> parameter_types{
@@ -421,6 +591,8 @@ TEST_F(AsmTypeTest, IsComparableType) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   std::unordered_set<Type*> comparable_types{
@@ -447,6 +619,8 @@ TEST_F(AsmTypeTest, ElementSizeInBytes) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto ElementSizeInBytesForType = [](Type* type) -> int32_t {
@@ -483,6 +657,8 @@ TEST_F(AsmTypeTest, LoadType) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto LoadTypeForType = [](Type* type) -> Type* {
@@ -519,6 +695,8 @@ TEST_F(AsmTypeTest, StoreType) {
       Function(Type::Int)(Type::Int, Type::Int),
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float), Type::FroundType(zone()),
+      Type::FFIType(zone()),
+      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto StoreTypeForType = [](Type* type) -> Type* {
