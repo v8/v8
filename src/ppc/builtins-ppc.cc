@@ -1723,6 +1723,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
                                                int field_index) {
   // ----------- S t a t e -------------
+  //  -- r3    : number of arguments
+  //  -- r4    : function
+  //  -- cp    : context
   //  -- lr    : return address
   //  -- sp[0] : receiver
   // -----------------------------------
@@ -1732,7 +1735,7 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   {
     __ Pop(r3);
     __ JumpIfSmi(r3, &receiver_not_date);
-    __ CompareObjectType(r3, r4, r5, JS_DATE_TYPE);
+    __ CompareObjectType(r3, r5, r6, JS_DATE_TYPE);
     __ bne(&receiver_not_date);
   }
 
@@ -1762,7 +1765,14 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
 
   // 3. Raise a TypeError if the receiver is not a date.
   __ bind(&receiver_not_date);
-  __ TailCallRuntime(Runtime::kThrowNotDateError);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ push(r3);
+    __ PushStandardFrame(r4);
+    __ LoadSmiLiteral(r7, Smi::FromInt(0));
+    __ push(r7);
+    __ CallRuntime(Runtime::kThrowNotDateError);
+  }
 }
 
 // static
