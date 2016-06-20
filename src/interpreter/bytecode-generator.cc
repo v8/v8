@@ -757,22 +757,15 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::LOOKUP: {
-      DCHECK(IsDeclaredVariableMode(mode));
+      DCHECK_EQ(VAR, mode);
       DCHECK(!hole_init);
 
-      register_allocator()->PrepareForConsecutiveAllocations(3);
-      Register name = register_allocator()->NextConsecutiveRegister();
-      Register init_value = register_allocator()->NextConsecutiveRegister();
-      Register attributes = register_allocator()->NextConsecutiveRegister();
+      Register name = register_allocator()->NewRegister();
 
-      builder()->LoadLiteral(variable->name()).StoreAccumulatorInRegister(name);
       builder()
-          ->LoadLiteral(Smi::FromInt(0))
-          .StoreAccumulatorInRegister(init_value);
-      builder()
-          ->LoadLiteral(Smi::FromInt(variable->DeclarationPropertyAttributes()))
-          .StoreAccumulatorInRegister(attributes)
-          .CallRuntime(Runtime::kDeclareLookupSlot, name, 3);
+          ->LoadLiteral(variable->name())
+          .StoreAccumulatorInRegister(name)
+          .CallRuntime(Runtime::kDeclareEvalVar, name, 1);
       break;
     }
   }
@@ -808,18 +801,14 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       break;
     }
     case VariableLocation::LOOKUP: {
-      register_allocator()->PrepareForConsecutiveAllocations(3);
+      register_allocator()->PrepareForConsecutiveAllocations(2);
       Register name = register_allocator()->NextConsecutiveRegister();
       Register literal = register_allocator()->NextConsecutiveRegister();
-      Register attributes = register_allocator()->NextConsecutiveRegister();
       builder()->LoadLiteral(variable->name()).StoreAccumulatorInRegister(name);
 
       VisitForAccumulatorValue(decl->fun());
-      builder()
-          ->StoreAccumulatorInRegister(literal)
-          .LoadLiteral(Smi::FromInt(variable->DeclarationPropertyAttributes()))
-          .StoreAccumulatorInRegister(attributes)
-          .CallRuntime(Runtime::kDeclareLookupSlot, name, 3);
+      builder()->StoreAccumulatorInRegister(literal).CallRuntime(
+          Runtime::kDeclareEvalFunction, name, 2);
     }
   }
 }

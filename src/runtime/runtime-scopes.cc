@@ -188,74 +188,60 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   return *value;
 }
 
-
 namespace {
 
-Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
-                          Handle<Object> initial_value,
-                          PropertyAttributes attr) {
-  // Declarations are always made in a function, eval or script context, or
-  // a declaration block scope.
-  // In the case of eval code, the context passed is the context of the caller,
-  // which may be some nested context and not the declaration context.
+Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
+                          Handle<Object> value) {
+  // Declarations are always made in a function, native, or script context, or
+  // a declaration block scope. Since this is called from eval, the context
+  // passed is the context of the caller, which may be some nested context and
+  // not the declaration context.
   Handle<Context> context_arg(isolate->context(), isolate);
   Handle<Context> context(context_arg->declaration_context(), isolate);
 
-  // TODO(verwaest): Unify the encoding indicating "var" with DeclareGlobals.
-  bool is_var = *initial_value == NULL;
-  bool is_function = initial_value->IsJSFunction();
-  DCHECK_EQ(1, BoolToInt(is_var) + BoolToInt(is_function));
+  DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
+         context->IsScriptContext() ||
+         (context->IsBlockContext() && context->has_extension()));
+
+  bool is_function = value->IsJSFunction();
+  bool is_var = !is_function;
+  DCHECK(!is_var || value->IsUndefined(isolate));
 
   int index;
   PropertyAttributes attributes;
   BindingFlags binding_flags;
 
-  if ((attr & EVAL_DECLARED) != 0) {
-    // Check for a conflict with a lexically scoped variable
-    context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes,
-                        &binding_flags);
-    if (attributes != ABSENT && binding_flags == BINDING_CHECK_INITIALIZED) {
-      return ThrowRedeclarationError(isolate, name);
-    }
-    attr = static_cast<PropertyAttributes>(attr & ~EVAL_DECLARED);
+  // Check for a conflict with a lexically scoped variable
+  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &binding_flags);
+  if (attributes != ABSENT && binding_flags == BINDING_CHECK_INITIALIZED) {
+    return ThrowRedeclarationError(isolate, name);
   }
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
                                           &attributes, &binding_flags);
-  if (holder.is_null()) {
-    // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
-  }
+  DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
-  Handle<Object> value =
-      is_function ? initial_value
-                  : Handle<Object>::cast(isolate->factory()->undefined_value());
 
-  // TODO(verwaest): This case should probably not be covered by this function,
-  // but by DeclareGlobals instead.
   if (attributes != ABSENT && holder->IsJSGlobalObject()) {
     return DeclareGlobals(isolate, Handle<JSGlobalObject>::cast(holder), name,
-                          value, attr, is_var, is_function);
+                          value, NONE, is_var, is_function);
   }
   if (context_arg->extension()->IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context_arg->extension()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var,
+    return DeclareGlobals(isolate, global, name, value, NONE, is_var,
                           is_function);
   } else if (context->IsScriptContext()) {
     DCHECK(context->global_object()->IsJSGlobalObject());
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context->global_object()), isolate);
-    return DeclareGlobals(isolate, global, name, value, attr, is_var,
+    return DeclareGlobals(isolate, global, name, value, NONE, is_var,
                           is_function);
   }
 
   if (attributes != ABSENT) {
-    // The name was declared before; check for conflicting re-declarations.
-    if ((attributes & READ_ONLY) != 0) {
-      return ThrowRedeclarationError(isolate, name);
-    }
+    DCHECK_EQ(NONE, attributes);
 
     // Skip var re-declarations.
     if (is_var) return isolate->heap()->undefined_value();
@@ -263,7 +249,7 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
     DCHECK(is_function);
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
-      context->set(index, *initial_value);
+      context->set(index, *value);
       return isolate->heap()->undefined_value();
     }
 
@@ -292,26 +278,28 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
   }
 
   RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                           object, name, value, attr));
+                                           object, name, value, NONE));
 
   return isolate->heap()->undefined_value();
 }
 
 }  // namespace
 
-
-RUNTIME_FUNCTION(Runtime_DeclareLookupSlot) {
+RUNTIME_FUNCTION(Runtime_DeclareEvalFunction) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, initial_value, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, property_attributes, 2);
-
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(property_attributes->value());
-  return DeclareLookupSlot(isolate, name, initial_value, attributes);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  return DeclareEvalHelper(isolate, name, value);
 }
 
+RUNTIME_FUNCTION(Runtime_DeclareEvalVar) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  return DeclareEvalHelper(isolate, name,
+                           isolate->factory()->undefined_value());
+}
 
 namespace {
 

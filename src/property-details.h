@@ -28,11 +28,6 @@ enum PropertyAttributes {
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
-
-  // When creating a property, EVAL_DECLARED used to indicate that the property
-  // came from a sloppy-mode direct eval, and certain checks need to be done.
-  // Cannot be stored in or returned from a descriptor's attributes bitfield.
-  EVAL_DECLARED = 128
 };
 
 

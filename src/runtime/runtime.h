@@ -473,30 +473,31 @@ namespace internal {
   F(RegExpExecReThrow, 4, 1)                   \
   F(IsRegExp, 1, 1)
 
-#define FOR_EACH_INTRINSIC_SCOPES(F)       \
-  F(ThrowConstAssignError, 0, 1)           \
-  F(DeclareGlobals, 2, 1)                  \
-  F(InitializeVarGlobal, 3, 1)             \
-  F(InitializeConstGlobal, 2, 1)           \
-  F(DeclareLookupSlot, 3, 1)               \
-  F(NewSloppyArguments_Generic, 1, 1)      \
-  F(NewStrictArguments, 1, 1)              \
-  F(NewRestParameter, 1, 1)                \
-  F(NewSloppyArguments, 3, 1)              \
-  F(NewClosure, 1, 1)                      \
-  F(NewClosure_Tenured, 1, 1)              \
-  F(NewScriptContext, 2, 1)                \
-  F(NewFunctionContext, 1, 1)              \
-  F(PushWithContext, 2, 1)                 \
-  F(PushCatchContext, 3, 1)                \
-  F(PushBlockContext, 2, 1)                \
-  F(IsJSModule, 1, 1)                      \
-  F(PushModuleContext, 2, 1)               \
-  F(DeclareModules, 1, 1)                  \
-  F(DeleteLookupSlot, 1, 1)                \
-  F(LoadLookupSlot, 1, 1)                  \
-  F(LoadLookupSlotInsideTypeof, 1, 1)      \
-  F(StoreLookupSlot_Sloppy, 2, 1)          \
+#define FOR_EACH_INTRINSIC_SCOPES(F)  \
+  F(ThrowConstAssignError, 0, 1)      \
+  F(DeclareGlobals, 2, 1)             \
+  F(InitializeVarGlobal, 3, 1)        \
+  F(InitializeConstGlobal, 2, 1)      \
+  F(DeclareEvalFunction, 2, 1)        \
+  F(DeclareEvalVar, 1, 1)             \
+  F(NewSloppyArguments_Generic, 1, 1) \
+  F(NewStrictArguments, 1, 1)         \
+  F(NewRestParameter, 1, 1)           \
+  F(NewSloppyArguments, 3, 1)         \
+  F(NewClosure, 1, 1)                 \
+  F(NewClosure_Tenured, 1, 1)         \
+  F(NewScriptContext, 2, 1)           \
+  F(NewFunctionContext, 1, 1)         \
+  F(PushWithContext, 2, 1)            \
+  F(PushCatchContext, 3, 1)           \
+  F(PushBlockContext, 2, 1)           \
+  F(IsJSModule, 1, 1)                 \
+  F(PushModuleContext, 2, 1)          \
+  F(DeclareModules, 1, 1)             \
+  F(DeleteLookupSlot, 1, 1)           \
+  F(LoadLookupSlot, 1, 1)             \
+  F(LoadLookupSlotInsideTypeof, 1, 1) \
+  F(StoreLookupSlot_Sloppy, 2, 1)     \
   F(StoreLookupSlot_Strict, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SIMD(F)     \
