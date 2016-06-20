@@ -947,6 +947,14 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Unsigned31());
       CheckUpperIs(node, Type::Unsigned31());
       break;
+    case IrOpcode::kCheckTaggedSigned:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckUpperIs(node, Type::TaggedSigned());
+      break;
+    case IrOpcode::kCheckTaggedPointer:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckUpperIs(node, Type::TaggedPointer());
+      break;
 
     case IrOpcode::kCheckedUint32ToInt32:
     case IrOpcode::kCheckedFloat64ToInt32:

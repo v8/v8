@@ -167,6 +167,26 @@ std::ostream& operator<<(std::ostream& os,
   return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
+size_t hash_value(RegionObservability observability) {
+  return static_cast<size_t>(observability);
+}
+
+std::ostream& operator<<(std::ostream& os, RegionObservability observability) {
+  switch (observability) {
+    case RegionObservability::kObservable:
+      return os << "observable";
+    case RegionObservability::kNotObservable:
+      return os << "not-observable";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+RegionObservability RegionObservabilityOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kBeginRegion, op->opcode());
+  return OpParameter<RegionObservability>(op);
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types) {
   // Print all the MachineTypes, separated by commas.
@@ -194,8 +214,7 @@ std::ostream& operator<<(std::ostream& os,
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)        \
-  V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
-  V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
+  V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)
 
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
@@ -373,6 +392,20 @@ struct CommonOperatorGlobalCache final {
   EffectPhiOperator<input_count> kEffectPhi##input_count##Operator;
   CACHED_EFFECT_PHI_LIST(CACHED_EFFECT_PHI)
 #undef CACHED_EFFECT_PHI
+
+  template <RegionObservability kRegionObservability>
+  struct BeginRegionOperator final : public Operator1<RegionObservability> {
+    BeginRegionOperator()
+        : Operator1<RegionObservability>(                  // --
+              IrOpcode::kBeginRegion, Operator::kKontrol,  // opcode
+              "BeginRegion",                               // name
+              0, 1, 0, 0, 1, 0,                            // counts
+              kRegionObservability) {}                     // parameter
+  };
+  BeginRegionOperator<RegionObservability::kObservable>
+      kBeginRegionObservableOperator;
+  BeginRegionOperator<RegionObservability::kNotObservable>
+      kBeginRegionNotObservableOperator;
 
   template <size_t kInputCount>
   struct LoopOperator final : public Operator {
@@ -773,6 +806,17 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       0, effect_input_count, 1, 0, 1, 0);     // counts
 }
 
+const Operator* CommonOperatorBuilder::BeginRegion(
+    RegionObservability region_observability) {
+  switch (region_observability) {
+    case RegionObservability::kObservable:
+      return &cache_.kBeginRegionObservableOperator;
+    case RegionObservability::kNotObservable:
+      return &cache_.kBeginRegionNotObservableOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* CommonOperatorBuilder::StateValues(int arguments) {
   switch (arguments) {

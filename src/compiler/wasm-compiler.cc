@@ -2302,7 +2302,9 @@ Node* WasmGraphBuilder::BuildAllocateHeapNumberWithValue(Node* value,
   Callable callable = CodeFactory::AllocateHeapNumber(jsgraph()->isolate());
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* context = jsgraph()->NoContextConstant();
-  Node* effect = graph()->NewNode(common->BeginRegion(), graph()->start());
+  Node* effect =
+      graph()->NewNode(common->BeginRegion(RegionObservability::kNotObservable),
+                       graph()->start());
   if (!allocate_heap_number_operator_.is_set()) {
     CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,

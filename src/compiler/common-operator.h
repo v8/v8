@@ -134,8 +134,22 @@ bool operator==(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs);
 bool operator!=(RelocatablePtrConstantInfo const& lhs,
                 RelocatablePtrConstantInfo const& rhs);
+
 std::ostream& operator<<(std::ostream&, RelocatablePtrConstantInfo const&);
+
 size_t hash_value(RelocatablePtrConstantInfo const& p);
+
+// Used to mark a region (as identified by BeginRegion/FinishRegion) as either
+// JavaScript-observable or not (i.e. allocations are not JavaScript observable
+// themselves, but transitioning stores are).
+enum class RegionObservability : uint8_t { kObservable, kNotObservable };
+
+size_t hash_value(RegionObservability);
+
+std::ostream& operator<<(std::ostream&, RegionObservability);
+
+RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
+
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
@@ -189,7 +203,7 @@ class CommonOperatorBuilder final : public ZoneObject {
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
   const Operator* Checkpoint();
-  const Operator* BeginRegion();
+  const Operator* BeginRegion(RegionObservability);
   const Operator* FinishRegion();
   const Operator* StateValues(int arguments);
   const Operator* ObjectState(int pointer_slots, int id);

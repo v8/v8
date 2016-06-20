@@ -36,18 +36,18 @@ class Operator : public ZoneObject {
   // transformations for nodes that have this operator.
   enum Property {
     kNoProperties = 0,
-    kReducible = 1 << 0,    // Participates in strength reduction.
-    kCommutative = 1 << 1,  // OP(a, b) == OP(b, a) for all inputs.
-    kAssociative = 1 << 2,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
-    kIdempotent = 1 << 3,   // OP(a); OP(a) == OP(a).
-    kNoRead = 1 << 4,       // Has no scheduling dependency on Effects
-    kNoWrite = 1 << 5,      // Does not modify any Effects and thereby
+    kCommutative = 1 << 0,  // OP(a, b) == OP(b, a) for all inputs.
+    kAssociative = 1 << 1,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
+    kIdempotent = 1 << 2,   // OP(a); OP(a) == OP(a).
+    kNoRead = 1 << 3,       // Has no scheduling dependency on Effects
+    kNoWrite = 1 << 4,      // Does not modify any Effects and thereby
                             // create new scheduling dependencies.
-    kNoThrow = 1 << 6,      // Can never generate an exception.
+    kNoThrow = 1 << 5,      // Can never generate an exception.
+    kNoDeopt = 1 << 6,      // Can never generate an eager deoptimization exit.
     kFoldable = kNoRead | kNoWrite,
-    kKontrol = kFoldable | kNoThrow,
-    kEliminatable = kNoWrite | kNoThrow,
-    kPure = kNoRead | kNoWrite | kNoThrow | kIdempotent
+    kKontrol = kNoDeopt | kFoldable | kNoThrow,
+    kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
+    kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
   };
   typedef base::Flags<Property, uint8_t> Properties;
 

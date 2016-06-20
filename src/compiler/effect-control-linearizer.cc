@@ -309,12 +309,26 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   // If the node has a visible effect, then there must be a checkpoint in the
   // effect chain before we are allowed to place another eager deoptimization
   // point. We zap the frame state to ensure this invariant is maintained.
-  if (!node->op()->HasProperty(Operator::kNoWrite)) *frame_state = nullptr;
+  if (region_observability_ == RegionObservability::kObservable &&
+      !node->op()->HasProperty(Operator::kNoWrite)) {
+    *frame_state = nullptr;
+  }
 
   // Remove the end markers of 'atomic' allocation region because the
   // region should be wired-in now.
-  if (node->opcode() == IrOpcode::kFinishRegion ||
-      node->opcode() == IrOpcode::kBeginRegion) {
+  if (node->opcode() == IrOpcode::kFinishRegion) {
+    // Reset the current region observability.
+    region_observability_ = RegionObservability::kObservable;
+    // Update the value uses to the value input of the finish node and
+    // the effect uses to the effect input.
+    return RemoveRegionNode(node);
+  }
+  if (node->opcode() == IrOpcode::kBeginRegion) {
+    // Determine the observability for this region and use that for all
+    // nodes inside the region (i.e. ignore the absence of kNoWrite on
+    // StoreField and other operators).
+    DCHECK_NE(RegionObservability::kNotObservable, region_observability_);
+    region_observability_ = RegionObservabilityOf(node->op());
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
     return RemoveRegionNode(node);
@@ -324,6 +338,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   if (node->opcode() == IrOpcode::kCheckpoint) {
     // Unlink the check point; effect uses will be updated to the incoming
     // effect that is passed. The frame state is preserved for lowering.
+    DCHECK_EQ(RegionObservability::kObservable, region_observability_);
     *frame_state = NodeProperties::GetFrameStateInput(node, 0);
     node->TrimInputCount(0);
     return;
@@ -418,6 +433,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckBounds:
       state = LowerCheckBounds(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckTaggedPointer:
+      state = LowerCheckTaggedPointer(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckTaggedSigned:
+      state = LowerCheckTaggedSigned(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
@@ -781,6 +802,36 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
   node->TrimInputCount(0);
 
   return ValueEffectControl(index, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckTaggedPointer(Node* node, Node* frame_state,
+                                                 Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = ObjectIsSmi(value);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckTaggedSigned(Node* node, Node* frame_state,
+                                                Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = ObjectIsSmi(value);
+  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, effect, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

@@ -156,7 +156,8 @@ TEST_P(SimplifiedBufferAccessOperatorTest, LoadBuffer) {
   const Operator* op = simplified.LoadBuffer(access);
 
   EXPECT_EQ(IrOpcode::kLoadBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoThrow | Operator::kNoWrite, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
+            op->properties());
   EXPECT_EQ(access, BufferAccessOf(op));
 
   EXPECT_EQ(3, op->ValueInputCount());
@@ -176,7 +177,8 @@ TEST_P(SimplifiedBufferAccessOperatorTest, StoreBuffer) {
   const Operator* op = simplified.StoreBuffer(access);
 
   EXPECT_EQ(IrOpcode::kStoreBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoRead | Operator::kNoThrow, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+            op->properties());
   EXPECT_EQ(access, BufferAccessOf(op));
 
   EXPECT_EQ(4, op->ValueInputCount());
@@ -258,7 +260,8 @@ TEST_P(SimplifiedElementAccessOperatorTest, LoadElement) {
   const Operator* op = simplified.LoadElement(access);
 
   EXPECT_EQ(IrOpcode::kLoadElement, op->opcode());
-  EXPECT_EQ(Operator::kNoThrow | Operator::kNoWrite, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
+            op->properties());
   EXPECT_EQ(access, ElementAccessOf(op));
 
   EXPECT_EQ(2, op->ValueInputCount());
@@ -278,7 +281,8 @@ TEST_P(SimplifiedElementAccessOperatorTest, StoreElement) {
   const Operator* op = simplified.StoreElement(access);
 
   EXPECT_EQ(IrOpcode::kStoreElement, op->opcode());
-  EXPECT_EQ(Operator::kNoRead | Operator::kNoThrow, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+            op->properties());
   EXPECT_EQ(access, ElementAccessOf(op));
 
   EXPECT_EQ(3, op->ValueInputCount());

@@ -442,33 +442,36 @@ struct MachineOperatorGlobalCache {
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
 
-#define LOAD(Type)                                                             \
-  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
-    Load##Type##Operator()                                                     \
-        : Operator1<LoadRepresentation>(                                       \
-              IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite,        \
-              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}                \
-  };                                                                           \
-  struct CheckedLoad##Type##Operator final                                     \
-      : public Operator1<CheckedLoadRepresentation> {                          \
-    CheckedLoad##Type##Operator()                                              \
-        : Operator1<CheckedLoadRepresentation>(                                \
-              IrOpcode::kCheckedLoad, Operator::kNoThrow | Operator::kNoWrite, \
-              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
-  };                                                                           \
-  Load##Type##Operator kLoad##Type;                                            \
+#define LOAD(Type)                                                           \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> { \
+    Load##Type##Operator()                                                   \
+        : Operator1<LoadRepresentation>(                                     \
+              IrOpcode::kLoad,                                               \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
+              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}              \
+  };                                                                         \
+  struct CheckedLoad##Type##Operator final                                   \
+      : public Operator1<CheckedLoadRepresentation> {                        \
+    CheckedLoad##Type##Operator()                                            \
+        : Operator1<CheckedLoadRepresentation>(                              \
+              IrOpcode::kCheckedLoad,                                        \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
+              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
+  };                                                                         \
+  Load##Type##Operator kLoad##Type;                                          \
   CheckedLoad##Type##Operator kCheckedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
-#define STACKSLOT(Type)                                                       \
-  struct StackSlot##Type##Operator final                                      \
-      : public Operator1<MachineRepresentation> {                             \
-    StackSlot##Type##Operator()                                               \
-        : Operator1<MachineRepresentation>(                                   \
-              IrOpcode::kStackSlot, Operator::kNoThrow, "StackSlot", 0, 0, 0, \
-              1, 0, 0, MachineType::Type().representation()) {}               \
-  };                                                                          \
+#define STACKSLOT(Type)                                                      \
+  struct StackSlot##Type##Operator final                                     \
+      : public Operator1<MachineRepresentation> {                            \
+    StackSlot##Type##Operator()                                              \
+        : Operator1<MachineRepresentation>(                                  \
+              IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow, \
+              "StackSlot", 0, 0, 0, 1, 0, 0,                                 \
+              MachineType::Type().representation()) {}                       \
+  };                                                                         \
   StackSlot##Type##Operator kStackSlot##Type;
   MACHINE_TYPE_LIST(STACKSLOT)
 #undef STACKSLOT
@@ -477,7 +480,8 @@ struct MachineOperatorGlobalCache {
   struct Store##Type##Operator : public Operator1<StoreRepresentation> {       \
     explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)        \
         : Operator1<StoreRepresentation>(                                      \
-              IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow,        \
+              IrOpcode::kStore,                                                \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
               "Store", 3, 1, 1, 0, 1, 0,                                       \
               StoreRepresentation(MachineRepresentation::Type,                 \
                                   write_barrier_kind)) {}                      \
@@ -506,7 +510,8 @@ struct MachineOperatorGlobalCache {
       : public Operator1<CheckedStoreRepresentation> {                         \
     CheckedStore##Type##Operator()                                             \
         : Operator1<CheckedStoreRepresentation>(                               \
-              IrOpcode::kCheckedStore, Operator::kNoRead | Operator::kNoThrow, \
+              IrOpcode::kCheckedStore,                                         \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
               "CheckedStore", 4, 1, 1, 0, 1, 0, MachineRepresentation::Type) { \
     }                                                                          \
   };                                                                           \
@@ -519,14 +524,15 @@ struct MachineOperatorGlobalCache {
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
-#define ATOMIC_LOAD(Type)                                                     \
-  struct AtomicLoad##Type##Operator final                                     \
-      : public Operator1<LoadRepresentation> {                                \
-    AtomicLoad##Type##Operator()                                              \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kAtomicLoad, Operator::kNoThrow | Operator::kNoWrite, \
-              "AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
-  };                                                                          \
+#define ATOMIC_LOAD(Type)                                                   \
+  struct AtomicLoad##Type##Operator final                                   \
+      : public Operator1<LoadRepresentation> {                              \
+    AtomicLoad##Type##Operator()                                            \
+        : Operator1<LoadRepresentation>(                                    \
+              IrOpcode::kAtomicLoad,                                        \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              "AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
+  };                                                                        \
   AtomicLoad##Type##Operator kAtomicLoad##Type;
   ATOMIC_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD
@@ -536,7 +542,8 @@ struct MachineOperatorGlobalCache {
       : public Operator1<MachineRepresentation> {                              \
     AtomicStore##Type##Operator()                                              \
         : Operator1<MachineRepresentation>(                                    \
-              IrOpcode::kAtomicStore, Operator::kNoRead | Operator::kNoThrow,  \
+              IrOpcode::kAtomicStore,                                          \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
               "AtomicStore", 3, 1, 1, 0, 1, 0, MachineRepresentation::Type) {} \
   };                                                                           \
   AtomicStore##Type##Operator kAtomicStore##Type;

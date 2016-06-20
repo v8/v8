@@ -333,7 +333,8 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
   Node* p2 = m2.Parameter(0);
   m2.Return(m2.AddNode(
       m2.machine()->Load(MachineType::Int32()), p2, m2.Int32Constant(0),
-      m2.AddNode(m2.common()->BeginRegion(), m2.graph()->start())));
+      m2.AddNode(m2.common()->BeginRegion(RegionObservability::kObservable),
+                 m2.graph()->start())));
   Stream s2 = m2.Build(kAllInstructions);
   EXPECT_LE(3U, s1.size());
   ASSERT_EQ(s1.size(), s2.size());

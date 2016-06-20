@@ -362,14 +362,25 @@ TEST_F(CommonOperatorTest, NumberConstant) {
 
 
 TEST_F(CommonOperatorTest, BeginRegion) {
-  const Operator* op = common()->BeginRegion();
-  EXPECT_EQ(1, op->EffectInputCount());
-  EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
-  EXPECT_EQ(0, op->ControlOutputCount());
-  EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ValueOutputCount());
+  {
+    const Operator* op =
+        common()->BeginRegion(RegionObservability::kObservable);
+    EXPECT_EQ(1, op->EffectInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(1, op->EffectOutputCount());
+    EXPECT_EQ(0, op->ValueOutputCount());
+  }
+  {
+    const Operator* op =
+        common()->BeginRegion(RegionObservability::kNotObservable);
+    EXPECT_EQ(1, op->EffectInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(1, op->EffectOutputCount());
+    EXPECT_EQ(0, op->ValueOutputCount());
+  }
 }
-
 
 TEST_F(CommonOperatorTest, FinishRegion) {
   const Operator* op = common()->FinishRegion();

@@ -2008,6 +2008,16 @@ Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   return Type::Unsigned31();
 }
 
+Type* Typer::Visitor::TypeCheckTaggedPointer(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::TaggedPointer(), zone());
+}
+
+Type* Typer::Visitor::TypeCheckTaggedSigned(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, typer_->cache_.kSmi, zone());
+}
+
 Type* Typer::Visitor::TypeCheckedUint32ToInt32(Node* node) {
   return Type::Signed32();
 }

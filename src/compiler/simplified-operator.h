@@ -237,6 +237,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* TruncateTaggedToFloat64();
 
   const Operator* CheckBounds();
+  const Operator* CheckTaggedPointer();
+  const Operator* CheckTaggedSigned();
 
   const Operator* CheckedUint32ToInt32();
   const Operator* CheckedFloat64ToInt32();

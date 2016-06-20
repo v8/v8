@@ -64,6 +64,10 @@ class EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerCheckBounds(Node* node, Node* frame_state,
                                       Node* effect, Node* control);
+  ValueEffectControl LowerCheckTaggedPointer(Node* node, Node* frame_state,
+                                             Node* effect, Node* control);
+  ValueEffectControl LowerCheckTaggedSigned(Node* node, Node* frame_state,
+                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
@@ -138,6 +142,7 @@ class EffectControlLinearizer {
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
+  RegionObservability region_observability_ = RegionObservability::kObservable;
 
   SetOncePointer<Operator const> to_number_operator_;
 };

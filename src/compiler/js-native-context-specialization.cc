@@ -125,17 +125,17 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Ensure that {receiver} is a heap object.
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
   Node* receiverissmi_control = nullptr;
   Node* receiverissmi_effect = effect;
   if (receiverissmi_possible) {
+    Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
     Node* branch = graph()->NewNode(common()->Branch(), check, control);
     control = graph()->NewNode(common()->IfFalse(), branch);
     receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
     receiverissmi_effect = effect;
   } else {
-    control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                        frame_state, effect, control);
+    receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                         receiver, effect, control);
   }
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
@@ -288,8 +288,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
               !FLAG_unbox_double_fields) {
             if (access_info.HasTransitionMap()) {
               // Allocate a MutableHeapNumber for the new property.
-              this_effect =
-                  graph()->NewNode(common()->BeginRegion(), this_effect);
+              this_effect = graph()->NewNode(
+                  common()->BeginRegion(RegionObservability::kNotObservable),
+                  this_effect);
               Node* this_box = this_effect =
                   graph()->NewNode(simplified()->Allocate(NOT_TENURED),
                                    jsgraph()->Constant(HeapNumber::kSize),
@@ -319,19 +320,12 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
             field_access.machine_type = MachineType::Float64();
           }
         } else if (field_type->Is(Type::TaggedSigned())) {
-          Node* check =
-              graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+          this_value = this_effect =
+              graph()->NewNode(simplified()->CheckTaggedSigned(), this_value,
                                this_effect, this_control);
-          this_value =
-              graph()->NewNode(simplified()->TypeGuard(type_cache_.kSmi),
-                               this_value, this_control);
         } else if (field_type->Is(Type::TaggedPointer())) {
-          Node* check =
-              graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+          this_value = this_effect =
+              graph()->NewNode(simplified()->CheckTaggedPointer(), this_value,
                                this_effect, this_control);
           if (field_type->NumClasses() == 1) {
             // Emit a map check for the value.
@@ -352,7 +346,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         }
         Handle<Map> transition_map;
         if (access_info.transition_map().ToHandle(&transition_map)) {
-          this_effect = graph()->NewNode(common()->BeginRegion(), this_effect);
+          this_effect = graph()->NewNode(
+              common()->BeginRegion(RegionObservability::kObservable),
+              this_effect);
           this_effect = graph()->NewNode(
               simplified()->StoreField(AccessBuilder::ForMap()), this_receiver,
               jsgraph()->Constant(transition_map), this_effect, this_control);
@@ -531,9 +527,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   ZoneVector<Node*> controls(zone());
 
   // Ensure that {receiver} is a heap object.
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                       receiver, effect, control);
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
   // all (polymorphic) branches.
@@ -785,12 +780,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (IsFastSmiElementsKind(elements_kind)) {
-        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-        this_control = this_effect =
-            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+        this_value = this_effect =
+            graph()->NewNode(simplified()->CheckTaggedSigned(), this_value,
                              this_effect, this_control);
-        this_value = graph()->NewNode(simplified()->TypeGuard(type_cache_.kSmi),
-                                      this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         Node* check =
             graph()->NewNode(simplified()->ObjectIsNumber(), this_value);

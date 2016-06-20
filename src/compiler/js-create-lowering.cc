@@ -37,7 +37,8 @@ class AllocationBuilder final {
 
   // Primitive allocation of static size.
   void Allocate(int size, PretenureFlag pretenure = NOT_TENURED) {
-    effect_ = graph()->NewNode(common()->BeginRegion(), effect_);
+    effect_ = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
         graph()->NewNode(simplified()->Allocate(pretenure),
                          jsgraph()->Constant(size), effect_, control_);
@@ -948,7 +949,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
         site_context->ExitScope(current_site, boilerplate_object);
       } else if (property_details.representation().IsDouble()) {
         // Allocate a mutable HeapNumber box and store the value into it.
-        effect = graph()->NewNode(common()->BeginRegion(), effect);
+        effect = graph()->NewNode(
+            common()->BeginRegion(RegionObservability::kNotObservable), effect);
         value = effect = graph()->NewNode(
             simplified()->Allocate(NOT_TENURED),
             jsgraph()->Constant(HeapNumber::kSize), effect, control);

@@ -672,7 +672,7 @@ class RepresentationSelector {
   Type* GetUpperBound(Node* node) { return NodeProperties::GetType(node); }
 
   bool InputIs(Node* node, Type* type) {
-    DCHECK_EQ(1, node->InputCount());
+    DCHECK_EQ(1, node->op()->ValueInputCount());
     return GetUpperBound(node->InputAt(0))->Is(type);
   }
 
@@ -772,8 +772,9 @@ class RepresentationSelector {
 
   // Helper for unops of the I -> O variety.
   void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output) {
-    DCHECK_EQ(1, node->InputCount());
+    DCHECK_EQ(1, node->op()->ValueInputCount());
     ProcessInput(node, 0, input_use);
+    ProcessRemainingInputs(node, 1);
     SetOutput(node, output);
   }
 
@@ -1667,6 +1668,31 @@ class RepresentationSelector {
       case IrOpcode::kCheckBounds: {
         VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        return;
+      }
+      case IrOpcode::kCheckTaggedPointer: {
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        if (lower()) {
+          if (InputIs(node, Type::TaggedPointer())) {
+            DeferReplacement(node, node->InputAt(0));
+          }
+        }
+        return;
+      }
+      case IrOpcode::kCheckTaggedSigned: {
+        if (SmiValuesAre32Bits() && truncation.TruncatesToWord32()) {
+          // TODO(jarin,bmeurer): Add CheckedSignedSmallAsWord32?
+          VisitUnop(node, UseInfo::CheckedSigned32AsWord32(),
+                    MachineRepresentation::kWord32);
+          DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          if (lower()) {
+            if (InputIs(node, Type::TaggedSigned())) {
+              DeferReplacement(node, node->InputAt(0));
+            }
+          }
+        }
         return;
       }
 
