@@ -1105,7 +1105,7 @@ class RepresentationSelector {
 
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    if (BothInputsAre(node, Type::Signed32()) &&
+    if (BothInputsAre(node, type_cache_.kSigned32OrMinusZero) &&
         NodeProperties::GetType(node)->Is(Type::Signed32())) {
       // int32 + int32 = int32   ==>   signed Int32Add/Sub
       VisitInt32Binop(node);
@@ -1126,10 +1126,11 @@ class RepresentationSelector {
     // Try to use type feedback.
     BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
 
-    // TODO(jarin) This might not be necessary (covered by the next case).
-    // The only real difference is that this one actually treats the
-    // inputs as truncated to word32.
-    if (BothInputsAre(node, Type::Signed32())) {
+    // Handle the case when no int32 checks on inputs are necessary
+    // (but an overflow check is needed on the output).
+    if (BothInputsAre(node, Type::Signed32()) ||
+        (BothInputsAre(node, type_cache_.kSigned32OrMinusZero) &&
+         NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger))) {
       // If both the inputs the feedback are int32, use the overflow op.
       if (hint == BinaryOperationHints::kSignedSmall ||
           hint == BinaryOperationHints::kSigned32) {
