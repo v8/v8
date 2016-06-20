@@ -31,6 +31,32 @@
       'V8 Linux - interpreted regexp': 'gyp_release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
     },
+    'client.v8.branches': {
+      'V8 Linux - beta branch': 'gyp_release_x86',
+      'V8 Linux - beta branch - debug': 'gyp_debug_x86',
+      'V8 Linux - stable branch': 'gyp_release_x86',
+      'V8 Linux - stable branch - debug': 'gyp_debug_x86',
+      'V8 Linux64 - beta branch': 'gyp_release_x64',
+      'V8 Linux64 - beta branch - debug': 'gyp_debug_x64',
+      'V8 Linux64 - stable branch': 'gyp_release_x64',
+      'V8 Linux64 - stable branch - debug': 'gyp_debug_x64',
+      'V8 arm - sim - beta branch': 'gyp_release_simulate_arm',
+      'V8 arm - sim - beta branch - debug': 'gyp_debug_simulate_arm',
+      'V8 arm - sim - stable branch': 'gyp_release_simulate_arm',
+      'V8 arm - sim - stable branch - debug': 'gyp_debug_simulate_arm',
+      'V8 mips64el - sim - beta branch': 'gyp_release_simulate_mips64el',
+      'V8 mips64el - sim - stable branch': 'gyp_release_simulate_mips64el',
+      'V8 mipsel - sim - beta branch': 'gyp_release_simulate_mipsel',
+      'V8 mipsel - sim - stable branch': 'gyp_release_simulate_mipsel',
+      'V8 ppc - sim - beta branch': 'gyp_release_simulate_ppc',
+      'V8 ppc - sim - stable branch': 'gyp_release_simulate_ppc',
+      'V8 ppc64 - sim - beta branch': 'gyp_release_simulate_ppc64',
+      'V8 ppc64 - sim - stable branch': 'gyp_release_simulate_ppc64',
+      'V8 s390 - sim - beta branch': 'gyp_release_simulate_s390',
+      'V8 s390 - sim - stable branch': 'gyp_release_simulate_s390',
+      'V8 s390x - sim - beta branch': 'gyp_release_simulate_s390x',
+      'V8 s390x - sim - stable branch': 'gyp_release_simulate_s390x',
+    },
     'tryserver.v8': {
       'v8_linux_rel_ng': 'gyp_release_x86_gcmole_trybot',
       'v8_linux_avx2_dbg': 'gyp_debug_x86_trybot',
@@ -52,11 +78,19 @@
   # To ease readability, config values are ordered by:
   # gyp/gn, release/debug, arch type, other values alphabetically.
   'configs': {
-    # GN release configs x64.
+    # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
 
-    # Gyp debug configs x64.
+    # Gyp debug configs for simulators.
+    'gyp_debug_simulate_arm': [
+      'gyp', 'debug_bot', 'simulate_arm', 'swarming'],
+    #'gyp_debug_simulate_arm64': [
+    #  'gyp', 'debug_bot', 'simulate_arm64', 'swarming'],
+
+    # Gyp debug configs for x64.
+    'gyp_debug_x64': [
+      'gyp', 'debug_bot', 'x64', 'swarming'],
     'gyp_debug_x64_custom': [
       'gyp', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gyp_debug_x64_trybot': [
@@ -64,7 +98,7 @@
     'gyp_debug_x64_valgrind': [
       'gyp', 'debug_bot', 'x64', 'swarming', 'valgrind'],
 
-    # Gyp debug configs x86.
+    # Gyp debug configs for x86.
     'gyp_debug_x86': [
       'gyp', 'debug_bot', 'x86', 'swarming'],
     'gyp_debug_x86_trybot': [
@@ -81,7 +115,25 @@
       'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
 
-    # Gyp release configs x64.
+    # Gyp release configs for simulators.
+    'gyp_release_simulate_arm': [
+      'gyp', 'release_bot', 'simulate_arm', 'swarming'],
+    #'gyp_release_simulate_arm64': [
+    #  'gyp', 'release_bot', 'simulate_arm64', 'swarming'],
+    'gyp_release_simulate_mipsel': [
+      'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
+    'gyp_release_simulate_mips64el': [
+      'gyp', 'release_bot', 'simulate_mips64el', 'swarming'],
+    'gyp_release_simulate_ppc': [
+      'gyp', 'release_bot', 'simulate_ppc', 'swarming'],
+    'gyp_release_simulate_ppc64': [
+      'gyp', 'release_bot', 'simulate_ppc64', 'swarming'],
+    'gyp_release_simulate_s390': [
+      'gyp', 'release_bot', 'simulate_s390', 'swarming'],
+    'gyp_release_simulate_s390x': [
+      'gyp', 'release_bot', 'simulate_s390x', 'swarming'],
+
+    # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
     'gyp_release_x64_internal': [
@@ -89,7 +141,9 @@
     'gyp_release_x64_trybot': [
       'gyp', 'release_trybot', 'x64', 'swarming'],
 
-    # Gyp release configs x86.
+    # Gyp release configs for x86.
+    'gyp_release_x86': [
+      'gyp', 'release_bot', 'x86', 'swarming'],
     'gyp_release_x86_gcc': [
       'gyp', 'release_bot', 'x86', 'gcc'],
     'gyp_release_x86_gcc_minimal_symbols': [
@@ -176,6 +230,46 @@
     'shared': {
       'gn_args': 'is_component_build=true',
       'gyp_defines': 'component=shared_library',
+    },
+
+    'simulate_arm': {
+      'gn_args': 'target_cpu="ia32" v8_target_cpu="arm"',
+      'gyp_defines': 'target_arch=ia32 v8_target_arch=arm',
+    },
+
+    #'simulate_arm64': {
+    #  'gn_args': 'target_cpu="x64" v8_target_cpu="arm64"',
+    #  'gyp_defines': 'target_arch=x64 v8_target_arch=arm64',
+    #},
+
+    'simulate_mipsel': {
+      'gn_args': 'target_cpu="ia32" v8_target_cpu="mipsel"',
+      'gyp_defines': 'target_arch=ia32 v8_target_arch=mipsel',
+    },
+
+    'simulate_mips64el': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="mips64el"',
+      'gyp_defines': 'target_arch=x64 v8_target_arch=mips64el',
+    },
+
+    'simulate_ppc': {
+      'gn_args': 'target_cpu="ia32" v8_target_cpu="ppc"',
+      'gyp_defines': 'target_arch=ia32 v8_target_arch=ppc',
+    },
+
+    'simulate_ppc64': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
+      'gyp_defines': 'target_arch=x64 v8_target_arch=ppc64',
+    },
+
+    'simulate_s390': {
+      'gn_args': 'target_cpu="ia32" v8_target_cpu="s390"',
+      'gyp_defines': 'target_arch=ia32 v8_target_arch=s390',
+    },
+
+    'simulate_s390x': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="s390x"',
+      'gyp_defines': 'target_arch=x64 v8_target_arch=s390x',
     },
 
     'static': {
