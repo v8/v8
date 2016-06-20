@@ -256,7 +256,8 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsString(Type*, Typer*);
   static Type* ObjectIsUndetectable(Type*, Typer*);
 
-  static Type* JSAddRanger(RangeType*, RangeType*, Typer*);
+  static Type* JSAddRanger(double lhs_min, double lhs_max, double rhs_min,
+                           double rhs_max, Typer* t);
   static Type* JSSubtractRanger(RangeType*, RangeType*, Typer*);
   static Type* JSDivideRanger(RangeType*, RangeType*, Typer*);
   static Type* JSModulusRanger(RangeType*, RangeType*, Typer*);
@@ -1037,14 +1038,14 @@ static double array_max(double a[], size_t n) {
   return x == 0 ? 0 : x;  // -0 -> 0
 }
 
-Type* Typer::Visitor::JSAddRanger(RangeType* lhs, RangeType* rhs, Typer* t) {
+Type* Typer::Visitor::JSAddRanger(double lhs_min, double lhs_max,
+                                  double rhs_min, double rhs_max, Typer* t) {
   double results[4];
-  results[0] = lhs->Min() + rhs->Min();
-  results[1] = lhs->Min() + rhs->Max();
-  results[2] = lhs->Max() + rhs->Min();
-  results[3] = lhs->Max() + rhs->Max();
-  // Since none of the inputs can be -0, the result cannot be -0 either.
-  // However, it can be nan (the sum of two infinities of opposite sign).
+  results[0] = lhs_min + rhs_min;
+  results[1] = lhs_min + rhs_max;
+  results[2] = lhs_max + rhs_min;
+  results[3] = lhs_max + rhs_max;
+  // The results can be nan (the sum of two infinities of opposite sign).
   // On the other hand, if none of the "results" above is nan, then the actual
   // result cannot be nan either.
   int nans = 0;
@@ -1073,13 +1074,25 @@ Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
       return Type::NumberOrString();
     }
   }
-  lhs = Rangify(ToNumber(lhs, t), t);
-  rhs = Rangify(ToNumber(rhs, t), t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return JSAddRanger(lhs->AsRange(), rhs->AsRange(), t);
+  // The addition must be numeric.
+  lhs = ToNumber(lhs, t);
+  rhs = ToNumber(rhs, t);
+  // We can give more precise types for integers.
+  if (!lhs->Is(t->cache_.kIntegerOrMinusZeroOrNaN) ||
+      !rhs->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Type::Number();
   }
-  return Type::Number();
+  Type* int_lhs = Type::Intersect(lhs, t->cache_.kInteger, t->zone());
+  Type* int_rhs = Type::Intersect(rhs, t->cache_.kInteger, t->zone());
+  Type* result = JSAddRanger(int_lhs->Min(), int_lhs->Max(), int_rhs->Min(),
+                             int_rhs->Max(), t);
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
+    result = Type::Union(result, Type::NaN(), t->zone());
+  }
+  if (lhs->Maybe(Type::MinusZero()) && rhs->Maybe(Type::MinusZero())) {
+    result = Type::Union(result, Type::MinusZero(), t->zone());
+  }
+  return result;
 }
 
 Type* Typer::Visitor::JSSubtractRanger(RangeType* lhs, RangeType* rhs,
