@@ -139,22 +139,14 @@ class TestingModule : public ModuleEnv {
   template <typename T>
   T raw_mem_at(int i) {
     DCHECK(instance->mem_start);
-    return ReadMemory(&(reinterpret_cast<T*>(instance->mem_start)[i]));
+    return reinterpret_cast<T*>(instance->mem_start)[i];
   }
 
   template <typename T>
   T raw_val_at(int i) {
-    return ReadMemory(reinterpret_cast<T*>(instance->mem_start + i));
-  }
-
-  template <typename T>
-  void WriteMemory(T* p, T val) {
-    WriteLittleEndianValue<T>(p, val);
-  }
-
-  template <typename T>
-  T ReadMemory(T* p) {
-    return ReadLittleEndianValue<T>(p);
+    T val;
+    memcpy(&val, reinterpret_cast<void*>(instance->mem_start + i), sizeof(T));
+    return val;
   }
 
   // Zero-initialize the memory.

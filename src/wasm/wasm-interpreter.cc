@@ -1437,20 +1437,20 @@ class ThreadImpl : public WasmInterpreter::Thread {
           break;
         }
 
-#define LOAD_CASE(name, ctype, mtype)                                       \
-  case kExpr##name: {                                                       \
-    MemoryAccessOperand operand(&decoder, code->at(pc));                    \
-    uint32_t index = Pop().to<uint32_t>();                                  \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);       \
-    if (operand.offset > effective_mem_size ||                              \
-        index > (effective_mem_size - operand.offset)) {                    \
-      return DoTrap(kTrapMemOutOfBounds, pc);                               \
-    }                                                                       \
-    byte* addr = instance()->mem_start + operand.offset + index;            \
-    WasmVal result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr))); \
-    Push(pc, result);                                                       \
-    len = 1 + operand.length;                                               \
-    break;                                                                  \
+#define LOAD_CASE(name, ctype, mtype)                                    \
+  case kExpr##name: {                                                    \
+    MemoryAccessOperand operand(&decoder, code->at(pc));                 \
+    uint32_t index = Pop().to<uint32_t>();                               \
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);    \
+    if (operand.offset > effective_mem_size ||                           \
+        index > (effective_mem_size - operand.offset)) {                 \
+      return DoTrap(kTrapMemOutOfBounds, pc);                            \
+    }                                                                    \
+    byte* addr = instance()->mem_start + operand.offset + index;         \
+    WasmVal result(static_cast<ctype>(ReadUnalignedValue<mtype>(addr))); \
+    Push(pc, result);                                                    \
+    len = 1 + operand.length;                                            \
+    break;                                                               \
   }
 
           LOAD_CASE(I32LoadMem8S, int32_t, int8_t);
@@ -1469,21 +1469,21 @@ class ThreadImpl : public WasmInterpreter::Thread {
           LOAD_CASE(F64LoadMem, double, double);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype)                                        \
-  case kExpr##name: {                                                         \
-    MemoryAccessOperand operand(&decoder, code->at(pc));                      \
-    WasmVal val = Pop();                                                      \
-    uint32_t index = Pop().to<uint32_t>();                                    \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);         \
-    if (operand.offset > effective_mem_size ||                                \
-        index > (effective_mem_size - operand.offset)) {                      \
-      return DoTrap(kTrapMemOutOfBounds, pc);                                 \
-    }                                                                         \
-    byte* addr = instance()->mem_start + operand.offset + index;              \
-    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
-    Push(pc, val);                                                            \
-    len = 1 + operand.length;                                                 \
-    break;                                                                    \
+#define STORE_CASE(name, ctype, mtype)                                     \
+  case kExpr##name: {                                                      \
+    MemoryAccessOperand operand(&decoder, code->at(pc));                   \
+    WasmVal val = Pop();                                                   \
+    uint32_t index = Pop().to<uint32_t>();                                 \
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);      \
+    if (operand.offset > effective_mem_size ||                             \
+        index > (effective_mem_size - operand.offset)) {                   \
+      return DoTrap(kTrapMemOutOfBounds, pc);                              \
+    }                                                                      \
+    byte* addr = instance()->mem_start + operand.offset + index;           \
+    WriteUnalignedValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
+    Push(pc, val);                                                         \
+    len = 1 + operand.length;                                              \
+    break;                                                                 \
   }
 
           STORE_CASE(I32StoreMem8, int32_t, int8_t);

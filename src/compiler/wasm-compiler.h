@@ -234,9 +234,6 @@ class WasmGraphBuilder {
   Node* BuildUnalignedStore(MachineType memtype, Node* index, uint32_t offset,
                             uint32_t alignment, Node* val);
 
-  Node* BuildChangeEndianness(Node* node, MachineType type,
-                              wasm::LocalType wasmtype = wasm::kAstStmt);
-
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
 

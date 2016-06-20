@@ -36,13 +36,25 @@ class ZoneBuffer : public ZoneObject {
 
   void write_u16(uint16_t x) {
     EnsureSpace(2);
-    WriteLittleEndianValue<uint16_t>(pos_, x);
+#if V8_TARGET_LITTLE_ENDIAN
+    WriteUnalignedUInt16(pos_, x);
+#else
+    pos_[0] = x & 0xff;
+    pos_[1] = (x >> 8) & 0xff;
+#endif
     pos_ += 2;
   }
 
   void write_u32(uint32_t x) {
     EnsureSpace(4);
-    WriteLittleEndianValue<uint32_t>(pos_, x);
+#if V8_TARGET_LITTLE_ENDIAN
+    WriteUnalignedUInt32(pos_, x);
+#else
+    pos_[0] = x & 0xff;
+    pos_[1] = (x >> 8) & 0xff;
+    pos_[2] = (x >> 16) & 0xff;
+    pos_[3] = (x >> 24) & 0xff;
+#endif
     pos_ += 4;
   }
 
