@@ -200,14 +200,17 @@ using v8::MemoryPressureLevel;
   V(Cell, species_protector, SpeciesProtector)
 
 // Entries in this list are limited to Smis and are not visited during GC.
-#define SMI_ROOT_LIST(V)                                                   \
-  V(Smi, stack_limit, StackLimit)                                          \
-  V(Smi, real_stack_limit, RealStackLimit)                                 \
-  V(Smi, last_script_id, LastScriptId)                                     \
-  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset) \
-  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)       \
-  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)             \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)             \
+#define SMI_ROOT_LIST(V)                                                       \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(Smi, real_stack_limit, RealStackLimit)                                     \
+  V(Smi, last_script_id, LastScriptId)                                         \
+  /* To distinguish the function templates, so that we can find them in the */ \
+  /* function cache of the native context. */                                  \
+  V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
+  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
+  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 #define ROOT_LIST(V)  \
@@ -802,6 +805,7 @@ class Heap {
   inline void SetGetterStubDeoptPCOffset(int pc_offset);
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
   inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
+  inline int GetNextTemplateSerialNumber();
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);

@@ -378,6 +378,15 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
     Add(address, "lazy_deopt");
   }
+
+  // Add external references provided by the embedder (a null-terminated array).
+  intptr_t* api_external_references = isolate->api_external_references();
+  if (api_external_references != nullptr) {
+    while (*api_external_references != 0) {
+      Add(reinterpret_cast<Address>(*api_external_references), "<embedder>");
+      api_external_references++;
+    }
+  }
 }
 
 }  // namespace internal

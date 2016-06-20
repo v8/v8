@@ -400,12 +400,14 @@ struct SnapshotCreatorData {
 
 }  // namespace
 
-SnapshotCreator::SnapshotCreator(StartupData* existing_snapshot) {
+SnapshotCreator::SnapshotCreator(intptr_t* external_references,
+                                 StartupData* existing_snapshot) {
   i::Isolate* internal_isolate = new i::Isolate(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
   SnapshotCreatorData* data = new SnapshotCreatorData(isolate);
   data->isolate_ = isolate;
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
+  internal_isolate->set_api_external_references(external_references);
   isolate->Enter();
   if (existing_snapshot) {
     internal_isolate->set_snapshot_blob(existing_snapshot);
@@ -531,7 +533,7 @@ StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
   base::ElapsedTimer timer;
   timer.Start();
   {
-    SnapshotCreator snapshot_creator(&cold_snapshot_blob);
+    SnapshotCreator snapshot_creator(nullptr, &cold_snapshot_blob);
     Isolate* isolate = snapshot_creator.GetIsolate();
     {
       HandleScope scope(isolate);
@@ -1138,8 +1140,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   obj->set_do_not_cache(do_not_cache);
   int next_serial_number = 0;
   if (!do_not_cache) {
-    next_serial_number = isolate->next_serial_number() + 1;
-    isolate->set_next_serial_number(next_serial_number);
+    next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
@@ -1166,7 +1167,6 @@ Local<FunctionTemplate> FunctionTemplate::New(Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
-  DCHECK(!i_isolate->serializer_enabled());
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,
@@ -1361,9 +1361,6 @@ Local<ObjectTemplate> ObjectTemplate::New() {
 static Local<ObjectTemplate> ObjectTemplateNew(
     i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
     bool do_not_cache) {
-  // Changes to the environment cannot be captured in the snapshot. Expect no
-  // object templates when the isolate is created for serialization.
-  DCHECK(!isolate->serializer_enabled());
   LOG_API(isolate, ObjectTemplate, New);
   ENTER_V8(isolate);
   i::Handle<i::Struct> struct_obj =
@@ -1373,8 +1370,7 @@ static Local<ObjectTemplate> ObjectTemplateNew(
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
   int next_serial_number = 0;
   if (!do_not_cache) {
-    next_serial_number = isolate->next_serial_number() + 1;
-    isolate->set_next_serial_number(next_serial_number);
+    next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (!constructor.IsEmpty())
@@ -7279,6 +7275,8 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
     v8_isolate->SetAddHistogramSampleFunction(
         params.add_histogram_sample_callback);
   }
+
+  isolate->set_api_external_references(params.external_references);
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);

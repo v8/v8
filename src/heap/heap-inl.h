@@ -726,6 +726,12 @@ void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
+int Heap::GetNextTemplateSerialNumber() {
+  int next_serial_number = next_template_serial_number()->value() + 1;
+  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  return next_serial_number;
+}
+
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
   heap_->always_allocate_scope_count_.Increment(1);

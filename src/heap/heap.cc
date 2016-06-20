@@ -2870,6 +2870,7 @@ void Heap::CreateInitialObjects() {
 
   // Handling of script id generation is in Heap::NextScriptId().
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
+  set_next_template_serial_number(Smi::FromInt(0));
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());

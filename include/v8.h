@@ -5499,13 +5499,14 @@ class V8_EXPORT Isolate {
    */
   struct CreateParams {
     CreateParams()
-        : entry_hook(NULL),
-          code_event_handler(NULL),
-          snapshot_blob(NULL),
-          counter_lookup_callback(NULL),
-          create_histogram_callback(NULL),
-          add_histogram_sample_callback(NULL),
-          array_buffer_allocator(NULL) {}
+        : entry_hook(nullptr),
+          code_event_handler(nullptr),
+          snapshot_blob(nullptr),
+          counter_lookup_callback(nullptr),
+          create_histogram_callback(nullptr),
+          add_histogram_sample_callback(nullptr),
+          array_buffer_allocator(nullptr),
+          external_references(nullptr) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -5553,6 +5554,14 @@ class V8_EXPORT Isolate {
      * store of ArrayBuffers.
      */
     ArrayBuffer::Allocator* array_buffer_allocator;
+
+    /**
+     * Specifies an optional nullptr-terminated array of raw addresses in the
+     * embedder that V8 can match against during serialization and use for
+     * deserialization. This array and its content must stay valid for the
+     * entire lifetime of the isolate.
+     */
+    intptr_t* external_references;
   };
 
 
@@ -6781,8 +6790,12 @@ class SnapshotCreator {
    * Create and enter an isolate, and set it up for serialization.
    * The isolate is either created from scratch or from an existing snapshot.
    * The caller keeps ownership of the argument snapshot.
+   * \param existing_blob existing snapshot from which to create this one.
+   * \param external_references a null-terminated array of external references
+   *        that must be equivalent to CreateParams::external_references.
    */
-  explicit SnapshotCreator(StartupData* existing_blob = nullptr);
+  SnapshotCreator(intptr_t* external_references = nullptr,
+                  StartupData* existing_blob = nullptr);
 
   ~SnapshotCreator();
 
@@ -6799,6 +6812,7 @@ class SnapshotCreator {
 
   /**
    * Created a snapshot data blob.
+   * This must not be called from within a handle scope.
    * \param function_code_handling whether to include compiled function code
    *        in the snapshot.
    * \returns { nullptr, 0 } on failure, and a startup snapshot on success. The
