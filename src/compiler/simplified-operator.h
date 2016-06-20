@@ -245,6 +245,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckTaggedHole(CheckTaggedHoleMode);
   const Operator* CheckIf();
+  const Operator* CheckUnless();
 
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();

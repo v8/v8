@@ -458,6 +458,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckUnless:
+      state = LowerCheckUnless(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       state = LowerCheckFloat64Hole(node, frame_state, *effect, *control);
       break;
@@ -1328,6 +1331,17 @@ EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
   DCHECK_NOT_NULL(frame_state);
   node->InsertInput(graph()->zone(), 1, frame_state);
   NodeProperties::ChangeOp(node, common()->DeoptimizeIf());
+  return ValueEffectControl(node, node, node);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckUnless(Node* node, Node* frame_state,
+                                          Node* effect, Node* control) {
+  NodeProperties::ReplaceEffectInput(node, effect);
+  NodeProperties::ReplaceControlInput(node, control);
+  DCHECK_NOT_NULL(frame_state);
+  node->InsertInput(graph()->zone(), 1, frame_state);
+  NodeProperties::ChangeOp(node, common()->DeoptimizeUnless());
   return ValueEffectControl(node, node, node);
 }
 

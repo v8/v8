@@ -366,6 +366,13 @@ struct SimplifiedOperatorGlobalCache final {
   };
   CheckIfOperator kCheckIf;
 
+  struct CheckUnlessOperator final : public Operator {
+    CheckUnlessOperator()
+        : Operator(IrOpcode::kCheckUnless, Operator::kPure, "CheckUnless", 1, 1,
+                   1, 0, 1, 0) {}
+  };
+  CheckUnlessOperator kCheckUnless;
+
   template <PretenureFlag kPretenure>
   struct AllocateOperator final : public Operator1<PretenureFlag> {
     AllocateOperator()
@@ -440,6 +447,10 @@ const Operator* SimplifiedOperatorBuilder::CheckTaggedHole(
 
 const Operator* SimplifiedOperatorBuilder::CheckIf() {
   return &cache_.kCheckIf;
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckUnless() {
+  return &cache_.kCheckUnless;
 }
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
