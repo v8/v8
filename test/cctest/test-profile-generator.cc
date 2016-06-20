@@ -348,12 +348,9 @@ TEST(RecordTickSample) {
   profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
-  CodeEntry* entry1 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   generator.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   generator.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -401,6 +398,10 @@ TEST(RecordTickSample) {
   ProfileNode* node4 = top_down_test_helper.Walk(entry1, entry3, entry1);
   CHECK(node4);
   CHECK_EQ(entry1, node4->entry());
+
+  delete entry1;
+  delete entry2;
+  delete entry3;
 }
 
 
@@ -418,12 +419,9 @@ TEST(SampleIds) {
   profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", true);
   ProfileGenerator generator(&profiles);
-  CodeEntry* entry1 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   generator.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   generator.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -464,6 +462,10 @@ TEST(SampleIds) {
   for (int i = 0; i < 3; i++) {
     CHECK_EQ(expected_id[i], profile->sample(i)->id());
   }
+
+  delete entry1;
+  delete entry2;
+  delete entry3;
 }
 
 
@@ -473,8 +475,7 @@ TEST(NoSamples) {
   profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
-  CodeEntry* entry1 =
-      profiles.NewCodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
   // We are building the following calls tree:
@@ -491,6 +492,8 @@ TEST(NoSamples) {
   CHECK_EQ(3u, nodeId - 1);
 
   CHECK_EQ(0, profile->samples_count());
+
+  delete entry1;
 }
 
 
