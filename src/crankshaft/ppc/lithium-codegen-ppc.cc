@@ -5308,18 +5308,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 }
 
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
-#if V8_TARGET_ARCH_PPC64
-  __ MovInt64ComponentsToDouble(result_reg, hi_reg, lo_reg, r0);
-#else
-  __ MovInt64ToDouble(result_reg, hi_reg, lo_reg);
-#endif
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:

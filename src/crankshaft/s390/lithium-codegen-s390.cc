@@ -5204,20 +5204,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   }
 }
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  DoubleRegister result_reg = ToDoubleRegister(instr->result());
-  Register scratch = scratch0();
-
-  // Combine hi_reg:lo_reg into a single 64-bit register.
-  __ sllg(scratch, hi_reg, Operand(32));
-  __ lr(scratch, lo_reg);
-
-  // Bitwise convert from GPR to FPR
-  __ ldgr(result_reg, scratch);
-}
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:

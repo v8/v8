@@ -1263,6 +1263,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Atan2:
       ASSEMBLE_IEEE754_BINOP(atan2);
       break;
+    case kIeee754Float64Tan:
+      ASSEMBLE_IEEE754_UNOP(tan);
+      break;
     case kIeee754Float64Cbrt:
       ASSEMBLE_IEEE754_UNOP(cbrt);
       break;
