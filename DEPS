@@ -8,17 +8,17 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "dfed34c541415c22c3d6037e7e62224a2511f1e4",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "7580e8854eb309008f00f115ea0adb13dac454a4",
   "v8/tools/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "c61b0b35c8396bfd59efc6cfc11401d912b0f510",
+    Var("git_url") + "/external/gyp.git" + "@" + "35eafcd939515d51d19556c543f9cf97faf75ee6",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "ffa4b6704cf5cc9fec9485731f24a05b2ba94bca",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "3780bc523aad1d68a5bd00e05c453a80b2ba0b35",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "4dcb5ed1079e7a527061925637b8cc627e289e82",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "3d628fb28050a1deef98e3be5d5b37b5fd8ed27f",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "8b4a59c463a697a3e418c28e85f534e87337ba7f",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
@@ -33,7 +33,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "9c45e2ac684bae64614d8eb55789cae97323a7e7",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "8b0c8f71a4d41c7d2cd0d898f3547e9984f79b5d",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "ea64c667cd841b2c3268bd7dfd223269f3ea23ba",
 }
 
 deps_os = {
