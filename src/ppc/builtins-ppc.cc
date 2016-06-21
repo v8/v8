@@ -38,6 +38,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // Insert extra arguments.
   const int num_extra_args = 2;
   __ Push(r4, r6);
+
   // JumpToExternalReference expects r3 to contain the number of arguments
   // including the receiver and the extra arguments.
   __ addi(r3, r3, Operand(num_extra_args + 1));
@@ -122,6 +123,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
   //  -- r3                 : number of arguments
+  //  -- r4                 : function
+  //  -- cp                 : context
   //  -- lr                 : return address
   //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- sp[(argc + 1) * 8] : receiver
@@ -133,57 +136,69 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   DoubleRegister const reg = (kind == MathMaxMinKind::kMin) ? d2 : d1;
 
   // Load the accumulator with the default return value (either -Infinity or
-  // +Infinity), with the tagged value in r4 and the double value in d1.
-  __ LoadRoot(r4, root_index);
-  __ lfd(d1, FieldMemOperand(r4, HeapNumber::kValueOffset));
+  // +Infinity), with the tagged value in r8 and the double value in d1.
+  __ LoadRoot(r8, root_index);
+  __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
 
   // Setup state for loop
   // r5: address of arg[0] + kPointerSize
   // r6: number of slots to drop at exit (arguments + receiver)
-  __ ShiftLeftImm(r5, r3, Operand(kPointerSizeLog2));
-  __ add(r5, sp, r5);
-  __ addi(r6, r3, Operand(1));
+  __ addi(r7, r3, Operand(1));
 
   Label done_loop, loop;
   __ bind(&loop);
   {
     // Check if all parameters done.
-    __ cmpl(r5, sp);
-    __ ble(&done_loop);
+    __ subi(r3, r3, Operand(1));
+    __ cmpi(r3, Operand::Zero());
+    __ blt(&done_loop);
 
-    // Load the next parameter tagged value into r3.
-    __ LoadPU(r3, MemOperand(r5, -kPointerSize));
+    // Load the next parameter tagged value into r5.
+    __ ShiftLeftImm(r5, r3, Operand(kPointerSizeLog2));
+    __ LoadPX(r5, MemOperand(sp, r5));
 
     // Load the double value of the parameter into d2, maybe converting the
     // parameter to a number first using the ToNumber builtin if necessary.
     Label convert, convert_smi, convert_number, done_convert;
     __ bind(&convert);
-    __ JumpIfSmi(r3, &convert_smi);
-    __ LoadP(r7, FieldMemOperand(r3, HeapObject::kMapOffset));
-    __ JumpIfRoot(r7, Heap::kHeapNumberMapRootIndex, &convert_number);
+    __ JumpIfSmi(r5, &convert_smi);
+    __ LoadP(r6, FieldMemOperand(r5, HeapObject::kMapOffset));
+    __ JumpIfRoot(r6, Heap::kHeapNumberMapRootIndex, &convert_number);
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(r6);
-      __ Push(r4, r5, r6);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ PushStandardFrame(r4);
+      __ SmiTag(r3);
+      __ SmiTag(r7);
+      __ Push(r3, r7, r8);
+      __ mr(r3, r5);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
-      __ Pop(r4, r5, r6);
-      __ SmiUntag(r6);
+      __ mr(r5, r3);
+      __ Pop(r3, r7, r8);
       {
         // Restore the double accumulator value (d1).
         Label done_restore;
-        __ SmiToDouble(d1, r4);
-        __ JumpIfSmi(r4, &done_restore);
-        __ lfd(d1, FieldMemOperand(r4, HeapNumber::kValueOffset));
+        __ SmiToDouble(d1, r8);
+        __ JumpIfSmi(r8, &done_restore);
+        __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
         __ bind(&done_restore);
       }
+      __ SmiUntag(r7);
+      __ SmiUntag(r3);
+      // TODO(Jaideep): Add macro furtion for PopStandardFrame
+      if (FLAG_enable_embedded_constant_pool) {
+        __ Pop(r0, fp, kConstantPoolRegister, cp, r4);
+      } else {
+        __ Pop(r0, fp, cp, r4);
+      }
+      __ mtlr(r0);
     }
     __ b(&convert);
     __ bind(&convert_number);
-    __ lfd(d2, FieldMemOperand(r3, HeapNumber::kValueOffset));
+    __ lfd(d2, FieldMemOperand(r5, HeapNumber::kValueOffset));
     __ b(&done_convert);
     __ bind(&convert_smi);
-    __ SmiToDouble(d2, r3);
+    __ SmiToDouble(d2, r5);
     __ bind(&done_convert);
 
     // Perform the actual comparison with the accumulator value on the left hand
@@ -195,26 +210,26 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ b(CommuteCondition(cond_done), &compare_swap);
 
     // Left and right hand side are equal, check for -0 vs. +0.
-    __ TestDoubleIsMinusZero(reg, r7, r8);
+    __ TestDoubleIsMinusZero(reg, r9, r0);
     __ bne(&loop);
 
     // Update accumulator. Result is on the right hand side.
     __ bind(&compare_swap);
     __ fmr(d1, d2);
-    __ mr(r4, r3);
+    __ mr(r8, r5);
     __ b(&loop);
 
     // At least one side is NaN, which means that the result will be NaN too.
     // We still need to visit the rest of the arguments.
     __ bind(&compare_nan);
-    __ LoadRoot(r4, Heap::kNanValueRootIndex);
-    __ lfd(d1, FieldMemOperand(r4, HeapNumber::kValueOffset));
+    __ LoadRoot(r8, Heap::kNanValueRootIndex);
+    __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
     __ b(&loop);
   }
 
   __ bind(&done_loop);
-  __ mr(r3, r4);
-  __ Drop(r6);
+  __ mr(r3, r8);
+  __ Drop(r7);
   __ Ret();
 }
 
