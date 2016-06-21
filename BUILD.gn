@@ -1222,6 +1222,8 @@ v8_source_set("v8_base") {
     "src/interpreter/bytecode-array-iterator.h",
     "src/interpreter/bytecode-array-writer.cc",
     "src/interpreter/bytecode-array-writer.h",
+    "src/interpreter/bytecode-dead-code-optimizer.cc",
+    "src/interpreter/bytecode-dead-code-optimizer.h",
     "src/interpreter/bytecode-generator.cc",
     "src/interpreter/bytecode-generator.h",
     "src/interpreter/bytecode-label.h",

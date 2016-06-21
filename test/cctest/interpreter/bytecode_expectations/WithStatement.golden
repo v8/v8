@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 27
+bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
@@ -26,7 +26,6 @@ bytecodes: [
   /*   50 S> */ B(LdaLookupSlot), U8(1),
                 B(PopContext), R(0),
   /*   62 S> */ B(Return),
-                B(PopContext), R(0),
 ]
 constant pool: [
   InstanceType::FIXED_ARRAY_TYPE,

@@ -1053,7 +1053,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
                                0, 257);
 
   Register reg(0), scratch(256);
-  BytecodeLabel done;
+  BytecodeLabel done, fake;
 
   builder.LoadLiteral(Smi::FromInt(0));
   builder.StoreAccumulatorInRegister(reg);
@@ -1066,6 +1066,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   builder.Jump(&done);
 
   // Emit more than 16-bit immediate operands worth of code to jump over.
+  builder.Bind(&fake);
   for (int i = 0; i < 6600; i++) {
     builder.LoadLiteral(Smi::FromInt(0));                 // 1-byte
     builder.BinaryOperation(Token::Value::ADD, scratch);  // 4-bytes

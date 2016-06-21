@@ -6,6 +6,7 @@
 
 #include "src/compiler.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-dead-code-optimizer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
@@ -34,6 +35,10 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
+
+  if (FLAG_ignition_deadcode) {
+    pipeline_ = new (zone) BytecodeDeadCodeOptimizer(pipeline_);
+  }
 
   if (FLAG_ignition_peephole) {
     pipeline_ = new (zone)

@@ -171,26 +171,34 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit control flow. Return must be the last instruction.
   BytecodeLabel start;
   builder.Bind(&start);
-  // Short jumps with Imm8 operands
-  builder.Jump(&start)
-      .JumpIfNull(&start)
-      .JumpIfUndefined(&start)
-      .JumpIfNotHole(&start);
+  {
+    // Short jumps with Imm8 operands
+    BytecodeLabel after_jump;
+    builder.Jump(&start)
+        .Bind(&after_jump)
+        .JumpIfNull(&start)
+        .JumpIfUndefined(&start)
+        .JumpIfNotHole(&start);
+  }
 
   // Longer jumps with constant operands
   BytecodeLabel end[8];
-  builder.Jump(&end[0])
-      .LoadTrue()
-      .JumpIfTrue(&end[1])
-      .LoadTrue()
-      .JumpIfFalse(&end[2])
-      .LoadLiteral(Smi::FromInt(0))
-      .JumpIfTrue(&end[3])
-      .LoadLiteral(Smi::FromInt(0))
-      .JumpIfFalse(&end[4])
-      .JumpIfNull(&end[5])
-      .JumpIfUndefined(&end[6])
-      .JumpIfNotHole(&end[7]);
+  {
+    BytecodeLabel after_jump;
+    builder.Jump(&end[0])
+        .Bind(&after_jump)
+        .LoadTrue()
+        .JumpIfTrue(&end[1])
+        .LoadTrue()
+        .JumpIfFalse(&end[2])
+        .LoadLiteral(Smi::FromInt(0))
+        .JumpIfTrue(&end[3])
+        .LoadLiteral(Smi::FromInt(0))
+        .JumpIfFalse(&end[4])
+        .JumpIfNull(&end[5])
+        .JumpIfUndefined(&end[6])
+        .JumpIfNotHole(&end[7]);
+  }
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
@@ -209,20 +217,26 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     builder.LoadTrue();
   }
   // Longer jumps requiring Constant operand
-  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start).JumpIfNotHole(
-      &start);
-  // Perform an operation that returns boolean value to
-  // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg)
-      .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg)
-      .JumpIfFalse(&start);
-  // Perform an operation that returns a non-boolean operation to
-  // generate JumpIfToBooleanTrue/False.
-  builder.BinaryOperation(Token::Value::ADD, reg)
-      .JumpIfTrue(&start)
-      .BinaryOperation(Token::Value::ADD, reg)
-      .JumpIfFalse(&start);
+  {
+    BytecodeLabel after_jump;
+    builder.Jump(&start)
+        .Bind(&after_jump)
+        .JumpIfNull(&start)
+        .JumpIfUndefined(&start)
+        .JumpIfNotHole(&start);
+    // Perform an operation that returns boolean value to
+    // generate JumpIfTrue/False
+    builder.CompareOperation(Token::Value::EQ, reg)
+        .JumpIfTrue(&start)
+        .CompareOperation(Token::Value::EQ, reg)
+        .JumpIfFalse(&start);
+    // Perform an operation that returns a non-boolean operation to
+    // generate JumpIfToBooleanTrue/False.
+    builder.BinaryOperation(Token::Value::ADD, reg)
+        .JumpIfTrue(&start)
+        .BinaryOperation(Token::Value::ADD, reg)
+        .JumpIfFalse(&start);
+  }
 
   // Emit stack check bytecode.
   builder.StackCheck(0);
@@ -230,9 +244,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.
   BytecodeLabel after_throw;
-  builder.Jump(&after_throw).Throw().Bind(&after_throw);
+  builder.Throw().Bind(&after_throw);
   BytecodeLabel after_rethrow;
-  builder.Jump(&after_rethrow).ReThrow().Bind(&after_rethrow);
+  builder.ReThrow().Bind(&after_rethrow);
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
@@ -304,8 +318,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
 
   // Longer jumps requiring ConstantWide operand
-  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start).JumpIfNotHole(
-      &start);
+  {
+    BytecodeLabel after_jump;
+    builder.Jump(&start)
+        .Bind(&after_jump)
+        .JumpIfNull(&start)
+        .JumpIfUndefined(&start)
+        .JumpIfNotHole(&start);
+  }
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
@@ -506,8 +526,10 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   Register reg(0);
   BytecodeLabel far0, far1, far2, far3, far4;
   BytecodeLabel near0, near1, near2, near3, near4;
+  BytecodeLabel after_jump0, after_jump1;
 
   builder.Jump(&near0)
+      .Bind(&after_jump0)
       .CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&near1)
       .CompareOperation(Token::Value::EQ, reg)
@@ -522,6 +544,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .Bind(&near3)
       .Bind(&near4)
       .Jump(&far0)
+      .Bind(&after_jump1)
       .CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&far1)
       .CompareOperation(Token::Value::EQ, reg)
@@ -637,7 +660,8 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
       .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&label4);
   for (int i = 0; i < 63; i++) {
-    builder.Jump(&label4);
+    BytecodeLabel after_jump;
+    builder.Jump(&label4).Bind(&after_jump);
   }
 
   // Add padding to force wide backwards jumps.
@@ -650,6 +674,8 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   builder.CompareOperation(Token::Value::EQ, reg).JumpIfFalse(&label2);
   builder.CompareOperation(Token::Value::EQ, reg).JumpIfTrue(&label1);
   builder.Jump(&label0);
+  BytecodeLabel end;
+  builder.Bind(&end);
   builder.Return();
 
   Handle<BytecodeArray> array = builder.ToBytecodeArray();
@@ -735,9 +761,15 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
 
   // Labels can only have 1 forward reference, but
   // can be referred to mulitple times once bound.
-  BytecodeLabel label;
+  BytecodeLabel label, after_jump0, after_jump1;
 
-  builder.Jump(&label).Bind(&label).Jump(&label).Jump(&label).Return();
+  builder.Jump(&label)
+      .Bind(&label)
+      .Jump(&label)
+      .Bind(&after_jump0)
+      .Jump(&label)
+      .Bind(&after_jump1)
+      .Return();
 
   Handle<BytecodeArray> array = builder.ToBytecodeArray();
   BytecodeArrayIterator iterator(array);
@@ -761,8 +793,13 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
 
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
   for (int i = 0; i < kRepeats; i++) {
-    BytecodeLabel label;
-    builder.Jump(&label).Bind(&label).Jump(&label).Jump(&label);
+    BytecodeLabel label, after_jump0, after_jump1;
+    builder.Jump(&label)
+        .Bind(&label)
+        .Jump(&label)
+        .Bind(&after_jump0)
+        .Jump(&label)
+        .Bind(&after_jump1);
   }
   builder.Return();
 
