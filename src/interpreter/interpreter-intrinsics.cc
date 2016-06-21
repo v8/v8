@@ -15,7 +15,6 @@ using compiler::Node;
 IntrinsicsHelper::IntrinsicsHelper(InterpreterAssembler* assembler)
     : assembler_(assembler) {}
 
-// static
 bool IntrinsicsHelper::IsSupported(Runtime::FunctionId function_id) {
   switch (function_id) {
 #define SUPPORTED(name, lower_case, count) case Runtime::kInline##name:
@@ -24,36 +23,6 @@ bool IntrinsicsHelper::IsSupported(Runtime::FunctionId function_id) {
 #undef SUPPORTED
     default:
       return false;
-  }
-}
-
-// static
-IntrinsicsHelper::IntrinsicId IntrinsicsHelper::FromRuntimeId(
-    Runtime::FunctionId function_id) {
-  switch (function_id) {
-#define TO_RUNTIME_ID(name, lower_case, count) \
-  case Runtime::kInline##name:                 \
-    return IntrinsicId::k##name;
-    INTRINSICS_LIST(TO_RUNTIME_ID)
-#undef TO_RUNTIME_ID
-    default:
-      UNREACHABLE();
-      return static_cast<IntrinsicsHelper::IntrinsicId>(-1);
-  }
-}
-
-// static
-Runtime::FunctionId IntrinsicsHelper::ToRuntimeId(
-    IntrinsicsHelper::IntrinsicId intrinsic_id) {
-  switch (intrinsic_id) {
-#define TO_INTRINSIC_ID(name, lower_case, count) \
-  case IntrinsicId::k##name:                     \
-    return Runtime::kInline##name;
-    INTRINSICS_LIST(TO_INTRINSIC_ID)
-#undef TO_INTRINSIC_ID
-    default:
-      UNREACHABLE();
-      return static_cast<Runtime::FunctionId>(-1);
   }
 }
 
@@ -73,7 +42,7 @@ Node* IntrinsicsHelper::InvokeIntrinsic(Node* function_id, Node* context,
 #undef LABEL_POINTER
 
 #define CASE(name, lower_case, count) \
-  static_cast<int32_t>(IntrinsicId::k##name),
+  static_cast<int32_t>(Runtime::kInline##name),
   int32_t cases[] = {INTRINSICS_LIST(CASE)};
 #undef CASE
 

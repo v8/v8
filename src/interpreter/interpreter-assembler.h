@@ -41,9 +41,6 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Returns the runtime id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandRuntimeId(int operand_index);
-  // Returns the intrinsic id immediate for bytecode operand
-  // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandIntrinsicId(int operand_index);
 
   // Accumulator.
   compiler::Node* GetAccumulator();

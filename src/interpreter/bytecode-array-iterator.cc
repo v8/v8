@@ -4,7 +4,6 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
-#include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -141,23 +140,11 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
   }
 }
 
-Runtime::FunctionId BytecodeArrayIterator::GetRuntimeIdOperand(
-    int operand_index) const {
+uint32_t BytecodeArrayIterator::GetRuntimeIdOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
   DCHECK(operand_type == OperandType::kRuntimeId);
-  uint32_t raw_id = GetUnsignedOperand(operand_index, operand_type);
-  return static_cast<Runtime::FunctionId>(raw_id);
-}
-
-Runtime::FunctionId BytecodeArrayIterator::GetIntrinsicIdOperand(
-    int operand_index) const {
-  OperandType operand_type =
-      Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK(operand_type == OperandType::kIntrinsicId);
-  uint32_t raw_id = GetUnsignedOperand(operand_index, operand_type);
-  return IntrinsicsHelper::ToRuntimeId(
-      static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
+  return GetUnsignedOperand(operand_index, operand_type);
 }
 
 Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(

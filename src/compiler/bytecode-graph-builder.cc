@@ -1001,7 +1001,8 @@ Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
 
 void BytecodeGraphBuilder::VisitCallRuntime() {
   FrameStateBeforeAndAfter states(this);
-  Runtime::FunctionId functionId = bytecode_iterator().GetRuntimeIdOperand(0);
+  Runtime::FunctionId functionId = static_cast<Runtime::FunctionId>(
+      bytecode_iterator().GetRuntimeIdOperand(0));
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
@@ -1013,7 +1014,8 @@ void BytecodeGraphBuilder::VisitCallRuntime() {
 
 void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
   FrameStateBeforeAndAfter states(this);
-  Runtime::FunctionId functionId = bytecode_iterator().GetRuntimeIdOperand(0);
+  Runtime::FunctionId functionId = static_cast<Runtime::FunctionId>(
+      bytecode_iterator().GetRuntimeIdOperand(0));
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   interpreter::Register first_return =
@@ -1027,7 +1029,8 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
 
 void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
   FrameStateBeforeAndAfter states(this);
-  Runtime::FunctionId functionId = bytecode_iterator().GetIntrinsicIdOperand(0);
+  Runtime::FunctionId functionId = static_cast<Runtime::FunctionId>(
+      bytecode_iterator().GetRuntimeIdOperand(0));
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 

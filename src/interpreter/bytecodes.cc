@@ -737,7 +737,6 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         break;
       case interpreter::OperandType::kIdx:
       case interpreter::OperandType::kRuntimeId:
-      case interpreter::OperandType::kIntrinsicId:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
            << "]";

@@ -20,8 +20,6 @@ namespace compiler {
 class Node;
 }  // namespace compiler
 
-namespace interpreter {
-
 // List of supported intrisics, with upper case name, lower case name and
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)           \
@@ -33,16 +31,10 @@ namespace interpreter {
   V(IsSmi, is_smi, 1)                \
   V(IsTypedArray, is_typed_array, 1)
 
+namespace interpreter {
+
 class IntrinsicsHelper {
  public:
-  enum class IntrinsicId {
-#define DECLARE_INTRINSIC_ID(name, lower_case, count) k##name,
-    INTRINSICS_LIST(DECLARE_INTRINSIC_ID)
-#undef DECLARE_INTRINSIC_ID
-        kIdCount
-  };
-  STATIC_ASSERT(static_cast<uint32_t>(IntrinsicId::kIdCount) <= kMaxUInt8);
-
   explicit IntrinsicsHelper(InterpreterAssembler* assembler);
 
   compiler::Node* InvokeIntrinsic(compiler::Node* function_id,
@@ -51,8 +43,6 @@ class IntrinsicsHelper {
                                   compiler::Node* arg_count);
 
   static bool IsSupported(Runtime::FunctionId function_id);
-  static IntrinsicId FromRuntimeId(Runtime::FunctionId function_id);
-  static Runtime::FunctionId ToRuntimeId(IntrinsicId intrinsic_id);
 
  private:
   enum InstanceTypeCompareMode {
