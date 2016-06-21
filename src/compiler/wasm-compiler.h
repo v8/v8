@@ -77,7 +77,7 @@ class WasmCompilationUnit final {
 };
 
 // Wraps a JS function, producing a code object that can be called from WASM.
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                     Handle<JSFunction> function,
                                     wasm::FunctionSig* sig,
                                     wasm::WasmName module_name,

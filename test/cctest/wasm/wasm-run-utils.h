@@ -188,7 +188,7 @@ class TestingModule : public ModuleEnv {
     uint32_t index = AddFunction(sig, Handle<Code>::null());
     WasmName module_name = ArrayVector("test");
     WasmName function_name;
-    Handle<Code> code = CompileWasmToJSWrapper(isolate_, this, jsfunc, sig,
+    Handle<Code> code = CompileWasmToJSWrapper(isolate_, jsfunc, sig,
                                                module_name, function_name);
     instance->function_code[index] = code;
     return index;

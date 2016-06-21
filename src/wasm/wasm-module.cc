@@ -486,12 +486,9 @@ struct CodeStats {
   }
 };
 
-bool CompileWrappersToImportedFunctions(Isolate* isolate,
-                                        const WasmModule* module,
-                                        const Handle<JSReceiver> ffi,
-                                        WasmModuleInstance* instance,
-                                        ErrorThrower* thrower, Factory* factory,
-                                        ModuleEnv* module_env) {
+bool CompileWrappersToImportedFunctions(
+    Isolate* isolate, const WasmModule* module, const Handle<JSReceiver> ffi,
+    WasmModuleInstance* instance, ErrorThrower* thrower, Factory* factory) {
   if (module->import_table.size() > 0) {
     instance->import_code.reserve(module->import_table.size());
     for (uint32_t index = 0; index < module->import_table.size(); ++index) {
@@ -505,8 +502,8 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
       if (function.is_null()) return false;
 
       Handle<Code> code = compiler::CompileWasmToJSWrapper(
-          isolate, module_env, function.ToHandleChecked(), import.sig,
-          module_name, function_name);
+          isolate, function.ToHandleChecked(), import.sig, module_name,
+          function_name);
       instance->import_code[index] = code;
     }
   }
@@ -837,7 +834,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   // Compile wrappers to imported functions.
   //-------------------------------------------------------------------------
   if (!CompileWrappersToImportedFunctions(isolate, this, ffi, &instance,
-                                          &thrower, factory, &module_env)) {
+                                          &thrower, factory)) {
     return MaybeHandle<JSObject>();
   }
 
