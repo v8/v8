@@ -342,11 +342,8 @@ WasmModuleBuilder.prototype.toBuffer = function(debug) {
     return buffer;
 }
 
-WasmModuleBuilder.prototype.instantiate = function(ffi, memory) {
-    var buffer = this.toBuffer();
-    if (memory != undefined) {
-      return Wasm.instantiateModule(buffer, ffi, memory);
-    } else {
-      return Wasm.instantiateModule(buffer, ffi);
-    }
+WasmModuleBuilder.prototype.instantiate = function(...args) {
+  var module = new WebAssembly.Module(this.toBuffer());
+  var instance = new WebAssembly.Instance(module, ...args);
+  return instance;
 }
