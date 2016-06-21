@@ -127,15 +127,6 @@ function MathHypot(x, y) {  // Function length is 2.
 
 // Set up math constants.
 utils.InstallConstants(GlobalMath, [
-  // ECMA-262, section 15.8.1.1.
-  "E", 2.7182818284590452354,
-  // ECMA-262, section 15.8.1.2.
-  "LN10", 2.302585092994046,
-  // ECMA-262, section 15.8.1.3.
-  "LN2", 0.6931471805599453,
-  // ECMA-262, section 15.8.1.4.
-  "LOG2E", 1.4426950408889634,
-  "LOG10E", 0.4342944819032518,
   "PI", 3.1415926535897932,
   "SQRT1_2", 0.7071067811865476,
   "SQRT2", 1.4142135623730951

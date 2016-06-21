@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/api-natives.h"
+#include "src/base/ieee754.h"
 #include "src/code-stubs.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -1703,6 +1704,28 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_math_sqrt(*math_sqrt);
     SimpleInstallFunction(math, "tan", Builtins::kMathTan, 1, true);
     SimpleInstallFunction(math, "trunc", Builtins::kMathTrunc, 1, true);
+
+    // Install math constants.
+    double const kE = base::ieee754::exp(1.0);
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("E"), factory->NewNumber(kE),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("LN10"),
+        factory->NewNumber(base::ieee754::log(10.0)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("LN2"),
+        factory->NewNumber(base::ieee754::log(2.0)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("LOG10E"),
+        factory->NewNumber(base::ieee754::log10(kE)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("LOG2E"),
+        factory->NewNumber(base::ieee754::log2(kE)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
   }
 
   {  // -- A r r a y B u f f e r

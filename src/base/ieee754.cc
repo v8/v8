@@ -1250,7 +1250,8 @@ double exp(double x) {
       P2 = -2.77777777770155933842e-03,          /* 0xBF66C16C, 0x16BEBD93 */
       P3 = 6.61375632143793436117e-05,           /* 0x3F11566A, 0xAF25DE2C */
       P4 = -1.65339022054652515390e-06,          /* 0xBEBBBD41, 0xC5D26BF1 */
-      P5 = 4.13813679705723846039e-08;           /* 0x3E663769, 0x72BEA4D0 */
+      P5 = 4.13813679705723846039e-08,           /* 0x3E663769, 0x72BEA4D0 */
+      E = 2.718281828459045;                     /* 0x4005bf0a, 0x8b145769 */
 
   static volatile double
       huge = 1.0e+300,
@@ -1282,6 +1283,11 @@ double exp(double x) {
   /* argument reduction */
   if (hx > 0x3fd62e42) {   /* if  |x| > 0.5 ln2 */
     if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
+      /* TODO(rtoy): We special case exp(1) here to return the correct
+       * value of E, as the computation below would get the last bit
+       * wrong. We should probably fix the algorithm instead.
+       */
+      if (x == 1.0) return E;
       hi = x - ln2HI[xsb];
       lo = ln2LO[xsb];
       k = 1 - xsb - xsb;
