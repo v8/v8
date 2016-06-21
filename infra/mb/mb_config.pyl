@@ -114,7 +114,7 @@
     #'gyp_debug_simulate_arm64': [
     #  'gyp', 'debug_bot', 'simulate_arm64', 'swarming'],
     'gyp_debug_simulate_arm64_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_arm64', 'asan', 'edge'],
+      'gyp', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gyp_debug_simulate_mipsel_asan_edge': [
       'gyp', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
@@ -122,7 +122,7 @@
     'gyp_debug_x64': [
       'gyp', 'debug_bot', 'x64', 'swarming'],
     'gyp_debug_x64_asan_edge': [
-      'gyp', 'debug_bot', 'x64', 'asan', 'edge'],
+      'gyp', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gyp_debug_x64_custom': [
       'gyp', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gyp_debug_x64_trybot': [
@@ -174,14 +174,15 @@
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
     'gyp_release_x64_asan': [
-      'gyp', 'release_bot', 'x64', 'asan', 'swarming'],
+      'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
     'gyp_release_x64_asan_minimal_symbols': [
-      'gyp', 'release_bot', 'x64', 'asan', 'minimal_symbols', 'swarming'],
-    'gyp_release_x64_asan_minimal_symbols_coverage': [
-      'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'minimal_symbols',
+      'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
       'swarming'],
+    'gyp_release_x64_asan_minimal_symbols_coverage': [
+      'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
+      'minimal_symbols', 'swarming'],
     'gyp_release_x64_asan_symbolized_edge_verify_heap': [
-      'gyp', 'release_bot', 'x64', 'asan', 'edge', 'symbolized',
+      'gyp', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'gyp_release_x64_cfi_symbolized': [
       'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
@@ -225,8 +226,8 @@
 
   'mixins': {
     'asan': {
-      'gn_args': 'clang=true asan=true lsan=true',
-      'gyp_defines': 'clang=1 asan=1 lsan=1',
+      'gn_args': 'clang=true asan=true',
+      'gyp_defines': 'clang=1 asan=1',
     },
 
     'bb': {
@@ -289,6 +290,11 @@
     },
 
     'gyp': {'type': 'gyp'},
+
+    'lsan': {
+      'gn_args': 'lsan=true',
+      'gyp_defines': 'lsan=1',
+    },
 
     'minimal_symbols': {
       'gn_args': 'symbol_level=1',
