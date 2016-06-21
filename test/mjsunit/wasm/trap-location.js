@@ -14,7 +14,7 @@ Error.prepareStackTrace = function(error, frames) {
 
 var builder = new WasmModuleBuilder();
 
-var sig_index = builder.addSignature(kSig_i_v)
+var sig_index = builder.addType(kSig_i_v)
 
 // Build a function to resemble this code:
 //   if (idx < 2) {

@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function makeFFI(func, t) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([10,t,t,t,t,t,t,t,t,t,t,1,t]);
+  var sig_index = builder.addType(makeSig([t,t,t,t,t,t,t,t,t,t], [t]));
   builder.addImport("func", sig_index);
   // Try to create a frame with lots of spilled values and parameters
   // on the stack to try to catch GC bugs in the reference maps for
@@ -76,7 +76,7 @@ function print10(a, b, c, d, e, f, g, h, i) {
 (function GCInJSToWasmTest() {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature([1, kAstI32, 1, kAstI32]);
+  var sig_index = builder.addType(kSig_i_i);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,         // --

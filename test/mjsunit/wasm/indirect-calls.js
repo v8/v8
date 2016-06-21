@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var module = (function () {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature(kSig_i_ii);
+  var sig_index = builder.addType(kSig_i_ii);
   builder.addImport("add", sig_index);
   builder.addFunction("add", sig_index)
     .addBody([
@@ -30,7 +30,7 @@ var module = (function () {
       kExprCallIndirect, kArity2, sig_index
     ])
     .exportFunc()
-  builder.appendToFunctionTable([0, 1, 2]);
+  builder.appendToTable([0, 1, 2]);
 
   return builder.instantiate({add: function(a, b) { return a + b | 0; }});
 })();

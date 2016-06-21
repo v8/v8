@@ -79,7 +79,7 @@ function testSelect10(t) {
     print("type = " + t + ", which = " + which);
 
     var builder = new WasmModuleBuilder();
-    builder.addFunction("select", [10,t,t,t,t,t,t,t,t,t,t,1,t])
+    builder.addFunction("select", makeSig([t,t,t,t,t,t,t,t,t,t], [t]))
       .addBody([kExprGetLocal, which])
       .exportFunc();
 

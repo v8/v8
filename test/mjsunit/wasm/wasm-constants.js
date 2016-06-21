@@ -52,17 +52,17 @@ var kDeclNoLocals = 0;
 
 // Section declaration constants
 var kDeclMemory = 0x00;
-var kDeclSignatures = 0x01;
+var kDeclTypes = 0x01;
 var kDeclFunctions = 0x02;
 var kDeclGlobals = 0x03;
-var kDeclDataSegments = 0x04;
-var kDeclFunctionTable = 0x05;
+var kDeclData = 0x04;
+var kDeclTable = 0x05;
 var kDeclEnd = 0x06;
-var kDeclStartFunction = 0x07;
-var kDeclImportTable = 0x08;
-var kDeclExportTable = 0x09;
-var kDeclFunctionSignatures = 0x0a;
-var kDeclFunctionBodies = 0x0b;
+var kDeclStart = 0x07;
+var kDeclImports = 0x08;
+var kDeclExports = 0x09;
+var kDeclFunctions = 0x0a;
+var kDeclCode = 0x0b;
 var kDeclNames = 0x0c;
 
 var kArity0 = 0;
@@ -90,31 +90,39 @@ var kAstF32 = 3;
 var kAstF64 = 4;
 
 // Useful signatures
-var kSig_i = [0, 1, kAstI32];
-var kSig_d = [0, 1, kAstF64];
-var kSig_i_i = [1, kAstI32, 1, kAstI32];
-var kSig_i_ii = [2, kAstI32, kAstI32, 1, kAstI32];
-var kSig_i_iii = [3, kAstI32, kAstI32, kAstI32, 1, kAstI32];
-var kSig_d_dd = [2, kAstF64, kAstF64, 1, kAstF64];
-var kSig_l_ll = [2, kAstI64, kAstI64, 1, kAstI64];
-var kSig_i_dd = [2, kAstF64, kAstF64, 1, kAstI32];
-var kSig_v_v = [0, 0];
-var kSig_i_v = [0, 1, kAstI32];
+var kSig_i = makeSig([], [kAstI32]);
+var kSig_d = makeSig([], [kAstF64]);
+var kSig_i_i = makeSig([kAstI32], [kAstI32]);
+var kSig_i_ii = makeSig([kAstI32, kAstI32], [kAstI32]);
+var kSig_i_iii = makeSig([kAstI32, kAstI32, kAstI32], [kAstI32]);
+var kSig_d_dd = makeSig([kAstF64, kAstF64], [kAstF64]);
+var kSig_l_ll = makeSig([kAstI64, kAstI64], [kAstI64]);
+var kSig_i_dd = makeSig([kAstF64, kAstF64], [kAstI32]);
+var kSig_v_v = makeSig([], []);
+var kSig_i_v = makeSig([], [kAstI32]);
 
-function makeSig_v_xx(x) {
-  return [2, x, x, 0];
+function makeSig(params, results) {
+  return {params: params, results: results};
 }
 
 function makeSig_v_x(x) {
-  return [1, x, 0];
+  return makeSig([x], []);
 }
 
-function makeSig_r_xx(r, x) {
-  return [2, x, x, 1, r];
+function makeSig_v_xx(x) {
+  return makeSig([x, x], []);
+}
+
+function makeSig_r_v(r) {
+  return makeSig([], [r]);
 }
 
 function makeSig_r_x(r, x) {
-  return [1, x, 1, r];
+  return makeSig([x], [r]);
+}
+
+function makeSig_r_xx(r, x) {
+  return makeSig([x, x], [r]);
 }
 
 // Opcodes
