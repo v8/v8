@@ -1676,11 +1676,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ExpressionClassifier binding_classifier(this);
-  ExpressionT result =
-      this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-  classifier->Accumulate(&binding_classifier,
-                         ExpressionClassifier::AllProductions);
+  ExpressionT result = this->EmptyExpression();
+  {
+    ExpressionClassifier binding_classifier(this);
+    result = this->ParseAssignmentExpression(accept_IN, &binding_classifier,
+                                             CHECK_OK);
+    classifier->Accumulate(&binding_classifier,
+                           ExpressionClassifier::AllProductions);
+  }
   bool is_simple_parameter_list = this->IsIdentifier(result);
   bool seen_rest = false;
   while (peek() == Token::COMMA) {
@@ -3343,7 +3346,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
     } else {
       // Single-expression body
       int pos = position();
-      ExpressionClassifier classifier(this);
       DCHECK(ReturnExprContext::kInsideValidBlock ==
              function_state_->return_expr_context());
       ReturnExprScope allow_tail_calls(
@@ -3351,6 +3353,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       body = this->NewStatementList(1, zone());
       this->AddParameterInitializationBlock(formal_parameters, body, is_async,
                                             CHECK_OK);
+      ExpressionClassifier classifier(this);
       if (is_async) {
         this->ParseAsyncArrowSingleExpressionBody(body, accept_IN, &classifier,
                                                   pos, CHECK_OK);
