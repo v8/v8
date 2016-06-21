@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/v8_target_cpu.gni")
+import("//build/config/sanitizers/sanitizers.gni")
 
 declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
@@ -39,7 +40,14 @@ if (is_debug && !v8_optimized_debug) {
   add_configs += [ "//build/config/compiler:no_optimize" ]
 } else {
   remove_configs += [ "//build/config/compiler:default_optimization" ]
-  add_configs += [ "//build/config/compiler:optimize_max" ]
+
+  # TODO(crbug.com/621335) Rework this so that we don't have the confusion
+  # between "optimize_speed" and "optimize_max".
+  if (is_posix && !is_android && !is_nacl && !using_sanitizer) {
+    add_configs += [ "//build/config/compiler:optimize_speed" ]
+  } else {
+    add_configs += [ "//build/config/compiler:optimize_max" ]
+  }
 }
 
 # All templates should be kept in sync.
