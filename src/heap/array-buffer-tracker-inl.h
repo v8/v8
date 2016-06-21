@@ -44,8 +44,7 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     length = tracker->Remove(buffer).second;
   }
-  heap->update_amount_of_external_allocated_memory(
-      -static_cast<intptr_t>(length));
+  heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
 void LocalArrayBufferTracker::Add(Key key, const Value& value) {

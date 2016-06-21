@@ -2312,13 +2312,10 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
            Internals::kIsolateRootsOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, heap_.amount_of_external_allocated_memory_)),
-           Internals::kAmountOfExternalAllocatedMemoryOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(
-               Isolate,
-               heap_.amount_of_external_allocated_memory_at_last_global_gc_)),
-           Internals::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_)),
+           Internals::kExternalMemoryOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.external_memory_limit_)),
+           Internals::kExternalMemoryLimitOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 

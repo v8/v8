@@ -14853,8 +14853,7 @@ THREADED_TEST(ExternalAllocatedMemory) {
            isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
   CHECK_EQ(baseline,
            isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
-  const int64_t kTriggerGCSize =
-      v8::internal::Internals::kExternalAllocationLimit + 1;
+  const int64_t kTriggerGCSize = i::kExternalAllocationLimit + 1;
   CHECK_EQ(baseline + kTriggerGCSize,
            isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize));
   CHECK_EQ(baseline,
@@ -14866,8 +14865,7 @@ TEST(Regress51719) {
   i::FLAG_incremental_marking = false;
   CcTest::InitializeVM();
 
-  const int64_t kTriggerGCSize =
-      v8::internal::Internals::kExternalAllocationLimit + 1;
+  const int64_t kTriggerGCSize = i::kExternalAllocationLimit + 1;
   v8::Isolate* isolate = CcTest::isolate();
   isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
 }

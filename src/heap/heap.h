@@ -821,22 +821,16 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
-  int64_t amount_of_external_allocated_memory() {
-    return amount_of_external_allocated_memory_;
+  int64_t external_memory() { return external_memory_; }
+  void update_external_memory(int64_t delta) { external_memory_ += delta; }
+
+  void update_external_memory_concurrently_freed(intptr_t freed) {
+    external_memory_concurrently_freed_.Increment(freed);
   }
 
-  void update_amount_of_external_allocated_memory(int64_t delta) {
-    amount_of_external_allocated_memory_ += delta;
-  }
-
-  void update_amount_of_external_allocated_freed_memory(intptr_t freed) {
-    amount_of_external_allocated_memory_freed_.Increment(freed);
-  }
-
-  void account_amount_of_external_allocated_freed_memory() {
-    amount_of_external_allocated_memory_ -=
-        amount_of_external_allocated_memory_freed_.Value();
-    amount_of_external_allocated_memory_freed_.SetValue(0);
+  void account_external_memory_concurrently_freed() {
+    external_memory_ -= external_memory_concurrently_freed_.Value();
+    external_memory_concurrently_freed_.SetValue(0);
   }
 
   void DeoptMarkedAllocationSites();
@@ -1997,14 +1991,17 @@ class Heap {
 
   void set_force_oom(bool value) { force_oom_ = value; }
 
-  // The amount of external memory registered through the API kept alive
-  // by global handles
-  int64_t amount_of_external_allocated_memory_;
+  // The amount of external memory registered through the API.
+  int64_t external_memory_;
 
-  // Caches the amount of external memory registered at the last global gc.
-  int64_t amount_of_external_allocated_memory_at_last_global_gc_;
+  // The limit when to trigger memory pressure from the API.
+  int64_t external_memory_limit_;
 
-  base::AtomicNumber<intptr_t> amount_of_external_allocated_memory_freed_;
+  // Caches the amount of external memory registered at the last MC.
+  int64_t external_memory_at_last_mark_compact_;
+
+  // The amount of memory that has been freed concurrently.
+  base::AtomicNumber<intptr_t> external_memory_concurrently_freed_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.

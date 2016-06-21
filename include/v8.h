@@ -7493,23 +7493,18 @@ class Internals {
   static const int kExternalOneByteRepresentationTag = 0x06;
 
   static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
-  static const int kAmountOfExternalAllocatedMemoryOffset =
-      4 * kApiPointerSize;
-  static const int kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset =
-      kAmountOfExternalAllocatedMemoryOffset + kApiInt64Size;
-  static const int kIsolateRootsOffset =
-      kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset + kApiInt64Size +
-      kApiPointerSize + kApiPointerSize;
+  static const int kExternalMemoryOffset = 4 * kApiPointerSize;
+  static const int kExternalMemoryLimitOffset =
+      kExternalMemoryOffset + kApiInt64Size;
+  static const int kIsolateRootsOffset = kExternalMemoryLimitOffset +
+                                         kApiInt64Size + kApiInt64Size +
+                                         kApiPointerSize + kApiPointerSize;
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
   static const int kNullValueRootIndex = 6;
   static const int kTrueValueRootIndex = 7;
   static const int kFalseValueRootIndex = 8;
   static const int kEmptyStringRootIndex = 9;
-
-  // The external allocation limit should be below 256 MB on all architectures
-  // to avoid that resource-constrained embedders run low on memory.
-  static const int kExternalAllocationLimit = 192 * 1024 * 1024;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -8705,21 +8700,16 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
   typedef internal::Internals I;
-  int64_t* amount_of_external_allocated_memory =
-      reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
-                                 I::kAmountOfExternalAllocatedMemoryOffset);
-  int64_t* amount_of_external_allocated_memory_at_last_global_gc =
-      reinterpret_cast<int64_t*>(
-          reinterpret_cast<uint8_t*>(this) +
-          I::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
-  int64_t amount = *amount_of_external_allocated_memory + change_in_bytes;
-  if (change_in_bytes > 0 &&
-      amount - *amount_of_external_allocated_memory_at_last_global_gc >
-          I::kExternalAllocationLimit) {
+  int64_t* external_memory = reinterpret_cast<int64_t*>(
+      reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
+  const int64_t external_memory_limit = *reinterpret_cast<int64_t*>(
+      reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryLimitOffset);
+  const int64_t amount = *external_memory + change_in_bytes;
+  *external_memory = amount;
+  if (change_in_bytes > 0 && amount > external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
-  *amount_of_external_allocated_memory = amount;
-  return *amount_of_external_allocated_memory;
+  return *external_memory;
 }
 
 

@@ -29,7 +29,7 @@ void LocalArrayBufferTracker::Free() {
     }
   }
   if (freed_memory > 0) {
-    heap_->update_amount_of_external_allocated_freed_memory(
+    heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
 }
@@ -68,7 +68,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     }
   }
   if (freed_memory > 0) {
-    heap_->update_amount_of_external_allocated_freed_memory(
+    heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
 }
@@ -82,7 +82,7 @@ void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {
     bool empty = ProcessBuffers(page, kUpdateForwardedRemoveOthers);
     CHECK(empty);
   }
-  heap->account_amount_of_external_allocated_freed_memory();
+  heap->account_external_memory_concurrently_freed();
 }
 
 void ArrayBufferTracker::FreeDead(Page* page) {

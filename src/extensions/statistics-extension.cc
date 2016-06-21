@@ -135,8 +135,7 @@ void StatisticsExtension::GetCounters(
     AddNumber(args.GetIsolate(), result, numbers[i].number, numbers[i].name);
   }
 
-  AddNumber64(args.GetIsolate(), result,
-              heap->amount_of_external_allocated_memory(),
+  AddNumber64(args.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
 }

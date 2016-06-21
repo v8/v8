@@ -68,8 +68,9 @@ class IdleScavengeObserver : public AllocationObserver {
 };
 
 Heap::Heap()
-    : amount_of_external_allocated_memory_(0),
-      amount_of_external_allocated_memory_at_last_global_gc_(0),
+    : external_memory_(0),
+      external_memory_limit_(kExternalAllocationLimit),
+      external_memory_at_last_mark_compact_(0),
       isolate_(nullptr),
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should
@@ -383,9 +384,8 @@ void Heap::PrintShortHeapStatistics() {
                          ", committed: %6" V8PRIdPTR " KB\n",
                this->SizeOfObjects() / KB, this->Available() / KB,
                this->CommittedMemory() / KB);
-  PrintIsolate(
-      isolate_, "External memory reported: %6" V8PRIdPTR " KB\n",
-      static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB));
+  PrintIsolate(isolate_, "External memory reported: %6" V8PRIdPTR " KB\n",
+               static_cast<intptr_t>(external_memory_ / KB));
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
                total_gc_time_ms_);
 }
@@ -1339,8 +1339,8 @@ bool Heap::PerformGarbageCollection(
   intptr_t old_gen_size = PromotedSpaceSizeOfObjects();
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
-    amount_of_external_allocated_memory_at_last_global_gc_ =
-        amount_of_external_allocated_memory_;
+    external_memory_at_last_mark_compact_ = external_memory_;
+    external_memory_limit_ = external_memory_ + kExternalAllocationLimit;
     SetOldGenerationAllocationLimit(old_gen_size, gc_speed, mutator_speed);
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
@@ -4425,8 +4425,8 @@ void Heap::CollectGarbageOnMemoryPressure(const char* source) {
   double end = MonotonicallyIncreasingTimeInMs();
 
   // Estimate how much memory we can free.
-  int64_t potential_garbage = (CommittedMemory() - SizeOfObjects()) +
-                              amount_of_external_allocated_memory_;
+  int64_t potential_garbage =
+      (CommittedMemory() - SizeOfObjects()) + external_memory_;
   // If we can potentially free large amount of memory, then start GC right
   // away instead of waiting for memory reducer.
   if (potential_garbage >= kGarbageThresholdInBytes &&
@@ -5048,11 +5048,8 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
 
 
 int64_t Heap::PromotedExternalMemorySize() {
-  if (amount_of_external_allocated_memory_ <=
-      amount_of_external_allocated_memory_at_last_global_gc_)
-    return 0;
-  return amount_of_external_allocated_memory_ -
-         amount_of_external_allocated_memory_at_last_global_gc_;
+  if (external_memory_ <= external_memory_at_last_mark_compact_) return 0;
+  return external_memory_ - external_memory_at_last_mark_compact_;
 }
 
 
