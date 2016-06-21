@@ -66,9 +66,32 @@ function print10(a, b, c, d, e, f, g, h, i) {
   }
 })();
 
-(function I32Test() {
+(function F64Test() {
   var main = makeFFI(print10, kAstF64);
   for (var i = 1; i < 2e+80; i *= -1137) {
     main(i - 1, i, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
   }
+})();
+
+(function GCInJSToWasmTest() {
+  var builder = new WasmModuleBuilder();
+
+  var sig_index = builder.addSignature([1, kAstI32, 1, kAstI32]);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,         // --
+    ])                          // --
+    .exportFunc();
+
+  var main = builder.instantiate({}).exports.main;
+
+  var gc_object = {
+      valueOf: function() {
+        // Call the GC in valueOf, which is called within the JSToWasm wrapper.
+        gc();
+        return {};
+      }
+  };
+
+  main(gc_object);
 })();
