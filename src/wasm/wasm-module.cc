@@ -476,24 +476,22 @@ struct CodeStats {
   inline CodeStats() : code_size(0), reloc_size(0) {}
 
   inline void Record(Code* code) {
-    if (FLAG_print_wasm_code_size) {
-      code_size += code->body_size();
-      reloc_size += code->relocation_info()->length();
-    }
+    code_size += code->body_size();
+    reloc_size += code->relocation_info()->length();
   }
 
   inline void Report() {
-    if (FLAG_print_wasm_code_size) {
-      PrintF("Total generated wasm code: %zu bytes\n", code_size);
-      PrintF("Total generated wasm reloc: %zu bytes\n", reloc_size);
-    }
+    PrintF("Total generated wasm code: %zu bytes\n", code_size);
+    PrintF("Total generated wasm reloc: %zu bytes\n", reloc_size);
   }
 };
 
-bool CompileWrappersToImportedFunctions(
-    Isolate* isolate, const WasmModule* module, const Handle<JSReceiver> ffi,
-    WasmModuleInstance* instance, ErrorThrower* thrower, Factory* factory,
-    ModuleEnv* module_env, CodeStats& code_stats) {
+bool CompileWrappersToImportedFunctions(Isolate* isolate,
+                                        const WasmModule* module,
+                                        const Handle<JSReceiver> ffi,
+                                        WasmModuleInstance* instance,
+                                        ErrorThrower* thrower, Factory* factory,
+                                        ModuleEnv* module_env) {
   if (module->import_table.size() > 0) {
     instance->import_code.reserve(module->import_table.size());
     for (uint32_t index = 0; index < module->import_table.size(); ++index) {
@@ -510,7 +508,6 @@ bool CompileWrappersToImportedFunctions(
           isolate, module_env, function.ToHandleChecked(), import.sig,
           module_name, function_name);
       instance->import_code[index] = code;
-      code_stats.Record(*code);
     }
   }
   return true;
@@ -703,7 +700,6 @@ void SetDeoptimizationData(Factory* factory, Handle<JSObject> js_object,
 Handle<FixedArray> WasmModule::CompileFunctions(Isolate* isolate) const {
   Factory* factory = isolate->factory();
   ErrorThrower thrower(isolate, "WasmModule::CompileFunctions()");
-  CodeStats code_stats;
 
   WasmModuleInstance temp_instance_for_compilation(this);
   temp_instance_for_compilation.function_table =
@@ -750,7 +746,6 @@ Handle<FixedArray> WasmModule::CompileFunctions(Isolate* isolate) const {
        i < temp_instance_for_compilation.function_code.size(); ++i) {
     Code* code = *temp_instance_for_compilation.function_code[i];
     ret->set(static_cast<int>(i), code);
-    code_stats.Record(code);
   }
 
   PopulateFunctionTable(&temp_instance_for_compilation);
@@ -770,11 +765,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
       isolate->counters()->wasm_instantiate_module_time());
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
   Factory* factory = isolate->factory();
-
-  // If FLAG_print_wasm_code_size is set, this aggregates the sum of all code
-  // objects created for this module.
-  // TODO(titzer): switch this to TRACE_EVENT
-  CodeStats code_stats;
 
   //-------------------------------------------------------------------------
   // Allocate the instance and its JS counterpart.
@@ -847,10 +837,19 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   // Compile wrappers to imported functions.
   //-------------------------------------------------------------------------
   if (!CompileWrappersToImportedFunctions(isolate, this, ffi, &instance,
-                                          &thrower, factory, &module_env,
-                                          code_stats)) {
+                                          &thrower, factory, &module_env)) {
     return MaybeHandle<JSObject>();
   }
+
+  // If FLAG_print_wasm_code_size is set, this aggregates the sum of all code
+  // objects created for this module.
+  // TODO(titzer): switch this to TRACE_EVENT
+  CodeStats code_stats;
+  if (FLAG_print_wasm_code_size) {
+    for (Handle<Code> c : instance.function_code) code_stats.Record(*c);
+    for (Handle<Code> c : instance.import_code) code_stats.Record(*c);
+  }
+
   {
     instance.js_object->SetInternalField(kWasmModuleFunctionTable,
                                          Smi::FromInt(0));
@@ -888,7 +887,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
         Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
             isolate, &module_env, name, code, instance.js_object,
             exp.func_index);
-        code_stats.Record(function->code());
+        if (FLAG_print_wasm_code_size) {
+          code_stats.Record(function->code());
+        }
         desc.set_value(function);
         Maybe<bool> status = JSReceiver::DefineOwnProperty(
             isolate, exports_object, name, &desc, Object::THROW_ON_ERROR);
@@ -907,6 +908,9 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
     }
   }
 
+  if (FLAG_print_wasm_code_size) {
+    code_stats.Report();
+  }
   //-------------------------------------------------------------------------
   // Attach the function name table.
   //-------------------------------------------------------------------------
@@ -914,8 +918,6 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
       BuildFunctionNamesTable(isolate, module_env.module);
   instance.js_object->SetInternalField(kWasmFunctionNamesArray,
                                        *function_name_table);
-
-  code_stats.Report();
 
   // Run the start function if one was specified.
   if (this->start_function_index >= 0) {
