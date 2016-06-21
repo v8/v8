@@ -103,7 +103,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
 
 TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update({3, false});
+  nop.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&nop);
   BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
   optimizer()->Write(&add);
@@ -114,10 +114,10 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
 
 TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update({3, true});
+  nop.source_info().MakeStatementPosition(3);
   optimizer()->Write(&nop);
   BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
-  add.source_info().Update({3, false});
+  add.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 2);
@@ -210,7 +210,7 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRx) {
 TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatement) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
-  second.source_info().Update({0, true});
+  second.source_info().MakeStatementPosition(0);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -227,7 +227,7 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
   BytecodeNode third(Bytecode::kStar, Register(3).ToOperand());
-  second.source_info().Update({0, true});
+  second.source_info().MakeStatementPosition(0);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -237,8 +237,6 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
   CHECK_EQ(write_count(), 1);
   Flush();
   CHECK_EQ(write_count(), 2);
-  // Source position should move |second| to |third| when |second| is elided.
-  third.source_info().Update(second.source_info());
   CHECK_EQ(last_written(), third);
 }
 
@@ -325,7 +323,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   BytecodeNode first(Bytecode::kLdaTrue);
-  first.source_info().Update({3, false});
+  first.source_info().MakeExpressionPosition(3);
   BytecodeNode second(Bytecode::kLdaFalse);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
@@ -333,8 +331,9 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
-  second.source_info().Update(first.source_info());
   CHECK_EQ(last_written(), second);
+  CHECK(second.source_info().is_expression());
+  CHECK_EQ(second.source_info().source_position(), 3);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
@@ -351,7 +350,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
 
 TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   BytecodeNode first(Bytecode::kNop);
-  first.source_info().Update({3, false});
+  first.source_info().MakeExpressionPosition(3);
   BytecodeNode second(Bytecode::kStackCheck);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
@@ -359,7 +358,8 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
-  second.source_info().Update(first.source_info());
+  second.source_info().MakeExpressionPosition(
+      first.source_info().source_position());
   CHECK_EQ(last_written(), second);
 }
 

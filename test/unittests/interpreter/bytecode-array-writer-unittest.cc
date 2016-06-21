@@ -60,7 +60,7 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
 void BytecodeArrayWriterUnittest::Write(BytecodeNode* node,
                                         const BytecodeSourceInfo& info) {
   if (info.is_valid()) {
-    node->source_info().Update(info);
+    node->source_info().Clone(info);
   }
   writer()->Write(node);
 }
@@ -104,7 +104,7 @@ void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
                                             const BytecodeSourceInfo& info) {
   BytecodeNode node(bytecode, 0);
   if (info.is_valid()) {
-    node.source_info().Update(info);
+    node.source_info().Clone(info);
   }
   writer()->WriteJump(&node, label);
 }

@@ -297,7 +297,10 @@ BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
   }
 
   if (CanElideLast(current) && CanElideLastBasedOnSourcePosition(current)) {
-    current->source_info().Update(last_.source_info());
+    if (last_.source_info().is_valid()) {
+      // Current can not be valid per CanElideLastBasedOnSourcePosition().
+      current->source_info().Clone(last_.source_info());
+    }
     InvalidateLast();
     return current;
   }

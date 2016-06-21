@@ -99,7 +99,7 @@ void BytecodeArrayBuilder::AttachSourceInfo(BytecodeNode* node) {
     // information if it is used.
     if (latest_source_info_.is_statement() ||
         ExpressionPositionIsNeeded(node->bytecode())) {
-      node->source_info() = latest_source_info_;
+      node->source_info().Clone(latest_source_info_);
       latest_source_info_.set_invalid();
     }
   }
@@ -440,9 +440,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
   if (position != RelocInfo::kNoPosition) {
-    // We need to attach a non-breakable source position to a stack check,
-    // so we simply add it as expression position.
-    latest_source_info_ = {position, false};
+    // We need to attach a non-breakable source position to a stack
+    // check, so we simply add it as expression position. There can be
+    // a prior statement position from constructs like:
+    //
+    //    do var x;  while (false);
+    //
+    // A Nop could be inserted for empty statements, but since no code
+    // is associated with these positions, instead we force the stack
+    // check's expression position which eliminates the empty
+    // statement's position.
+    latest_source_info_.ForceExpressionPosition(position);
   }
   Output(Bytecode::kStackCheck);
   return *this;
@@ -620,31 +628,26 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 
 void BytecodeArrayBuilder::SetReturnPosition() {
   if (return_position_ == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({return_position_, true});
+  latest_source_info_.MakeStatementPosition(return_position_);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({stmt->position(), true});
+  latest_source_info_.MakeStatementPosition(stmt->position());
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  if (latest_source_info_.is_expression()) {
+  if (!latest_source_info_.is_statement()) {
     // Ensure the current expression position is overwritten with the
     // latest value.
-    //
-    // TODO(oth): Clean-up BytecodeSourceInfo to have three states and
-    // simplify the update logic, taking care to ensure position
-    // information is not lost.
-    latest_source_info_.set_invalid();
+    latest_source_info_.MakeExpressionPosition(expr->position());
   }
-  latest_source_info_.Update({expr->position(), false});
 }
 
 void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({expr->position(), true});
+  latest_source_info_.MakeStatementPosition(expr->position());
 }
 
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {

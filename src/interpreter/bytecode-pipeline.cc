@@ -11,26 +11,6 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
-  if (!entry.is_valid()) return;
-
-  if (!is_valid() || (entry.is_statement() && !is_statement()) ||
-      (entry.is_statement() && is_statement() &&
-       entry.source_position() > source_position())) {
-    // Position is updated if any of the following conditions are met:
-    //   (1) there is no existing position.
-    //   (2) the incoming position is a statement and the current position
-    //       is an expression.
-    //   (3) the existing position is a statement and the incoming
-    //       statement has a later source position.
-    // Condition 3 is needed for the first statement in a function which
-    // may end up with later statement positions being added during bytecode
-    // generation.
-    source_position_ = entry.source_position_;
-    is_statement_ = entry.is_statement_;
-  }
-}
-
 BytecodeNode::BytecodeNode(Bytecode bytecode) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   bytecode_ = bytecode;

@@ -312,7 +312,9 @@ void BytecodeRegisterOptimizer::WriteToNextStage(BytecodeNode* node) const {
 
 void BytecodeRegisterOptimizer::WriteToNextStage(
     BytecodeNode* node, const BytecodeSourceInfo& source_info) const {
-  node->source_info().Update(source_info);
+  if (source_info.is_valid()) {
+    node->source_info().Clone(source_info);
+  }
   next_stage_->Write(node);
 }
 
@@ -414,8 +416,9 @@ void BytecodeRegisterOptimizer::RegisterTransfer(
 
 void BytecodeRegisterOptimizer::EmitNopForSourceInfo(
     const BytecodeSourceInfo& source_info) const {
+  DCHECK(source_info.is_valid());
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update(source_info);
+  nop.source_info().Clone(source_info);
   WriteToNextStage(&nop);
 }
 
