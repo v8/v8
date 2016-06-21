@@ -1860,9 +1860,18 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedHole: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        ProcessRemainingInputs(node, 1);
-        SetOutput(node, MachineRepresentation::kTagged);
+        CheckTaggedHoleMode mode = CheckTaggedHoleModeOf(node->op());
+        if (truncation.TruncatesToWord32() &&
+            mode == CheckTaggedHoleMode::kConvertHoleToUndefined) {
+          ProcessInput(node, 0, UseInfo::CheckedSigned32AsWord32());
+          ProcessRemainingInputs(node, 1);
+          SetOutput(node, MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          ProcessInput(node, 0, UseInfo::AnyTagged());
+          ProcessRemainingInputs(node, 1);
+          SetOutput(node, MachineRepresentation::kTagged);
+        }
         return;
       }
 
