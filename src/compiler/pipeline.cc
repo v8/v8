@@ -1032,6 +1032,13 @@ struct MemoryOptimizationPhase {
   static const char* phase_name() { return "memory optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    // The memory optimizer requires the graphs to be trimmed, so trim now.
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+
+    // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(data->jsgraph(), temp_zone);
     optimizer.Optimize();
   }
