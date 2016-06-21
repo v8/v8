@@ -581,11 +581,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
-  Bytecode bytecode = IntrinsicsHelper::IsSupported(function_id)
-                          ? Bytecode::kInvokeIntrinsic
-                          : Bytecode::kCallRuntime;
-  Output(bytecode, static_cast<uint16_t>(function_id),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count));
+  Bytecode bytecode;
+  uint32_t id;
+  if (IntrinsicsHelper::IsSupported(function_id)) {
+    bytecode = Bytecode::kInvokeIntrinsic;
+    id = static_cast<uint32_t>(IntrinsicsHelper::FromRuntimeId(function_id));
+  } else {
+    bytecode = Bytecode::kCallRuntime;
+    id = static_cast<uint32_t>(function_id);
+  }
+  Output(bytecode, id, RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
 }
 
@@ -694,6 +699,7 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         break;
       }
       case OperandType::kFlag8:
+      case OperandType::kIntrinsicId:
         if (Bytecodes::SizeForUnsignedOperand(operands[i]) >
             OperandSize::kByte) {
           return false;

@@ -428,6 +428,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandRuntimeId(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
+          case interpreter::OperandType::kIntrinsicId:
+            EXPECT_THAT(m.BytecodeOperandIntrinsicId(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
           case interpreter::OperandType::kNone:
             UNREACHABLE();
             break;

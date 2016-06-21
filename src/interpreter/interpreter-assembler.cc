@@ -363,6 +363,15 @@ Node* InterpreterAssembler::BytecodeOperandRuntimeId(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
+  DCHECK(OperandType::kIntrinsicId ==
+         Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  DCHECK_EQ(operand_size, OperandSize::kByte);
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);

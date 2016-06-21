@@ -1045,7 +1045,7 @@ void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
 // |function_id| with the first argument in |first_arg| and |arg_count|
 // arguments in subsequent registers.
 void Interpreter::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
-  Node* function_id = __ BytecodeOperandRuntimeId(0);
+  Node* function_id = __ BytecodeOperandIntrinsicId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* arg_count = __ BytecodeOperandCount(2);
   Node* context = __ GetContext();
