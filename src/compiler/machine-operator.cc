@@ -88,10 +88,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word64Equal, Operator::kCommutative, 2, 0, 1)                             \
   V(Int32Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
-  V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative, 2, \
-    0, 2)                                                                     \
   V(Int32Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(Int32SubWithOverflow, Operator::kNoProperties, 2, 0, 2)                   \
   V(Int32Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
   V(Int32Div, Operator::kNoProperties, 2, 1, 1)                               \
@@ -104,10 +101,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Uint32Mod, Operator::kNoProperties, 2, 1, 1)                              \
   V(Uint32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Int64Add, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
-  V(Int64AddWithOverflow, Operator::kAssociative | Operator::kCommutative, 2, \
-    0, 2)                                                                     \
   V(Int64Sub, Operator::kNoProperties, 2, 0, 1)                               \
-  V(Int64SubWithOverflow, Operator::kNoProperties, 2, 0, 2)                   \
   V(Int64Mul, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)       \
   V(Int64Div, Operator::kNoProperties, 2, 1, 1)                               \
   V(Int64Mod, Operator::kNoProperties, 2, 1, 1)                               \
@@ -390,6 +384,12 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32Neg, Operator::kNoProperties, 1, 0, 1)           \
   V(Float64Neg, Operator::kNoProperties, 1, 0, 1)
 
+#define OVERFLOW_OP_LIST(V)                                                \
+  V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
+  V(Int32SubWithOverflow, Operator::kNoProperties)                         \
+  V(Int64AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
+  V(Int64SubWithOverflow, Operator::kNoProperties)
+
 #define MACHINE_TYPE_LIST(V) \
   V(Float32)                 \
   V(Float64)                 \
@@ -441,6 +441,17 @@ struct MachineOperatorGlobalCache {
   PURE_OP_LIST(PURE)
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
+
+#define OVERFLOW_OP(Name, properties)                                        \
+  struct Name##Operator final : public Operator {                            \
+    Name##Operator()                                                         \
+        : Operator(IrOpcode::k##Name,                                        \
+                   Operator::kEliminatable | Operator::kNoRead | properties, \
+                   #Name, 2, 0, 1, 2, 0, 0) {}                               \
+  };                                                                         \
+  Name##Operator k##Name;
+  OVERFLOW_OP_LIST(OVERFLOW_OP)
+#undef OVERFLOW_OP
 
 #define LOAD(Type)                                                           \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> { \
@@ -594,6 +605,10 @@ PURE_OP_LIST(PURE)
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
 
+#define OVERFLOW_OP(Name, properties) \
+  const Operator* MachineOperatorBuilder::Name() { return &cache_.k##Name; }
+OVERFLOW_OP_LIST(OVERFLOW_OP)
+#undef OVERFLOW_OP
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
 #define LOAD(Type)                  \

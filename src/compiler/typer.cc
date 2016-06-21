@@ -2018,6 +2018,14 @@ Type* Typer::Visitor::TypeCheckTaggedSigned(Node* node) {
   return Type::Intersect(arg, typer_->cache_.kSmi, zone());
 }
 
+Type* Typer::Visitor::TypeCheckedInt32Add(Node* node) {
+  return Type::Integral32();
+}
+
+Type* Typer::Visitor::TypeCheckedInt32Sub(Node* node) {
+  return Type::Integral32();
+}
+
 Type* Typer::Visitor::TypeCheckedUint32ToInt32(Node* node) {
   return Type::Signed32();
 }
@@ -2055,11 +2063,6 @@ Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
     }
   }
   return type;
-}
-
-Type* Typer::Visitor::TypeCheckIf(Node* node) {
-  UNREACHABLE();
-  return nullptr;
 }
 
 Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {

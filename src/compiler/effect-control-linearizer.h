@@ -68,6 +68,10 @@ class EffectControlLinearizer {
                                              Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedSigned(Node* node, Node* frame_state,
                                             Node* effect, Node* control);
+  ValueEffectControl LowerCheckedInt32Add(Node* node, Node* frame_state,
+                                          Node* effect, Node* control);
+  ValueEffectControl LowerCheckedInt32Sub(Node* node, Node* frame_state,
+                                          Node* effect, Node* control);
   ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
@@ -99,8 +103,6 @@ class EffectControlLinearizer {
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedHole(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
-  ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
-                                  Node* control);
   ValueEffectControl LowerPlainPrimitiveToNumber(Node* node, Node* effect,
                                                  Node* control);
   ValueEffectControl LowerPlainPrimitiveToWord32(Node* node, Node* effect,

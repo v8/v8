@@ -243,8 +243,10 @@ void Int64Lowering::LowerNode(Node* node) {
       if (descriptor->ReturnCount() == 1 &&
           descriptor->GetReturnType(0) == MachineType::Int64()) {
         // We access the additional return values through projections.
-        Node* low_node = graph()->NewNode(common()->Projection(0), node);
-        Node* high_node = graph()->NewNode(common()->Projection(1), node);
+        Node* low_node =
+            graph()->NewNode(common()->Projection(0), node, graph()->start());
+        Node* high_node =
+            graph()->NewNode(common()->Projection(1), node, graph()->start());
         ReplaceNode(node, low_node, high_node);
       }
       break;
@@ -283,8 +285,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairAdd());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }
@@ -301,8 +305,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairSub());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }
@@ -319,8 +325,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairMul());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }
@@ -369,8 +377,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairShl());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }
@@ -391,8 +401,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairShr());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }
@@ -413,8 +425,10 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairSar());
       // We access the additional return values through projections.
-      Node* low_node = graph()->NewNode(common()->Projection(0), node);
-      Node* high_node = graph()->NewNode(common()->Projection(1), node);
+      Node* low_node =
+          graph()->NewNode(common()->Projection(0), node, graph()->start());
+      Node* high_node =
+          graph()->NewNode(common()->Projection(1), node, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }

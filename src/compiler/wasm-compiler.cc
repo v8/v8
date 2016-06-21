@@ -1479,9 +1479,10 @@ Node* WasmGraphBuilder::BuildI64SConvertF32(Node* input,
   } else {
     Node* trunc = graph()->NewNode(
         jsgraph()->machine()->TryTruncateFloat32ToInt64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
-    Node* overflow =
-        graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
+                                    graph()->start());
+    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
+                                      graph()->start());
     trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
     return result;
   }
@@ -1496,9 +1497,10 @@ Node* WasmGraphBuilder::BuildI64UConvertF32(Node* input,
   } else {
     Node* trunc = graph()->NewNode(
         jsgraph()->machine()->TryTruncateFloat32ToUint64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
-    Node* overflow =
-        graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
+                                    graph()->start());
+    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
+                                      graph()->start());
     trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
     return result;
   }
@@ -1513,9 +1515,10 @@ Node* WasmGraphBuilder::BuildI64SConvertF64(Node* input,
   } else {
     Node* trunc = graph()->NewNode(
         jsgraph()->machine()->TryTruncateFloat64ToInt64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
-    Node* overflow =
-        graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
+                                    graph()->start());
+    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
+                                      graph()->start());
     trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
     return result;
   }
@@ -1530,9 +1533,10 @@ Node* WasmGraphBuilder::BuildI64UConvertF64(Node* input,
   } else {
     Node* trunc = graph()->NewNode(
         jsgraph()->machine()->TryTruncateFloat64ToUint64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
-    Node* overflow =
-        graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
+                                    graph()->start());
+    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
+                                      graph()->start());
     trap_->ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
     return result;
   }
@@ -1975,9 +1979,10 @@ Node* WasmGraphBuilder::BuildChangeInt32ToTagged(Node* value) {
     return BuildChangeInt32ToSmi(value);
   }
 
-  Node* add = graph()->NewNode(machine->Int32AddWithOverflow(), value, value);
+  Node* add = graph()->NewNode(machine->Int32AddWithOverflow(), value, value,
+                               graph()->start());
 
-  Node* ovf = graph()->NewNode(common->Projection(1), add);
+  Node* ovf = graph()->NewNode(common->Projection(1), add, graph()->start());
   Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), ovf,
                                   graph()->start());
 
@@ -1986,7 +1991,7 @@ Node* WasmGraphBuilder::BuildChangeInt32ToTagged(Node* value) {
       graph()->NewNode(machine->ChangeInt32ToFloat64(), value), if_true);
 
   Node* if_false = graph()->NewNode(common->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(common->Projection(0), add);
+  Node* vfalse = graph()->NewNode(common->Projection(0), add, if_false);
 
   Node* merge = graph()->NewNode(common->Merge(2), if_true, if_false);
   Node* phi = graph()->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
@@ -2039,10 +2044,10 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
   if (machine->Is64()) {
     vsmi = BuildChangeInt32ToSmi(value32);
   } else {
-    Node* smi_tag =
-        graph()->NewNode(machine->Int32AddWithOverflow(), value32, value32);
+    Node* smi_tag = graph()->NewNode(machine->Int32AddWithOverflow(), value32,
+                                     value32, if_smi);
 
-    Node* check_ovf = graph()->NewNode(common->Projection(1), smi_tag);
+    Node* check_ovf = graph()->NewNode(common->Projection(1), smi_tag, if_smi);
     Node* branch_ovf =
         graph()->NewNode(common->Branch(BranchHint::kFalse), check_ovf, if_smi);
 
@@ -2050,7 +2055,7 @@ Node* WasmGraphBuilder::BuildChangeFloat64ToTagged(Node* value) {
     if_box = graph()->NewNode(common->Merge(2), if_ovf, if_box);
 
     if_smi = graph()->NewNode(common->IfFalse(), branch_ovf);
-    vsmi = graph()->NewNode(common->Projection(0), smi_tag);
+    vsmi = graph()->NewNode(common->Projection(0), smi_tag, if_smi);
   }
 
   // Allocate the box for the {value}.
@@ -2383,7 +2388,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
       sig->GetReturn(0) == wasm::kAstI64) {
     // The return values comes as two values, we pick the low word.
-    retval = graph()->NewNode(jsgraph()->common()->Projection(0), retval);
+    retval = graph()->NewNode(jsgraph()->common()->Projection(0), retval,
+                              graph()->start());
   }
   Node* jsval =
       ToJS(retval, context,

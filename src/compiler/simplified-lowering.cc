@@ -1091,16 +1091,8 @@ class RepresentationSelector {
     NodeProperties::ChangeOp(node, new_op);
   }
 
-  void ChangeToInt32OverflowOp(Node* node, const Operator* op) {
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
-    Node* arith = graph()->NewNode(op, node->InputAt(0), node->InputAt(1));
-    Node* overflow = graph()->NewNode(common()->Projection(1), arith);
-    effect =
-        graph()->NewNode(simplified()->CheckIf(), overflow, effect, control);
-    Node* value = graph()->NewNode(common()->Projection(0), arith);
-    ReplaceEffectControlUses(node, effect, control);
-    DeferReplacement(node, value);
+  void ChangeToInt32OverflowOp(Node* node, const Operator* new_op) {
+    NodeProperties::ChangeOp(node, new_op);
   }
 
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
@@ -2037,6 +2029,8 @@ class RepresentationSelector {
       case IrOpcode::kChangeFloat64ToUint32:
       case IrOpcode::kTruncateInt64ToInt32:
       case IrOpcode::kChangeFloat32ToFloat64:
+      case IrOpcode::kCheckedInt32Add:
+      case IrOpcode::kCheckedInt32Sub:
       case IrOpcode::kCheckedUint32ToInt32:
       case IrOpcode::kCheckedFloat64ToInt32:
       case IrOpcode::kCheckedTaggedToInt32:

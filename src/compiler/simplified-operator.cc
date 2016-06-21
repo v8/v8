@@ -308,13 +308,15 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(SpeculativeNumberMultiply)    \
   V(SpeculativeNumberModulus)
 
-#define CHECKED_OP_LIST(V) \
-  V(CheckTaggedPointer)    \
-  V(CheckTaggedSigned)     \
-  V(CheckedUint32ToInt32)  \
-  V(CheckedFloat64ToInt32) \
-  V(CheckedTaggedToInt32)  \
-  V(CheckedTaggedToFloat64)
+#define CHECKED_OP_LIST(V)    \
+  V(CheckTaggedPointer, 1)    \
+  V(CheckTaggedSigned, 1)     \
+  V(CheckedInt32Add, 2)       \
+  V(CheckedInt32Sub, 2)       \
+  V(CheckedUint32ToInt32, 1)  \
+  V(CheckedFloat64ToInt32, 1) \
+  V(CheckedTaggedToInt32, 1)  \
+  V(CheckedTaggedToFloat64, 1)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
@@ -327,29 +329,29 @@ struct SimplifiedOperatorGlobalCache final {
   PURE_OP_LIST(PURE)
 #undef PURE
 
-#define CHECKED(Name)                                                        \
-  struct Name##Operator final : public Operator {                            \
-    Name##Operator()                                                         \
-        : Operator(IrOpcode::k##Name,                                        \
-                   Operator::kFoldable | Operator::kNoThrow, #Name, 1, 1, 1, \
-                   1, 1, 0) {}                                               \
-  };                                                                         \
+#define CHECKED(Name, value_input_count)                            \
+  struct Name##Operator final : public Operator {                   \
+    Name##Operator()                                                \
+        : Operator(IrOpcode::k##Name,                               \
+                   Operator::kFoldable | Operator::kNoThrow, #Name, \
+                   value_input_count, 1, 1, 1, 1, 0) {}             \
+  };                                                                \
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
 
   template <CheckFloat64HoleMode kMode>
-  struct CheckFloat64HoleNaNOperatortor final
+  struct CheckFloat64HoleNaNOperator final
       : public Operator1<CheckFloat64HoleMode> {
-    CheckFloat64HoleNaNOperatortor()
+    CheckFloat64HoleNaNOperator()
         : Operator1<CheckFloat64HoleMode>(
               IrOpcode::kCheckFloat64Hole,
-              Operator::kFoldable | Operator::kNoDeopt, "CheckFloat64Hole", 1,
+              Operator::kFoldable | Operator::kNoThrow, "CheckFloat64Hole", 1,
               1, 1, 1, 1, 0, kMode) {}
   };
-  CheckFloat64HoleNaNOperatortor<CheckFloat64HoleMode::kAllowReturnHole>
+  CheckFloat64HoleNaNOperator<CheckFloat64HoleMode::kAllowReturnHole>
       kCheckFloat64HoleAllowReturnHoleOperator;
-  CheckFloat64HoleNaNOperatortor<CheckFloat64HoleMode::kNeverReturnHole>
+  CheckFloat64HoleNaNOperator<CheckFloat64HoleMode::kNeverReturnHole>
       kCheckFloat64HoleNeverReturnHoleOperator;
 
   template <CheckTaggedHoleMode kMode>
@@ -357,20 +359,13 @@ struct SimplifiedOperatorGlobalCache final {
     CheckTaggedHoleOperator()
         : Operator1<CheckTaggedHoleMode>(
               IrOpcode::kCheckTaggedHole,
-              Operator::kFoldable | Operator::kNoDeopt, "CheckTaggedHole", 1, 1,
+              Operator::kFoldable | Operator::kNoThrow, "CheckTaggedHole", 1, 1,
               1, 1, 1, 0, kMode) {}
   };
   CheckTaggedHoleOperator<CheckTaggedHoleMode::kConvertHoleToUndefined>
       kCheckTaggedHoleConvertHoleToUndefinedOperator;
   CheckTaggedHoleOperator<CheckTaggedHoleMode::kNeverReturnHole>
       kCheckTaggedHoleNeverReturnHoleOperator;
-
-  struct CheckIfOperator final : public Operator {
-    CheckIfOperator()
-        : Operator(IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoDeopt,
-                   "CheckIf", 1, 1, 1, 0, 1, 0) {}
-  };
-  CheckIfOperator kCheckIf;
 
   template <PretenureFlag kPretenure>
   struct AllocateOperator final : public Operator1<PretenureFlag> {
@@ -419,7 +414,7 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 
-#define GET_FROM_CACHE(Name) \
+#define GET_FROM_CACHE(Name, value_input_count) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
@@ -446,10 +441,6 @@ const Operator* SimplifiedOperatorBuilder::CheckTaggedHole(
   }
   UNREACHABLE();
   return nullptr;
-}
-
-const Operator* SimplifiedOperatorBuilder::CheckIf() {
-  return &cache_.kCheckIf;
 }
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {

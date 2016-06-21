@@ -604,9 +604,9 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
-      return machine()->Int32AddWithOverflow();
+      return simplified()->CheckedInt32Add();
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
-      return machine()->Int32SubWithOverflow();
+      return simplified()->CheckedInt32Sub();
     default:
       UNREACHABLE();
       return nullptr;

@@ -392,6 +392,19 @@ TEST_F(CommonOperatorTest, FinishRegion) {
   EXPECT_EQ(1, op->ValueOutputCount());
 }
 
+TEST_F(CommonOperatorTest, Projection) {
+  TRACED_FORRANGE(size_t, index, 0, 3) {
+    const Operator* op = common()->Projection(index);
+    EXPECT_EQ(index, ProjectionIndexOf(op));
+    EXPECT_EQ(1, op->ValueInputCount());
+    EXPECT_EQ(1, op->ControlInputCount());
+    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(1, op->ValueOutputCount());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

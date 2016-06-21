@@ -440,6 +440,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckTaggedSigned:
       state = LowerCheckTaggedSigned(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckedInt32Add:
+      state = LowerCheckedInt32Add(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckedInt32Sub:
+      state = LowerCheckedInt32Sub(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
@@ -475,9 +481,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kStringFromCharCode:
       state = LowerStringFromCharCode(node, *effect, *control);
-      break;
-    case IrOpcode::kCheckIf:
-      state = LowerCheckIf(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckFloat64Hole:
       state = LowerCheckFloat64Hole(node, frame_state, *effect, *control);
@@ -554,10 +557,11 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
   if (machine()->Is64()) {
     vsmi = ChangeInt32ToSmi(value32);
   } else {
-    Node* smi_tag =
-        graph()->NewNode(machine()->Int32AddWithOverflow(), value32, value32);
+    Node* smi_tag = graph()->NewNode(machine()->Int32AddWithOverflow(), value32,
+                                     value32, if_smi);
 
-    Node* check_ovf = graph()->NewNode(common()->Projection(1), smi_tag);
+    Node* check_ovf =
+        graph()->NewNode(common()->Projection(1), smi_tag, if_smi);
     Node* branch_ovf = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                         check_ovf, if_smi);
 
@@ -565,7 +569,7 @@ EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
     if_box = graph()->NewNode(common()->Merge(2), if_ovf, if_box);
 
     if_smi = graph()->NewNode(common()->IfFalse(), branch_ovf);
-    vsmi = graph()->NewNode(common()->Projection(0), smi_tag);
+    vsmi = graph()->NewNode(common()->Projection(0), smi_tag, if_smi);
   }
 
   // Allocate the box for the {value}.
@@ -617,9 +621,10 @@ EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node, Node* effect,
     return ValueEffectControl(ChangeInt32ToSmi(value), effect, control);
   }
 
-  Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value);
+  Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), value, value,
+                               control);
 
-  Node* ovf = graph()->NewNode(common()->Projection(1), add);
+  Node* ovf = graph()->NewNode(common()->Projection(1), add, control);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kFalse), ovf, control);
 
@@ -628,7 +633,7 @@ EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node, Node* effect,
       AllocateHeapNumberWithValue(ChangeInt32ToFloat64(value), effect, if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(common()->Projection(0), add);
+  Node* vfalse = graph()->NewNode(common()->Projection(0), add, if_false);
 
   Node* merge = graph()->NewNode(common()->Merge(2), alloc.control, if_false);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
@@ -827,6 +832,48 @@ EffectControlLinearizer::LowerCheckTaggedSigned(Node* node, Node* frame_state,
   Node* check = ObjectIsSmi(value);
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                       frame_state, effect, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedInt32Add(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value =
+      graph()->NewNode(machine()->Int32AddWithOverflow(), lhs, rhs, control);
+
+  Node* check = graph()->NewNode(common()->Projection(1), value, control);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  value = graph()->NewNode(common()->Projection(0), value, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedInt32Sub(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* value =
+      graph()->NewNode(machine()->Int32SubWithOverflow(), lhs, rhs, control);
+
+  Node* check = graph()->NewNode(common()->Projection(1), value, control);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  value = graph()->NewNode(common()->Projection(0), value, control);
 
   // Make sure the lowered node does not appear in any use lists.
   node->TrimInputCount(0);
@@ -1369,17 +1416,6 @@ EffectControlLinearizer::LowerStringFromCharCode(Node* node, Node* effect,
                            vtrue0, vfalse0, control);
 
   return ValueEffectControl(value, effect, control);
-}
-
-EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
-                                      Node* effect, Node* control) {
-  NodeProperties::ReplaceEffectInput(node, effect);
-  NodeProperties::ReplaceControlInput(node, control);
-  DCHECK_NOT_NULL(frame_state);
-  node->InsertInput(graph()->zone(), 1, frame_state);
-  NodeProperties::ChangeOp(node, common()->DeoptimizeIf());
-  return ValueEffectControl(node, node, node);
 }
 
 EffectControlLinearizer::ValueEffectControl

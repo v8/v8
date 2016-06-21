@@ -238,13 +238,14 @@
   V(CheckBounds)                      \
   V(CheckTaggedPointer)               \
   V(CheckTaggedSigned)                \
+  V(CheckedInt32Add)                  \
+  V(CheckedInt32Sub)                  \
   V(CheckedUint32ToInt32)             \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedToInt32)             \
   V(CheckedTaggedToFloat64)           \
   V(CheckFloat64Hole)                 \
   V(CheckTaggedHole)                  \
-  V(CheckIf)                          \
   V(TruncateTaggedToWord32)           \
   V(TruncateTaggedToFloat64)          \
   V(Allocate)                         \

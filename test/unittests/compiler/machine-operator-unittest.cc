@@ -208,9 +208,7 @@ const PureOperator kPureOperators[] = {
     PURE(Word64Ror, 2, 0, 1),                 // --
     PURE(Word64Equal, 2, 0, 1),               // --
     PURE(Int32Add, 2, 0, 1),                  // --
-    PURE(Int32AddWithOverflow, 2, 0, 2),      // --
     PURE(Int32Sub, 2, 0, 1),                  // --
-    PURE(Int32SubWithOverflow, 2, 0, 2),      // --
     PURE(Int32Mul, 2, 0, 1),                  // --
     PURE(Int32MulHigh, 2, 0, 1),              // --
     PURE(Int32Div, 2, 1, 1),                  // --

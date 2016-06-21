@@ -240,6 +240,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckTaggedPointer();
   const Operator* CheckTaggedSigned();
 
+  const Operator* CheckedInt32Add();
+  const Operator* CheckedInt32Sub();
   const Operator* CheckedUint32ToInt32();
   const Operator* CheckedFloat64ToInt32();
   const Operator* CheckedTaggedToInt32();
@@ -247,7 +249,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckTaggedHole(CheckTaggedHoleMode);
-  const Operator* CheckIf();
 
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsNumber();

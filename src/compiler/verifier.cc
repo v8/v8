@@ -278,7 +278,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
-    case IrOpcode::kCheckIf:
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -956,6 +955,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::TaggedPointer());
       break;
 
+    case IrOpcode::kCheckedInt32Add:
+    case IrOpcode::kCheckedInt32Sub:
     case IrOpcode::kCheckedUint32ToInt32:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
