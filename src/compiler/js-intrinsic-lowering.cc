@@ -40,8 +40,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleLo(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
-    case Runtime::kInlineGeneratorGetInput:
-      return ReduceGeneratorGetInput(node);
+    case Runtime::kInlineGeneratorGetInputOrDebugPos:
+      return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineIsArray:
@@ -157,12 +157,12 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   return Change(node, op, generator, closed, effect, control);
 }
 
-Reduction JSIntrinsicLowering::ReduceGeneratorGetInput(Node* node) {
+Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
   Node* const generator = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectInput());
+  Operator const* const op = simplified()->LoadField(
+      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
 
   return Change(node, op, generator, effect, control);
 }

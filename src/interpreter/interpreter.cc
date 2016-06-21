@@ -1791,7 +1791,8 @@ void Interpreter::DoNop(InterpreterAssembler* assembler) { __ Dispatch(); }
 // SuspendGenerator <generator>
 //
 // Exports the register file and stores it into the generator.  Also stores the
-// current context and the state given in the accumulator into the generator.
+// current context, the state given in the accumulator, and the current bytecode
+// offset (for debugging purposes) into the generator.
 void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   Node* generator_reg = __ BytecodeOperandReg(0);
   Node* generator = __ LoadRegister(generator_reg);
@@ -1815,6 +1816,10 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   __ ExportRegisterFile(array);
   __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
+
+  Node* offset = __ SmiTag(__ BytecodeOffset());
+  __ StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
+                      offset);
 
   __ Dispatch();
 

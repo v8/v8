@@ -722,7 +722,7 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
   return new (zone()) Operator1<int>(                   // --
       IrOpcode::kJSGeneratorStore, Operator::kNoThrow,  // opcode
       "JSGeneratorStore",                               // name
-      2 + register_count, 1, 1, 0, 1, 0,                // counts
+      3 + register_count, 1, 1, 0, 1, 0,                // counts
       register_count);                                  // parameter
 }
 

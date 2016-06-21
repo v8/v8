@@ -1741,7 +1741,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // When we arrive here, eax holds the generator object.
   __ RecordGeneratorContinuation();
   __ mov(ebx, FieldOperand(eax, JSGeneratorObject::kResumeModeOffset));
-  __ mov(eax, FieldOperand(eax, JSGeneratorObject::kInputOffset));
+  __ mov(eax, FieldOperand(eax, JSGeneratorObject::kInputOrDebugPosOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ cmp(ebx, Immediate(Smi::FromInt(JSGeneratorObject::kReturn)));

@@ -152,10 +152,13 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSGeneratorObjectInput() {
-  FieldAccess access = {
-      kTaggedBase, JSGeneratorObject::kInputOffset, Handle<Name>(),
-      Type::Any(), MachineType::AnyTagged(),        kFullWriteBarrier};
+FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kInputOrDebugPosOffset,
+                        Handle<Name>(),
+                        Type::Any(),
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
   return access;
 }
 

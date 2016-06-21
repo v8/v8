@@ -236,7 +236,7 @@ namespace internal {
   F(GeneratorClose, 1, 1)               \
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
-  F(GeneratorGetInput, 1, 1)            \
+  F(GeneratorGetInputOrDebugPos, 1, 1)  \
   F(GeneratorGetContinuation, 1, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
   F(GeneratorGetResumeMode, 1, 1)

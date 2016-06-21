@@ -691,8 +691,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ AssertGeneratorObject(r4);
 
   // Store input value into generator object.
-  __ StoreP(r3, FieldMemOperand(r4, JSGeneratorObject::kInputOffset), r0);
-  __ RecordWriteField(r4, JSGeneratorObject::kInputOffset, r3, r6,
+  __ StoreP(r3, FieldMemOperand(r4, JSGeneratorObject::kInputOrDebugPosOffset),
+            r0);
+  __ RecordWriteField(r4, JSGeneratorObject::kInputOrDebugPosOffset, r3, r6,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
 
   // Store resume mode into generator object.

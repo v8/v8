@@ -18863,5 +18863,22 @@ void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
   }
 }
 
+int JSGeneratorObject::source_position() const {
+  CHECK(is_suspended());
+  if (function()->shared()->HasBytecodeArray()) {
+    // New-style generators.
+    int offset = Smi::cast(input_or_debug_pos())->value();
+    // The stored bytecode offset is relative to a different base than what
+    // is used in the source position table, hence the subtraction.
+    offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+    return function()->shared()->bytecode_array()->SourcePosition(offset);
+  } else {
+    // Old-style generators.
+    int offset = continuation();
+    CHECK(0 <= offset && offset < function()->code()->instruction_size());
+    return function()->code()->SourcePosition(offset);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

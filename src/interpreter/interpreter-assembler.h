@@ -146,6 +146,9 @@ class InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                            BailoutReason bailout_reason);
 
+  // Returns the offset from the BytecodeArrayPointer of the current bytecode.
+  compiler::Node* BytecodeOffset();
+
  protected:
   Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
@@ -153,8 +156,6 @@ class InterpreterAssembler : public CodeStubAssembler {
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
-  // Returns the offset from the BytecodeArrayPointer of the current bytecode.
-  compiler::Node* BytecodeOffset();
   // Returns a raw pointer to first entry in the interpreter dispatch table.
   compiler::Node* DispatchTableRawPointer();
 

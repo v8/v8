@@ -1768,7 +1768,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // When we arrive here, rax holds the generator object.
   __ RecordGeneratorContinuation();
   __ movp(rbx, FieldOperand(rax, JSGeneratorObject::kResumeModeOffset));
-  __ movp(rax, FieldOperand(rax, JSGeneratorObject::kInputOffset));
+  __ movp(rax, FieldOperand(rax, JSGeneratorObject::kInputOrDebugPosOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ SmiCompare(rbx, Smi::FromInt(JSGeneratorObject::kReturn));

@@ -2234,7 +2234,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
     Register input = register_allocator()->NewRegister();
     builder()
-        ->CallRuntime(Runtime::kInlineGeneratorGetInput, generator, 1)
+        ->CallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos, generator, 1)
         .StoreAccumulatorInRegister(input);
 
     Register resume_mode = register_allocator()->NewRegister();

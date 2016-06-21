@@ -1744,7 +1744,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // When we arrive here, r2 holds the generator object.
   __ RecordGeneratorContinuation();
   __ LoadP(r3, FieldMemOperand(r2, JSGeneratorObject::kResumeModeOffset));
-  __ LoadP(r2, FieldMemOperand(r2, JSGeneratorObject::kInputOffset));
+  __ LoadP(r2, FieldMemOperand(r2, JSGeneratorObject::kInputOrDebugPosOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ CmpSmiLiteral(r3, Smi::FromInt(JSGeneratorObject::kReturn), r0);

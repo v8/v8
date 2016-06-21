@@ -1419,15 +1419,21 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   Node* state = environment()->LookupAccumulator();
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));
+  // The offsets used by the bytecode iterator are relative to a different base
+  // than what is used in the interpreter, hence the addition.
+  Node* offset =
+      jsgraph()->Constant(bytecode_iterator().current_offset() +
+                          (BytecodeArray::kHeaderSize - kHeapObjectTag));
 
   int register_count = environment()->register_count();
-  int value_input_count = 2 + register_count;
+  int value_input_count = 3 + register_count;
 
   Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
   value_inputs[0] = generator;
   value_inputs[1] = state;
+  value_inputs[2] = offset;
   for (int i = 0; i < register_count; ++i) {
-    value_inputs[2 + i] =
+    value_inputs[3 + i] =
         environment()->LookupRegister(interpreter::Register(i));
   }
 

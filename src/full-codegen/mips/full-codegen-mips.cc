@@ -1823,7 +1823,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // When we arrive here, v0 holds the generator object.
   __ RecordGeneratorContinuation();
   __ lw(a1, FieldMemOperand(v0, JSGeneratorObject::kResumeModeOffset));
-  __ lw(v0, FieldMemOperand(v0, JSGeneratorObject::kInputOffset));
+  __ lw(v0, FieldMemOperand(v0, JSGeneratorObject::kInputOrDebugPosOffset));
   __ Branch(&resume, eq, a1, Operand(Smi::FromInt(JSGeneratorObject::kNext)));
   __ Push(result_register());
   __ Branch(&exception, eq, a1,

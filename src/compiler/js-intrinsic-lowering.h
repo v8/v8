@@ -42,7 +42,7 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
-  Reduction ReduceGeneratorGetInput(Node* node);
+  Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);

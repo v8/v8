@@ -6343,22 +6343,22 @@ void Foreign::set_foreign_address(Address value) {
 ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
 ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
-ACCESSORS(JSGeneratorObject, input, Object, kInputOffset)
+ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
 SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
 
-bool JSGeneratorObject::is_suspended() {
+bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);
   DCHECK_LT(kGeneratorClosed, 0);
   return continuation() >= 0;
 }
 
-bool JSGeneratorObject::is_closed() {
+bool JSGeneratorObject::is_closed() const {
   return continuation() == kGeneratorClosed;
 }
 
-bool JSGeneratorObject::is_executing() {
+bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 

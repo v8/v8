@@ -1743,6 +1743,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   DCHECK_EQ(IrOpcode::kJSGeneratorStore, node->opcode());
   Node* generator = NodeProperties::GetValueInput(node, 0);
   Node* continuation = NodeProperties::GetValueInput(node, 1);
+  Node* offset = NodeProperties::GetValueInput(node, 2);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1752,12 +1753,14 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
   FieldAccess continuation_field =
       AccessBuilder::ForJSGeneratorObjectContinuation();
+  FieldAccess input_or_debug_pos_field =
+      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos();
 
   Node* array = effect = graph()->NewNode(simplified()->LoadField(array_field),
                                           generator, effect, control);
 
   for (int i = 0; i < register_count; ++i) {
-    Node* value = NodeProperties::GetValueInput(node, 2 + i);
+    Node* value = NodeProperties::GetValueInput(node, 3 + i);
     effect = graph()->NewNode(
         simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)), array,
         value, effect, control);
@@ -1767,6 +1770,8 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
                             context, effect, control);
   effect = graph()->NewNode(simplified()->StoreField(continuation_field),
                             generator, continuation, effect, control);
+  effect = graph()->NewNode(simplified()->StoreField(input_or_debug_pos_field),
+                            generator, offset, effect, control);
 
   ReplaceWithValue(node, effect, effect, control);
   return Changed(effect);
