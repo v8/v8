@@ -669,13 +669,13 @@ class ParserBase : public Traits {
     Expect(Token::SEMICOLON, ok);
   }
 
-  bool peek_any_identifier() {
-    Token::Value next = peek();
-    return next == Token::IDENTIFIER || next == Token::ENUM ||
-           next == Token::AWAIT || next == Token::ASYNC ||
-           next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-           next == Token::STATIC || next == Token::YIELD;
+  bool is_any_identifier(Token::Value token) {
+    return token == Token::IDENTIFIER || token == Token::ENUM ||
+           token == Token::AWAIT || token == Token::ASYNC ||
+           token == Token::FUTURE_STRICT_RESERVED_WORD || token == Token::LET ||
+           token == Token::STATIC || token == Token::YIELD;
   }
+  bool peek_any_identifier() { return is_any_identifier(peek()); }
 
   bool CheckContextualKeyword(Vector<const char> keyword) {
     if (PeekContextualKeyword(keyword)) {
@@ -886,6 +886,10 @@ class ParserBase : public Traits {
       ReportClassifierError(classifier->strict_mode_formal_parameter_error());
       *ok = false;
     }
+  }
+
+  bool IsValidArrowFormalParametersStart(Token::Value token) {
+    return is_any_identifier(token) || token == Token::LPAREN;
   }
 
   void ValidateArrowFormalParameters(const ExpressionClassifier* classifier,
@@ -2231,7 +2235,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
                                                 classifier->duplicate_finder());
 
   bool is_async = allow_harmony_async_await() && peek() == Token::ASYNC &&
-                  !scanner()->HasAnyLineTerminatorAfterNext();
+                  !scanner()->HasAnyLineTerminatorAfterNext() &&
+                  IsValidArrowFormalParametersStart(PeekAhead());
 
   bool parenthesized_formals = peek() == Token::LPAREN;
   if (!is_async && !parenthesized_formals) {

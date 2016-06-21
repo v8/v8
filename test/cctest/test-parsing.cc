@@ -7640,6 +7640,31 @@ TEST(AsyncAwaitErrors) {
     "var O = { async method() { function await() {} } }",
     "async function foo() { function await() {} }",
 
+    // Henrique Ferreiro's bug (tm)
+    "(async function foo() { } foo => 1)",
+    "(async function foo() { } () => 1)",
+    "(async function foo() { } => 1)",
+    "(async function() { } foo => 1)",
+    "(async function() { } () => 1)",
+    "(async function() { } => 1)",
+    "(async.foo => 1)",
+    "(async.foo foo => 1)",
+    "(async.foo () => 1)",
+    "(async().foo => 1)",
+    "(async().foo foo => 1)",
+    "(async().foo () => 1)",
+    "(async['foo'] => 1)",
+    "(async['foo'] foo => 1)",
+    "(async['foo'] () => 1)",
+    "(async()['foo'] => 1)",
+    "(async()['foo'] foo => 1)",
+    "(async()['foo'] () => 1)",
+    "(async`foo` => 1)",
+    "(async`foo` foo => 1)",
+    "(async`foo` () => 1)",
+    "(async`foo`.bar => 1)",
+    "(async`foo`.bar foo => 1)",
+    "(async`foo`.bar () => 1)",
     NULL
   };
 
