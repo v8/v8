@@ -23,14 +23,13 @@ const uint32_t kDoubleSignMask = HeapNumber::kSignMask;
 const uint32_t kDoubleExponentShift = HeapNumber::kExponentShift;
 const uint32_t kDoubleNaNShift = kDoubleExponentShift - 1;
 const uint32_t kDoubleNaNMask =
-    kDoubleSignMask | HeapNumber::kExponentMask | (1 << kDoubleNaNShift);
+    HeapNumber::kExponentMask | (1 << kDoubleNaNShift);
 
 const uint32_t kSingleSignMask = kBinary32SignMask;
 const uint32_t kSingleExponentMask = kBinary32ExponentMask;
 const uint32_t kSingleExponentShift = kBinary32ExponentShift;
 const uint32_t kSingleNaNShift = kSingleExponentShift - 1;
-const uint32_t kSingleNaNMask =
-    kSingleSignMask | kSingleExponentMask | (1 << kSingleNaNShift);
+const uint32_t kSingleNaNMask = kSingleExponentMask | (1 << kSingleNaNShift);
 
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
