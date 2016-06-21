@@ -4487,6 +4487,9 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Value> data = Local<Value>(),
       Local<Signature> signature = Local<Signature>(), int length = 0);
 
+  /** Get a template included in the snapshot by index. */
+  static Local<FunctionTemplate> FromSnapshot(Isolate* isolate, size_t index);
+
   /**
    * Creates a function template with a fast handler. If a fast handler is set,
    * the callback cannot be null.
@@ -4661,6 +4664,9 @@ class V8_EXPORT ObjectTemplate : public Template {
       Isolate* isolate,
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
   static V8_DEPRECATED("Use isolate version", Local<ObjectTemplate> New());
+
+  /** Get a template included in the snapshot by index. */
+  static Local<ObjectTemplate> FromSnapshot(Isolate* isolate, size_t index);
 
   /** Creates a new instance of this template.*/
   V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance());
@@ -6809,6 +6815,12 @@ class SnapshotCreator {
    * \returns the index of the context in the snapshot blob.
    */
   size_t AddContext(Local<Context> context);
+
+  /**
+   * Add a template to be included in the snapshot blob.
+   * \returns the index of the template in the snapshot blob.
+   */
+  size_t AddTemplate(Local<Template> template_obj);
 
   /**
    * Created a snapshot data blob.

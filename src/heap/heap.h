@@ -197,7 +197,8 @@ using v8::MemoryPressureLevel;
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
-  V(Cell, species_protector, SpeciesProtector)
+  V(Cell, species_protector, SpeciesProtector)                                 \
+  V(FixedArray, serialized_templates, SerializedTemplates)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -806,6 +807,8 @@ class Heap {
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
   inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
   inline int GetNextTemplateSerialNumber();
+
+  inline void SetSerializedTemplates(FixedArray* templates);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);

@@ -74,6 +74,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // All the internalized strings that the partial snapshot needs should be
   // either in the root table or in the partial snapshot cache.
   DCHECK(!obj->IsInternalizedString());
+  // Function and object templates are not context specific.
+  DCHECK(!obj->IsTemplateInfo());
 
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
 

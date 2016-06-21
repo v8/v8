@@ -2031,7 +2031,7 @@ TEST(SnapshotCreatorExternalReferences) {
   delete[] blob.data;
 }
 
-TEST(SnapshotCreatorGlobalTemplate) {
+TEST(SnapshotCreatorTemplates) {
   DisableTurbofan();
   v8::StartupData blob;
   {
@@ -2042,13 +2042,16 @@ TEST(SnapshotCreatorGlobalTemplate) {
       v8::ExtensionConfiguration* no_extension = nullptr;
       v8::Local<v8::ObjectTemplate> global_template =
           v8::ObjectTemplate::New(isolate);
-      global_template->Set(
-          v8_str("f"), v8::FunctionTemplate::New(isolate, SerializedCallback));
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->Set(v8_str("f"), callback);
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, no_extension, global_template);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
       CHECK_EQ(0, creator.AddContext(context));
+      CHECK_EQ(0, creator.AddTemplate(callback));
+      CHECK_EQ(1, creator.AddTemplate(global_template));
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
@@ -2073,6 +2076,28 @@ TEST(SnapshotCreatorGlobalTemplate) {
             v8::Context::New(isolate, no_extension, no_template, no_object, 0);
         v8::Context::Scope context_scope(context);
         ExpectInt32("f()", 42);
+
+        // Retrieve the snapshotted object template.
+        v8::Local<v8::ObjectTemplate> obj_template =
+            v8::ObjectTemplate::FromSnapshot(isolate, 1);
+        CHECK(!obj_template.IsEmpty());
+        v8::Local<v8::Object> object =
+            obj_template->NewInstance(context).ToLocalChecked();
+        CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
+        ExpectInt32("o.f()", 42);
+        // Check that it instantiates to the same prototype.
+        ExpectTrue("o.f.prototype === f.prototype");
+
+        // Retrieve the snapshotted function template.
+        v8::Local<v8::FunctionTemplate> fun_template =
+            v8::FunctionTemplate::FromSnapshot(isolate, 0);
+        CHECK(!fun_template.IsEmpty());
+        v8::Local<v8::Function> fun =
+            fun_template->GetFunction(context).ToLocalChecked();
+        CHECK(context->Global()->Set(context, v8_str("g"), fun).FromJust());
+        ExpectInt32("g()", 42);
+        // Check that it instantiates to the same prototype.
+        ExpectTrue("g.prototype === f.prototype");
       }
 
       {

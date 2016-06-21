@@ -732,6 +732,11 @@ int Heap::GetNextTemplateSerialNumber() {
   return next_serial_number;
 }
 
+void Heap::SetSerializedTemplates(FixedArray* templates) {
+  DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  set_serialized_templates(templates);
+}
+
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
   heap_->always_allocate_scope_count_.Increment(1);
