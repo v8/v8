@@ -10553,12 +10553,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kSize = kLengthOffset + kPointerSize;
 
   // Returns true if |object| is an instance of this function template.
-  bool IsTemplateFor(Object* object);
+  bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
-
-  // Returns the holder JSObject if the function can legally be called with this
-  // receiver.  Returns Heap::null_value() if the call is illegal.
-  Object* GetCompatibleReceiver(Isolate* isolate, Object* receiver);
 
  private:
   // Bit position in the flag, from least significant bit position.

@@ -5101,13 +5101,35 @@ BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
 
 namespace {
 
+// Returns the holder JSObject if the function can legally be called with this
+// receiver.  Returns nullptr if the call is illegal.
+// TODO(dcarney): CallOptimization duplicates this logic, merge.
+JSObject* GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo* info,
+                                JSObject* receiver) {
+  Object* recv_type = info->signature();
+  // No signature, return holder.
+  if (!recv_type->IsFunctionTemplateInfo()) return receiver;
+  FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
+
+  // Check the receiver. Fast path for receivers with no hidden prototypes.
+  if (signature->IsTemplateFor(receiver)) return receiver;
+  if (!receiver->map()->has_hidden_prototype()) return nullptr;
+  for (PrototypeIterator iter(isolate, receiver, kStartAtPrototype,
+                              PrototypeIterator::END_AT_NON_HIDDEN);
+       !iter.IsAtEnd(); iter.Advance()) {
+    JSObject* current = iter.GetCurrent<JSObject>();
+    if (signature->IsTemplateFor(current)) return current;
+  }
+  return nullptr;
+}
+
 MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(Isolate* isolate,
                                                         BuiltinArguments args) {
   HandleScope scope(isolate);
   Handle<HeapObject> function = args.target<HeapObject>();
   Handle<HeapObject> new_target = args.new_target();
   bool is_construct = !new_target->IsUndefined(isolate);
-  Handle<JSReceiver> receiver;
+  Handle<JSObject> receiver;
 
   DCHECK(function->IsFunctionTemplateInfo() ||
          Handle<JSFunction>::cast(function)->shared()->IsApiFunction());
@@ -5116,6 +5138,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(Isolate* isolate,
       function->IsFunctionTemplateInfo()
           ? Handle<FunctionTemplateInfo>::cast(function)
           : handle(JSFunction::cast(*function)->shared()->get_api_func_data());
+  JSObject* raw_holder;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
     if (fun_data->instance_template()->IsUndefined(isolate)) {
@@ -5133,27 +5156,33 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(Isolate* isolate,
         Object);
     args[0] = *receiver;
     DCHECK_EQ(*receiver, *args.receiver());
+
+    raw_holder = *receiver;
   } else {
     DCHECK(args.receiver()->IsJSReceiver());
-    receiver = args.at<JSReceiver>(0);
-  }
 
-  if (!is_construct && !fun_data->accept_any_receiver()) {
-    if (receiver->IsJSObject() && receiver->IsAccessCheckNeeded()) {
-      Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
-      if (!isolate->MayAccess(handle(isolate->context()), js_receiver)) {
-        isolate->ReportFailedAccessCheck(js_receiver);
-        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-      }
+    Handle<JSReceiver> object = args.at<JSReceiver>(0);
+    if (!object->IsJSObject()) {
+      // This function cannot be called with the given receiver.  Abort!
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
     }
-  }
 
-  Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, *receiver);
+    receiver = Handle<JSObject>::cast(object);
 
-  if (raw_holder->IsNull(isolate)) {
-    // This function cannot be called with the given receiver.  Abort!
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIllegalInvocation),
-                    Object);
+    if (!fun_data->accept_any_receiver() && receiver->IsAccessCheckNeeded() &&
+        !isolate->MayAccess(handle(isolate->context()), receiver)) {
+      isolate->ReportFailedAccessCheck(receiver);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    }
+
+    raw_holder = GetCompatibleReceiver(isolate, *fun_data, *receiver);
+
+    if (raw_holder == nullptr) {
+      // This function cannot be called with the given receiver.  Abort!
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
+    }
   }
 
   Object* raw_call_data = fun_data->call_code();
@@ -5166,7 +5195,6 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(Isolate* isolate,
     Object* data_obj = call_data->data();
 
     LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
-    DCHECK(raw_holder->IsJSObject());
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
                                      *new_target, &args[0] - 1,
