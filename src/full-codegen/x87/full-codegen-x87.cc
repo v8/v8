@@ -748,15 +748,8 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ push(Immediate(variable->name()));
       // VariableDeclaration nodes are always introduced in one of four modes.
       DCHECK(IsDeclaredVariableMode(mode));
-      // Push initial value, if any.
-      // Note: For variables we must not push an initial value (such as
-      // 'undefined') because we may have a (legal) redeclaration and we
-      // must not destroy the current value.
-      if (hole_init) {
-        __ push(Immediate(isolate()->factory()->the_hole_value()));
-      } else {
-        __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
-      }
+      DCHECK(!hole_init);
+      __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
       __ push(
           Immediate(Smi::FromInt(variable->DeclarationPropertyAttributes())));
       __ CallRuntime(Runtime::kDeclareLookupSlot);
