@@ -153,12 +153,13 @@ double array_max(double a[], size_t n) {
 
 }  // namespace
 
-Type* OperationTyper::AddRanger(RangeType* lhs, RangeType* rhs) {
+Type* OperationTyper::AddRanger(double lhs_min, double lhs_max, double rhs_min,
+                                double rhs_max) {
   double results[4];
-  results[0] = lhs->Min() + rhs->Min();
-  results[1] = lhs->Min() + rhs->Max();
-  results[2] = lhs->Max() + rhs->Min();
-  results[3] = lhs->Max() + rhs->Max();
+  results[0] = lhs_min + rhs_min;
+  results[1] = lhs_min + rhs_max;
+  results[2] = lhs_max + rhs_min;
+  results[3] = lhs_max + rhs_max;
   // Since none of the inputs can be -0, the result cannot be -0 either.
   // However, it can be nan (the sum of two infinities of opposite sign).
   // On the other hand, if none of the "results" above is nan, then the actual
@@ -288,14 +289,22 @@ Type* OperationTyper::NumericAdd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  lhs = Rangify(lhs);
-  rhs = Rangify(rhs);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return AddRanger(lhs->AsRange(), rhs->AsRange());
+  // We can give more precise types for integers.
+  if (!lhs->Is(cache_.kIntegerOrMinusZeroOrNaN) ||
+      !rhs->Is(cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Type::Number();
   }
-  // TODO(neis): Deal with numeric bitsets here and elsewhere.
-  return Type::Number();
+  Type* int_lhs = Type::Intersect(lhs, cache_.kInteger, zone());
+  Type* int_rhs = Type::Intersect(rhs, cache_.kInteger, zone());
+  Type* result =
+      AddRanger(int_lhs->Min(), int_lhs->Max(), int_rhs->Min(), int_rhs->Max());
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
+    result = Type::Union(result, Type::NaN(), zone());
+  }
+  if (lhs->Maybe(Type::MinusZero()) && rhs->Maybe(Type::MinusZero())) {
+    result = Type::Union(result, Type::MinusZero(), zone());
+  }
+  return result;
 }
 
 Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {

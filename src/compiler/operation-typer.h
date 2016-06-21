@@ -61,7 +61,8 @@ class OperationTyper {
   Type* FalsifyUndefined(ComparisonOutcome);
 
   Type* Rangify(Type*);
-  Type* AddRanger(RangeType* lhs, RangeType* rhs);
+  Type* AddRanger(double lhs_min, double lhs_max, double rhs_min,
+                  double rhs_max);
   Type* SubtractRanger(RangeType* lhs, RangeType* rhs);
   Type* MultiplyRanger(Type* lhs, Type* rhs);
   Type* ModulusRanger(RangeType* lhs, RangeType* rhs);
