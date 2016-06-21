@@ -229,8 +229,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kCallRuntime);
   CHECK_EQ(iterator.current_offset(), offset);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetRuntimeIdOperand(0)),
-           Runtime::kLoadIC_Miss);
+  CHECK_EQ(iterator.GetRuntimeIdOperand(0), Runtime::kLoadIC_Miss);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
   CHECK_EQ(iterator.GetRegisterCountOperand(2), 1);
   CHECK(!iterator.done());

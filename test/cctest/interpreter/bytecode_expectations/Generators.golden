@@ -265,7 +265,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 779
+bytecode array length: 775
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(26),
@@ -353,7 +353,7 @@ bytecodes: [
   /*   27 E> */ B(Call), R(12), R(13), U8(1), U8(5),
   /*   27 E> */ B(StaContextSlot), R(1), U8(8),
                 B(Star), R(11),
-                B(InvokeIntrinsic), U16(Runtime::k_IsJSReceiver), R(11), U8(1),
+                B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(11), U8(1),
                 B(ToBooleanLogicalNot),
                 B(JumpIfFalse), U8(11),
                 B(LdrContextSlot), R(1), U8(8), R(11),
@@ -426,7 +426,7 @@ bytecodes: [
                 B(PopContext), R(2),
                 B(LdaZero),
                 B(StaContextSlot), R(1), U8(9),
-                B(Wide), B(Jump), U16(-223),
+                B(Wide), B(Jump), U16(-222),
                 B(Jump), U8(46),
                 B(Star), R(12),
                 B(LdaConstant), U8(11),
@@ -468,11 +468,11 @@ bytecodes: [
                 B(LdaNull),
                 B(TestEqual), R(10),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(127),
+                B(Jump), U8(124),
                 B(LdrContextSlot), R(1), U8(9), R(10),
                 B(LdaSmi), U8(1),
                 B(TestEqualStrict), R(10),
-                B(JumpIfFalse), U8(79),
+                B(JumpIfFalse), U8(78),
                 B(LdaContextSlot), R(1), U8(11),
                 B(TypeOf),
                 B(Star), R(10),
@@ -489,7 +489,7 @@ bytecodes: [
                 B(Mov), R(context), R(10),
                 B(LdrContextSlot), R(1), U8(11), R(11),
                 B(LdrContextSlot), R(1), U8(7), R(12),
-                B(InvokeIntrinsic), U16(Runtime::k_Call), R(11), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_Call), R(11), U8(2),
                 B(Jump), U8(29),
                 B(Star), R(12),
                 B(LdaConstant), U8(11),
@@ -501,13 +501,13 @@ bytecodes: [
                 B(Ldar), R(10),
                 B(PushContext), R(2),
                 B(PopContext), R(2),
-                B(Jump), U8(40),
+                B(Jump), U8(38),
                 B(LdrContextSlot), R(1), U8(11), R(10),
                 B(LdrContextSlot), R(1), U8(7), R(11),
-                B(InvokeIntrinsic), U16(Runtime::k_Call), R(10), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_Call), R(10), U8(2),
                 B(StaContextSlot), R(1), U8(12),
                 B(LdrContextSlot), R(1), U8(12), R(10),
-                B(InvokeIntrinsic), U16(Runtime::k_IsJSReceiver), R(10), U8(1),
+                B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(10), U8(1),
                 B(JumpIfToBooleanFalse), U8(4),
                 B(Jump), U8(11),
                 B(LdrContextSlot), R(1), U8(12), R(10),
@@ -601,9 +601,9 @@ constant pool: [
   kInstanceTypeDontCare,
 ]
 handlers: [
-  [44, 698, 704],
-  [154, 449, 455],
-  [157, 403, 405],
-  [552, 565, 567],
+  [44, 694, 700],
+  [154, 448, 454],
+  [157, 402, 404],
+  [551, 563, 565],
 ]
 

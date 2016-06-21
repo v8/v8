@@ -30,6 +30,7 @@ namespace interpreter {
 
 #define SCALAR_OPERAND_TYPE_LIST(V)                   \
   V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
+  V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
   V(Idx, OperandTypeInfo::kScalableUnsignedByte)      \
   V(Imm, OperandTypeInfo::kScalableSignedByte)        \
   V(RegCount, OperandTypeInfo::kScalableUnsignedByte) \
@@ -180,7 +181,7 @@ namespace interpreter {
     OperandType::kReg, OperandType::kRegCount)                                \
                                                                               \
   /* Intrinsics */                                                            \
-  V(InvokeIntrinsic, AccumulatorUse::kWrite, OperandType::kRuntimeId,         \
+  V(InvokeIntrinsic, AccumulatorUse::kWrite, OperandType::kIntrinsicId,       \
     OperandType::kMaybeReg, OperandType::kRegCount)                           \
                                                                               \
   /* New operator */                                                          \
