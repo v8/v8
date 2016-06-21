@@ -426,12 +426,6 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
       HeapObject::cast(object)->address() + offset);
 }
 
-void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
-  if (InNewSpace(value)) {
-    RecordWriteIntoCodeSlow(host, rinfo, value);
-  }
-}
-
 void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
   if (InNewSpace(array)) return;
   Page* page = Page::FromAddress(reinterpret_cast<Address>(array));

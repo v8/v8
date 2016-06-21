@@ -189,11 +189,6 @@ using v8::MemoryPressureLevel;
   V(FixedArray, detached_contexts, DetachedContexts)                           \
   V(ArrayList, retained_maps, RetainedMaps)                                    \
   V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
-  /* weak_new_space_object_to_code_list is an array of weak cells, where */    \
-  /* slots with even indices refer to the weak object, and the subsequent */   \
-  /* slots refer to the code with the reference to the weak object. */         \
-  V(ArrayList, weak_new_space_object_to_code_list,                             \
-    WeakNewSpaceObjectToCodeList)                                              \
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
@@ -844,9 +839,6 @@ class Heap {
     return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
   }
 
-  void AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
-                                             Handle<WeakCell> code);
-
   void AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                      Handle<DependentCode> dep);
 
@@ -1107,8 +1099,6 @@ class Heap {
 
   // Write barrier support for object[offset] = o;
   inline void RecordWrite(Object* object, int offset, Object* o);
-  inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
-  void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
   inline void RecordFixedArrayElements(FixedArray* array, int offset,
                                        int length);
 

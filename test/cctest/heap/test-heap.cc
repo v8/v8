@@ -4817,67 +4817,6 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
   CHECK(code->marked_for_deoptimization());
 }
 
-TEST(NewSpaceObjectsInOptimizedCode) {
-  if (i::FLAG_always_opt || !i::FLAG_crankshaft || i::FLAG_turbo) return;
-  i::FLAG_weak_embedded_objects_in_optimized_code = true;
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-
-  if (!isolate->use_crankshaft()) return;
-  HandleScope outer_scope(heap->isolate());
-  Handle<Code> code;
-  {
-    LocalContext context;
-    HandleScope scope(heap->isolate());
-
-    CompileRun(
-        "var foo;"
-        "var bar;"
-        "(function() {"
-        "  function foo_func(x) { with (x) { return 1 + x; } };"
-        "  %NeverOptimizeFunction(foo_func);"
-        "  function bar_func() {"
-        "    return foo(1);"
-        "  };"
-        "  bar = bar_func;"
-        "  foo = foo_func;"
-        "  bar_func();"
-        "  bar_func();"
-        "  bar_func();"
-        "  %OptimizeFunctionOnNextCall(bar_func);"
-        "  bar_func();"
-        "})();");
-
-    Handle<JSFunction> bar = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CcTest::global()
-                                           ->Get(context.local(), v8_str("bar"))
-                                           .ToLocalChecked())));
-
-    Handle<JSFunction> foo = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-        *v8::Local<v8::Function>::Cast(CcTest::global()
-                                           ->Get(context.local(), v8_str("foo"))
-                                           .ToLocalChecked())));
-
-    CHECK(heap->InNewSpace(*foo));
-    heap->CollectGarbage(NEW_SPACE);
-    heap->CollectGarbage(NEW_SPACE);
-    CHECK(!heap->InNewSpace(*foo));
-#ifdef VERIFY_HEAP
-    heap->Verify();
-#endif
-    CHECK(!bar->code()->marked_for_deoptimization());
-    code = scope.CloseAndEscape(Handle<Code>(bar->code()));
-  }
-
-  // Now make sure that a gc should get rid of the function
-  for (int i = 0; i < 4; i++) {
-    heap->CollectAllGarbage();
-  }
-
-  CHECK(code->marked_for_deoptimization());
-}
 
 TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;

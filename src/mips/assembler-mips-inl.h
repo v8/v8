@@ -225,7 +225,6 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
-    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

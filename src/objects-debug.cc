@@ -701,25 +701,11 @@ void Code::VerifyEmbeddedObjectsDependency() {
         CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
                                               cell));
       } else if (obj->IsJSObject()) {
-        if (isolate->heap()->InNewSpace(obj)) {
-          ArrayList* list =
-              GetIsolate()->heap()->weak_new_space_object_to_code_list();
-          bool found = false;
-          for (int i = 0; i < list->Length(); i += 2) {
-            WeakCell* obj_cell = WeakCell::cast(list->Get(i));
-            if (!obj_cell->cleared() && obj_cell->value() == obj &&
-                WeakCell::cast(list->Get(i + 1)) == cell) {
-              found = true;
-              break;
-            }
-          }
-          CHECK(found);
-        } else {
-          Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
-          DependentCode* dep =
-              GetIsolate()->heap()->LookupWeakObjectToCodeDependency(key_obj);
-          dep->Contains(DependentCode::kWeakCodeGroup, cell);
-        }
+        WeakHashTable* table =
+            GetIsolate()->heap()->weak_object_to_code_table();
+        Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
+        CHECK(DependentCode::cast(table->Lookup(key_obj))
+                  ->Contains(DependentCode::kWeakCodeGroup, cell));
       }
     }
   }
