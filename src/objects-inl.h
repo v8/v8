@@ -7308,6 +7308,9 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   set_flag(AttributesField::update(flag(), attributes));
 }
 
+bool FunctionTemplateInfo::IsTemplateFor(JSObject* object) {
+  return IsTemplateFor(object->map());
+}
 
 bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
   if (!HasExpectedReceiverType()) return true;

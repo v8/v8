@@ -10557,7 +10557,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kSize = kLengthOffset + kPointerSize;
 
   // Returns true if |object| is an instance of this function template.
-  bool IsTemplateFor(JSObject* object);
+  inline bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
 
  private:
