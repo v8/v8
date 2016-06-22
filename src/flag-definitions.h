@@ -195,7 +195,6 @@ DEFINE_NEG_VALUE_IMPLICATION(harmony_shipping, intl_extra, true)
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
-DEFINE_IMPLICATION(es_staging, harmony_async_await)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                           \
@@ -209,8 +208,7 @@ DEFINE_IMPLICATION(es_staging, harmony_async_await)
     "harmony restrictions on generator declarations")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(harmony_for_in, "harmony for-in syntax")                            \
-  V(harmony_async_await, "harmony async-await")
+  V(harmony_for_in, "harmony for-in syntax")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                               \
@@ -219,6 +217,7 @@ DEFINE_IMPLICATION(es_staging, harmony_async_await)
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")                            \
+  V(harmony_async_await, "harmony async-await")                              \
   V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
