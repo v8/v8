@@ -515,8 +515,16 @@ if (is_android) {
       deps = [
         "//v8",
       ]
-      renaming_sources = v8_external_startup_data_renaming_sources
-      renaming_destinations = v8_external_startup_data_renaming_destinations
+      sources = [
+        "$root_out_dir/natives_blob.bin",
+      ]
+      renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
+      if (current_cpu == "arm" || current_cpu == "x86" ||
+          current_cpu == "mipsel") {
+        renaming_destinations = [ "snapshot_blob_32.bin" ]
+      } else {
+        renaming_destinations = [ "snapshot_blob_64.bin" ]
+      }
       disable_compression = true
     }
   }
