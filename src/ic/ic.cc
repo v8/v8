@@ -611,24 +611,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
   }
 
-  // Check if the name is trivially convertible to an index and get
-  // the element or char if so.
-  uint32_t index;
-  if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
-    // Rewrite to the generic keyed load stub.
-    if (FLAG_use_ic) {
-      DCHECK(UseVector());
-      ConfigureVectorState(MEGAMORPHIC, name);
-      TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
-      TRACE_IC("LoadIC", name);
-    }
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                               Object::GetElement(isolate(), object, index),
-                               Object);
-    return result;
-  }
-
   bool use_ic = MigrateDeprecated(object) ? false : FLAG_use_ic;
 
   if (state() != UNINITIALIZED) {
@@ -1407,7 +1389,10 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsInternalizedString() || key->IsSymbol()) {
+  uint32_t index;
+  if ((key->IsInternalizedString() &&
+       !String::cast(*key)->AsArrayIndex(&index)) ||
+      key->IsSymbol()) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
@@ -1506,24 +1491,6 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
-  // Check if the name is trivially convertible to an index and set the element.
-  uint32_t index;
-  if (kind() == Code::KEYED_STORE_IC && name->AsArrayIndex(&index)) {
-    // Rewrite to the generic keyed store stub.
-    if (FLAG_use_ic) {
-      DCHECK(UseVector());
-      ConfigureVectorState(MEGAMORPHIC, name);
-      TRACE_IC("StoreIC", name);
-      TRACE_GENERIC_IC(isolate(), "StoreIC", "name as array index");
-    }
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        Object::SetElement(isolate(), object, index, value, language_mode()),
-        Object);
-    return result;
-  }
-
   if (object->IsJSGlobalObject() && name->IsString()) {
     // Look up in script context table.
     Handle<String> str_name = Handle<String>::cast(name);
