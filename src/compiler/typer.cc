@@ -10,8 +10,9 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
+#include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "src/type-cache.h"
@@ -37,7 +38,8 @@ Typer::Typer(Isolate* isolate, Graph* graph, Flags flags,
       dependencies_(dependencies),
       function_type_(function_type),
       decorator_(nullptr),
-      cache_(TypeCache::Get()) {
+      cache_(TypeCache::Get()),
+      operation_typer_(isolate, zone()) {
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
@@ -232,7 +234,6 @@ class Typer::Visitor : public Reducer {
   static ComparisonOutcome Invert(ComparisonOutcome, Typer*);
   static Type* Invert(Type*, Typer*);
   static Type* FalsifyUndefined(ComparisonOutcome, Typer*);
-  static Type* Rangify(Type*, Typer*);
 
   static Type* ToPrimitive(Type*, Typer*);
   static Type* ToBoolean(Type*, Typer*);
@@ -255,12 +256,6 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsSmi(Type*, Typer*);
   static Type* ObjectIsString(Type*, Typer*);
   static Type* ObjectIsUndetectable(Type*, Typer*);
-
-  static Type* JSAddRanger(double lhs_min, double lhs_max, double rhs_min,
-                           double rhs_max, Typer* t);
-  static Type* JSSubtractRanger(RangeType*, RangeType*, Typer*);
-  static Type* JSDivideRanger(RangeType*, RangeType*, Typer*);
-  static Type* JSModulusRanger(RangeType*, RangeType*, Typer*);
 
   static ComparisonOutcome JSCompareTyper(Type*, Type*, Typer*);
 
@@ -382,26 +377,7 @@ Type* Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
   return t->singleton_true_;
 }
 
-
-Type* Typer::Visitor::Rangify(Type* type, Typer* t) {
-  if (type->IsRange()) return type;        // Shortcut.
-  if (!type->Is(t->cache_.kInteger)) {
-    return type;  // Give up on non-integer types.
-  }
-  double min = type->Min();
-  double max = type->Max();
-  // Handle the degenerate case of empty bitset types (such as
-  // OtherUnsigned31 and OtherSigned32 on 64-bit architectures).
-  if (std::isnan(min)) {
-    DCHECK(std::isnan(max));
-    return type;
-  }
-  return Type::Range(min, max, t->zone());
-}
-
-
 // Type conversion.
-
 
 Type* Typer::Visitor::ToPrimitive(Type* type, Typer* t) {
   if (type->Is(Type::Primitive()) && !type->Maybe(Type::Receiver())) {
@@ -1006,64 +982,6 @@ Type* Typer::Visitor::JSShiftRightLogicalTyper(Type* lhs, Type* rhs, Typer* t) {
 
 // JS arithmetic operators.
 
-
-// Returns the array's least element, ignoring NaN.
-// There must be at least one non-NaN element.
-// Any -0 is converted to 0.
-static double array_min(double a[], size_t n) {
-  DCHECK(n != 0);
-  double x = +V8_INFINITY;
-  for (size_t i = 0; i < n; ++i) {
-    if (!std::isnan(a[i])) {
-      x = std::min(a[i], x);
-    }
-  }
-  DCHECK(!std::isnan(x));
-  return x == 0 ? 0 : x;  // -0 -> 0
-}
-
-
-// Returns the array's greatest element, ignoring NaN.
-// There must be at least one non-NaN element.
-// Any -0 is converted to 0.
-static double array_max(double a[], size_t n) {
-  DCHECK(n != 0);
-  double x = -V8_INFINITY;
-  for (size_t i = 0; i < n; ++i) {
-    if (!std::isnan(a[i])) {
-      x = std::max(a[i], x);
-    }
-  }
-  DCHECK(!std::isnan(x));
-  return x == 0 ? 0 : x;  // -0 -> 0
-}
-
-Type* Typer::Visitor::JSAddRanger(double lhs_min, double lhs_max,
-                                  double rhs_min, double rhs_max, Typer* t) {
-  double results[4];
-  results[0] = lhs_min + rhs_min;
-  results[1] = lhs_min + rhs_max;
-  results[2] = lhs_max + rhs_min;
-  results[3] = lhs_max + rhs_max;
-  // The results can be nan (the sum of two infinities of opposite sign).
-  // On the other hand, if none of the "results" above is nan, then the actual
-  // result cannot be nan either.
-  int nans = 0;
-  for (int i = 0; i < 4; ++i) {
-    if (std::isnan(results[i])) ++nans;
-  }
-  if (nans == 4) return Type::NaN();  // [-inf..-inf] + [inf..inf] or vice versa
-  Type* range =
-      Type::Range(array_min(results, 4), array_max(results, 4), t->zone());
-  return nans == 0 ? range : Type::Union(range, Type::NaN(), t->zone());
-  // Examples:
-  //   [-inf, -inf] + [+inf, +inf] = NaN
-  //   [-inf, -inf] + [n, +inf] = [-inf, -inf] \/ NaN
-  //   [-inf, +inf] + [n, +inf] = [-inf, +inf] \/ NaN
-  //   [-inf, m] + [n, +inf] = [-inf, +inf] \/ NaN
-}
-
-
 Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
@@ -1075,102 +993,22 @@ Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
     }
   }
   // The addition must be numeric.
-  lhs = ToNumber(lhs, t);
-  rhs = ToNumber(rhs, t);
-  // We can give more precise types for integers.
-  if (!lhs->Is(t->cache_.kIntegerOrMinusZeroOrNaN) ||
-      !rhs->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
-    return Type::Number();
-  }
-  Type* int_lhs = Type::Intersect(lhs, t->cache_.kInteger, t->zone());
-  Type* int_rhs = Type::Intersect(rhs, t->cache_.kInteger, t->zone());
-  Type* result = JSAddRanger(int_lhs->Min(), int_lhs->Max(), int_rhs->Min(),
-                             int_rhs->Max(), t);
-  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
-    result = Type::Union(result, Type::NaN(), t->zone());
-  }
-  if (lhs->Maybe(Type::MinusZero()) && rhs->Maybe(Type::MinusZero())) {
-    result = Type::Union(result, Type::MinusZero(), t->zone());
-  }
-  return result;
+  return t->operation_typer()->NumericAdd(ToNumber(lhs, t), ToNumber(rhs, t));
 }
-
-Type* Typer::Visitor::JSSubtractRanger(RangeType* lhs, RangeType* rhs,
-                                       Typer* t) {
-  double results[4];
-  results[0] = lhs->Min() - rhs->Min();
-  results[1] = lhs->Min() - rhs->Max();
-  results[2] = lhs->Max() - rhs->Min();
-  results[3] = lhs->Max() - rhs->Max();
-  // Since none of the inputs can be -0, the result cannot be -0.
-  // However, it can be nan (the subtraction of two infinities of same sign).
-  // On the other hand, if none of the "results" above is nan, then the actual
-  // result cannot be nan either.
-  int nans = 0;
-  for (int i = 0; i < 4; ++i) {
-    if (std::isnan(results[i])) ++nans;
-  }
-  if (nans == 4) return Type::NaN();  // [inf..inf] - [inf..inf] (all same sign)
-  Type* range =
-      Type::Range(array_min(results, 4), array_max(results, 4), t->zone());
-  return nans == 0 ? range : Type::Union(range, Type::NaN(), t->zone());
-  // Examples:
-  //   [-inf, +inf] - [-inf, +inf] = [-inf, +inf] \/ NaN
-  //   [-inf, -inf] - [-inf, -inf] = NaN
-  //   [-inf, -inf] - [n, +inf] = [-inf, -inf] \/ NaN
-  //   [m, +inf] - [-inf, n] = [-inf, +inf] \/ NaN
-}
-
 
 Type* Typer::Visitor::JSSubtractTyper(Type* lhs, Type* rhs, Typer* t) {
-  lhs = Rangify(ToNumber(lhs, t), t);
-  rhs = Rangify(ToNumber(rhs, t), t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return JSSubtractRanger(lhs->AsRange(), rhs->AsRange(), t);
-  }
-  return Type::Number();
+  return t->operation_typer()->NumericSubtract(ToNumber(lhs, t),
+                                               ToNumber(rhs, t));
 }
-
 
 Type* Typer::Visitor::JSMultiplyTyper(Type* lhs, Type* rhs, Typer* t) {
-  lhs = Rangify(ToNumber(lhs, t), t);
-  rhs = Rangify(ToNumber(rhs, t), t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    double results[4];
-    double lmin = lhs->AsRange()->Min();
-    double lmax = lhs->AsRange()->Max();
-    double rmin = rhs->AsRange()->Min();
-    double rmax = rhs->AsRange()->Max();
-    results[0] = lmin * rmin;
-    results[1] = lmin * rmax;
-    results[2] = lmax * rmin;
-    results[3] = lmax * rmax;
-    // If the result may be nan, we give up on calculating a precise type,
-    // because
-    // the discontinuity makes it too complicated.  Note that even if none of
-    // the
-    // "results" above is nan, the actual result may still be, so we have to do
-    // a
-    // different check:
-    bool maybe_nan = (lhs->Maybe(t->cache_.kSingletonZero) &&
-                      (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
-                     (rhs->Maybe(t->cache_.kSingletonZero) &&
-                      (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
-    if (maybe_nan) return t->cache_.kIntegerOrMinusZeroOrNaN;  // Giving up.
-    bool maybe_minuszero = (lhs->Maybe(t->cache_.kSingletonZero) && rmin < 0) ||
-                           (rhs->Maybe(t->cache_.kSingletonZero) && lmin < 0);
-    Type* range =
-        Type::Range(array_min(results, 4), array_max(results, 4), t->zone());
-    return maybe_minuszero ? Type::Union(range, Type::MinusZero(), t->zone())
-                           : range;
-  }
-  return Type::Number();
+  return t->operation_typer()->NumericMultiply(ToNumber(lhs, t),
+                                               ToNumber(rhs, t));
 }
 
-
 Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
+  return t->operation_typer()->NumericDivide(ToNumber(lhs, t),
+                                             ToNumber(rhs, t));
   lhs = ToNumber(lhs, t);
   rhs = ToNumber(rhs, t);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
@@ -1182,56 +1020,9 @@ Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
   return maybe_nan ? Type::Number() : Type::OrderedNumber();
 }
 
-Type* Typer::Visitor::JSModulusRanger(RangeType* lhs, RangeType* rhs,
-                                      Typer* t) {
-  double lmin = lhs->Min();
-  double lmax = lhs->Max();
-  double rmin = rhs->Min();
-  double rmax = rhs->Max();
-
-  double labs = std::max(std::abs(lmin), std::abs(lmax));
-  double rabs = std::max(std::abs(rmin), std::abs(rmax)) - 1;
-  double abs = std::min(labs, rabs);
-  bool maybe_minus_zero = false;
-  double omin = 0;
-  double omax = 0;
-  if (lmin >= 0) {  // {lhs} positive.
-    omin = 0;
-    omax = abs;
-  } else if (lmax <= 0) {  // {lhs} negative.
-    omin = 0 - abs;
-    omax = 0;
-    maybe_minus_zero = true;
-  } else {
-    omin = 0 - abs;
-    omax = abs;
-    maybe_minus_zero = true;
-  }
-
-  Type* result = Type::Range(omin, omax, t->zone());
-  if (maybe_minus_zero)
-    result = Type::Union(result, Type::MinusZero(), t->zone());
-  return result;
-}
-
-
 Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
-  lhs = ToNumber(lhs, t);
-  rhs = ToNumber(rhs, t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-
-  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(t->cache_.kZeroish) ||
-      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
-    // Result maybe NaN.
-    return Type::Number();
-  }
-
-  lhs = Rangify(lhs, t);
-  rhs = Rangify(rhs, t);
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return JSModulusRanger(lhs->AsRange(), rhs->AsRange(), t);
-  }
-  return Type::OrderedNumber();
+  return t->operation_typer()->NumericModulus(ToNumber(lhs, t),
+                                              ToNumber(rhs, t));
 }
 
 
