@@ -178,6 +178,14 @@ struct WasmModule {
   std::vector<uint16_t> function_table;        // function table.
   std::vector<WasmImport> import_table;        // import table.
   std::vector<WasmExport> export_table;        // export table.
+  // We store the semaphore here to extend its lifetime. In <libc-2.21, which we
+  // use on the try bots, semaphore::Wait() can return while some compilation
+  // tasks are still executing semaphore::Signal(). If the semaphore is cleaned
+  // up right after semaphore::Wait() returns, then this can cause an
+  // invalid-semaphore error in the compilation tasks.
+  // TODO(wasm): Move this semaphore back to CompileInParallel when the try bots
+  // switch to libc-2.21 or higher.
+  base::SmartPointer<base::Semaphore> pending_tasks;
 
   WasmModule();
 

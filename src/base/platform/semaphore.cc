@@ -101,6 +101,9 @@ Semaphore::~Semaphore() {
 
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
+  // This check may fail with <libc-2.21, which we use on the try bots, if the
+  // semaphore is destroyed while sem_post is still executed. A work around is
+  // to extend the lifetime of the semaphore.
   CHECK_EQ(0, result);
 }
 

@@ -348,7 +348,8 @@ WasmModule::WasmModule()
       start_function_index(-1),
       origin(kWasmOrigin),
       globals_size(0),
-      indirect_table_size(0) {}
+      indirect_table_size(0),
+      pending_tasks(new base::Semaphore(0)) {}
 
 static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
@@ -614,16 +615,15 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
                                 *module_env, *thrower);
 
   // Objects for the synchronization with the background threads.
-  base::SmartPointer<base::Semaphore> pending_tasks(new base::Semaphore(0));
   base::Mutex result_mutex;
   base::AtomicNumber<size_t> next_unit(
       static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
 
   // 2) The main thread spawns {WasmCompilationTask} instances which run on
   //    the background threads.
-  base::SmartArrayPointer<uint32_t> task_ids(
-      StartCompilationTasks(isolate, compilation_units, executed_units,
-                            pending_tasks.get(), result_mutex, next_unit));
+  base::SmartArrayPointer<uint32_t> task_ids(StartCompilationTasks(
+      isolate, compilation_units, executed_units, module->pending_tasks.get(),
+      result_mutex, next_unit));
 
   // 3.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -640,7 +640,7 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
   }
   // 4) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {WasmCompilationTask} instances to finish.
-  WaitForCompilationTasks(isolate, task_ids.get(), pending_tasks.get());
+  WaitForCompilationTasks(isolate, task_ids.get(), module->pending_tasks.get());
   // Finish the compilation of the remaining compilation units.
   FinishCompilationUnits(executed_units, functions, result_mutex);
 }
