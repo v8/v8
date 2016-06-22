@@ -5582,24 +5582,32 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
   return DependentCode::cast(empty_fixed_array());
 }
 
+namespace {
+void CompactWeakFixedArray(Object* object) {
+  if (object->IsWeakFixedArray()) {
+    WeakFixedArray* array = WeakFixedArray::cast(object);
+    array->Compact<WeakFixedArray::NullCallback>();
+  }
+}
+}  // anonymous namespace
+
 void Heap::CompactWeakFixedArrays() {
   // Find known WeakFixedArrays and compact them.
-  i::HeapIterator iterator(this);
-  for (i::HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
+  HeapIterator iterator(this);
+  for (HeapObject* o = iterator.next(); o != NULL; o = iterator.next()) {
     if (o->IsPrototypeInfo()) {
-      i::Object* prototype_users = i::PrototypeInfo::cast(o)->prototype_users();
+      Object* prototype_users = PrototypeInfo::cast(o)->prototype_users();
       if (prototype_users->IsWeakFixedArray()) {
-        i::WeakFixedArray* array = i::WeakFixedArray::cast(prototype_users);
-        array->Compact<i::JSObject::PrototypeRegistryCompactionCallback>();
+        WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
+        array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
       }
     } else if (o->IsScript()) {
-      i::Object* shared_list = i::Script::cast(o)->shared_function_infos();
-      if (shared_list->IsWeakFixedArray()) {
-        i::WeakFixedArray* array = i::WeakFixedArray::cast(shared_list);
-        array->Compact<i::WeakFixedArray::NullCallback>();
-      }
+      CompactWeakFixedArray(Script::cast(o)->shared_function_infos());
     }
   }
+  CompactWeakFixedArray(noscript_shared_function_infos());
+  CompactWeakFixedArray(script_list());
+  CompactWeakFixedArray(weak_stack_trace_list());
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {
