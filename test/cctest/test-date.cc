@@ -167,6 +167,32 @@ TEST(DaylightSavingsTime) {
   CheckDST(august_20);
 }
 
+namespace {
+int legacy_parse_count = 0;
+void DateParseLegacyCounterCallback(v8::Isolate* isolate,
+                                    v8::Isolate::UseCounterFeature feature) {
+  if (feature == v8::Isolate::kLegacyDateParser) legacy_parse_count++;
+}
+}  // anonymous namespace
+
+TEST(DateParseLegacyUseCounter) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  CcTest::isolate()->SetUseCounterCallback(DateParseLegacyCounterCallback);
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444Z01:23')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444')");
+  CHECK_EQ(0, legacy_parse_count);
+  CompileRun("Date.parse('2000 01 01')");
+  CHECK_EQ(1, legacy_parse_count);
+  CompileRun("Date.parse('2015-02-31T11:22:33.444     ')");
+  CHECK_EQ(1, legacy_parse_count);
+}
+
 #ifdef V8_I18N_SUPPORT
 TEST(DateCacheVersion) {
   FLAG_allow_natives_syntax = true;
