@@ -77,9 +77,7 @@ TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
                     : TypeFeedbackMetadata::cast(get(kMetadataIndex));
 }
 
-
-// Conversion from an integer index to either a slot or an ic slot. The caller
-// should know what kind she expects.
+// Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) {
   DCHECK(index >= kReservedIndexCount);
