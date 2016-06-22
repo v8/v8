@@ -22,6 +22,7 @@
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
 #include "src/profiler/cpu-profiler-inl.h"
+#include "src/profiler/profiler-listener.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
@@ -1789,6 +1790,8 @@ bool Logger::SetUp(Isolate* isolate) {
     profiler_->Engage();
   }
 
+  profiler_listener_.reset();
+
   if (is_logging_) {
     addCodeEventListener(this);
   }
@@ -1816,6 +1819,18 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 }
 
+void Logger::SetUpProfilerListener() {
+  if (!is_initialized_) return;
+  if (profiler_listener_.get() == nullptr) {
+    profiler_listener_.reset(new ProfilerListener(isolate_));
+  }
+  addCodeEventListener(profiler_listener_.get());
+}
+
+void Logger::TearDownProfilerListener() {
+  if (profiler_listener_->HasObservers()) return;
+  removeCodeEventListener(profiler_listener_.get());
+}
 
 sampler::Sampler* Logger::sampler() {
   return ticker_;
@@ -1858,6 +1873,10 @@ FILE* Logger::TearDown() {
     removeCodeEventListener(jit_logger_);
     delete jit_logger_;
     jit_logger_ = NULL;
+  }
+
+  if (profiler_listener_.get() != nullptr) {
+    removeCodeEventListener(profiler_listener_.get());
   }
 
   return log_->Close();

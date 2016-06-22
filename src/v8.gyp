@@ -1004,6 +1004,8 @@
         'profiler/heap-snapshot-generator-inl.h',
         'profiler/heap-snapshot-generator.cc',
         'profiler/heap-snapshot-generator.h',
+        'profiler/profiler-listener.cc',
+        'profiler/profiler-listener.h',
         'profiler/profile-generator-inl.h',
         'profiler/profile-generator.cc',
         'profiler/profile-generator.h',
