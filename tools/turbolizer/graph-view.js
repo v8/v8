@@ -249,6 +249,52 @@ class GraphView extends View {
     }
   }
 
+  getEdgeFrontier(nodes, inEdges, edgeFilter) {
+    let frontier = new Set();
+    nodes.forEach(function(element) {
+      var edges = inEdges ? element.__data__.inputs : element.__data__.outputs;
+      var edgeNumber = 0;
+      edges.forEach(function(edge) {
+        if (edgeFilter == undefined || edgeFilter(edge, edgeNumber)) {
+          frontier.add(edge);
+        }
+        ++edgeNumber;
+      });
+    });
+    return frontier;
+  }
+
+  getNodeFrontier(nodes, inEdges, edgeFilter) {
+    let graph = this;
+    var frontier = new Set();
+    var newState = true;
+    var edgeFrontier = graph.getEdgeFrontier(nodes, inEdges, edgeFilter);
+    // Control key toggles edges rather than just turning them on
+    if (d3.event.ctrlKey) {
+      edgeFrontier.forEach(function(edge) {
+        if (edge.visible) {
+          newState = false;
+        }
+      });
+    }
+    edgeFrontier.forEach(function(edge) {
+      edge.visible = newState;
+      if (newState) {
+        var node = inEdges ? edge.source : edge.target;
+        node.visible = true;
+        frontier.add(node);
+      }
+    });
+    graph.updateGraphVisibility();
+    if (newState) {
+      return graph.visibleNodes.filter(function(n) {
+        return frontier.has(n);
+      });
+    } else {
+      return undefined;
+    }
+  }
+
   dragmove(d) {
     var graph = this;
     d.x += d3.event.dx;
@@ -478,9 +524,7 @@ class GraphView extends View {
     if (!d3.event.shiftKey) {
       graph.state.selection.clear();
     }
-    graph.visibleNodes.each(function(n) {
-      graph.state.selection.select(this, true);
-    });
+    graph.state.selection.select(graph.visibleNodes[0], true);
     graph.updateGraphVisibility();
   }
 
@@ -511,59 +555,14 @@ class GraphView extends View {
     // Don't handle key press repetition
     if(state.lastKeyDown !== -1) return;
 
-    var getEdgeFrontier = function(inEdges, edgeFilter) {
-      var frontierSet = new Set();
-      var newState = true;
-      if (d3.event.ctrlKey) {
-        state.selection.selection.forEach(function(element) {
-          var edges = inEdges ? element.__data__.inputs : element.__data__.outputs;
-          var edgeNumber = 0;
-          // Control key toggles edges rather than just turning them on
-          edges.forEach(function(i) {
-            if (edgeFilter == undefined || edgeFilter(i, edgeNumber)) {
-              if (i.visible) {
-                newState = false;
-              }
-            }
-            ++edgeNumber;
-          });
-        });
-      }
-      state.selection.selection.forEach(function(element) {
-        var edges = inEdges ? element.__data__.inputs : element.__data__.outputs;
-        var edgeNumber = 0;
-        edges.forEach(function(i) {
-          if (edgeFilter == undefined || edgeFilter(i, edgeNumber)) {
-            i.visible = newState;
-            if (newState) {
-              var candidate = inEdges ? i.source : i.target;
-              candidate.visible = true;
-              frontierSet.add(candidate);
-            }
-          }
-          ++edgeNumber;
-        });
-      });
-      graph.updateGraphVisibility();
-      if (newState) {
-        return graph.visibleNodes.filter(function(n) {
-          return frontierSet.has(n);
-        });
-      } else {
-        return undefined;
-      }
-    }
-
-    var selectNodesThroughEdges = function(inEdges, filter, reselect) {
-      var frontier = getEdgeFrontier(inEdges, filter);
+    var showSelectionFrontierNodes = function(inEdges, filter, select) {
+      var frontier = graph.getNodeFrontier(state.selection.selection, inEdges, filter);
       if (frontier != undefined) {
-        if (reselect) {
+        if (select) {
           if (!d3.event.shiftKey) {
             state.selection.clear();
           }
-          frontier.each(function(n) {
-            state.selection.select(this, true);
-          });
+          state.selection.select(frontier[0], true);
         }
         graph.updateGraphVisibility();
       }
@@ -583,29 +582,29 @@ class GraphView extends View {
     case 56:
     case 57:
       // '1'-'9'
-      selectNodesThroughEdges(true,
-                              (edge, index) => { return index == (d3.event.keyCode - 49); },
-                              false);
+      showSelectionFrontierNodes(true,
+          (edge, index) => { return index == (d3.event.keyCode - 49); },
+          false);
       break;
     case 67:
       // 'c'
-      selectNodesThroughEdges(true,
-                              (edge, index) => { return edge.type == 'control'; },
-                              false);
+      showSelectionFrontierNodes(true,
+          (edge, index) => { return edge.type == 'control'; },
+          false);
       break;
     case 69:
       // 'e'
-      selectNodesThroughEdges(true,
-                              (edge, index) => { return edge.type == 'effect'; },
-                              false);
+      showSelectionFrontierNodes(true,
+          (edge, index) => { return edge.type == 'effect'; },
+          false);
       break;
     case 79:
       // 'o'
-      selectNodesThroughEdges(false, undefined, false);
+      showSelectionFrontierNodes(false, undefined, false);
       break;
     case 73:
       // 'i'
-      selectNodesThroughEdges(true, undefined, false);
+      showSelectionFrontierNodes(true, undefined, false);
       break;
     case 65:
       // 'a'
@@ -614,7 +613,7 @@ class GraphView extends View {
       break;
     case 38:
     case 40: {
-      selectNodesThroughEdges(d3.event.keyCode == 38, undefined, true);
+      showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
       break;
     }
     default:
