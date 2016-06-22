@@ -1668,8 +1668,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
 
     // Left and right hand side are equal, check for -0 vs. +0.
     __ bind(&compare_equal);
+    __ Push(edi);  // Preserve function in edi.
     __ movmskpd(edi, reg);
     __ test(edi, Immediate(1));
+    __ Pop(edi);
     __ j(not_zero, &compare_swap);
 
     __ bind(&done_compare);
