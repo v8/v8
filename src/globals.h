@@ -460,6 +460,26 @@ enum AllocationAlignment {
   kSimd128Unaligned
 };
 
+// Possible outcomes for decisions.
+enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
+
+inline size_t hash_value(Decision decision) {
+  return static_cast<uint8_t>(decision);
+}
+
+inline std::ostream& operator<<(std::ostream& os, Decision decision) {
+  switch (decision) {
+    case Decision::kUnknown:
+      return os << "Unknown";
+    case Decision::kTrue:
+      return os << "True";
+    case Decision::kFalse:
+      return os << "False";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 // Supported write barrier modes.
 enum WriteBarrierKind : uint8_t {
   kNoWriteBarrier,

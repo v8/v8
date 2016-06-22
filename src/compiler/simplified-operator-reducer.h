@@ -20,10 +20,9 @@ class JSGraph;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
-
-class SimplifiedOperatorReducer final : public Reducer {
+class SimplifiedOperatorReducer final : public AdvancedReducer {
  public:
-  explicit SimplifiedOperatorReducer(JSGraph* jsgraph);
+  SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph);
   ~SimplifiedOperatorReducer() final;
 
   Reduction Reduce(Node* node) final;
