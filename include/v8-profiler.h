@@ -694,7 +694,6 @@ class V8_EXPORT HeapProfiler {
   HeapProfiler& operator=(const HeapProfiler&);
 };
 
-
 /**
  * Interface for providing information about embedder's objects
  * held by global handles. This information is reported in two ways:
@@ -709,7 +708,7 @@ class V8_EXPORT HeapProfiler {
  *     were not previously reported via AddObjectGroup.
  *
  * Thus, if an embedder wants to provide information about native
- * objects for heap snapshots, he can do it in a GC prologue
+ * objects for heap snapshots, it can do it in a GC prologue
  * handler, and / or by assigning wrapper class ids in the following way:
  *
  *  1. Bind a callback to class id by calling SetWrapperClassInfoProvider.
