@@ -530,8 +530,8 @@ uint32_t* StartCompilationTasks(
     Isolate* isolate,
     std::vector<compiler::WasmCompilationUnit*>& compilation_units,
     std::queue<compiler::WasmCompilationUnit*>& executed_units,
-    const base::SmartPointer<base::Semaphore>& pending_tasks,
-    base::Mutex& result_mutex, base::AtomicNumber<size_t>& next_unit) {
+    base::Semaphore* pending_tasks, base::Mutex& result_mutex,
+    base::AtomicNumber<size_t>& next_unit) {
   const size_t num_tasks =
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
           V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
@@ -539,7 +539,7 @@ uint32_t* StartCompilationTasks(
   for (size_t i = 0; i < num_tasks; i++) {
     WasmCompilationTask* task =
         new WasmCompilationTask(isolate, &compilation_units, &executed_units,
-                                pending_tasks.get(), &result_mutex, &next_unit);
+                                pending_tasks, &result_mutex, &next_unit);
     task_ids[i] = task->id();
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         task, v8::Platform::kShortRunningTask);
@@ -547,9 +547,8 @@ uint32_t* StartCompilationTasks(
   return task_ids;
 }
 
-void WaitForCompilationTasks(
-    Isolate* isolate, uint32_t* task_ids,
-    const base::SmartPointer<base::Semaphore>& pending_tasks) {
+void WaitForCompilationTasks(Isolate* isolate, uint32_t* task_ids,
+                             base::Semaphore* pending_tasks) {
   const size_t num_tasks =
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
           V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
@@ -624,7 +623,7 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
   //    the background threads.
   base::SmartArrayPointer<uint32_t> task_ids(
       StartCompilationTasks(isolate, compilation_units, executed_units,
-                            pending_tasks, result_mutex, next_unit));
+                            pending_tasks.get(), result_mutex, next_unit));
 
   // 3.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -641,7 +640,7 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
   }
   // 4) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {WasmCompilationTask} instances to finish.
-  WaitForCompilationTasks(isolate, task_ids.get(), pending_tasks);
+  WaitForCompilationTasks(isolate, task_ids.get(), pending_tasks.get());
   // Finish the compilation of the remaining compilation units.
   FinishCompilationUnits(executed_units, functions, result_mutex);
 }
