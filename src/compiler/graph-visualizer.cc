@@ -36,32 +36,15 @@ base::SmartArrayPointer<const char> GetVisualizerLogFileName(
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }
-  char* source_file = nullptr;
-  if (FLAG_trace_file_names && info->parse_info()) {
-    Object* source_name = info->script()->name();
-    if (source_name->IsString()) {
-      String* str = String::cast(source_name);
-      if (str->length() > 0) {
-        source_file = str->ToCString().get();
-      }
-    }
-  }
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> full_filename;
-  if (phase == nullptr && source_file == nullptr) {
+  if (phase == nullptr) {
     SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else if (phase != nullptr && source_file == nullptr) {
-    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
-  } else if (phase == nullptr && source_file != nullptr) {
-    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file, suffix);
   } else {
-    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(), source_file, phase,
-             suffix);
+    SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
   }
-  std::replace(full_filename.start(),
-               full_filename.start() + full_filename.length(), '/', '_');
 
   char* buffer = new char[full_filename.length() + 1];
   memcpy(buffer, full_filename.start(), full_filename.length());
