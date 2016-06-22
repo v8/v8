@@ -695,6 +695,7 @@ class RepresentationSelector {
     // In the change phase, insert a change before the use if necessary.
     if (use.representation() == MachineRepresentation::kNone)
       return;  // No input requirement on the use.
+    DCHECK_NOT_NULL(input);
     NodeInfo* input_info = GetInfo(input);
     MachineRepresentation input_rep = input_info->representation();
     if (input_rep != use.representation() ||
@@ -1678,7 +1679,7 @@ class RepresentationSelector {
           // TODO(jarin,bmeurer): Add CheckedSignedSmallAsWord32?
           VisitUnop(node, UseInfo::CheckedSigned32AsWord32(),
                     MachineRepresentation::kWord32);
-          DeferReplacement(node, node->InputAt(0));
+          if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
           if (lower()) {
