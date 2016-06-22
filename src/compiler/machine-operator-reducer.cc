@@ -234,18 +234,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K < K => K
         return ReplaceBool(m.left().Value() < m.right().Value());
       }
-      if (m.left().IsInt32Sub() && m.right().Is(0)) {  // x - y < 0 => x < y
-        Int32BinopMatcher msub(m.left().node());
-        node->ReplaceInput(0, msub.left().node());
-        node->ReplaceInput(1, msub.right().node());
-        return Changed(node);
-      }
-      if (m.left().Is(0) && m.right().IsInt32Sub()) {  // 0 < x - y => y < x
-        Int32BinopMatcher msub(m.right().node());
-        node->ReplaceInput(0, msub.right().node());
-        node->ReplaceInput(1, msub.left().node());
-        return Changed(node);
-      }
       if (m.LeftEqualsRight()) return ReplaceBool(false);  // x < x => false
       break;
     }
@@ -253,18 +241,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int32BinopMatcher m(node);
       if (m.IsFoldable()) {  // K <= K => K
         return ReplaceBool(m.left().Value() <= m.right().Value());
-      }
-      if (m.left().IsInt32Sub() && m.right().Is(0)) {  // x - y <= 0 => x <= y
-        Int32BinopMatcher msub(m.left().node());
-        node->ReplaceInput(0, msub.left().node());
-        node->ReplaceInput(1, msub.right().node());
-        return Changed(node);
-      }
-      if (m.left().Is(0) && m.right().IsInt32Sub()) {  // 0 <= x - y => y <= x
-        Int32BinopMatcher msub(m.right().node());
-        node->ReplaceInput(0, msub.right().node());
-        node->ReplaceInput(1, msub.left().node());
-        return Changed(node);
       }
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x <= x => true
       break;
