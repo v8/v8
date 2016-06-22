@@ -555,6 +555,12 @@ Callable CodeFactory::HasProperty(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::MathPow(Isolate* isolate) {
+  MathPowStub stub(isolate, MathPowStub::ON_STACK);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
                                                  TailCallMode tail_call_mode) {
   return Callable(

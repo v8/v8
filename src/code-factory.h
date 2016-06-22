@@ -146,6 +146,8 @@ class CodeFactory final {
   static Callable ConstructFunction(Isolate* isolate);
   static Callable HasProperty(Isolate* isolate);
 
+  static Callable MathPow(Isolate* isolate);
+
   static Callable InterpreterPushArgsAndCall(Isolate* isolate,
                                              TailCallMode tail_call_mode);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);

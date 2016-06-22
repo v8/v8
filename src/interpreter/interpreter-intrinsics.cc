@@ -4,6 +4,8 @@
 
 #include "src/interpreter/interpreter-intrinsics.h"
 
+#include "src/code-factory.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {
@@ -13,7 +15,9 @@ using compiler::Node;
 #define __ assembler_->
 
 IntrinsicsHelper::IntrinsicsHelper(InterpreterAssembler* assembler)
-    : assembler_(assembler) {}
+    : isolate_(assembler->isolate()),
+      zone_(assembler->zone()),
+      assembler_(assembler) {}
 
 // static
 bool IntrinsicsHelper::IsSupported(Runtime::FunctionId function_id) {
@@ -225,6 +229,80 @@ Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
 
   __ Bind(&end);
   return return_value.value();
+}
+
+Node* IntrinsicsHelper::IntrinsicAsStubCall(Node* args_reg, Node* context,
+                                            Callable const& callable) {
+  int param_count = callable.descriptor().GetParameterCount();
+  Node** args = zone()->NewArray<Node*>(param_count + 1);  // 1 for context
+  for (int i = 0; i < param_count; i++) {
+    args[i] = __ LoadRegister(args_reg);
+    args_reg = __ NextRegister(args_reg);
+  }
+  args[param_count] = context;
+
+  return __ CallStubN(callable, args);
+}
+
+Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,
+                                    Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::HasProperty(isolate()));
+}
+
+Node* IntrinsicsHelper::MathPow(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::MathPow(isolate()));
+}
+
+Node* IntrinsicsHelper::NewObject(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::FastNewObject(isolate()));
+}
+
+Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,
+                                       Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::NumberToString(isolate()));
+}
+
+Node* IntrinsicsHelper::RegExpConstructResult(Node* input, Node* arg_count,
+                                              Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::RegExpConstructResult(isolate()));
+}
+
+Node* IntrinsicsHelper::RegExpExec(Node* input, Node* arg_count,
+                                   Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::RegExpExec(isolate()));
+}
+
+Node* IntrinsicsHelper::SubString(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::SubString(isolate()));
+}
+
+Node* IntrinsicsHelper::ToString(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToString(isolate()));
+}
+
+Node* IntrinsicsHelper::ToName(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToName(isolate()));
+}
+
+Node* IntrinsicsHelper::ToLength(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToLength(isolate()));
+}
+
+Node* IntrinsicsHelper::ToInteger(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToInteger(isolate()));
+}
+
+Node* IntrinsicsHelper::ToNumber(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToNumber(isolate()));
+}
+
+Node* IntrinsicsHelper::ToObject(Node* input, Node* arg_count, Node* context) {
+  return IntrinsicAsStubCall(input, context, CodeFactory::ToObject(isolate()));
 }
 
 Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {

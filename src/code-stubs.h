@@ -434,6 +434,12 @@ class CodeStub BASE_EMBEDDED {
     return NAME##Descriptor(isolate());                                 \
   }
 
+#define DEFINE_ON_STACK_CALL_INTERFACE_DESCRIPTOR(PARAMETER_COUNT)         \
+ public:                                                                   \
+  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {    \
+    return OnStackArgsDescriptorBase::ForArgs(isolate(), PARAMETER_COUNT); \
+  }
+
 // There are some code stubs we just can't describe right now with a
 // CallInterfaceDescriptor. Isolate behavior for those cases with this macro.
 // An attempt to retrieve a descriptor will fail.
@@ -1328,13 +1334,17 @@ class MathPowStub: public PlatformCodeStub {
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (exponent_type() == TAGGED) {
+    if (exponent_type() == ON_STACK) {
+      return OnStackArgsDescriptorBase::ForArgs(isolate(), 2);
+    } else if (exponent_type() == TAGGED) {
       return MathPowTaggedDescriptor(isolate());
     } else if (exponent_type() == INTEGER) {
       return MathPowIntegerDescriptor(isolate());
+    } else {
+      // A CallInterfaceDescriptor doesn't specify double registers (yet).
+      DCHECK_EQ(DOUBLE, exponent_type());
+      return ContextOnlyDescriptor(isolate());
     }
-    // A CallInterfaceDescriptor doesn't specify double registers (yet).
-    return ContextOnlyDescriptor(isolate());
   }
 
  private:
@@ -2083,7 +2093,7 @@ class RegExpExecStub: public PlatformCodeStub {
  public:
   explicit RegExpExecStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ContextOnly);
+  DEFINE_ON_STACK_CALL_INTERFACE_DESCRIPTOR(4);
   DEFINE_PLATFORM_CODE_STUB(RegExpExec, PlatformCodeStub);
 };
 
@@ -3068,7 +3078,7 @@ class SubStringStub : public PlatformCodeStub {
  public:
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ContextOnly);
+  DEFINE_ON_STACK_CALL_INTERFACE_DESCRIPTOR(3);
   DEFINE_PLATFORM_CODE_STUB(SubString, PlatformCodeStub);
 };
 

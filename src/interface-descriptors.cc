@@ -214,7 +214,6 @@ void MathPowTaggedDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
 void MathPowIntegerDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {exponent()};
@@ -321,6 +320,48 @@ void ContextOnlyDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr);
 }
 
+CallInterfaceDescriptor OnStackArgsDescriptorBase::ForArgs(
+    Isolate* isolate, int parameter_count) {
+  switch (parameter_count) {
+    case 1:
+      return OnStackWith1ArgsDescriptor(isolate);
+    case 2:
+      return OnStackWith2ArgsDescriptor(isolate);
+    case 3:
+      return OnStackWith3ArgsDescriptor(isolate);
+    case 4:
+      return OnStackWith4ArgsDescriptor(isolate);
+    case 5:
+      return OnStackWith5ArgsDescriptor(isolate);
+    case 6:
+      return OnStackWith6ArgsDescriptor(isolate);
+    case 7:
+      return OnStackWith7ArgsDescriptor(isolate);
+    default:
+      UNREACHABLE();
+      return VoidDescriptor(isolate);
+  }
+}
+
+FunctionType*
+OnStackArgsDescriptorBase::BuildCallInterfaceDescriptorFunctionTypeWithArg(
+    Isolate* isolate, int register_parameter_count, int parameter_count) {
+  DCHECK_EQ(0, register_parameter_count);
+  DCHECK_GT(parameter_count, 0);
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), AnyTagged(zone), parameter_count, zone)
+          ->AsFunction();
+  for (int i = 0; i < parameter_count; i++) {
+    function->InitParameter(i, AnyTagged(zone));
+  }
+  return function;
+}
+
+void OnStackArgsDescriptorBase::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
 
 void GrowArrayElementsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

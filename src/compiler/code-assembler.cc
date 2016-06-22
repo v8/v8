@@ -415,6 +415,12 @@ Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
                   result_size);
 }
 
+Node* CodeAssembler::CallStubN(Callable const& callable, Node** args,
+                               size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStubN(callable.descriptor(), target, args, result_size);
+}
+
 Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
                               Node* target, Node* context, Node* arg1,
                               size_t result_size) {
@@ -498,6 +504,16 @@ Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
   args[3] = arg4;
   args[4] = arg5;
   args[5] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
+                               Node* target, Node** args, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
 
   return CallN(call_descriptor, target, args);
 }

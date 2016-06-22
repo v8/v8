@@ -212,6 +212,47 @@ TEST(Call) {
           handle(Smi::FromInt(7), isolate), handle(Smi::FromInt(3), isolate)));
 }
 
+TEST(IntrinsicAsStubCall) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  InvokeIntrinsicHelper to_number_helper(isolate, handles.main_zone(),
+                                         Runtime::kInlineToNumber);
+  CHECK_EQ(Smi::FromInt(46),
+           *to_number_helper.Invoke(to_number_helper.NewObject("'46'")));
+
+  InvokeIntrinsicHelper to_integer_helper(isolate, handles.main_zone(),
+                                          Runtime::kInlineToInteger);
+  CHECK_EQ(Smi::FromInt(502),
+           *to_integer_helper.Invoke(to_integer_helper.NewObject("502.67")));
+
+  InvokeIntrinsicHelper math_pow_helper(isolate, handles.main_zone(),
+                                        Runtime::kInlineMathPow);
+  CHECK(math_pow_helper
+            .Invoke(math_pow_helper.NewObject("3"),
+                    math_pow_helper.NewObject("7"))
+            ->SameValue(Smi::FromInt(2187)));
+
+  InvokeIntrinsicHelper has_property_helper(isolate, handles.main_zone(),
+                                            Runtime::kInlineHasProperty);
+  CHECK_EQ(*factory->true_value(),
+           *has_property_helper.Invoke(
+               has_property_helper.NewObject("'x'"),
+               has_property_helper.NewObject("({ x: 20 })")));
+  CHECK_EQ(*factory->false_value(),
+           *has_property_helper.Invoke(
+               has_property_helper.NewObject("'y'"),
+               has_property_helper.NewObject("({ x: 20 })")));
+
+  InvokeIntrinsicHelper sub_string_helper(isolate, handles.main_zone(),
+                                          Runtime::kInlineSubString);
+  CHECK(sub_string_helper
+            .Invoke(sub_string_helper.NewObject("'foobar'"),
+                    sub_string_helper.NewObject("3"),
+                    sub_string_helper.NewObject("6"))
+            ->SameValue(*sub_string_helper.NewObject("'bar'")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

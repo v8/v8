@@ -311,6 +311,8 @@ class CodeAssembler {
                  Node* arg2, size_t result_size = 1);
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  Node* arg2, Node* arg3, size_t result_size = 1);
+  Node* CallStubN(Callable const& callable, Node** args,
+                  size_t result_size = 1);
 
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, size_t result_size = 1);
@@ -325,6 +327,8 @@ class CodeAssembler {
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                  Node* arg5, size_t result_size = 1);
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
+                  Node** args, size_t result_size = 1);
 
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      Node* arg2, size_t result_size = 1);

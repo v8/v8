@@ -15,6 +15,14 @@ class PlatformInterfaceDescriptor;
 
 #define INTERFACE_DESCRIPTOR_LIST(V)   \
   V(Void)                              \
+  V(ContextOnly)                       \
+  V(OnStackWith1Args)                  \
+  V(OnStackWith2Args)                  \
+  V(OnStackWith3Args)                  \
+  V(OnStackWith4Args)                  \
+  V(OnStackWith5Args)                  \
+  V(OnStackWith6Args)                  \
+  V(OnStackWith7Args)                  \
   V(Load)                              \
   V(LoadGlobal)                        \
   V(LoadGlobalWithVector)              \
@@ -84,7 +92,6 @@ class PlatformInterfaceDescriptor;
   V(StoreGlobalViaContext)             \
   V(MathPowTagged)                     \
   V(MathPowInteger)                    \
-  V(ContextOnly)                       \
   V(GrowArrayElements)                 \
   V(InterpreterDispatch)               \
   V(InterpreterPushArgsAndCall)        \
@@ -278,6 +285,77 @@ class VoidDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };
 
+class ContextOnlyDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
+};
+
+// The OnStackWith*ArgsDescriptors have a lot of boilerplate. The superclass
+// OnStackArgsDescriptorBase is not meant to be instantiated directly and has no
+// public constructors to ensure this is so.contains all the logic, and the
+//
+// Use OnStackArgsDescriptorBase::ForArgs(isolate, parameter_count) to
+// instantiate a descriptor with the number of args.
+class OnStackArgsDescriptorBase : public CallInterfaceDescriptor {
+ public:
+  static CallInterfaceDescriptor ForArgs(Isolate* isolate, int parameter_count);
+
+ protected:
+  OnStackArgsDescriptorBase(Isolate* isolate, CallDescriptors::Key key)
+      : CallInterfaceDescriptor(isolate, key) {}
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data) override;
+  FunctionType* BuildCallInterfaceDescriptorFunctionTypeWithArg(
+      Isolate* isolate, int register_parameter_count, int parameter_count);
+};
+
+class OnStackWith1ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith1ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     1)
+};
+
+class OnStackWith2ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith2ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     2)
+};
+
+class OnStackWith3ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith3ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     3)
+};
+
+class OnStackWith4ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith4ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     4)
+};
+
+class OnStackWith5ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith5ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     5)
+};
+
+class OnStackWith6ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith6ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     6)
+};
+
+class OnStackWith7ArgsDescriptor : public OnStackArgsDescriptorBase {
+ public:
+  DECLARE_DESCRIPTOR_WITH_BASE_AND_FUNCTION_TYPE_ARG(OnStackWith7ArgsDescriptor,
+                                                     OnStackArgsDescriptorBase,
+                                                     7)
+};
 
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
 class LoadDescriptor : public CallInterfaceDescriptor {
@@ -774,7 +852,6 @@ class ApiGetterDescriptor : public CallInterfaceDescriptor {
   static const Register CallbackRegister();
 };
 
-
 class MathPowTaggedDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(MathPowTaggedDescriptor, CallInterfaceDescriptor)
@@ -782,18 +859,11 @@ class MathPowTaggedDescriptor : public CallInterfaceDescriptor {
   static const Register exponent();
 };
 
-
 class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
 
   static const Register exponent();
-};
-
-
-class ContextOnlyDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
 class VarArgFunctionDescriptor : public CallInterfaceDescriptor {
