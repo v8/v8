@@ -966,106 +966,6 @@ compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
   return GetWasmCallDescriptor(zone, function->sig);
 }
 
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js) {
-  HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
-  // Decode the module, but don't verify function bodies, since we'll
-  // be compiling them anyway.
-  ModuleResult result =
-      DecodeWasmModule(isolate, &zone, module_start, module_end, false,
-                       asm_js ? kAsmJsOrigin : kWasmOrigin);
-  if (result.failed()) {
-    if (result.val) {
-      delete result.val;
-    }
-    // Module verification failed. throw.
-    std::ostringstream str;
-    str << "WASM.compileRun() failed: " << result;
-    isolate->Throw(
-        *isolate->factory()->NewStringFromAsciiChecked(str.str().c_str()));
-    return -1;
-  }
-
-  int32_t retval = CompileAndRunWasmModule(isolate, result.val);
-  delete result.val;
-  return retval;
-}
-
-int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module) {
-  ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  WasmModuleInstance instance(module);
-  Handle<FixedArray> code_table = module->CompileFunctions(isolate);
-
-  if (code_table.is_null()) return -1;
-
-  for (uint32_t i = 0; i < module->functions.size(); ++i) {
-    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
-    instance.function_code[i] = code;
-  }
-
-  // Allocate and initialize the linear memory.
-  if (!AllocateMemory(&thrower, isolate, &instance)) {
-    return -1;
-  }
-  LoadDataSegments(module, instance.mem_start, instance.mem_size);
-
-  // Allocate the globals area if necessary.
-  if (!AllocateGlobals(&thrower, isolate, &instance)) {
-    return -1;
-  }
-
-  ModuleEnv module_env;
-  module_env.module = module;
-  module_env.instance = &instance;
-  module_env.origin = module->origin;
-  InitializePlaceholders(isolate->factory(), &module_env.placeholders,
-                         module->functions.size());
-  if (module->export_table.size() == 0) {
-    thrower.Error("WASM.compileRun() failed: no exported functions");
-    return -2;
-  }
-
-  // Compile all functions.
-  for (const WasmFunction& func : module->functions) {
-    // Compile the function and install it in the linker.
-    Handle<Code> code = compiler::WasmCompilationUnit::CompileWasmFunction(
-        &thrower, isolate, &module_env, &func);
-    if (!code.is_null()) instance.function_code[func.func_index] = code;
-    if (thrower.error()) return -1;
-  }
-
-  LinkModuleFunctions(isolate, instance.function_code);
-
-  // Wrap the main code so it can be called as a JS function.
-  uint32_t main_index = module->export_table.back().func_index;
-  Handle<Code> main_code = instance.function_code[main_index];
-  Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
-  Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
-  Handle<JSFunction> jsfunc = compiler::CompileJSToWasmWrapper(
-      isolate, &module_env, name, main_code, module_object, main_index);
-
-  // Call the JS function.
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, jsfunc, undefined, 0, nullptr);
-
-  // The result should be a number.
-  if (retval.is_null()) {
-    thrower.Error("WASM.compileRun() failed: Invocation was null");
-    return -1;
-  }
-  Handle<Object> result = retval.ToHandleChecked();
-  if (result->IsSmi()) {
-    return Smi::cast(*result)->value();
-  }
-  if (result->IsHeapNumber()) {
-    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
-  }
-  thrower.Error("WASM.compileRun() failed: Return value should be number");
-  return -1;
-}
-
 Handle<Object> GetWasmFunctionNameOrNull(Isolate* isolate, Handle<Object> wasm,
                                          uint32_t func_index) {
   if (!wasm->IsUndefined(isolate)) {
@@ -1126,6 +1026,74 @@ WasmDebugInfo* GetDebugInfo(JSObject* wasm) {
   return *new_info;
 }
 
+namespace testing {
+
+int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
+                                const byte* module_end, bool asm_js) {
+  HandleScope scope(isolate);
+  Zone zone(isolate->allocator());
+  ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
+
+  // Decode the module, but don't verify function bodies, since we'll
+  // be compiling them anyway.
+  ModuleResult decoding_result =
+      DecodeWasmModule(isolate, &zone, module_start, module_end, false,
+                       asm_js ? kAsmJsOrigin : kWasmOrigin);
+  if (decoding_result.failed()) {
+    // Module verification failed. throw.
+    thrower.Error("WASM.compileRun() failed: %s",
+                  decoding_result.error_msg.get());
+  }
+  std::unique_ptr<const WasmModule> module(decoding_result.val);
+
+  if (module->import_table.size() > 0) {
+    thrower.Error("Not supported: module has imports.");
+  }
+  if (module->export_table.size() == 0) {
+    thrower.Error("Not supported: module has no exports.");
+  }
+
+  if (thrower.error()) return -1;
+
+  Handle<JSObject> instance =
+      module
+          ->Instantiate(isolate, Handle<JSReceiver>::null(),
+                        Handle<JSArrayBuffer>::null())
+          .ToHandleChecked();
+
+  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
+  Handle<JSObject> exports_object = Handle<JSObject>::cast(
+      JSObject::GetProperty(instance, exports).ToHandleChecked());
+  Handle<Name> main_name = isolate->factory()->NewStringFromStaticChars("main");
+  PropertyDescriptor desc;
+  Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate, exports_object, main_name, &desc);
+  if (!property_found.FromMaybe(false)) return -1;
+
+  Handle<JSFunction> main_export = Handle<JSFunction>::cast(desc.value());
+
+  // Call the JS function.
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_export, undefined, 0, nullptr);
+
+  // The result should be a number.
+  if (retval.is_null()) {
+    thrower.Error("WASM.compileRun() failed: Invocation was null");
+    return -1;
+  }
+  Handle<Object> result = retval.ToHandleChecked();
+  if (result->IsSmi()) {
+    return Smi::cast(*result)->value();
+  }
+  if (result->IsHeapNumber()) {
+    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
+  }
+  thrower.Error("WASM.compileRun() failed: Return value should be number");
+  return -1;
+}
+
+}  // namespace testing
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

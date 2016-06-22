@@ -335,15 +335,6 @@ typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
 
-// For testing. Decode, verify, and run the last exported function in the
-// given encoded module.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end, bool asm_js = false);
-
-// For testing. Decode, verify, and run the last exported function in the
-// given decoded module.
-int32_t CompileAndRunWasmModule(Isolate* isolate, const WasmModule* module);
-
 // Extract a function name from the given wasm object.
 // Returns "<WASM UNNAMED>" if the function is unnamed or the name is not a
 // valid UTF-8 string.
@@ -369,6 +360,15 @@ WasmDebugInfo* GetDebugInfo(JSObject* wasm);
 // special marker as internal field, which will definitely never occur anywhere
 // else.
 bool IsWasmObject(Object* object);
+
+namespace testing {
+
+// Decode, verify, and run the function labeled "main" in the
+// given encoded module. The module should have no imports.
+int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
+                                const byte* module_end, bool asm_js = false);
+
+}  // namespace testing
 
 }  // namespace wasm
 }  // namespace internal
