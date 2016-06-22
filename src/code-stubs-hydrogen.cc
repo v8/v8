@@ -2061,12 +2061,7 @@ HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
   HValue* input = GetParameter(RegExpConstructResultStub::kInput);
 
-  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
-  // point and wasn't caught since it wasn't built in the snapshot. We should
-  // probably just replace with a TurboFan stub rather than fixing it.
-#if !V8_TARGET_ARCH_IA32
   info()->MarkMustNotHaveEagerFrame();
-#endif
 
   return BuildRegExpConstructResult(length, index, input);
 }
