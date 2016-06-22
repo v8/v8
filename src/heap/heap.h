@@ -28,68 +28,72 @@ using v8::MemoryPressureLevel;
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
-  V(Map, byte_array_map, ByteArrayMap)                                         \
+  /* Cluster the most popular ones in a few cache lines here at the top.    */ \
+  /* The first 32 entries are most often used in the startup snapshot and   */ \
+  /* can use a shorter representation in the serialization format.          */ \
   V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
-  /* Cluster the most popular ones in a few cache lines here at the top.    */ \
+  V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Oddball, undefined_value, UndefinedValue)                                  \
   V(Oddball, the_hole_value, TheHoleValue)                                     \
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
   V(String, empty_string, empty_string)                                        \
-  V(Oddball, uninitialized_value, UninitializedValue)                          \
-  V(Map, cell_map, CellMap)                                                    \
-  V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
-  V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
-  V(Map, heap_number_map, HeapNumberMap)                                       \
-  V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
-  V(Map, float32x4_map, Float32x4Map)                                          \
-  V(Map, int32x4_map, Int32x4Map)                                              \
-  V(Map, uint32x4_map, Uint32x4Map)                                            \
-  V(Map, bool32x4_map, Bool32x4Map)                                            \
-  V(Map, int16x8_map, Int16x8Map)                                              \
-  V(Map, uint16x8_map, Uint16x8Map)                                            \
-  V(Map, bool16x8_map, Bool16x8Map)                                            \
-  V(Map, int8x16_map, Int8x16Map)                                              \
-  V(Map, uint8x16_map, Uint8x16Map)                                            \
-  V(Map, bool8x16_map, Bool8x16Map)                                            \
-  V(Map, native_context_map, NativeContextMap)                                 \
+  V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
-  V(Map, code_map, CodeMap)                                                    \
-  V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
-  V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
-  V(Map, weak_cell_map, WeakCellMap)                                           \
-  V(Map, transition_array_map, TransitionArrayMap)                             \
+  V(Map, hash_table_map, HashTableMap)                                         \
+  V(Map, symbol_map, SymbolMap)                                                \
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
+  V(Map, scope_info_map, ScopeInfoMap)                                         \
+  V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
+  V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
+  V(Map, cell_map, CellMap)                                                    \
+  V(Map, weak_cell_map, WeakCellMap)                                           \
+  V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
+  V(Map, foreign_map, ForeignMap)                                              \
+  V(Map, heap_number_map, HeapNumberMap)                                       \
+  V(Map, transition_array_map, TransitionArrayMap)                             \
+  V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
-  V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(FixedArray, cleared_optimized_code_map, ClearedOptimizedCodeMap)           \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
+  /* Entries beyond the first 32                                            */ \
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
+  /* Oddballs */                                                               \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
   V(Oddball, termination_exception, TerminationException)                      \
   V(Oddball, optimized_out, OptimizedOut)                                      \
   V(Oddball, stale_register, StaleRegister)                                    \
-  V(FixedArray, number_string_cache, NumberStringCache)                        \
-  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
-  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
-  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
-  V(FixedArray, string_split_cache, StringSplitCache)                          \
-  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
-  V(Smi, hash_seed, HashSeed)                                                  \
-  V(Map, hash_table_map, HashTableMap)                                         \
+  /* Context maps */                                                           \
+  V(Map, native_context_map, NativeContextMap)                                 \
+  V(Map, module_context_map, ModuleContextMap)                                 \
+  V(Map, script_context_map, ScriptContextMap)                                 \
+  V(Map, block_context_map, BlockContextMap)                                   \
+  V(Map, catch_context_map, CatchContextMap)                                   \
+  V(Map, with_context_map, WithContextMap)                                     \
+  V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
+  V(Map, script_context_table_map, ScriptContextTableMap)                      \
+  /* Maps */                                                                   \
+  V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
+  V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
-  V(Map, symbol_map, SymbolMap)                                                \
+  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
+  V(Map, neander_map, NeanderMap)                                              \
+  V(Map, external_map, ExternalMap)                                            \
+  V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
+  /* String maps */                                                            \
+  V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
   V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, cons_string_map, ConsStringMap)                                       \
@@ -99,7 +103,6 @@ using v8::MemoryPressureLevel;
   V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
-  V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map, short_external_string_with_one_byte_data_map,                         \
     ShortExternalStringWithOneByteDataMap)                                     \
@@ -116,6 +119,7 @@ using v8::MemoryPressureLevel;
   V(Map, short_external_one_byte_internalized_string_map,                      \
     ShortExternalOneByteInternalizedStringMap)                                 \
   V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
+  /* Array element maps */                                                     \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
   V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
@@ -125,6 +129,18 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
+  V(Map, float32x4_map, Float32x4Map)                                          \
+  V(Map, int32x4_map, Int32x4Map)                                              \
+  V(Map, uint32x4_map, Uint32x4Map)                                            \
+  V(Map, bool32x4_map, Bool32x4Map)                                            \
+  V(Map, int16x8_map, Int16x8Map)                                              \
+  V(Map, uint16x8_map, Uint16x8Map)                                            \
+  V(Map, bool16x8_map, Bool16x8Map)                                            \
+  V(Map, int8x16_map, Int8x16Map)                                              \
+  V(Map, uint8x16_map, Uint8x16Map)                                            \
+  V(Map, bool8x16_map, Bool8x16Map)                                            \
+  /* Canonical empty values */                                                 \
+  V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
   V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \
@@ -135,14 +151,57 @@ using v8::MemoryPressureLevel;
   V(FixedTypedArrayBase, empty_fixed_float64_array, EmptyFixedFloat64Array)    \
   V(FixedTypedArrayBase, empty_fixed_uint8_clamped_array,                      \
     EmptyFixedUint8ClampedArray)                                               \
-  V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
-  V(Map, catch_context_map, CatchContextMap)                                   \
-  V(Map, with_context_map, WithContextMap)                                     \
-  V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
-  V(Map, block_context_map, BlockContextMap)                                   \
-  V(Map, module_context_map, ModuleContextMap)                                 \
-  V(Map, script_context_map, ScriptContextMap)                                 \
-  V(Map, script_context_table_map, ScriptContextTableMap)                      \
+  V(Script, empty_script, EmptyScript)                                         \
+  V(Cell, undefined_cell, UndefinedCell)                                       \
+  V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
+  V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
+    EmptySlowElementDictionary)                                                \
+  V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
+  V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
+  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
+  /* Protectors */                                                             \
+  V(PropertyCell, array_protector, ArrayProtector)                             \
+  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
+  V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
+  V(Cell, species_protector, SpeciesProtector)                                 \
+  /* Special numbers */                                                        \
+  V(HeapNumber, nan_value, NanValue)                                           \
+  V(HeapNumber, infinity_value, InfinityValue)                                 \
+  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
+  V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
+  /* Caches */                                                                 \
+  V(FixedArray, number_string_cache, NumberStringCache)                        \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(FixedArray, string_split_cache, StringSplitCache)                          \
+  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
+  V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
+  V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
+  V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
+  V(FixedArray, natives_source_cache, NativesSourceCache)                      \
+  V(FixedArray, experimental_natives_source_cache,                             \
+    ExperimentalNativesSourceCache)                                            \
+  V(FixedArray, extra_natives_source_cache, ExtraNativesSourceCache)           \
+  V(FixedArray, experimental_extra_natives_source_cache,                       \
+    ExperimentalExtraNativesSourceCache)                                       \
+  /* Lists and dictionaries */                                                 \
+  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
+  V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
+  V(Object, symbol_registry, SymbolRegistry)                                   \
+  V(Object, script_list, ScriptList)                                           \
+  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
+  V(FixedArray, materialized_objects, MaterializedObjects)                     \
+  V(FixedArray, microtask_queue, MicrotaskQueue)                               \
+  V(FixedArray, detached_contexts, DetachedContexts)                           \
+  V(ArrayList, retained_maps, RetainedMaps)                                    \
+  V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
+  V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
+  V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
+  V(FixedArray, serialized_templates, SerializedTemplates)                     \
+  /* Configured values */                                                      \
+  V(JSObject, message_listeners, MessageListeners)                             \
+  V(Code, js_entry_code, JsEntryCode)                                          \
+  V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
+  /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
   V(Map, null_map, NullMap)                                                    \
@@ -153,58 +212,14 @@ using v8::MemoryPressureLevel;
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
-  V(Map, stale_register_map, StaleRegisterMap)                                 \
-  V(Map, message_object_map, JSMessageObjectMap)                               \
-  V(Map, foreign_map, ForeignMap)                                              \
-  V(Map, neander_map, NeanderMap)                                              \
-  V(Map, external_map, ExternalMap)                                            \
-  V(HeapNumber, nan_value, NanValue)                                           \
-  V(HeapNumber, infinity_value, InfinityValue)                                 \
-  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
-  V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
-  V(JSObject, message_listeners, MessageListeners)                             \
-  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
-  V(Code, js_entry_code, JsEntryCode)                                          \
-  V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
-  V(FixedArray, natives_source_cache, NativesSourceCache)                      \
-  V(FixedArray, experimental_natives_source_cache,                             \
-    ExperimentalNativesSourceCache)                                            \
-  V(FixedArray, extra_natives_source_cache, ExtraNativesSourceCache)           \
-  V(FixedArray, experimental_extra_natives_source_cache,                       \
-    ExperimentalExtraNativesSourceCache)                                       \
-  V(Script, empty_script, EmptyScript)                                         \
-  V(NameDictionary, intrinsic_function_names, IntrinsicFunctionNames)          \
-  V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
-  V(Cell, undefined_cell, UndefinedCell)                                       \
-  V(Object, symbol_registry, SymbolRegistry)                                   \
-  V(Object, script_list, ScriptList)                                           \
-  V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
-    EmptySlowElementDictionary)                                                \
-  V(FixedArray, materialized_objects, MaterializedObjects)                     \
-  V(FixedArray, microtask_queue, MicrotaskQueue)                               \
-  V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
-  V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
-  V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
-  V(FixedArray, cleared_optimized_code_map, ClearedOptimizedCodeMap)           \
-  V(FixedArray, detached_contexts, DetachedContexts)                           \
-  V(ArrayList, retained_maps, RetainedMaps)                                    \
-  V(WeakHashTable, weak_object_to_code_table, WeakObjectToCodeTable)           \
-  V(PropertyCell, array_protector, ArrayProtector)                             \
-  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
-  V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
-  V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
-  V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
-  V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
-  V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
-  V(Cell, species_protector, SpeciesProtector)                                 \
-  V(FixedArray, serialized_templates, SerializedTemplates)
+  V(Map, stale_register_map, StaleRegisterMap)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(Smi, last_script_id, LastScriptId)                                         \
+  V(Smi, hash_seed, HashSeed)                                                  \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
