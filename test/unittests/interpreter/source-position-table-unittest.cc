@@ -56,23 +56,26 @@ TEST_F(SourcePositionTableTest, EncodeExpression) {
 TEST_F(SourcePositionTableTest, EncodeAscending) {
   SourcePositionTableBuilder builder(isolate(), zone());
 
-  int accumulator = 0;
+  int code_offset = 0;
+  int source_position = 0;
   for (int i = 0; i < arraysize(offsets); i++) {
-    accumulator += offsets[i];
+    code_offset += offsets[i];
+    source_position += offsets[i];
     if (i % 2) {
-      builder.AddPosition(accumulator, accumulator, true);
+      builder.AddPosition(code_offset, source_position, true);
     } else {
-      builder.AddPosition(accumulator, accumulator, false);
+      builder.AddPosition(code_offset, source_position, false);
     }
   }
 
-  // Also test negative offsets:
+  // Also test negative offsets for source positions:
   for (int i = 0; i < arraysize(offsets); i++) {
-    accumulator -= offsets[i];
+    code_offset += offsets[i];
+    source_position -= offsets[i];
     if (i % 2) {
-      builder.AddPosition(accumulator, accumulator, true);
+      builder.AddPosition(code_offset, source_position, true);
     } else {
-      builder.AddPosition(accumulator, accumulator, false);
+      builder.AddPosition(code_offset, source_position, false);
     }
   }
 

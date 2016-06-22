@@ -23,19 +23,13 @@ namespace interpreter {
 // - we record the difference from the previous position,
 // - we just stuff one bit for the type into the bytecode offset,
 // - we write least-significant bits first,
-// - negative numbers occur only rarely, so we use a denormalized
-//   most-significant byte (a byte with all zeros, which normally wouldn't
-//   make any sense) to encode a negative sign, so that we 'pay' nothing for
-//   positive numbers, but have to pay a full byte for negative integers.
+// - we use zig-zag encoding to encode both positive and negative numbers.
 
 namespace {
 
-// A zero-value in the most-significant byte is used to mark negative numbers.
-const int kNegativeSignMarker = 0;
-
 // Each byte is encoded as MoreBit | ValueBits.
 class MoreBit : public BitField8<bool, 7, 1> {};
-class ValueBits : public BitField8<int, 0, 7> {};
+class ValueBits : public BitField8<unsigned, 0, 7> {};
 
 // Helper: Add the offsets from 'other' to 'value'. Also set is_statement.
 void AddAndSetEntry(PositionTableEntry& value,
@@ -54,62 +48,57 @@ void SubtractFromEntry(PositionTableEntry& value,
 
 // Helper: Encode an integer.
 void EncodeInt(ZoneVector<byte>& bytes, int value) {
-  bool sign = false;
-  if (value < 0) {
-    sign = true;
-    value = -value;
-  }
-
+  // Zig-zag encoding.
+  static const int kShift = kIntSize * kBitsPerByte - 1;
+  value = ((value << 1) ^ (value >> kShift));
+  DCHECK_GE(value, 0);
+  unsigned int encoded = static_cast<unsigned int>(value);
   bool more;
   do {
-    more = value > ValueBits::kMax;
-    bytes.push_back(MoreBit::encode(more || sign) |
-                    ValueBits::encode(value & ValueBits::kMax));
-    value >>= ValueBits::kSize;
+    more = encoded > ValueBits::kMax;
+    bytes.push_back(MoreBit::encode(more) |
+                    ValueBits::encode(encoded & ValueBits::kMask));
+    encoded >>= ValueBits::kSize;
   } while (more);
-
-  if (sign) {
-    bytes.push_back(MoreBit::encode(false) |
-                    ValueBits::encode(kNegativeSignMarker));
-  }
 }
 
 // Encode a PositionTableEntry.
 void EncodeEntry(ZoneVector<byte>& bytes, const PositionTableEntry& entry) {
-  // 1 bit for sign + is_statement each, which leaves 30b for the value.
-  DCHECK(abs(entry.bytecode_offset) < (1 << 30));
-  EncodeInt(bytes, (entry.is_statement ? 1 : 0) | (entry.bytecode_offset << 1));
+  // We only accept ascending bytecode offsets.
+  DCHECK(entry.bytecode_offset >= 0);
+  // Since bytecode_offset is not negative, we use sign to encode is_statement.
+  EncodeInt(bytes, entry.is_statement ? entry.bytecode_offset
+                                      : -entry.bytecode_offset - 1);
   EncodeInt(bytes, entry.source_position);
 }
 
 // Helper: Decode an integer.
 void DecodeInt(ByteArray* bytes, int* index, int* v) {
   byte current;
-  int n = 0;
-  int value = 0;
+  int shift = 0;
+  int decoded = 0;
   bool more;
   do {
     current = bytes->get((*index)++);
-    value |= ValueBits::decode(current) << (n * ValueBits::kSize);
-    n++;
+    decoded |= ValueBits::decode(current) << shift;
     more = MoreBit::decode(current);
+    shift += ValueBits::kSize;
   } while (more);
-
-  if (ValueBits::decode(current) == kNegativeSignMarker) {
-    value = -value;
-  }
-  *v = value;
+  DCHECK_GE(decoded, 0);
+  decoded = (decoded >> 1) ^ (-(decoded & 1));
+  *v = decoded;
 }
 
 void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
   int tmp;
   DecodeInt(bytes, index, &tmp);
-  entry->is_statement = (tmp & 1);
-
-  // Note that '>>' needs to be arithmetic shift in order to handle negative
-  // numbers properly.
-  entry->bytecode_offset = (tmp >> 1);
-
+  if (tmp >= 0) {
+    entry->is_statement = true;
+    entry->bytecode_offset = tmp;
+  } else {
+    entry->is_statement = false;
+    entry->bytecode_offset = -(tmp + 1);
+  }
   DecodeInt(bytes, index, &entry->source_position);
 }
 
