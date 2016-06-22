@@ -469,8 +469,7 @@ Handle<Code> LChunk::Codegen() {
                                                  jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
-    DCHECK(!(info()->isolate()->serializer_enabled() &&
-             info()->GetMustNotHaveEagerFrame() &&
+    DCHECK(!(info()->GetMustNotHaveEagerFrame() &&
              generator.NeedsEagerFrame()));
     return code;
   }
