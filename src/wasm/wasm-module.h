@@ -41,6 +41,7 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
   F(FunctionBodies, 8, "code")         \
   F(DataSegments, 9, "data")           \
   F(Names, 10, "name")                 \
+  F(FunctionTablePad, 11, "table_pad") \
   F(Globals, 0, "global")              \
   F(End, 0, "end")
 
@@ -58,6 +59,8 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
   8, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n'
 #define WASM_SECTION_FUNCTION_BODIES 4, 'c', 'o', 'd', 'e'
 #define WASM_SECTION_NAMES 4, 'n', 'a', 'm', 'e'
+#define WASM_SECTION_FUNCTION_TABLE_PAD \
+  9, 't', 'a', 'b', 'l', 'e', '_', 'p', 'a', 'd'
 
 // Constants for the above section headers' size (LEB128 + characters).
 #define WASM_SECTION_MEMORY_SIZE ((size_t)7)
@@ -72,6 +75,7 @@ const uint8_t kWasmFunctionTypeForm = 0x40;
 #define WASM_SECTION_FUNCTION_SIGNATURES_SIZE ((size_t)9)
 #define WASM_SECTION_FUNCTION_BODIES_SIZE ((size_t)5)
 #define WASM_SECTION_NAMES_SIZE ((size_t)5)
+#define WASM_SECTION_FUNCTION_TABLE_PAD_SIZE ((size_t)10)
 
 class WasmDebugInfo;
 
@@ -166,6 +170,8 @@ struct WasmModule {
 
   std::vector<WasmGlobal> globals;             // globals in this module.
   uint32_t globals_size;                       // size of globals table.
+  uint32_t indirect_table_size;                // size of indirect function
+                                               //     table (includes padding).
   std::vector<FunctionSig*> signatures;        // signatures in this module.
   std::vector<WasmFunction> functions;         // functions in this module.
   std::vector<WasmDataSegment> data_segments;  // data segments in this module.
@@ -214,6 +220,14 @@ struct WasmModule {
                                     Handle<JSArrayBuffer> memory) const;
 
   Handle<FixedArray> CompileFunctions(Isolate* isolate) const;
+
+  uint32_t FunctionTableSize() const {
+    if (indirect_table_size > 0) {
+      return indirect_table_size;
+    }
+    DCHECK_LE(function_table.size(), UINT32_MAX);
+    return static_cast<uint32_t>(function_table.size());
+  }
 };
 
 // An instantiated WASM module, including memory, function table, etc.
@@ -280,15 +294,14 @@ struct ModuleEnv {
     DCHECK(IsValidSignature(index));
     return module->signatures[index];
   }
-  size_t FunctionTableSize() {
-    return module ? module->function_table.size() : 0;
+  uint32_t FunctionTableSize() const {
+    return module->FunctionTableSize();
   }
 
   bool asm_js() { return origin == kAsmJsOrigin; }
 
   Handle<Code> GetCodeOrPlaceholder(uint32_t index) const;
   Handle<Code> GetImportCode(uint32_t index);
-  Handle<FixedArray> GetFunctionTable();
 
   static compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone,
                                                          FunctionSig* sig);

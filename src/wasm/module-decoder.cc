@@ -270,6 +270,20 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
+        case WasmSection::Code::FunctionTablePad: {
+          if (!FLAG_wasm_jit_prototype) {
+            error("FunctionTablePad section without jiting enabled");
+          }
+          // An indirect function table requires functions first.
+          int length;
+          module->indirect_table_size =
+              consume_u32v(&length, "indirect entry count");
+          if (module->indirect_table_size > 0 &&
+              module->indirect_table_size < module->function_table.size()) {
+            error("more predefined indirect entries than table can hold");
+          }
+          break;
+        }
         case WasmSection::Code::FunctionTable: {
           // An indirect function table requires functions first.
           CheckForFunctions(module, section);
@@ -288,6 +302,10 @@ class ModuleDecoder : public Decoder {
               break;
             }
             module->function_table.push_back(index);
+          }
+          if (module->indirect_table_size > 0 &&
+              module->indirect_table_size < module->function_table.size()) {
+            error("more predefined indirect entries than table can hold");
           }
           break;
         }
@@ -391,7 +409,7 @@ class ModuleDecoder : public Decoder {
         case WasmSection::Code::Max:
           // Skip unknown sections.
           TRACE("Unknown section: '");
-          for (uint32_t i = 0; i != string_length; ++i) {
+          for (uint32_t i = 0; i != string_length; i++) {
             TRACE("%c", *(section_name_start + i));
           }
           TRACE("'\n");

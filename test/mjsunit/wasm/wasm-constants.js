@@ -64,6 +64,7 @@ var kDeclExports = 0x09;
 var kDeclFunctions = 0x0a;
 var kDeclCode = 0x0b;
 var kDeclNames = 0x0c;
+var kDeclFunctionTablePad = 0x0d;
 
 var kArity0 = 0;
 var kArity1 = 1;
@@ -74,7 +75,7 @@ var kWasmFunctionTypeForm = 0x40;
 var section_names = [
   "memory", "type", "old_function", "global", "data",
   "table", "end", "start", "import", "export",
-  "function", "code", "name"];
+  "function", "code", "name", "table_pad"];
 
 // Function declaration flags
 var kDeclFunctionName   = 0x01;

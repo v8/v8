@@ -109,6 +109,8 @@ class WasmModuleBuilder {
     this.table = [];
     this.segments = [];
     this.explicit = [];
+    this.pad = null;
+    return this;
   }
 
   addStart(start_index) {
@@ -117,6 +119,11 @@ class WasmModuleBuilder {
 
   addMemory(min, max, exp) {
     this.memory = {min: min, max: max, exp: exp};
+    return this;
+  }
+
+  addPadFunctionTable(size) {
+    this.pad = size;
     return this;
   }
 
@@ -330,6 +337,19 @@ class WasmModuleBuilder {
         }
       });
     }
+
+    // Add an indirect function table pad section.
+    if (wasm.pad !== null) {
+      if (debug)
+        print("emitting indirect function table pad @ " + binary.length);
+      binary.emit_section(kDeclFunctionTablePad, section => {
+        section.emit_varint(wasm.pad);
+      });
+    }
+
+    // End the module.
+    if (debug) print("emitting end @ " + binary.length);
+    binary.emit_section(kDeclEnd, section => {});
 
     return binary;
   }

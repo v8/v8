@@ -514,6 +514,9 @@ DEFINE_BOOL(print_wasm_code_size, false,
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
 
+DEFINE_BOOL(wasm_jit_prototype, false,
+            "enable experimental wasm runtime dynamic code generation")
+
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 // 0x1800 fits in the immediate field of an ARM instruction.

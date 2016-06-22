@@ -144,12 +144,16 @@ void LoadDataSegments(const WasmModule* module, byte* mem_addr,
 
 Handle<FixedArray> BuildFunctionTable(Isolate* isolate,
                                       const WasmModule* module) {
-  if (module->function_table.size() == 0) {
+  // Compute the size of the indirect function table
+  uint32_t table_size = module->FunctionTableSize();
+  if (table_size == 0) {
     return Handle<FixedArray>::null();
   }
-  int table_size = static_cast<int>(module->function_table.size());
+
   Handle<FixedArray> fixed = isolate->factory()->NewFixedArray(2 * table_size);
-  for (int i = 0; i < table_size; i++) {
+  for (uint32_t i = 0;
+       i < static_cast<uint32_t>(module->function_table.size());
+       ++i) {
     const WasmFunction* function =
         &module->functions[module->function_table[i]];
     fixed->set(i, Smi::FromInt(function->sig_index));
@@ -342,7 +346,9 @@ WasmModule::WasmModule()
       mem_export(false),
       mem_external(false),
       start_function_index(-1),
-      origin(kWasmOrigin) {}
+      origin(kWasmOrigin),
+      globals_size(0),
+      indirect_table_size(0) {}
 
 static MaybeHandle<JSFunction> ReportFFIError(ErrorThrower& thrower,
                                               const char* error, uint32_t index,
@@ -667,12 +673,14 @@ void CompileSequentially(Isolate* isolate, const WasmModule* module,
 
 void PopulateFunctionTable(WasmModuleInstance* instance) {
   if (!instance->function_table.is_null()) {
-    int table_size = static_cast<int>(instance->module->function_table.size());
-    DCHECK_EQ(instance->function_table->length(), table_size * 2);
-    for (int i = 0; i < table_size; i++) {
-      instance->function_table->set(
-          i + table_size,
-          *instance->function_code[instance->module->function_table[i]]);
+    uint32_t table_size = instance->module->FunctionTableSize();
+    DCHECK_EQ(table_size * 2, instance->function_table->length());
+    uint32_t populated_table_size =
+        static_cast<uint32_t>(instance->module->function_table.size());
+    for (uint32_t i = 0; i < populated_table_size; ++i) {
+    instance->function_table->set(
+        i + table_size,
+        *instance->function_code[instance->module->function_table[i]]);
     }
   }
 }
