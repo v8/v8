@@ -18,6 +18,7 @@ namespace ieee754 {
 
 namespace {
 
+double const kE = 2.718281828459045;
 double const kPI = 3.141592653589793;
 double const kTwo120 = 1.329227995784916e+36;
 
@@ -129,9 +130,14 @@ TEST(Ieee754, Exp) {
   EXPECT_EQ(1.0, exp(-0.0));
   EXPECT_EQ(1.0, exp(0.0));
   EXPECT_EQ(1.0, exp(2.2250738585072014e-308));
+
+  // Test that exp(x) is monotonic near 1.
   EXPECT_GE(exp(1.0), exp(0.9999999999999999));
   EXPECT_LE(exp(1.0), exp(1.0000000000000002));
-  EXPECT_EQ(2.718281828459045, exp(1.0));
+
+  // Test that we produce the correctly rounded result for 1.
+  EXPECT_EQ(kE, exp(1.0));
+
   EXPECT_EQ(7.38905609893065e0, exp(2.0));
   EXPECT_EQ(1.7976931348622732e308, exp(7.09782712893383973096e+02));
   EXPECT_EQ(2.6881171418161356e+43, exp(100.0));
@@ -168,6 +174,9 @@ TEST(Ieee754, Log) {
   EXPECT_EQ(0.0, log(1.0));
   EXPECT_EQ(std::numeric_limits<double>::infinity(),
             log(std::numeric_limits<double>::infinity()));
+
+  // Test that log(E) produces the correctly rounded result.
+  EXPECT_EQ(1.0, log(kE));
 }
 
 TEST(Ieee754, Log1p) {
