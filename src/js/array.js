@@ -729,7 +729,7 @@ function ArraySplice(start, delete_count) {
   }
   if (UseSparseVariant(array, len, IS_ARRAY(array), changed_elements)) {
     %NormalizeElements(array);
-    %NormalizeElements(deleted_elements);
+    if (IS_ARRAY(deleted_elements)) %NormalizeElements(deleted_elements);
     SparseSlice(array, start_i, del_count, len, deleted_elements);
     SparseMove(array, start_i, del_count, len, num_elements_to_add);
   } else {
