@@ -1425,14 +1425,7 @@ void MacroAssembler::LoadTrueFalseRoots(Register true_root,
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    Mov(result, Operand(cell));
-    Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    Mov(result, Operand(object));
-  }
+  Mov(result, Operand(object));
 }
 
 

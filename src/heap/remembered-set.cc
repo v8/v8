@@ -9,6 +9,7 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +24,19 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
         Object** slot = reinterpret_cast<Object**>(addr);
         return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
       });
+    }
+  }
+  for (MemoryChunk* chunk : *heap->code_space()) {
+    TypedSlotSet* slots = GetTypedSlotSet(chunk);
+    if (slots != nullptr) {
+      slots->Iterate(
+          [heap, chunk](SlotType type, Address host_addr, Address addr) {
+            if (Marking::IsBlack(Marking::MarkBitFrom(host_addr))) {
+              return KEEP_SLOT;
+            } else {
+              return REMOVE_SLOT;
+            }
+          });
     }
   }
 }
