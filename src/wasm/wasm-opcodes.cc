@@ -40,12 +40,12 @@ const char* WasmOpcodes::ShortOpcodeName(WasmOpcode opcode) {
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.return_count(); i++) {
+  for (size_t i = 0; i < sig.return_count(); ++i) {
     os << WasmOpcodes::ShortNameOf(sig.GetReturn(i));
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.parameter_count(); i++) {
+  for (size_t i = 0; i < sig.parameter_count(); ++i) {
     os << WasmOpcodes::ShortNameOf(sig.GetParam(i));
   }
   return os;

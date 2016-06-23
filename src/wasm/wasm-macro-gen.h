@@ -153,7 +153,7 @@ class LocalDeclEncoder {
   size_t Emit(byte* buffer) const {
     size_t pos = 0;
     pos = WriteUint32v(buffer, pos, static_cast<uint32_t>(local_decls.size()));
-    for (size_t i = 0; i < local_decls.size(); i++) {
+    for (size_t i = 0; i < local_decls.size(); ++i) {
       pos = WriteUint32v(buffer, pos, local_decls[i].first);
       buffer[pos++] = WasmOpcodes::LocalTypeCodeFor(local_decls[i].second);
     }

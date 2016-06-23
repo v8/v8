@@ -385,7 +385,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         current_function_builder_->EmitVarInt(default_block);
       }
     }
-    for (int i = 0; i < case_count; i++) {
+    for (int i = 0; i < case_count; ++i) {
       CaseClause* clause = clauses->at(i);
       RECURSE(VisitStatements(clause->statements()));
       BlockVisitor* v = blocks.at(case_count - i - 1);
@@ -468,7 +468,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         FunctionSig::Builder b(zone(), return_type == kAstStmt ? 0 : 1,
                                func_type->Arity());
         if (return_type != kAstStmt) b.AddReturn(return_type);
-        for (int i = 0; i < expr->parameter_count(); i++) {
+        for (int i = 0; i < expr->parameter_count(); ++i) {
           LocalType type = TypeFrom(func_type->Parameter(i));
           DCHECK_NE(kAstStmt, type);
           b.AddParam(type);
@@ -645,13 +645,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (return_type != kAstStmt) {
       sig.AddReturn(static_cast<LocalType>(return_type));
     }
-    for (int i = 0; i < func_type->Arity(); i++) {
+    for (int i = 0; i < func_type->Arity(); ++i) {
       sig.AddParam(TypeFrom(func_type->Parameter(i)));
     }
     uint32_t signature_index = builder_->AddSignature(sig.Build());
     InsertFunctionTable(table->var(), next_table_index_, signature_index);
     next_table_index_ += funcs->values()->length();
-    for (int i = 0; i < funcs->values()->length(); i++) {
+    for (int i = 0; i < funcs->values()->length(); ++i) {
       VariableProxy* func = funcs->values()->at(i)->AsVariableProxy();
       DCHECK_NOT_NULL(func);
       builder_->AddIndirectFunction(LookupOrInsertFunction(func->var()));
@@ -1286,7 +1286,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
           if (return_type != kAstStmt) {
             sig.AddReturn(return_type);
           }
-          for (int i = 0; i < args->length(); i++) {
+          for (int i = 0; i < args->length(); ++i) {
             sig.AddParam(TypeOf(args->at(i)));
           }
           index =

@@ -822,7 +822,7 @@ class ControlTransfers : public ZoneObject {
           TRACE("control @%td $%zu: BrTable[arity=%u count=%u]\n", (pc - start),
                 value_depth, operand.arity, operand.table_count);
           value_depth -= (operand.arity + 1);
-          for (uint32_t i = 0; i < operand.table_count + 1; i++) {
+          for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
             uint32_t target = operand.read_entry(&decoder, i);
             control_stack[control_stack.size() - target - 1].Ref(
                 &map_, start, pc + i, value_depth, operand.arity > 0);
@@ -873,7 +873,7 @@ class CodeMap {
   CodeMap(const WasmModule* module, Zone* zone)
       : zone_(zone), module_(module), interpreter_code_(zone) {
     if (module == nullptr) return;
-    for (size_t i = 0; i < module->functions.size(); i++) {
+    for (size_t i = 0; i < module->functions.size(); ++i) {
       const WasmFunction* function = &module->functions[i];
       const byte* code_start =
           module->module_start + function->code_start_offset;
@@ -964,7 +964,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     InterpreterCode* code = codemap()->FindCode(function);
     CHECK_NOT_NULL(code);
     frames_.push_back({code, 0, 0, stack_.size()});
-    for (size_t i = 0; i < function->sig->parameter_count(); i++) {
+    for (size_t i = 0; i < function->sig->parameter_count(); ++i) {
       stack_.push_back(args[i]);
     }
     frames_.back().ret_pc = InitLocals(code);
@@ -1657,7 +1657,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     sp_t plimit = top ? top->plimit() : 0;
     sp_t llimit = top ? top->llimit() : 0;
     if (FLAG_trace_wasm_interpreter) {
-      for (size_t i = sp; i < stack_.size(); i++) {
+      for (size_t i = sp; i < stack_.size(); ++i) {
         if (i < plimit)
           PrintF(" p%zu:", i);
         else if (i < llimit)

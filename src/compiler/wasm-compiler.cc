@@ -2362,7 +2362,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   args[pos++] = HeapConstant(wasm_code);
 
   // Convert JS parameters to WASM numbers.
-  for (int i = 0; i < wasm_count; i++) {
+  for (int i = 0; i < wasm_count; ++i) {
     Node* param =
         graph()->NewNode(jsgraph()->common()->Parameter(i + 1), start);
     Node* wasm_param = FromJS(param, context, sig->GetParam(i));
@@ -2451,7 +2451,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
 
   // Convert WASM numbers to JS values.
   int param_index = 0;
-  for (int i = 0; i < wasm_count; i++) {
+  for (int i = 0; i < wasm_count; ++i) {
     Node* param =
         graph()->NewNode(jsgraph()->common()->Parameter(param_index++), start);
     args[pos++] = ToJS(param, context, sig->GetParam(i));

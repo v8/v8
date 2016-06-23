@@ -157,7 +157,7 @@ class ModuleDecoder : public Decoder {
           uint32_t signatures_count = consume_u32v(&length, "signatures count");
           module->signatures.reserve(SafeReserve(signatures_count));
           // Decode signatures.
-          for (uint32_t i = 0; i < signatures_count; i++) {
+          for (uint32_t i = 0; i < signatures_count; ++i) {
             if (failed()) break;
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -170,7 +170,7 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions.reserve(SafeReserve(functions_count));
-          for (uint32_t i = 0; i < functions_count; i++) {
+          for (uint32_t i = 0; i < functions_count; ++i) {
             module->functions.push_back({nullptr,  // sig
                                          i,        // func_index
                                          0,        // sig_index
@@ -193,7 +193,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<uint32_t>(module->functions.size()));
             break;
           }
-          for (uint32_t i = 0; i < functions_count; i++) {
+          for (uint32_t i = 0; i < functions_count; ++i) {
             WasmFunction* function = &module->functions[i];
             int length;
             uint32_t size = consume_u32v(&length, "body size");
@@ -220,7 +220,7 @@ class ModuleDecoder : public Decoder {
             break;
           }
 
-          for (uint32_t i = 0; i < functions_count; i++) {
+          for (uint32_t i = 0; i < functions_count; ++i) {
             WasmFunction* function = &module->functions[i];
             function->name_offset =
                 consume_string(&function->name_length, false);
@@ -241,7 +241,7 @@ class ModuleDecoder : public Decoder {
           uint32_t globals_count = consume_u32v(&length, "globals count");
           module->globals.reserve(SafeReserve(globals_count));
           // Decode globals.
-          for (uint32_t i = 0; i < globals_count; i++) {
+          for (uint32_t i = 0; i < globals_count; ++i) {
             if (failed()) break;
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -257,7 +257,7 @@ class ModuleDecoder : public Decoder {
               consume_u32v(&length, "data segments count");
           module->data_segments.reserve(SafeReserve(data_segments_count));
           // Decode data segments.
-          for (uint32_t i = 0; i < data_segments_count; i++) {
+          for (uint32_t i = 0; i < data_segments_count; ++i) {
             if (failed()) break;
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -292,7 +292,7 @@ class ModuleDecoder : public Decoder {
               consume_u32v(&length, "function table count");
           module->function_table.reserve(SafeReserve(function_table_count));
           // Decode function table.
-          for (uint32_t i = 0; i < function_table_count; i++) {
+          for (uint32_t i = 0; i < function_table_count; ++i) {
             if (failed()) break;
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -331,7 +331,7 @@ class ModuleDecoder : public Decoder {
               consume_u32v(&length, "import table count");
           module->import_table.reserve(SafeReserve(import_table_count));
           // Decode import table.
-          for (uint32_t i = 0; i < import_table_count; i++) {
+          for (uint32_t i = 0; i < import_table_count; ++i) {
             if (failed()) break;
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -364,7 +364,7 @@ class ModuleDecoder : public Decoder {
               consume_u32v(&length, "export table count");
           module->export_table.reserve(SafeReserve(export_table_count));
           // Decode export table.
-          for (uint32_t i = 0; i < export_table_count; i++) {
+          for (uint32_t i = 0; i < export_table_count; ++i) {
             if (failed()) break;
             TRACE("DecodeExportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
@@ -409,7 +409,7 @@ class ModuleDecoder : public Decoder {
         case WasmSection::Code::Max:
           // Skip unknown sections.
           TRACE("Unknown section: '");
-          for (uint32_t i = 0; i != string_length; i++) {
+          for (uint32_t i = 0; i != string_length; ++i) {
             TRACE("%c", *(section_name_start + i));
           }
           TRACE("'\n");
@@ -707,7 +707,7 @@ class ModuleDecoder : public Decoder {
     // parse parameter types
     uint32_t param_count = consume_u32v(&length, "param count");
     std::vector<LocalType> params;
-    for (uint32_t i = 0; i < param_count; i++) {
+    for (uint32_t i = 0; i < param_count; ++i) {
       LocalType param = consume_local_type();
       if (param == kAstStmt) error(pc_ - 1, "invalid void parameter type");
       params.push_back(param);
@@ -722,7 +722,7 @@ class ModuleDecoder : public Decoder {
       return nullptr;
     }
     std::vector<LocalType> returns;
-    for (uint32_t i = 0; i < return_count; i++) {
+    for (uint32_t i = 0; i < return_count; ++i) {
       LocalType ret = consume_local_type();
       if (ret == kAstStmt) error(pc_ - 1, "invalid void return type");
       returns.push_back(ret);
@@ -732,8 +732,8 @@ class ModuleDecoder : public Decoder {
     LocalType* buffer =
         module_zone->NewArray<LocalType>(param_count + return_count);
     uint32_t b = 0;
-    for (uint32_t i = 0; i < return_count; i++) buffer[b++] = returns[i];
-    for (uint32_t i = 0; i < param_count; i++) buffer[b++] = params[i];
+    for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
+    for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
     return new (module_zone) FunctionSig(return_count, param_count, buffer);
   }
@@ -863,7 +863,7 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
     table.reserve(functions_count);
   int section_offset = static_cast<int>(code_section.start() - module_start);
   DCHECK_LE(0, section_offset);
-  for (uint32_t i = 0; i < functions_count && decoder.ok(); i++) {
+  for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v(&length, "body size");
     int offset = static_cast<int>(section_offset + decoder.pc_offset());
     table.push_back(std::make_pair(offset, static_cast<int>(size)));

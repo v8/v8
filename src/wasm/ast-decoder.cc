@@ -249,7 +249,7 @@ class WasmDecoder : public Decoder {
       return false;
     }
     // Verify table.
-    for (uint32_t i = 0; i < operand.table_count + 1; i++) {
+    for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
       uint32_t target = operand.read_entry(this, i);
       if (target >= block_depth) {
         error(operand.table + i * 2, "improper branch in br_table");
@@ -565,7 +565,7 @@ class SR_WasmDecoder : public WasmDecoder {
   char* indentation() {
     static const int kMaxIndent = 64;
     static char bytes[kMaxIndent + 1];
-    for (int i = 0; i < kMaxIndent; i++) bytes[i] = ' ';
+    for (int i = 0; i < kMaxIndent; ++i) bytes[i] = ' ';
     bytes[kMaxIndent] = 0;
     if (stack_.size() < kMaxIndent / 2) {
       bytes[stack_.size() * 2] = 0;
@@ -579,7 +579,7 @@ class SR_WasmDecoder : public WasmDecoder {
     // Initialize {local_type_vec} from signature.
     if (sig_) {
       local_type_vec_.reserve(sig_->parameter_count());
-      for (size_t i = 0; i < sig_->parameter_count(); i++) {
+      for (size_t i = 0; i < sig_->parameter_count(); ++i) {
         local_type_vec_.push_back(sig_->GetParam(i));
       }
     }
@@ -814,7 +814,7 @@ class SR_WasmDecoder : public WasmDecoder {
 
                 SsaEnv* copy = Steal(break_env);
                 ssa_env_ = copy;
-                for (uint32_t i = 0; i < operand.table_count + 1; i++) {
+                for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
                   uint16_t target = operand.read_entry(this, i);
                   ssa_env_ = Split(copy);
                   ssa_env_->control = (i == operand.table_count)
@@ -1045,7 +1045,7 @@ class SR_WasmDecoder : public WasmDecoder {
 
 #if DEBUG
       if (FLAG_trace_wasm_decoder) {
-        for (size_t i = 0; i < stack_.size(); i++) {
+        for (size_t i = 0; i < stack_.size(); ++i) {
           Value& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
           PrintF(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
@@ -1528,7 +1528,7 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   }
   PrintF("%s", WasmOpcodes::OpcodeName(tree.opcode()));
   if (tree.count > 0) os << "(";
-  for (uint32_t i = 0; i < tree.count; i++) {
+  for (uint32_t i = 0; i < tree.count; ++i) {
     if (i > 0) os << ", ";
     os << *tree.children[i];
   }
@@ -1606,7 +1606,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
     os.write(padding, num_whitespaces);
     os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
 
-    for (size_t i = 1; i < length; i++) {
+    for (size_t i = 1; i < length; ++i) {
       os << " " << AsHex(pc[i], 2) << ",";
     }
 

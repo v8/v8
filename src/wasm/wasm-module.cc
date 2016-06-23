@@ -178,7 +178,7 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
 #if DEBUG
   // Double check the API allocator actually zero-initialized the memory.
   byte* bytes = reinterpret_cast<byte*>(*backing_store);
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; ++i) {
     DCHECK_EQ(0, bytes[i]);
   }
 #endif
@@ -314,7 +314,7 @@ bool LinkFunction(Handle<Code> unlinked,
 
 void LinkModuleFunctions(Isolate* isolate,
                          std::vector<Handle<Code>>& functions) {
-  for (size_t i = 0; i < functions.size(); i++) {
+  for (size_t i = 0; i < functions.size(); ++i) {
     Handle<Code> code = functions[i];
     bool modified = LinkFunction(code, functions, Code::WASM_FUNCTION);
     if (modified) {
@@ -521,7 +521,7 @@ void InitializeParallelCompilation(
     Isolate* isolate, const std::vector<WasmFunction>& functions,
     std::vector<compiler::WasmCompilationUnit*>& compilation_units,
     ModuleEnv& module_env, ErrorThrower& thrower) {
-  for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); i++) {
+  for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); ++i) {
     compilation_units[i] = new compiler::WasmCompilationUnit(
         &thrower, isolate, &module_env, &functions[i], i);
   }
@@ -537,7 +537,7 @@ uint32_t* StartCompilationTasks(
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
           V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
   uint32_t* task_ids = new uint32_t[num_tasks];
-  for (size_t i = 0; i < num_tasks; i++) {
+  for (size_t i = 0; i < num_tasks; ++i) {
     WasmCompilationTask* task =
         new WasmCompilationTask(isolate, &compilation_units, &executed_units,
                                 pending_tasks, &result_mutex, &next_unit);
@@ -553,7 +553,7 @@ void WaitForCompilationTasks(Isolate* isolate, uint32_t* task_ids,
   const size_t num_tasks =
       Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
           V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-  for (size_t i = 0; i < num_tasks; i++) {
+  for (size_t i = 0; i < num_tasks; ++i) {
     // If the task has not started yet, then we abort it. Otherwise we wait for
     // it to finish.
     if (!isolate->cancelable_task_manager()->TryAbort(task_ids[i])) {
@@ -651,7 +651,7 @@ void CompileSequentially(Isolate* isolate, const WasmModule* module,
   DCHECK(!thrower->error());
 
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
-       i < module->functions.size(); i++) {
+       i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
 
     DCHECK_EQ(i, func.func_index);
