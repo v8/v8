@@ -516,8 +516,7 @@ void MarkCompactCollector::Sweeper::StartSweepingHelper(
 void MarkCompactCollector::Sweeper::SweepOrWaitUntilSweepingCompleted(
     Page* page) {
   if (!page->SweepingDone()) {
-    PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
-    ParallelSweepPage(page, owner->identity());
+    ParallelSweepPage(page, page->owner()->identity());
     if (!page->SweepingDone()) {
       // We were not able to sweep that page, i.e., a concurrent
       // sweeper thread currently owns this page. Wait for the sweeper
