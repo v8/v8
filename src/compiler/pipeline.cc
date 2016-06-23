@@ -58,6 +58,7 @@
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/store-store-elimination.h"
 #include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/compiler/typer.h"
@@ -1031,6 +1032,15 @@ struct EffectControlLinearizationPhase {
   }
 };
 
+struct StoreStoreEliminationPhase {
+  static const char* phase_name() { return "Store-store elimination"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    StoreStoreElimination store_store_elimination(data->jsgraph(), temp_zone);
+    store_store_elimination.Run();
+  }
+};
+
 struct MemoryOptimizationPhase {
   static const char* phase_name() { return "memory optimization"; }
 
@@ -1473,6 +1483,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   Run<EffectControlLinearizationPhase>();
   RunPrintAndVerify("Effect and control linearized", true);
+
+  if (FLAG_turbo_store_elimination) {
+    Run<StoreStoreEliminationPhase>();
+    RunPrintAndVerify("Store-store elimination", true);
+  }
 
   Run<BranchEliminationPhase>();
   RunPrintAndVerify("Branch conditions eliminated", true);

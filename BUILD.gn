@@ -998,6 +998,8 @@ v8_source_set("v8_base") {
     "src/compiler/source-position.h",
     "src/compiler/state-values-utils.cc",
     "src/compiler/state-values-utils.h",
+    "src/compiler/store-store-elimination.cc",
+    "src/compiler/store-store-elimination.h",
     "src/compiler/tail-call-optimization.cc",
     "src/compiler/tail-call-optimization.h",
     "src/compiler/type-hint-analyzer.cc",
