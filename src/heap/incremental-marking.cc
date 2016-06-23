@@ -345,9 +345,7 @@ void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
 
 void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     PagedSpace* space) {
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     SetOldSpacePageFlags(p, false, false);
   }
 }
@@ -355,9 +353,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
 
 void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     NewSpace* space) {
-  NewSpacePageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     SetNewSpacePageFlags(p, false);
   }
 }
@@ -369,27 +365,21 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->code_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
 
-  LargePage* lop = heap_->lo_space()->first_page();
-  while (LargePage::IsValid(lop)) {
+  for (LargePage* lop : *heap_->lo_space()) {
     SetOldSpacePageFlags(lop, false, false);
-    lop = lop->next_page();
   }
 }
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     SetOldSpacePageFlags(p, true, is_compacting_);
   }
 }
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     SetNewSpacePageFlags(p, true);
   }
 }
@@ -401,10 +391,8 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->code_space());
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
-  LargePage* lop = heap_->lo_space()->first_page();
-  while (LargePage::IsValid(lop)) {
+  for (LargePage* lop : *heap_->lo_space()) {
     SetOldSpacePageFlags(lop, true, is_compacting_);
-    lop = lop->next_page();
   }
 }
 

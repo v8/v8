@@ -1088,9 +1088,8 @@ bool PagedSpace::HasBeenSetUp() { return true; }
 
 
 void PagedSpace::TearDown() {
-  PageIterator iterator(this);
-  while (iterator.has_next()) {
-    Page* page = iterator.next();
+  for (auto it = begin(); it != end();) {
+    Page* page = *(it++);  // Will be erased.
     ArrayBufferTracker::FreeAll(page);
     heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
   }
@@ -1148,10 +1147,8 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   AccountCommitted(other->CommittedMemory());
 
   // Move over pages.
-  PageIterator it(other);
-  Page* p = nullptr;
-  while (it.has_next()) {
-    p = it.next();
+  for (auto it = other->begin(); it != other->end();) {
+    Page* p = *(it++);
 
     // Relinking requires the category to be unlinked.
     other->UnlinkFreeListCategories(p);
@@ -1168,18 +1165,16 @@ size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::VirtualMemory::HasLazyCommits()) return CommittedMemory();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = 0;
-  PageIterator it(this);
-  while (it.has_next()) {
-    size += it.next()->CommittedPhysicalMemory();
+  for (Page* page : *this) {
+    size += page->CommittedPhysicalMemory();
   }
   return size;
 }
 
 bool PagedSpace::ContainsSlow(Address addr) {
   Page* p = Page::FromAddress(addr);
-  PageIterator iterator(this);
-  while (iterator.has_next()) {
-    if (iterator.next() == p) return true;
+  for (Page* page : *this) {
+    if (page == p) return true;
   }
   return false;
 }
@@ -1202,7 +1197,6 @@ Object* PagedSpace::FindObject(Address addr) {
   UNREACHABLE();
   return Smi::FromInt(0);
 }
-
 
 bool PagedSpace::Expand() {
   int size = AreaSize();
@@ -1241,20 +1235,17 @@ bool PagedSpace::Expand() {
 
 
 int PagedSpace::CountTotalPages() {
-  PageIterator it(this);
   int count = 0;
-  while (it.has_next()) {
-    it.next();
+  for (Page* page : *this) {
     count++;
+    USE(page);
   }
   return count;
 }
 
 
 void PagedSpace::ResetFreeListStatistics() {
-  PageIterator page_iterator(this);
-  while (page_iterator.has_next()) {
-    Page* page = page_iterator.next();
+  for (Page* page : *this) {
     page->ResetFreeListStatistics();
   }
 }
@@ -1297,9 +1288,7 @@ void PagedSpace::Print() {}
 void PagedSpace::Verify(ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
-  PageIterator page_iterator(this);
-  while (page_iterator.has_next()) {
-    Page* page = page_iterator.next();
+  for (Page* page : *this) {
     CHECK(page->owner() == this);
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
@@ -1530,9 +1519,8 @@ void NewSpace::ResetAllocationInfo() {
   to_space_.Reset();
   UpdateAllocationInfo();
   // Clear all mark-bits in the to-space.
-  NewSpacePageIterator it(&to_space_);
-  while (it.has_next()) {
-    Bitmap::Clear(it.next());
+  for (Page* p : to_space_) {
+    Bitmap::Clear(p);
   }
   InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }
@@ -1750,10 +1738,8 @@ void SemiSpace::SetUp(int initial_capacity, int maximum_capacity) {
 void SemiSpace::TearDown() {
   // Properly uncommit memory to keep the allocator counters in sync.
   if (is_committed()) {
-    NewSpacePageIterator it(this);
-    while (it.has_next()) {
-      Page* page = it.next();
-      ArrayBufferTracker::FreeAll(page);
+    for (Page* p : *this) {
+      ArrayBufferTracker::FreeAll(p);
     }
     Uncommit();
   }
@@ -1788,10 +1774,9 @@ bool SemiSpace::Commit() {
 
 bool SemiSpace::Uncommit() {
   DCHECK(is_committed());
-  NewSpacePageIterator it(this);
-  while (it.has_next()) {
-    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
-        it.next());
+  for (auto it = begin(); it != end();) {
+    Page* p = *(it++);
+    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(p);
   }
   anchor()->set_next_page(anchor());
   anchor()->set_prev_page(anchor());
@@ -1805,9 +1790,8 @@ bool SemiSpace::Uncommit() {
 size_t SemiSpace::CommittedPhysicalMemory() {
   if (!is_committed()) return 0;
   size_t size = 0;
-  NewSpacePageIterator it(this);
-  while (it.has_next()) {
-    size += it.next()->CommittedPhysicalMemory();
+  for (Page* p : *this) {
+    size += p->CommittedPhysicalMemory();
   }
   return size;
 }
@@ -1888,9 +1872,7 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
   anchor_.prev_page()->set_next_page(&anchor_);
   anchor_.next_page()->set_prev_page(&anchor_);
 
-  NewSpacePageIterator it(this);
-  while (it.has_next()) {
-    Page* page = it.next();
+  for (Page* page : *this) {
     page->set_owner(this);
     page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
@@ -1953,9 +1935,8 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
-  NewSpacePageIterator it(space_start(), mark);
-  while (it.has_next()) {
-    it.next()->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+  for (Page* p : NewSpacePageRange(space_start(), mark)) {
+    p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
 
@@ -2661,9 +2642,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
   free_list_.RepairLists(heap());
   // Each page may have a small free space that is not tracked by a free list.
   // Update the maps for those free space objects.
-  PageIterator iterator(this);
-  while (iterator.has_next()) {
-    Page* page = iterator.next();
+  for (Page* page : *this) {
     int size = static_cast<int>(page->wasted_memory());
     if (size == 0) continue;
     Address address = page->OffsetToAddress(Page::kPageSize - size);

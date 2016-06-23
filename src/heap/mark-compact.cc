@@ -131,13 +131,14 @@ static void VerifyMarkingBlackPage(Heap* heap, Page* page) {
 
 static void VerifyMarking(NewSpace* space) {
   Address end = space->top();
-  NewSpacePageIterator it(space->bottom(), end);
   // The bottom position is at the start of its page. Allows us to use
   // page->area_start() as start of range on all pages.
   CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
-  while (it.has_next()) {
-    Page* page = it.next();
-    Address limit = it.has_next() ? page->area_end() : end;
+
+  NewSpacePageRange range(space->bottom(), end);
+  for (auto it = range.begin(); it != range.end();) {
+    Page* page = *(it++);
+    Address limit = it != range.end() ? page->area_end() : end;
     CHECK(limit == end || !page->Contains(end));
     VerifyMarking(space->heap(), page->area_start(), limit);
   }
@@ -145,10 +146,7 @@ static void VerifyMarking(NewSpace* space) {
 
 
 static void VerifyMarking(PagedSpace* space) {
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     if (p->IsFlagSet(Page::BLACK_PAGE)) {
       VerifyMarkingBlackPage(space->heap(), p);
     } else {
@@ -204,13 +202,12 @@ static void VerifyEvacuation(Page* page) {
 
 
 static void VerifyEvacuation(NewSpace* space) {
-  NewSpacePageIterator it(space->bottom(), space->top());
   VerifyEvacuationVisitor visitor;
-
-  while (it.has_next()) {
-    Page* page = it.next();
+  NewSpacePageRange range(space->bottom(), space->top());
+  for (auto it = range.begin(); it != range.end();) {
+    Page* page = *(it++);
     Address current = page->area_start();
-    Address limit = it.has_next() ? page->area_end() : space->top();
+    Address limit = it != range.end() ? page->area_end() : space->top();
     CHECK(limit == space->top() || !page->Contains(space->top()));
     while (current < limit) {
       HeapObject* object = HeapObject::FromAddress(current);
@@ -225,10 +222,7 @@ static void VerifyEvacuation(Heap* heap, PagedSpace* space) {
   if (FLAG_use_allocation_folding && (space == heap->old_space())) {
     return;
   }
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
     VerifyEvacuation(p);
   }
@@ -360,10 +354,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     CHECK(p->markbits()->IsClean());
     CHECK_EQ(0, p->LiveBytes());
   }
@@ -371,10 +362,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
 
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
-  NewSpacePageIterator it(space->bottom(), space->top());
-
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : NewSpacePageRange(space->bottom(), space->top())) {
     CHECK(p->markbits()->IsClean());
     CHECK_EQ(0, p->LiveBytes());
   }
@@ -419,10 +407,7 @@ void MarkCompactCollector::VerifyOmittedMapChecks() {
 
 
 static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
-  PageIterator it(space);
-
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     Bitmap::Clear(p);
     if (p->IsFlagSet(Page::BLACK_PAGE)) {
       p->ClearFlag(Page::BLACK_PAGE);
@@ -432,10 +417,8 @@ static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
 
 
 static void ClearMarkbitsInNewSpace(NewSpace* space) {
-  NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
-
-  while (it.has_next()) {
-    Bitmap::Clear(it.next());
+  for (Page* page : *space) {
+    Bitmap::Clear(page);
   }
 }
 
@@ -572,10 +555,8 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 void MarkCompactCollector::Sweeper::EnsureNewSpaceCompleted() {
   if (!sweeping_in_progress_) return;
   if (!FLAG_concurrent_sweeping || !IsSweepingCompleted()) {
-    NewSpacePageIterator pit(heap_->new_space());
-    while (pit.has_next()) {
-      Page* page = pit.next();
-      SweepOrWaitUntilSweepingCompleted(page);
+    for (Page* p : *heap_->new_space()) {
+      SweepOrWaitUntilSweepingCompleted(p);
     }
   }
 }
@@ -715,9 +696,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
 
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     if (p->NeverEvacuate()) continue;
     if (p->IsFlagSet(Page::BLACK_PAGE)) continue;
     // Invariant: Evacuation candidates are just created when marking is
@@ -1967,9 +1946,7 @@ class MarkCompactCollector::EvacuateRecordOnlyVisitor final
 };
 
 void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
-  PageIterator it(space);
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *space) {
     if (!p->IsFlagSet(Page::BLACK_PAGE)) {
       DiscoverGreyObjectsOnPage(p);
     }
@@ -1980,9 +1957,7 @@ void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
 
 void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
   NewSpace* space = heap()->new_space();
-  NewSpacePageIterator it(space->bottom(), space->top());
-  while (it.has_next()) {
-    Page* page = it.next();
+  for (Page* page : NewSpacePageRange(space->bottom(), space->top())) {
     DiscoverGreyObjectsOnPage(page);
     if (marking_deque()->IsFull()) return;
   }
@@ -3060,10 +3035,9 @@ HeapObject* MarkCompactCollector::FindBlackObjectBySlotSlow(Address slot) {
 
 void MarkCompactCollector::EvacuateNewSpacePrologue() {
   NewSpace* new_space = heap()->new_space();
-  NewSpacePageIterator it(new_space->bottom(), new_space->top());
   // Append the list of new space pages to be processed.
-  while (it.has_next()) {
-    newspace_evacuation_candidates_.Add(it.next());
+  for (Page* p : NewSpacePageRange(new_space->bottom(), new_space->top())) {
+    newspace_evacuation_candidates_.Add(p);
   }
   new_space->Flip();
   new_space->ResetAllocationInfo();
@@ -3795,9 +3769,7 @@ void UpdateToSpacePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
   Address space_start = heap->new_space()->bottom();
   Address space_end = heap->new_space()->top();
-  NewSpacePageIterator it(space_start, space_end);
-  while (it.has_next()) {
-    Page* page = it.next();
+  for (Page* page : NewSpacePageRange(space_start, space_end)) {
     Address start =
         page->Contains(space_start) ? space_start : page->area_start();
     Address end = page->Contains(space_end) ? space_end : page->area_end();
@@ -3952,13 +3924,12 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   Address space_top = space->top();
   space->ClearStats();
 
-  PageIterator it(space);
-
   int will_be_swept = 0;
   bool unused_page_present = false;
 
-  while (it.has_next()) {
-    Page* p = it.next();
+  // Loop needs to support deletion if live bytes == 0 for a page.
+  for (auto it = space->begin(); it != space->end();) {
+    Page* p = *(it++);
     DCHECK(p->SweepingDone());
 
     if (p->IsEvacuationCandidate()) {

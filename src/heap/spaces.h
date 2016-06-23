@@ -1620,25 +1620,6 @@ class HeapObjectIterator : public ObjectIterator {
 
 
 // -----------------------------------------------------------------------------
-// A PageIterator iterates the pages in a paged space.
-
-class PageIterator BASE_EMBEDDED {
- public:
-  explicit inline PageIterator(PagedSpace* space);
-
-  inline bool has_next();
-  inline Page* next();
-
- private:
-  PagedSpace* space_;
-  Page* prev_page_;  // Previous page returned.
-  // Next page that will be returned.  Cached here so that we can use this
-  // iterator for operations that deallocate pages.
-  Page* next_page_;
-};
-
-
-// -----------------------------------------------------------------------------
 // A space has a circular list of pages. The next page can be accessed via
 // Page::next_page() call.
 
@@ -2086,8 +2067,49 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
+template <class PAGE_TYPE>
+class PageIteratorImpl
+    : public std::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+ public:
+  explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
+  PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
+  PAGE_TYPE* operator*() { return p_; }
+  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+    return rhs.p_ == p_;
+  }
+  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+    return rhs.p_ != p_;
+  }
+  inline PageIteratorImpl<PAGE_TYPE>& operator++();
+  inline PageIteratorImpl<PAGE_TYPE> operator++(int);
+
+ private:
+  PAGE_TYPE* p_;
+};
+
+typedef PageIteratorImpl<Page> PageIterator;
+typedef PageIteratorImpl<LargePage> LargePageIterator;
+
+class NewSpacePageRange {
+ public:
+  typedef PageIterator iterator;
+
+  inline NewSpacePageRange(Address start, Address limit);
+
+  iterator begin() { return iterator(Page::FromAddress(start_)); }
+  iterator end() {
+    return iterator(Page::FromAllocationAreaAddress(limit_)->next_page());
+  }
+
+ private:
+  Address start_;
+  Address limit_;
+};
+
 class PagedSpace : public Space {
  public:
+  typedef PageIterator iterator;
+
   static const intptr_t kCompactionMemoryWanted = 500 * KB;
 
   // Creates a space with an id.
@@ -2296,6 +2318,9 @@ class PagedSpace : public Space {
   inline void UnlinkFreeListCategories(Page* page);
   inline intptr_t RelinkFreeListCategories(Page* page);
 
+  iterator begin() { return iterator(anchor_.next_page()); }
+  iterator end() { return iterator(&anchor_); }
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2350,7 +2375,6 @@ class PagedSpace : public Space {
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
-  friend class PageIterator;
 
   // Used in cctest.
   friend class HeapTester;
@@ -2401,6 +2425,8 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 // space as a marking stack when tracing live objects.
 class SemiSpace : public Space {
  public:
+  typedef PageIterator iterator;
+
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
@@ -2525,6 +2551,9 @@ class SemiSpace : public Space {
   virtual void Verify();
 #endif
 
+  iterator begin() { return iterator(anchor_.next_page()); }
+  iterator end() { return iterator(anchor()); }
+
  private:
   void RewindPages(Page* start, int num_pages);
 
@@ -2555,7 +2584,6 @@ class SemiSpace : public Space {
   int pages_used_;
 
   friend class NewSpace;
-  friend class NewSpacePageIterator;
   friend class SemiSpaceIterator;
 };
 
@@ -2584,35 +2612,6 @@ class SemiSpaceIterator : public ObjectIterator {
   Address limit_;
 };
 
-
-// -----------------------------------------------------------------------------
-// A PageIterator iterates the pages in a semi-space.
-class NewSpacePageIterator BASE_EMBEDDED {
- public:
-  // Make an iterator that runs over all pages in to-space.
-  explicit inline NewSpacePageIterator(NewSpace* space);
-
-  // Make an iterator that runs over all pages in the given semispace,
-  // even those not used in allocation.
-  explicit inline NewSpacePageIterator(SemiSpace* space);
-
-  // Make iterator that iterates from the page containing start
-  // to the page that contains limit in the same semispace.
-  inline NewSpacePageIterator(Address start, Address limit);
-
-  inline bool has_next();
-  inline Page* next();
-
- private:
-  Page* prev_page_;  // Previous page returned.
-  // Next page that will be returned.  Cached here so that we can use this
-  // iterator for operations that deallocate pages.
-  Page* next_page_;
-  // Last page returned.
-  Page* last_page_;
-};
-
-
 // -----------------------------------------------------------------------------
 // The young generation space.
 //
@@ -2621,6 +2620,8 @@ class NewSpacePageIterator BASE_EMBEDDED {
 
 class NewSpace : public Space {
  public:
+  typedef PageIterator iterator;
+
   explicit NewSpace(Heap* heap)
       : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
         to_space_(heap, kToSpace),
@@ -2884,6 +2885,9 @@ class NewSpace : public Space {
   void PauseAllocationObservers() override;
   void ResumeAllocationObservers() override;
 
+  iterator begin() { return to_space_.begin(); }
+  iterator end() { return to_space_.end(); }
+
  private:
   // Update allocation info to match the current to-space page.
   void UpdateAllocationInfo();
@@ -3027,6 +3031,8 @@ class MapSpace : public PagedSpace {
 
 class LargeObjectSpace : public Space {
  public:
+  typedef LargePageIterator iterator;
+
   LargeObjectSpace(Heap* heap, AllocationSpace id);
   virtual ~LargeObjectSpace();
 
@@ -3088,6 +3094,9 @@ class LargeObjectSpace : public Space {
   // Collect code statistics.
   void CollectCodeStatistics();
 
+  iterator begin() { return iterator(first_page_); }
+  iterator end() { return iterator(nullptr); }
+
 #ifdef VERIFY_HEAP
   virtual void Verify();
 #endif
@@ -3123,16 +3132,6 @@ class LargeObjectIterator : public ObjectIterator {
   LargePage* current_;
 };
 
-class LargePageIterator BASE_EMBEDDED {
- public:
-  explicit inline LargePageIterator(LargeObjectSpace* space);
-
-  inline LargePage* next();
-
- private:
-  LargePage* next_page_;
-};
-
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
 class MemoryChunkIterator BASE_EMBEDDED {
@@ -3150,6 +3149,7 @@ class MemoryChunkIterator BASE_EMBEDDED {
     kLargeObjectState,
     kFinishedState
   };
+  Heap* heap_;
   State state_;
   PageIterator old_iterator_;
   PageIterator code_iterator_;

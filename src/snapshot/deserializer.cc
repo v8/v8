@@ -31,9 +31,7 @@ void Deserializer::DecodeReservation(
 void Deserializer::FlushICacheForNewIsolate() {
   DCHECK(!deserializing_user_code_);
   // The entire isolate is newly deserialized. Simply flush all code pages.
-  PageIterator it(isolate_->heap()->code_space());
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *isolate_->heap()->code_space()) {
     Assembler::FlushICache(isolate_, p->area_start(),
                            p->area_end() - p->area_start());
   }

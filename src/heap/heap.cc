@@ -4659,10 +4659,8 @@ void Heap::Verify() {
 
 void Heap::ZapFromSpace() {
   if (!new_space_.IsFromSpaceCommitted()) return;
-  NewSpacePageIterator it(new_space_.FromSpaceStart(),
-                          new_space_.FromSpaceEnd());
-  while (it.has_next()) {
-    Page* page = it.next();
+  for (Page* page : NewSpacePageRange(new_space_.FromSpaceStart(),
+                                      new_space_.FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
       Memory::Address_at(cursor) = kFromSpaceZapValue;
@@ -5379,8 +5377,9 @@ void Heap::NotifyDeserializationComplete() {
   // All pages right after bootstrapping must be marked as never-evacuate.
   PagedSpaces spaces(this);
   for (PagedSpace* s = spaces.next(); s != NULL; s = spaces.next()) {
-    PageIterator it(s);
-    while (it.has_next()) CHECK(it.next()->NeverEvacuate());
+    for (Page* p : *s) {
+      CHECK(p->NeverEvacuate());
+    }
   }
 #endif  // DEBUG
 }

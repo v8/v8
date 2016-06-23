@@ -75,10 +75,8 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
 void ArrayBufferTracker::FreeDeadInNewSpace(Heap* heap) {
   DCHECK_EQ(heap->gc_state(), Heap::HeapState::SCAVENGE);
-  NewSpacePageIterator from_it(heap->new_space()->FromSpaceStart(),
-                               heap->new_space()->FromSpaceEnd());
-  while (from_it.has_next()) {
-    Page* page = from_it.next();
+  for (Page* page : NewSpacePageRange(heap->new_space()->FromSpaceStart(),
+                                      heap->new_space()->FromSpaceEnd())) {
     bool empty = ProcessBuffers(page, kUpdateForwardedRemoveOthers);
     CHECK(empty);
   }

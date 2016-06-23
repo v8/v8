@@ -15,6 +15,23 @@
 namespace v8 {
 namespace internal {
 
+template <class PAGE_TYPE>
+PageIteratorImpl<PAGE_TYPE>& PageIteratorImpl<PAGE_TYPE>::operator++() {
+  p_ = p_->next_page();
+  return *this;
+}
+
+template <class PAGE_TYPE>
+PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
+  PageIteratorImpl<PAGE_TYPE> tmp(*this);
+  operator++();
+  return tmp;
+}
+
+NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
+    : start_(start), limit_(limit) {
+  SemiSpace::AssertValidRange(start, limit);
+}
 
 // -----------------------------------------------------------------------------
 // Bitmap
@@ -29,25 +46,6 @@ void Bitmap::SetAllBits(MemoryChunk* chunk) {
   Bitmap* bitmap = chunk->markbits();
   for (int i = 0; i < bitmap->CellsCount(); i++)
     bitmap->cells()[i] = 0xffffffff;
-}
-
-// -----------------------------------------------------------------------------
-// PageIterator
-
-PageIterator::PageIterator(PagedSpace* space)
-    : space_(space),
-      prev_page_(&space->anchor_),
-      next_page_(prev_page_->next_page()) {}
-
-
-bool PageIterator::has_next() { return next_page_ != &space_->anchor_; }
-
-
-Page* PageIterator::next() {
-  DCHECK(has_next());
-  prev_page_ = next_page_;
-  next_page_ = next_page_->next_page();
-  return prev_page_;
 }
 
 
@@ -74,37 +72,6 @@ HeapObject* SemiSpaceIterator::Next() {
 
 
 HeapObject* SemiSpaceIterator::next_object() { return Next(); }
-
-
-// -----------------------------------------------------------------------------
-// NewSpacePageIterator
-
-NewSpacePageIterator::NewSpacePageIterator(NewSpace* space)
-    : prev_page_(Page::FromAddress(space->ToSpaceStart())->prev_page()),
-      next_page_(Page::FromAddress(space->ToSpaceStart())),
-      last_page_(Page::FromAllocationAreaAddress(space->ToSpaceEnd())) {}
-
-NewSpacePageIterator::NewSpacePageIterator(SemiSpace* space)
-    : prev_page_(space->anchor()),
-      next_page_(prev_page_->next_page()),
-      last_page_(prev_page_->prev_page()) {}
-
-NewSpacePageIterator::NewSpacePageIterator(Address start, Address limit)
-    : prev_page_(Page::FromAddress(start)->prev_page()),
-      next_page_(Page::FromAddress(start)),
-      last_page_(Page::FromAllocationAreaAddress(limit)) {
-  SemiSpace::AssertValidRange(start, limit);
-}
-
-
-bool NewSpacePageIterator::has_next() { return prev_page_ != last_page_; }
-
-Page* NewSpacePageIterator::next() {
-  DCHECK(has_next());
-  prev_page_ = next_page_;
-  next_page_ = next_page_->next_page();
-  return prev_page_;
-}
 
 
 // -----------------------------------------------------------------------------
@@ -152,20 +119,6 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
 }
 
 // -----------------------------------------------------------------------------
-// LargePageIterator
-
-LargePageIterator::LargePageIterator(LargeObjectSpace* space)
-    : next_page_(space->first_page()) {}
-
-LargePage* LargePageIterator::next() {
-  LargePage* result = next_page_;
-  if (next_page_ != nullptr) {
-    next_page_ = next_page_->next_page();
-  }
-  return result;
-}
-
-// -----------------------------------------------------------------------------
 // MemoryAllocator
 
 #ifdef ENABLE_HEAP_PROTECTION
@@ -209,9 +162,8 @@ bool SemiSpace::Contains(Object* o) {
 }
 
 bool SemiSpace::ContainsSlow(Address a) {
-  NewSpacePageIterator it(this);
-  while (it.has_next()) {
-    if (it.next() == MemoryChunk::FromAddress(a)) return true;
+  for (Page* p : *this) {
+    if (p == MemoryChunk::FromAddress(a)) return true;
   }
   return false;
 }
@@ -406,40 +358,33 @@ void Page::ClearEvacuationCandidate() {
 }
 
 MemoryChunkIterator::MemoryChunkIterator(Heap* heap)
-    : state_(kOldSpaceState),
-      old_iterator_(heap->old_space()),
-      code_iterator_(heap->code_space()),
-      map_iterator_(heap->map_space()),
-      lo_iterator_(heap->lo_space()) {}
+    : heap_(heap),
+      state_(kOldSpaceState),
+      old_iterator_(heap->old_space()->begin()),
+      code_iterator_(heap->code_space()->begin()),
+      map_iterator_(heap->map_space()->begin()),
+      lo_iterator_(heap->lo_space()->begin()) {}
 
 MemoryChunk* MemoryChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
-      if (old_iterator_.has_next()) {
-        return old_iterator_.next();
-      }
+      if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
       state_ = kMapState;
       // Fall through.
     }
     case kMapState: {
-      if (map_iterator_.has_next()) {
-        return map_iterator_.next();
-      }
+      if (map_iterator_ != heap_->map_space()->end()) return *(map_iterator_++);
       state_ = kCodeState;
       // Fall through.
     }
     case kCodeState: {
-      if (code_iterator_.has_next()) {
-        return code_iterator_.next();
-      }
+      if (code_iterator_ != heap_->code_space()->end())
+        return *(code_iterator_++);
       state_ = kLargeObjectState;
       // Fall through.
     }
     case kLargeObjectState: {
-      MemoryChunk* answer = lo_iterator_.next();
-      if (answer != nullptr) {
-        return answer;
-      }
+      if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
       state_ = kFinishedState;
       // Fall through;
     }

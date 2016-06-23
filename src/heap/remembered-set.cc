@@ -16,10 +16,7 @@ namespace internal {
 template <PointerDirection direction>
 void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
   STATIC_ASSERT(direction == OLD_TO_NEW);
-  PageIterator it(heap->old_space());
-  MemoryChunk* chunk;
-  while (it.has_next()) {
-    chunk = it.next();
+  for (MemoryChunk* chunk : *heap->old_space()) {
     SlotSet* slots = GetSlotSet(chunk);
     if (slots != nullptr) {
       slots->Iterate([heap, chunk](Address addr) {
