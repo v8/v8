@@ -2595,15 +2595,37 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  mov(result, object);
+  AllowDeferredHandleDereference embedding_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    mov(result, Operand::ForCell(cell));
+  } else {
+    mov(result, object);
+  }
 }
 
 
 void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  cmp(reg, object);
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    cmp(reg, Operand::ForCell(cell));
+  } else {
+    cmp(reg, object);
+  }
 }
 
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) { Push(object); }
+
+void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
+  AllowDeferredHandleDereference using_raw_address;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    push(Operand::ForCell(cell));
+  } else {
+    Push(object);
+  }
+}
+
 
 void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
                                   Register scratch) {

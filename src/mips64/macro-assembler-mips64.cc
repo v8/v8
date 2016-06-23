@@ -1595,7 +1595,19 @@ void MacroAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 }
 
 void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
-  li(dst, Operand(value), mode);
+  AllowDeferredHandleDereference smi_check;
+  if (value->IsSmi()) {
+    li(dst, Operand(value), mode);
+  } else {
+    DCHECK(value->IsHeapObject());
+    if (isolate()->heap()->InNewSpace(*value)) {
+      Handle<Cell> cell = isolate()->factory()->NewCell(value);
+      li(dst, Operand(cell));
+      ld(dst, FieldMemOperand(dst, Cell::kValueOffset));
+    } else {
+      li(dst, Operand(value));
+    }
+  }
 }
 
 static inline int64_t ShiftAndFixSignExtension(int64_t imm, int bitnum) {

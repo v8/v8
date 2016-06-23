@@ -1852,19 +1852,15 @@ TEST(CodeSerializerCell) {
   assembler.enable_serializer();
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
   CHECK(isolate->heap()->InNewSpace(*number));
-  Handle<Code> code;
-  {
-    MacroAssembler* masm = &assembler;
-    Handle<Cell> cell = isolate->factory()->NewCell(number);
-    masm->Move(rax, cell, RelocInfo::CELL);
-    masm->movp(rax, Operand(rax, 0));
-    masm->ret(0);
-    CodeDesc desc;
-    masm->GetCode(&desc);
-    code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
-                                       masm->CodeObject());
-    code->set_has_reloc_info_for_serialization(true);
-  }
+  MacroAssembler* masm = &assembler;
+  masm->MoveHeapObject(rax, number);
+  masm->ret(0);
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::FUNCTION), masm->CodeObject());
+  code->set_has_reloc_info_for_serialization(true);
+
   RelocIterator rit1(*code, 1 << RelocInfo::CELL);
   CHECK_EQ(*number, rit1.rinfo()->target_cell()->value());
 
