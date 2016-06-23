@@ -1039,12 +1039,14 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   ModuleResult decoding_result =
       DecodeWasmModule(isolate, &zone, module_start, module_end, false,
                        asm_js ? kAsmJsOrigin : kWasmOrigin);
+
+  std::unique_ptr<const WasmModule> module(decoding_result.val);
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower.Error("WASM.compileRun() failed: %s",
                   decoding_result.error_msg.get());
+    return -1;
   }
-  std::unique_ptr<const WasmModule> module(decoding_result.val);
 
   if (module->import_table.size() > 0) {
     thrower.Error("Not supported: module has imports.");
