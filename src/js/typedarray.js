@@ -349,7 +349,7 @@ function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
 function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   var sourceElementSize = source.BYTES_PER_ELEMENT;
   var targetElementSize = target.BYTES_PER_ELEMENT;
-  var sourceLength = source.length;
+  var sourceLength = %_TypedArrayGetLength(source);
 
   // Copy left part.
   function CopyLeftPart() {
@@ -369,7 +369,7 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
   var leftIndex = CopyLeftPart();
 
-  // Copy rigth part;
+  // Copy right part;
   function CopyRightPart() {
     // First unmutated byte before the next write
     var targetPtr =
@@ -413,7 +413,8 @@ function TypedArraySet(obj, offset) {
       TypedArraySetFromOverlappingTypedArray(this, obj, intOffset);
       return;
     case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
-      TypedArraySetFromArrayLike(this, obj, obj.length, intOffset);
+      TypedArraySetFromArrayLike(this,
+          obj, %_TypedArrayGetLength(obj), intOffset);
       return;
     case 3: // TYPED_ARRAY_SET_NON_TYPED_ARRAY
       var l = obj.length;
@@ -428,7 +429,7 @@ function TypedArraySet(obj, offset) {
         return;
       }
       l = TO_LENGTH(l);
-      if (intOffset + l > this.length) {
+      if (intOffset + l > %_TypedArrayGetLength(this)) {
         throw MakeRangeError(kTypedArraySetSourceTooLarge);
       }
       TypedArraySetFromArrayLike(this, obj, l, intOffset);

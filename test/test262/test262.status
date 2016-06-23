@@ -453,9 +453,6 @@
   'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-get-err': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-proto-err': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5133
-  'built-ins/TypedArray/prototype/set/array-arg-target-arraylength-internal': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5134
   'built-ins/Array/prototype/concat/is-concat-spreadable-is-array-proxy-revoked': [FAIL],
 
