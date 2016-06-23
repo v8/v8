@@ -1596,8 +1596,9 @@ void Logger::LogBytecodeHandlers() {
         Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
         std::string bytecode_name =
             interpreter::Bytecodes::ToString(bytecode, operand_scale);
-        CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
-                        AbstractCode::cast(code), bytecode_name.c_str());
+        PROFILE(isolate_, CodeCreateEvent(
+                              CodeEventListener::BYTECODE_HANDLER_TAG,
+                              AbstractCode::cast(code), bytecode_name.c_str()));
       }
     }
   }
