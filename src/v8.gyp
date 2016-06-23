@@ -638,6 +638,8 @@
         'compiler/pipeline-statistics.h',
         'compiler/raw-machine-assembler.cc',
         'compiler/raw-machine-assembler.h',
+        'compiler/redundancy-elimination.cc',
+        'compiler/redundancy-elimination.h',
         'compiler/register-allocator.cc',
         'compiler/register-allocator.h',
         'compiler/register-allocator-verifier.cc',

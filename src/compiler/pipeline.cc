@@ -49,6 +49,7 @@
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
+#include "src/compiler/redundancy-elimination.h"
 #include "src/compiler/register-allocator-verifier.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
@@ -973,12 +974,14 @@ struct EarlyOptimizationPhase {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
+    RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone);
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &redundancy_elimination);
     AddReducer(data, &graph_reducer, &generic_lowering);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
