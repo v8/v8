@@ -13505,31 +13505,14 @@ void Code::CopyFrom(const CodeDesc& desc) {
 // The position returned is relative to the beginning of the script where the
 // source for this function is found.
 int Code::SourcePosition(int code_offset) {
-  Address pc = instruction_start() + code_offset;
-  int distance = kMaxInt;
+  // Subtract one because the current PC is one instruction after the call site.
+  Address pc = instruction_start() + code_offset - 1;
   int position = RelocInfo::kNoPosition;  // Initially no position found.
-  // Run through all the relocation info to find the best matching source
-  // position. All the code needs to be considered as the sequence of the
-  // instructions in the code does not necessarily follow the same order as the
-  // source.
-  RelocIterator it(this, RelocInfo::kPositionMask);
-  while (!it.done()) {
-    // Only look at positions after the current pc.
-    if (it.rinfo()->pc() < pc) {
-      // Get position and distance.
-
-      int dist = static_cast<int>(pc - it.rinfo()->pc());
-      int pos = static_cast<int>(it.rinfo()->data());
-      // If this position is closer than the current candidate or if it has the
-      // same distance as the current candidate and the position is higher then
-      // this position is the new candidate.
-      if ((dist < distance) ||
-          (dist == distance && pos > position)) {
-        position = pos;
-        distance = dist;
-      }
-    }
-    it.next();
+  // Find the closest position attached to a pc lower or equal to the current.
+  // Note that the pc of reloc infos grow monotonically.
+  for (RelocIterator it(this, RelocInfo::kPositionMask);
+       !it.done() && it.rinfo()->pc() <= pc; it.next()) {
+    position = static_cast<int>(it.rinfo()->data());
   }
   DCHECK(kind() == FUNCTION || (is_optimized_code() && is_turbofanned()) ||
          is_wasm_code() || position == RelocInfo::kNoPosition);
@@ -13540,20 +13523,18 @@ int Code::SourcePosition(int code_offset) {
 // Same as Code::SourcePosition above except it only looks for statement
 // positions.
 int Code::SourceStatementPosition(int code_offset) {
-  // First find the position as close as possible using all position
-  // information.
+  // First find the closest position.
   int position = SourcePosition(code_offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  RelocIterator it(this, RelocInfo::kPositionMask);
-  while (!it.done()) {
+  for (RelocIterator it(this, RelocInfo::kPositionMask); !it.done();
+       it.next()) {
     if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
       int p = static_cast<int>(it.rinfo()->data());
       if (statement_position < p && p <= position) {
         statement_position = p;
       }
     }
-    it.next();
   }
   return statement_position;
 }
@@ -14362,20 +14343,18 @@ int BytecodeArray::SourcePosition(int offset) {
 }
 
 int BytecodeArray::SourceStatementPosition(int offset) {
-  // First find the position as close as possible using all position
-  // information.
+  // First find the closest position.
   int position = SourcePosition(offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  interpreter::SourcePositionTableIterator iterator(source_position_table());
-  while (!iterator.done()) {
-    if (iterator.is_statement()) {
-      int p = iterator.source_position();
+  for (interpreter::SourcePositionTableIterator it(source_position_table());
+       !it.done(); it.Advance()) {
+    if (it.is_statement()) {
+      int p = it.source_position();
       if (statement_position < p && p <= position) {
         statement_position = p;
       }
     }
-    iterator.Advance();
   }
   return statement_position;
 }
