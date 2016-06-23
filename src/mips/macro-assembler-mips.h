@@ -1237,6 +1237,9 @@ class MacroAssembler: public Assembler {
                        Handle<WeakCell> cell, Handle<Code> success,
                        SmiCheckType smi_check_type);
 
+  // If the value is a NaN, canonicalize the value else, do nothing.
+  void FPUCanonicalizeNaN(const DoubleRegister dst, const DoubleRegister src);
+
   // Get value of the weak cell.
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
