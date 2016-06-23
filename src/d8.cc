@@ -1135,6 +1135,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Version));
+  global_template->Set(
+      Symbol::GetToStringTag(isolate),
+      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
+          .ToLocalChecked());
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);

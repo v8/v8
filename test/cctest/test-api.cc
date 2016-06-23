@@ -13351,7 +13351,7 @@ THREADED_TEST(ObjectProtoToString) {
   value =
       context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object global]")).FromJust());
+        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
 
   // Check ordinary object
   Local<Value> object =
@@ -13397,7 +13397,7 @@ TEST(ObjectProtoToStringES6) {
   value =
       context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object global]")).FromJust());
+        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
 
   // Check ordinary object
   Local<Value> object = CompileRun("new Object()");

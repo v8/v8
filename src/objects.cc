@@ -2537,6 +2537,7 @@ MaybeHandle<String> JSReceiver::BuiltinStringTag(Handle<JSReceiver> object) {
   if (is_array.FromJust()) {
     return isolate->factory()->Array_string();
   }
+
   // TODO(adamk): According to ES2015, we should return "Function" when
   // object has a [[Call]] internal method (corresponds to IsCallable).
   // But this is well cemented in layout tests and might cause webbreakage.
@@ -2545,7 +2546,23 @@ MaybeHandle<String> JSReceiver::BuiltinStringTag(Handle<JSReceiver> object) {
   // }
   // TODO(adamk): class_name() is expensive, replace with instance type
   // checks where possible.
-  return handle(object->class_name(), isolate);
+
+  InstanceType instance_type = object->map()->instance_type();
+  switch (instance_type) {
+    case JS_PROXY_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+    case JS_API_OBJECT_TYPE:
+    case JS_VALUE_TYPE:
+    case JS_DATE_TYPE:
+    // Arguments and Error objects have type JS_OBJECT_TYPE
+    case JS_OBJECT_TYPE:
+    case JS_REGEXP_TYPE:
+    case JS_BOUND_FUNCTION_TYPE:
+    case JS_FUNCTION_TYPE:
+      return handle(object->class_name(), isolate);
+    default:
+      return isolate->factory()->Object_string();
+  }
 }
 
 
