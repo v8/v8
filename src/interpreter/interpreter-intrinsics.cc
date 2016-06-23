@@ -111,49 +111,34 @@ Node* IntrinsicsHelper::CompareInstanceType(Node* map, int type,
 
   InterpreterAssembler::Label if_true(assembler_), if_false(assembler_),
       end(assembler_);
-  Node* condition;
   if (mode == kInstanceTypeEqual) {
-    condition = __ Word32Equal(instance_type, __ Int32Constant(type));
+    return __ Word32Equal(instance_type, __ Int32Constant(type));
   } else {
     DCHECK(mode == kInstanceTypeGreaterThanOrEqual);
-    condition =
-        __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
+    return __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
   }
-  __ Branch(condition, &if_true, &if_false);
-
-  __ Bind(&if_true);
-  {
-    return_value.Bind(__ BooleanConstant(true));
-    __ Goto(&end);
-  }
-
-  __ Bind(&if_false);
-  {
-    return_value.Bind(__ BooleanConstant(false));
-    __ Goto(&end);
-  }
-
-  __ Bind(&end);
-  return return_value.value();
 }
 
 Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
-  InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
-      end(assembler_);
+  InterpreterAssembler::Label if_not_smi(assembler_), return_true(assembler_),
+      return_false(assembler_), end(assembler_);
   Node* arg = __ LoadRegister(input);
-  __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
+  __ GotoIf(__ WordIsSmi(arg), &return_false);
 
-  __ Bind(&if_smi);
+  Node* condition = CompareInstanceType(arg, type, kInstanceTypeEqual);
+  __ Branch(condition, &return_true, &return_false);
+
+  __ Bind(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ BooleanConstant(true));
     __ Goto(&end);
   }
 
-  __ Bind(&if_not_smi);
+  __ Bind(&return_false);
   {
-    return_value.Bind(CompareInstanceType(arg, type, kInstanceTypeEqual));
+    return_value.Bind(__ BooleanConstant(false));
     __ Goto(&end);
   }
 
@@ -165,23 +150,26 @@ Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
                                      Node* context) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
-  InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
+  InterpreterAssembler::Label return_true(assembler_), return_false(assembler_),
       end(assembler_);
 
   Node* arg = __ LoadRegister(input);
-  __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
+  __ GotoIf(__ WordIsSmi(arg), &return_false);
 
-  __ Bind(&if_smi);
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  Node* condition = CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
+                                        kInstanceTypeGreaterThanOrEqual);
+  __ Branch(condition, &return_true, &return_false);
+
+  __ Bind(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ BooleanConstant(true));
     __ Goto(&end);
   }
 
-  __ Bind(&if_not_smi);
+  __ Bind(&return_false);
   {
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    return_value.Bind(CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
-                                          kInstanceTypeGreaterThanOrEqual));
+    return_value.Bind(__ BooleanConstant(false));
     __ Goto(&end);
   }
 
@@ -329,6 +317,31 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   Node* result = __ CallJS(function, context, receiver_arg, target_args_count,
                            TailCallMode::kDisallow);
   return result;
+}
+
+Node* IntrinsicsHelper::ValueOf(Node* args_reg, Node* arg_count,
+                                Node* context) {
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+  InterpreterAssembler::Label done(assembler_);
+
+  Node* object = __ LoadRegister(args_reg);
+  return_value.Bind(object);
+
+  // If the object is a smi return the object.
+  __ GotoIf(__ WordIsSmi(object), &done);
+
+  // If the object is not a value type, return the object.
+  Node* condition =
+      CompareInstanceType(object, JS_VALUE_TYPE, kInstanceTypeEqual);
+  __ GotoUnless(condition, &done);
+
+  // If the object is a value type, return the value field.
+  return_value.Bind(__ LoadObjectField(object, JSValue::kValueOffset));
+  __ Goto(&done);
+
+  __ Bind(&done);
+  return return_value.value();
 }
 
 void IntrinsicsHelper::AbortIfArgCountMismatch(int expected, Node* actual) {

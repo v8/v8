@@ -44,7 +44,8 @@ namespace interpreter {
   V(ToLength, to_length, 1)                             \
   V(ToInteger, to_integer, 1)                           \
   V(ToNumber, to_number, 1)                             \
-  V(ToObject, to_object, 1)
+  V(ToObject, to_object, 1)                             \
+  V(ValueOf, value_of, 1)
 
 class IntrinsicsHelper {
  public:
