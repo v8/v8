@@ -1585,7 +1585,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- E r r o r
     Handle<JSFunction> error_fun = InstallFunction(
-        global, "Error", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "Error", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, error_fun,
                                      Context::ERROR_FUNCTION_INDEX);
@@ -1593,7 +1593,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- E v a l E r r o r
     Handle<JSFunction> eval_error_fun = InstallFunction(
-        global, "EvalError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "EvalError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, eval_error_fun,
                                      Context::EVAL_ERROR_FUNCTION_INDEX);
@@ -1601,7 +1601,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- R a n g e E r r o r
     Handle<JSFunction> range_error_fun = InstallFunction(
-        global, "RangeError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "RangeError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, range_error_fun,
                                      Context::RANGE_ERROR_FUNCTION_INDEX);
@@ -1609,7 +1609,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- R e f e r e n c e E r r o r
     Handle<JSFunction> reference_error_fun = InstallFunction(
-        global, "ReferenceError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "ReferenceError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, reference_error_fun,
                                      Context::REFERENCE_ERROR_FUNCTION_INDEX);
@@ -1617,7 +1617,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- S y n t a x E r r o r
     Handle<JSFunction> syntax_error_fun = InstallFunction(
-        global, "SyntaxError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "SyntaxError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, syntax_error_fun,
                                      Context::SYNTAX_ERROR_FUNCTION_INDEX);
@@ -1625,7 +1625,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- T y p e E r r o r
     Handle<JSFunction> type_error_fun = InstallFunction(
-        global, "TypeError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "TypeError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, type_error_fun,
                                      Context::TYPE_ERROR_FUNCTION_INDEX);
@@ -1633,7 +1633,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- U R I E r r o r
     Handle<JSFunction> uri_error_fun = InstallFunction(
-        global, "URIError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        global, "URIError", JS_ERROR_TYPE, JSObject::kHeaderSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, uri_error_fun,
                                      Context::URI_ERROR_FUNCTION_INDEX);
@@ -1980,7 +1980,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     function->shared()->set_instance_class_name(*arguments_string);
 
     Handle<Map> map = factory->NewMap(
-        JS_OBJECT_TYPE, JSSloppyArgumentsObject::kSize, FAST_ELEMENTS);
+        JS_ARGUMENTS_TYPE, JSSloppyArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 2);
 
@@ -2040,7 +2040,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(
-        JS_OBJECT_TYPE, JSStrictArgumentsObject::kSize, FAST_ELEMENTS);
+        JS_ARGUMENTS_TYPE, JSStrictArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 3);
 

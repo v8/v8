@@ -2530,42 +2530,6 @@ String* JSReceiver::class_name() {
 }
 
 
-MaybeHandle<String> JSReceiver::BuiltinStringTag(Handle<JSReceiver> object) {
-  Maybe<bool> is_array = Object::IsArray(object);
-  MAYBE_RETURN(is_array, MaybeHandle<String>());
-  Isolate* const isolate = object->GetIsolate();
-  if (is_array.FromJust()) {
-    return isolate->factory()->Array_string();
-  }
-
-  // TODO(adamk): According to ES2015, we should return "Function" when
-  // object has a [[Call]] internal method (corresponds to IsCallable).
-  // But this is well cemented in layout tests and might cause webbreakage.
-  // if (object->IsCallable()) {
-  //   return isolate->factory()->Function_string();
-  // }
-  // TODO(adamk): class_name() is expensive, replace with instance type
-  // checks where possible.
-
-  InstanceType instance_type = object->map()->instance_type();
-  switch (instance_type) {
-    case JS_PROXY_TYPE:
-    case JS_SPECIAL_API_OBJECT_TYPE:
-    case JS_API_OBJECT_TYPE:
-    case JS_VALUE_TYPE:
-    case JS_DATE_TYPE:
-    // Arguments and Error objects have type JS_OBJECT_TYPE
-    case JS_OBJECT_TYPE:
-    case JS_REGEXP_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
-    case JS_FUNCTION_TYPE:
-      return handle(object->class_name(), isolate);
-    default:
-      return isolate->factory()->Object_string();
-  }
-}
-
-
 // static
 Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
@@ -12309,6 +12273,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_MODULE_TYPE:
     case JS_OBJECT_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_ARGUMENTS_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
     case JS_SET_ITERATOR_TYPE:
@@ -15662,32 +15628,73 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
       String);
   if (to_string_tag->IsString()) {
     tag = Handle<String>::cast(to_string_tag);
+  } else {
+    InstanceType instance_type = receiver->map()->instance_type();
+
+    switch (instance_type) {
+      case JS_API_OBJECT_TYPE:
+      case JS_SPECIAL_API_OBJECT_TYPE:
+        tag = handle(receiver->class_name(), isolate);
+        break;
+      case JS_ARGUMENTS_TYPE:
+        return isolate->factory()->arguments_to_string();
+      case JS_ARRAY_TYPE:
+        return isolate->factory()->array_to_string();
+      case JS_BOUND_FUNCTION_TYPE:
+      case JS_FUNCTION_TYPE:
+        return isolate->factory()->function_to_string();
+      case JS_ERROR_TYPE:
+        return isolate->factory()->error_to_string();
+      case JS_DATE_TYPE:
+        return isolate->factory()->date_to_string();
+      case JS_REGEXP_TYPE:
+        return isolate->factory()->regexp_to_string();
+
+      // TODO(franzih): According to the specification, isArray() must be run
+      // before get(@@toStringTag). On proxies, isArray() and get() can throw
+      // if the proxy has been revoked, so we change observable behavior
+      // by not obeying the correct order.
+      case JS_PROXY_TYPE: {
+        Maybe<bool> is_array = Object::IsArray(receiver);
+        MAYBE_RETURN(is_array, MaybeHandle<String>());
+        if (is_array.FromJust()) {
+          return isolate->factory()->array_to_string();
+        }
+        if (receiver->IsCallable()) {
+          return isolate->factory()->function_to_string();
+        }
+        return isolate->factory()->object_to_string();
+      }
+      case JS_VALUE_TYPE: {
+        Object* value = JSValue::cast(*receiver)->value();
+        if (value->IsString()) {
+          return isolate->factory()->string_to_string();
+        }
+        if (value->IsNumber()) {
+          return isolate->factory()->number_to_string();
+        }
+        if (value->IsBoolean()) {
+          return isolate->factory()->boolean_to_string();
+        }
+        if (value->IsSymbol()) {
+          return isolate->factory()->object_to_string();
+        }
+        UNREACHABLE();
+        tag = handle(receiver->class_name(), isolate);
+        break;
+      }
+      default:
+        return isolate->factory()->object_to_string();
+        break;
+    }
   }
 
-  if (tag.is_null()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, tag,
-                               JSReceiver::BuiltinStringTag(receiver), String);
-  }
-
-  if (*tag == isolate->heap()->Object_string()) {
-    return isolate->factory()->object_to_string();
-  }
-  if (*tag == isolate->heap()->String_string()) {
-    return isolate->factory()->string_to_string();
-  }
-  if (*tag == isolate->heap()->Array_string()) {
-    return isolate->factory()->array_to_string();
-  }
-  if (*tag == isolate->heap()->Function_string()) {
-    return isolate->factory()->function_to_string();
-  }
   IncrementalStringBuilder builder(isolate);
   builder.AppendCString("[object ");
   builder.AppendString(tag);
   builder.AppendCharacter(']');
   return builder.Finish();
 }
-
 
 const char* Symbol::PrivateSymbolToName() const {
   Heap* heap = GetIsolate()->heap();
