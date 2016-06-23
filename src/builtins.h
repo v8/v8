@@ -334,10 +334,13 @@ class CodeStubAssembler;
   V(AtomicsStore, 4)
 
 // Define list of builtins implemented in TurboFan (with CallStub linkage).
-#define BUILTIN_LIST_S(V)                                                   \
-  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
-  V(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
-  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
+#define BUILTIN_LIST_S(V)                                              \
+  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector) \
+  V(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,   \
+    LoadGlobalWithVector)                                              \
+  V(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,      \
+    LoadGlobalWithVector)                                              \
+  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)             \
   V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)
 
 // Define list of builtin handlers implemented in assembly.

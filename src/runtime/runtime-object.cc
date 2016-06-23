@@ -15,9 +15,9 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> key) {
+MaybeHandle<Object> Runtime::GetObjectProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    bool should_throw_reference_error) {
   if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -30,7 +30,12 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
       LookupIterator::PropertyOrElement(isolate, object, key, &success);
   if (!success) return MaybeHandle<Object>();
 
-  return Object::GetProperty(&it);
+  MaybeHandle<Object> result = Object::GetProperty(&it);
+  if (!result.is_null() && should_throw_reference_error && !it.IsFound()) {
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, key), Object);
+  }
+  return result;
 }
 
 static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
@@ -343,12 +348,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
                            Runtime::GetObjectProperty(isolate, object, key));
 }
 
-RUNTIME_FUNCTION(Runtime_GetGlobal) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+namespace {
 
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-
+Object* GetGlobal(Isolate* isolate, Handle<String> name,
+                  bool should_throw_reference_error) {
   Handle<JSGlobalObject> global = isolate->global_object();
 
   Handle<ScriptContextTable> script_contexts(
@@ -364,14 +367,31 @@ RUNTIME_FUNCTION(Runtime_GetGlobal) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
     }
-
     return *result;
   }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Runtime::GetObjectProperty(isolate, global, name));
+      isolate, result,
+      Runtime::GetObjectProperty(isolate, global, name,
+                                 should_throw_reference_error));
   return *result;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_GetGlobalInsideTypeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  return GetGlobal(isolate, name, false);
+}
+
+RUNTIME_FUNCTION(Runtime_GetGlobalNotInsideTypeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  return GetGlobal(isolate, name, true);
 }
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.

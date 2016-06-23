@@ -328,7 +328,12 @@ class LoadGlobalIC : public LoadIC {
 
  protected:
   Handle<Code> slow_stub() const override {
-    return isolate()->builtins()->LoadGlobalIC_Slow();
+    if (LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
+        NOT_INSIDE_TYPEOF) {
+      return isolate()->builtins()->LoadGlobalIC_SlowNotInsideTypeof();
+    } else {
+      return isolate()->builtins()->LoadGlobalIC_SlowInsideTypeof();
+    }
   }
 };
 

@@ -384,7 +384,8 @@ namespace internal {
   F(SetPrototype, 2, 1)                              \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
-  F(GetGlobal, 1, 1)                                 \
+  F(GetGlobalInsideTypeof, 1, 1)                     \
+  F(GetGlobalNotInsideTypeof, 1, 1)                  \
   F(KeyedGetProperty, 2, 1)                          \
   F(StoreGlobalViaContext_Sloppy, 2, 1)              \
   F(StoreGlobalViaContext_Strict, 2, 1)              \
@@ -1073,7 +1074,8 @@ class Runtime : public AllStatic {
       Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Object> key);
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      bool should_throw_reference_error = false);
 
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.
