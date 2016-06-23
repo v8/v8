@@ -5486,7 +5486,24 @@ ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
 
+Map* PrototypeInfo::ObjectCreateMap() {
+  return Map::cast(WeakCell::cast(object_create_map())->value());
+}
+
+// static
+void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
+                                       Handle<Map> map) {
+  Handle<WeakCell> cell = Map::WeakCellForMap(map);
+  info->set_object_create_map(*cell);
+}
+
+bool PrototypeInfo::HasObjectCreateMap() {
+  Object* cache = object_create_map();
+  return cache->IsWeakCell() && !WeakCell::cast(cache)->cleared();
+}
+
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
+ACCESSORS(PrototypeInfo, object_create_map, Object, kObjectCreateMap)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
 SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)

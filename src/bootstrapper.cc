@@ -2994,6 +2994,14 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   native_context()->set_object_function_prototype_map(
       HeapObject::cast(object_function->initial_map()->prototype())->map());
 
+  // Set up the map for Object.create(null) instances.
+  Handle<Map> object_with_null_prototype_map =
+      Map::CopyInitialMap(handle(object_function->initial_map(), isolate()));
+  Map::SetPrototype(object_with_null_prototype_map,
+                    isolate()->factory()->null_value());
+  native_context()->set_object_with_null_prototype_map(
+      *object_with_null_prototype_map);
+
   // Store the map for the %StringPrototype% after the natives has been compiled
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function());

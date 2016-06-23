@@ -1618,6 +1618,8 @@ BUILTIN(ObjectAssign) {
 
 
 // ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
+// TODO(verwaest): Support the common cases with precached map directly in
+// an Object.create stub.
 BUILTIN(ObjectCreate) {
   HandleScope scope(isolate);
   Handle<Object> prototype = args.atOrUndefined(isolate, 1);
@@ -1633,7 +1635,26 @@ BUILTIN(ObjectCreate) {
   Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
                   isolate);
   if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(map, prototype, FAST_PROTOTYPE);
+    if (prototype->IsNull(isolate)) {
+      map = isolate->object_with_null_prototype_map();
+    } else if (prototype->IsJSObject()) {
+      Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+      if (!js_prototype->map()->is_prototype_map()) {
+        JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
+      }
+      Handle<PrototypeInfo> info =
+          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+      // TODO(verwaest): Use inobject slack tracking for this map.
+      if (info->HasObjectCreateMap()) {
+        map = handle(info->ObjectCreateMap(), isolate);
+      } else {
+        map = Map::CopyInitialMap(map);
+        Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+        PrototypeInfo::SetObjectCreateMap(info, map);
+      }
+    } else {
+      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+    }
   }
 
   // Actually allocate the object.
