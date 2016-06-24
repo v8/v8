@@ -370,6 +370,26 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                 \
   } while (0)
 
+#define ASSEMBLE_IEEE754_UNOP(name)                                           \
+  do {                                                                        \
+    /* Saves the esp into ebx */                                              \
+    __ push(ebx);                                                             \
+    __ mov(ebx, esp);                                                         \
+    /* Pass one double as argument on the stack. */                           \
+    __ PrepareCallCFunction(2, eax);                                          \
+    __ fstp(0);                                                               \
+    /* Load operand from original stack */                                    \
+    __ fld_d(MemOperand(ebx, 4));                                             \
+    /* Put operand into stack for function call */                            \
+    __ fstp_d(Operand(esp, 0));                                               \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     2);                                                      \
+    /* Restore the ebx */                                                     \
+    __ pop(ebx);                                                              \
+    /* Return value is in st(0) on x87. */                                    \
+    __ lea(esp, Operand(esp, kDoubleSize));                                   \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -703,24 +723,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
-    case kIeee754Float64Log: {
-      // Saves the esp into ebx
-      __ push(ebx);
-      __ mov(ebx, esp);
-      // Pass one double as argument on the stack.
-      __ PrepareCallCFunction(2, eax);
-      __ fstp(0);
-      // Load operand from original stack
-      __ fld_d(MemOperand(ebx, 4));
-      // Put operand into stack for function call
-      __ fstp_d(Operand(esp, 0));
-      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 2);
-      // Restore the ebx
-      __ pop(ebx);
-      // Return value is in st(0) on x87.
-      __ lea(esp, Operand(esp, kDoubleSize));
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
       break;
-    }
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
     case kX87Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));
