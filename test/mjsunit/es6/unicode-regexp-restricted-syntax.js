@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-unicode-regexps
-
 // test262/data/test/language/literals/regexp/u-dec-esc
 assertThrows("/\\1/u", SyntaxError);
 // test262/language/literals/regexp/u-invalid-char-range-a

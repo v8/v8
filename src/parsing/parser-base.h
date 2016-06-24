@@ -196,7 +196,6 @@ class ParserBase : public Traits {
         allow_harmony_restrictive_declarations_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_for_in_(false),
-        allow_harmony_function_name_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false) {}
@@ -217,7 +216,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_restrictive_declarations);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_for_in);
-  ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
@@ -1188,7 +1186,6 @@ class ParserBase : public Traits {
   bool allow_harmony_restrictive_declarations_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_for_in_;
-  bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
@@ -1973,9 +1970,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
             Scanner::Location(next_beg_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidCoverInitializedName);
 
-        if (allow_harmony_function_name()) {
-          Traits::SetFunctionNameFromIdentifierRef(rhs, lhs);
-        }
+        Traits::SetFunctionNameFromIdentifierRef(rhs, lhs);
       } else {
         value = lhs;
       }
@@ -2130,9 +2125,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
 
     if (fni_ != nullptr) fni_->Infer();
 
-    if (allow_harmony_function_name()) {
-      Traits::SetFunctionNameFromPropertyName(property, name);
-    }
+    Traits::SetFunctionNameFromPropertyName(property, name);
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -2387,7 +2380,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     }
   }
 
-  if (op == Token::ASSIGN && allow_harmony_function_name()) {
+  if (op == Token::ASSIGN) {
     Traits::SetFunctionNameFromIdentifierRef(right, expression);
   }
 
@@ -3185,9 +3178,7 @@ void ParserBase<Traits>::ParseFormalParameter(
     init_classifier.Discard();
     classifier->RecordNonSimpleParameter();
 
-    if (allow_harmony_function_name()) {
-      Traits::SetFunctionNameFromIdentifierRef(initializer, pattern);
-    }
+    Traits::SetFunctionNameFromIdentifierRef(initializer, pattern);
   }
 
   Traits::AddFormalParameter(parameters, pattern, initializer,

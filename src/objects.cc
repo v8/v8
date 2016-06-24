@@ -614,30 +614,28 @@ MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
 // static
 MaybeHandle<Object> Object::InstanceOf(Isolate* isolate, Handle<Object> object,
                                        Handle<Object> callable) {
-  if (FLAG_harmony_instanceof) {
-    // The {callable} must be a receiver.
-    if (!callable->IsJSReceiver()) {
-      THROW_NEW_ERROR(
-          isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck),
-          Object);
-    }
+  // The {callable} must be a receiver.
+  if (!callable->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck),
+                    Object);
+  }
 
-    // Lookup the @@hasInstance method on {callable}.
-    Handle<Object> inst_of_handler;
+  // Lookup the @@hasInstance method on {callable}.
+  Handle<Object> inst_of_handler;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, inst_of_handler,
+      JSReceiver::GetMethod(Handle<JSReceiver>::cast(callable),
+                            isolate->factory()->has_instance_symbol()),
+      Object);
+  if (!inst_of_handler->IsUndefined(isolate)) {
+    // Call the {inst_of_handler} on the {callable}.
+    Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, inst_of_handler,
-        JSReceiver::GetMethod(Handle<JSReceiver>::cast(callable),
-                              isolate->factory()->has_instance_symbol()),
+        isolate, result,
+        Execution::Call(isolate, inst_of_handler, callable, 1, &object),
         Object);
-    if (!inst_of_handler->IsUndefined(isolate)) {
-      // Call the {inst_of_handler} on the {callable}.
-      Handle<Object> result;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result,
-          Execution::Call(isolate, inst_of_handler, callable, 1, &object),
-          Object);
-      return isolate->factory()->ToBoolean(result->BooleanValue());
-    }
+    return isolate->factory()->ToBoolean(result->BooleanValue());
   }
 
   // The {callable} must have a [[Call]] internal method.
@@ -1623,9 +1621,6 @@ bool Object::SameValueZero(Object* other) {
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, Handle<Object> original_array) {
   Handle<Object> default_species = isolate->array_function();
-  if (!FLAG_harmony_species) {
-    return default_species;
-  }
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
       isolate->IsArraySpeciesLookupChainIntact()) {
@@ -15830,7 +15825,6 @@ JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {
         flag = JSRegExp::kMultiline;
         break;
       case 'u':
-        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
         flag = JSRegExp::kUnicode;
         break;
       case 'y':

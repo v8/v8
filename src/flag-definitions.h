@@ -230,15 +230,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                           \
-  V(harmony_function_name, "harmony Function name inference")         \
-  V(harmony_instanceof, "harmony instanceof support")                 \
-  V(harmony_iterator_close, "harmony iterator finalization")          \
-  V(harmony_unicode_regexps, "harmony unicode regexps")               \
-  V(harmony_regexp_exec, "harmony RegExp exec override behavior")     \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")            \
   V(harmony_restrictive_declarations,                                 \
     "harmony limitations on sloppy mode function declarations")       \
-  V(harmony_species, "harmony Symbol.species")                        \
   V(harmony_exponentiation_operator, "harmony exponentiation operator `**`")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped

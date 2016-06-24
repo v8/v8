@@ -102,7 +102,6 @@ NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
 bool Isolate::IsArraySpeciesLookupChainIntact() {
-  if (!FLAG_harmony_species) return true;
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
@@ -121,7 +120,6 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 }
 
 bool Isolate::IsHasInstanceLookupChainIntact() {
-  if (!FLAG_harmony_instanceof) return true;
   PropertyCell* has_instance_cell = heap()->has_instance_protector();
   return has_instance_cell->value() == Smi::FromInt(kArrayProtectorValid);
 }

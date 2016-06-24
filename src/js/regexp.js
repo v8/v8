@@ -24,6 +24,7 @@ var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 var SpeciesConstructor;
 
@@ -539,22 +540,6 @@ function RegExpSubclassSplit(string, limit) {
 %FunctionRemovePrototype(RegExpSubclassSplit);
 
 
-// Legacy implementation of RegExp.prototype[Symbol.match] which
-// doesn't properly call the underlying exec method
-function RegExpMatch(string) {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@match", this);
-  }
-  var subject = TO_STRING(string);
-
-  if (!REGEXP_GLOBAL(this)) return RegExpExecNoTests(this, subject, 0);
-  this.lastIndex = 0;
-  var result = %StringMatch(subject, this, RegExpLastMatchInfo);
-  return result;
-}
-
-
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 function RegExpSubclassMatch(string) {
@@ -954,19 +939,6 @@ function RegExpSubclassReplace(string, replace) {
 %FunctionRemovePrototype(RegExpSubclassReplace);
 
 
-// Legacy implementation of RegExp.prototype[Symbol.search] which
-// doesn't properly use the overridden exec method
-function RegExpSearch(string) {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        "RegExp.prototype.@@search", this);
-  }
-  var match = DoRegExpExec(this, TO_STRING(string), 0);
-  if (match) return match[CAPTURE0];
-  return -1;
-}
-
-
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 function RegExpSubclassSearch(string) {
@@ -1134,6 +1106,27 @@ function RegExpGetSticky() {
 }
 %SetForceInlineFlag(RegExpGetSticky);
 
+
+// ES6 21.2.5.15.
+function RegExpGetUnicode() {
+  if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
+      return UNDEFINED;
+    }
+    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
+  }
+  return TO_BOOLEAN(REGEXP_UNICODE(this));
+}
+%SetForceInlineFlag(RegExpGetUnicode);
+
+
+function RegExpSpecies() {
+  return this;
+}
+
+
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
@@ -1143,15 +1136,17 @@ GlobalRegExpPrototype = new GlobalObject();
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
 
+utils.InstallGetter(GlobalRegExp, speciesSymbol, RegExpSpecies);
+
 utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
-  "exec", RegExpExecJS,
-  "test", RegExpTest,
+  "exec", RegExpSubclassExecJS,
+  "test", RegExpSubclassTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
-  matchSymbol, RegExpMatch,
-  replaceSymbol, RegExpReplace,
-  searchSymbol, RegExpSearch,
-  splitSymbol, RegExpSplit,
+  matchSymbol, RegExpSubclassMatch,
+  replaceSymbol, RegExpSubclassReplace,
+  searchSymbol, RegExpSubclassSearch,
+  splitSymbol, RegExpSubclassSplit,
 ]);
 
 utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
@@ -1160,6 +1155,7 @@ utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
 utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
 utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
 utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
+utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
 
 // The properties `input` and `$_` are aliases for each other.  When this
 // value is set the value it is set to is coerced to a string.
@@ -1234,12 +1230,6 @@ utils.Export(function(to) {
   to.RegExpExec = DoRegExpExec;
   to.RegExpInitialize = RegExpInitialize;
   to.RegExpLastMatchInfo = RegExpLastMatchInfo;
-  to.RegExpSubclassExecJS = RegExpSubclassExecJS;
-  to.RegExpSubclassMatch = RegExpSubclassMatch;
-  to.RegExpSubclassReplace = RegExpSubclassReplace;
-  to.RegExpSubclassSearch = RegExpSubclassSearch;
-  to.RegExpSubclassSplit = RegExpSubclassSplit;
-  to.RegExpSubclassTest = RegExpSubclassTest;
   to.RegExpTest = RegExpTest;
 });
 

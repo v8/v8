@@ -808,7 +808,6 @@ Parser::Parser(ParseInfo* info)
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_for_in(FLAG_harmony_for_in);
-  set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
@@ -2444,9 +2443,7 @@ Block* Parser::ParseVariableDeclarations(
         }
       }
 
-      if (allow_harmony_function_name()) {
-        ParserTraits::SetFunctionNameFromIdentifierRef(value, pattern);
-      }
+      ParserTraits::SetFunctionNameFromIdentifierRef(value, pattern);
 
       // End position of the initializer is after the assignment expression.
       initializer_position = scanner()->location().end_pos;
@@ -4875,7 +4872,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_for_in);
-    SET_ALLOW(harmony_function_name);
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_exponentiation_operator);
     SET_ALLOW(harmony_restrictive_declarations);
@@ -4974,8 +4970,7 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
 
     if (fni_ != NULL) fni_->Infer();
 
-    if (allow_harmony_function_name() &&
-        property_name != ast_value_factory()->constructor_string()) {
+    if (property_name != ast_value_factory()->constructor_string()) {
       SetFunctionNameFromPropertyName(property, property_name);
     }
   }
@@ -6571,8 +6566,6 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
 void ParserTraits::FinalizeIteratorUse(Variable* completion,
                                        Expression* condition, Variable* iter,
                                        Block* iterator_use, Block* target) {
-  if (!FLAG_harmony_iterator_close) return;
-
   //
   // This function adds two statements to [target], corresponding to the
   // following code:
@@ -6855,8 +6848,6 @@ void ParserTraits::BuildIteratorCloseForCompletion(
 
 
 Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
-  if (!FLAG_harmony_iterator_close) return loop;
-
   //
   // This function replaces the loop with the following wrapping:
   //

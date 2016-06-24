@@ -1453,7 +1453,6 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
         flag = RegExp::kMultiline;
         break;
       case 'u':
-        if (!FLAG_harmony_unicode_regexps) return Nothing<RegExp::Flags>();
         flag = RegExp::kUnicode;
         break;
       case 'y':

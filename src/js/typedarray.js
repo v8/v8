@@ -47,6 +47,7 @@ var PackedArrayReverse;
 var SpeciesConstructor;
 var ToPositiveInteger;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -784,6 +785,10 @@ function TypedArrayConstructor() {
   }
 }
 
+function TypedArraySpecies() {
+  return this;
+}
+
 // -------------------------------------------------------------------
 
 %SetCode(GlobalTypedArray, TypedArrayConstructor);
@@ -791,6 +796,7 @@ utils.InstallFunctions(GlobalTypedArray, DONT_ENUM, [
   "from", TypedArrayFrom,
   "of", TypedArrayOf
 ]);
+utils.InstallGetter(GlobalTypedArray, speciesSymbol, TypedArraySpecies);
 utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
                     TypedArrayGetToStringTag);
 utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [

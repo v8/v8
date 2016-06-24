@@ -461,9 +461,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   // wrap this new block in a try-finally statement, restore block_ to its
   // original value, and add the try-finally statement to block_.
   auto target = block_;
-  if (FLAG_harmony_iterator_close) {
-    block_ = factory()->NewBlock(nullptr, 8, true, nopos);
-  }
+  block_ = factory()->NewBlock(nullptr, 8, true, nopos);
 
   Spread* spread = nullptr;
   for (Expression* value : *node->values()) {
@@ -551,7 +549,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     block_->statements()->Add(if_not_done, zone());
 
     if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
-      if (FLAG_harmony_iterator_close) {
+      {
         // completion = kAbruptCompletion;
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
@@ -563,7 +561,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
 
       RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
 
-      if (FLAG_harmony_iterator_close) {
+      {
         // completion = kNormalCompletion;
         Expression* proxy = factory()->NewVariableProxy(completion);
         Expression* assignment = factory()->NewAssignment(
@@ -676,13 +674,11 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                           factory()->NewVariableProxy(array));
   }
 
-  if (FLAG_harmony_iterator_close) {
-    Expression* closing_condition = factory()->NewUnaryOperation(
-        Token::NOT, factory()->NewVariableProxy(done), nopos);
-    parser_->FinalizeIteratorUse(completion, closing_condition, iterator,
-                                 block_, target);
-    block_ = target;
-  }
+  Expression* closing_condition = factory()->NewUnaryOperation(
+      Token::NOT, factory()->NewVariableProxy(done), nopos);
+  parser_->FinalizeIteratorUse(completion, closing_condition, iterator, block_,
+                               target);
+  block_ = target;
 }
 
 

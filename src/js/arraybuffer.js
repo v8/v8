@@ -16,6 +16,7 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var SpeciesConstructor;
+var speciesSymbol = utils.ImportNow("species_symbol");
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
@@ -83,6 +84,13 @@ function ArrayBufferSlice(start, end) {
   %ArrayBufferSliceImpl(this, result, first, newLen);
   return result;
 }
+
+
+function ArrayBufferSpecies() {
+  return this;
+}
+
+utils.InstallGetter(GlobalArrayBuffer, speciesSymbol, ArrayBufferSpecies);
 
 utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
                     ArrayBufferGetByteLen);

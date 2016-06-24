@@ -2,7 +2,5 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-unicode-regexps
-
 var s = "a".repeat(1E7) + "\u1234";
 assertEquals(["\u1234", "\u1234"], /(\u1234)/u.exec(s));

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-species --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
-// Overwriting an array instance's __proto__ updates the protector
+// Overwriting Array[Symbol.species] updates the protector
 
 let x = [];
 
@@ -17,8 +17,8 @@ assertEquals(1, x.concat([1])[0]);
 
 class MyArray extends Array { }
 
-x.__proto__ = MyArray.prototype;
-assertTrue(%SpeciesProtector());
+Object.defineProperty(Array, Symbol.species, {value: MyArray});
+assertFalse(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);
 assertEquals(MyArray, x.filter(()=>{}).constructor);

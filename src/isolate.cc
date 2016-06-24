@@ -2657,7 +2657,6 @@ void Isolate::InvalidateIsConcatSpreadableProtector() {
 }
 
 void Isolate::InvalidateArraySpeciesProtector() {
-  if (!FLAG_harmony_species) return;
   DCHECK(factory()->species_protector()->value()->IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());
   factory()->species_protector()->set_value(

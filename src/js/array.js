@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var FLAG_harmony_species;
 var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
@@ -23,6 +22,7 @@ var MinSimple;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
@@ -34,23 +34,12 @@ utils.Import(function(from) {
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
 });
 
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_species = from.FLAG_harmony_species;
-});
-
 // -------------------------------------------------------------------
 
 
 function ArraySpeciesCreate(array, length) {
-  var constructor;
-
   length = INVERT_NEG_ZERO(length);
-
-  if (FLAG_harmony_species) {
-    constructor = %ArraySpeciesConstructor(array);
-  } else {
-    constructor = GlobalArray;
-  }
+  var constructor = %ArraySpeciesConstructor(array);
   return new constructor(length);
 }
 
@@ -1642,6 +1631,12 @@ function ArrayOf(...args) {
   return array;
 }
 
+
+function ArraySpecies() {
+  return this;
+}
+
+
 // -------------------------------------------------------------------
 
 // Set up non-enumerable constructor property on the Array.prototype
@@ -1716,6 +1711,8 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "fill", getFunction("fill", ArrayFill, 1),
   "includes", getFunction("includes", ArrayIncludes, 1),
 ]);
+
+utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
 

@@ -17,6 +17,11 @@ var isConcatSpreadableSymbol =
     utils.ImportNow("is_concat_spreadable_symbol");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeTypeError;
+var matchSymbol = utils.ImportNow("match_symbol");
+var replaceSymbol = utils.ImportNow("replace_symbol");
+var searchSymbol = utils.ImportNow("search_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
+var splitSymbol = utils.ImportNow("split_symbol");
 var toPrimitiveSymbol = utils.ImportNow("to_primitive_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
@@ -78,11 +83,11 @@ utils.InstallConstants(GlobalSymbol, [
   "hasInstance", hasInstanceSymbol,
   "isConcatSpreadable", isConcatSpreadableSymbol,
   "iterator", iteratorSymbol,
-  // TODO(yangguo): expose when implemented.
-  // "match", matchSymbol,
-  // "replace", replaceSymbol,
-  // "search", searchSymbol,
-  // "split, splitSymbol,
+  "match", matchSymbol,
+  "replace", replaceSymbol,
+  "search", searchSymbol,
+  "species", speciesSymbol,
+  "split", splitSymbol,
   "toPrimitive", toPrimitiveSymbol,
   "toStringTag", toStringTagSymbol,
   "unscopables", unscopablesSymbol,

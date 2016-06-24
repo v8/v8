@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-species
-
 // ArrayBuffer.prototype.slice makes subclass and checks length
 
 class MyArrayBuffer extends ArrayBuffer { }

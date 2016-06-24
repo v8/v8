@@ -2671,7 +2671,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
                           isolate->factory()->ToBoolean(FLAG), NONE); \
   }
 
-  INITIALIZE_FLAG(FLAG_harmony_species)
   INITIALIZE_FLAG(FLAG_intl_extra)
 
 #undef INITIALIZE_FLAG
@@ -2681,21 +2680,16 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
 
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_for_in)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_iterator_close)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_exec)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_exponentiation_operator)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
@@ -2716,19 +2710,6 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
   JSObject::AddProperty(symbol, name_string, value, attributes);
-}
-
-
-void Genesis::InitializeGlobal_harmony_regexp_subclass() {
-  if (!FLAG_harmony_regexp_subclass) return;
-  InstallPublicSymbol(factory(), native_context(), "match",
-                      factory()->match_symbol());
-  InstallPublicSymbol(factory(), native_context(), "replace",
-                      factory()->replace_symbol());
-  InstallPublicSymbol(factory(), native_context(), "search",
-                      factory()->search_symbol());
-  InstallPublicSymbol(factory(), native_context(), "split",
-                      factory()->split_symbol());
 }
 
 
@@ -2867,13 +2848,6 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                         Builtins::kArrayBufferIsView, 1, true);
 
   return array_buffer_fun;
-}
-
-
-void Genesis::InitializeGlobal_harmony_species() {
-  if (!FLAG_harmony_species) return;
-  InstallPublicSymbol(factory(), native_context(), "species",
-                      factory()->species_symbol());
 }
 
 
@@ -3275,28 +3249,18 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  static const char* harmony_iterator_close_natives[] = {nullptr};
-  static const char* harmony_species_natives[] = {"native harmony-species.js",
-                                                  nullptr};
   static const char* harmony_explicit_tailcalls_natives[] = {nullptr};
   static const char* harmony_tailcalls_natives[] = {nullptr};
-  static const char* harmony_unicode_regexps_natives[] = {
-      "native harmony-unicode-regexps.js", nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
       "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
   static const char* harmony_for_in_natives[] = {nullptr};
-  static const char* harmony_regexp_exec_natives[] = {
-      "native harmony-regexp-exec.js", nullptr};
-  static const char* harmony_regexp_subclass_natives[] = {nullptr};
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
-  static const char* harmony_instanceof_natives[] = {nullptr};
   static const char* harmony_restrictive_declarations_natives[] = {nullptr};
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
-  static const char* harmony_function_name_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
   static const char* promise_extra_natives[] = {"native promise-extra.js",
                                                 nullptr};

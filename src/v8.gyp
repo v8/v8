@@ -2086,11 +2086,8 @@
           'js/macros.py',
           'messages.h',
           'js/harmony-atomics.js',
-          'js/harmony-regexp-exec.js',
           'js/harmony-sharedarraybuffer.js',
           'js/harmony-simd.js',
-          'js/harmony-species.js',
-          'js/harmony-unicode-regexps.js',
           'js/harmony-string-padding.js',
           'js/promise-extra.js',
           'js/harmony-async-await.js'

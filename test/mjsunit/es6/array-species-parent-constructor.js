@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-species --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
-// Overwriting the constructor of an instance updates the protector
+// Overwriting Array.prototype.constructor updates the protector
 
 let x = [];
 
@@ -17,7 +17,7 @@ assertEquals(1, x.concat([1])[0]);
 
 class MyArray extends Array { }
 
-x.constructor = MyArray;
+Array.prototype.constructor = MyArray;
 assertFalse(%SpeciesProtector());
 
 assertEquals(MyArray, x.map(()=>{}).constructor);

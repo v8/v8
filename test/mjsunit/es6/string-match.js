@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-subclass
-
 var pattern = {};
 pattern[Symbol.match] = function(string) {
   return string.length;

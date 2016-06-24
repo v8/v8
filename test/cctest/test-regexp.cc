@@ -171,7 +171,6 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 void TestRegExpParser(bool lookbehind) {
   FLAG_harmony_regexp_lookbehind = lookbehind;
-  FLAG_harmony_unicode_regexps = true;
 
   CHECK_PARSE_ERROR("?");
 

@@ -18542,7 +18542,6 @@ THREADED_TEST(FunctionGetInferredName) {
 
 
 THREADED_TEST(FunctionGetDebugName) {
-  i::FLAG_harmony_function_name = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   const char* code =
@@ -20077,7 +20076,6 @@ TEST(PersistentHandleInNewSpaceVisitor) {
 
 
 TEST(RegExp) {
-  i::FLAG_harmony_unicode_regexps = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
