@@ -106,7 +106,6 @@
   ###### BEGIN REGEXP SUBCLASSING SECTION ######
   # Times out
   'built-ins/RegExp/prototype/Symbol.match/coerce-global': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-global': [SKIP],
 
   # Sticky support busted
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
@@ -127,16 +126,8 @@
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4592
-  'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
-  'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
-  'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4727
-  'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
   'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
-  'built-ins/TypedArrays/length-arg-is-float-throws-rangeerror': [FAIL],
-  'built-ins/TypedArrays/length-arg-is-nan-throws-rangeerror': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
@@ -233,7 +224,6 @@
   'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/set/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/some/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer': [FAIL],
@@ -251,27 +241,6 @@
   'language/statements/try/early-catch-var': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
-  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-iter-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-iter-thrw-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-iter-thrw-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-thrw-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-list-thrw-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-thrw-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-elem-trlg-iter-rest-thrw-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iter-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iter-thrw-close': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-iter-thrw-close-err': [FAIL],
-  'language/expressions/assignment/destructuring/array-rest-lref-err': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-rtrn-close': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-rtrn-close-err': [FAIL],
   'language/expressions/assignment/dstr-array-elem-iter-rtrn-close-null': [FAIL],
@@ -571,6 +540,9 @@
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+
+  # https://github.com/tc39/test262/issues/694
+  'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
