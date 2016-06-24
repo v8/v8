@@ -192,6 +192,7 @@
         'test-unboxed-doubles.cc',
         'test-unique.cc',
         'test-unscopables-hidden-prototype.cc',
+        'test-usecounters.cc',
         'test-utils.cc',
         'test-version.cc',
         'test-weakmaps.cc',

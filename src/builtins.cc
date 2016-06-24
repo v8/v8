@@ -1729,6 +1729,9 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   Maybe<bool> success = JSReceiver::DefineOwnProperty(
       isolate, receiver, name, &desc, Object::DONT_THROW);
   MAYBE_RETURN(success, isolate->heap()->exception());
+  if (!success.FromJust()) {
+    isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
+  }
   // 6. Return undefined.
   return isolate->heap()->undefined_value();
 }
