@@ -3005,22 +3005,7 @@ bool Value::IsUint32() const {
 
 
 bool Value::IsNativeError() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsJSObject()) return false;
-  i::Handle<i::JSObject> js_obj = i::Handle<i::JSObject>::cast(obj);
-  i::Isolate* isolate = js_obj->GetIsolate();
-  i::Handle<i::Object> constructor(js_obj->map()->GetConstructor(), isolate);
-  if (!constructor->IsJSFunction()) return false;
-  i::Handle<i::JSFunction> function =
-      i::Handle<i::JSFunction>::cast(constructor);
-  if (!function->shared()->native()) return false;
-  return function.is_identical_to(isolate->error_function()) ||
-         function.is_identical_to(isolate->eval_error_function()) ||
-         function.is_identical_to(isolate->range_error_function()) ||
-         function.is_identical_to(isolate->reference_error_function()) ||
-         function.is_identical_to(isolate->syntax_error_function()) ||
-         function.is_identical_to(isolate->type_error_function()) ||
-         function.is_identical_to(isolate->uri_error_function());
+  return Utils::OpenHandle(this)->IsJSError();
 }
 
 
