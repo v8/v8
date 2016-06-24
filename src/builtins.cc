@@ -5148,8 +5148,8 @@ template <bool is_construct>
 MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, Handle<HeapObject> function,
     Handle<HeapObject> new_target, Handle<FunctionTemplateInfo> fun_data,
-    BuiltinArguments args) {
-  Handle<JSObject> receiver;
+    Handle<Object> receiver, BuiltinArguments args) {
+  Handle<JSObject> js_receiver;
   JSObject* raw_holder;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
@@ -5162,33 +5162,33 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Handle<ObjectTemplateInfo> instance_template(
         ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, receiver,
+        isolate, js_receiver,
         ApiNatives::InstantiateObject(instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
-    args[0] = *receiver;
-    DCHECK_EQ(*receiver, *args.receiver());
+    args[0] = *js_receiver;
+    DCHECK_EQ(*js_receiver, *args.receiver());
 
-    raw_holder = *receiver;
+    raw_holder = *js_receiver;
   } else {
-    DCHECK(args.receiver()->IsJSReceiver());
+    DCHECK(receiver->IsJSReceiver());
 
-    Handle<JSReceiver> object = args.at<JSReceiver>(0);
-    if (!object->IsJSObject()) {
+    if (!receiver->IsJSObject()) {
       // This function cannot be called with the given receiver.  Abort!
       THROW_NEW_ERROR(
           isolate, NewTypeError(MessageTemplate::kIllegalInvocation), Object);
     }
 
-    receiver = Handle<JSObject>::cast(object);
+    js_receiver = Handle<JSObject>::cast(receiver);
 
-    if (!fun_data->accept_any_receiver() && receiver->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(handle(isolate->context()), receiver)) {
-      isolate->ReportFailedAccessCheck(receiver);
+    if (!fun_data->accept_any_receiver() &&
+        js_receiver->IsAccessCheckNeeded() &&
+        !isolate->MayAccess(handle(isolate->context()), js_receiver)) {
+      isolate->ReportFailedAccessCheck(js_receiver);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     }
 
-    raw_holder = GetCompatibleReceiver(isolate, *fun_data, *receiver);
+    raw_holder = GetCompatibleReceiver(isolate, *fun_data, *js_receiver);
 
     if (raw_holder == nullptr) {
       // This function cannot be called with the given receiver.  Abort!
@@ -5206,7 +5206,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
         v8::ToCData<v8::FunctionCallback>(callback_obj);
     Object* data_obj = call_data->data();
 
-    LOG(isolate, ApiObjectAccess("call", JSObject::cast(*args.receiver())));
+    LOG(isolate, ApiObjectAccess("call", JSObject::cast(*js_receiver)));
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
                                      *new_target, &args[0] - 1,
@@ -5216,7 +5216,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) {
-      if (is_construct) return receiver;
+      if (is_construct) return js_receiver;
       return isolate->factory()->undefined_value();
     }
     // Rebox the result.
@@ -5224,7 +5224,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     if (!is_construct || result->IsJSObject()) return handle(*result, isolate);
   }
 
-  return receiver;
+  return js_receiver;
 }
 
 }  // namespace
@@ -5233,17 +5233,18 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.target<JSFunction>();
+  Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
   Handle<FunctionTemplateInfo> fun_data(function->shared()->get_api_func_data(),
                                         isolate);
   if (new_target->IsJSReceiver()) {
     RETURN_RESULT_OR_FAILURE(
         isolate, HandleApiCallHelper<true>(isolate, function, new_target,
-                                           fun_data, args));
+                                           fun_data, receiver, args));
   } else {
     RETURN_RESULT_OR_FAILURE(
         isolate, HandleApiCallHelper<false>(isolate, function, new_target,
-                                            fun_data, args));
+                                            fun_data, receiver, args));
   }
 }
 
@@ -5389,7 +5390,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   {
     RelocatableArguments arguments(isolate, argc + 3, &argv[argc] + 2);
     result = HandleApiCallHelper<false>(isolate, function, new_target, fun_data,
-                                        arguments);
+                                        receiver, arguments);
   }
   if (argv != small_argv) delete[] argv;
   return result;
