@@ -36,7 +36,9 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   }
 
   SwVfpRegister ToFloat32Register(InstructionOperand* op) {
-    return ToFloat64Register(op).low();
+    DCHECK(LocationOperand::cast(op)->representation() ==
+           MachineRepresentation::kFloat32);
+    return LocationOperand::cast(op)->GetFloatRegister();
   }
 
   LowDwVfpRegister OutputFloat64Register(size_t index = 0) {

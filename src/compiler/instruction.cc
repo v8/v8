@@ -61,8 +61,16 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& that) const {
   if (!IsFPRegister() || !that.IsFPRegister()) return EqualsCanonicalized(that);
-  return LocationOperand::cast(this)->register_code() ==
-         LocationOperand::cast(that).register_code();
+
+  const LocationOperand& loc1 = *LocationOperand::cast(this);
+  const LocationOperand& loc2 = LocationOperand::cast(that);
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  if (config->fp_aliasing_kind() != RegisterConfiguration::COMBINE)
+    return loc1.register_code() == loc2.register_code();
+
+  return config->AreAliases(loc1.representation(), loc1.register_code(),
+                            loc2.representation(), loc2.register_code());
 }
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {

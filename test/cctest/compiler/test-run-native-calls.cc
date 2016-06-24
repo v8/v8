@@ -91,10 +91,19 @@ class Float32RegisterPairs : public Pairs {
   Float32RegisterPairs()
       : Pairs(
             100,
+#if V8_TARGET_ARCH_ARM
+            // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->num_allocatable_aliased_double_registers(),
+                        ->num_allocatable_double_registers() /
+                    2 -
+                2,
+#else
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->allocatable_double_codes()) {}
+                ->num_allocatable_double_registers(),
+#endif
+            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+                ->allocatable_double_codes()) {
+  }
 };
 
 
@@ -105,7 +114,7 @@ class Float64RegisterPairs : public Pairs {
       : Pairs(
             100,
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->num_allocatable_aliased_double_registers(),
+                ->num_allocatable_double_registers(),
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
                 ->allocatable_double_codes()) {}
 };
@@ -136,7 +145,12 @@ struct Allocator {
     if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
-        return LinkageLocation::ForRegister(fp_regs[fp_offset++]);
+        int code = fp_regs[fp_offset++];
+#if V8_TARGET_ARCH_ARM
+        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
+        if (type.representation() == MachineRepresentation::kFloat32) code *= 2;
+#endif
+        return LinkageLocation::ForRegister(code);
       } else {
         int offset = -1 - stack_offset;
         stack_offset += StackWords(type);

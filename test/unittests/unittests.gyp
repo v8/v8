@@ -120,6 +120,7 @@
         'heap/scavenge-job-unittest.cc',
         'heap/slot-set-unittest.cc',
         'locked-queue-unittest.cc',
+        'register-configuration-unittest.cc',
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',

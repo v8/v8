@@ -57,16 +57,14 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
 #if V8_TARGET_ARCH_IA32
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_X87
             kMaxAllocatableGeneralRegisterCount,
             compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
-            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
+            AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_X64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_ARM
             FLAG_enable_embedded_constant_pool
                 ? (kMaxAllocatableGeneralRegisterCount - 1)
@@ -74,27 +72,22 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             CpuFeatures::IsSupported(VFP32DREGS)
                 ? kMaxAllocatableDoubleRegisterCount
                 : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
-            ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0,
+            AliasingKind::COMBINE,
 #elif V8_TARGET_ARCH_ARM64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_MIPS
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_MIPS64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_PPC
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_S390
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
 #else
 #error Unsupported target architecture.
 #endif
@@ -135,17 +128,18 @@ const RegisterConfiguration* RegisterConfiguration::ArchDefault(
 RegisterConfiguration::RegisterConfiguration(
     int num_general_registers, int num_double_registers,
     int num_allocatable_general_registers, int num_allocatable_double_registers,
-    int num_allocatable_aliased_double_registers,
-    const int* allocatable_general_codes, const int* allocatable_double_codes,
+    AliasingKind fp_aliasing_kind, const int* allocatable_general_codes,
+    const int* allocatable_double_codes,
     const char* const* general_register_names,
     const char* const* float_register_names,
     const char* const* double_register_names)
     : num_general_registers_(num_general_registers),
+      num_float_registers_(0),
       num_double_registers_(num_double_registers),
       num_allocatable_general_registers_(num_allocatable_general_registers),
       num_allocatable_double_registers_(num_allocatable_double_registers),
-      num_allocatable_aliased_double_registers_(
-          num_allocatable_aliased_double_registers),
+      num_allocatable_float_registers_(0),
+      fp_aliasing_kind_(fp_aliasing_kind),
       allocatable_general_codes_mask_(0),
       allocatable_double_codes_mask_(0),
       allocatable_general_codes_(allocatable_general_codes),
@@ -161,6 +155,79 @@ RegisterConfiguration::RegisterConfiguration(
   for (int i = 0; i < num_allocatable_double_registers_; ++i) {
     allocatable_double_codes_mask_ |= (1 << allocatable_double_codes_[i]);
   }
+
+  if (fp_aliasing_kind_ == COMBINE) {
+    num_float_registers_ = num_double_registers_ * 2 <= kMaxFPRegisters
+                               ? num_double_registers_ * 2
+                               : kMaxFPRegisters;
+    num_allocatable_float_registers_ = 0;
+    for (int i = 0; i < num_allocatable_double_registers_; i++) {
+      int base_code = allocatable_double_codes_[i] * 2;
+      if (base_code >= kMaxFPRegisters) continue;
+      allocatable_float_codes_[num_allocatable_float_registers_++] = base_code;
+      allocatable_float_codes_[num_allocatable_float_registers_++] =
+          base_code + 1;
+    }
+  } else {
+    DCHECK(fp_aliasing_kind_ == OVERLAP);
+    num_float_registers_ = num_double_registers_;
+    num_allocatable_float_registers_ = num_allocatable_double_registers_;
+    for (int i = 0; i < num_allocatable_float_registers_; ++i) {
+      allocatable_float_codes_[i] = allocatable_double_codes_[i];
+    }
+  }
+}
+
+int RegisterConfiguration::GetAliases(MachineRepresentation rep, int index,
+                                      MachineRepresentation other_rep,
+                                      int* alias_base_index) const {
+  DCHECK(fp_aliasing_kind_ == COMBINE);
+  DCHECK(rep == MachineRepresentation::kFloat32 ||
+         rep == MachineRepresentation::kFloat64);
+  DCHECK(other_rep == MachineRepresentation::kFloat32 ||
+         other_rep == MachineRepresentation::kFloat64);
+  if (rep == other_rep) {
+    *alias_base_index = index;
+    return 1;
+  }
+  if (rep == MachineRepresentation::kFloat32) {
+    DCHECK(other_rep == MachineRepresentation::kFloat64);
+    DCHECK(index < num_allocatable_float_registers_);
+    *alias_base_index = index / 2;
+    return 1;
+  }
+  DCHECK(rep == MachineRepresentation::kFloat64);
+  DCHECK(other_rep == MachineRepresentation::kFloat32);
+  if (index * 2 >= kMaxFPRegisters) {
+    // Alias indices are out of float register range.
+    return 0;
+  }
+  *alias_base_index = index * 2;
+  return 2;
+}
+
+bool RegisterConfiguration::AreAliases(MachineRepresentation rep, int index,
+                                       MachineRepresentation other_rep,
+                                       int other_index) const {
+  DCHECK(fp_aliasing_kind_ == COMBINE);
+  DCHECK(rep == MachineRepresentation::kFloat32 ||
+         rep == MachineRepresentation::kFloat64);
+  DCHECK(other_rep == MachineRepresentation::kFloat32 ||
+         other_rep == MachineRepresentation::kFloat64);
+  if (rep == other_rep) {
+    return index == other_index;
+  }
+  if (rep == MachineRepresentation::kFloat32) {
+    DCHECK(other_rep == MachineRepresentation::kFloat64);
+    return index / 2 == other_index;
+  }
+  DCHECK(rep == MachineRepresentation::kFloat64);
+  DCHECK(other_rep == MachineRepresentation::kFloat32);
+  if (index * 2 >= kMaxFPRegisters) {
+    // Alias indices are out of float register range.
+    return false;
+  }
+  return index == other_index / 2;
 }
 
 #undef REGISTER_COUNT
