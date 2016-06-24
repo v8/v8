@@ -132,6 +132,12 @@
   'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
   'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4727
+  'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-float-throws-rangeerror': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-nan-throws-rangeerror': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4784
   'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
   'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
@@ -427,6 +433,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5121
   'language/expressions/assignment/destructuring/obj-prop-__proto__dup': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5124
+  'built-ins/TypedArrays/length-arg-toindex-length': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4973
   'language/literals/numeric/non-octal-decimal-integer-strict': [FAIL],
 
@@ -562,9 +571,6 @@
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
-
-  # https://github.com/tc39/test262/issues/694
-  'built-ins/TypedArrays/length-arg-toindex-length': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
