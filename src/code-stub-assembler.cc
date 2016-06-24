@@ -2350,12 +2350,13 @@ void CodeStubAssembler::LoadGlobalIC(const LoadICParameters* p) {
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver = LoadFixedArrayElement(
         native_context, Int32Constant(Context::EXTENSION_INDEX));
-    TailCallStub(descriptor, handler, p->context, receiver, p->name, p->slot,
+    Node* fake_name = IntPtrConstant(0);
+    TailCallStub(descriptor, handler, p->context, receiver, fake_name, p->slot,
                  p->vector);
   }
   Bind(&miss);
   {
-    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->name, p->slot,
+    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->slot,
                     p->vector);
   }
 }

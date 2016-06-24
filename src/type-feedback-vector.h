@@ -50,7 +50,8 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackVectorSlotKind::LOAD_IC);
   }
 
-  FeedbackVectorSlot AddLoadGlobalICSlot() {
+  FeedbackVectorSlot AddLoadGlobalICSlot(Handle<String> name) {
+    This()->append_name(name);
     return AddSlot(FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
@@ -69,40 +70,65 @@ class FeedbackVectorSpecBase {
   FeedbackVectorSlot AddGeneralSlot() {
     return AddSlot(FeedbackVectorSlotKind::GENERAL);
   }
+
+#ifdef OBJECT_PRINT
+  // For gdb debugging.
+  void Print();
+#endif  // OBJECT_PRINT
+
+  DECLARE_PRINTER(FeedbackVectorSpec)
+
+ private:
+  Derived* This() { return static_cast<Derived*>(this); }
 };
 
 
 class StaticFeedbackVectorSpec
     : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
  public:
-  StaticFeedbackVectorSpec() : slots_(0) {}
+  StaticFeedbackVectorSpec() : slot_count_(0), name_count_(0) {}
 
-  int slots() const { return slots_; }
+  int slots() const { return slot_count_; }
 
   FeedbackVectorSlotKind GetKind(int slot) const {
-    DCHECK(slot >= 0 && slot < slots_);
+    DCHECK(slot >= 0 && slot < slot_count_);
     return kinds_[slot];
+  }
+
+  int name_count() const { return name_count_; }
+
+  Handle<String> GetName(int index) const {
+    DCHECK(index >= 0 && index < name_count_);
+    return names_[index];
   }
 
  private:
   friend class FeedbackVectorSpecBase<StaticFeedbackVectorSpec>;
 
   void append(FeedbackVectorSlotKind kind) {
-    DCHECK(slots_ < kMaxLength);
-    kinds_[slots_++] = kind;
+    DCHECK(slot_count_ < kMaxLength);
+    kinds_[slot_count_++] = kind;
+  }
+
+  void append_name(Handle<String> name) {
+    DCHECK(name_count_ < kMaxLength);
+    names_[name_count_++] = name;
   }
 
   static const int kMaxLength = 12;
 
-  int slots_;
+  int slot_count_;
   FeedbackVectorSlotKind kinds_[kMaxLength];
+  int name_count_;
+  Handle<String> names_[kMaxLength];
 };
 
 
 class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
  public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone), names_(zone) {
     slot_kinds_.reserve(16);
+    names_.reserve(8);
   }
 
   int slots() const { return static_cast<int>(slot_kinds_.size()); }
@@ -111,6 +137,10 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     return static_cast<FeedbackVectorSlotKind>(slot_kinds_.at(slot));
   }
 
+  int name_count() const { return static_cast<int>(names_.size()); }
+
+  Handle<String> GetName(int index) const { return names_.at(index); }
+
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
 
@@ -118,13 +148,17 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     slot_kinds_.push_back(static_cast<unsigned char>(kind));
   }
 
+  void append_name(Handle<String> name) { names_.push_back(name); }
+
   ZoneVector<unsigned char> slot_kinds_;
+  ZoneVector<Handle<String>> names_;
 };
 
 
 // The shape of the TypeFeedbackMetadata is an array with:
 // 0: slot_count
-// 1..N: slot kinds packed into a bit vector
+// 1: names table
+// 2..N: slot kinds packed into a bit vector
 //
 class TypeFeedbackMetadata : public FixedArray {
  public:
@@ -132,10 +166,18 @@ class TypeFeedbackMetadata : public FixedArray {
   static inline TypeFeedbackMetadata* cast(Object* obj);
 
   static const int kSlotsCountIndex = 0;
-  static const int kReservedIndexCount = 1;
+  static const int kNamesTableIndex = 1;
+  static const int kReservedIndexCount = 2;
+
+  static const int kNameTableEntrySize = 2;
+  static const int kNameTableSlotIndex = 0;
+  static const int kNameTableNameIndex = 1;
 
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackVectorSlotKind kind);
+
+  // Defines if slots of given kind require "name".
+  static inline bool SlotRequiresName(FeedbackVectorSlotKind kind);
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
@@ -148,6 +190,9 @@ class TypeFeedbackMetadata : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+
+  // Returns name for given slot.
+  String* GetName(FeedbackVectorSlot slot) const;
 
   template <typename Spec>
   static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
@@ -179,9 +224,9 @@ class TypeFeedbackMetadata : public FixedArray {
 // 0: feedback metadata
 // 1: ics_with_types
 // 2: ics_with_generic_info
-// 3: feedback slot #0 (N >= 3)
+// 3: feedback slot #0
 // ...
-// N + slot_count - 1: feedback slot #(slot_count-1)
+// 3 + slot_count - 1: feedback slot #(slot_count-1)
 //
 class TypeFeedbackVector : public FixedArray {
  public:
@@ -215,6 +260,8 @@ class TypeFeedbackVector : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
+  // Returns name corresponding to given slot or an empty string.
+  String* GetName(FeedbackVectorSlot slot) const;
 
   static Handle<TypeFeedbackVector> New(Isolate* isolate,
                                         Handle<TypeFeedbackMetadata> metadata);
@@ -289,12 +336,12 @@ class TypeFeedbackMetadataIterator {
  public:
   explicit TypeFeedbackMetadataIterator(Handle<TypeFeedbackMetadata> metadata)
       : metadata_handle_(metadata),
-        slot_(FeedbackVectorSlot(0)),
+        next_slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
   explicit TypeFeedbackMetadataIterator(TypeFeedbackMetadata* metadata)
       : metadata_(metadata),
-        slot_(FeedbackVectorSlot(0)),
+        next_slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
   inline bool HasNext() const;
@@ -311,6 +358,11 @@ class TypeFeedbackMetadataIterator {
   // Returns entry size of the last slot returned by Next().
   inline int entry_size() const;
 
+  String* name() const {
+    DCHECK(TypeFeedbackMetadata::SlotRequiresName(kind()));
+    return metadata()->GetName(cur_slot_);
+  }
+
  private:
   TypeFeedbackMetadata* metadata() const {
     return !metadata_handle_.is_null() ? *metadata_handle_ : metadata_;
@@ -321,7 +373,8 @@ class TypeFeedbackMetadataIterator {
   // pointer use cases.
   Handle<TypeFeedbackMetadata> metadata_handle_;
   TypeFeedbackMetadata* metadata_;
-  FeedbackVectorSlot slot_;
+  FeedbackVectorSlot cur_slot_;
+  FeedbackVectorSlot next_slot_;
   FeedbackVectorSlotKind slot_kind_;
 };
 

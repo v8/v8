@@ -101,16 +101,14 @@ FunctionType* LoadGlobalDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
-  function->InitParameter(0, AnyTagged(zone));
-  function->InitParameter(1, SmiType(zone));
+      Type::Function(AnyTagged(zone), Type::Undefined(), 1, zone)->AsFunction();
+  function->InitParameter(0, SmiType(zone));
   return function;
 }
 
 void LoadGlobalDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {LoadWithVectorDescriptor::NameRegister(),
-                          LoadWithVectorDescriptor::SlotRegister()};
+  Register registers[] = {LoadWithVectorDescriptor::SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -119,17 +117,15 @@ LoadGlobalWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
-  function->InitParameter(0, AnyTagged(zone));
-  function->InitParameter(1, SmiType(zone));
-  function->InitParameter(2, AnyTagged(zone));
+      Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
+  function->InitParameter(0, SmiType(zone));
+  function->InitParameter(1, AnyTagged(zone));
   return function;
 }
 
 void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {LoadWithVectorDescriptor::NameRegister(),
-                          LoadWithVectorDescriptor::SlotRegister(),
+  Register registers[] = {LoadWithVectorDescriptor::SlotRegister(),
                           LoadWithVectorDescriptor::VectorRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

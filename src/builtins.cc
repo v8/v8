@@ -5487,12 +5487,11 @@ void Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
 void Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
-  Node* name = assembler->Parameter(0);
-  Node* slot = assembler->Parameter(1);
-  Node* vector = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  Node* slot = assembler->Parameter(0);
+  Node* vector = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
 
-  assembler->TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name, slot,
+  assembler->TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, slot,
                              vector);
 }
 
@@ -5519,23 +5518,23 @@ void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
 void Generate_LoadGlobalIC_SlowInsideTypeof(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
-  Node* name = assembler->Parameter(0);
-  // Node* slot = assembler->Parameter(1);
-  // Node* vector = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  Node* slot = assembler->Parameter(0);
+  Node* vector = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
 
-  assembler->TailCallRuntime(Runtime::kGetGlobalInsideTypeof, context, name);
+  assembler->TailCallRuntime(Runtime::kGetGlobalInsideTypeof, context, slot,
+                             vector);
 }
 
 void Generate_LoadGlobalIC_SlowNotInsideTypeof(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
-  Node* name = assembler->Parameter(0);
-  // Node* slot = assembler->Parameter(1);
-  // Node* vector = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  Node* slot = assembler->Parameter(0);
+  Node* vector = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
 
-  assembler->TailCallRuntime(Runtime::kGetGlobalNotInsideTypeof, context, name);
+  assembler->TailCallRuntime(Runtime::kGetGlobalNotInsideTypeof, context, slot,
+                             vector);
 }
 
 void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {

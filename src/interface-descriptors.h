@@ -374,7 +374,7 @@ class LoadGlobalDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalDescriptor,
                                                CallInterfaceDescriptor)
 
-  enum ParameterIndices { kNameIndex, kSlotIndex };
+  enum ParameterIndices { kSlotIndex };
 };
 
 class LoadGlobalWithVectorDescriptor : public CallInterfaceDescriptor {
@@ -382,7 +382,7 @@ class LoadGlobalWithVectorDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
                                                CallInterfaceDescriptor)
 
-  enum ParameterIndices { kNameIndex, kSlotIndex, kVectorIndex };
+  enum ParameterIndices { kSlotIndex, kVectorIndex };
 };
 
 class StoreDescriptor : public CallInterfaceDescriptor {

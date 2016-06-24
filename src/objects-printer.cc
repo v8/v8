@@ -578,6 +578,40 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+template void FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::Print();
+template void FeedbackVectorSpecBase<FeedbackVectorSpec>::Print();
+
+template <typename Derived>
+void FeedbackVectorSpecBase<Derived>::Print() {
+  OFStream os(stdout);
+  FeedbackVectorSpecPrint(os);
+  os << std::flush;
+}
+
+template <typename Derived>
+void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
+    std::ostream& os) {  // NOLINT
+  int slot_count = This()->slots();
+  os << " - slot_count: " << slot_count;
+  if (slot_count == 0) {
+    os << " (empty)\n";
+    return;
+  }
+
+  for (int slot = 0, name_index = 0; slot < slot_count;) {
+    FeedbackVectorSlotKind kind = This()->GetKind(slot);
+    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
+    DCHECK_LT(0, entry_size);
+
+    os << "\n Slot #" << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(*This()->GetName(name_index++));
+    }
+
+    slot += entry_size;
+  }
+  os << "\n";
+}
 
 void TypeFeedbackMetadata::Print() {
   OFStream os(stdout);
@@ -594,12 +628,16 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     os << " (empty)\n";
     return;
   }
+  os << "\n - slot_count: " << slot_count();
 
   TypeFeedbackMetadataIterator iter(this);
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(iter.name());
+    }
   }
   os << "\n";
 }
@@ -625,7 +663,11 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
 
-    os << "\n Slot " << slot << " " << kind << " ";
+    os << "\n Slot " << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(iter.name());
+    }
+    os << " ";
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_IC: {
         LoadICNexus nexus(this, slot);

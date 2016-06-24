@@ -2262,7 +2262,6 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
-  Handle<Name> key = args.at<Name>(1);
 
   DCHECK_EQ(4, args.length());
   Handle<Smi> slot = args.at<Smi>(2);
@@ -2273,12 +2272,15 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   // set up outside the IC, handle that here.
   FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
   if (kind == FeedbackVectorSlotKind::LOAD_IC) {
+    Handle<Name> key = args.at<Name>(1);
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
   } else if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
+    Handle<Name> key(vector->GetName(vector_slot), isolate);
+    DCHECK_NE(*key, *isolate->factory()->empty_string());
     DCHECK_EQ(*isolate->global_object(), *receiver);
     LoadGlobalICNexus nexus(vector, vector_slot);
     LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2286,6 +2288,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(key));
 
   } else {
+    Handle<Name> key = args.at<Name>(1);
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, kind);
     KeyedLoadICNexus nexus(vector, vector_slot);
     KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2298,14 +2301,15 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
 RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   Handle<JSGlobalObject> global = isolate->global_object();
-  Handle<Name> name = args.at<Name>(0);
-  Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<Smi> slot = args.at<Smi>(0);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             vector->GetKind(vector_slot));
+  Handle<String> name(vector->GetName(vector_slot), isolate);
+  DCHECK_NE(*name, *isolate->factory()->empty_string());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
   LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);

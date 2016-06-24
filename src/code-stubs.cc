@@ -448,24 +448,24 @@ void LoadGlobalICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* name = assembler->Parameter(0);
-  Node* slot = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
+  Node* slot = assembler->Parameter(0);
+  Node* context = assembler->Parameter(1);
   Node* vector = assembler->LoadTypeFeedbackVectorForStub();
 
-  CodeStubAssembler::LoadICParameters p(context, nullptr, name, slot, vector);
+  CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
+                                        vector);
   assembler->LoadGlobalIC(&p);
 }
 
 void LoadGlobalICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* name = assembler->Parameter(0);
-  Node* slot = assembler->Parameter(1);
-  Node* vector = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  Node* slot = assembler->Parameter(0);
+  Node* vector = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
 
-  CodeStubAssembler::LoadICParameters p(context, nullptr, name, slot, vector);
+  CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
+                                        vector);
   assembler->LoadGlobalIC(&p);
 }
 

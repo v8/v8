@@ -350,8 +350,14 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
 
 namespace {
 
-Object* GetGlobal(Isolate* isolate, Handle<String> name,
+Object* GetGlobal(Isolate* isolate, int slot, Handle<TypeFeedbackVector> vector,
                   bool should_throw_reference_error) {
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot);
+  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
+            vector->GetKind(vector_slot));
+  Handle<String> name(vector->GetName(vector_slot), isolate);
+  DCHECK_NE(*name, *isolate->factory()->empty_string());
+
   Handle<JSGlobalObject> global = isolate->global_object();
 
   Handle<ScriptContextTable> script_contexts(
@@ -382,16 +388,18 @@ Object* GetGlobal(Isolate* isolate, Handle<String> name,
 
 RUNTIME_FUNCTION(Runtime_GetGlobalInsideTypeof) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  return GetGlobal(isolate, name, false);
+  DCHECK_EQ(2, args.length());
+  CONVERT_SMI_ARG_CHECKED(slot, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  return GetGlobal(isolate, slot, vector, false);
 }
 
 RUNTIME_FUNCTION(Runtime_GetGlobalNotInsideTypeof) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  return GetGlobal(isolate, name, true);
+  DCHECK_EQ(2, args.length());
+  CONVERT_SMI_ARG_CHECKED(slot, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  return GetGlobal(isolate, slot, vector, true);
 }
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.

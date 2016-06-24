@@ -14,13 +14,11 @@ namespace internal {
 template <typename Derived>
 FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
     FeedbackVectorSlotKind kind) {
-  Derived* derived = static_cast<Derived*>(this);
-
-  int slot = derived->slots();
+  int slot = This()->slots();
   int entries_per_slot = TypeFeedbackMetadata::GetSlotSize(kind);
-  derived->append(kind);
+  This()->append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
-    derived->append(FeedbackVectorSlotKind::INVALID);
+    This()->append(FeedbackVectorSlotKind::INVALID);
   }
   return FeedbackVectorSlot(slot);
 }
@@ -57,6 +55,26 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   return kind == FeedbackVectorSlotKind::GENERAL ? 1 : 2;
 }
 
+bool TypeFeedbackMetadata::SlotRequiresName(FeedbackVectorSlotKind kind) {
+  switch (kind) {
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      return true;
+
+    case FeedbackVectorSlotKind::CALL_IC:
+    case FeedbackVectorSlotKind::LOAD_IC:
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+    case FeedbackVectorSlotKind::STORE_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::GENERAL:
+    case FeedbackVectorSlotKind::INVALID:
+      return false;
+
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      break;
+  }
+  UNREACHABLE();
+  return false;
+}
 
 bool TypeFeedbackVector::is_empty() const {
   if (length() == 0) return true;
@@ -140,15 +158,15 @@ Symbol* TypeFeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
 }
 
 bool TypeFeedbackMetadataIterator::HasNext() const {
-  return slot_.ToInt() < metadata()->slot_count();
+  return next_slot_.ToInt() < metadata()->slot_count();
 }
 
 FeedbackVectorSlot TypeFeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
-  FeedbackVectorSlot slot = slot_;
-  slot_kind_ = metadata()->GetKind(slot);
-  slot_ = FeedbackVectorSlot(slot_.ToInt() + entry_size());
-  return slot;
+  cur_slot_ = next_slot_;
+  slot_kind_ = metadata()->GetKind(cur_slot_);
+  next_slot_ = FeedbackVectorSlot(next_slot_.ToInt() + entry_size());
+  return cur_slot_;
 }
 
 int TypeFeedbackMetadataIterator::entry_size() const {

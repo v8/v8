@@ -134,7 +134,7 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
             static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
         return;
       }
-      variable_feedback_slot_ = spec->AddLoadGlobalICSlot();
+      variable_feedback_slot_ = spec->AddLoadGlobalICSlot(var()->name());
       cache->Put(var(), variable_feedback_slot_);
     } else {
       variable_feedback_slot_ = spec->AddLoadICSlot();
