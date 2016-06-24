@@ -204,10 +204,9 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(int* length, const char* name = nullptr) {
+  uint32_t consume_u32v(const char* name = nullptr) {
     TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
           name ? name : "varint");
-
     if (checkAvailable(1)) {
       const byte* pos = pc_;
       const byte* end = pc_ + 5;
@@ -224,10 +223,10 @@ class Decoder {
         shift += 7;
       }
 
-      *length = static_cast<int>(pc_ - pos);
+      int length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
         error(pc_ - 1, "varint too large");
-      } else if (*length == 0) {
+      } else if (length == 0) {
         error(pc_, "varint of length 0");
       } else {
         TRACE("= %u\n", result);

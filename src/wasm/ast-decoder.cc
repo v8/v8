@@ -584,10 +584,9 @@ class SR_WasmDecoder : public WasmDecoder {
       }
     }
     // Decode local declarations, if any.
-    int length;
-    uint32_t entries = consume_u32v(&length, "local decls count");
+    uint32_t entries = consume_u32v("local decls count");
     while (entries-- > 0 && pc_ < limit_) {
-      uint32_t count = consume_u32v(&length, "local count");
+      uint32_t count = consume_u32v("local count");
       byte code = consume_u8("local type");
       LocalType type;
       switch (code) {
