@@ -8,6 +8,14 @@
   # below). MB uses this dict to look up which config to use for a given bot.
   # Bots are ordered by appearance on waterfall.
   'masters': {
+    'client.dart.fyi': {
+      'v8-linux-release': 'gyp_release_x86_disassembler',
+      'v8-win-release': 'gyp_release_x86_disassembler',
+      'v8-mac-release': 'gyp_release_x86_disassembler',
+    },
+    'client.dynamorio': {
+      'linux-v8-dr': 'gyp_release_x64',
+    },
     'client.v8': {
       # Linux.
       'V8 Linux - builder': 'gyp_release_x86_gcmole',
@@ -300,6 +308,8 @@
     # Gyp release configs for x86.
     'gyp_release_x86': [
       'gyp', 'release_bot', 'x86', 'swarming'],
+    'gyp_release_x86_disassembler': [
+      'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gyp_release_x86_gcc': [
       'gyp', 'release_bot', 'x86', 'gcc'],
     'gyp_release_x86_gcc_minimal_symbols': [
@@ -538,6 +548,11 @@
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false',
       'gyp_defines': 'v8_enable_i18n_support=0',
+    },
+
+    'v8_enable_disassembler': {
+      'gn_args': 'v8_enable_disassembler=true',
+      'gyp_defines': 'v8_enable_disassembler=1',
     },
 
     'v8_enable_slow_dchecks': {
