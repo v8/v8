@@ -51,10 +51,10 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Handle<Object> exc,
+void CheckExceptionInfos(Isolate* isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
-  CHECK(exc->IsJSError());
+  CHECK(Object::IsErrorObject(isolate, exc));
 
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
@@ -118,7 +118,8 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
       {"callFn", 1, 24}                                       // -
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }
 
 // Trigger a trap in WASM, stack should be JS -> WASM -> WASM.
@@ -160,5 +161,6 @@ TEST(CollectDetailedWasmStack_WasmError) {
       {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
       {"callFn", 1, 24}                                       //-
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }

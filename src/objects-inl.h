@@ -156,6 +156,7 @@ TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
 SIMD128_TYPES(SIMD128_TYPE_CHECKER)
 #undef SIMD128_TYPE_CHECKER
 
+// TODO(cbruni): remove once all the isolate-based versions are in place.
 #define IS_TYPE_FUNCTION_DEF(type_)                               \
   bool Object::Is##type_() const {                                \
     return IsHeapObject() && HeapObject::cast(this)->Is##type_(); \
@@ -786,12 +787,11 @@ TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(JSDate, JS_DATE_TYPE)
-TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
-TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
+TYPE_CHECKER(JSDate, JS_DATE_TYPE)
+TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 
 bool HeapObject::IsAbstractCode() const {
   return IsBytecodeArray() || IsCode();
