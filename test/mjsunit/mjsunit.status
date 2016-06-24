@@ -274,6 +274,10 @@
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
+  # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
+  'unicodelctest': [PASS, NO_VARIANTS],
+  'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
   ############################################################################
   # Ignition
 
@@ -841,6 +845,9 @@
 
   # TODO(jarin): No truncations on CheckFloat64Hole.
   'getters-on-elements': [SKIP],
+
+  # TODO(rmcilroy): Flaky OOM.
+  'unicodelctest-no-optimization': [SKIP],
 }],  # ignition or ignition_turbofan
 
 ['(ignition or ignition_turbofan) and arch == arm64', {
