@@ -703,6 +703,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Log: {
+      // Saves the esp into ebx
+      __ push(ebx);
+      __ mov(ebx, esp);
+      // Pass one double as argument on the stack.
+      __ PrepareCallCFunction(2, eax);
+      __ fstp(0);
+      // Load operand from original stack
+      __ fld_d(MemOperand(ebx, 4));
+      // Put operand into stack for function call
+      __ fstp_d(Operand(esp, 0));
+      __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 2);
+      // Restore the ebx
+      __ pop(ebx);
+      // Return value is in st(0) on x87.
+      __ lea(esp, Operand(esp, kDoubleSize));
+      break;
+    }
     case kX87Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));
@@ -902,18 +920,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX87Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
-      break;
-    case kX87Float64Log:
-      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-        __ VerifyX87StackDepth(1);
-      }
-      __ X87SetFPUCW(0x027F);
-      __ fstp(0);
-      __ fldln2();
-      __ fld_d(MemOperand(esp, 0));
-      __ fyl2x();
-      __ lea(esp, Operand(esp, kDoubleSize));
-      __ X87SetFPUCW(0x037F);
       break;
     case kX87LoadFloat64Constant: {
       InstructionOperand* source = instr->InputAt(0);
