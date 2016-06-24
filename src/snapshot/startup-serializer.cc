@@ -50,6 +50,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
+  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
+
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
@@ -60,7 +62,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
-  if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
 

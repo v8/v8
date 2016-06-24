@@ -475,6 +475,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id); \
         new_object = isolate->heap()->root(root_index);                        \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
+        hot_objects_.Add(HeapObject::cast(new_object));                        \
       } else if (where == kPartialSnapshotCache) {                             \
         int cache_index = source_.GetInt();                                    \
         new_object = isolate->partial_snapshot_cache()->at(cache_index);       \
