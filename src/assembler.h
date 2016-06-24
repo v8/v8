@@ -39,6 +39,7 @@
 #include "src/builtins.h"
 #include "src/isolate.h"
 #include "src/log.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

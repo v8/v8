@@ -200,6 +200,22 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
   InstructionOperand CreateRandomOperand(bool is_source,
                                          MachineRepresentation rep) {
+    auto conf =
+        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+    auto GetRegisterCode = [&conf](MachineRepresentation rep, int index) {
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+        case MachineRepresentation::kFloat64:
+          return conf->RegisterConfiguration::GetAllocatableDoubleCode(index);
+          break;
+
+        default:
+          return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
+          break;
+      }
+      UNREACHABLE();
+      return static_cast<int>(Register::kCode_no_reg);
+    };
     int index = rng_->NextInt(7);
     // destination can't be Constant.
     switch (rng_->NextInt(is_source ? 5 : 4)) {
@@ -208,15 +224,11 @@ class ParallelMoveCreator : public HandleAndZoneScope {
       case 1:
         return AllocatedOperand(LocationOperand::REGISTER, rep, index);
       case 2:
-        return ExplicitOperand(
-            LocationOperand::REGISTER, rep,
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->GetAllocatableGeneralCode(1));
+        return ExplicitOperand(LocationOperand::REGISTER, rep,
+                               GetRegisterCode(rep, 1));
       case 3:
-        return ExplicitOperand(
-            LocationOperand::STACK_SLOT, rep,
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->GetAllocatableGeneralCode(index));
+        return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
+                               GetRegisterCode(rep, index));
       case 4:
         return ConstantOperand(index);
     }

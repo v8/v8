@@ -146,7 +146,8 @@ struct Register {
   }
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -201,7 +202,8 @@ struct DoubleRegister {
   static const int kMaxNumRegisters = kNumRegisters;
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
 

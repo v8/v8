@@ -250,11 +250,14 @@ ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
                                  int index)
     : LocationOperand(EXPLICIT, kind, rep, index) {
   DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(rep),
-                 Register::from_code(index).IsAllocatable());
-  DCHECK_IMPLIES(kind == REGISTER && (rep == MachineRepresentation::kFloat32),
-                 FloatRegister::from_code(index).IsAllocatable());
+                 Register::from_code(index).IsAllocatable(
+                     RegisterConfiguration::TURBOFAN));
+  DCHECK_IMPLIES(kind == REGISTER && rep == MachineRepresentation::kFloat32,
+                 FloatRegister::from_code(index).IsAllocatable(
+                     RegisterConfiguration::TURBOFAN));
   DCHECK_IMPLIES(kind == REGISTER && (rep == MachineRepresentation::kFloat64),
-                 DoubleRegister::from_code(index).IsAllocatable());
+                 DoubleRegister::from_code(index).IsAllocatable(
+                     RegisterConfiguration::TURBOFAN));
 }
 
 Instruction::Instruction(InstructionCode opcode)

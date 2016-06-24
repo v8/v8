@@ -126,7 +126,8 @@ struct Register {
   }
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -174,7 +175,8 @@ struct FPURegister {
   // number of Double regs (64-bit regs, or FPU-reg-pairs).
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
   bool is(FPURegister reg) const { return reg_code == reg.reg_code; }
   FPURegister low() const {

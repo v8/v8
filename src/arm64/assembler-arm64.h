@@ -155,7 +155,8 @@ struct Register : public CPURegister {
   }
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool IsValid() const {
     DCHECK(IsRegister() || IsNone());
     return IsValidRegister();
@@ -231,7 +232,8 @@ struct FPRegister : public CPURegister {
   }
 
   const char* ToString();
-  bool IsAllocatable() const;
+  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
+                         RegisterConfiguration::CRANKSHAFT) const;
   bool IsValid() const {
     DCHECK(IsFPRegister() || IsNone());
     return IsValidFPRegister();
