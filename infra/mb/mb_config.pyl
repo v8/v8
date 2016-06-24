@@ -65,6 +65,35 @@
       'V8 Linux - interpreted regexp': 'gyp_release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'gyp_debug_x86',
     },
+
+    'client.v8.ports': {
+      # Arm.
+      'V8 Arm - builder': 'gyp_release_arm',
+      'V8 Arm - debug builder': 'gyp_debug_arm',
+      'V8 Android Arm - builder': 'gyp_release_android_arm',
+      'V8 Linux - arm - sim': 'gyp_release_simulate_arm',
+      'V8 Linux - arm - sim - debug': 'gyp_debug_simulate_arm',
+      # Arm64.
+      'V8 Android Arm64 - builder': 'gyp_release_android_arm64',
+      'V8 Linux - arm64 - sim': 'gyp_release_simulate_arm64',
+      'V8 Linux - arm64 - sim - debug': 'gyp_debug_simulate_arm64',
+      'V8 Linux - arm64 - sim - nosnap - debug':
+          'gyp_debug_simulate_arm64_no_snap',
+      'V8 Linux - arm64 - sim - gc stress': 'gyp_debug_simulate_arm64',
+      # Mips.
+      'V8 Mips - builder': 'gyp_release_mips_no_snap_no_i18n',
+      'V8 Linux - mipsel - sim - builder': 'gyp_release_simulate_mipsel',
+      'V8 Linux - mips64el - sim - builder': 'gyp_release_simulate_mips64el',
+      # PPC.
+      'V8 Linux - ppc - sim': 'gyp_release_simulate_ppc',
+      'V8 Linux - ppc64 - sim': 'gyp_release_simulate_ppc64',
+      # S390.
+      'V8 Linux - s390 - sim': 'gyp_release_simulate_s390',
+      'V8 Linux - s390x - sim': 'gyp_release_simulate_s390x',
+      # X87.
+      'V8 Linux - x87 - nosnap - debug builder':
+          'gyp_debug_simulate_x87_no_snap',
+    },
     'client.v8.branches': {
       'V8 Linux - beta branch': 'gyp_release_x86',
       'V8 Linux - beta branch - debug': 'gyp_debug_x86',
@@ -123,6 +152,16 @@
       'v8_mac64_rel': 'gyp_release_x64_trybot',
       'v8_mac64_dbg': 'gyp_debug_x64_minimal_symbols',
       'v8_mac64_asan_rel': 'gyp_release_x64_asan',
+      'v8_linux_arm_rel_ng': 'gyp_release_simulate_arm_trybot',
+      'v8_linux_arm_dbg': 'gyp_debug_simulate_arm',
+      'v8_linux_arm_armv8a_rel': 'gyp_release_simulate_arm_trybot',
+      'v8_linux_arm_armv8a_dbg': 'gyp_debug_simulate_arm',
+      'v8_linux_arm64_rel_ng': 'gyp_release_simulate_arm64_trybot',
+      'v8_linux_arm64_dbg': 'gyp_debug_simulate_arm64',
+      'v8_linux_arm64_gc_stress_dbg': 'gyp_debug_simulate_arm64',
+      'v8_linux_mipsel_compile_rel': 'gyp_release_simulate_mipsel',
+      'v8_linux_mips64el_compile_rel': 'gyp_release_simulate_mips64el',
+      'v8_android_arm_compile_rel': 'gyp_release_android_arm',
     },
   },
 
@@ -134,17 +173,25 @@
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
 
+    # Gyp debug configs for arm.
+    'gyp_debug_arm': [
+      'gyp', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_arm': [
       'gyp', 'debug_bot', 'simulate_arm', 'swarming'],
     'gyp_debug_simulate_arm_asan_edge': [
       'gyp', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
-    #'gyp_debug_simulate_arm64': [
-    #  'gyp', 'debug_bot', 'simulate_arm64', 'swarming'],
+    'gyp_debug_simulate_arm64': [
+      'gyp', 'debug_bot', 'simulate_arm64', 'swarming'],
     'gyp_debug_simulate_arm64_asan_edge': [
       'gyp', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
+    'gyp_debug_simulate_arm64_no_snap': [
+      'gyp', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
     'gyp_debug_simulate_mipsel_asan_edge': [
       'gyp', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
+    'gyp_debug_simulate_x87_no_snap': [
+      'gyp', 'debug_bot', 'simulate_x87', 'v8_snapshot_none'],
 
     # Gyp debug configs for x64.
     'gyp_debug_x64': [
@@ -179,16 +226,33 @@
       'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
 
+    # Gyp release configs for arm.
+    'gyp_release_arm': [
+      'gyp', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+    'gyp_release_android_arm': [
+      'gyp', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
+    'gyp_release_android_arm64': [
+      'gyp', 'release_bot', 'arm64', 'android', 'crosscompile', 'swarming'],
+
+    # Gyp release configs for mips.
+    'gyp_release_mips_no_snap_no_i18n': [
+      'gyp', 'release', 'mips', 'crosscompile', 'static', 'v8_no_i18n',
+      'v8_snapshot_none'],
+
     # Gyp release configs for simulators.
     'gyp_release_simulate_arm': [
       'gyp', 'release_bot', 'simulate_arm', 'swarming'],
-    #'gyp_release_simulate_arm64': [
-    #  'gyp', 'release_bot', 'simulate_arm64', 'swarming'],
+    'gyp_release_simulate_arm_trybot': [
+      'gyp', 'release_trybot', 'simulate_arm', 'swarming'],
+    'gyp_release_simulate_arm64': [
+      'gyp', 'release_bot', 'simulate_arm64', 'swarming'],
     'gyp_release_simulate_arm64_msan': [
       'gyp', 'release_bot', 'simulate_arm64', 'msan', 'swarming'],
     'gyp_release_simulate_arm64_msan_minimal_symbols': [
       'gyp', 'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols',
       'swarming'],
+    'gyp_release_simulate_arm64_trybot': [
+      'gyp', 'release_trybot', 'simulate_arm64', 'swarming'],
     'gyp_release_simulate_mipsel': [
       'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
     'gyp_release_simulate_mips64el': [
@@ -266,6 +330,21 @@
   },
 
   'mixins': {
+    'android': {
+      'gn_args': 'target_os="android"',
+      'gyp_defines': 'OS=android',
+    },
+
+    'arm': {
+      'gn_args': 'target_cpu="arm"',
+      'gyp_defines': 'target_arch=arm',
+    },
+
+    'arm64': {
+      'gn_args': 'target_cpu="arm64"',
+      'gyp_defines': 'target_arch=arm64',
+    },
+
     'asan': {
       'gn_args': 'clang=true asan=true',
       'gyp_defines': 'clang=1 asan=1',
@@ -289,6 +368,10 @@
     'coverage': {
       # TODO(machenbach): Add this to gn.
       'gyp_defines': 'coverage=1',
+    },
+
+    'crosscompile': {
+      'gyp_crosscompile': True,
     },
 
     'dcheck_always_on': {
@@ -337,6 +420,11 @@
 
     'gyp': {'type': 'gyp'},
 
+    'hard_float': {
+      'gn_args': 'arm_float_abi="hard"',
+      'gyp_defines': 'arm_float_abi=hard',
+    },
+
     'lsan': {
       'gn_args': 'lsan=true',
       'gyp_defines': 'lsan=1',
@@ -345,6 +433,11 @@
     'minimal_symbols': {
       'gn_args': 'symbol_level=1',
       'gyp_defines': 'fastbuild=1',
+    },
+
+    'mips': {
+      'gn_args': 'target_cpu="mips"',
+      'gyp_defines': 'target_arch=mips',
     },
 
     'msan': {
@@ -407,6 +500,11 @@
     'simulate_s390x': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="s390x"',
       'gyp_defines': 'target_arch=x64 v8_target_arch=s390x',
+    },
+
+    'simulate_x87': {
+      'gn_args': 'target_cpu="ia32" v8_target_cpu="x87"',
+      'gyp_defines': 'target_arch=ia32 v8_target_arch=x87',
     },
 
     'static': {
