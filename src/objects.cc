@@ -986,6 +986,41 @@ bool Object::ToInt32(int32_t* value) {
   return false;
 }
 
+Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
+    Isolate* isolate, Handle<FunctionTemplateInfo> info) {
+  Object* current_info = info->shared_function_info();
+  if (current_info->IsSharedFunctionInfo()) {
+    return handle(SharedFunctionInfo::cast(current_info), isolate);
+  }
+
+  Handle<Object> class_name(info->class_name(), isolate);
+  Handle<String> name = class_name->IsString()
+                            ? Handle<String>::cast(class_name)
+                            : isolate->factory()->empty_string();
+  Handle<Code> code;
+  if (info->call_code()->IsCallHandlerInfo() &&
+      CallHandlerInfo::cast(info->call_code())->fast_handler()->IsCode()) {
+    code = isolate->builtins()->HandleFastApiCall();
+  } else {
+    code = isolate->builtins()->HandleApiCall();
+  }
+  bool is_constructor = !info->remove_prototype();
+  Handle<SharedFunctionInfo> result =
+      isolate->factory()->NewSharedFunctionInfo(name, code, is_constructor);
+  if (is_constructor) {
+    result->set_construct_stub(*isolate->builtins()->JSConstructStubApi());
+  }
+
+  result->set_length(info->length());
+  if (class_name->IsString()) result->set_instance_class_name(*class_name);
+  result->set_api_func_data(*info);
+  result->DontAdaptArguments();
+  DCHECK(result->IsApiFunction());
+
+  info->set_shared_function_info(*result);
+  return result;
+}
+
 bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
   // There is a constraint on the object; check.
   if (!map->IsJSObjectMap()) return false;

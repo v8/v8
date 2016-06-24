@@ -399,12 +399,9 @@ Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
   Factory* factory = isolate->factory();
   Handle<Code> call_code(isolate->builtins()->builtin(call));
   Handle<JSObject> prototype;
-  static const bool kReadOnlyPrototype = false;
-  static const bool kInstallConstructor = false;
   return maybe_prototype.ToHandle(&prototype)
              ? factory->NewFunction(name, call_code, prototype, type,
-                                    instance_size, kReadOnlyPrototype,
-                                    kInstallConstructor, strict_function_map)
+                                    instance_size, strict_function_map)
              : factory->NewFunctionWithoutPrototype(name, call_code,
                                                     strict_function_map);
 }
