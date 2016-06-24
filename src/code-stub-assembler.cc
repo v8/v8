@@ -695,7 +695,8 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length) {
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
-                                 IntPtrConstant(String::kEmptyHashField));
+                                 IntPtrConstant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
   return result;
 }
 
@@ -722,7 +723,8 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length) {
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                    SmiFromWord(length));
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
-                                   IntPtrConstant(String::kEmptyHashField));
+                                   IntPtrConstant(String::kEmptyHashField),
+                                   MachineRepresentation::kWord32);
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -746,7 +748,8 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length) {
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)));
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
-                                 IntPtrConstant(String::kEmptyHashField));
+                                 IntPtrConstant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
   return result;
 }
 
@@ -773,7 +776,8 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length) {
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                    SmiFromWord(length));
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
-                                   IntPtrConstant(String::kEmptyHashField));
+                                   IntPtrConstant(String::kEmptyHashField),
+                                   MachineRepresentation::kWord32);
     var_result.Bind(result);
     Goto(&if_join);
   }
