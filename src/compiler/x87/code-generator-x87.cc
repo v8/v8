@@ -113,8 +113,8 @@ class X87OperandConverter : public InstructionOperandConverter {
       }
       case kMode_MRI: {
         Register base = InputRegister(NextOffset(offset));
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(base, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(base, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_MR1:
       case kMode_MR2:
@@ -133,8 +133,8 @@ class X87OperandConverter : public InstructionOperandConverter {
         Register base = InputRegister(NextOffset(offset));
         Register index = InputRegister(NextOffset(offset));
         ScaleFactor scale = ScaleFor(kMode_MR1I, mode);
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(base, index, scale, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(base, index, scale, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_M1:
       case kMode_M2:
@@ -151,12 +151,12 @@ class X87OperandConverter : public InstructionOperandConverter {
       case kMode_M8I: {
         Register index = InputRegister(NextOffset(offset));
         ScaleFactor scale = ScaleFor(kMode_M1I, mode);
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(index, scale, disp);
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(index, scale, ctant.ToInt32(), ctant.rmode());
       }
       case kMode_MI: {
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(Immediate(disp));
+        Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
+        return Operand(ctant.ToInt32(), ctant.rmode());
       }
       case kMode_None:
         UNREACHABLE();
