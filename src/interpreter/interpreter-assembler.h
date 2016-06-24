@@ -159,6 +159,7 @@ class InterpreterAssembler : public CodeStubAssembler {
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
+
   // Returns a raw pointer to first entry in the interpreter dispatch table.
   compiler::Node* DispatchTableRawPointer();
 
@@ -166,6 +167,10 @@ class InterpreterAssembler : public CodeStubAssembler {
   // uses it. This is intended to be used only in dispatch and in
   // tracing as these need to bypass accumulator use validity checks.
   compiler::Node* GetAccumulatorUnchecked();
+
+  // Returns the frame pointer for the interpreted frame of the function being
+  // interpreted.
+  compiler::Node* GetInterpretedFramePointer();
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
@@ -233,6 +238,7 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
+  CodeStubAssembler::Variable interpreted_frame_pointer_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
   bool made_call_;

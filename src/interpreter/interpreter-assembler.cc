@@ -31,6 +31,7 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
                         Bytecodes::ReturnCount(bytecode)),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
+      interpreted_frame_pointer_(this, MachineType::PointerRepresentation()),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
       made_call_(false),
@@ -48,6 +49,13 @@ InterpreterAssembler::~InterpreterAssembler() {
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+}
+
+Node* InterpreterAssembler::GetInterpretedFramePointer() {
+  if (!interpreted_frame_pointer_.IsBound()) {
+    interpreted_frame_pointer_.Bind(LoadParentFramePointer());
+  }
+  return interpreted_frame_pointer_.value();
 }
 
 Node* InterpreterAssembler::GetAccumulatorUnchecked() {
@@ -93,7 +101,8 @@ Node* InterpreterAssembler::DispatchTableRawPointer() {
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return IntPtrAdd(LoadParentFramePointer(), RegisterFrameOffset(reg_index));
+  return IntPtrAdd(GetInterpretedFramePointer(),
+                   RegisterFrameOffset(reg_index));
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
@@ -101,24 +110,24 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return Load(MachineType::AnyTagged(), LoadParentFramePointer(),
+  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
               IntPtrConstant(reg.ToOperand() << kPointerSizeLog2));
 }
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
-  return Load(MachineType::AnyTagged(), LoadParentFramePointer(),
+  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
               RegisterFrameOffset(reg_index));
 }
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Register reg) {
   return StoreNoWriteBarrier(
-      MachineRepresentation::kTagged, LoadParentFramePointer(),
+      MachineRepresentation::kTagged, GetInterpretedFramePointer(),
       IntPtrConstant(reg.ToOperand() << kPointerSizeLog2), value);
 }
 
 Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
   return StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                             LoadParentFramePointer(),
+                             GetInterpretedFramePointer(),
                              RegisterFrameOffset(reg_index), value);
 }
 
