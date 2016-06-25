@@ -7504,6 +7504,9 @@ TEST(AsyncAwait) {
     "var O = { async 'method'() { await 1; } }",
     "var O = { async 0() { await 1; } }",
     "async function await() {}",
+
+    "var asyncFn = async({ foo = 1 }) => foo;",
+    "var asyncFn = async({ foo = 1 } = {}) => foo;",
     NULL
   };
   // clang-format on
@@ -7665,6 +7668,10 @@ TEST(AsyncAwaitErrors) {
     "(async`foo`.bar => 1)",
     "(async`foo`.bar foo => 1)",
     "(async`foo`.bar () => 1)",
+
+    // v8:5148 assert that errors are still thrown for calls that may have been
+    // async functions
+    "async({ foo = 1 })",
     NULL
   };
 
@@ -7686,6 +7693,22 @@ TEST(AsyncAwaitErrors) {
 
     NULL
   };
+
+  const char* formal_parameters_data[] = {
+    "var f = async({ await }) => 1;",
+    "var f = async({ await = 1 }) => 1;",
+    "var f = async({ await } = {}) => 1;",
+    "var f = async({ await = 1 } = {}) => 1;",
+    "var f = async([await]) => 1;",
+    "var f = async([await] = []) => 1;",
+    "var f = async([await = 1]) => 1;",
+    "var f = async([await = 1] = []) => 1;",
+    "var f = async(...await) => 1;",
+    "var f = async(await) => 1;",
+    "var f = async(await = 1) => 1;",
+    "var f = async(...[await]) => 1;",
+    NULL
+  };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
@@ -7693,6 +7716,17 @@ TEST(AsyncAwaitErrors) {
                     arraysize(always_flags));
   RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+  {
+    // TODO(caitp): support these early errors in preparser
+    USE(formal_parameters_data);
+    // const bool kIsModule = false;
+    // const bool kTestPreparser = false;
+    // TODO(caitp): These tests seem to fail test-parsing.cc, even with
+    // test_preparser disabled.
+    // RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
+    //                 always_flags, arraysize(always_flags), NULL, 0,
+    //                 kIsModule, kTestPreparser);
+  }
 }
 
 TEST(AsyncAwaitModule) {

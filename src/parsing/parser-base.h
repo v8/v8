@@ -2160,7 +2160,10 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
     ExpressionT argument = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(NullExpressionList));
     CheckNoTailCallExpressions(classifier, CHECK_OK_CUSTOM(NullExpressionList));
-    Traits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(NullExpressionList));
+    if (!maybe_arrow) {
+      Traits::RewriteNonPattern(classifier,
+                                CHECK_OK_CUSTOM(NullExpressionList));
+    }
     if (is_spread) {
       if (!spread_arg.IsValid()) {
         spread_arg.beg_pos = start_pos;
@@ -2197,11 +2200,17 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
   }
   *first_spread_arg_loc = spread_arg;
 
-  if ((!maybe_arrow || peek() != Token::ARROW) && spread_arg.IsValid()) {
-    // Unspread parameter sequences are translated into array literals in the
-    // parser. Ensure that the number of materialized literals matches between
-    // the parser and preparser
-    Traits::MaterializeUnspreadArgumentsLiterals(unspread_sequences_count);
+  if (!maybe_arrow || peek() != Token::ARROW) {
+    if (maybe_arrow) {
+      Traits::RewriteNonPattern(classifier,
+                                CHECK_OK_CUSTOM(NullExpressionList));
+    }
+    if (spread_arg.IsValid()) {
+      // Unspread parameter sequences are translated into array literals in the
+      // parser. Ensure that the number of materialized literals matches between
+      // the parser and preparser
+      Traits::MaterializeUnspreadArgumentsLiterals(unspread_sequences_count);
+    }
   }
 
   return result;
