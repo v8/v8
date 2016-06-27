@@ -117,6 +117,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Load a field from an object on the heap.
   compiler::Node* LoadObjectField(compiler::Node* object, int offset,
                                   MachineType rep = MachineType::AnyTagged());
+  compiler::Node* LoadObjectField(compiler::Node* object,
+                                  compiler::Node* offset,
+                                  MachineType rep = MachineType::AnyTagged());
+
   // Load the floating point value of a HeapNumber.
   compiler::Node* LoadHeapNumberValue(compiler::Node* object);
   // Load the Map of an HeapObject.
@@ -145,6 +149,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapPrototype(compiler::Node* map);
   // Load the instance size of a Map.
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
+  // Load the inobject properties count of a Map (valid only for JSObjects).
+  compiler::Node* LoadMapInobjectProperties(compiler::Node* map);
 
   // Load the hash field of a name.
   compiler::Node* LoadNameHashField(compiler::Node* name);
@@ -268,11 +274,24 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
                  Label* if_keyisunique, Label* if_bailout);
 
+  // Calculates array index for given dictionary entry and entry field.
+  // See Dictionary::EntryToIndex().
+  template <typename Dictionary>
+  compiler::Node* EntryToIndex(compiler::Node* entry, int field_index);
+  template <typename Dictionary>
+  compiler::Node* EntryToIndex(compiler::Node* entry) {
+    return EntryToIndex<Dictionary>(entry, Dictionary::kEntryKeyIndex);
+  }
+
+  // Looks up an entry in a NameDictionaryBase successor. If the entry is found
+  // control goes to {if_found} and {var_name_index} contains an index of the
+  // key field of the entry found. If the key is not found control goes to
+  // {if_not_found}.
   static const int kInlinedDictionaryProbes = 4;
   template <typename Dictionary>
   void NameDictionaryLookup(compiler::Node* dictionary,
                             compiler::Node* unique_name, Label* if_found,
-                            Variable* var_entry, Label* if_not_found,
+                            Variable* var_name_index, Label* if_not_found,
                             int inlined_probes = kInlinedDictionaryProbes);
 
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
@@ -282,9 +301,54 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               Label* if_found, Variable* var_entry,
                               Label* if_not_found);
 
-  void TryLookupProperty(compiler::Node* object, compiler::Node* map,
+  // Tries to check if {object} has own {unique_name} property.
+  void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
                          compiler::Node* instance_type,
                          compiler::Node* unique_name, Label* if_found,
+                         Label* if_not_found, Label* if_bailout);
+
+  // Tries to get {object}'s own {unique_name} property value. If the property
+  // is an accessor then it also calls a getter. If the property is a double
+  // field it re-wraps value in an immutable heap number.
+  void TryGetOwnProperty(compiler::Node* context, compiler::Node* receiver,
+                         compiler::Node* object, compiler::Node* map,
+                         compiler::Node* instance_type,
+                         compiler::Node* unique_name, Label* if_found,
+                         Variable* var_value, Label* if_not_found,
+                         Label* if_bailout);
+
+  void LoadPropertyFromFastObject(compiler::Node* object, compiler::Node* map,
+                                  compiler::Node* descriptors,
+                                  compiler::Node* name_index,
+                                  Variable* var_details, Variable* var_value);
+
+  void LoadPropertyFromNameDictionary(compiler::Node* dictionary,
+                                      compiler::Node* entry,
+                                      Variable* var_details,
+                                      Variable* var_value);
+
+  void LoadPropertyFromGlobalDictionary(compiler::Node* dictionary,
+                                        compiler::Node* entry,
+                                        Variable* var_details,
+                                        Variable* var_value, Label* if_deleted);
+
+  // Generic property lookup generator. If the {object} is fast and
+  // {unique_name} property is found then the control goes to {if_found_fast}
+  // label and {var_meta_storage} and {var_name_index} will contain
+  // DescriptorArray and an index of the descriptor's name respectively.
+  // If the {object} is slow or global then the control goes to {if_found_dict}
+  // or {if_found_global} and the {var_meta_storage} and {var_name_index} will
+  // contain a dictionary and an index of the key field of the found entry.
+  // If property is not found or given lookup is not supported then
+  // the control goes to {if_not_found} or {if_bailout} respectively.
+  //
+  // Note: this code does not check if the global dictionary points to deleted
+  // entry! This has to be done by the caller.
+  void TryLookupProperty(compiler::Node* object, compiler::Node* map,
+                         compiler::Node* instance_type,
+                         compiler::Node* unique_name, Label* if_found_fast,
+                         Label* if_found_dict, Label* if_found_global,
+                         Variable* var_meta_storage, Variable* var_name_index,
                          Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,

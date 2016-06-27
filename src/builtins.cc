@@ -368,7 +368,7 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
                        &call_runtime);
 
   assembler->Bind(&if_iskeyunique);
-  assembler->TryLookupProperty(object, map, instance_type, key, &return_true,
+  assembler->TryHasOwnProperty(object, map, instance_type, key, &return_true,
                                &return_false, &call_runtime);
 
   assembler->Bind(&keyisindex);

@@ -4343,7 +4343,7 @@ compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
     assembler->Bind(&loop);
     {
       Label next_proto(assembler);
-      assembler->TryLookupProperty(var_object.value(), var_map.value(),
+      assembler->TryHasOwnProperty(var_object.value(), var_map.value(),
                                    var_instance_type.value(), key, &return_true,
                                    &next_proto, &call_runtime);
       assembler->Bind(&next_proto);

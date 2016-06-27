@@ -28,12 +28,12 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
 void CodeStubAssembler::Assert(Node* condition) {
 #if defined(DEBUG)
   Label ok(this);
-  Label not_ok(this);
-  Branch(condition, &ok, &not_ok);
-  Bind(&not_ok);
+  Comment("[ Assert");
+  GotoIf(condition, &ok);
   DebugBreak();
   Goto(&ok);
   Bind(&ok);
+  Comment("] Assert");
 #endif
 }
 
@@ -494,6 +494,11 @@ Node* CodeStubAssembler::LoadObjectField(Node* object, int offset,
   return Load(rep, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
+Node* CodeStubAssembler::LoadObjectField(Node* object, Node* offset,
+                                         MachineType rep) {
+  return Load(rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
+}
+
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return LoadObjectField(object, HeapNumber::kValueOffset,
                          MachineType::Float64());
@@ -550,6 +555,16 @@ Node* CodeStubAssembler::LoadMapPrototype(Node* map) {
 
 Node* CodeStubAssembler::LoadMapInstanceSize(Node* map) {
   return LoadObjectField(map, Map::kInstanceSizeOffset, MachineType::Uint8());
+}
+
+Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
+  // See Map::GetInObjectProperties() for details.
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  Assert(Int32GreaterThanOrEqual(LoadMapInstanceType(map),
+                                 Int32Constant(FIRST_JS_OBJECT_TYPE)));
+  return LoadObjectField(
+      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+      MachineType::Uint8());
 }
 
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
@@ -1491,6 +1506,7 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
                                   Label* if_bailout) {
   DCHECK_EQ(MachineRepresentation::kWord32, var_index->rep());
+  Comment("TryToName");
 
   Label if_keyissmi(this), if_keyisnotsmi(this);
   Branch(WordIsSmi(key), &if_keyissmi, &if_keyisnotsmi);
@@ -1533,15 +1549,20 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
 }
 
 template <typename Dictionary>
+Node* CodeStubAssembler::EntryToIndex(Node* entry, int field_index) {
+  Node* entry_index = Int32Mul(entry, Int32Constant(Dictionary::kEntrySize));
+  return Int32Add(entry_index,
+                  Int32Constant(Dictionary::kElementsStartIndex + field_index));
+}
+
+template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
                                              Node* unique_name, Label* if_found,
-                                             Variable* var_entry,
+                                             Variable* var_name_index,
                                              Label* if_not_found,
                                              int inlined_probes) {
-  DCHECK_EQ(MachineRepresentation::kWord32, var_entry->rep());
-
-  const int kElementsStartOffset =
-      Dictionary::kElementsStartIndex * kPointerSize;
+  DCHECK_EQ(MachineRepresentation::kWord32, var_name_index->rep());
+  Comment("NameDictionaryLookup");
 
   Node* capacity = SmiToWord32(LoadFixedArrayElement(
       dictionary, Int32Constant(Dictionary::kCapacityIndex)));
@@ -1553,11 +1574,10 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   Node* entry = Word32And(hash, mask);
 
   for (int i = 0; i < inlined_probes; i++) {
-    // See Dictionary::EntryToIndex()
-    Node* index = Int32Mul(entry, Int32Constant(Dictionary::kEntrySize));
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, kElementsStartOffset);
-    var_entry->Bind(entry);
+    Node* index = EntryToIndex<Dictionary>(entry);
+    var_name_index->Bind(index);
+
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, unique_name), if_found);
 
     // See Dictionary::NextProbe().
@@ -1568,20 +1588,21 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
   Node* undefined = UndefinedConstant();
 
   Variable var_count(this, MachineRepresentation::kWord32);
-  Variable* loop_vars[] = {&var_count, var_entry};
-  Label loop(this, 2, loop_vars);
+  Variable var_entry(this, MachineRepresentation::kWord32);
+  Variable* loop_vars[] = {&var_count, &var_entry, var_name_index};
+  Label loop(this, 3, loop_vars);
   var_count.Bind(count);
-  var_entry->Bind(entry);
+  var_entry.Bind(entry);
   Goto(&loop);
   Bind(&loop);
   {
     Node* count = var_count.value();
-    Node* entry = var_entry->value();
+    Node* entry = var_entry.value();
 
-    // See Dictionary::EntryToIndex()
-    Node* index = Int32Mul(entry, Int32Constant(Dictionary::kEntrySize));
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, kElementsStartOffset);
+    Node* index = EntryToIndex<Dictionary>(entry);
+    var_name_index->Bind(index);
+
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     GotoIf(WordEqual(current, unique_name), if_found);
 
@@ -1590,7 +1611,7 @@ void CodeStubAssembler::NameDictionaryLookup(Node* dictionary,
     entry = Word32And(Int32Add(entry, count), mask);
 
     var_count.Bind(count);
-    var_entry->Bind(entry);
+    var_entry.Bind(entry);
     Goto(&loop);
   }
 }
@@ -1621,9 +1642,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary, Node* key,
                                                Variable* var_entry,
                                                Label* if_not_found) {
   DCHECK_EQ(MachineRepresentation::kWord32, var_entry->rep());
-
-  const int kElementsStartOffset =
-      Dictionary::kElementsStartIndex * kPointerSize;
+  Comment("NumberDictionaryLookup");
 
   Node* capacity = SmiToWord32(LoadFixedArrayElement(
       dictionary, Int32Constant(Dictionary::kCapacityIndex)));
@@ -1656,10 +1675,8 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary, Node* key,
     Node* count = var_count.value();
     Node* entry = var_entry->value();
 
-    // See Dictionary::EntryToIndex()
-    Node* index = Int32Mul(entry, Int32Constant(Dictionary::kEntrySize));
-    Node* current =
-        LoadFixedArrayElement(dictionary, index, kElementsStartOffset);
+    Node* index = EntryToIndex<Dictionary>(entry);
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     Label next_probe(this);
     {
@@ -1691,16 +1708,24 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary, Node* key,
   }
 }
 
-void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
-                                          Node* instance_type,
-                                          Node* unique_name, Label* if_found,
-                                          Label* if_not_found,
-                                          Label* if_bailout) {
+void CodeStubAssembler::TryLookupProperty(
+    Node* object, Node* map, Node* instance_type, Node* unique_name,
+    Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
+    Variable* var_meta_storage, Variable* var_name_index, Label* if_not_found,
+    Label* if_bailout) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_meta_storage->rep());
+  DCHECK_EQ(MachineRepresentation::kWord32, var_name_index->rep());
+
   Label if_objectisspecial(this);
   STATIC_ASSERT(JS_GLOBAL_OBJECT_TYPE <= LAST_SPECIAL_RECEIVER_TYPE);
   GotoIf(Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          &if_objectisspecial);
+
+  Node* bit_field = LoadMapBitField(map);
+  Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
+                             1 << Map::kIsAccessCheckNeeded);
+  Assert(Word32Equal(Word32And(bit_field, mask), Int32Constant(0)));
 
   Node* bit_field3 = LoadMapBitField3(map);
   Node* bit = BitFieldDecode<Map::DictionaryMap>(bit_field3);
@@ -1708,6 +1733,7 @@ void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
   Branch(Word32Equal(bit, Int32Constant(0)), &if_isfastmap, &if_isslowmap);
   Bind(&if_isfastmap);
   {
+    Comment("DescriptorArrayLookup");
     Node* nof = BitFieldDecode<Map::NumberOfOwnDescriptorsBits>(bit_field3);
     // Bail out to the runtime for large numbers of own descriptors. The stub
     // only does linear search, which becomes too expensive in that case.
@@ -1716,6 +1742,7 @@ void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
       GotoIf(Int32GreaterThan(nof, Int32Constant(kMaxLinear)), if_bailout);
     }
     Node* descriptors = LoadMapDescriptors(map);
+    var_meta_storage->Bind(descriptors);
 
     Variable var_descriptor(this, MachineRepresentation::kWord32);
     Label loop(this, &var_descriptor);
@@ -1724,13 +1751,15 @@ void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
     Bind(&loop);
     {
       Node* index = var_descriptor.value();
-      Node* offset = Int32Constant(DescriptorArray::ToKeyIndex(0));
+      Node* name_offset = Int32Constant(DescriptorArray::ToKeyIndex(0));
       Node* factor = Int32Constant(DescriptorArray::kDescriptorSize);
       GotoIf(Word32Equal(index, nof), if_not_found);
 
-      Node* array_index = Int32Add(offset, Int32Mul(index, factor));
-      Node* current = LoadFixedArrayElement(descriptors, array_index);
-      GotoIf(WordEqual(current, unique_name), if_found);
+      Node* name_index = Int32Add(name_offset, Int32Mul(index, factor));
+      Node* name = LoadFixedArrayElement(descriptors, name_index);
+
+      var_name_index->Bind(name_index);
+      GotoIf(WordEqual(name, unique_name), if_found_fast);
 
       var_descriptor.Bind(Int32Add(index, Int32Constant(1)));
       Goto(&loop);
@@ -1738,22 +1767,301 @@ void CodeStubAssembler::TryLookupProperty(Node* object, Node* map,
   }
   Bind(&if_isslowmap);
   {
-    Variable var_entry(this, MachineRepresentation::kWord32);
     Node* dictionary = LoadProperties(object);
+    var_meta_storage->Bind(dictionary);
 
-    NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found,
-                                         &var_entry, if_not_found);
+    NameDictionaryLookup<NameDictionary>(dictionary, unique_name, if_found_dict,
+                                         var_name_index, if_not_found);
   }
   Bind(&if_objectisspecial);
   {
     // Handle global object here and other special objects in runtime.
     GotoUnless(Word32Equal(instance_type, Int32Constant(JS_GLOBAL_OBJECT_TYPE)),
                if_bailout);
-    Variable var_entry(this, MachineRepresentation::kWord32);
-    Node* dictionary = LoadProperties(object);
 
-    NameDictionaryLookup<GlobalDictionary>(dictionary, unique_name, if_found,
-                                           &var_entry, if_not_found);
+    // Handle interceptors and access checks in runtime.
+    Node* bit_field = LoadMapBitField(map);
+    Node* mask = Int32Constant(1 << Map::kHasNamedInterceptor |
+                               1 << Map::kIsAccessCheckNeeded);
+    GotoIf(Word32NotEqual(Word32And(bit_field, mask), Int32Constant(0)),
+           if_bailout);
+
+    Node* dictionary = LoadProperties(object);
+    var_meta_storage->Bind(dictionary);
+
+    NameDictionaryLookup<GlobalDictionary>(
+        dictionary, unique_name, if_found_global, var_name_index, if_not_found);
+  }
+}
+
+void CodeStubAssembler::TryHasOwnProperty(compiler::Node* object,
+                                          compiler::Node* map,
+                                          compiler::Node* instance_type,
+                                          compiler::Node* unique_name,
+                                          Label* if_found, Label* if_not_found,
+                                          Label* if_bailout) {
+  Comment("TryHasOwnProperty");
+  Variable var_meta_storage(this, MachineRepresentation::kTagged);
+  Variable var_name_index(this, MachineRepresentation::kWord32);
+
+  Label if_found_global(this);
+  TryLookupProperty(object, map, instance_type, unique_name, if_found, if_found,
+                    &if_found_global, &var_meta_storage, &var_name_index,
+                    if_not_found, if_bailout);
+  Bind(&if_found_global);
+  {
+    Variable var_value(this, MachineRepresentation::kTagged);
+    Variable var_details(this, MachineRepresentation::kWord32);
+    // Check if the property cell is not deleted.
+    LoadPropertyFromGlobalDictionary(var_meta_storage.value(),
+                                     var_name_index.value(), &var_value,
+                                     &var_details, if_not_found);
+    Goto(if_found);
+  }
+}
+
+void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
+                                                   Node* descriptors,
+                                                   Node* name_index,
+                                                   Variable* var_details,
+                                                   Variable* var_value) {
+  DCHECK_EQ(MachineRepresentation::kWord32, var_details->rep());
+  DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
+  Comment("[ LoadPropertyFromFastObject");
+
+  const int name_to_details_offset =
+      (DescriptorArray::kDescriptorDetails - DescriptorArray::kDescriptorKey) *
+      kPointerSize;
+  const int name_to_value_offset =
+      (DescriptorArray::kDescriptorValue - DescriptorArray::kDescriptorKey) *
+      kPointerSize;
+
+  Node* details = SmiToWord32(
+      LoadFixedArrayElement(descriptors, name_index, name_to_details_offset));
+  var_details->Bind(details);
+
+  Node* location = BitFieldDecode<PropertyDetails::LocationField>(details);
+
+  Label if_in_field(this), if_in_descriptor(this), done(this);
+  Branch(Word32Equal(location, Int32Constant(kField)), &if_in_field,
+         &if_in_descriptor);
+  Bind(&if_in_field);
+  {
+    Node* field_index =
+        BitFieldDecode<PropertyDetails::FieldIndexField>(details);
+    Node* representation =
+        BitFieldDecode<PropertyDetails::RepresentationField>(details);
+
+    Node* inobject_properties = LoadMapInobjectProperties(map);
+
+    Label if_inobject(this), if_backing_store(this);
+    Variable var_double_value(this, MachineRepresentation::kFloat64);
+    Label rebox_double(this, &var_double_value);
+    BranchIfInt32LessThan(field_index, inobject_properties, &if_inobject,
+                          &if_backing_store);
+    Bind(&if_inobject);
+    {
+      Comment("if_inobject");
+      Node* field_offset = ChangeInt32ToIntPtr(
+          Int32Mul(Int32Sub(LoadMapInstanceSize(map),
+                            Int32Sub(inobject_properties, field_index)),
+                   Int32Constant(kPointerSize)));
+
+      Label if_double(this), if_tagged(this);
+      BranchIfWord32NotEqual(representation,
+                             Int32Constant(Representation::kDouble), &if_tagged,
+                             &if_double);
+      Bind(&if_tagged);
+      {
+        var_value->Bind(LoadObjectField(object, field_offset));
+        Goto(&done);
+      }
+      Bind(&if_double);
+      {
+        if (FLAG_unbox_double_fields) {
+          var_double_value.Bind(
+              LoadObjectField(object, field_offset, MachineType::Float64()));
+        } else {
+          Node* mutable_heap_number = LoadObjectField(object, field_offset);
+          var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+        }
+        Goto(&rebox_double);
+      }
+    }
+    Bind(&if_backing_store);
+    {
+      Comment("if_backing_store");
+      Node* properties = LoadProperties(object);
+      field_index = Int32Sub(field_index, inobject_properties);
+      Node* value = LoadFixedArrayElement(properties, field_index);
+
+      Label if_double(this), if_tagged(this);
+      BranchIfWord32NotEqual(representation,
+                             Int32Constant(Representation::kDouble), &if_tagged,
+                             &if_double);
+      Bind(&if_tagged);
+      {
+        var_value->Bind(value);
+        Goto(&done);
+      }
+      Bind(&if_double);
+      {
+        var_double_value.Bind(LoadHeapNumberValue(value));
+        Goto(&rebox_double);
+      }
+    }
+    Bind(&rebox_double);
+    {
+      Comment("rebox_double");
+      Node* heap_number = AllocateHeapNumber();
+      StoreHeapNumberValue(heap_number, var_double_value.value());
+      var_value->Bind(heap_number);
+      Goto(&done);
+    }
+  }
+  Bind(&if_in_descriptor);
+  {
+    Node* value =
+        LoadFixedArrayElement(descriptors, name_index, name_to_value_offset);
+    var_value->Bind(value);
+    Goto(&done);
+  }
+  Bind(&done);
+
+  Comment("] LoadPropertyFromFastObject");
+}
+
+void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
+                                                       Node* name_index,
+                                                       Variable* var_details,
+                                                       Variable* var_value) {
+  Comment("LoadPropertyFromNameDictionary");
+
+  const int name_to_details_offset =
+      (NameDictionary::kEntryDetailsIndex - NameDictionary::kEntryKeyIndex) *
+      kPointerSize;
+  const int name_to_value_offset =
+      (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
+      kPointerSize;
+
+  Node* details = SmiToWord32(
+      LoadFixedArrayElement(dictionary, name_index, name_to_details_offset));
+
+  var_details->Bind(details);
+  var_value->Bind(
+      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset));
+
+  Comment("] LoadPropertyFromNameDictionary");
+}
+
+void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
+                                                         Node* name_index,
+                                                         Variable* var_details,
+                                                         Variable* var_value,
+                                                         Label* if_deleted) {
+  Comment("[ LoadPropertyFromGlobalDictionary");
+
+  const int name_to_value_offset =
+      (GlobalDictionary::kEntryValueIndex - GlobalDictionary::kEntryKeyIndex) *
+      kPointerSize;
+
+  Node* property_cell =
+      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset);
+
+  Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
+  GotoIf(WordEqual(value, TheHoleConstant()), if_deleted);
+
+  var_value->Bind(value);
+
+  Node* details =
+      SmiToWord32(LoadObjectField(property_cell, PropertyCell::kDetailsOffset));
+  var_details->Bind(details);
+
+  Comment("] LoadPropertyFromGlobalDictionary");
+}
+
+void CodeStubAssembler::TryGetOwnProperty(
+    Node* context, Node* receiver, Node* object, Node* map, Node* instance_type,
+    Node* unique_name, Label* if_found_value, Variable* var_value,
+    Label* if_not_found, Label* if_bailout) {
+  DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
+  Comment("TryGetOwnProperty");
+
+  Variable var_meta_storage(this, MachineRepresentation::kTagged);
+  Variable var_entry(this, MachineRepresentation::kWord32);
+
+  Label if_found_fast(this), if_found_dict(this), if_found_global(this);
+
+  Variable var_details(this, MachineRepresentation::kWord32);
+  Variable* vars[] = {var_value, &var_details};
+  Label if_found(this, 2, vars);
+
+  TryLookupProperty(object, map, instance_type, unique_name, &if_found_fast,
+                    &if_found_dict, &if_found_global, &var_meta_storage,
+                    &var_entry, if_not_found, if_bailout);
+  Bind(&if_found_fast);
+  {
+    Node* descriptors = var_meta_storage.value();
+    Node* name_index = var_entry.value();
+
+    LoadPropertyFromFastObject(object, map, descriptors, name_index,
+                               &var_details, var_value);
+    Goto(&if_found);
+  }
+  Bind(&if_found_dict);
+  {
+    Node* dictionary = var_meta_storage.value();
+    Node* entry = var_entry.value();
+    LoadPropertyFromNameDictionary(dictionary, entry, &var_details, var_value);
+    Goto(&if_found);
+  }
+  Bind(&if_found_global);
+  {
+    Node* dictionary = var_meta_storage.value();
+    Node* entry = var_entry.value();
+
+    LoadPropertyFromGlobalDictionary(dictionary, entry, &var_details, var_value,
+                                     if_not_found);
+    Goto(&if_found);
+  }
+  // Here we have details and value which could be an accessor.
+  Bind(&if_found);
+  {
+    Node* details = var_details.value();
+    Node* kind = BitFieldDecode<PropertyDetails::KindField>(details);
+
+    Label if_accessor(this);
+    Branch(Word32Equal(kind, Int32Constant(kData)), if_found_value,
+           &if_accessor);
+    Bind(&if_accessor);
+    {
+      Node* accessor_pair = var_value->value();
+      GotoIf(Word32Equal(LoadInstanceType(accessor_pair),
+                         Int32Constant(ACCESSOR_INFO_TYPE)),
+             if_bailout);
+      AssertInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE);
+      Node* getter =
+          LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+      Node* getter_map = LoadMap(getter);
+      Node* instance_type = LoadMapInstanceType(getter_map);
+      // FunctionTemplateInfo getters are not supported yet.
+      GotoIf(Word32Equal(instance_type,
+                         Int32Constant(FUNCTION_TEMPLATE_INFO_TYPE)),
+             if_bailout);
+
+      // Return undefined if the {getter} is not callable.
+      var_value->Bind(UndefinedConstant());
+      GotoIf(Word32Equal(Word32And(LoadMapBitField(getter_map),
+                                   Int32Constant(1 << Map::kIsCallable)),
+                         Int32Constant(0)),
+             if_found_value);
+
+      // Call the accessor.
+      Callable callable = CodeFactory::Call(isolate());
+      Node* result = CallJS(callable, context, getter, receiver);
+      var_value->Bind(result);
+      Goto(if_found_value);
+    }
   }
 }
 

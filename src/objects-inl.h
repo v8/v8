@@ -7424,9 +7424,9 @@ void BaseDictionaryShape<Key>::SetEntry(Dictionary* dict, int entry,
   int index = dict->EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = dict->GetWriteBarrierMode(no_gc);
-  dict->set(index, *key, mode);
-  dict->set(index + 1, *value, mode);
-  dict->set(index + 2, details.AsSmi());
+  dict->set(index + Dictionary::kEntryKeyIndex, *key, mode);
+  dict->set(index + Dictionary::kEntryValueIndex, *value, mode);
+  dict->set(index + Dictionary::kEntryDetailsIndex, details.AsSmi());
 }
 
 
@@ -7440,8 +7440,8 @@ void GlobalDictionaryShape::SetEntry(Dictionary* dict, int entry,
   int index = dict->EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = dict->GetWriteBarrierMode(no_gc);
-  dict->set(index, *key, mode);
-  dict->set(index + 1, *value, mode);
+  dict->set(index + Dictionary::kEntryKeyIndex, *key, mode);
+  dict->set(index + Dictionary::kEntryValueIndex, *value, mode);
   PropertyCell::cast(*value)->set_property_details(details);
 }
 
