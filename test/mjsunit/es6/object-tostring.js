@@ -156,7 +156,20 @@ assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);
 
 var handler = {};
 revocable = Proxy.revocable([], handler);
+// The first get() call, i.e., toString() revokes the proxy
 handler.get = () => revocable.revoke();
+assertEquals("[object Array]", Object.prototype.toString.call(revocable.proxy));
+assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);
+
+revocable = Proxy.revocable([], handler);
+handler.get = () => {revocable.revoke(); return "value";};
+assertEquals("[object value]", Object.prototype.toString.call(revocable.proxy));
+assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);
+
+
+revocable = Proxy.revocable(function() {}, handler);
+handler.get = () => revocable.revoke();
+assertEquals("[object Function]", Object.prototype.toString.call(revocable.proxy));
 assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);
 
 function* gen() { yield 1; }

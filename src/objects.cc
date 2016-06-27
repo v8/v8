@@ -15665,6 +15665,15 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
   Handle<JSReceiver> receiver =
       Object::ToObject(isolate, object).ToHandleChecked();
 
+  // For proxies, we must check IsArray() before get(toStringTag) to comply
+  // with the specification
+  Maybe<bool> is_array = Nothing<bool>();
+  InstanceType instance_type = receiver->map()->instance_type();
+  if (instance_type == JS_PROXY_TYPE) {
+    is_array = Object::IsArray(receiver);
+    MAYBE_RETURN(is_array, MaybeHandle<String>());
+  }
+
   Handle<String> tag;
   Handle<Object> to_string_tag;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -15675,8 +15684,6 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
   if (to_string_tag->IsString()) {
     tag = Handle<String>::cast(to_string_tag);
   } else {
-    InstanceType instance_type = receiver->map()->instance_type();
-
     switch (instance_type) {
       case JS_API_OBJECT_TYPE:
       case JS_SPECIAL_API_OBJECT_TYPE:
@@ -15695,14 +15702,7 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
         return isolate->factory()->date_to_string();
       case JS_REGEXP_TYPE:
         return isolate->factory()->regexp_to_string();
-
-      // TODO(franzih): According to the specification, isArray() must be run
-      // before get(@@toStringTag). On proxies, isArray() and get() can throw
-      // if the proxy has been revoked, so we change observable behavior
-      // by not obeying the correct order.
       case JS_PROXY_TYPE: {
-        Maybe<bool> is_array = Object::IsArray(receiver);
-        MAYBE_RETURN(is_array, MaybeHandle<String>());
         if (is_array.FromJust()) {
           return isolate->factory()->array_to_string();
         }
@@ -15731,7 +15731,6 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
       }
       default:
         return isolate->factory()->object_to_string();
-        break;
     }
   }
 
