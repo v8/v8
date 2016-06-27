@@ -5358,17 +5358,6 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
 }
 
 // static
-Handle<Object> JSFunction::GetPrototype(Isolate* isolate,
-                                        Handle<JSFunction> function) {
-  DCHECK(function->IsConstructor() || function->shared()->is_generator());
-  if (!function->has_prototype()) {
-    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
-    JSFunction::SetPrototype(function, proto);
-  }
-  return handle(function->prototype(), isolate);
-}
-
-// static
 Handle<Object> JSFunction::GetName(Isolate* isolate,
                                    Handle<JSFunction> function) {
   if (function->shared()->name_should_print_as_anonymous()) {

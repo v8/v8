@@ -664,10 +664,29 @@ Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
 // Accessors::FunctionPrototype
 //
 
+static Handle<Object> GetFunctionPrototype(Isolate* isolate,
+                                           Handle<JSFunction> function) {
+  if (!function->has_prototype()) {
+    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
+    JSFunction::SetPrototype(function, proto);
+  }
+  return Handle<Object>(function->prototype(), isolate);
+}
+
+
+MUST_USE_RESULT static MaybeHandle<Object> SetFunctionPrototype(
+    Isolate* isolate, Handle<JSFunction> function, Handle<Object> value) {
+  JSFunction::SetPrototype(function, value);
+  DCHECK(function->prototype() == *value);
+  return function;
+}
+
+
 MaybeHandle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
                                                     Handle<Object> prototype) {
-  JSFunction::SetPrototype(function, prototype);
-  return function;
+  DCHECK(function->IsConstructor());
+  Isolate* isolate = function->GetIsolate();
+  return SetFunctionPrototype(isolate, function, prototype);
 }
 
 
@@ -678,7 +697,7 @@ void Accessors::FunctionPrototypeGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result = JSFunction::GetPrototype(isolate, function);
+  Handle<Object> result = GetFunctionPrototype(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -692,7 +711,9 @@ void Accessors::FunctionPrototypeSetter(
   Handle<Object> value = Utils::OpenHandle(*val);
   Handle<JSFunction> object =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  JSFunction::SetPrototype(object, value);
+  if (SetFunctionPrototype(isolate, object, value).is_null()) {
+    isolate->OptionalRescheduleException(false);
+  }
 }
 
 

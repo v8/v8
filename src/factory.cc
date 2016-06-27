@@ -1278,21 +1278,34 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
+                                        bool is_strict) {
+  Handle<Map> map = is_strict ? isolate()->strict_function_map()
+                              : isolate()->sloppy_function_map();
+  Handle<JSFunction> result = NewFunction(map, name, code);
+  result->set_prototype_or_initial_map(*prototype);
+  return result;
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
+                                        Handle<Object> prototype,
                                         InstanceType type, int instance_size,
                                         bool is_strict) {
   // Allocate the function
-  Handle<Map> map = is_strict ? isolate()->strict_function_map()
-                              : isolate()->sloppy_function_map();
-  Handle<JSFunction> function = NewFunction(map, name, code);
-  DCHECK(prototype->IsTheHole(isolate()) || prototype->IsNull(isolate()) ||
-         prototype->IsJSReceiver());
-  function->set_prototype_or_initial_map(*prototype);
+  Handle<JSFunction> function = NewFunction(name, code, prototype, is_strict);
 
-  // TODO(verwaest): Do we need to eagerly allocate the map here?
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? FAST_SMI_ELEMENTS : FAST_HOLEY_SMI_ELEMENTS;
   Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
-  prototype = JSFunction::GetPrototype(isolate(), function);
+  // TODO(littledan): Why do we have this is_generator test when
+  // NewFunctionPrototype already handles finding an appropriately
+  // shared prototype?
+  if (!function->shared()->is_resumable()) {
+    if (prototype->IsTheHole(isolate())) {
+      prototype = NewFunctionPrototype(function);
+    }
+  }
+
   JSFunction::SetInitialMap(function, initial_map,
                             Handle<JSReceiver>::cast(prototype));
 

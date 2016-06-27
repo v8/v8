@@ -1011,13 +1011,23 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   if (js_global_object_template.is_null()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = isolate()->builtins()->Illegal();
+    Handle<JSObject> prototype =
+        factory()->NewFunctionPrototype(isolate()->object_function());
     js_global_object_function = factory()->NewFunction(
-        name, code, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
+        name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
+#ifdef DEBUG
+    LookupIterator it(prototype, factory()->constructor_string(),
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    Handle<Object> value = Object::GetProperty(&it).ToHandleChecked();
+    DCHECK(it.IsFound());
+    DCHECK_EQ(*isolate()->object_function(), *value);
+#endif
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
         FunctionTemplateInfo::cast(js_global_object_template->constructor()));
     js_global_object_function = ApiNatives::CreateApiFunction(
-        isolate(), js_global_object_constructor, JS_GLOBAL_OBJECT_TYPE);
+        isolate(), js_global_object_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalObjectType);
   }
 
   js_global_object_function->initial_map()->set_is_prototype_map(true);
@@ -1038,7 +1048,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<FunctionTemplateInfo> global_constructor(
             FunctionTemplateInfo::cast(data->constructor()));
     global_proxy_function = ApiNatives::CreateApiFunction(
-        isolate(), global_constructor, JS_GLOBAL_PROXY_TYPE);
+        isolate(), global_constructor, factory()->the_hole_value(),
+        ApiNatives::GlobalProxyType);
   }
   Handle<String> global_name = factory()->global_string();
   global_proxy_function->shared()->set_instance_class_name(*global_name);
@@ -2908,10 +2919,10 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // objects, that JavaScript code may not access.
     Handle<JSFunction> opaque_reference_fun = factory()->NewFunction(
         factory()->empty_string(), isolate()->builtins()->Illegal(),
-        JS_VALUE_TYPE, JSValue::kSize);
+        isolate()->initial_object_prototype(), JS_VALUE_TYPE, JSValue::kSize);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
-    JSFunction::SetPrototype(opaque_reference_fun, prototype);
+    Accessors::FunctionSetPrototype(opaque_reference_fun, prototype).Assert();
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
@@ -2936,6 +2947,11 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   }
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
+
+  auto template_instantiations_cache = UnseededNumberDictionary::New(
+      isolate(), ApiNatives::kInitialFunctionCacheSize);
+  native_context()->set_template_instantiations_cache(
+      *template_instantiations_cache);
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
@@ -3853,14 +3869,6 @@ Genesis::Genesis(Isolate* isolate,
     CreateStrictModeFunctionMaps(empty_function);
     CreateIteratorMaps(empty_function);
     CreateAsyncFunctionMaps(empty_function);
-
-    // Set up the template instantiations cache before creating the globals,
-    // since they may want to use the cache.
-    auto template_instantiations_cache = UnseededNumberDictionary::New(
-        isolate, ApiNatives::kInitialFunctionCacheSize);
-    native_context()->set_template_instantiations_cache(
-        *template_instantiations_cache);
-
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
     HookUpGlobalProxy(global_object, global_proxy);
