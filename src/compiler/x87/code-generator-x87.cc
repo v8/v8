@@ -61,6 +61,7 @@ class X87OperandConverter : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kInt32 &&
         (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+         constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
          constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE)) {
       return Immediate(reinterpret_cast<Address>(constant.ToInt32()),
                        constant.rmode());
