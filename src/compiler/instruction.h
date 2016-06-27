@@ -439,8 +439,9 @@ class LocationOperand : public InstructionOperand {
   }
 
   DoubleRegister GetDoubleRegister() const {
-    // TODO(bbudge) Tighten this test to IsDoubleRegister when all code
-    // generators are changed to use the correct Get*Register method.
+    // On platforms where FloatRegister, DoubleRegister, and Simd128Register
+    // are all the same type, it's convenient to treat everything as a
+    // DoubleRegister, so be lax about type checking here.
     DCHECK(IsFPRegister());
     return DoubleRegister::from_code(register_code());
   }
