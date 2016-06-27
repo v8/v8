@@ -243,7 +243,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(4, *receiver);
     result->set(5, generator->receiver());
     return factory->NewJSArrayWithElements(result);
-  } else if (Object::IsPromise(object)) {
+  } else if (object->IsJSPromise()) {
     Handle<JSObject> promise = Handle<JSObject>::cast(object);
 
     Handle<Object> status_obj =

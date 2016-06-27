@@ -3037,12 +3037,7 @@ bool Value::IsSetIterator() const {
   return Utils::OpenHandle(this)->IsJSSetIterator();
 }
 
-
-bool Value::IsPromise() const {
-  auto self = Utils::OpenHandle(this);
-  return i::Object::IsPromise(self);
-}
-
+bool Value::IsPromise() const { return Utils::OpenHandle(this)->IsJSPromise(); }
 
 MaybeLocal<String> Value::ToString(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);

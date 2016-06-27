@@ -670,20 +670,6 @@ Maybe<bool> Object::IsArray(Handle<Object> object) {
 }
 
 
-bool Object::IsPromise(Handle<Object> object) {
-  if (!object->IsJSObject()) return false;
-  auto js_object = Handle<JSObject>::cast(object);
-  // Promises can't have access checks.
-  if (js_object->map()->is_access_check_needed()) return false;
-  auto isolate = js_object->GetIsolate();
-  // TODO(dcarney): this should just be read from the symbol registry so as not
-  // to be context dependent.
-  auto key = isolate->factory()->promise_state_symbol();
-  // Shouldn't be possible to throw here.
-  return JSObject::HasRealNamedProperty(js_object, key).FromJust();
-}
-
-
 // static
 MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
                                       Handle<Name> name) {

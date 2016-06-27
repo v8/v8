@@ -971,6 +971,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSDataView)                  \
   V(JSProxy)                     \
   V(JSError)                     \
+  V(JSPromise)                   \
   V(JSSet)                       \
   V(JSMap)                       \
   V(JSSetIterator)               \
@@ -1081,7 +1082,6 @@ class Object {
   INLINE(bool IsUnseededNumberDictionary() const);
   INLINE(bool IsOrderedHashSet() const);
   INLINE(bool IsOrderedHashMap() const);
-  static bool IsPromise(Handle<Object> object);
 
   // Extract the number.
   inline double Number() const;
