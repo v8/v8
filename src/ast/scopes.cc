@@ -823,7 +823,10 @@ static const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case EVAL_SCOPE: return "eval";
     // TODO(adamk): Should we print concise method scopes specially?
     case FUNCTION_SCOPE:
-      return IsArrowFunction(function_kind) ? "arrow" : "function";
+      if (IsGeneratorFunction(function_kind)) return "function*";
+      if (IsAsyncFunction(function_kind)) return "async function";
+      if (IsArrowFunction(function_kind)) return "arrow";
+      return "function";
     case MODULE_SCOPE: return "module";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
