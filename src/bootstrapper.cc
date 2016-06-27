@@ -331,8 +331,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
                   extensions, context_snapshot_index, context_type);
   Handle<Context> env = genesis.result();
-  if (env.is_null() ||
-      (context_type != THIN_CONTEXT && !InstallExtensions(env, extensions))) {
+  if (env.is_null() || !InstallExtensions(env, extensions)) {
     return Handle<Context>();
   }
   return scope.CloseAndEscape(env);
@@ -1629,8 +1628,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);
 
-  if (context_type == THIN_CONTEXT) return;
-
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
     Handle<JSFunction> cons = factory->NewFunction(name);
@@ -2348,8 +2345,6 @@ void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
       JSObject::AddProperty(global, natives_key, utils, DONT_ENUM);
       break;
     }
-    case THIN_CONTEXT:
-      break;
   }
 
   // The utils object can be removed for cases that reach this point.
@@ -2902,9 +2897,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
   DCHECK_EQ(builtin_index, Natives::GetIndex("runtime"));
   if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
-
-  // A thin context is ready at this point.
-  if (context_type == THIN_CONTEXT) return true;
 
   {
     // Builtin function for OpaqueReference -- a JSValue-based object,
@@ -3875,10 +3867,9 @@ Genesis::Genesis(Isolate* isolate,
 
     MakeFunctionInstancePrototypeWritable();
 
-    if (context_type != THIN_CONTEXT) {
-      if (!InstallExtraNatives()) return;
-      if (!ConfigureGlobalObjects(global_proxy_template)) return;
-    }
+    if (!InstallExtraNatives()) return;
+    if (!ConfigureGlobalObjects(global_proxy_template)) return;
+
     isolate->counters()->contexts_created_from_scratch()->Increment();
     // Re-initialize the counter because it got incremented during snapshot
     // creation.

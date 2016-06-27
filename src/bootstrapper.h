@@ -61,7 +61,7 @@ class SourceCodeCache final BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-enum GlobalContextType { FULL_CONTEXT, THIN_CONTEXT, DEBUG_CONTEXT };
+enum GlobalContextType { FULL_CONTEXT, DEBUG_CONTEXT };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
