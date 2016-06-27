@@ -571,11 +571,6 @@ class Scope: public ZoneObject {
     return &sloppy_block_function_map_;
   }
 
-  // Error handling.
-  void ReportMessage(int start_position, int end_position,
-                     MessageTemplate::Template message,
-                     const AstRawString* arg);
-
   // ---------------------------------------------------------------------------
   // Debugging.
 

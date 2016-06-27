@@ -816,21 +816,6 @@ Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
 }
 
 
-void Scope::ReportMessage(int start_position, int end_position,
-                          MessageTemplate::Template message,
-                          const AstRawString* arg) {
-  // Propagate the error to the topmost scope targeted by this scope analysis
-  // phase.
-  Scope* top = this;
-  while (!top->is_script_scope() && !top->outer_scope()->already_resolved()) {
-    top = top->outer_scope();
-  }
-
-  top->pending_error_handler_.ReportMessageAt(start_position, end_position,
-                                              message, arg, kReferenceError);
-}
-
-
 #ifdef DEBUG
 static const char* Header(ScopeType scope_type, FunctionKind function_kind,
                           bool is_declaration_scope) {
