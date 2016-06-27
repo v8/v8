@@ -180,6 +180,14 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
   }
 }
 
+TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
+  byte code[] = {kExprLoop, kExprF32Neg, kExprBrTable, 0x0e, 'h', 'e',
+                 'l',       'l',         'o',          ',',  ' ', 'w',
+                 'o',       'r',         'l',          'd',  '!'};
+  BitVector* assigned = Analyze(code, code + arraysize(code));
+  CHECK_NULL(assigned);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

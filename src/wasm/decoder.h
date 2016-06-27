@@ -46,7 +46,8 @@ class Decoder {
 
   virtual ~Decoder() {}
 
-  inline bool check(const byte* base, int offset, int length, const char* msg) {
+  inline bool check(const byte* base, unsigned offset, unsigned length,
+                    const char* msg) {
     DCHECK_GE(base, start_);
     if ((base + offset + length) > limit_) {
       error(base, base + offset, "%s", msg);
@@ -56,37 +57,38 @@ class Decoder {
   }
 
   // Reads a single 8-bit byte, reporting an error if out of bounds.
-  inline uint8_t checked_read_u8(const byte* base, int offset,
+  inline uint8_t checked_read_u8(const byte* base, unsigned offset,
                                  const char* msg = "expected 1 byte") {
     return check(base, offset, 1, msg) ? base[offset] : 0;
   }
 
   // Reads 16-bit word, reporting an error if out of bounds.
-  inline uint16_t checked_read_u16(const byte* base, int offset,
+  inline uint16_t checked_read_u16(const byte* base, unsigned offset,
                                    const char* msg = "expected 2 bytes") {
     return check(base, offset, 2, msg) ? read_u16(base + offset) : 0;
   }
 
   // Reads 32-bit word, reporting an error if out of bounds.
-  inline uint32_t checked_read_u32(const byte* base, int offset,
+  inline uint32_t checked_read_u32(const byte* base, unsigned offset,
                                    const char* msg = "expected 4 bytes") {
     return check(base, offset, 4, msg) ? read_u32(base + offset) : 0;
   }
 
   // Reads 64-bit word, reporting an error if out of bounds.
-  inline uint64_t checked_read_u64(const byte* base, int offset,
+  inline uint64_t checked_read_u64(const byte* base, unsigned offset,
                                    const char* msg = "expected 8 bytes") {
     return check(base, offset, 8, msg) ? read_u64(base + offset) : 0;
   }
 
   // Reads a variable-length unsigned integer (little endian).
-  uint32_t checked_read_u32v(const byte* base, int offset, int* length,
+  uint32_t checked_read_u32v(const byte* base, unsigned offset,
+                             unsigned* length,
                              const char* msg = "expected LEB32") {
     return checked_read_leb<uint32_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
-  int32_t checked_read_i32v(const byte* base, int offset, int* length,
+  int32_t checked_read_i32v(const byte* base, unsigned offset, unsigned* length,
                             const char* msg = "expected SLEB32") {
     uint32_t result =
         checked_read_leb<uint32_t, true>(base, offset, length, msg);
@@ -100,13 +102,14 @@ class Decoder {
   }
 
   // Reads a variable-length unsigned integer (little endian).
-  uint64_t checked_read_u64v(const byte* base, int offset, int* length,
+  uint64_t checked_read_u64v(const byte* base, unsigned offset,
+                             unsigned* length,
                              const char* msg = "expected LEB64") {
     return checked_read_leb<uint64_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
-  int64_t checked_read_i64v(const byte* base, int offset, int* length,
+  int64_t checked_read_i64v(const byte* base, unsigned offset, unsigned* length,
                             const char* msg = "expected SLEB64") {
     uint64_t result =
         checked_read_leb<uint64_t, true>(base, offset, length, msg);
@@ -349,7 +352,7 @@ class Decoder {
 
  private:
   template <typename IntType, bool is_signed>
-  IntType checked_read_leb(const byte* base, int offset, int* length,
+  IntType checked_read_leb(const byte* base, unsigned offset, unsigned* length,
                            const char* msg) {
     if (!check(base, offset, 1, msg)) {
       *length = 0;
@@ -370,7 +373,7 @@ class Decoder {
       shift += 7;
     }
     DCHECK_LE(ptr - (base + offset), kMaxLength);
-    *length = static_cast<int>(ptr - (base + offset));
+    *length = static_cast<unsigned>(ptr - (base + offset));
     if (ptr == end) {
       // Check there are no bits set beyond the bitwidth of {IntType}.
       const int kExtraBits = (1 + kMaxLength * 7) - (sizeof(IntType) * 8);

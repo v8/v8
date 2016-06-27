@@ -97,7 +97,7 @@ TEST_F(LEBHelperTest, sizeof_i32v) {
     EXPECT_EQ(LEBHelper::sizeof_##name(val),                               \
               static_cast<size_t>(ptr - buffer));                          \
     Decoder decoder(buffer, buffer + kSize);                               \
-    int length = 0;                                                        \
+    unsigned length = 0;                                                   \
     ctype result = decoder.checked_read_##name(buffer, 0, &length);        \
     EXPECT_EQ(val, result);                                                \
     EXPECT_EQ(LEBHelper::sizeof_##name(val), static_cast<size_t>(length)); \

@@ -259,7 +259,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  int OpcodeArity(const byte* pc) {
+  unsigned OpcodeArity(const byte* pc) {
 #define DECLARE_ARITY(name, ...)                          \
   static const LocalType kTypes_##name[] = {__VA_ARGS__}; \
   static const int kArity_##name =                        \
@@ -340,7 +340,7 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  int OpcodeLength(const byte* pc) {
+  unsigned OpcodeLength(const byte* pc) {
     switch (static_cast<WasmOpcode>(*pc)) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -621,7 +621,7 @@ class SR_WasmDecoder : public WasmDecoder {
     if (pc_ >= limit_) return;  // Nothing to do.
 
     while (true) {  // decoding loop.
-      int len = 1;
+      unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
       TRACE("  @%-6d #%02x:%-20s|", startrel(pc_), opcode,
             WasmOpcodes::ShortOpcodeName(opcode));
@@ -1455,9 +1455,9 @@ class SR_WasmDecoder : public WasmDecoder {
         new (zone_) BitVector(static_cast<int>(local_type_vec_.size()), zone_);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
-    while (pc < limit_) {
+    while (pc < limit_ && ok()) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-      int length = 1;
+      unsigned length = 1;
       switch (opcode) {
         case kExprLoop:
         case kExprIf:
@@ -1485,7 +1485,7 @@ class SR_WasmDecoder : public WasmDecoder {
       if (depth <= 0) break;
       pc += length;
     }
-    return assigned;
+    return ok() ? assigned : nullptr;
   }
 
   inline wasm::WasmCodePosition position() {
@@ -1535,12 +1535,12 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   return os;
 }
 
-int OpcodeLength(const byte* pc, const byte* end) {
+unsigned OpcodeLength(const byte* pc, const byte* end) {
   WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeLength(pc);
 }
 
-int OpcodeArity(const byte* pc, const byte* end) {
+unsigned OpcodeArity(const byte* pc, const byte* end) {
   WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeArity(pc);
 }
@@ -1588,7 +1588,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
   ++line_nr;
   unsigned control_depth = 0;
   while (pc < body.end) {
-    size_t length = decoder.OpcodeLength(pc);
+    unsigned length = decoder.OpcodeLength(pc);
 
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     if (opcode == kExprElse) control_depth--;
