@@ -577,6 +577,8 @@ struct CodeDesc {
   int instr_size;
   int reloc_size;
   int constant_pool_size;
+  byte* unwinding_info;
+  int unwinding_info_size;
   Assembler* origin;
 };
 

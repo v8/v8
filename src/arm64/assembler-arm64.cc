@@ -603,6 +603,8 @@ void Assembler::GetCode(CodeDesc* desc) {
                          reloc_info_writer.pos());
     desc->origin = this;
     desc->constant_pool_size = 0;
+    desc->unwinding_info_size = 0;
+    desc->unwinding_info = nullptr;
   }
 }
 

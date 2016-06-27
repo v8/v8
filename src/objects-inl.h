@@ -4891,6 +4891,16 @@ inline bool Code::is_interpreter_trampoline_builtin() {
          this == *builtins->InterpreterMarkBaselineOnReturn();
 }
 
+inline bool Code::has_unwinding_info() const {
+  return HasUnwindingInfoField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
+}
+
+inline void Code::set_has_unwinding_info(bool state) {
+  uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
+  uint32_t updated_value = HasUnwindingInfoField::update(previous, state);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
+}
+
 inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);
@@ -6439,7 +6449,6 @@ ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, next_code_link, Object, kNextCodeLinkOffset)
 
-
 void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, NULL);
   WRITE_FIELD(this, kHandlerTableOffset, NULL);
@@ -6493,9 +6502,38 @@ byte* Code::instruction_end()  {
   return instruction_start() + instruction_size();
 }
 
+int Code::GetUnwindingInfoSizeOffset() const {
+  DCHECK(has_unwinding_info());
+  return RoundUp(kHeaderSize + instruction_size(), kInt64Size);
+}
+
+int Code::unwinding_info_size() const {
+  DCHECK(has_unwinding_info());
+  return static_cast<int>(
+      READ_UINT64_FIELD(this, GetUnwindingInfoSizeOffset()));
+}
+
+void Code::set_unwinding_info_size(int value) {
+  DCHECK(has_unwinding_info());
+  WRITE_UINT64_FIELD(this, GetUnwindingInfoSizeOffset(), value);
+}
+
+byte* Code::unwinding_info_start() {
+  DCHECK(has_unwinding_info());
+  return FIELD_ADDR(this, GetUnwindingInfoSizeOffset()) + kInt64Size;
+}
+
+byte* Code::unwinding_info_end() {
+  DCHECK(has_unwinding_info());
+  return unwinding_info_start() + unwinding_info_size();
+}
 
 int Code::body_size() {
-  return RoundUp(instruction_size(), kObjectAlignment);
+  int unpadded_body_size =
+      has_unwinding_info()
+          ? static_cast<int>(unwinding_info_end() - instruction_start())
+          : instruction_size();
+  return RoundUp(unpadded_body_size, kObjectAlignment);
 }
 
 int Code::SizeIncludingMetadata() {

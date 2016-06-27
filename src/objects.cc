@@ -13538,6 +13538,14 @@ void Code::CopyFrom(const CodeDesc& desc) {
   CopyBytes(instruction_start(), desc.buffer,
             static_cast<size_t>(desc.instr_size));
 
+  // copy unwinding info, if any
+  if (desc.unwinding_info) {
+    DCHECK_GT(desc.unwinding_info_size, 0);
+    set_unwinding_info_size(desc.unwinding_info_size);
+    CopyBytes(unwinding_info_start(), desc.unwinding_info,
+              static_cast<size_t>(desc.unwinding_info_size));
+  }
+
   // copy reloc info
   CopyBytes(relocation_start(),
             desc.buffer + desc.buffer_size - desc.reloc_size,

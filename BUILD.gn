@@ -1113,6 +1113,8 @@ v8_source_set("v8_base") {
     "src/dtoa.cc",
     "src/dtoa.h",
     "src/effects.h",
+    "src/eh-frame.cc",
+    "src/eh-frame.h",
     "src/elements-kind.cc",
     "src/elements-kind.h",
     "src/elements.cc",

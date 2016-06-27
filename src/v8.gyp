@@ -783,6 +783,8 @@
         'dtoa.cc',
         'dtoa.h',
         'effects.h',
+        'eh-frame.cc',
+        'eh-frame.h',
         'elements-kind.cc',
         'elements-kind.h',
         'elements.cc',

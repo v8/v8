@@ -265,7 +265,7 @@ Handle<Code> CreatePlaceholder(Factory* factory, uint32_t index,
   // the {constant_pool_offset} field of the code object.
   // TODO(titzer): placeholder code objects are somewhat dangerous.
   static byte buffer[] = {0, 0, 0, 0, 0, 0, 0, 0};  // fake instructions.
-  static CodeDesc desc = {buffer, 8, 8, 0, 0, nullptr};
+  static CodeDesc desc = {buffer, 8, 8, 0, 0, nullptr, 0, nullptr};
   Handle<Code> code = factory->NewCode(desc, Code::KindField::encode(kind),
                                        Handle<Object>::null());
   code->set_constant_pool_offset(static_cast<int>(index) + kPlaceholderMarker);

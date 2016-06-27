@@ -28,6 +28,7 @@
 #include "src/perf-jit.h"
 
 #include "src/assembler.h"
+#include "src/eh-frame.h"
 #include "src/objects-inl.h"
 
 #if V8_OS_LINUX
@@ -56,7 +57,13 @@ struct PerfJitHeader {
 };
 
 struct PerfJitBase {
-  enum PerfJitEvent { kLoad = 0, kMove = 1, kDebugInfo = 2, kClose = 3 };
+  enum PerfJitEvent {
+    kLoad = 0,
+    kMove = 1,
+    kDebugInfo = 2,
+    kClose = 3,
+    kUnwindingInfo = 4
+  };
 
   uint32_t event_;
   uint32_t size_;
@@ -83,6 +90,13 @@ struct PerfJitCodeDebugInfo : PerfJitBase {
   uint64_t address_;
   uint64_t entry_count_;
   // Followed by entry_count_ instances of PerfJitDebugEntry.
+};
+
+struct PerfJitCodeUnwindingInfo : PerfJitBase {
+  uint64_t unwinding_size_;
+  uint64_t eh_frame_hdr_size_;
+  uint64_t mapped_size_;
+  // Followed by size_ - sizeof(PerfJitCodeUnwindingInfo) bytes of data.
 };
 
 const char PerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
@@ -204,6 +218,9 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   uint32_t code_size = code->is_crankshafted() ? code->safepoint_table_offset()
                                                : code->instruction_size();
 
+  // Unwinding info comes right after debug info.
+  if (FLAG_perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
+
   static const char string_terminator[] = "\0";
 
   PerfJitCodeLoad code_load;
@@ -301,6 +318,46 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   }
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
   LogWriteBytes(padding_bytes, padding);
+}
+
+void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+  EhFrameHdr eh_frame_hdr(code);
+
+  PerfJitCodeUnwindingInfo unwinding_info_header;
+  unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
+  unwinding_info_header.time_stamp_ = GetTimestamp();
+  unwinding_info_header.eh_frame_hdr_size_ = EhFrameHdr::kRecordSize;
+
+  if (code->has_unwinding_info()) {
+    unwinding_info_header.unwinding_size_ = code->unwinding_info_size();
+    unwinding_info_header.mapped_size_ = unwinding_info_header.unwinding_size_;
+  } else {
+    unwinding_info_header.unwinding_size_ = EhFrameHdr::kRecordSize;
+    unwinding_info_header.mapped_size_ = 0;
+  }
+
+  int content_size = static_cast<int>(sizeof(unwinding_info_header) +
+                                      unwinding_info_header.unwinding_size_);
+  int padding_size = RoundUp(content_size, 8) - content_size;
+  unwinding_info_header.size_ = content_size + padding_size;
+
+  LogWriteBytes(reinterpret_cast<const char*>(&unwinding_info_header),
+                sizeof(unwinding_info_header));
+
+  if (code->has_unwinding_info()) {
+    // The last EhFrameHdr::kRecordSize bytes were a placeholder for the header.
+    // Discard them and write the actual eh_frame_hdr (below).
+    DCHECK_GE(code->unwinding_info_size(), EhFrameHdr::kRecordSize);
+    LogWriteBytes(reinterpret_cast<const char*>(code->unwinding_info_start()),
+                  code->unwinding_info_size() - EhFrameHdr::kRecordSize);
+  }
+
+  LogWriteBytes(reinterpret_cast<const char*>(&eh_frame_hdr),
+                EhFrameHdr::kRecordSize);
+
+  char padding_bytes[] = "\0\0\0\0\0\0\0\0";
+  DCHECK_LT(padding_size, sizeof(padding_bytes));
+  LogWriteBytes(padding_bytes, padding_size);
 }
 
 void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {

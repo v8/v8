@@ -68,8 +68,9 @@ TEST(Positions) {
   writer.Finish();
   relocation_info_size = static_cast<int>(buffer_end - writer.pos());
   MacroAssembler assm(CcTest::i_isolate(), nullptr, 0, CodeObjectRequired::kNo);
-  CodeDesc desc = {buffer.get(),         buffer_size, code_size,
-                   relocation_info_size, 0,           &assm};
+  CodeDesc desc = {
+      buffer.get(), buffer_size, code_size, relocation_info_size, 0,
+      nullptr,      0,           &assm};
 
   // Read only (non-statement) positions.
   {
