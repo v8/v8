@@ -139,7 +139,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kDefineDataPropertyInLiteral:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kForInDone:
