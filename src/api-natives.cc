@@ -371,43 +371,12 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
       return handle(JSFunction::cast(element), isolate);
     }
   }
+
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
-  Handle<JSObject> prototype;
-  if (!data->remove_prototype()) {
-    auto prototype_templ = handle(data->prototype_template(), isolate);
-    if (prototype_templ->IsUndefined(isolate)) {
-      prototype = isolate->factory()->NewJSObject(isolate->object_function());
-    } else {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, prototype,
-          InstantiateObject(isolate,
-                            Handle<ObjectTemplateInfo>::cast(prototype_templ),
-                            Handle<JSReceiver>(), data->hidden_prototype()),
-          JSFunction);
-    }
-    auto parent = handle(data->parent_template(), isolate);
-    if (!parent->IsUndefined(isolate)) {
-      Handle<JSFunction> parent_instance;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, parent_instance,
-          InstantiateFunction(isolate,
-                              Handle<FunctionTemplateInfo>::cast(parent)),
-          JSFunction);
-      // TODO(dcarney): decide what to do here.
-      Handle<Object> parent_prototype;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, parent_prototype,
-          JSObject::GetProperty(parent_instance,
-                                isolate->factory()->prototype_string()),
-          JSFunction);
-      MAYBE_RETURN(JSObject::SetPrototype(prototype, parent_prototype, false,
-                                          Object::THROW_ON_ERROR),
-                   MaybeHandle<JSFunction>());
-    }
-  }
-  auto function = ApiNatives::CreateApiFunction(
-      isolate, data, prototype, ApiNatives::JavaScriptObjectType);
+
+  auto function =
+      ApiNatives::CreateApiFunction(isolate, data, JS_API_OBJECT_TYPE);
   if (!name.is_null() && name->IsString()) {
     function->shared()->set_name(*name);
   }
@@ -533,20 +502,17 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
   array.add(isolate, property);
 }
 
-
 Handle<JSFunction> ApiNatives::CreateApiFunction(
-    Isolate* isolate, Handle<FunctionTemplateInfo> obj,
-    Handle<Object> prototype, ApiInstanceType instance_type) {
+    Isolate* isolate, Handle<FunctionTemplateInfo> obj, InstanceType type) {
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, obj);
+  DCHECK(shared->IsApiFunction());
   Handle<JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, isolate->native_context());
 
   if (obj->remove_prototype()) {
     result->set_map(*isolate->sloppy_function_without_prototype_map());
-    DCHECK(prototype.is_null());
-    DCHECK(result->shared()->IsApiFunction());
     DCHECK(!result->has_initial_map());
     DCHECK(!result->has_prototype());
     DCHECK(!result->IsConstructor());
@@ -556,78 +522,81 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).
 
-  if (obj->read_only_prototype()) {
-    result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());
-  }
-
-  if (prototype->IsTheHole(isolate)) {
+  // Set up function.prototype.
+  Handle<JSObject> prototype;
+  auto prototype_templ = handle(obj->prototype_template(), isolate);
+  if (type != JS_API_OBJECT_TYPE || prototype_templ->IsUndefined(isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
   } else {
+    prototype = internal::InstantiateObject(
+                    isolate, Handle<ObjectTemplateInfo>::cast(prototype_templ),
+                    Handle<JSReceiver>(), obj->hidden_prototype())
+                    .ToHandleChecked();
+
     JSObject::AddProperty(Handle<JSObject>::cast(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
   }
+  // Set up function.prototype.__proto__.
+  auto parent = handle(obj->parent_template(), isolate);
+  if (!parent->IsUndefined(isolate)) {
+    Handle<JSFunction> parent_instance =
+        internal::InstantiateFunction(
+            isolate, Handle<FunctionTemplateInfo>::cast(parent))
+            .ToHandleChecked();
+    Handle<Object> parent_prototype =
+        JSFunction::GetPrototype(isolate, parent_instance);
+    CHECK(JSObject::SetPrototype(prototype, parent_prototype, false,
+                                 Object::THROW_ON_ERROR)
+              .IsJust());
+  }
 
+  if (obj->read_only_prototype()) {
+    result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());
+  }
+
+  // Set up the function's initial map.
   int internal_field_count = 0;
   if (!obj->instance_template()->IsUndefined(isolate)) {
-    Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
+    Handle<ObjectTemplateInfo> instance_template(
         ObjectTemplateInfo::cast(obj->instance_template()));
     internal_field_count =
         Smi::cast(instance_template->internal_field_count())->value();
   }
 
-  // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
-  // JSObject::GetHeaderSize.
   int instance_size = kPointerSize * internal_field_count;
-  InstanceType type;
-  switch (instance_type) {
-    case JavaScriptObjectType:
-      if (!obj->needs_access_check() &&
-          obj->named_property_handler()->IsUndefined(isolate) &&
-          obj->indexed_property_handler()->IsUndefined(isolate)) {
-        type = JS_API_OBJECT_TYPE;
-      } else {
+  switch (type) {
+    case JS_API_OBJECT_TYPE:
+      if (obj->needs_access_check() ||
+          !obj->named_property_handler()->IsUndefined(isolate) ||
+          !obj->indexed_property_handler()->IsUndefined(isolate)) {
         type = JS_SPECIAL_API_OBJECT_TYPE;
       }
       instance_size += JSObject::kHeaderSize;
       break;
-    case GlobalObjectType:
-      type = JS_GLOBAL_OBJECT_TYPE;
+    case JS_GLOBAL_OBJECT_TYPE:
       instance_size += JSGlobalObject::kSize;
       break;
-    case GlobalProxyType:
-      type = JS_GLOBAL_PROXY_TYPE;
+    case JS_GLOBAL_PROXY_TYPE:
       instance_size += JSGlobalProxy::kSize;
       break;
     default:
       UNREACHABLE();
-      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
       break;
   }
 
   Handle<Map> map =
       isolate->factory()->NewMap(type, instance_size, FAST_HOLEY_SMI_ELEMENTS);
-  JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
+  JSFunction::SetInitialMap(result, map, prototype);
 
-  // Mark as undetectable if needed.
-  if (obj->undetectable()) {
-    map->set_is_undetectable();
-  }
-
-  // Mark as needs_access_check if needed.
-  if (obj->needs_access_check()) {
-    map->set_is_access_check_needed(true);
-  }
-
-  // Set interceptor information in the map.
+  if (obj->undetectable()) map->set_is_undetectable();
+  if (obj->needs_access_check()) map->set_is_access_check_needed(true);
   if (!obj->named_property_handler()->IsUndefined(isolate)) {
     map->set_has_named_interceptor();
   }
   if (!obj->indexed_property_handler()->IsUndefined(isolate)) {
     map->set_has_indexed_interceptor();
   }
-
-  // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined(isolate)) {
     map->set_is_callable();
     map->set_is_constructor(true);

@@ -6,6 +6,7 @@
 #define V8_API_NATIVES_H_
 
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/property-details.h"
 
 namespace v8 {
@@ -26,16 +27,9 @@ class ApiNatives {
       Handle<ObjectTemplateInfo> data,
       Handle<JSReceiver> new_target = Handle<JSReceiver>());
 
-  enum ApiInstanceType {
-    JavaScriptObjectType,
-    GlobalObjectType,
-    GlobalProxyType
-  };
-
   static Handle<JSFunction> CreateApiFunction(Isolate* isolate,
                                               Handle<FunctionTemplateInfo> obj,
-                                              Handle<Object> prototype,
-                                              ApiInstanceType instance_type);
+                                              InstanceType type);
 
   static void AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                               Handle<Name> name, Handle<Object> value,

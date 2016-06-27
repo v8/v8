@@ -506,9 +506,6 @@ class Factory final {
 
   Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
 
-  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
-                                 Handle<Object> prototype,
-                                 bool is_strict = false);
   Handle<JSFunction> NewFunction(Handle<String> name);
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code,

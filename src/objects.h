@@ -7514,9 +7514,11 @@ class JSFunction: public JSObject {
   inline Context* native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static MaybeHandle<Smi> GetLength(Isolate* isolate,
-                                    Handle<JSFunction> function);
+  static MUST_USE_RESULT MaybeHandle<Smi> GetLength(
+      Isolate* isolate, Handle<JSFunction> function);
   static Handle<Context> GetFunctionRealm(Handle<JSFunction> function);
+  static Handle<Object> GetPrototype(Isolate* isolate,
+                                     Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
