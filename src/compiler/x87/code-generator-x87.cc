@@ -1587,6 +1587,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(esp, Operand(esp, 2 * kDoubleSize));
       break;
     }
+    case kX87Float64SilenceNaN: {
+      Label end, return_qnan;
+      __ fstp(0);
+      __ push(ebx);
+      // Load Half word of HoleNan(SNaN) into ebx
+      __ mov(ebx, MemOperand(esp, 2 * kInt32Size));
+      __ cmp(ebx, Immediate(kHoleNanUpper32));
+      // Check input is HoleNaN(SNaN)?
+      __ j(equal, &return_qnan, Label::kNear);
+      // If input isn't HoleNaN(SNaN), just load it and return
+      __ fld_d(MemOperand(esp, 1 * kInt32Size));
+      __ jmp(&end);
+      __ bind(&return_qnan);
+      // If input is HoleNaN(SNaN), Return QNaN
+      __ push(Immediate(0xffffffff));
+      __ push(Immediate(0xfff7ffff));
+      __ fld_d(MemOperand(esp, 0));
+      __ lea(esp, Operand(esp, kDoubleSize));
+      __ bind(&end);
+      __ pop(ebx);
+      // Clear stack.
+      __ lea(esp, Operand(esp, 1 * kDoubleSize));
+      break;
+    }
     case kX87Movsxbl:
       __ movsx_b(i.OutputRegister(), i.MemoryOperand());
       break;

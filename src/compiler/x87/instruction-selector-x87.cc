@@ -1629,6 +1629,12 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87PushFloat64, g.NoOutput(), g.Use(node->InputAt(0)));
+  Emit(kX87Float64SilenceNaN, g.DefineAsFixed(node, stX_0), 0, nullptr);
+}
+
 void InstructionSelector::VisitAtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
