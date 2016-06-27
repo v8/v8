@@ -2069,6 +2069,7 @@ group("gn_all") {
   deps = [
     ":d8",
     ":v8_hello_world",
+    ":v8_parser_shell",
     ":v8_sample_process",
     ":v8_simple_json_fuzzer",
     ":v8_simple_parser_fuzzer",
@@ -2200,6 +2201,36 @@ v8_executable("v8_sample_process") {
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]
+
+  if (v8_enable_i18n_support) {
+    deps += [ "//third_party/icu" ]
+  }
+}
+
+v8_executable("v8_parser_shell") {
+  sources = [
+    "tools/parser-shell.cc",
+    "tools/shell-utils.h",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+
+  deps = [
+    ":v8_libplatform",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
+  ]
+
+  if (is_component_build) {
+    # v8_parser_shell can't be built against a shared library, so we
+    # need to depend on the underlying static target in that case.
+    deps += [ ":v8_maybe_snapshot" ]
+  } else {
+    deps += [ ":v8" ]
+  }
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]

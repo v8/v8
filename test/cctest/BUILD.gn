@@ -372,4 +372,29 @@ action("resources") {
   ]
   args += rebase_path(sources, root_build_dir)
 }
-# TODO(machenbach): Migrate generate-bytecode-expectations.
+
+v8_executable("generate-bytecode-expectations") {
+  sources = [
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/generate-bytecode-expectations.cc",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8_libplatform",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
+  ]
+
+  if (is_component_build) {
+    # Same as cctest, we need to depend on the underlying static target.
+    deps += [ "../..:v8_maybe_snapshot" ]
+  } else {
+    deps += [ "../..:v8" ]
+  }
+}

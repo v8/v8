@@ -15,6 +15,7 @@ group("gn_all") {
     # These items don't compile for Android on Mac.
     deps += [
       "cctest:cctest",
+      "cctest:generate-bytecode-expectations",
       "unittests:unittests",
     ]
   }
