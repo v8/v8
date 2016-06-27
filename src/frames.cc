@@ -728,10 +728,9 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   if (safepoint_entry.has_doubles()) {
     // Number of doubles not known at snapshot time.
     DCHECK(!isolate()->serializer_enabled());
-    parameters_base +=
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
-            ->num_allocatable_double_registers() *
-        kDoubleSize / kPointerSize;
+    parameters_base += RegisterConfiguration::Crankshaft()
+                           ->num_allocatable_double_registers() *
+                       kDoubleSize / kPointerSize;
   }
 
   // Visit the registers that contain pointers if any.

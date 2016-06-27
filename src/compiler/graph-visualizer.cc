@@ -494,9 +494,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        PrintableInstruction printable = {
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-            instructions->InstructionAt(j)};
+        PrintableInstruction printable = {RegisterConfiguration::Turbofan(),
+                                          instructions->InstructionAt(j)};
         os_ << j << " " << printable << " <|@\n";
       }
     }
@@ -539,13 +538,17 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
+      const auto config = RegisterConfiguration::Turbofan();
       if (op.IsRegister()) {
-        os_ << " \"" << op.GetRegister().ToString() << "\"";
+        os_ << " \"" << config->GetGeneralRegisterName(op.register_code())
+            << "\"";
       } else if (op.IsDoubleRegister()) {
-        os_ << " \"" << op.GetDoubleRegister().ToString() << "\"";
+        os_ << " \"" << config->GetDoubleRegisterName(op.register_code())
+            << "\"";
       } else {
         DCHECK(op.IsFloatRegister());
-        os_ << " \"" << op.GetFloatRegister().ToString() << "\"";
+        os_ << " \"" << config->GetFloatRegisterName(op.register_code())
+            << "\"";
       }
     } else if (range->spilled()) {
       const TopLevelLiveRange* top = range->TopLevel();

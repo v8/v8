@@ -68,6 +68,8 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
+
 class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
  public:
   explicit HOptimizedGraphBuilderWithPositions(CompilationInfo* info)
@@ -13552,10 +13554,11 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
       int assigned_reg = op->index();
       if (op->IsDoubleRegister()) {
         trace_.Add(" \"%s\"",
-                   DoubleRegister::from_code(assigned_reg).ToString());
+                   GetRegConfig()->GetDoubleRegisterName(assigned_reg));
       } else {
         DCHECK(op->IsRegister());
-        trace_.Add(" \"%s\"", Register::from_code(assigned_reg).ToString());
+        trace_.Add(" \"%s\"",
+                   GetRegConfig()->GetGeneralRegisterName(assigned_reg));
       }
     } else if (range->IsSpilled()) {
       LOperand* op = range->TopLevel()->GetSpillOperand();

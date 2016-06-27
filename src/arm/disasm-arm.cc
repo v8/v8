@@ -40,6 +40,7 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
 //------------------------------------------------------------------------------
 
@@ -2059,7 +2060,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::Register::from_code(reg).ToString();
+  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
 }
 
 

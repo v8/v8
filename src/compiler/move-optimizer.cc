@@ -37,8 +37,7 @@ bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
   MachineRepresentation other_fp_rep = rep == MachineRepresentation::kFloat64
                                            ? MachineRepresentation::kFloat32
                                            : MachineRepresentation::kFloat64;
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  const RegisterConfiguration* config = RegisterConfiguration::Turbofan();
   if (config->fp_aliasing_kind() != RegisterConfiguration::COMBINE) {
     // Overlap aliasing case.
     return set.find(LocationOperand(loc.kind(), loc.location_kind(),

@@ -118,9 +118,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
-                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -164,9 +161,6 @@ struct SwVfpRegister {
 
   static const int kSizeInBytes = 4;
 
-  const char* ToString();
-  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
-                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < 32; }
   bool is(SwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -212,9 +206,6 @@ struct DwVfpRegister {
   //  d15: scratch register.
   static const int kSizeInBytes = 8;
 
-  const char* ToString();
-  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
-                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
   bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {

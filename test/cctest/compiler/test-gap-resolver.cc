@@ -116,9 +116,7 @@ class InterpreterState {
       InstructionOperand source = FromKey(it->first);
       InstructionOperand destination = FromKey(it->second);
       MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {
-          RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-          &mo};
+      PrintableMoveOperands pmo = {RegisterConfiguration::Turbofan(), &mo};
       os << pmo;
     }
     return os;
@@ -200,8 +198,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
   InstructionOperand CreateRandomOperand(bool is_source,
                                          MachineRepresentation rep) {
-    auto conf =
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+    auto conf = RegisterConfiguration::Turbofan();
     auto GetRegisterCode = [&conf](MachineRepresentation rep, int index) {
       switch (rep) {
         case MachineRepresentation::kFloat32:

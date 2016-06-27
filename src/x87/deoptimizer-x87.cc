@@ -277,8 +277,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   // Fill in the double input registers.
   for (int i = 0; i < X87Register::kMaxNumAllocatableRegisters; ++i) {
     int code = config->GetAllocatableDoubleCode(i);

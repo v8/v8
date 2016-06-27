@@ -1667,9 +1667,8 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage) {
   bool run_verifier = FLAG_turbo_verify_allocation;
 
   // Allocate registers.
-  AllocateRegisters(
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-      call_descriptor, run_verifier);
+  AllocateRegisters(RegisterConfiguration::Turbofan(), call_descriptor,
+                    run_verifier);
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);

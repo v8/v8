@@ -3449,7 +3449,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       float value = registers->GetFloatRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; %s (float)", value,
-               FloatRegister::from_code(input_reg).ToString());
+               RegisterConfiguration::Crankshaft()->GetFloatRegisterName(
+                   input_reg));
       }
       return TranslatedValue::NewFloat(this, value);
     }
@@ -3460,7 +3461,8 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       double value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
         PrintF(trace_file, "%e ; %s (double)", value,
-               DoubleRegister::from_code(input_reg).ToString());
+               RegisterConfiguration::Crankshaft()->GetDoubleRegisterName(
+                   input_reg));
       }
       return TranslatedValue::NewDouble(this, value);
     }

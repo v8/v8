@@ -117,9 +117,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
-                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -221,9 +218,6 @@ struct XMMRegister {
     return result;
   }
 
-  const char* ToString();
-  bool IsAllocatable(RegisterConfiguration::CompilerSelector compiler =
-                         RegisterConfiguration::CRANKSHAFT) const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
   bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {

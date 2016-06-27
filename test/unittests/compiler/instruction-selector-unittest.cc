@@ -45,9 +45,8 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    PrintableInstructionSequence printable = {
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-        &sequence};
+    PrintableInstructionSequence printable = {RegisterConfiguration::Turbofan(),
+                                              &sequence};
     out << "=== Code sequence after instruction selection ===" << std::endl
         << printable;
   }

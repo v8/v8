@@ -15,13 +15,6 @@ namespace internal {
 // for instruction creation.
 class RegisterConfiguration {
  public:
-  // Define the optimized compiler selector for register configuration
-  // selection.
-  //
-  // TODO(X87): This distinction in RegisterConfigurations is temporary
-  // until x87 TF supports all of the registers that Crankshaft does.
-  enum CompilerSelector { CRANKSHAFT, TURBOFAN };
-
   enum AliasingKind {
     // Registers alias a single register of every other size (e.g. Intel).
     OVERLAP,
@@ -33,7 +26,11 @@ class RegisterConfiguration {
   static const int kMaxGeneralRegisters = 32;
   static const int kMaxFPRegisters = 32;
 
-  static const RegisterConfiguration* ArchDefault(CompilerSelector compiler);
+  // Default RegisterConfigurations for the target architecture.
+  // TODO(X87): This distinction in RegisterConfigurations is temporary
+  // until x87 TF supports all of the registers that Crankshaft does.
+  static const RegisterConfiguration* Crankshaft();
+  static const RegisterConfiguration* Turbofan();
 
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,
@@ -67,11 +64,20 @@ class RegisterConfiguration {
   int GetAllocatableGeneralCode(int index) const {
     return allocatable_general_codes_[index];
   }
+  bool IsAllocatableGeneralCode(int index) const {
+    return ((1 << index) & allocatable_general_codes_mask_) != 0;
+  }
   int GetAllocatableDoubleCode(int index) const {
     return allocatable_double_codes_[index];
   }
+  bool IsAllocatableDoubleCode(int index) const {
+    return ((1 << index) & allocatable_double_codes_mask_) != 0;
+  }
   int GetAllocatableFloatCode(int index) const {
     return allocatable_float_codes_[index];
+  }
+  bool IsAllocatableFloatCode(int index) const {
+    return ((1 << index) & allocatable_float_codes_mask_) != 0;
   }
   const char* GetGeneralRegisterName(int code) const {
     return general_register_names_[code];
@@ -113,6 +119,7 @@ class RegisterConfiguration {
   int num_allocatable_float_registers_;
   int32_t allocatable_general_codes_mask_;
   int32_t allocatable_double_codes_mask_;
+  int32_t allocatable_float_codes_mask_;
   const int* allocatable_general_codes_;
   const int* allocatable_double_codes_;
   int allocatable_float_codes_[kMaxFPRegisters];

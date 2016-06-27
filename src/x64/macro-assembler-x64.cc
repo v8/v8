@@ -4484,8 +4484,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
                 arg_stack_space * kRegisterSize;
     subp(rsp, Immediate(space));
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    const RegisterConfiguration* config =
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+    const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
       DoubleRegister reg =
           DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));
@@ -4531,8 +4530,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // r15 : argv
   if (save_doubles) {
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    const RegisterConfiguration* config =
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+    const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
       DoubleRegister reg =
           DoubleRegister::from_code(config->GetAllocatableDoubleCode(i));

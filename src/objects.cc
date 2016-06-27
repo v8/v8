@@ -14124,14 +14124,18 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
         case Translation::FLOAT_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input=" << FloatRegister::from_code(reg_code).ToString()
+          os << "{input="
+             << RegisterConfiguration::Crankshaft()->GetFloatRegisterName(
+                    reg_code)
              << "}";
           break;
         }
 
         case Translation::DOUBLE_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input=" << DoubleRegister::from_code(reg_code).ToString()
+          os << "{input="
+             << RegisterConfiguration::Crankshaft()->GetDoubleRegisterName(
+                    reg_code)
              << "}";
           break;
         }

@@ -84,9 +84,8 @@ bool IsOutputFPRegisterOf(Instruction* instr, MachineRepresentation rep,
       if (kSimpleFPAliasing) {
         if (op->register_code() == code) return true;
       } else {
-        if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->AreAliases(op->representation(), op->register_code(), rep,
-                             code)) {
+        if (RegisterConfiguration::Turbofan()->AreAliases(
+                op->representation(), op->register_code(), rep, code)) {
           return true;
         }
       }
@@ -823,9 +822,7 @@ void LiveRange::Print(const RegisterConfiguration* config,
 
 
 void LiveRange::Print(bool with_children) const {
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
-  Print(config, with_children);
+  Print(RegisterConfiguration::Turbofan(), with_children);
 }
 
 

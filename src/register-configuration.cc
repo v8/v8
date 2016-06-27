@@ -50,6 +50,8 @@ STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
               DoubleRegister::kMaxNumRegisters);
 
+enum CompilerSelector { CRANKSHAFT, TURBOFAN };
+
 class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
  public:
   explicit ArchDefaultRegisterConfiguration(CompilerSelector compiler)
@@ -95,33 +97,29 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
   }
 };
 
-
-template <RegisterConfiguration::CompilerSelector compiler>
+template <CompilerSelector compiler>
 struct RegisterConfigurationInitializer {
   static void Construct(ArchDefaultRegisterConfiguration* config) {
     new (config) ArchDefaultRegisterConfiguration(compiler);
   }
 };
 
-static base::LazyInstance<
-    ArchDefaultRegisterConfiguration,
-    RegisterConfigurationInitializer<RegisterConfiguration::CRANKSHAFT>>::type
+static base::LazyInstance<ArchDefaultRegisterConfiguration,
+                          RegisterConfigurationInitializer<CRANKSHAFT>>::type
     kDefaultRegisterConfigurationForCrankshaft = LAZY_INSTANCE_INITIALIZER;
 
-
-static base::LazyInstance<
-    ArchDefaultRegisterConfiguration,
-    RegisterConfigurationInitializer<RegisterConfiguration::TURBOFAN>>::type
+static base::LazyInstance<ArchDefaultRegisterConfiguration,
+                          RegisterConfigurationInitializer<TURBOFAN>>::type
     kDefaultRegisterConfigurationForTurboFan = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
+const RegisterConfiguration* RegisterConfiguration::Crankshaft() {
+  return &kDefaultRegisterConfigurationForCrankshaft.Get();
+}
 
-const RegisterConfiguration* RegisterConfiguration::ArchDefault(
-    CompilerSelector compiler) {
-  return compiler == TURBOFAN
-             ? &kDefaultRegisterConfigurationForTurboFan.Get()
-             : &kDefaultRegisterConfigurationForCrankshaft.Get();
+const RegisterConfiguration* RegisterConfiguration::Turbofan() {
+  return &kDefaultRegisterConfigurationForTurboFan.Get();
 }
 
 RegisterConfiguration::RegisterConfiguration(
@@ -139,6 +137,7 @@ RegisterConfiguration::RegisterConfiguration(
       num_allocatable_float_registers_(0),
       allocatable_general_codes_mask_(0),
       allocatable_double_codes_mask_(0),
+      allocatable_float_codes_mask_(0),
       allocatable_general_codes_(allocatable_general_codes),
       allocatable_double_codes_(allocatable_double_codes),
       fp_aliasing_kind_(fp_aliasing_kind),
@@ -165,6 +164,7 @@ RegisterConfiguration::RegisterConfiguration(
       allocatable_float_codes_[num_allocatable_float_registers_++] = base_code;
       allocatable_float_codes_[num_allocatable_float_registers_++] =
           base_code + 1;
+      allocatable_float_codes_mask_ |= (0x3 << base_code);
     }
   } else {
     DCHECK(fp_aliasing_kind_ == OVERLAP);
@@ -173,6 +173,7 @@ RegisterConfiguration::RegisterConfiguration(
     for (int i = 0; i < num_allocatable_float_registers_; ++i) {
       allocatable_float_codes_[i] = allocatable_double_codes_[i];
     }
+    allocatable_float_codes_mask_ = allocatable_double_codes_mask_;
   }
 }
 
