@@ -1360,6 +1360,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(string_fun, "fromCharCode",
                           Builtins::kStringFromCharCode, 1, true);
 
+    // Install the String.fromCodePoint function.
+    SimpleInstallFunction(string_fun, "fromCodePoint",
+                          Builtins::kStringFromCodePoint, 1, false);
+
     // Create the %StringPrototype%
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));

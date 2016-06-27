@@ -4633,7 +4633,7 @@ void Builtins::Generate_StringFromCharCode(CodeStubAssembler* assembler) {
   Node* code = assembler->Parameter(1);
   Node* context = assembler->Parameter(4);
 
-  // Check if we have exactly one arguments (plus the implicit receiver), i.e.
+  // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(assembler), if_notoneargument(assembler);
   Node* parent_frame_pointer = assembler->LoadParentFramePointer();
@@ -4809,6 +4809,99 @@ void Builtins::Generate_StringFromCharCode(CodeStubAssembler* assembler) {
     assembler->Bind(&done_loop);
     assembler->Return(result);
   }
+}
+
+namespace {  // for String.fromCodePoint
+
+bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
+  if (!value->IsNumber() && !Object::ToNumber(value).ToHandle(&value)) {
+    return false;
+  }
+
+  if (Object::ToInteger(isolate, value).ToHandleChecked()->Number() !=
+      value->Number()) {
+    return false;
+  }
+
+  if (value->Number() < 0 || value->Number() > 0x10FFFF) {
+    return false;
+  }
+
+  return true;
+}
+
+uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
+  Handle<Object> value = args.at<Object>(1 + index);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::ToNumber(value), -1);
+  if (!IsValidCodePoint(isolate, value)) {
+    isolate->Throw(*isolate->factory()->NewRangeError(
+        MessageTemplate::kInvalidCodePoint, value));
+    return -1;
+  }
+  return DoubleToUint32(value->Number());
+}
+
+}  // namespace
+
+// ES6 section 21.1.2.2 String.fromCodePoint ( ...codePoints )
+BUILTIN(StringFromCodePoint) {
+  HandleScope scope(isolate);
+  int const length = args.length() - 1;
+  if (length == 0) return isolate->heap()->empty_string();
+  DCHECK_LT(0, length);
+
+  // Optimistically assume that the resulting String contains only one byte
+  // characters.
+  List<uint8_t> one_byte_buffer(length);
+  uc32 code = 0;
+  int index;
+  for (index = 0; index < length; index++) {
+    code = NextCodePoint(isolate, args, index);
+    if (code < 0) {
+      return isolate->heap()->exception();
+    }
+    if (code > String::kMaxOneByteCharCode) {
+      break;
+    }
+    one_byte_buffer.Add(code);
+  }
+
+  if (index == length) {
+    RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromOneByte(
+                                          one_byte_buffer.ToConstVector()));
+  }
+
+  List<uc16> two_byte_buffer(length - index);
+
+  while (true) {
+    if (code <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      two_byte_buffer.Add(code);
+    } else {
+      two_byte_buffer.Add(unibrow::Utf16::LeadSurrogate(code));
+      two_byte_buffer.Add(unibrow::Utf16::TrailSurrogate(code));
+    }
+
+    if (++index == length) {
+      break;
+    }
+    code = NextCodePoint(isolate, args, index);
+    if (code < 0) {
+      return isolate->heap()->exception();
+    }
+  }
+
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewRawTwoByteString(one_byte_buffer.length() +
+                                              two_byte_buffer.length()));
+
+  CopyChars(result->GetChars(), one_byte_buffer.ToConstVector().start(),
+            one_byte_buffer.length());
+  CopyChars(result->GetChars() + one_byte_buffer.length(),
+            two_byte_buffer.ToConstVector().start(), two_byte_buffer.length());
+
+  return *result;
 }
 
 // ES6 section 21.1.3.1 String.prototype.charAt ( pos )

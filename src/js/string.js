@@ -747,33 +747,6 @@ function StringCodePointAt(pos) {
 }
 
 
-// ES6 Draft 05-22-2014, section 21.1.2.2
-function StringFromCodePoint(_) {  // length = 1
-  "use strict";
-  var code;
-  var length = arguments.length;
-  var index;
-  var result = "";
-  for (index = 0; index < length; index++) {
-    code = arguments[index];
-    if (!%_IsSmi(code)) {
-      code = TO_NUMBER(code);
-    }
-    if (code < 0 || code > 0x10FFFF || code !== TO_INTEGER(code)) {
-      throw MakeRangeError(kInvalidCodePoint, code);
-    }
-    if (code <= 0xFFFF) {
-      result += %_StringCharFromCode(code);
-    } else {
-      code -= 0x10000;
-      result += %_StringCharFromCode((code >>> 10) & 0x3FF | 0xD800);
-      result += %_StringCharFromCode(code & 0x3FF | 0xDC00);
-    }
-  }
-  return result;
-}
-
-
 // -------------------------------------------------------------------
 // String methods related to templates
 
@@ -802,7 +775,6 @@ function StringRaw(callSite) {
 
 // Set up the non-enumerable functions on the String object.
 utils.InstallFunctions(GlobalString, DONT_ENUM, [
-  "fromCodePoint", StringFromCodePoint,
   "raw", StringRaw
 ]);
 
