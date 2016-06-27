@@ -1457,11 +1457,18 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           Format(instr, "bitswap 'rd, 'rt");
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          UNREACHABLE();
+        case SEB: {
+          Format(instr, "seb     'rd, 'rt");
           break;
+        }
+        case SEH: {
+          Format(instr, "seh     'rd, 'rt");
+          break;
+        }
+        case WSBH: {
+          Format(instr, "wsbh    'rd, 'rt");
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1492,10 +1499,14 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
-        case DSBH:
-        case DSHD:
-          UNREACHABLE();
+        case DSBH: {
+          Format(instr, "dsbh    'rd, 'rt");
           break;
+        }
+        case DSHD: {
+          Format(instr, "dshd    'rd, 'rt");
+          break;
+        }
         default: {
           sa >>= kBp3Bits;
           switch (sa) {

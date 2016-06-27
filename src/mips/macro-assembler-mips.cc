@@ -43,7 +43,6 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
   }
 }
 
-
 void MacroAssembler::Load(Register dst,
                           const MemOperand& src,
                           Representation r) {
@@ -79,7 +78,6 @@ void MacroAssembler::Store(Register src,
     sw(src, dst);
   }
 }
-
 
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index) {
@@ -1203,6 +1201,79 @@ void MacroAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
 
 
 // ------------Pseudo-instructions-------------
+
+// Word Swap Byte
+void MacroAssembler::ByteSwapSigned(Register reg, int operand_size) {
+  DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    if (operand_size == 2) {
+      seh(reg, reg);
+    } else if (operand_size == 1) {
+      seb(reg, reg);
+    }
+    // No need to do any preparation if operand_size is 4
+
+    wsbh(reg, reg);
+    rotr(reg, reg, 16);
+  } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
+    if (operand_size == 1) {
+      sll(reg, reg, 24);
+      sra(reg, reg, 24);
+    } else if (operand_size == 2) {
+      sll(reg, reg, 16);
+      sra(reg, reg, 16);
+    }
+    // No need to do any preparation if operand_size is 4
+
+    Register tmp = t0;
+    Register tmp2 = t1;
+
+    andi(tmp2, reg, 0xFF);
+    sll(tmp2, tmp2, 24);
+    or_(tmp, zero_reg, tmp2);
+
+    andi(tmp2, reg, 0xFF00);
+    sll(tmp2, tmp2, 8);
+    or_(tmp, tmp, tmp2);
+
+    srl(reg, reg, 8);
+    andi(tmp2, reg, 0xFF00);
+    or_(tmp, tmp, tmp2);
+
+    srl(reg, reg, 16);
+    andi(tmp2, reg, 0xFF);
+    or_(tmp, tmp, tmp2);
+
+    or_(reg, tmp, zero_reg);
+  }
+}
+
+void MacroAssembler::ByteSwapUnsigned(Register reg, int operand_size) {
+  DCHECK(operand_size == 1 || operand_size == 2);
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    if (operand_size == 1) {
+      andi(reg, reg, 0xFF);
+    } else {
+      andi(reg, reg, 0xFFFF);
+    }
+    // No need to do any preparation if operand_size is 4
+
+    wsbh(reg, reg);
+    rotr(reg, reg, 16);
+  } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
+    if (operand_size == 1) {
+      sll(reg, reg, 24);
+    } else {
+      Register tmp = t0;
+
+      andi(tmp, reg, 0xFF00);
+      sll(reg, reg, 24);
+      sll(tmp, tmp, 8);
+      or_(reg, tmp, reg);
+    }
+  }
+}
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
   DCHECK(!rd.is(at));

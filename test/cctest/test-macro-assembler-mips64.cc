@@ -61,6 +61,89 @@ static bool all_zeroes(const byte* beg, const byte* end) {
   return true;
 }
 
+TEST(BYTESWAP) {
+  DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  struct T {
+    int64_t r1;
+    int64_t r2;
+    int64_t r3;
+    int64_t r4;
+    int64_t r5;
+    int64_t r6;
+    int64_t r7;
+  };
+  T t;
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+
+  MacroAssembler* masm = &assembler;
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r1)));
+  __ nop();
+  __ ByteSwapSigned(a4, 8);
+  __ sd(a4, MemOperand(a0, offsetof(T, r1)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r2)));
+  __ nop();
+  __ ByteSwapSigned(a4, 4);
+  __ sd(a4, MemOperand(a0, offsetof(T, r2)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r3)));
+  __ nop();
+  __ ByteSwapSigned(a4, 2);
+  __ sd(a4, MemOperand(a0, offsetof(T, r3)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r4)));
+  __ nop();
+  __ ByteSwapSigned(a4, 1);
+  __ sd(a4, MemOperand(a0, offsetof(T, r4)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r5)));
+  __ nop();
+  __ ByteSwapUnsigned(a4, 1);
+  __ sd(a4, MemOperand(a0, offsetof(T, r5)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r6)));
+  __ nop();
+  __ ByteSwapUnsigned(a4, 2);
+  __ sd(a4, MemOperand(a0, offsetof(T, r6)));
+
+  __ ld(a4, MemOperand(a0, offsetof(T, r7)));
+  __ nop();
+  __ ByteSwapUnsigned(a4, 4);
+  __ sd(a4, MemOperand(a0, offsetof(T, r7)));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  t.r1 = 0x5612FFCD9D327ACC;
+  t.r2 = 0x781A15C3;
+  t.r3 = 0xFCDE;
+  t.r4 = 0x9F;
+  t.r5 = 0x9F;
+  t.r6 = 0xFCDE;
+  t.r7 = 0xC81A15C3;
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(static_cast<int64_t>(0xCC7A329DCDFF1256), t.r1);
+  CHECK_EQ(static_cast<int64_t>(0xC3151A7800000000), t.r2);
+  CHECK_EQ(static_cast<int64_t>(0xDEFCFFFFFFFFFFFF), t.r3);
+  CHECK_EQ(static_cast<int64_t>(0x9FFFFFFFFFFFFFFF), t.r4);
+  CHECK_EQ(static_cast<int64_t>(0x9F00000000000000), t.r5);
+  CHECK_EQ(static_cast<int64_t>(0xDEFC000000000000), t.r6);
+  CHECK_EQ(static_cast<int64_t>(0xC3151AC800000000), t.r7);
+}
 
 TEST(CopyBytes) {
   CcTest::InitializeVM();

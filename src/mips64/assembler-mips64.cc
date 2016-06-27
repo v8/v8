@@ -2516,6 +2516,30 @@ void Assembler::dalign(Register rd, Register rs, Register rt, uint8_t bp) {
   GenInstrRegister(SPECIAL3, rs, rt, rd, sa, DBSHFL);
 }
 
+void Assembler::wsbh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, WSBH, BSHFL);
+}
+
+void Assembler::dsbh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSBH, DBSHFL);
+}
+
+void Assembler::dshd(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSHD, DBSHFL);
+}
+
+void Assembler::seh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEH, BSHFL);
+}
+
+void Assembler::seb(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEB, BSHFL);
+}
 
 // --------Coprocessor-instructions----------------
 
@@ -3422,7 +3446,6 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
   }
 }
-
 
 }  // namespace internal
 }  // namespace v8

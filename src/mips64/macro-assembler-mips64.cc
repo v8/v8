@@ -41,7 +41,6 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
   }
 }
 
-
 void MacroAssembler::Load(Register dst,
                           const MemOperand& src,
                           Representation r) {
@@ -1335,6 +1334,49 @@ void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
 
 
 // ------------Pseudo-instructions-------------
+
+// Change endianness
+void MacroAssembler::ByteSwapSigned(Register reg, int operand_size) {
+  DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4 ||
+         operand_size == 8);
+  DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
+  if (operand_size == 1) {
+    seb(reg, reg);
+    sll(reg, reg, 0);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  } else if (operand_size == 2) {
+    seh(reg, reg);
+    sll(reg, reg, 0);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  } else if (operand_size == 4) {
+    sll(reg, reg, 0);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  } else {
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  }
+}
+
+void MacroAssembler::ByteSwapUnsigned(Register reg, int operand_size) {
+  DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
+  if (operand_size == 1) {
+    andi(reg, reg, 0xFF);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  } else if (operand_size == 2) {
+    andi(reg, reg, 0xFFFF);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  } else {
+    dsll32(reg, reg, 0);
+    dsrl32(reg, reg, 0);
+    dsbh(reg, reg);
+    dshd(reg, reg);
+  }
+}
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
   DCHECK(!rd.is(at));

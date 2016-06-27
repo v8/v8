@@ -911,6 +911,12 @@ class Assembler : public AssemblerBase {
   void align(Register rd, Register rs, Register rt, uint8_t bp);
   void dalign(Register rd, Register rs, Register rt, uint8_t bp);
 
+  void wsbh(Register rd, Register rt);
+  void dsbh(Register rd, Register rt);
+  void dshd(Register rd, Register rt);
+  void seh(Register rd, Register rt);
+  void seb(Register rd, Register rt);
+
   // --------Coprocessor-instructions----------------
 
   // Load, store, and move.

@@ -1912,7 +1912,6 @@ void Assembler::aui(Register rt, Register rs, int32_t j) {
   GenInstrImmediate(LUI, rs, rt, j);
 }
 
-
 // ---------PC-Relative instructions-----------
 
 void Assembler::addiupc(Register rs, int32_t imm19) {
@@ -2147,6 +2146,21 @@ void Assembler::align(Register rd, Register rs, Register rt, uint8_t bp) {
   GenInstrRegister(SPECIAL3, rs, rt, rd, sa, BSHFL);
 }
 
+// Byte swap.
+void Assembler::wsbh(Register rd, Register rt) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, WSBH, BSHFL);
+}
+
+void Assembler::seh(Register rd, Register rt) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEH, BSHFL);
+}
+
+void Assembler::seb(Register rd, Register rt) {
+  DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEB, BSHFL);
+}
 
 // --------Coprocessor-instructions----------------
 

@@ -1237,11 +1237,10 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case BITSWAP:
-              return kRegisterType;
             case WSBH:
             case SEB:
             case SEH:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1255,10 +1254,9 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case DBITSWAP:
-              return kRegisterType;
             case DSBH:
             case DSHD:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa = SaFieldRaw() >> kSaShift;
           sa >>= kBp3Bits;

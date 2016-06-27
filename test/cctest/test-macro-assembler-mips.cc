@@ -60,6 +60,71 @@ static bool all_zeroes(const byte* beg, const byte* end) {
   return true;
 }
 
+TEST(BYTESWAP) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+
+  struct T {
+    int32_t r1;
+    int32_t r2;
+    int32_t r3;
+    int32_t r4;
+    int32_t r5;
+  };
+  T t;
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  __ lw(a2, MemOperand(a0, offsetof(T, r1)));
+  __ nop();
+  __ ByteSwapSigned(a2, 4);
+  __ sw(a2, MemOperand(a0, offsetof(T, r1)));
+
+  __ lw(a2, MemOperand(a0, offsetof(T, r2)));
+  __ nop();
+  __ ByteSwapSigned(a2, 2);
+  __ sw(a2, MemOperand(a0, offsetof(T, r2)));
+
+  __ lw(a2, MemOperand(a0, offsetof(T, r3)));
+  __ nop();
+  __ ByteSwapSigned(a2, 1);
+  __ sw(a2, MemOperand(a0, offsetof(T, r3)));
+
+  __ lw(a2, MemOperand(a0, offsetof(T, r4)));
+  __ nop();
+  __ ByteSwapUnsigned(a2, 1);
+  __ sw(a2, MemOperand(a0, offsetof(T, r4)));
+
+  __ lw(a2, MemOperand(a0, offsetof(T, r5)));
+  __ nop();
+  __ ByteSwapUnsigned(a2, 2);
+  __ sw(a2, MemOperand(a0, offsetof(T, r5)));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  t.r1 = 0x781A15C3;
+  t.r2 = 0x2CDE;
+  t.r3 = 0x9F;
+  t.r4 = 0x9F;
+  t.r5 = 0x2CDE;
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+
+  CHECK_EQ(static_cast<int32_t>(0xC3151A78), t.r1);
+  CHECK_EQ(static_cast<int32_t>(0xDE2C0000), t.r2);
+  CHECK_EQ(static_cast<int32_t>(0x9FFFFFFF), t.r3);
+  CHECK_EQ(static_cast<int32_t>(0x9F000000), t.r4);
+  CHECK_EQ(static_cast<int32_t>(0xDE2C0000), t.r5);
+}
 
 TEST(CopyBytes) {
   CcTest::InitializeVM();
