@@ -368,19 +368,30 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
     Node* use_node, UseInfo use_info) {
   // Eagerly fold representation changes for constants.
-  // TODO(jarin) Properly fold constants in presence of type check.
-  if (use_info.type_check() == TypeCheckKind::kNone) {
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-        return node;  // No change necessary.
-      case IrOpcode::kFloat32Constant:
-        return MakeTruncatedInt32Constant(OpParameter<float>(node));
-      case IrOpcode::kNumberConstant:
-      case IrOpcode::kFloat64Constant:
-        return MakeTruncatedInt32Constant(OpParameter<double>(node));
-      default:
-        break;
+  switch (node->opcode()) {
+    case IrOpcode::kInt32Constant:
+      return node;  // No change necessary.
+    case IrOpcode::kFloat32Constant: {
+      float const fv = OpParameter<float>(node);
+      if (use_info.type_check() == TypeCheckKind::kNone ||
+          (use_info.type_check() == TypeCheckKind::kSigned32 &&
+           IsInt32Double(fv))) {
+        return MakeTruncatedInt32Constant(fv);
+      }
+      break;
     }
+    case IrOpcode::kNumberConstant:
+    case IrOpcode::kFloat64Constant: {
+      double const fv = OpParameter<double>(node);
+      if (use_info.type_check() == TypeCheckKind::kNone ||
+          (use_info.type_check() == TypeCheckKind::kSigned32 &&
+           IsInt32Double(fv))) {
+        return MakeTruncatedInt32Constant(fv);
+      }
+      break;
+    }
+    default:
+      break;
   }
 
   // Select the correct X -> Word32 operator.
