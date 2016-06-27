@@ -7716,17 +7716,9 @@ TEST(AsyncAwaitErrors) {
                     arraysize(always_flags));
   RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
-  {
-    // TODO(caitp): support these early errors in preparser
-    USE(formal_parameters_data);
-    // const bool kIsModule = false;
-    // const bool kTestPreparser = false;
-    // TODO(caitp): These tests seem to fail test-parsing.cc, even with
-    // test_preparser disabled.
-    // RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
-    //                 always_flags, arraysize(always_flags), NULL, 0,
-    //                 kIsModule, kTestPreparser);
-  }
+
+  RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(AsyncAwaitModule) {

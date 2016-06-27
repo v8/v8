@@ -1946,10 +1946,16 @@ ParserBase<Traits>::ParsePropertyDefinition(
         classifier->RecordLetPatternError(
             scanner()->location(), MessageTemplate::kLetInLexicalBinding);
       }
-      if (is_await && is_async_function()) {
-        classifier->RecordPatternError(
-            Scanner::Location(next_beg_pos, next_end_pos),
-            MessageTemplate::kAwaitBindingIdentifier);
+      if (is_await) {
+        if (is_async_function()) {
+          classifier->RecordPatternError(
+              Scanner::Location(next_beg_pos, next_end_pos),
+              MessageTemplate::kAwaitBindingIdentifier);
+        } else {
+          classifier->RecordAsyncArrowFormalParametersError(
+              Scanner::Location(next_beg_pos, next_end_pos),
+              MessageTemplate::kAwaitBindingIdentifier);
+        }
       }
       ExpressionT lhs = this->ExpressionFromIdentifier(
           *name, next_beg_pos, next_end_pos, scope_, factory());
