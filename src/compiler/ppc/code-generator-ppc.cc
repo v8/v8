@@ -216,7 +216,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, offset_immediate_);
       __ add(scratch1_, object_, offset_);
     }
-    __ CallStub(&stub);
+    if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm());
+      __ CallStub(&stub);
+    } else {
+      __ CallStub(&stub);
+    }
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch1_);
