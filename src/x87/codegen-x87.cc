@@ -33,10 +33,6 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 #define __ masm.
 
-UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
-  return nullptr;
-}
-
 
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;

@@ -3702,65 +3702,17 @@ void LCodeGen::DoMathClz32(LMathClz32* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  X87Register input = ToX87Register(instr->value());
-  X87Register result_reg = ToX87Register(instr->result());
-  Register temp_result = ToRegister(instr->temp1());
-  Register temp = ToRegister(instr->temp2());
-  Label slow, done, smi, finish;
-  DCHECK(result_reg.is(input));
+  X87Register result = ToX87Register(instr->result());
+  X87Register input_reg = ToX87Register(instr->value());
+  __ fld(x87_stack_.st(input_reg));
 
-  // Store input into Heap number and call runtime function kMathExpRT.
-  if (FLAG_inline_new) {
-    __ AllocateHeapNumber(temp_result, temp, no_reg, &slow);
-    __ jmp(&done, Label::kNear);
-  }
-
-  // Slow case: Call the runtime system to do the number allocation.
-  __ bind(&slow);
-  {
-    // TODO(3095996): Put a valid pointer value in the stack slot where the
-    // result register is stored, as this register is in the pointer map, but
-    // contains an integer value.
-    __ Move(temp_result, Immediate(0));
-
-    // Preserve the value of all registers.
-    PushSafepointRegistersScope scope(this);
-
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
-    RecordSafepointWithRegisters(instr->pointer_map(), 0,
-                                 Safepoint::kNoLazyDeopt);
-    __ StoreToSafepointRegisterSlot(temp_result, eax);
-  }
-  __ bind(&done);
-  X87LoadForUsage(input);
-  __ fstp_d(FieldOperand(temp_result, HeapNumber::kValueOffset));
-
-  {
-    // Preserve the value of all registers.
-    PushSafepointRegistersScope scope(this);
-
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    __ push(temp_result);
-    __ CallRuntimeSaveDoubles(Runtime::kMathExpRT);
-    RecordSafepointWithRegisters(instr->pointer_map(), 1,
-                                 Safepoint::kNoLazyDeopt);
-    __ StoreToSafepointRegisterSlot(temp_result, eax);
-  }
-  X87PrepareToWrite(result_reg);
-  // return value of MathExpRT is Smi or Heap Number.
-  __ JumpIfSmi(temp_result, &smi);
-  // Heap number(double)
-  __ fld_d(FieldOperand(temp_result, HeapNumber::kValueOffset));
-  __ jmp(&finish);
-  // SMI
-  __ bind(&smi);
-  __ SmiUntag(temp_result);
-  __ push(temp_result);
-  __ fild_s(MemOperand(esp, 0));
-  __ pop(temp_result);
-  __ bind(&finish);
-  X87CommitWrite(result_reg);
+  // Pass one double as argument on the stack.
+  __ PrepareCallCFunction(2, eax);
+  __ fstp_d(MemOperand(esp, 0));
+  X87PrepareToWrite(result);
+  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 2);
+  // Return value is in st(0) on ia32.
+  X87CommitWrite(result);
 }
 
 void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
