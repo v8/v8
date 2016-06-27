@@ -119,6 +119,7 @@
         'libsampler/test-sampler.cc',
         'print-extension.cc',
         'profiler-extension.cc',
+        'test-access-checks.cc',
         'test-accessors.cc',
         'test-api.cc',
         'test-api.h',

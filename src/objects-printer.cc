@@ -1086,6 +1086,8 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
 void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessCheckInfo");
   os << "\n - callback: " << Brief(callback());
+  os << "\n - named_interceptor: " << Brief(named_interceptor());
+  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }

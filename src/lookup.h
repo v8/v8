@@ -257,6 +257,7 @@ class LookupIterator final BASE_EMBEDDED {
                     : GetInterceptor<false>(JSObject::cast(*holder_));
     return handle(result, isolate_);
   }
+  Handle<InterceptorInfo> GetInterceptorForFailedAccessCheck() const;
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
   inline void UpdateProtector() {

@@ -5527,6 +5527,9 @@ ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
 ACCESSORS(AccessCheckInfo, callback, Object, kCallbackOffset)
+ACCESSORS(AccessCheckInfo, named_interceptor, Object, kNamedInterceptorOffset)
+ACCESSORS(AccessCheckInfo, indexed_interceptor, Object,
+          kIndexedInterceptorOffset)
 ACCESSORS(AccessCheckInfo, data, Object, kDataOffset)
 
 ACCESSORS(InterceptorInfo, getter, Object, kGetterOffset)

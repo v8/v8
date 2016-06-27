@@ -49,6 +49,9 @@ class KeyAccumulator final BASE_EMBEDDED {
                                        Handle<JSObject> object);
   Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
                                       Handle<JSObject> object);
+  Maybe<bool> CollectAccessCheckInterceptorKeys(
+      Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
+      Handle<JSObject> object);
 
   static Handle<FixedArray> GetEnumPropertyKeys(Isolate* isolate,
                                                 Handle<JSObject> object);

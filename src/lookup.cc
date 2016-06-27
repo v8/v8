@@ -757,5 +757,21 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   return state_;
 }
 
+Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
+    const {
+  DCHECK_EQ(ACCESS_CHECK, state_);
+  DisallowHeapAllocation no_gc;
+  AccessCheckInfo* access_check_info =
+      AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
+  if (access_check_info) {
+    Object* interceptor = IsElement() ? access_check_info->indexed_interceptor()
+                                      : access_check_info->named_interceptor();
+    if (interceptor) {
+      return handle(InterceptorInfo::cast(interceptor), isolate_);
+    }
+  }
+  return Handle<InterceptorInfo>();
+}
+
 }  // namespace internal
 }  // namespace v8

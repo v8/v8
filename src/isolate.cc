@@ -802,21 +802,6 @@ void Isolate::SetFailedAccessCheckCallback(
 }
 
 
-static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
-                                                  Handle<JSObject> receiver) {
-  Object* maybe_constructor = receiver->map()->GetConstructor();
-  if (!maybe_constructor->IsJSFunction()) return NULL;
-  JSFunction* constructor = JSFunction::cast(maybe_constructor);
-  if (!constructor->shared()->IsApiFunction()) return NULL;
-
-  Object* data_obj =
-     constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj->IsUndefined(isolate)) return NULL;
-
-  return AccessCheckInfo::cast(data_obj);
-}
-
-
 void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
     return ScheduleThrow(*factory()->NewTypeError(MessageTemplate::kNoAccess));
@@ -829,7 +814,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   HandleScope scope(this);
   Handle<Object> data;
   { DisallowHeapAllocation no_gc;
-    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
+    AccessCheckInfo* access_check_info = AccessCheckInfo::Get(this, receiver);
     if (!access_check_info) {
       AllowHeapAllocation doesnt_matter_anymore;
       return ScheduleThrow(
@@ -878,7 +863,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   Handle<Object> data;
   v8::AccessCheckCallback callback = nullptr;
   { DisallowHeapAllocation no_gc;
-    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
+    AccessCheckInfo* access_check_info = AccessCheckInfo::Get(this, receiver);
     if (!access_check_info) return false;
     Object* fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);

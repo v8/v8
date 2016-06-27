@@ -430,6 +430,29 @@ enum IndexedOrNamed { kIndexed, kNamed };
 
 // Returns |true| on success, |nothing| on exception.
 template <class Callback, IndexedOrNamed type>
+Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
+                                           Handle<JSObject> object,
+                                           Handle<InterceptorInfo> interceptor,
+                                           KeyAccumulator* accumulator) {
+  Isolate* isolate = accumulator->isolate();
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *object, Object::DONT_THROW);
+  Handle<JSObject> result;
+  if (!interceptor->enumerator()->IsUndefined(isolate)) {
+    Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
+    const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
+                                           : "interceptor-named-enum";
+    LOG(isolate, ApiObjectAccess(log_tag, *object));
+    result = args.Call(enum_fun);
+  }
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+  if (result.is_null()) return Just(true);
+  accumulator->AddKeys(
+      result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
+  return Just(true);
+}
+
+template <class Callback, IndexedOrNamed type>
 Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
                                    Handle<JSObject> object,
                                    KeyAccumulator* accumulator) {
@@ -447,21 +470,8 @@ Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
       !interceptor->all_can_read()) {
     return Just(true);
   }
-  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *object, Object::DONT_THROW);
-  Handle<JSObject> result;
-  if (!interceptor->enumerator()->IsUndefined(isolate)) {
-    Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
-    const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
-                                           : "interceptor-named-enum";
-    LOG(isolate, ApiObjectAccess(log_tag, *object));
-    result = args.Call(enum_fun);
-  }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-  if (result.is_null()) return Just(true);
-  accumulator->AddKeys(
-      result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
-  return Just(true);
+  return CollectInterceptorKeysInternal<Callback, type>(
+      receiver, object, interceptor, accumulator);
 }
 
 }  // namespace
@@ -539,6 +549,29 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
                                 kNamed>(receiver, object, this);
 }
 
+Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
+    Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
+    Handle<JSObject> object) {
+  MAYBE_RETURN(
+      (CollectInterceptorKeysInternal<v8::IndexedPropertyEnumeratorCallback,
+                                      kIndexed>(
+          receiver, object,
+          handle(
+              InterceptorInfo::cast(access_check_info->indexed_interceptor()),
+              isolate_),
+          this)),
+      Nothing<bool>());
+  MAYBE_RETURN(
+      (CollectInterceptorKeysInternal<
+          v8::GenericNamedPropertyEnumeratorCallback, kNamed>(
+          receiver, object,
+          handle(InterceptorInfo::cast(access_check_info->named_interceptor()),
+                 isolate_),
+          this)),
+      Nothing<bool>());
+  return Just(true);
+}
+
 // Returns |true| on success, |false| if prototype walking should be stopped,
 // |nothing| if an exception was thrown.
 Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
@@ -553,6 +586,20 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
     DCHECK(KeyCollectionMode::kOwnOnly == mode_);
+    Handle<AccessCheckInfo> access_check_info;
+    {
+      DisallowHeapAllocation no_gc;
+      AccessCheckInfo* maybe_info = AccessCheckInfo::Get(isolate_, object);
+      if (maybe_info) access_check_info = handle(maybe_info, isolate_);
+    }
+    // We always have both kinds of interceptors or none.
+    if (!access_check_info.is_null() &&
+        access_check_info->named_interceptor()) {
+      MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info,
+                                                     receiver, object),
+                   Nothing<bool>());
+      return Just(false);
+    }
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
   MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
