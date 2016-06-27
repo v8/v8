@@ -156,6 +156,8 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
+static const bool kSimpleFPAliasing = true;
+
 // Coprocessor register.
 struct FPURegister {
   enum Code {

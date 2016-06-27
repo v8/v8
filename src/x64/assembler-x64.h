@@ -203,6 +203,8 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm13)                              \
   V(xmm14)
 
+static const bool kSimpleFPAliasing = true;
+
 struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,

@@ -29,8 +29,8 @@ TEST_F(RegisterConfigurationUnitTest, BasicProperties) {
 
   RegisterConfiguration test(
       kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, RegisterConfiguration::OVERLAP, general_codes,
-      double_codes, nullptr, nullptr, nullptr);
+      kNumAllocatableDoubleRegs, general_codes, double_codes,
+      RegisterConfiguration::OVERLAP, nullptr, nullptr, nullptr);
 
   EXPECT_EQ(test.num_general_registers(), kNumGeneralRegs);
   EXPECT_EQ(test.num_double_registers(), kNumDoubleRegs);
@@ -59,8 +59,8 @@ TEST_F(RegisterConfigurationUnitTest, Aliasing) {
 
   RegisterConfiguration test(
       kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, RegisterConfiguration::COMBINE, general_codes,
-      double_codes, nullptr, nullptr, nullptr);
+      kNumAllocatableDoubleRegs, general_codes, double_codes,
+      RegisterConfiguration::COMBINE, nullptr, nullptr, nullptr);
 
   // There are 3 allocatable double regs, but only 2 can alias float regs.
   EXPECT_EQ(test.num_allocatable_float_registers(), 4);

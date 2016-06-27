@@ -57,14 +57,13 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
 #if V8_TARGET_ARCH_IA32
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X87
             kMaxAllocatableGeneralRegisterCount,
             compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
-            AliasingKind::OVERLAP,
 #elif V8_TARGET_ARCH_X64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_ARM
             FLAG_enable_embedded_constant_pool
                 ? (kMaxAllocatableGeneralRegisterCount - 1)
@@ -72,26 +71,26 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
             CpuFeatures::IsSupported(VFP32DREGS)
                 ? kMaxAllocatableDoubleRegisterCount
                 : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
-            AliasingKind::COMBINE,
 #elif V8_TARGET_ARCH_ARM64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS64
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_PPC
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_S390
             kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount, AliasingKind::OVERLAP,
+            kMaxAllocatableDoubleRegisterCount,
 #else
 #error Unsupported target architecture.
 #endif
             kAllocatableGeneralCodes, kAllocatableDoubleCodes,
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
             kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames) {
   }
 };
@@ -128,9 +127,8 @@ const RegisterConfiguration* RegisterConfiguration::ArchDefault(
 RegisterConfiguration::RegisterConfiguration(
     int num_general_registers, int num_double_registers,
     int num_allocatable_general_registers, int num_allocatable_double_registers,
-    AliasingKind fp_aliasing_kind, const int* allocatable_general_codes,
-    const int* allocatable_double_codes,
-    const char* const* general_register_names,
+    const int* allocatable_general_codes, const int* allocatable_double_codes,
+    AliasingKind fp_aliasing_kind, const char* const* general_register_names,
     const char* const* float_register_names,
     const char* const* double_register_names)
     : num_general_registers_(num_general_registers),
@@ -139,11 +137,11 @@ RegisterConfiguration::RegisterConfiguration(
       num_allocatable_general_registers_(num_allocatable_general_registers),
       num_allocatable_double_registers_(num_allocatable_double_registers),
       num_allocatable_float_registers_(0),
-      fp_aliasing_kind_(fp_aliasing_kind),
       allocatable_general_codes_mask_(0),
       allocatable_double_codes_mask_(0),
       allocatable_general_codes_(allocatable_general_codes),
       allocatable_double_codes_(allocatable_double_codes),
+      fp_aliasing_kind_(fp_aliasing_kind),
       general_register_names_(general_register_names),
       float_register_names_(float_register_names),
       double_register_names_(double_register_names) {

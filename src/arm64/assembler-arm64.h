@@ -196,6 +196,7 @@ struct Register : public CPURegister {
   // End of V8 compatibility section -----------------------
 };
 
+static const bool kSimpleFPAliasing = true;
 
 struct FPRegister : public CPURegister {
   enum Code {

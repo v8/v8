@@ -964,11 +964,6 @@ class RegisterAllocator : public ZoneObject {
   const int* allocatable_register_codes() const {
     return allocatable_register_codes_;
   }
-  // Returns true if registers do not combine to form larger registers, i.e.
-  // no complex aliasing detection is required. This is always true for the
-  // general register pass, and true for the FP register pass except for arm
-  // and mips archs.
-  bool no_combining() const { return no_combining_; }
 
   // TODO(mtrofin): explain why splitting in gap START is always OK.
   LifetimePosition GetSplitPositionForInstruction(const LiveRange* range,

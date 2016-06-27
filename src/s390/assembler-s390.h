@@ -188,6 +188,8 @@ const Register kLithiumScratch = r1;  // lithium scratch.
 const Register kRootRegister = r10;   // Roots array pointer.
 const Register cp = r13;              // JavaScript context pointer.
 
+static const bool kSimpleFPAliasing = true;
+
 // Double word FP register.
 struct DoubleRegister {
   enum Code {

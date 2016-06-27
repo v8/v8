@@ -150,6 +150,8 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const Register no_reg = {Register::kCode_no_reg};
 
+static const bool kSimpleFPAliasing = true;
+
 struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,

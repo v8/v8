@@ -38,9 +38,9 @@ class RegisterConfiguration {
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,
                         int num_allocatable_double_registers,
-                        AliasingKind fp_aliasing_kind,
                         const int* allocatable_general_codes,
                         const int* allocatable_double_codes,
+                        AliasingKind fp_aliasing_kind,
                         char const* const* general_names,
                         char const* const* float_names,
                         char const* const* double_names);
@@ -111,12 +111,12 @@ class RegisterConfiguration {
   int num_allocatable_general_registers_;
   int num_allocatable_double_registers_;
   int num_allocatable_float_registers_;
-  AliasingKind fp_aliasing_kind_;
   int32_t allocatable_general_codes_mask_;
   int32_t allocatable_double_codes_mask_;
   const int* allocatable_general_codes_;
   const int* allocatable_double_codes_;
   int allocatable_float_codes_[kMaxFPRegisters];
+  AliasingKind fp_aliasing_kind_;
   char const* const* general_register_names_;
   char const* const* float_register_names_;
   char const* const* double_register_names_;

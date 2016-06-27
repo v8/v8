@@ -67,8 +67,10 @@ RegisterConfiguration* InstructionSequenceTest::config() {
   if (config_.is_empty()) {
     config_.Reset(new RegisterConfiguration(
         num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, RegisterConfiguration::OVERLAP,
-        allocatable_codes, allocatable_double_codes, general_register_names_,
+        num_double_registers_, allocatable_codes, allocatable_double_codes,
+        kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
+                          : RegisterConfiguration::COMBINE,
+        general_register_names_,
         double_register_names_,  // float register names
         double_register_names_));
   }

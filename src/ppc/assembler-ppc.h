@@ -207,6 +207,8 @@ const Register kConstantPoolRegister = r28;  // Constant pool.
 const Register kRootRegister = r29;          // Roots array pointer.
 const Register cp = r30;                     // JavaScript context pointer.
 
+static const bool kSimpleFPAliasing = true;
+
 // Double word FP register.
 struct DoubleRegister {
   enum Code {

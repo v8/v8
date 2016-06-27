@@ -148,6 +148,8 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const Register no_reg = {Register::kCode_no_reg};
 
+static const bool kSimpleFPAliasing = false;
+
 // Single word VFP register.
 struct SwVfpRegister {
   enum Code {
