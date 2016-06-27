@@ -1572,10 +1572,44 @@ class MemoryAllocator {
 class ObjectIterator : public Malloced {
  public:
   virtual ~ObjectIterator() {}
-
-  virtual HeapObject* next_object() = 0;
+  virtual HeapObject* Next() = 0;
 };
 
+template <class PAGE_TYPE>
+class PageIteratorImpl
+    : public std::iterator<std::forward_iterator_tag, PAGE_TYPE> {
+ public:
+  explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
+  PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
+  PAGE_TYPE* operator*() { return p_; }
+  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+    return rhs.p_ == p_;
+  }
+  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+    return rhs.p_ != p_;
+  }
+  inline PageIteratorImpl<PAGE_TYPE>& operator++();
+  inline PageIteratorImpl<PAGE_TYPE> operator++(int);
+
+ private:
+  PAGE_TYPE* p_;
+};
+
+typedef PageIteratorImpl<Page> PageIterator;
+typedef PageIteratorImpl<LargePage> LargePageIterator;
+
+class PageRange {
+ public:
+  typedef PageIterator iterator;
+  PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
+  explicit PageRange(Page* page) : PageRange(page, page->next_page()) {}
+  iterator begin() { return iterator(begin_); }
+  iterator end() { return iterator(end_); }
+
+ private:
+  Page* begin_;
+  Page* end_;
+};
 
 // -----------------------------------------------------------------------------
 // Heap object iterator in new/old/map spaces.
@@ -1594,18 +1628,10 @@ class HeapObjectIterator : public ObjectIterator {
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
-  // Returns NULL when the iteration has ended.
-  inline HeapObject* Next();
-  inline HeapObject* next_object() override;
+  // Returns nullptr when the iteration has ended.
+  inline HeapObject* Next() override;
 
  private:
-  enum PageMode { kOnePageOnly, kAllPagesInSpace };
-
-  Address cur_addr_;              // Current iteration point.
-  Address cur_end_;               // End iteration point.
-  PagedSpace* space_;
-  PageMode page_mode_;
-
   // Fast (inlined) path of next().
   inline HeapObject* FromCurrentPage();
 
@@ -1613,9 +1639,11 @@ class HeapObjectIterator : public ObjectIterator {
   // iteration has ended.
   bool AdvanceToNextPage();
 
-  // Initializes fields.
-  inline void Initialize(PagedSpace* owner, Address start, Address end,
-                         PageMode mode);
+  Address cur_addr_;  // Current iteration point.
+  Address cur_end_;   // End iteration point.
+  PagedSpace* space_;
+  PageRange page_range_;
+  PageRange::iterator current_page_;
 };
 
 
@@ -2067,43 +2095,15 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
-template <class PAGE_TYPE>
-class PageIteratorImpl
-    : public std::iterator<std::forward_iterator_tag, PAGE_TYPE> {
- public:
-  explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
-  PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
-  PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
-    return rhs.p_ == p_;
-  }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
-    return rhs.p_ != p_;
-  }
-  inline PageIteratorImpl<PAGE_TYPE>& operator++();
-  inline PageIteratorImpl<PAGE_TYPE> operator++(int);
-
- private:
-  PAGE_TYPE* p_;
-};
-
-typedef PageIteratorImpl<Page> PageIterator;
-typedef PageIteratorImpl<LargePage> LargePageIterator;
-
 class NewSpacePageRange {
  public:
-  typedef PageIterator iterator;
-
+  typedef PageRange::iterator iterator;
   inline NewSpacePageRange(Address start, Address limit);
-
-  iterator begin() { return iterator(Page::FromAddress(start_)); }
-  iterator end() {
-    return iterator(Page::FromAllocationAreaAddress(limit_)->next_page());
-  }
+  iterator begin() { return range_.begin(); }
+  iterator end() { return range_.end(); }
 
  private:
-  Address start_;
-  Address limit_;
+  PageRange range_;
 };
 
 class PagedSpace : public Space {
@@ -2598,10 +2598,7 @@ class SemiSpaceIterator : public ObjectIterator {
   // Create an iterator over the allocated objects in the given to-space.
   explicit SemiSpaceIterator(NewSpace* space);
 
-  inline HeapObject* Next();
-
-  // Implementation of the ObjectIterator functions.
-  inline HeapObject* next_object() override;
+  inline HeapObject* Next() override;
 
  private:
   void Initialize(Address start, Address end);
@@ -3123,10 +3120,7 @@ class LargeObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectIterator(LargeObjectSpace* space);
 
-  HeapObject* Next();
-
-  // implementation of ObjectIterator.
-  virtual HeapObject* next_object() { return Next(); }
+  HeapObject* Next() override;
 
  private:
   LargePage* current_;

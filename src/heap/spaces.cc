@@ -22,50 +22,34 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // HeapObjectIterator
 
-HeapObjectIterator::HeapObjectIterator(PagedSpace* space) {
-  // You can't actually iterate over the anchor page.  It is not a real page,
-  // just an anchor for the double linked page list.  Initialize as if we have
-  // reached the end of the anchor page, then the first iteration will move on
-  // to the first page.
-  Initialize(space, NULL, NULL, kAllPagesInSpace);
-}
+HeapObjectIterator::HeapObjectIterator(PagedSpace* space)
+    : cur_addr_(nullptr),
+      cur_end_(nullptr),
+      space_(space),
+      page_range_(space->anchor()->next_page(), space->anchor()),
+      current_page_(page_range_.begin()) {}
 
-
-HeapObjectIterator::HeapObjectIterator(Page* page) {
+HeapObjectIterator::HeapObjectIterator(Page* page)
+    : cur_addr_(nullptr),
+      cur_end_(nullptr),
+      space_(reinterpret_cast<PagedSpace*>(page->owner())),
+      page_range_(page),
+      current_page_(page_range_.begin()) {
+#ifdef DEBUG
   Space* owner = page->owner();
   DCHECK(owner == page->heap()->old_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->code_space());
-  Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
-             page->area_end(), kOnePageOnly);
-  DCHECK(page->SweepingDone());
+#endif  // DEBUG
 }
-
-
-void HeapObjectIterator::Initialize(PagedSpace* space, Address cur, Address end,
-                                    HeapObjectIterator::PageMode mode) {
-  space_ = space;
-  cur_addr_ = cur;
-  cur_end_ = end;
-  page_mode_ = mode;
-}
-
 
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
 bool HeapObjectIterator::AdvanceToNextPage() {
-  DCHECK(cur_addr_ == cur_end_);
-  if (page_mode_ == kOnePageOnly) return false;
-  Page* cur_page;
-  if (cur_addr_ == NULL) {
-    cur_page = space_->anchor();
-  } else {
-    cur_page = Page::FromAddress(cur_addr_ - 1);
-    DCHECK(cur_addr_ == cur_page->area_end());
-  }
-  cur_page = cur_page->next_page();
-  if (cur_page == space_->anchor()) return false;
-  cur_page->heap()
+  DCHECK_EQ(cur_addr_, cur_end_);
+  if (current_page_ == page_range_.end()) return false;
+  Page* cur_page = *(current_page_++);
+  space_->heap()
       ->mark_compact_collector()
       ->sweeper()
       .SweepOrWaitUntilSweepingCompleted(cur_page);
