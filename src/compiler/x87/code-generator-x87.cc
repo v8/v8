@@ -370,6 +370,30 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                                 \
   } while (0)
 
+#define ASSEMBLE_IEEE754_BINOP(name)                                          \
+  do {                                                                        \
+    /* Saves the esp into ebx */                                              \
+    __ push(ebx);                                                             \
+    __ mov(ebx, esp);                                                         \
+    /* Pass one double as argument on the stack. */                           \
+    __ PrepareCallCFunction(4, eax);                                          \
+    __ fstp(0);                                                               \
+    /* Load first operand from original stack */                              \
+    __ fld_d(MemOperand(ebx, 4 + kDoubleSize));                               \
+    /* Put first operand into stack for function call */                      \
+    __ fstp_d(Operand(esp, 0 * kDoubleSize));                                 \
+    /* Load second operand from original stack */                             \
+    __ fld_d(MemOperand(ebx, 4));                                             \
+    /* Put second operand into stack for function call */                     \
+    __ fstp_d(Operand(esp, 1 * kDoubleSize));                                 \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()), \
+                     4);                                                      \
+    /* Restore the ebx */                                                     \
+    __ pop(ebx);                                                              \
+    /* Return value is in st(0) on x87. */                                    \
+    __ lea(esp, Operand(esp, 2 * kDoubleSize));                               \
+  } while (false)
+
 #define ASSEMBLE_IEEE754_UNOP(name)                                           \
   do {                                                                        \
     /* Saves the esp into ebx */                                              \
@@ -723,6 +747,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);
       break;
