@@ -1570,6 +1570,8 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
+  //  -- edi                 : function
+  //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 8] : receiver
@@ -1605,7 +1607,11 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
                   Heap::kHeapNumberMapRootIndex, &convert_number);
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ Push(ebp);
+      __ Move(ebp, esp);
+      __ Push(esi);
+      __ Push(edi);
       __ SmiTag(eax);
       __ SmiTag(ecx);
       __ Push(eax);
@@ -1617,6 +1623,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       __ Pop(edx);
       __ Pop(ecx);
       __ Pop(eax);
+      __ Pop(edi);
+      __ Pop(esi);
       {
         // Restore the double accumulator value (stX_0).
         Label restore_smi, done_restore;
@@ -1633,6 +1641,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       }
       __ SmiUntag(ecx);
       __ SmiUntag(eax);
+      __ leave();
     }
     __ jmp(&convert);
     __ bind(&convert_number);
