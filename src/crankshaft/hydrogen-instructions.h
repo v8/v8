@@ -4852,16 +4852,14 @@ class HUnknownOSRValue final : public HTemplateInstruction<0> {
   HPhi* incoming_value_;
 };
 
-
-class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
+class HLoadGlobalGeneric final : public HTemplateInstruction<1> {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P5(HLoadGlobalGeneric, HValue*,
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HLoadGlobalGeneric,
                                               Handle<String>, TypeofMode,
                                               Handle<TypeFeedbackVector>,
                                               FeedbackVectorSlot);
 
   HValue* context() { return OperandAt(0); }
-  HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
   FeedbackVectorSlot slot() const { return slot_; }
@@ -4878,15 +4876,14 @@ class HLoadGlobalGeneric final : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric)
 
  private:
-  HLoadGlobalGeneric(HValue* context, HValue* global_object,
-                     Handle<String> name, TypeofMode typeof_mode,
-                     Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  HLoadGlobalGeneric(HValue* context, Handle<String> name,
+                     TypeofMode typeof_mode, Handle<TypeFeedbackVector> vector,
+                     FeedbackVectorSlot slot)
       : name_(name),
         typeof_mode_(typeof_mode),
         feedback_vector_(vector),
         slot_(slot) {
     SetOperandAt(0, context);
-    SetOperandAt(1, global_object);
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }

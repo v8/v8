@@ -74,12 +74,11 @@ TEST_F(BytecodeNodeTest, Constructor2) {
 }
 
 TEST_F(BytecodeNodeTest, Constructor3) {
-  uint32_t operands[] = {0x11, 0x22};
-  BytecodeNode node(Bytecode::kLdaGlobal, operands[0], operands[1]);
+  uint32_t operands[] = {0x11};
+  BytecodeNode node(Bytecode::kLdaGlobal, operands[0]);
   CHECK_EQ(node.bytecode(), Bytecode::kLdaGlobal);
-  CHECK_EQ(node.operand_count(), 2);
+  CHECK_EQ(node.operand_count(), 1);
   CHECK_EQ(node.operand(0), operands[0]);
-  CHECK_EQ(node.operand(1), operands[1]);
   CHECK(!node.source_info().is_valid());
 }
 

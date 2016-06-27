@@ -56,7 +56,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .ForInPrepare(reg_0)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Debugger()
-      .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -246,8 +246,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaGlobal);
   CHECK_EQ(iterator.current_offset(), offset);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kQuadruple);
-  CHECK_EQ(iterator.current_bytecode_size(), 10);
-  CHECK_EQ(iterator.GetIndexOperand(1), 0x10000000);
+  CHECK_EQ(iterator.current_bytecode_size(), 6);
+  CHECK_EQ(iterator.GetIndexOperand(0), 0x10000000);
   offset += Bytecodes::Size(Bytecode::kLdaGlobal, OperandScale::kQuadruple) +
             kPrefixByteSize;
   iterator.Advance();

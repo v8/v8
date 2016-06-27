@@ -1797,8 +1797,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
     }
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
-      builder()->LoadGlobal(variable->name(), feedback_index(slot),
-                            typeof_mode);
+      builder()->LoadGlobal(feedback_index(slot), typeof_mode);
       execution_result()->SetResultInAccumulator();
       break;
     }

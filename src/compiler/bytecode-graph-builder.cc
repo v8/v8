@@ -626,10 +626,11 @@ void BytecodeGraphBuilder::VisitMov() {
 }
 
 Node* BytecodeGraphBuilder::BuildLoadGlobal(TypeofMode typeof_mode) {
-  Handle<Name> name =
-      Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
   VectorSlotPair feedback =
-      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(0));
+  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
+            feedback_vector()->GetKind(feedback.slot()));
+  Handle<Name> name(feedback_vector()->GetName(feedback.slot()));
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   return NewNode(op, GetFunctionClosure());
 }
@@ -643,7 +644,7 @@ void BytecodeGraphBuilder::VisitLdaGlobal() {
 void BytecodeGraphBuilder::VisitLdrGlobal() {
   FrameStateBeforeAndAfter states(this);
   Node* node = BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(2), node,
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(1), node,
                               &states);
 }
 

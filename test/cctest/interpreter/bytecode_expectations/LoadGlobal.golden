@@ -16,14 +16,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   21 E> */ B(StackCheck),
-  /*   26 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   26 S> */ B(LdaGlobal), U8(1),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
-  "a",
 ]
 handlers: [
 ]
@@ -36,14 +35,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   32 S> */ B(LdaGlobal), U8(1),
   /*   42 S> */ B(Return),
 ]
 constant pool: [
-  "t",
 ]
 handlers: [
 ]
@@ -56,14 +54,13 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
   /*   17 E> */ B(StackCheck),
-  /*   22 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   22 S> */ B(LdaGlobal), U8(1),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
-  "a",
 ]
 handlers: [
 ]
@@ -206,7 +203,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 648
+bytecode array length: 646
 bytecodes: [
   /*   17 E> */ B(StackCheck),
   /*   25 S> */ B(Nop),
@@ -465,12 +462,11 @@ bytecodes: [
   /* 1286 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(253),
   /* 1295 S> */ B(Nop),
   /* 1296 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(255),
-  /* 1305 S> */ B(Wide), B(LdaGlobal), U16(1), U16(257),
+  /* 1305 S> */ B(Wide), B(LdaGlobal), U16(257),
   /* 1315 S> */ B(Return),
 ]
 constant pool: [
   "name",
-  "a",
 ]
 handlers: [
 ]

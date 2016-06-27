@@ -238,13 +238,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
-    const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int feedback_slot,
+                                                       TypeofMode typeof_mode) {
   // TODO(rmcilroy): Potentially store typeof information in an
   // operand rather than having extra bytecodes.
   Bytecode bytecode = BytecodeForLoadGlobal(typeof_mode);
-  size_t name_index = GetConstantPoolEntry(name);
-  Output(bytecode, UnsignedOperand(name_index), UnsignedOperand(feedback_slot));
+  Output(bytecode, UnsignedOperand(feedback_slot));
   return *this;
 }
 

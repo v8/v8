@@ -85,8 +85,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
-                                   TypeofMode typeof_mode);
+  BytecodeArrayBuilder& LoadGlobal(int feedback_slot, TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
                                     LanguageMode language_mode);

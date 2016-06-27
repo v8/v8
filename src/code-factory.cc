@@ -36,7 +36,7 @@ Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   LoadGlobalICTrampolineStub stub(isolate, LoadGlobalICState(typeof_mode));
-  return Callable(stub.GetCode(), LoadDescriptor(isolate));
+  return Callable(stub.GetCode(), LoadGlobalDescriptor(isolate));
 }
 
 // static
@@ -44,7 +44,7 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
   auto code = LoadGlobalIC::initialize_stub_in_optimized_code(
       isolate, LoadGlobalICState(typeof_mode).GetExtraICState());
-  return Callable(code, LoadWithVectorDescriptor(isolate));
+  return Callable(code, LoadGlobalWithVectorDescriptor(isolate));
 }
 
 // static

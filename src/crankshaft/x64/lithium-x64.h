@@ -1591,13 +1591,10 @@ class LLoadKeyedGeneric final : public LTemplateInstruction<1, 3, 1> {
   LOperand* temp_vector() { return temps_[0]; }
 };
 
-
-class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
+class LLoadGlobalGeneric final : public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LLoadGlobalGeneric(LOperand* context, LOperand* global_object,
-                              LOperand* vector) {
+  explicit LLoadGlobalGeneric(LOperand* context, LOperand* vector) {
     inputs_[0] = context;
-    inputs_[1] = global_object;
     temps_[0] = vector;
   }
 
@@ -1605,7 +1602,6 @@ class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
   DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
 
   LOperand* context() { return inputs_[0]; }
-  LOperand* global_object() { return inputs_[1]; }
   LOperand* temp_vector() { return temps_[0]; }
 
   Handle<Object> name() const { return hydrogen()->name(); }

@@ -417,12 +417,12 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaKeyedPropertyStar) {
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
-  const uint32_t operands[] = {54321, 19191,
+  const uint32_t operands[] = {19191,
                                static_cast<uint32_t>(Register(1).ToOperand())};
   const int expected_operand_count = static_cast<int>(arraysize(operands));
 
-  BytecodeNode first(Bytecode::kLdaGlobal, operands[0], operands[1]);
-  BytecodeNode second(Bytecode::kStar, operands[2]);
+  BytecodeNode first(Bytecode::kLdaGlobal, operands[0]);
+  BytecodeNode second(Bytecode::kStar, operands[1]);
   BytecodeNode third(Bytecode::kReturn);
   optimizer()->Write(&first);
   optimizer()->Write(&second);

@@ -391,22 +391,17 @@ Node* Interpreter::BuildLoadGlobal(Callable ic,
                                    InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* global = __ LoadContextSlot(native_context, Context::EXTENSION_INDEX);
 
-  // Load the global via the LoadIC.
+  // Load the global via the LoadGlobalIC.
   Node* code_target = __ HeapConstant(ic.code());
-  Node* constant_index = __ BytecodeOperandIdx(0);
-  Node* name = __ LoadConstantPoolEntry(constant_index);
-  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* raw_slot = __ BytecodeOperandIdx(0);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  return __ CallStub(ic.descriptor(), code_target, context, global, name,
-                     smi_slot, type_feedback_vector);
+  return __ CallStub(ic.descriptor(), code_target, context, smi_slot,
+                     type_feedback_vector);
 }
 
-// LdaGlobal <name_index> <slot>
+// LdaGlobal <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> outside of a typeof.
@@ -418,7 +413,7 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// LdrGlobal <name_index> <slot> <reg>
+// LdrGlobal <slot> <reg>
 //
 // Load the global with name in constant pool entry <name_index> into
 // register <reg> using FeedBackVector slot <slot> outside of a typeof.
@@ -426,12 +421,12 @@ void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
   Callable ic =
       CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(2);
+  Node* destination = __ BytecodeOperandReg(1);
   __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
-// LdaGlobalInsideTypeof <name_index> <slot>
+// LdaGlobalInsideTypeof <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> inside of a typeof.

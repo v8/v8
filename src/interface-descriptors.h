@@ -375,14 +375,10 @@ class LoadGlobalDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   enum ParameterIndices { kSlotIndex };
-};
 
-class LoadGlobalWithVectorDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
-                                               CallInterfaceDescriptor)
-
-  enum ParameterIndices { kSlotIndex, kVectorIndex };
+  static const Register SlotRegister() {
+    return LoadDescriptor::SlotRegister();
+  }
 };
 
 class StoreDescriptor : public CallInterfaceDescriptor {
@@ -487,6 +483,17 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
   static const Register VectorRegister();
 };
 
+class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadGlobalWithVectorDescriptor,
+                                               LoadGlobalDescriptor)
+
+  enum ParameterIndices { kSlotIndex, kVectorIndex };
+
+  static const Register VectorRegister() {
+    return LoadWithVectorDescriptor::VectorRegister();
+  }
+};
 
 class FastNewClosureDescriptor : public CallInterfaceDescriptor {
  public:
