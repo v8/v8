@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <map>
+#include <unordered_map>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -90,9 +90,7 @@ class LocalArrayBufferTracker {
   }
 
  private:
-  // TODO(mlippautz): Switch to unordered_map once it is supported on all
-  // platforms.
-  typedef std::map<Key, Value> TrackingMap;
+  typedef std::unordered_map<Key, Value> TrackingMap;
 
   Heap* heap_;
   TrackingMap array_buffers_;
