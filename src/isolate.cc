@@ -1454,7 +1454,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<JSArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (Object::IsErrorObject(this, exception)) {
+    if (exception->IsJSError()) {
       // We fetch the stack trace that corresponds to this error object.
       // If the lookup fails, the exception is probably not a valid Error
       // object. In that case, we fall through and capture the stack trace

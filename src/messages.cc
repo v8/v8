@@ -98,7 +98,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     MaybeHandle<Object> maybe_stringified;
     Handle<Object> stringified;
     // Make sure we don't leak uncaught internally generated Error objects.
-    if (Object::IsErrorObject(isolate, argument)) {
+    if (argument->IsJSError()) {
       Handle<Object> args[] = {argument};
       maybe_stringified = Execution::TryCall(
           isolate, isolate->no_side_effects_to_string_fun(),
