@@ -1097,7 +1097,7 @@
           }],
           [ 'v8_target_arch=="ppc64"', {
             'cflags': [ '-maix64' ],
-            'ldflags': [ '-maix64' ],
+            'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
       }],
