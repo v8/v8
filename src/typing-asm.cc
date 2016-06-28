@@ -540,20 +540,22 @@ void AsmTyper::VisitConditional(Conditional* expr) {
       expr->then_expression(), expected_type_,
       "conditional then branch type mismatch with enclosing expression"));
   Type* then_type = StorageType(computed_type_);
-  if (intish_ != 0 || !then_type->Is(cache_.kAsmComparable)) {
-    FAIL(expr->then_expression(), "invalid type in ? then expression");
-  }
+  int then_intish = intish_;
 
   RECURSE(VisitWithExpectation(
       expr->else_expression(), expected_type_,
       "conditional else branch type mismatch with enclosing expression"));
   Type* else_type = StorageType(computed_type_);
-  if (intish_ != 0 || !else_type->Is(cache_.kAsmComparable)) {
-    FAIL(expr->else_expression(), "invalid type in ? else expression");
-  }
+  int else_intish = intish_;
 
-  if (!then_type->Is(else_type) || !else_type->Is(then_type)) {
-    FAIL(expr, "then and else expressions in ? must have the same type");
+  if (then_intish != 0 || else_intish != 0 ||
+      !((then_type->Is(cache_.kAsmInt) && else_type->Is(cache_.kAsmInt)) ||
+        (then_type->Is(cache_.kAsmFloat) && else_type->Is(cache_.kAsmFloat)) ||
+        (then_type->Is(cache_.kAsmDouble) &&
+         else_type->Is(cache_.kAsmDouble)))) {
+    FAIL(expr,
+         "then and else expressions in ? must have the same type "
+         "and be int, float, or double");
   }
 
   RECURSE(IntersectResult(expr, then_type));
@@ -1379,20 +1381,25 @@ void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
       VisitWithExpectation(expr->left(), Type::Number(),
                            "left comparison operand expected to be number"));
   Type* left_type = computed_type_;
-  if (!left_type->Is(cache_.kAsmComparable)) {
-    FAIL(expr->left(), "bad type on left side of comparison");
-  }
+  int left_intish = intish_;
 
   RECURSE(
       VisitWithExpectation(expr->right(), Type::Number(),
                            "right comparison operand expected to be number"));
   Type* right_type = computed_type_;
-  if (!right_type->Is(cache_.kAsmComparable)) {
-    FAIL(expr->right(), "bad type on right side of comparison");
-  }
+  int right_intish = intish_;
 
-  if (!left_type->Is(right_type) && !right_type->Is(left_type)) {
-    FAIL(expr, "left and right side of comparison must match");
+  if (left_intish != 0 || right_intish != 0 ||
+      !((left_type->Is(cache_.kAsmUnsigned) &&
+         right_type->Is(cache_.kAsmUnsigned)) ||
+        (left_type->Is(cache_.kAsmSigned) &&
+         right_type->Is(cache_.kAsmSigned)) ||
+        (left_type->Is(cache_.kAsmFloat) && right_type->Is(cache_.kAsmFloat)) ||
+        (left_type->Is(cache_.kAsmDouble) &&
+         right_type->Is(cache_.kAsmDouble)))) {
+    FAIL(expr,
+         "left and right side of comparison must match type "
+         "and be signed, unsigned, float, or double");
   }
 
   RECURSE(IntersectResult(expr, cache_.kAsmSigned));

@@ -1138,7 +1138,8 @@ TEST(TernaryMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0.0; return (1 ? x : y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: then and else expressions in ? must have the same type\n");
+      "asm: line 1: then and else expressions in ? must have the same type "
+      "and be int, float, or double\n");
 }
 
 
@@ -1146,7 +1147,8 @@ TEST(TernaryMismatchIntish) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0; return (1 ? x + x : y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: invalid type in ? then expression\n");
+      "asm: line 1: then and else expressions in ? must have the same type "
+      "and be int, float, or double\n");
 }
 
 
@@ -1154,7 +1156,8 @@ TEST(TernaryMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x?fround(y):x)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: then and else expressions in ? must have the same type\n");
+      "asm: line 1: then and else expressions in ? must have the same type "
+      "and be int, float, or double\n");
 }
 
 
@@ -1359,7 +1362,8 @@ TEST(CompareToStringLeft) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return ('hi' > x)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: bad type on left side of comparison\n");
+      "asm: line 1: left and right side of comparison must match type "
+      "and be signed, unsigned, float, or double\n");
 }
 
 
@@ -1367,7 +1371,8 @@ TEST(CompareToStringRight) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return (x < 'hi')|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: bad type on right side of comparison\n");
+      "asm: line 1: left and right side of comparison must match type "
+      "and be signed, unsigned, float, or double\n");
 }
 
 
@@ -1375,7 +1380,8 @@ TEST(CompareMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match type "
+      "and be signed, unsigned, float, or double\n");
 }
 
 
@@ -1383,7 +1389,8 @@ TEST(CompareMismatchInt32Uint32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return ((x|0) < (y>>>0))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match type "
+      "and be signed, unsigned, float, or double\n");
 }
 
 
@@ -1391,7 +1398,8 @@ TEST(CompareMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x < fround(y))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 1: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match type "
+      "and be signed, unsigned, float, or double\n");
 }
 
 TEST(FunctionRepeated) {

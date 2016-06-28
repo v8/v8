@@ -121,7 +121,7 @@ class AsmTyper : public AstVisitor {
 
   AstTypeBounds bounds_;
 
-  static const int kErrorMessageLimit = 100;
+  static const int kErrorMessageLimit = 150;
   char error_message_[kErrorMessageLimit];
 
   static const int kMaxUncombinedAdditiveSteps = 1 << 20;
