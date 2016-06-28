@@ -24,7 +24,9 @@ class Rewriter final : public AstExpressionVisitor {
            Scope* new_scope)
       : AstExpressionVisitor(stack_limit, initializer),
         old_scope_(old_scope),
-        new_scope_(new_scope) {}
+        new_scope_(new_scope),
+        old_scope_closure_(old_scope->ClosureScope()),
+        new_scope_closure_(new_scope->ClosureScope()) {}
   ~Rewriter();
 
  private:
@@ -40,6 +42,8 @@ class Rewriter final : public AstExpressionVisitor {
 
   Scope* old_scope_;
   Scope* new_scope_;
+  Scope* old_scope_closure_;
+  Scope* new_scope_closure_;
   std::vector<std::pair<Variable*, int>> temps_;
 };
 
@@ -55,8 +59,8 @@ Rewriter::~Rewriter() {
     // Ensure that we add temporaries in the order they appeared in old_scope_.
     std::sort(temps_.begin(), temps_.end(), LessThanSecond());
     for (auto var_and_index : temps_) {
-      var_and_index.first->set_scope(new_scope_);
-      new_scope_->AddTemporary(var_and_index.first);
+      var_and_index.first->set_scope(new_scope_closure_);
+      new_scope_closure_->AddTemporary(var_and_index.first);
     }
   }
 }
@@ -90,11 +94,11 @@ void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (proxy->is_resolved()) {
     Variable* var = proxy->var();
     if (var->mode() != TEMPORARY) return;
-    // For rewriting inside the same ClosureScope (e.g., putting default
-    // parameter values in their own inner scope in certain cases), refrain
-    // from invalidly moving temporaries to a block scope.
-    if (var->scope()->ClosureScope() == new_scope_->ClosureScope()) return;
-    int index = old_scope_->RemoveTemporary(var);
+    // Temporaries are only placed in ClosureScopes.
+    DCHECK_EQ(var->scope(), var->scope()->ClosureScope());
+    // If the temporary is already where it should be, return quickly.
+    if (var->scope() == new_scope_closure_) return;
+    int index = old_scope_closure_->RemoveTemporary(var);
     if (index >= 0) {
       temps_.push_back(std::make_pair(var, index));
     }

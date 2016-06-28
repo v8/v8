@@ -555,6 +555,11 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 
 int Scope::RemoveTemporary(Variable* var) {
   DCHECK_NOT_NULL(var);
+  // Temporaries are only placed in ClosureScopes.
+  DCHECK_EQ(ClosureScope(), this);
+  DCHECK_EQ(var->scope()->ClosureScope(), var->scope());
+  // If the temporary is not here, return quickly.
+  if (var->scope() != this) return -1;
   // Most likely (always?) any temporary variable we want to remove
   // was just added before, so we search backwards.
   for (int i = temps_.length(); i-- > 0;) {
