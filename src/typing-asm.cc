@@ -1299,6 +1299,16 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
               FAIL(expr, "too many consecutive multiplicative ops");
             }
           }
+          if (expr->op() == Token::MOD || expr->op() == Token::DIV) {
+            if (!((left_type->Is(cache_.kAsmSigned) &&
+                   right_type->Is(cache_.kAsmSigned)) ||
+                  (left_type->Is(cache_.kAsmUnsigned) &&
+                   right_type->Is(cache_.kAsmUnsigned)))) {
+              FAIL(expr,
+                   "left and right side of integer / or % "
+                   "must match and be signed or unsigned");
+            }
+          }
           RECURSE(IntersectResult(expr, cache_.kAsmInt));
           return;
         }
