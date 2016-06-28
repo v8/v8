@@ -5378,16 +5378,13 @@ struct JitCodeEvent {
  * profile/evaluate-performance/rail
  */
 enum RAILMode {
-  // Default performance mode: V8 will optimize for both latency and
-  // throughput in this mode.
-  PERFORMANCE_DEFAULT,
   // Response performance mode: In this mode very low virtual machine latency
   // is provided. V8 will try to avoid JavaScript execution interruptions.
   // Throughput may be throttled.
   PERFORMANCE_RESPONSE,
   // Animation performance mode: In this mode low virtual machine latency is
   // provided. V8 will try to avoid as many JavaScript execution interruptions
-  // as possible. Throughput may be throttled
+  // as possible. Throughput may be throttled. This is the default mode.
   PERFORMANCE_ANIMATION,
   // Idle performance mode: The embedder is idle. V8 can complete deferred work
   // in this mode.

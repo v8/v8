@@ -1253,8 +1253,6 @@ class Isolate {
 
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
-      case PERFORMANCE_DEFAULT:
-        return "DEFAULT";
       case PERFORMANCE_RESPONSE:
         return "RESPONSE";
       case PERFORMANCE_ANIMATION:
@@ -1263,8 +1261,6 @@ class Isolate {
         return "IDLE";
       case PERFORMANCE_LOAD:
         return "LOAD";
-      default:
-        UNREACHABLE();
     }
     return "";
   }
@@ -1315,7 +1311,7 @@ class Isolate {
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
-  RAILMode rail_mode_;
+  base::AtomicValue<RAILMode> rail_mode_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
