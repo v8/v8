@@ -276,13 +276,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       } else {
         DCHECK_EQ(AccessMode::kStore, access_mode);
         if (field_type->Is(Type::UntaggedFloat64())) {
-          Node* check =
-              graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-          this_control = this_effect =
-              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+          this_value = this_effect =
+              graph()->NewNode(simplified()->CheckNumber(), this_value,
                                this_effect, this_control);
-          this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
-                                        this_value, this_control);
 
           if (!field_index.is_inobject() || field_index.is_hidden_field() ||
               !FLAG_unbox_double_fields) {
@@ -784,13 +780,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             graph()->NewNode(simplified()->CheckTaggedSigned(), this_value,
                              this_effect, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
-        Node* check =
-            graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-        this_control = this_effect =
-            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
-                             this_effect, this_control);
-        this_value = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
-                                      this_value, this_control);
+        this_value = this_effect = graph()->NewNode(
+            simplified()->CheckNumber(), this_value, this_effect, this_control);
         // Make sure we do not store signalling NaNs into holey double arrays.
         if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
           this_value =

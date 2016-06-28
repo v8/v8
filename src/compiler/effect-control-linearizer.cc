@@ -434,6 +434,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBounds:
       state = LowerCheckBounds(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckNumber:
+      state = LowerCheckNumber(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckTaggedPointer:
       state = LowerCheckTaggedPointer(node, frame_state, *effect, *control);
       break;
@@ -807,6 +810,39 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
   node->TrimInputCount(0);
 
   return ValueEffectControl(index, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state,
+                                          Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check0 = ObjectIsSmi(value);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  {
+    Node* value_map = efalse0 =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         value, efalse0, if_false0);
+    Node* check1 = graph()->NewNode(machine()->WordEqual(), value_map,
+                                    jsgraph()->HeapNumberMapConstant());
+    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeUnless(), check1,
+                                           frame_state, efalse0, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

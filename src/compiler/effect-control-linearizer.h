@@ -64,6 +64,8 @@ class EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerCheckBounds(Node* node, Node* frame_state,
                                       Node* effect, Node* control);
+  ValueEffectControl LowerCheckNumber(Node* node, Node* frame_state,
+                                      Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedPointer(Node* node, Node* frame_state,
                                              Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedSigned(Node* node, Node* frame_state,

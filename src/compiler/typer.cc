@@ -1828,6 +1828,11 @@ Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   return Type::Unsigned31();
 }
 
+Type* Typer::Visitor::TypeCheckNumber(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::Number(), zone());
+}
+
 Type* Typer::Visitor::TypeCheckTaggedPointer(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::TaggedPointer(), zone());

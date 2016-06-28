@@ -237,6 +237,7 @@
   V(ChangeTaggedToBit)                \
   V(ChangeBitToTagged)                \
   V(CheckBounds)                      \
+  V(CheckNumber)                      \
   V(CheckTaggedPointer)               \
   V(CheckTaggedSigned)                \
   V(CheckedInt32Add)                  \

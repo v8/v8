@@ -1687,6 +1687,21 @@ class RepresentationSelector {
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         return;
       }
+      case IrOpcode::kCheckNumber: {
+        if (InputIs(node, Type::Number())) {
+          if (truncation.TruncatesToWord32()) {
+            VisitUnop(node, UseInfo::TruncatingWord32(),
+                      MachineRepresentation::kWord32);
+          } else {
+            VisitUnop(node, UseInfo::TruncatingFloat64(),
+                      MachineRepresentation::kFloat64);
+          }
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        }
+        return;
+      }
       case IrOpcode::kCheckTaggedPointer: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         if (lower()) {

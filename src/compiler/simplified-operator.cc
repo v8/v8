@@ -311,6 +311,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(SpeculativeNumberModulus)
 
 #define CHECKED_OP_LIST(V)    \
+  V(CheckNumber, 1)           \
   V(CheckTaggedPointer, 1)    \
   V(CheckTaggedSigned, 1)     \
   V(CheckedInt32Add, 2)       \
