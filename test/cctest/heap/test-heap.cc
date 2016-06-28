@@ -6791,5 +6791,28 @@ TEST(Regress618958) {
          !heap->incremental_marking()->IsStopped()));
 }
 
+TEST(UncommitUnusedLargeObjectMemory) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+  CHECK(chunk->owner()->identity() == LO_SPACE);
+
+  intptr_t size_before = array->Size();
+  size_t committed_memory_before = chunk->CommittedPhysicalMemory();
+
+  array->Shrink(1);
+  CHECK(array->Size() < size_before);
+
+  CcTest::heap()->CollectAllGarbage();
+  CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
+  size_t shrinked_size =
+      RoundUp((array->address() - chunk->address()) + array->Size(),
+              base::OS::CommitPageSize());
+  CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
+}
 }  // namespace internal
 }  // namespace v8
