@@ -197,14 +197,9 @@ i::MaybeHandle<i::JSObject> InstantiateModuleCommon(
       memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
     }
 
-    i::MaybeHandle<i::FixedArray> compiled_module =
-        result.val->CompileFunctions(isolate);
-    if (!compiled_module.is_null()) {
-      object = i::wasm::WasmModule::Instantiate(
-          isolate, compiled_module.ToHandleChecked(), ffi, memory);
-      if (!object.is_null()) {
-        args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
-      }
+    object = result.val->Instantiate(isolate, ffi, memory);
+    if (!object.is_null()) {
+      args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
     }
   }
 

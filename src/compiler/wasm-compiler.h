@@ -79,17 +79,15 @@ class WasmCompilationUnit final {
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                     Handle<JSFunction> function,
-                                    wasm::FunctionSig* sig, uint32_t index,
-                                    Handle<String> import_module,
-                                    MaybeHandle<String> import_function);
+                                    wasm::FunctionSig* sig,
+                                    wasm::WasmName module_name,
+                                    wasm::WasmName function_name);
 
 // Wraps a given wasm code object, producing a JSFunction that can be called
 // from JavaScript.
-Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
-                                          wasm::ModuleEnv* module,
-                                          Handle<String> name,
-                                          Handle<Code> wasm_code,
-                                          uint32_t index);
+Handle<JSFunction> CompileJSToWasmWrapper(
+    Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
+    Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.

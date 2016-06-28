@@ -186,9 +186,10 @@ class TestingModule : public ModuleEnv {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
-    Handle<Code> code =
-        CompileWasmToJSWrapper(isolate_, jsfunc, sig, index,
-                               Handle<String>::null(), Handle<String>::null());
+    WasmName module_name = ArrayVector("test");
+    WasmName function_name;
+    Handle<Code> code = CompileWasmToJSWrapper(isolate_, jsfunc, sig,
+                                               module_name, function_name);
     instance->function_code[index] = code;
     return index;
   }
@@ -199,10 +200,8 @@ class TestingModule : public ModuleEnv {
     Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
-    Handle<JSFunction> ret =
-        compiler::CompileJSToWasmWrapper(isolate_, this, name, code, index);
-    ret->SetInternalField(0, *module_object);
-    return ret;
+    return compiler::CompileJSToWasmWrapper(isolate_, this, name, code,
+                                            module_object, index);
   }
 
   void SetFunctionCode(uint32_t index, Handle<Code> code) {

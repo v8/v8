@@ -2644,12 +2644,6 @@ class FixedArray: public FixedArrayBase {
   inline Object* get(int index) const;
   static inline Handle<Object> get(FixedArray* array, int index,
                                    Isolate* isolate);
-  template <class T>
-  MaybeHandle<T> GetValue(int index) const;
-
-  template <class T>
-  Handle<T> GetValueChecked(int index) const;
-
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
   inline bool is_the_hole(int index);
@@ -4426,7 +4420,6 @@ class ByteArray: public FixedArrayBase {
   // Setter and getter.
   inline byte get(int index);
   inline void set(int index, byte value);
-  inline const byte* data() const;
 
   // Copy in / copy out whole byte slices.
   inline void copy_out(int index, byte* buffer, int length);

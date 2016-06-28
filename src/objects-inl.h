@@ -2306,23 +2306,11 @@ Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
   return handle(array->get(index), isolate);
 }
 
-template <class T>
-MaybeHandle<T> FixedArray::GetValue(int index) const {
-  Object* obj = get(index);
-  if (obj->IsUndefined(GetIsolate())) return MaybeHandle<T>();
-  return Handle<T>(T::cast(obj));
-}
-
-template <class T>
-Handle<T> FixedArray::GetValueChecked(int index) const {
-  Object* obj = get(index);
-  CHECK(!obj->IsUndefined(GetIsolate()));
-  return Handle<T>(T::cast(obj));
-}
 
 bool FixedArray::is_the_hole(int index) {
   return get(index) == GetHeap()->the_hole_value();
 }
+
 
 void FixedArray::set(int index, Smi* value) {
   DCHECK(map() != GetHeap()->fixed_cow_array_map());
@@ -3993,9 +3981,6 @@ byte ByteArray::get(int index) {
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
-const byte* ByteArray::data() const {
-  return reinterpret_cast<const byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
-}
 
 void ByteArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
