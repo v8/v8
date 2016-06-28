@@ -224,10 +224,12 @@ struct WasmModule {
   }
 
   // Creates a new instantiation of the module in the given isolate.
-  MaybeHandle<JSObject> Instantiate(Isolate* isolate, Handle<JSReceiver> ffi,
-                                    Handle<JSArrayBuffer> memory) const;
+  static MaybeHandle<JSObject> Instantiate(Isolate* isolate,
+                                           Handle<FixedArray> compiled_module,
+                                           Handle<JSReceiver> ffi,
+                                           Handle<JSArrayBuffer> memory);
 
-  Handle<FixedArray> CompileFunctions(Isolate* isolate) const;
+  MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate) const;
 
   uint32_t FunctionTableSize() const {
     if (indirect_table_size > 0) {

@@ -2955,29 +2955,31 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
 }
 
 static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
-                                      CompilationInfo* info,
+                                      Isolate* isolate, Handle<Code> code,
                                       const char* message, uint32_t index,
-                                      wasm::WasmName func_name) {
-  Isolate* isolate = info->isolate();
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    ScopedVector<char> buffer(128);
-    SNPrintF(buffer, "%s#%d:%.*s", message, index, func_name.length(),
-             func_name.start());
-    Handle<String> name_str =
-        isolate->factory()->NewStringFromAsciiChecked(buffer.start());
-    Handle<String> script_str =
-        isolate->factory()->NewStringFromAsciiChecked("(WASM)");
-    Handle<Code> code = info->code();
-    Handle<SharedFunctionInfo> shared =
-        isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
-    PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
-                                     *script_str, 0, 0));
-  }
+                                      const wasm::WasmName& module_name,
+                                      const wasm::WasmName& func_name) {
+  DCHECK(isolate->logger()->is_logging_code_events() ||
+         isolate->is_profiling());
+
+  ScopedVector<char> buffer(128);
+  SNPrintF(buffer, "%s#%d:%.*s:%.*s", message, index, module_name.length(),
+           module_name.start(), func_name.length(), func_name.start());
+  Handle<String> name_str =
+      isolate->factory()->NewStringFromAsciiChecked(buffer.start());
+  Handle<String> script_str =
+      isolate->factory()->NewStringFromAsciiChecked("(WASM)");
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
+  PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
+                                   *script_str, 0, 0));
 }
 
-Handle<JSFunction> CompileJSToWasmWrapper(
-    Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
-    Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index) {
+Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
+                                          wasm::ModuleEnv* module,
+                                          Handle<String> name,
+                                          Handle<Code> wasm_code,
+                                          uint32_t index) {
   const wasm::WasmFunction* func = &module->module->functions[index];
 
   //----------------------------------------------------------------------------
@@ -2990,7 +2992,6 @@ Handle<JSFunction> CompileJSToWasmWrapper(
   shared->set_internal_formal_parameter_count(params);
   Handle<JSFunction> function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, MaybeHandle<Code>());
-  function->SetInternalField(0, *module_object);
   function->set_shared(*shared);
 
   //----------------------------------------------------------------------------
@@ -3056,9 +3057,13 @@ Handle<JSFunction> CompileJSToWasmWrapper(
       buffer.Dispose();
     }
 
-    RecordFunctionCompilation(
-        CodeEventListener::FUNCTION_TAG, &info, "js-to-wasm", index,
-        module->module->GetName(func->name_offset, func->name_length));
+    if (isolate->logger()->is_logging_code_events() ||
+        isolate->is_profiling()) {
+      RecordFunctionCompilation(
+          CodeEventListener::FUNCTION_TAG, isolate, code, "js-to-wasm", index,
+          wasm::WasmName("export"),
+          module->module->GetName(func->name_offset, func->name_length));
+    }
     // Set the JSFunction's machine code.
     function->set_code(*code);
   }
@@ -3067,9 +3072,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
 
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                     Handle<JSFunction> function,
-                                    wasm::FunctionSig* sig,
-                                    wasm::WasmName module_name,
-                                    wasm::WasmName function_name) {
+                                    wasm::FunctionSig* sig, uint32_t index,
+                                    Handle<String> import_module,
+                                    MaybeHandle<String> import_function) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -3128,10 +3133,21 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
     if (debugging) {
       buffer.Dispose();
     }
-
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info,
-                              "wasm-to-js", 0, module_name);
   }
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+    const char* function_name = nullptr;
+    int function_name_size = 0;
+    if (!import_function.is_null()) {
+      Handle<String> handle = import_function.ToHandleChecked();
+      function_name = handle->ToCString().get();
+      function_name_size = handle->length();
+    }
+    RecordFunctionCompilation(
+        CodeEventListener::FUNCTION_TAG, isolate, code, "wasm-to-js", index,
+        {import_module->ToCString().get(), import_module->length()},
+        {function_name, function_name_size});
+  }
+
   return code;
 }
 
@@ -3294,11 +3310,14 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
   Handle<Code> code = info_.code();
   DCHECK(!code.is_null());
 
-  RecordFunctionCompilation(
-      CodeEventListener::FUNCTION_TAG, &info_, "WASM_function",
-      function_->func_index,
-      module_env_->module->GetName(function_->name_offset,
-                                   function_->name_length));
+  if (isolate_->logger()->is_logging_code_events() ||
+      isolate_->is_profiling()) {
+    RecordFunctionCompilation(
+        CodeEventListener::FUNCTION_TAG, isolate_, code, "WASM_function",
+        function_->func_index, wasm::WasmName("module"),
+        module_env_->module->GetName(function_->name_offset,
+                                     function_->name_length));
+  }
 
   if (FLAG_trace_wasm_decode_time) {
     double compile_ms = compile_timer.Elapsed().InMillisecondsF();

@@ -39,13 +39,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 
   // Get mem buffer associated with module object
   Object* obj = module_object->GetInternalField(kWasmMemArrayBuffer);
-  Handle<JSArrayBuffer> old_buffer =
-      Handle<JSArrayBuffer>(JSArrayBuffer::cast(obj));
 
-  if (old_buffer->byte_length()->Number() == 0) {
+  if (obj->IsUndefined(isolate)) {
     // If module object does not have linear memory associated with it,
     // Allocate new array buffer of given size.
-    old_mem_start = static_cast<Address>(old_buffer->backing_store());
+    old_mem_start = nullptr;
     old_size = 0;
     // TODO(gdeepti): Fix bounds check to take into account size of memtype.
     new_size = delta_pages * wasm::WasmModule::kPageSize;
@@ -67,8 +65,15 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     }
 #endif
   } else {
+    Handle<JSArrayBuffer> old_buffer =
+        Handle<JSArrayBuffer>(JSArrayBuffer::cast(obj));
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
     old_size = old_buffer->byte_length()->Number();
+    // If the old memory was zero-sized, we should have been in the
+    // "undefined" case above.
+    DCHECK_NOT_NULL(old_mem_start);
+    DCHECK_NE(0, old_size);
+
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
     if (new_size >
         wasm::WasmModule::kMaxMemPages * wasm::WasmModule::kPageSize) {
