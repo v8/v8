@@ -438,6 +438,9 @@ class Register final {
 
 class Bytecodes {
  public:
+  //  The maximum number of operands a bytecode may have.
+  static const int kMaxOperands = 4;
+
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
 
@@ -525,18 +528,10 @@ class Bytecodes {
   static OperandSize GetOperandSize(Bytecode bytecode, int i,
                                     OperandScale operand_scale);
 
-  // Returns a pointer to an array of the operand sizes for |bytecode|.
-  static const OperandSize* GetOperandSizes(Bytecode bytecode,
-                                            OperandScale operand_scale);
-
   // Returns the offset of the i-th operand of |bytecode| relative to the start
   // of the bytecode.
   static int GetOperandOffset(Bytecode bytecode, int i,
                               OperandScale operand_scale);
-
-  // Returns a zero-based bitmap of the register operand positions of
-  // |bytecode|.
-  static int GetRegisterOperandBitmap(Bytecode bytecode);
 
   // Returns a debug break bytecode to replace |bytecode|.
   static Bytecode GetDebugBreak(Bytecode bytecode);

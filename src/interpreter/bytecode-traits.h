@@ -100,25 +100,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
     return operand_type_infos;
   }
 
-  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
-    switch (operand_scale) {
-#define CASE(Name, _)                                                  \
-  case OperandScale::k##Name: {                                        \
-    static const OperandSize kOperandSizes[] = {                       \
-        OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_1, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_2, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_3, OperandScale::k##Name>::kOperandSize, \
-    };                                                                 \
-    return kOperandSizes;                                              \
-  }
-      OPERAND_SCALE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot || operand_2 == ot ||
@@ -139,11 +120,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2,
       RegisterOperandTraits<operand_1>::kIsRegisterOperand +
       RegisterOperandTraits<operand_2>::kIsRegisterOperand +
       RegisterOperandTraits<operand_3>::kIsRegisterOperand;
-  static const int kRegisterOperandBitmap =
-      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
-      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
-      (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2) +
-      (RegisterOperandTraits<operand_3>::kIsRegisterOperand << 3);
 };
 
 template <AccumulatorUse accumulator_use, OperandType operand_0,
@@ -163,24 +139,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
     return operand_type_infos;
   }
 
-  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
-    switch (operand_scale) {
-#define CASE(Name, _)                                                  \
-  case OperandScale::k##Name: {                                        \
-    static const OperandSize kOperandSizes[] = {                       \
-        OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_1, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_2, OperandScale::k##Name>::kOperandSize, \
-    };                                                                 \
-    return kOperandSizes;                                              \
-  }
-      OPERAND_SCALE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot || operand_2 == ot;
@@ -198,10 +156,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1, operand_2> {
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
       RegisterOperandTraits<operand_1>::kIsRegisterOperand +
       RegisterOperandTraits<operand_2>::kIsRegisterOperand;
-  static const int kRegisterOperandBitmap =
-      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
-      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
-      (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2);
 };
 
 template <AccumulatorUse accumulator_use, OperandType operand_0,
@@ -220,23 +174,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
     return operand_type_infos;
   }
 
-  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
-    switch (operand_scale) {
-#define CASE(Name, _)                                                  \
-  case OperandScale::k##Name: {                                        \
-    static const OperandSize kOperandSizes[] = {                       \
-        OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
-        OperandScaler<operand_1, OperandScale::k##Name>::kOperandSize, \
-    };                                                                 \
-    return kOperandSizes;                                              \
-  }
-      OPERAND_SCALE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot || operand_1 == ot;
@@ -252,9 +189,6 @@ struct BytecodeTraits<accumulator_use, operand_0, operand_1> {
   static const int kRegisterOperandCount =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand +
       RegisterOperandTraits<operand_1>::kIsRegisterOperand;
-  static const int kRegisterOperandBitmap =
-      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
-      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1);
 };
 
 template <AccumulatorUse accumulator_use, OperandType operand_0>
@@ -270,22 +204,6 @@ struct BytecodeTraits<accumulator_use, operand_0> {
     return operand_type_infos;
   }
 
-  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
-    switch (operand_scale) {
-#define CASE(Name, _)                                                  \
-  case OperandScale::k##Name: {                                        \
-    static const OperandSize kOperandSizes[] = {                       \
-        OperandScaler<operand_0, OperandScale::k##Name>::kOperandSize, \
-    };                                                                 \
-    return kOperandSizes;                                              \
-  }
-      OPERAND_SCALE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return operand_0 == ot;
@@ -298,8 +216,6 @@ struct BytecodeTraits<accumulator_use, operand_0> {
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 1;
   static const int kRegisterOperandCount =
-      RegisterOperandTraits<operand_0>::kIsRegisterOperand;
-  static const int kRegisterOperandBitmap =
       RegisterOperandTraits<operand_0>::kIsRegisterOperand;
 };
 
@@ -316,10 +232,6 @@ struct BytecodeTraits<accumulator_use> {
     return operand_type_infos;
   }
 
-  static const OperandSize* GetOperandSizes(OperandScale operand_scale) {
-    return nullptr;
-  }
-
   template <OperandType ot>
   static inline bool HasAnyOperandsOfType() {
     return false;
@@ -330,7 +242,6 @@ struct BytecodeTraits<accumulator_use> {
   static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 0;
   static const int kRegisterOperandCount = 0;
-  static const int kRegisterOperandBitmap = 0;
 };
 
 static OperandSize ScaledOperandSize(OperandType operand_type,

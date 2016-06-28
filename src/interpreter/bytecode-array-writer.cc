@@ -13,6 +13,9 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+STATIC_CONST_MEMBER_DEFINITION const size_t
+    BytecodeArrayWriter::kMaxSizeOfPackedBytecode;
+
 BytecodeArrayWriter::BytecodeArrayWriter(
     Isolate* isolate, Zone* zone, ConstantArrayBuilder* constant_array_builder)
     : isolate_(isolate),
@@ -132,7 +135,8 @@ OperandScale GetOperandScale(const BytecodeNode* const node) {
   const OperandTypeInfo* operand_type_infos =
       Bytecodes::GetOperandTypeInfos(node->bytecode());
   OperandScale operand_scale = OperandScale::kSingle;
-  for (int i = 0; i < node->operand_count(); ++i) {
+  int operand_count = node->operand_count();
+  for (int i = 0; i < operand_count; ++i) {
     switch (operand_type_infos[i]) {
       case OperandTypeInfo::kScalableSignedByte: {
         uint32_t operand = node->operand(i);
@@ -162,56 +166,58 @@ OperandScale GetOperandScale(const BytecodeNode* const node) {
 void BytecodeArrayWriter::EmitBytecode(const BytecodeNode* const node) {
   DCHECK_NE(node->bytecode(), Bytecode::kIllegal);
 
+  uint8_t buffer[kMaxSizeOfPackedBytecode];
+  uint8_t* buffer_limit = buffer;
+
   OperandScale operand_scale = GetOperandScale(node);
   if (operand_scale != OperandScale::kSingle) {
     Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
-    bytecodes()->push_back(Bytecodes::ToByte(prefix));
+    *buffer_limit++ = Bytecodes::ToByte(prefix);
   }
 
   Bytecode bytecode = node->bytecode();
-  bytecodes()->push_back(Bytecodes::ToByte(bytecode));
+  *buffer_limit++ = Bytecodes::ToByte(bytecode);
 
-  int register_operand_bitmap = Bytecodes::GetRegisterOperandBitmap(bytecode);
   const uint32_t* const operands = node->operands();
-  const OperandSize* operand_sizes =
-      Bytecodes::GetOperandSizes(bytecode, operand_scale);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
-  for (int i = 0; operand_types[i] != OperandType::kNone; ++i) {
-    OperandType operand_type = operand_types[i];
-    switch (operand_sizes[i]) {
+  const int operand_count = Bytecodes::NumberOfOperands(bytecode);
+  for (int i = 0; i < operand_count; ++i) {
+    OperandSize operand_size =
+        Bytecodes::SizeOfOperand(operand_types[i], operand_scale);
+    switch (operand_size) {
       case OperandSize::kNone:
         UNREACHABLE();
         break;
       case OperandSize::kByte:
-        bytecodes()->push_back(static_cast<uint8_t>(operands[i]));
+        *buffer_limit++ = static_cast<uint8_t>(operands[i]);
         break;
       case OperandSize::kShort: {
-        uint8_t operand_bytes[2];
-        WriteUnalignedUInt16(operand_bytes, operands[i]);
-        bytecodes()->insert(bytecodes()->end(), operand_bytes,
-                            operand_bytes + 2);
+        WriteUnalignedUInt16(buffer_limit, operands[i]);
+        buffer_limit += 2;
         break;
       }
       case OperandSize::kQuad: {
-        uint8_t operand_bytes[4];
-        WriteUnalignedUInt32(operand_bytes, operands[i]);
-        bytecodes()->insert(bytecodes()->end(), operand_bytes,
-                            operand_bytes + 4);
+        WriteUnalignedUInt32(buffer_limit, operands[i]);
+        buffer_limit += 4;
         break;
       }
     }
 
-    if ((register_operand_bitmap >> i) & 1) {
-      int count;
-      if (operand_types[i + 1] == OperandType::kRegCount) {
-        count = static_cast<int>(operands[i + 1]);
-      } else {
-        count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
-      }
-      Register reg = Register::FromOperand(static_cast<int32_t>(operands[i]));
-      max_register_count_ = std::max(max_register_count_, reg.index() + count);
+    int count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
+    if (count == 0) {
+      continue;
     }
+    // NB operand_types is terminated by OperandType::kNone so
+    // operand_types[i + 1] is valid whilst i < operand_count.
+    if (operand_types[i + 1] == OperandType::kRegCount) {
+      count = static_cast<int>(operands[i]);
+    }
+    Register reg = Register::FromOperand(static_cast<int32_t>(operands[i]));
+    max_register_count_ = std::max(max_register_count_, reg.index() + count);
   }
+
+  DCHECK_LE(buffer_limit, buffer + sizeof(buffer));
+  bytecodes()->insert(bytecodes()->end(), buffer, buffer_limit);
 }
 
 // static

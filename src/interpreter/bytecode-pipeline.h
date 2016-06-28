@@ -183,10 +183,9 @@ class BytecodeNode final : ZoneObject {
 
  private:
   static const int kInvalidPosition = kMinInt;
-  static const size_t kMaxOperands = 4;
 
   Bytecode bytecode_;
-  uint32_t operands_[kMaxOperands];
+  uint32_t operands_[Bytecodes::kMaxOperands];
   BytecodeSourceInfo source_info_;
 };
 

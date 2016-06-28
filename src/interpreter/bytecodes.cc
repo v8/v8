@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+STATIC_CONST_MEMBER_DEFINITION const int Bytecodes::kMaxOperands;
 
 // static
 const char* Bytecodes::ToString(Bytecode bytecode) {
@@ -342,37 +343,8 @@ const OperandTypeInfo* Bytecodes::GetOperandTypeInfos(Bytecode bytecode) {
 OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i,
                                       OperandScale operand_scale) {
   DCHECK_LT(i, NumberOfOperands(bytecode));
-  return GetOperandSizes(bytecode, operand_scale)[i];
-}
-
-// static
-const OperandSize* Bytecodes::GetOperandSizes(Bytecode bytecode,
-                                              OperandScale operand_scale) {
-  DCHECK(bytecode <= Bytecode::kLast);
-  switch (bytecode) {
-#define CASE(Name, ...)   \
-  case Bytecode::k##Name: \
-    return BytecodeTraits<__VA_ARGS__>::GetOperandSizes(operand_scale);
-    BYTECODE_LIST(CASE)
-#undef CASE
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-
-// static
-int Bytecodes::GetRegisterOperandBitmap(Bytecode bytecode) {
-  DCHECK(bytecode <= Bytecode::kLast);
-  switch (bytecode) {
-#define CASE(Name, ...)                              \
-  case Bytecode::k##Name:                            \
-    typedef BytecodeTraits<__VA_ARGS__> Name##Trait; \
-    return Name##Trait::kRegisterOperandBitmap;
-    BYTECODE_LIST(CASE)
-#undef CASE
-  }
-  UNREACHABLE();
-  return false;
+  OperandType operand_type = GetOperandType(bytecode, i);
+  return SizeOfOperand(operand_type, operand_scale);
 }
 
 // static
@@ -603,7 +575,7 @@ int Bytecodes::GetNumberOfRegistersRepresentedBy(OperandType operand_type) {
     case OperandType::kRegOutTriple:
       return 3;
     default:
-      UNREACHABLE();
+      return 0;
   }
   return 0;
 }

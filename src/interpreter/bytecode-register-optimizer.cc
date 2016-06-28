@@ -504,35 +504,32 @@ void BytecodeRegisterOptimizer::PrepareRegisterOperands(
   // For each output register about to be clobbered, materialize an
   // equivalent if it exists. Put each register in it's own equivalence set.
   //
-  int register_operand_bitmap =
-      Bytecodes::GetRegisterOperandBitmap(node->bytecode());
+  const uint32_t* operands = node->operands();
+  int operand_count = node->operand_count();
   const OperandType* operand_types =
       Bytecodes::GetOperandTypes(node->bytecode());
-  uint32_t* operands = node->operands();
-  for (int i = 0; register_operand_bitmap != 0;
-       ++i, register_operand_bitmap >>= 1) {
-    if ((register_operand_bitmap & 1) == 0) {
-      continue;
-    }
-    OperandType operand_type = operand_types[i];
-    int count = 0;
+  for (int i = 0; i < operand_count; ++i) {
+    int count;
+    // operand_types is terminated by OperandType::kNone so this does not
+    // go out of bounds.
     if (operand_types[i + 1] == OperandType::kRegCount) {
       count = static_cast<int>(operands[i + 1]);
-      if (count == 0) {
-        continue;
-      }
     } else {
-      count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
+      count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
+    }
+
+    if (count == 0) {
+      continue;
     }
 
     Register reg = Register::FromOperand(static_cast<int32_t>(operands[i]));
-    if (Bytecodes::IsRegisterInputOperandType(operand_type)) {
+    if (Bytecodes::IsRegisterInputOperandType(operand_types[i])) {
       if (count == 1) {
         PrepareRegisterInputOperand(node, reg, i);
       } else if (count > 1) {
         PrepareRegisterRangeInputOperand(reg, count);
       }
-    } else if (Bytecodes::IsRegisterOutputOperandType(operand_type)) {
+    } else if (Bytecodes::IsRegisterOutputOperandType(operand_types[i])) {
       PrepareRegisterRangeOutputOperand(reg, count);
     }
   }

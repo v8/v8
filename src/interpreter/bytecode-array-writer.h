@@ -36,6 +36,13 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
       Handle<FixedArray> handler_table) override;
 
  private:
+  // Maximum sized packed bytecode is comprised of a prefix bytecode,
+  // plus the actual bytecode, plus the maximum number of operands times
+  // the maximum operand size.
+  static const size_t kMaxSizeOfPackedBytecode =
+      2 * sizeof(Bytecode) +
+      Bytecodes::kMaxOperands * static_cast<size_t>(OperandSize::kLast);
+
   // Constants that act as placeholders for jump operands to be
   // patched. These have operand sizes that match the sizes of
   // reserved constant pool entries.

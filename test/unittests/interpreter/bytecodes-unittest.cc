@@ -93,33 +93,6 @@ TEST(OperandScaling, ScalableAndNonScalable) {
   }
 }
 
-TEST(Bytecodes, HasAnyRegisterOperands) {
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kAdd), 1);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kCall), 2);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kCallRuntime), 1);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kCallRuntimeForPair),
-           2);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kDeletePropertyStrict),
-           1);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kForInPrepare), 1);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kInc), 0);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kJumpIfTrue), 0);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kNew), 2);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kToName), 0);
-}
-
-TEST(Bytecodes, RegisterOperandBitmaps) {
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kAdd), 1);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kCallRuntimeForPair),
-           10);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kStar), 1);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kMov), 3);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kTestIn), 1);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInPrepare), 1);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInDone), 3);
-  CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInNext), 7);
-}
-
 TEST(Bytecodes, RegisterOperands) {
   CHECK(Bytecodes::IsRegisterOperandType(OperandType::kReg));
   CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::kReg));
