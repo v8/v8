@@ -647,8 +647,9 @@ class Ticker: public sampler::Sampler {
     v8::Isolate* v8_isolate = isolate();
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
 #if defined(USE_SIMULATOR)
-    SimulatorHelper::FillRegisters(isolate,
-                                   const_cast<v8::RegisterState*>(&state));
+    if (!SimulatorHelper::FillRegisters(isolate,
+                                        const_cast<v8::RegisterState*>(&state)))
+      return;
 #endif
     TickSample* sample = isolate->cpu_profiler()->StartTickSample();
     TickSample sample_obj;

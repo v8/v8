@@ -125,7 +125,8 @@ bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
   if (sample_info->vm_state == GC) return true;
 
   Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) return true;  // Not executing JS now.
+  if (js_entry_sp == nullptr) return true;  // Not executing JS now.
+  DCHECK(regs.sp);
 
   if (regs.pc && IsNoFrameRegion(static_cast<Address>(regs.pc))) {
     // Can't collect stack.

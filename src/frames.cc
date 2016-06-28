@@ -304,7 +304,8 @@ bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
   if (!IsValidStackAddress(sp)) return false;
   StackFrame::State state;
   ExitFrame::FillState(fp, sp, &state);
-  return *state.pc_address != NULL;
+  MSAN_MEMORY_IS_INITIALIZED(state.pc_address, sizeof(state.pc_address));
+  return *state.pc_address != nullptr;
 }
 
 
@@ -414,11 +415,9 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
   DCHECK(state->fp != NULL);
 
-#if defined(USE_SIMULATOR)
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
       kPointerSize);
-#endif
   Object* marker = Memory::Object_at(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (!iterator->can_access_heap_objects_) {
@@ -427,10 +426,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // the VM with a signal at any arbitrary instruction, with essentially
     // anything on the stack. So basically none of these checks are 100%
     // reliable.
-#if defined(USE_SIMULATOR)
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
-#endif
     Object* maybe_function =
         Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
     if (!marker->IsSmi()) {
@@ -607,9 +604,7 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
 }
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-#if defined(USE_SIMULATOR)
   MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset, kPointerSize);
-#endif
   return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 

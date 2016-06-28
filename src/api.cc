@@ -7550,7 +7550,12 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
   regs.pc = state.pc;
   regs.sp = state.sp;
   regs.fp = state.fp;
-  i::SimulatorHelper::FillRegisters(isolate, &regs);
+  if (!i::SimulatorHelper::FillRegisters(isolate, &regs)) {
+    sample_info->frames_count = 0;
+    sample_info->vm_state = OTHER;
+    sample_info->external_callback_entry = nullptr;
+    return;
+  }
 #else
   const RegisterState& regs = state;
 #endif
