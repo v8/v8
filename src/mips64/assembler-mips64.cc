@@ -204,7 +204,6 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm64_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {

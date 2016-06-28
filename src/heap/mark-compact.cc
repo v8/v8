@@ -1569,6 +1569,9 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Code* host = rinfo->host();
+    // The target is always in old space, we don't have to record the slot in
+    // the old-to-new remembered set.
+    DCHECK(!collector_->heap()->InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1577,6 +1580,9 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
            rinfo->IsPatchedDebugBreakSlotSequence());
     Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
     Code* host = rinfo->host();
+    // The target is always in old space, we don't have to record the slot in
+    // the old-to-new remembered set.
+    DCHECK(!collector_->heap()->InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1584,6 +1590,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* object = HeapObject::cast(rinfo->target_object());
     Code* host = rinfo->host();
+    collector_->heap()->RecordWriteIntoCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 
@@ -1591,6 +1598,9 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
     Cell* cell = rinfo->target_cell();
     Code* host = rinfo->host();
+    // The cell is always in old space, we don't have to record the slot in
+    // the old-to-new remembered set.
+    DCHECK(!collector_->heap()->InNewSpace(cell));
     collector_->RecordRelocSlot(host, rinfo, cell);
   }
 
@@ -2456,6 +2466,35 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization(
     current = current->next_link();
   }
 
+  {
+    ArrayList* list = heap_->weak_new_space_object_to_code_list();
+    int counter = 0;
+    for (int i = 0; i < list->Length(); i += 2) {
+      WeakCell* obj = WeakCell::cast(list->Get(i));
+      WeakCell* dep = WeakCell::cast(list->Get(i + 1));
+      if (obj->cleared() || dep->cleared()) {
+        if (!dep->cleared()) {
+          Code* code = Code::cast(dep->value());
+          if (!code->marked_for_deoptimization()) {
+            DependentCode::SetMarkedForDeoptimization(
+                code, DependentCode::DependencyGroup::kWeakCodeGroup);
+            code->InvalidateEmbeddedObjects();
+            have_code_to_deoptimize_ = true;
+          }
+        }
+      } else {
+        // We record the slot manually because marking is finished at this
+        // point and the write barrier would bailout.
+        list->Set(counter, obj, SKIP_WRITE_BARRIER);
+        RecordSlot(list, list->Slot(counter), obj);
+        counter++;
+        list->Set(counter, dep, SKIP_WRITE_BARRIER);
+        RecordSlot(list, list->Slot(counter), dep);
+        counter++;
+      }
+    }
+  }
+
   WeakHashTable* table = heap_->weak_object_to_code_table();
   uint32_t capacity = table->Capacity();
   for (uint32_t i = 0; i < capacity; i++) {
@@ -2800,30 +2839,16 @@ void MarkCompactCollector::AbortTransitionArrays() {
   heap()->set_encountered_transition_arrays(Smi::FromInt(0));
 }
 
-static inline SlotType SlotTypeForRMode(RelocInfo::Mode rmode) {
-  if (RelocInfo::IsCodeTarget(rmode)) {
-    return CODE_TARGET_SLOT;
-  } else if (RelocInfo::IsCell(rmode)) {
-    return CELL_TARGET_SLOT;
-  } else if (RelocInfo::IsEmbeddedObject(rmode)) {
-    return EMBEDDED_OBJECT_SLOT;
-  } else if (RelocInfo::IsDebugBreakSlot(rmode)) {
-    return DEBUG_TARGET_SLOT;
-  }
-  UNREACHABLE();
-  return NUMBER_OF_SLOT_TYPES;
-}
-
 void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
                                            Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
-  RelocInfo::Mode rmode = rinfo->rmode();
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host() == NULL ||
        !ShouldSkipEvacuationSlotRecording(rinfo->host()))) {
+    RelocInfo::Mode rmode = rinfo->rmode();
     Address addr = rinfo->pc();
-    SlotType slot_type = SlotTypeForRMode(rmode);
+    SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
     if (rinfo->IsInConstantPool()) {
       addr = rinfo->constant_pool_entry_address();
       if (RelocInfo::IsCodeTarget(rmode)) {
@@ -3447,6 +3472,12 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
 }
 
 void MarkCompactCollector::InvalidateCode(Code* code) {
+  Page* page = Page::FromAddress(code->address());
+  Address start = code->instruction_start();
+  Address end = code->address() + code->Size();
+
+  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, start, end);
+
   if (heap_->incremental_marking()->IsCompacting() &&
       !ShouldSkipEvacuationSlotRecording(code)) {
     DCHECK(compacting_);
@@ -3458,11 +3489,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
     // Ignore all slots that might have been recorded in the body of the
     // deoptimized code object. Assumption: no slots will be recorded for
     // this object after invalidating it.
-    Page* page = Page::FromAddress(code->address());
-    Address start = code->instruction_start();
-    Address end = code->address() + code->Size();
     RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(page, start, end);
-    RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, start, end);
   }
 }
 
@@ -3502,6 +3529,10 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
         if (page->old_to_new_slots() != nullptr) {
           page->old_to_new_slots()->RemoveRange(
               0, static_cast<int>(object->address() - page->address()));
+        }
+        if (page->typed_old_to_new_slots() != nullptr) {
+          RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
+                                                      object->address());
         }
         RecomputeLiveBytes(page);
       }
@@ -3684,11 +3715,10 @@ class PointerUpdateJobTraits {
         return KEEP_SLOT;
       }
     } else if (heap->InToSpace(*slot)) {
-      DCHECK(Page::FromAddress(reinterpret_cast<HeapObject*>(*slot)->address())
-                 ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-      // Slots can be in "to" space after a page has been moved. Since there is
-      // no forwarding information present we need to check the markbits to
-      // determine liveness.
+      // Slots can point to "to" space if the page has been moved, or if the
+      // slot has been recorded multiple times in the remembered set. Since
+      // there is no forwarding information present we need to check the
+      // markbits to determine liveness.
       if (Marking::IsBlack(
               Marking::MarkBitFrom(reinterpret_cast<HeapObject*>(*slot))))
         return KEEP_SLOT;
@@ -4063,6 +4093,9 @@ void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
     MarkBit mark_bit = Marking::MarkBitFrom(host);
     if (Marking::IsBlack(mark_bit)) {
       RelocInfo rinfo(isolate(), pc, RelocInfo::CODE_TARGET, 0, host);
+      // The target is always in old space, we don't have to record the slot in
+      // the old-to-new remembered set.
+      DCHECK(!heap()->InNewSpace(target));
       RecordRelocSlot(host, &rinfo, target);
     }
   }

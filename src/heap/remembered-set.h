@@ -120,7 +120,7 @@ class RememberedSet {
 
   // Given a page and a range of typed slots in that page, this function removes
   // the slots from the remembered set.
-  static void RemoveRangeTyped(Page* page, Address start, Address end) {
+  static void RemoveRangeTyped(MemoryChunk* page, Address start, Address end) {
     TypedSlotSet* slots = GetTypedSlotSet(page);
     if (slots != nullptr) {
       slots->Iterate([start, end](SlotType slot_type, Address host_addr,
@@ -344,6 +344,20 @@ class UpdateTypedSlotHelper {
     return REMOVE_SLOT;
   }
 };
+
+inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
+  if (RelocInfo::IsCodeTarget(rmode)) {
+    return CODE_TARGET_SLOT;
+  } else if (RelocInfo::IsCell(rmode)) {
+    return CELL_TARGET_SLOT;
+  } else if (RelocInfo::IsEmbeddedObject(rmode)) {
+    return EMBEDDED_OBJECT_SLOT;
+  } else if (RelocInfo::IsDebugBreakSlot(rmode)) {
+    return DEBUG_TARGET_SLOT;
+  }
+  UNREACHABLE();
+  return NUMBER_OF_SLOT_TYPES;
+}
 
 }  // namespace internal
 }  // namespace v8

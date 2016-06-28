@@ -927,7 +927,6 @@ class MacroAssembler: public Assembler {
     AllowDeferredHandleDereference using_raw_address;
     DCHECK(!RelocInfo::IsNone(rmode));
     DCHECK(value->IsHeapObject());
-    DCHECK(!isolate()->heap()->InNewSpace(*value));
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 

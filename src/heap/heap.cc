@@ -1469,38 +1469,6 @@ void Heap::MarkCompactPrologue() {
 }
 
 
-#ifdef VERIFY_HEAP
-// Visitor class to verify pointers in code or data space do not point into
-// new space.
-class VerifyNonPointerSpacePointersVisitor : public ObjectVisitor {
- public:
-  explicit VerifyNonPointerSpacePointersVisitor(Heap* heap) : heap_(heap) {}
-
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        CHECK(!heap_->InNewSpace(HeapObject::cast(*current)));
-      }
-    }
-  }
-
- private:
-  Heap* heap_;
-};
-
-
-static void VerifyNonPointerSpacePointers(Heap* heap) {
-  // Verify that there are no pointers to new space in spaces where we
-  // do not expect them.
-  VerifyNonPointerSpacePointersVisitor v(heap);
-  HeapObjectIterator code_it(heap->code_space());
-  for (HeapObject* object = code_it.Next(); object != NULL;
-       object = code_it.Next())
-    object->Iterate(&v);
-}
-#endif  // VERIFY_HEAP
-
-
 void Heap::CheckNewSpaceExpansionCriteria() {
   if (FLAG_experimental_new_space_growth_heuristic) {
     if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
@@ -1612,10 +1580,6 @@ void Heap::Scavenge() {
   PauseAllocationObserversScope pause_observers(this);
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
-#endif
 
   gc_state_ = SCAVENGE;
 
@@ -2859,6 +2823,10 @@ void Heap::CreateInitialObjects() {
       *WeakHashTable::New(isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY,
                           TENURED));
 
+  set_weak_new_space_object_to_code_list(
+      ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
+  weak_new_space_object_to_code_list()->SetLength(0);
+
   set_script_list(Smi::FromInt(0));
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
@@ -2918,7 +2886,6 @@ void Heap::CreateInitialObjects() {
   CreateFixedStubs();
 }
 
-
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
   switch (root_index) {
     case kNumberStringCacheRootIndex:
@@ -2933,6 +2900,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kMicrotaskQueueRootIndex:
     case kDetachedContextsRootIndex:
     case kWeakObjectToCodeTableRootIndex:
+    case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
@@ -5565,6 +5533,18 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallback callback) {
 }
 
 // TODO(ishell): Find a better place for this.
+void Heap::AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
+                                                 Handle<WeakCell> code) {
+  DCHECK(InNewSpace(*obj));
+  DCHECK(!InNewSpace(*code));
+  Handle<ArrayList> list(weak_new_space_object_to_code_list(), isolate());
+  list = ArrayList::Add(list, isolate()->factory()->NewWeakCell(obj), code);
+  if (*list != weak_new_space_object_to_code_list()) {
+    set_weak_new_space_object_to_code_list(*list);
+  }
+}
+
+// TODO(ishell): Find a better place for this.
 void Heap::AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
                                          Handle<DependentCode> dep) {
   DCHECK(!InNewSpace(*obj));
@@ -5717,6 +5697,26 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end);
     RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end);
   }
+}
+
+void Heap::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
+                                   Object* value) {
+  DCHECK(InNewSpace(value));
+  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
+  RelocInfo::Mode rmode = rinfo->rmode();
+  Address addr = rinfo->pc();
+  SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
+  if (rinfo->IsInConstantPool()) {
+    addr = rinfo->constant_pool_entry_address();
+    if (RelocInfo::IsCodeTarget(rmode)) {
+      slot_type = CODE_ENTRY_SLOT;
+    } else {
+      DCHECK(RelocInfo::IsEmbeddedObject(rmode));
+      slot_type = OBJECT_SLOT;
+    }
+  }
+  RememberedSet<OLD_TO_NEW>::InsertTyped(
+      source_page, reinterpret_cast<Address>(host), slot_type, addr);
 }
 
 Space* AllSpaces::next() {

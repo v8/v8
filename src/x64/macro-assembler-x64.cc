@@ -2966,15 +2966,8 @@ void MacroAssembler::Push(Handle<Object> source) {
 
 void MacroAssembler::MoveHeapObject(Register result,
                                     Handle<Object> object) {
-  AllowDeferredHandleDereference using_raw_address;
   DCHECK(object->IsHeapObject());
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    Move(result, cell, RelocInfo::CELL);
-    movp(result, Operand(result, 0));
-  } else {
-    Move(result, object, RelocInfo::EMBEDDED_OBJECT);
-  }
+  Move(result, object, RelocInfo::EMBEDDED_OBJECT);
 }
 
 
