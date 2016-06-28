@@ -58,7 +58,6 @@ class LCodeGen;
   V(ConstantI)                               \
   V(ConstantS)                               \
   V(ConstantT)                               \
-  V(ConstructDouble)                         \
   V(Context)                                 \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
@@ -2354,20 +2353,6 @@ class LDoubleBits final : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
   DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
-};
-
-
-class LConstructDouble final : public LTemplateInstruction<1, 2, 0> {
- public:
-  LConstructDouble(LOperand* hi, LOperand* lo) {
-    inputs_[0] = hi;
-    inputs_[1] = lo;
-  }
-
-  LOperand* hi() { return inputs_[0]; }
-  LOperand* lo() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble, "construct-double")
 };
 
 

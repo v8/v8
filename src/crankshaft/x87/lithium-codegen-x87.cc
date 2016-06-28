@@ -5301,21 +5301,6 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 }
 
 
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  X87Register result_reg = ToX87Register(instr->result());
-  // Follow below pattern to write a x87 fp register.
-  X87PrepareToWrite(result_reg);
-  __ sub(esp, Immediate(kDoubleSize));
-  __ mov(Operand(esp, 0), lo_reg);
-  __ mov(Operand(esp, kPointerSize), hi_reg);
-  __ fld_d(Operand(esp, 0));
-  __ add(esp, Immediate(kDoubleSize));
-  X87CommitWrite(result_reg);
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:
