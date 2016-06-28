@@ -367,7 +367,7 @@ V8_INLINE double __kernel_cos(double x, double y) {
       C5 = 2.08757232129817482790e-09,  /* 0x3E21EE9E, 0xBDB4B1C4 */
       C6 = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
 
-  double a, hz, z, r, qx;
+  double a, iz, z, r, qx;
   int32_t ix;
   GET_HIGH_WORD(ix, x);
   ix &= 0x7fffffff;                           /* ix = |x|'s high word*/
@@ -384,9 +384,9 @@ V8_INLINE double __kernel_cos(double x, double y) {
     } else {
       INSERT_WORDS(qx, ix - 0x00200000, 0); /* x/4 */
     }
-    hz = 0.5 * z - qx;
+    iz = 0.5 * z - qx;
     a = one - qx;
-    return a - (hz - (z * r - x * y));
+    return a - (iz - (z * r - x * y));
   }
 }
 
