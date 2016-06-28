@@ -36,14 +36,34 @@ base::SmartArrayPointer<const char> GetVisualizerLogFileName(
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }
+  EmbeddedVector<char, 256> source_file(0);
+  bool source_available = false;
+  if (FLAG_trace_file_names && info->parse_info()) {
+    Object* source_name = info->script()->name();
+    if (source_name->IsString()) {
+      String* str = String::cast(source_name);
+      if (str->length() > 0) {
+        SNPrintF(source_file, "%s", str->ToCString().get());
+        std::replace(source_file.start(),
+                     source_file.start() + source_file.length(), '/', '_');
+        source_available = true;
+      }
+    }
+  }
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> full_filename;
-  if (phase == nullptr) {
+  if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else {
+  } else if (phase != nullptr && !source_available) {
     SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
+  } else if (phase == nullptr && source_available) {
+    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file.start(),
+             suffix);
+  } else {
+    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(),
+             source_file.start(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.length() + 1];
