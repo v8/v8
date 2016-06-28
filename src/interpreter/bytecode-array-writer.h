@@ -6,14 +6,16 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
 #include "src/interpreter/bytecode-pipeline.h"
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
+
+class SourcePositionTableBuilder;
+
 namespace interpreter {
 
 class BytecodeLabel;
-class SourcePositionTableBuilder;
 class ConstantArrayBuilder;
 
 // Class for emitting bytecode as the final stage of the bytecode

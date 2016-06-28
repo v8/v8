@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

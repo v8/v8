@@ -1452,6 +1452,10 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "deoptimization_data", code->deoptimization_data(),
                        Code::kDeoptimizationDataOffset);
+  TagObject(code->source_position_table(), "(source position table)");
+  SetInternalReference(code, entry, "source_position_table",
+                       code->source_position_table(),
+                       Code::kSourcePositionTableOffset);
   if (code->kind() == Code::FUNCTION) {
     SetInternalReference(code, entry,
                          "type_feedback_info", code->type_feedback_info(),

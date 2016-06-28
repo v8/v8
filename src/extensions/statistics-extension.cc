@@ -138,6 +138,29 @@ void StatisticsExtension::GetCounters(
   AddNumber64(args.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
+
+  HeapIterator iterator(reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+  HeapObject* obj;
+  int reloc_info_total = 0;
+  int source_position_table_total = 0;
+  while ((obj = iterator.next())) {
+    if (obj->IsCode()) {
+      Code* code = Code::cast(obj);
+      reloc_info_total += code->relocation_info()->Size();
+      ByteArray* source_position_table = code->source_position_table();
+      if (source_position_table->length() > 0) {
+        source_position_table_total += code->source_position_table()->Size();
+      }
+    } else if (obj->IsBytecodeArray()) {
+      source_position_table_total +=
+          BytecodeArray::cast(obj)->source_position_table()->Size();
+    }
+  }
+
+  AddNumber(args.GetIsolate(), result, reloc_info_total,
+            "reloc_info_total_size");
+  AddNumber(args.GetIsolate(), result, source_position_table_total,
+            "source_position_table_total_size");
 }
 
 }  // namespace internal

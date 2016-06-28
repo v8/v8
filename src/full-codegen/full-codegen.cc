@@ -45,10 +45,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                       CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
-  LOG_CODE_EVENT(isolate,
-                 CodeStartLinePosInfoRecordEvent(masm.positions_recorder()));
-
   FullCodeGenerator cgen(&masm, info);
+  LOG_CODE_EVENT(isolate, CodeStartLinePosInfoRecordEvent(
+                              &cgen.source_position_table_builder_));
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -65,9 +64,12 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);
+  Handle<ByteArray> source_positions =
+      cgen.source_position_table_builder_.ToSourcePositionTable();
+  code->set_source_position_table(*source_positions);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);
-  void* line_info = masm.positions_recorder()->DetachJITHandlerData();
+  void* line_info = cgen.source_position_table_builder_.DetachJITHandlerData();
   LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(
                               AbstractCode::cast(*code), line_info));
 
@@ -615,19 +617,19 @@ void FullCodeGenerator::EmitHasProperty() {
   RestoreContext();
 }
 
-void RecordStatementPosition(MacroAssembler* masm, int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
-  masm->positions_recorder()->RecordStatementPosition(pos);
+void FullCodeGenerator::RecordStatementPosition(int pos) {
+  DCHECK_NE(RelocInfo::kNoPosition, pos);
+  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, true);
 }
 
-void RecordPosition(MacroAssembler* masm, int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
-  masm->positions_recorder()->RecordPosition(pos);
+void FullCodeGenerator::RecordPosition(int pos) {
+  DCHECK_NE(RelocInfo::kNoPosition, pos);
+  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
 }
 
 
 void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
-  RecordPosition(masm_, fun->start_position());
+  RecordPosition(fun->start_position());
 }
 
 
@@ -635,7 +637,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
   // For default constructors, start position equals end position, and there
   // is no source code besides the class literal.
   int pos = std::max(fun->start_position(), fun->end_position() - 1);
-  RecordStatementPosition(masm_, pos);
+  RecordStatementPosition(pos);
   if (info_->is_debug()) {
     // Always emit a debug break slot before a return.
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
@@ -646,7 +648,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FullCodeGenerator::SetStatementPosition(
     Statement* stmt, FullCodeGenerator::InsertBreak insert_break) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
-  RecordStatementPosition(masm_, stmt->position());
+  RecordStatementPosition(stmt->position());
   if (insert_break == INSERT_BREAK && info_->is_debug() &&
       !stmt->IsDebuggerStatement()) {
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
@@ -655,13 +657,13 @@ void FullCodeGenerator::SetStatementPosition(
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  RecordPosition(masm_, expr->position());
+  RecordPosition(expr->position());
 }
 
 
 void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  RecordStatementPosition(masm_, expr->position());
+  RecordStatementPosition(expr->position());
   if (info_->is_debug()) {
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
   }
@@ -670,7 +672,7 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
 void FullCodeGenerator::SetCallPosition(Expression* expr,
                                         TailCallMode tail_call_mode) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  RecordPosition(masm_, expr->position());
+  RecordPosition(expr->position());
   if (info_->is_debug()) {
     RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
                                ? RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL

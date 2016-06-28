@@ -9,8 +9,8 @@
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/isolate.h"
+#include "src/source-position-table.h"
 #include "src/utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
@@ -145,7 +145,7 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   SourcePositionTableIterator source_iterator(*source_positions);
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
-    CHECK_EQ(source_iterator.bytecode_offset(), expected.bytecode_offset);
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
     CHECK_EQ(source_iterator.source_position(), expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
@@ -241,7 +241,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   SourcePositionTableIterator source_iterator(*source_positions);
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
-    CHECK_EQ(source_iterator.bytecode_offset(), expected.bytecode_offset);
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
     CHECK_EQ(source_iterator.source_position(), expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();

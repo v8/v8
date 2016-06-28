@@ -17,10 +17,12 @@ namespace v8 {
 class Isolate;
 
 namespace internal {
+
+class SourcePositionTableIterator;
+
 namespace interpreter {
 
 class BytecodeArrayIterator;
-class SourcePositionTableIterator;
 
 class BytecodeExpectationsPrinter final {
  public:

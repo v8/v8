@@ -47,6 +47,7 @@ class FullCodeGenerator: public AstVisitor {
                          info->zone()),
         back_edges_(2, info->zone()),
         handler_table_(info->zone()),
+        source_position_table_builder_(info->isolate(), info->zone()),
         ic_total_count_(0) {
     DCHECK(!info->IsStub());
     Initialize();
@@ -685,6 +686,9 @@ class FullCodeGenerator: public AstVisitor {
     SetCallPosition(expr);
   }
 
+  void RecordStatementPosition(int pos);
+  void RecordPosition(int pos);
+
   // Non-local control flow support.
   void EnterTryBlock(int handler_index, Label* handler);
   void ExitTryBlock(int handler_index);
@@ -977,6 +981,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
   ZoneVector<HandlerTableEntry> handler_table_;
+  SourcePositionTableBuilder source_position_table_builder_;
   int ic_total_count_;
   Handle<Cell> profiling_counter_;
 

@@ -16,8 +16,8 @@
 #include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/runtime/runtime.h"
+#include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/v8threads.h"
 
@@ -143,7 +143,6 @@ class BreakLocation {
 
    protected:
     explicit Iterator(Handle<DebugInfo> debug_info);
-    int ReturnPosition();
 
     Isolate* isolate() { return debug_info_->GetIsolate(); }
 
@@ -178,6 +177,8 @@ class BreakLocation {
     RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
 
     RelocIterator reloc_iterator_;
+    SourcePositionTableIterator source_position_iterator_;
+    int start_position_;
     DISALLOW_COPY_AND_ASSIGN(CodeIterator);
   };
 
@@ -191,13 +192,13 @@ class BreakLocation {
     void Next() override;
 
     int code_offset() override {
-      return source_position_iterator_.bytecode_offset();
+      return source_position_iterator_.code_offset();
     }
 
    private:
     DebugBreakType GetDebugBreakType();
 
-    interpreter::SourcePositionTableIterator source_position_iterator_;
+    SourcePositionTableIterator source_position_iterator_;
     BreakLocatorType break_locator_type_;
     int start_position_;
     DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);

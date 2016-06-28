@@ -38,7 +38,6 @@
 #include "src/identity-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
 #include "src/list.h"
@@ -51,6 +50,7 @@
 #include "src/prototype.h"
 #include "src/regexp/jsregexp.h"
 #include "src/safepoint-table.h"
+#include "src/source-position-table.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
@@ -13587,14 +13587,22 @@ void Code::CopyFrom(const CodeDesc& desc) {
 // The position returned is relative to the beginning of the script where the
 // source for this function is found.
 int Code::SourcePosition(int code_offset) {
-  // Subtract one because the current PC is one instruction after the call site.
-  Address pc = instruction_start() + code_offset - 1;
   int position = RelocInfo::kNoPosition;  // Initially no position found.
+  // Subtract one because the current PC is one instruction after the call site.
+  code_offset--;
   // Find the closest position attached to a pc lower or equal to the current.
   // Note that the pc of reloc infos grow monotonically.
-  for (RelocIterator it(this, RelocInfo::kPositionMask);
-       !it.done() && it.rinfo()->pc() <= pc; it.next()) {
-    position = static_cast<int>(it.rinfo()->data());
+  if (kind() == FUNCTION) {
+    for (SourcePositionTableIterator it(source_position_table());
+         !it.done() && it.code_offset() <= code_offset; it.Advance()) {
+      position = it.source_position();
+    }
+  } else {
+    Address pc = instruction_start() + code_offset;
+    for (RelocIterator it(this, RelocInfo::kPositionMask);
+         !it.done() && it.rinfo()->pc() <= pc; it.next()) {
+      position = static_cast<int>(it.rinfo()->data());
+    }
   }
   DCHECK(kind() == FUNCTION || (is_optimized_code() && is_turbofanned()) ||
          is_wasm_code() || position == RelocInfo::kNoPosition);
@@ -13609,12 +13617,24 @@ int Code::SourceStatementPosition(int code_offset) {
   int position = SourcePosition(code_offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  for (RelocIterator it(this, RelocInfo::kPositionMask); !it.done();
-       it.next()) {
-    if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
-      int p = static_cast<int>(it.rinfo()->data());
-      if (statement_position < p && p <= position) {
-        statement_position = p;
+  if (kind() == FUNCTION) {
+    for (SourcePositionTableIterator it(source_position_table()); !it.done();
+         it.Advance()) {
+      if (it.is_statement()) {
+        int p = it.source_position();
+        if (statement_position < p && p <= position) {
+          statement_position = p;
+        }
+      }
+    }
+  } else {
+    for (RelocIterator it(this, RelocInfo::kPositionMask); !it.done();
+         it.next()) {
+      if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
+        int p = static_cast<int>(it.rinfo()->data());
+        if (statement_position < p && p <= position) {
+          statement_position = p;
+        }
       }
     }
   }
@@ -14419,9 +14439,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 
 int BytecodeArray::SourcePosition(int offset) {
   int last_position = 0;
-  for (interpreter::SourcePositionTableIterator iterator(
-           source_position_table());
-       !iterator.done() && iterator.bytecode_offset() <= offset;
+  for (SourcePositionTableIterator iterator(source_position_table());
+       !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
     last_position = iterator.source_position();
   }
@@ -14433,8 +14452,8 @@ int BytecodeArray::SourceStatementPosition(int offset) {
   int position = SourcePosition(offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  for (interpreter::SourcePositionTableIterator it(source_position_table());
-       !it.done(); it.Advance()) {
+  for (SourcePositionTableIterator it(source_position_table()); !it.done();
+       it.Advance()) {
     if (it.is_statement()) {
       int p = it.source_position();
       if (statement_position < p && p <= position) {
@@ -14450,13 +14469,12 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
 
   const uint8_t* base_address = GetFirstBytecodeAddress();
-  interpreter::SourcePositionTableIterator source_positions(
-      source_position_table());
+  SourcePositionTableIterator source_positions(source_position_table());
 
   interpreter::BytecodeArrayIterator iterator(handle(this));
   while (!iterator.done()) {
     if (!source_positions.done() &&
-        iterator.current_offset() == source_positions.bytecode_offset()) {
+        iterator.current_offset() == source_positions.code_offset()) {
       os << std::setw(5) << source_positions.source_position();
       os << (source_positions.is_statement() ? " S> " : " E> ");
       source_positions.Advance();

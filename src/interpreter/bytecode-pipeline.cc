@@ -5,7 +5,7 @@
 #include "src/interpreter/bytecode-pipeline.h"
 
 #include <iomanip>
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {

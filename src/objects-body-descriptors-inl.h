@@ -355,6 +355,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kHandlerTableOffset + kPointerSize ==
                 kDeoptimizationDataOffset);
   STATIC_ASSERT(kDeoptimizationDataOffset + kPointerSize ==
+                kSourcePositionTableOffset);
+  STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
                 kTypeFeedbackInfoOffset);
   STATIC_ASSERT(kTypeFeedbackInfoOffset + kPointerSize == kNextCodeLinkOffset);
 

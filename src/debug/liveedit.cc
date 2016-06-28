@@ -13,10 +13,10 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"
+#include "src/source-position-table.h"
 #include "src/v8.h"
 #include "src/v8memory.h"
 
@@ -1196,62 +1196,22 @@ class RelocInfoBuffer {
 };
 
 namespace {
-// Patch positions in code (changes relocation info section) and possibly
-// returns new instance of code.
-Handle<Code> PatchPositionsInCode(Handle<Code> code,
-                                  Handle<JSArray> position_change_array) {
-  Isolate* isolate = code->GetIsolate();
-
-  RelocInfoBuffer buffer_writer(code->relocation_size(),
-                                code->instruction_start());
-
-  {
-    for (RelocIterator it(*code); !it.done(); it.next()) {
-      RelocInfo* rinfo = it.rinfo();
-      if (RelocInfo::IsPosition(rinfo->rmode())) {
-        int position = static_cast<int>(rinfo->data());
-        int new_position = TranslatePosition(position,
-                                             position_change_array);
-        if (position != new_position) {
-          RelocInfo info_copy(rinfo->isolate(), rinfo->pc(), rinfo->rmode(),
-                              new_position, NULL);
-          buffer_writer.Write(&info_copy);
-          continue;
-        }
-      }
-      if (RelocInfo::IsRealRelocMode(rinfo->rmode())) {
-        buffer_writer.Write(it.rinfo());
-      }
-    }
-  }
-
-  Vector<byte> buffer = buffer_writer.GetResult();
-  Handle<ByteArray> reloc_info =
-      isolate->factory()->NewByteArray(buffer.length(), TENURED);
-
-  DisallowHeapAllocation no_gc;
-  code->set_relocation_info(*reloc_info);
-  CopyBytes(code->relocation_start(), buffer.start(), buffer.length());
-  return code;
-}
-
-void PatchPositionsInBytecodeArray(Handle<BytecodeArray> bytecode,
-                                   Handle<JSArray> position_change_array) {
-  Isolate* isolate = bytecode->GetIsolate();
+Handle<ByteArray> TranslateSourcePositionTable(
+    Handle<ByteArray> source_position_table,
+    Handle<JSArray> position_change_array) {
+  Isolate* isolate = source_position_table->GetIsolate();
   Zone zone(isolate->allocator());
-  interpreter::SourcePositionTableBuilder builder(isolate, &zone);
+  SourcePositionTableBuilder builder(isolate, &zone);
 
-  for (interpreter::SourcePositionTableIterator iterator(
-           bytecode->source_position_table());
+  for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     int position = iterator.source_position();
     int new_position = TranslatePosition(position, position_change_array);
-    builder.AddPosition(iterator.bytecode_offset(), new_position,
+    builder.AddPosition(iterator.code_offset(), new_position,
                         iterator.is_statement());
   }
 
-  Handle<ByteArray> source_position_table = builder.ToSourcePositionTable();
-  bytecode->set_source_position_table(*source_position_table);
+  return builder.ToSourcePositionTable();
 }
 }  // namespace
 
@@ -1273,20 +1233,22 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_function_token_position(new_function_token_pos);
 
   if (info->code()->kind() == Code::FUNCTION) {
-    // Patch relocation info section of the code.
-    Handle<Code> patched_code = PatchPositionsInCode(Handle<Code>(info->code()),
-                                                     position_change_array);
-    if (*patched_code != info->code()) {
-      // Replace all references to the code across the heap. In particular,
-      // some stubs may refer to this code and this code may be being executed
-      // on stack (it is safe to substitute the code object on stack, because
-      // we only change the structure of rinfo and leave instructions
-      // untouched).
-      ReplaceCodeObject(Handle<Code>(info->code()), patched_code);
-    }
+    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
+        Handle<ByteArray>(info->code()->source_position_table()),
+        position_change_array);
+    info->code()->set_source_position_table(*new_source_position_table);
   } else if (info->HasBytecodeArray()) {
-    PatchPositionsInBytecodeArray(Handle<BytecodeArray>(info->bytecode_array()),
-                                  position_change_array);
+    Handle<ByteArray> new_source_position_table = TranslateSourcePositionTable(
+        Handle<ByteArray>(info->bytecode_array()->source_position_table()),
+        position_change_array);
+    info->bytecode_array()->set_source_position_table(
+        *new_source_position_table);
+  }
+
+  if (info->HasDebugInfo()) {
+    // Existing break points will be re-applied. Reset the debug info here.
+    info->GetIsolate()->debug()->RemoveDebugInfoAndClearFromShared(
+        handle(info->GetDebugInfo()));
   }
 }
 

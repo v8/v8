@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
-namespace interpreter {
 
 // We'll use a simple encoding scheme to record the source positions.
 // Conceptually, each position consists of:
-// - bytecode_offset: An integer index into the BytecodeArray
+// - code_offset: An integer index into the BytecodeArray or code.
 // - source_position: An integer index into the source string.
 // - position type: Each position is either a statement or an expression.
 //
@@ -21,7 +20,7 @@ namespace interpreter {
 // where each byte contains 7 bits of payload data, and 1 'more' bit that
 // determines whether additional bytes follow. Additionally:
 // - we record the difference from the previous position,
-// - we just stuff one bit for the type into the bytecode offset,
+// - we just stuff one bit for the type into the code offset,
 // - we write least-significant bits first,
 // - we use zig-zag encoding to encode both positive and negative numbers.
 
@@ -34,7 +33,7 @@ class ValueBits : public BitField8<unsigned, 0, 7> {};
 // Helper: Add the offsets from 'other' to 'value'. Also set is_statement.
 void AddAndSetEntry(PositionTableEntry& value,
                     const PositionTableEntry& other) {
-  value.bytecode_offset += other.bytecode_offset;
+  value.code_offset += other.code_offset;
   value.source_position += other.source_position;
   value.is_statement = other.is_statement;
 }
@@ -42,7 +41,7 @@ void AddAndSetEntry(PositionTableEntry& value,
 // Helper: Substract the offsets from 'other' from 'value'.
 void SubtractFromEntry(PositionTableEntry& value,
                        const PositionTableEntry& other) {
-  value.bytecode_offset -= other.bytecode_offset;
+  value.code_offset -= other.code_offset;
   value.source_position -= other.source_position;
 }
 
@@ -64,11 +63,11 @@ void EncodeInt(ZoneVector<byte>& bytes, int value) {
 
 // Encode a PositionTableEntry.
 void EncodeEntry(ZoneVector<byte>& bytes, const PositionTableEntry& entry) {
-  // We only accept ascending bytecode offsets.
-  DCHECK(entry.bytecode_offset >= 0);
-  // Since bytecode_offset is not negative, we use sign to encode is_statement.
-  EncodeInt(bytes, entry.is_statement ? entry.bytecode_offset
-                                      : -entry.bytecode_offset - 1);
+  // We only accept ascending code offsets.
+  DCHECK(entry.code_offset >= 0);
+  // Since code_offset is not negative, we use sign to encode is_statement.
+  EncodeInt(bytes,
+            entry.is_statement ? entry.code_offset : -entry.code_offset - 1);
   EncodeInt(bytes, entry.source_position);
 }
 
@@ -94,20 +93,20 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
   DecodeInt(bytes, index, &tmp);
   if (tmp >= 0) {
     entry->is_statement = true;
-    entry->bytecode_offset = tmp;
+    entry->code_offset = tmp;
   } else {
     entry->is_statement = false;
-    entry->bytecode_offset = -(tmp + 1);
+    entry->code_offset = -(tmp + 1);
   }
   DecodeInt(bytes, index, &entry->source_position);
 }
 
 }  // namespace
 
-void SourcePositionTableBuilder::AddPosition(size_t bytecode_offset,
+void SourcePositionTableBuilder::AddPosition(size_t code_offset,
                                              int source_position,
                                              bool is_statement) {
-  int offset = static_cast<int>(bytecode_offset);
+  int offset = static_cast<int>(code_offset);
   AddEntry({offset, source_position, is_statement});
 }
 
@@ -119,11 +118,11 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 
   if (entry.is_statement) {
     LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddStatementPositionEvent(
-                                 jit_handler_data_, entry.bytecode_offset,
+                                 jit_handler_data_, entry.code_offset,
                                  entry.source_position));
   }
   LOG_CODE_EVENT(isolate_, CodeLinePosInfoAddPositionEvent(
-                               jit_handler_data_, entry.bytecode_offset,
+                               jit_handler_data_, entry.code_offset,
                                entry.source_position));
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -146,7 +145,7 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
   for (SourcePositionTableIterator encoded(*table); !encoded.done();
        encoded.Advance(), raw++) {
     DCHECK(raw != raw_entries_.end());
-    DCHECK_EQ(encoded.bytecode_offset(), raw->bytecode_offset);
+    DCHECK_EQ(encoded.code_offset(), raw->code_offset);
     DCHECK_EQ(encoded.source_position(), raw->source_position);
     DCHECK_EQ(encoded.is_statement(), raw->is_statement);
   }
@@ -173,6 +172,5 @@ void SourcePositionTableIterator::Advance() {
   }
 }
 
-}  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INTERPRETER_SOURCE_POSITION_TABLE_H_
-#define V8_INTERPRETER_SOURCE_POSITION_TABLE_H_
+#ifndef V8_SOURCE_POSITION_TABLE_H_
+#define V8_SOURCE_POSITION_TABLE_H_
 
 #include "src/assert-scope.h"
 #include "src/checks.h"
@@ -19,17 +19,13 @@ class ByteArray;
 class Isolate;
 class Zone;
 
-namespace interpreter {
-
 struct PositionTableEntry {
   PositionTableEntry()
-      : bytecode_offset(0), source_position(0), is_statement(false) {}
-  PositionTableEntry(int bytecode, int source, bool statement)
-      : bytecode_offset(bytecode),
-        source_position(source),
-        is_statement(statement) {}
+      : code_offset(0), source_position(0), is_statement(false) {}
+  PositionTableEntry(int offset, int source, bool statement)
+      : code_offset(offset), source_position(source), is_statement(statement) {}
 
-  int bytecode_offset;
+  int code_offset;
   int source_position;
   bool is_statement;
 };
@@ -45,8 +41,7 @@ class SourcePositionTableBuilder final : public PositionsRecorder {
         previous_() {
   }
 
-  void AddPosition(size_t bytecode_offset, int source_position,
-                   bool is_statement);
+  void AddPosition(size_t code_offset, int source_position, bool is_statement);
   Handle<ByteArray> ToSourcePositionTable();
 
  private:
@@ -58,7 +53,7 @@ class SourcePositionTableBuilder final : public PositionsRecorder {
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
-  PositionTableEntry previous_;   // Previously written entry, to compute delta.
+  PositionTableEntry previous_;  // Previously written entry, to compute delta.
 };
 
 class SourcePositionTableIterator {
@@ -67,9 +62,9 @@ class SourcePositionTableIterator {
 
   void Advance();
 
-  int bytecode_offset() const {
+  int code_offset() const {
     DCHECK(!done());
-    return current_.bytecode_offset;
+    return current_.code_offset;
   }
   int source_position() const {
     DCHECK(!done());
@@ -90,8 +85,7 @@ class SourcePositionTableIterator {
   DisallowHeapAllocation no_gc;
 };
 
-}  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_INTERPRETER_SOURCE_POSITION_TABLE_H_
+#endif  // V8_SOURCE_POSITION_TABLE_H_

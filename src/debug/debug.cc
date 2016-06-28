@@ -66,7 +66,20 @@ BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, DebugBreakType type,
       code_offset_(code_offset),
       type_(type),
       position_(position),
-      statement_position_(statement_position) {}
+      statement_position_(statement_position) {
+#ifdef DEBUG
+  if (type == DEBUG_BREAK_SLOT_AT_RETURN) {
+    int return_position = 0;
+    SharedFunctionInfo* shared = debug_info->shared();
+    if (shared->HasSourceCode()) {
+      return_position =
+          std::max(shared->end_position() - shared->start_position() - 1, 0);
+    }
+    CHECK_EQ(return_position, position);
+    CHECK_EQ(return_position, statement_position);
+  }
+#endif  // DEBUG
+}
 
 BreakLocation::Iterator* BreakLocation::GetIterator(
     Handle<DebugInfo> debug_info, BreakLocatorType type) {
@@ -83,20 +96,14 @@ BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info)
       position_(1),
       statement_position_(1) {}
 
-int BreakLocation::Iterator::ReturnPosition() {
-  if (debug_info_->shared()->HasSourceCode()) {
-    return debug_info_->shared()->end_position() -
-           debug_info_->shared()->start_position() - 1;
-  } else {
-    return 0;
-  }
-}
-
 BreakLocation::CodeIterator::CodeIterator(Handle<DebugInfo> debug_info,
                                           BreakLocatorType type)
     : Iterator(debug_info),
       reloc_iterator_(debug_info->abstract_code()->GetCode(),
-                      GetModeMask(type)) {
+                      GetModeMask(type)),
+      source_position_iterator_(
+          debug_info->abstract_code()->GetCode()->source_position_table()),
+      start_position_(debug_info_->shared()->start_position()) {
   // There is at least one break location.
   DCHECK(!Done());
   Next();
@@ -104,8 +111,6 @@ BreakLocation::CodeIterator::CodeIterator(Handle<DebugInfo> debug_info,
 
 int BreakLocation::CodeIterator::GetModeMask(BreakLocatorType type) {
   int mask = 0;
-  mask |= RelocInfo::ModeMask(RelocInfo::POSITION);
-  mask |= RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   if (isolate()->is_tail_call_elimination_enabled()) {
@@ -124,37 +129,23 @@ void BreakLocation::CodeIterator::Next() {
 
   // Iterate through reloc info stopping at each breakable code target.
   bool first = break_index_ == -1;
-  while (!Done()) {
-    if (!first) reloc_iterator_.next();
-    first = false;
-    if (Done()) return;
 
-    // Whenever a statement position or (plain) position is passed update the
-    // current value of these.
-    if (RelocInfo::IsPosition(rmode())) {
-      if (RelocInfo::IsStatementPosition(rmode())) {
-        statement_position_ = static_cast<int>(
-            rinfo()->data() - debug_info_->shared()->start_position());
-      }
-      // Always update the position as we don't want that to be before the
-      // statement position.
-      position_ = static_cast<int>(rinfo()->data() -
-                                   debug_info_->shared()->start_position());
-      DCHECK(position_ >= 0);
-      DCHECK(statement_position_ >= 0);
-      continue;
+  if (!first) reloc_iterator_.next();
+  first = false;
+  if (Done()) return;
+
+  int offset = code_offset();
+  while (!source_position_iterator_.done() &&
+         source_position_iterator_.code_offset() <= offset) {
+    position_ = source_position_iterator_.source_position() - start_position_;
+    if (source_position_iterator_.is_statement()) {
+      statement_position_ = position_;
     }
-
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
-           RelocInfo::IsDebuggerStatement(rmode()));
-
-    if (RelocInfo::IsDebugBreakSlotAtReturn(rmode())) {
-      // Set the positions to the end of the function.
-      statement_position_ = position_ = ReturnPosition();
-    }
-
-    break;
+    source_position_iterator_.Advance();
   }
+
+  DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
+         RelocInfo::IsDebuggerStatement(rmode()));
   break_index_++;
 }
 
@@ -214,11 +205,7 @@ void BreakLocation::BytecodeArrayIterator::Next() {
 
     DCHECK_EQ(CALLS_AND_RETURNS, break_locator_type_);
     if (type == DEBUG_BREAK_SLOT_AT_CALL) break;
-    if (type == DEBUG_BREAK_SLOT_AT_RETURN) {
-      DCHECK_EQ(ReturnPosition(), position_);
-      DCHECK_EQ(ReturnPosition(), statement_position_);
-      break;
-    }
+    if (type == DEBUG_BREAK_SLOT_AT_RETURN) break;
   }
   break_index_++;
 }

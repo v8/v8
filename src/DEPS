@@ -12,7 +12,6 @@ include_rules = [
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",
-  "+src/interpreter/source-position-table.h",
   "-src/libplatform",
   "-include/libplatform"
 ]
