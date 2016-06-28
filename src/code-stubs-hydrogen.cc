@@ -470,7 +470,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
   // point and wasn't caught since it wasn't built in the snapshot. We should
   // probably just replace with a TurboFan stub rather than fixing it.
-#if !V8_TARGET_ARCH_IA32
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   // This stub is very performance sensitive, the generated code must be tuned
   // so that it doesn't build and eager frame.
   info()->MarkMustNotHaveEagerFrame();
@@ -2069,7 +2069,7 @@ HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
   // point and wasn't caught since it wasn't built in the snapshot. We should
   // probably just replace with a TurboFan stub rather than fixing it.
-#if !V8_TARGET_ARCH_IA32
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   info()->MarkMustNotHaveEagerFrame();
 #endif
 
