@@ -361,6 +361,11 @@ WasmDebugInfo* GetDebugInfo(JSObject* wasm);
 // else.
 bool IsWasmObject(Object* object);
 
+// Update memory references of code objects associated with the module
+bool UpdateWasmModuleMemory(JSObject* object, Address old_start,
+                            Address new_start, uint32_t old_size,
+                            uint32_t new_size);
+
 namespace testing {
 
 // Decode, verify, and run the function labeled "main" in the
@@ -369,7 +374,6 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end, bool asm_js = false);
 
 }  // namespace testing
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -881,6 +881,8 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildI64UConvertF32(input, position);
     case wasm::kExprI64UConvertF64:
       return BuildI64UConvertF64(input, position);
+    case wasm::kExprGrowMemory:
+      return BuildGrowMemory(input);
     case wasm::kExprI32AsmjsLoadMem8S:
       return BuildAsmjsLoadMem(MachineType::Int8(), input);
     case wasm::kExprI32AsmjsLoadMem8U:
@@ -1569,6 +1571,32 @@ Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
                        *effect_, *control_);
   *effect_ = load;
   return load;
+}
+
+Node* WasmGraphBuilder::BuildGrowMemory(Node* input) {
+  Runtime::FunctionId function_id = Runtime::kWasmGrowMemory;
+  const Runtime::Function* function = Runtime::FunctionForId(function_id);
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      jsgraph()->zone(), function_id, function->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  Node** control_ptr = control_;
+  Node** effect_ptr = effect_;
+  wasm::ModuleEnv* module = module_;
+  input = BuildChangeUint32ToSmi(input);
+  Node* inputs[] = {
+      jsgraph()->CEntryStubConstant(function->result_size), input,  // C entry
+      jsgraph()->ExternalConstant(
+          ExternalReference(function_id, jsgraph()->isolate())),  // ref
+      jsgraph()->Int32Constant(function->nargs),                  // arity
+      jsgraph()->HeapConstant(module->instance->context),         // context
+      *effect_ptr,
+      *control_ptr};
+  Node* node = graph()->NewNode(jsgraph()->common()->Call(desc),
+                                static_cast<int>(arraysize(inputs)), inputs);
+  *control_ptr = node;
+  *effect_ptr = node;
+  node = BuildChangeSmiToInt32(node);
+  return node;
 }
 
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
@@ -2283,6 +2311,15 @@ Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
   return value;
 }
 
+Node* WasmGraphBuilder::BuildChangeUint32ToSmi(Node* value) {
+  if (jsgraph()->machine()->Is64()) {
+    value =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), value);
+  }
+  return graph()->NewNode(jsgraph()->machine()->WordShl(), value,
+                          BuildSmiShiftBitsConstant());
+}
+
 Node* WasmGraphBuilder::BuildChangeSmiToFloat64(Node* value) {
   return graph()->NewNode(jsgraph()->machine()->ChangeInt32ToFloat64(),
                           BuildChangeSmiToInt32(value));
@@ -2588,7 +2625,6 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                 jsgraph()->RelocatableInt32Constant(
                                     static_cast<uint32_t>(effective_size),
                                     RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
-
   trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 }
 

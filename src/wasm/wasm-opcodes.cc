@@ -75,6 +75,7 @@ static void InitSigTable() {
 #define SET_SIG_TABLE(name, opcode, sig) \
   kSimpleExprSigTable[opcode] = static_cast<int>(kSigEnum_##sig) + 1;
   FOREACH_SIMPLE_OPCODE(SET_SIG_TABLE);
+  FOREACH_SIMPLE_MEM_OPCODE(SET_SIG_TABLE);
   FOREACH_ASMJS_COMPAT_OPCODE(SET_SIG_TABLE);
 #undef SET_SIG_TABLE
 }

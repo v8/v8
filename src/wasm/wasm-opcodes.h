@@ -116,9 +116,10 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32StoreMem, 0x35, f_if)        \
   V(F64StoreMem, 0x36, d_id)
 
+#define FOREACH_SIMPLE_MEM_OPCODE(V) V(GrowMemory, 0x39, i_i)
+
 // Load memory expressions.
 #define FOREACH_MISC_MEM_OPCODE(V) \
-  V(GrowMemory, 0x39, i_i)         \
   V(MemorySize, 0x3b, i_v)
 
 // Expressions with signatures.
@@ -410,6 +411,7 @@ const WasmCodePosition kNoCodePosition = -1;
   FOREACH_CONTROL_OPCODE(V)      \
   FOREACH_MISC_OPCODE(V)         \
   FOREACH_SIMPLE_OPCODE(V)       \
+  FOREACH_SIMPLE_MEM_OPCODE(V)   \
   FOREACH_STORE_MEM_OPCODE(V)    \
   FOREACH_LOAD_MEM_OPCODE(V)     \
   FOREACH_MISC_MEM_OPCODE(V)     \
@@ -468,14 +470,15 @@ enum WasmOpcode {
 
 // The reason for a trap.
 #define FOREACH_WASM_TRAPREASON(V) \
-  V(TrapUnreachable)          \
-  V(TrapMemOutOfBounds)       \
-  V(TrapDivByZero)            \
-  V(TrapDivUnrepresentable)   \
-  V(TrapRemByZero)            \
-  V(TrapFloatUnrepresentable) \
-  V(TrapFuncInvalid)          \
-  V(TrapFuncSigMismatch)
+  V(TrapUnreachable)               \
+  V(TrapMemOutOfBounds)            \
+  V(TrapDivByZero)                 \
+  V(TrapDivUnrepresentable)        \
+  V(TrapRemByZero)                 \
+  V(TrapFloatUnrepresentable)      \
+  V(TrapFuncInvalid)               \
+  V(TrapFuncSigMismatch)           \
+  V(TrapMemAllocationFail)
 
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,

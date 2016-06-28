@@ -312,6 +312,7 @@ var kTrapRemByZero            = 4;
 var kTrapFloatUnrepresentable = 5;
 var kTrapFuncInvalid          = 6;
 var kTrapFuncSigMismatch      = 7;
+var kTrapMemAllocationFail    = 8;
 
 var kTrapMsgs = [
   "unreachable",
@@ -321,7 +322,8 @@ var kTrapMsgs = [
   "remainder by zero",
   "integer result unrepresentable",
   "invalid function",
-  "function signature mismatch"
+  "function signature mismatch",
+  "failed to allocate memory"
 ];
 
 function assertTraps(trap, code) {

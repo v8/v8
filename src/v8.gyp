@@ -1079,6 +1079,7 @@
         'runtime/runtime-test.cc',
         'runtime/runtime-typedarray.cc',
         'runtime/runtime-utils.h',
+        'runtime/runtime-wasm.cc',
         'runtime/runtime.cc',
         'runtime/runtime.h',
         'safepoint-table.cc',

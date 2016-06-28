@@ -317,6 +317,7 @@ class WasmGraphBuilder {
 
   Node* BuildChangeInt32ToSmi(Node* value);
   Node* BuildChangeSmiToInt32(Node* value);
+  Node* BuildChangeUint32ToSmi(Node* value);
   Node* BuildChangeSmiToFloat64(Node* value);
   Node* BuildTestNotSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
@@ -324,6 +325,7 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
+  Node* BuildGrowMemory(Node* input);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

@@ -926,6 +926,7 @@ namespace internal {
   F(DataViewSetFloat32, 4, 1)                \
   F(DataViewSetFloat64, 4, 1)
 
+#define FOR_EACH_INTRINSIC_WASM(F) F(WasmGrowMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
@@ -989,7 +990,8 @@ namespace internal {
   FOR_EACH_INTRINSIC_STRINGS(F)             \
   FOR_EACH_INTRINSIC_SYMBOL(F)              \
   FOR_EACH_INTRINSIC_TEST(F)                \
-  FOR_EACH_INTRINSIC_TYPEDARRAY(F)
+  FOR_EACH_INTRINSIC_TYPEDARRAY(F)          \
+  FOR_EACH_INTRINSIC_WASM(F)
 
 // FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
 // either returning an object or a pair.

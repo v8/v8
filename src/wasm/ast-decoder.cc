@@ -331,6 +331,7 @@ class WasmDecoder : public Decoder {
         FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_MISC_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMPLE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
@@ -995,12 +996,6 @@ class SR_WasmDecoder : public WasmDecoder {
           case kExprMemorySize:
             Push(kAstI32, BUILD(MemSize, 0));
             break;
-          case kExprGrowMemory: {
-            Value val = Pop(0, kAstI32);
-            USE(val);  // TODO(titzer): build node for grow memory
-            Push(kAstI32, BUILD(Int32Constant, 0));
-            break;
-          }
           case kExprCallFunction: {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {

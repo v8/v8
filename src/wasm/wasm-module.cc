@@ -1026,6 +1026,37 @@ WasmDebugInfo* GetDebugInfo(JSObject* wasm) {
   return *new_info;
 }
 
+bool UpdateWasmModuleMemory(JSObject* object, Address old_start,
+                            Address new_start, uint32_t old_size,
+                            uint32_t new_size) {
+  if (!IsWasmObject(object)) {
+    return false;
+  }
+
+  // Get code table associated with the module js_object
+  Object* obj = object->GetInternalField(kWasmModuleCodeTable);
+  Handle<FixedArray> code_table(FixedArray::cast(obj));
+
+  // Iterate through the code objects in the code table and update relocation
+  // information
+  for (int i = 0; i < code_table->length(); i++) {
+    obj = code_table->get(i);
+    Handle<Code> code(Code::cast(obj));
+
+    int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_REFERENCE) |
+                    RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      if (RelocInfo::IsWasmMemoryReference(mode) ||
+          RelocInfo::IsWasmMemorySizeReference(mode)) {
+        it.rinfo()->update_wasm_memory_reference(old_start, new_start, old_size,
+                                                 new_size);
+      }
+    }
+  }
+  return true;
+}
+
 namespace testing {
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
