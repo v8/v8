@@ -375,14 +375,6 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
               kMmapFdOffset) != MAP_FAILED;
 }
 
-bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
-                                         void* free_start, size_t free_size) {
-#if defined(LEAK_SANITIZER)
-  __lsan_unregister_root_region(base, size);
-  __lsan_register_root_region(base, size - free_size);
-#endif
-  return munmap(free_start, free_size) == 0;
-}
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 #if defined(LEAK_SANITIZER)

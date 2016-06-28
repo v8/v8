@@ -628,7 +628,6 @@ class MemoryChunk {
   }
 
   size_t size() const { return size_; }
-  void set_size(size_t size) { size_ = size; }
 
   inline Heap* heap() const { return heap_; }
 
@@ -664,7 +663,7 @@ class MemoryChunk {
   bool CommitArea(size_t requested);
 
   // Approximate amount of physical memory committed for this chunk.
-  size_t CommittedPhysicalMemory();
+  size_t CommittedPhysicalMemory() { return high_water_mark_.Value(); }
 
   Address HighWaterMark() { return address() + high_water_mark_.Value(); }
 
@@ -1003,12 +1002,6 @@ class LargePage : public MemoryChunk {
   }
 
   inline void set_next_page(LargePage* page) { set_next_chunk(page); }
-
-  // Uncommit memory that is not in use anymore by the object. If the object
-  // cannot be shrunk 0 is returned.
-  Address GetAddressToShrink();
-
-  void ClearOutOfLiveRangeSlots(Address free_start);
 
   // A limit to guarantee that we do not overflow typed slot offset in
   // the old to old remembered set.
@@ -1461,7 +1454,6 @@ class MemoryAllocator {
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
   void FreeMemory(base::VirtualMemory* reservation, Executability executable);
-  void PartialFreeMemory(MemoryChunk* chunk, Address start_free);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
@@ -3082,10 +3074,6 @@ class LargeObjectSpace : public Space {
 
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
-
-  void InsertChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page, Address free_start);
 
   // Checks whether a heap object is in this space; O(1).
   bool Contains(HeapObject* obj);
