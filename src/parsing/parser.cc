@@ -6018,9 +6018,10 @@ void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
 // IteratorClose(iterator) expands to the following:
 //
 //   let iteratorReturn = iterator.return;
-//   if (IS_NULL_OR_UNDEFINED(iteratorReturn)) return;
-//   let output = %_Call(iteratorReturn, iterator);
-//   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
+//   if (!IS_NULL_OR_UNDEFINED(iteratorReturn)) {
+//     let output = %_Call(iteratorReturn, iterator);
+//     if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
+//   }
 //
 // IteratorClose(iterator, input, output) expands to the following:
 //
@@ -6028,7 +6029,6 @@ void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
 //   if (IS_NULL_OR_UNDEFINED(iteratorReturn)) return input;
 //   output = %_Call(iteratorReturn, iterator, input);
 //   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
-
 
 Expression* ParserTraits::RewriteYieldStar(
     Expression* generator, Expression* iterable, int pos) {
@@ -6192,9 +6192,9 @@ Expression* ParserTraits::RewriteYieldStar(
     Statement* throw_call = factory->NewExpressionStatement(call, nopos);
 
     Block* then = factory->NewBlock(nullptr, 4+1, false, nopos);
-    Variable* var_tmp = scope->NewTemporary(avfactory->empty_string());
-    BuildIteratorClose(then->statements(), var_iterator, Nothing<Variable*>(),
-                       var_tmp);
+    parser_->BuildIteratorCloseForCompletion(
+        then->statements(), var_iterator,
+        factory->NewSmiLiteral(Parser::kNormalCompletion, nopos));
     then->statements()->Add(throw_call, zone);
     check_throw = factory->NewIfStatement(
         condition, then, factory->NewEmptyStatement(nopos), nopos);
@@ -6391,7 +6391,7 @@ Expression* ParserTraits::RewriteYieldStar(
     case_next->Add(factory->NewBreakStatement(switch_mode, nopos), zone);
 
     auto case_return = new (zone) ZoneList<Statement*>(5, zone);
-    BuildIteratorClose(case_return, var_iterator, Just(var_input), var_output);
+    BuildIteratorClose(case_return, var_iterator, var_input, var_output);
     case_return->Add(factory->NewBreakStatement(switch_mode, nopos), zone);
 
     auto case_throw = new (zone) ZoneList<Statement*>(5, zone);
@@ -6478,8 +6478,7 @@ Statement* ParserTraits::CheckCallable(Variable* var, Expression* error,
 }
 
 void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
-                                      Variable* iterator,
-                                      Maybe<Variable*> input,
+                                      Variable* iterator, Variable* input,
                                       Variable* var_output) {
   //
   // This function adds four statements to [statements], corresponding to the
@@ -6491,14 +6490,6 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
   //   }
   //   output = %_Call(iteratorReturn, iterator, input);
   //   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
-  //
-  // When the input variable is not given, the return statement becomes
-  //   return {value: undefined, done: true};
-  // and %_Call has only two arguments:
-  //   output = %_Call(iteratorReturn, iterator);
-  //
-  // The reason for allowing input is that BuildIteratorClose
-  // can then be reused to handle the return case in yield*.
   //
 
   const int nopos = RelocInfo::kNoPosition;
@@ -6530,10 +6521,7 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
         Token::EQ, factory->NewVariableProxy(var_return),
         factory->NewNullLiteral(nopos), nopos);
 
-    Expression* value = input.IsJust()
-                            ? static_cast<Expression*>(
-                                  factory->NewVariableProxy(input.FromJust()))
-                            : factory->NewUndefinedLiteral(nopos);
+    Expression* value = factory->NewVariableProxy(input);
 
     Statement* return_input =
         factory->NewReturnStatement(BuildIteratorResult(value, true), nopos);
@@ -6548,9 +6536,7 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
     auto args = new (zone) ZoneList<Expression*>(3, zone);
     args->Add(factory->NewVariableProxy(var_return), zone);
     args->Add(factory->NewVariableProxy(iterator), zone);
-    if (input.IsJust()) {
-      args->Add(factory->NewVariableProxy(input.FromJust()), zone);
-    }
+    args->Add(factory->NewVariableProxy(input), zone);
 
     Expression* call =
         factory->NewCallRuntime(Runtime::kInlineCall, args, nopos);
@@ -6650,8 +6636,8 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
   Block* maybe_close;
   {
     Block* block = factory->NewBlock(nullptr, 2, true, nopos);
-    parser_->BuildIteratorCloseForCompletion(block->statements(), iter,
-                                             completion);
+    Expression* proxy = factory->NewVariableProxy(completion);
+    parser_->BuildIteratorCloseForCompletion(block->statements(), iter, proxy);
     DCHECK(block->statements()->length() == 2);
 
     maybe_close = factory->NewBlock(nullptr, 1, true, nopos);
@@ -6710,7 +6696,7 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
 
 void ParserTraits::BuildIteratorCloseForCompletion(
     ZoneList<Statement*>* statements, Variable* iterator,
-    Variable* completion) {
+    Expression* completion) {
   //
   // This function adds two statements to [statements], corresponding to the
   // following code:
@@ -6845,7 +6831,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   Statement* call_return_carefully;
   {
     Expression* condition = factory->NewCompareOperation(
-        Token::EQ_STRICT, factory->NewVariableProxy(completion),
+        Token::EQ_STRICT, completion,
         factory->NewSmiLiteral(Parser::kThrowCompletion, nopos), nopos);
 
     Block* then_block = factory->NewBlock(nullptr, 2, false, nopos);

@@ -683,10 +683,10 @@ class ParserTraits {
   Parser* parser_;
 
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
-                          Maybe<Variable*> input, Variable* output);
-  void BuildIteratorCloseForCompletion(
-      ZoneList<Statement*>* statements, Variable* iterator,
-      Variable* body_threw);
+                          Variable* input, Variable* output);
+  void BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
+                                       Variable* iterator,
+                                       Expression* completion);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 };
 
