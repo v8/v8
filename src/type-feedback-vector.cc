@@ -39,20 +39,13 @@ FeedbackVectorSlotKind TypeFeedbackMetadata::GetKind(
 
 String* TypeFeedbackMetadata::GetName(FeedbackVectorSlot slot) const {
   DCHECK(SlotRequiresName(GetKind(slot)));
-  FixedArray* names = FixedArray::cast(get(kNamesTableIndex));
-  // TODO(ishell): consider using binary search here or even Dictionary when we
-  // have more ICs with names.
-  Smi* key = Smi::FromInt(slot.ToInt());
-  for (int entry = 0; entry < names->length(); entry += kNameTableEntrySize) {
-    Object* current_key = names->get(entry + kNameTableSlotIndex);
-    if (current_key == key) {
-      Object* name = names->get(entry + kNameTableNameIndex);
-      DCHECK(name->IsString());
-      return String::cast(name);
-    }
-  }
-  UNREACHABLE();
-  return nullptr;
+  UnseededNumberDictionary* names =
+      UnseededNumberDictionary::cast(get(kNamesTableIndex));
+  int entry = names->FindEntry(GetIsolate(), slot.ToInt());
+  CHECK_NE(UnseededNumberDictionary::kNotFound, entry);
+  Object* name = names->ValueAt(entry);
+  DCHECK(name->IsString());
+  return String::cast(name);
 }
 
 void TypeFeedbackMetadata::SetKind(FeedbackVectorSlot slot,
@@ -107,10 +100,9 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   // Add names to NamesTable.
   const int name_count = spec->name_count();
 
-  Handle<FixedArray> names =
-      name_count == 0
-          ? factory->empty_fixed_array()
-          : factory->NewFixedArray(name_count * kNameTableEntrySize);
+  Handle<UnseededNumberDictionary> names =
+      UnseededNumberDictionary::New(isolate, name_count);
+
   int name_index = 0;
   for (int i = 0; i < slot_count; i++) {
     FeedbackVectorSlotKind kind = spec->GetKind(i);
@@ -118,9 +110,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     if (SlotRequiresName(kind)) {
       Handle<String> name = spec->GetName(name_index);
       DCHECK(!name.is_null());
-      int entry = name_index * kNameTableEntrySize;
-      names->set(entry + kNameTableSlotIndex, Smi::FromInt(i));
-      names->set(entry + kNameTableNameIndex, *name);
+      names = UnseededNumberDictionary::AtNumberPut(names, i, name);
       name_index++;
     }
   }

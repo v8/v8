@@ -850,9 +850,8 @@ bool Object::IsSeededNumberDictionary() const {
   return IsDictionary();
 }
 
-
-bool Object::IsUnseededNumberDictionary() const {
-  return IsDictionary();
+bool HeapObject::IsUnseededNumberDictionary() const {
+  return map() == GetHeap()->unseeded_number_dictionary_map();
 }
 
 bool HeapObject::IsStringTable() const { return IsHashTable(); }
@@ -3063,6 +3062,10 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
   set(kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
 }
 
+template <typename Key>
+Map* BaseShape<Key>::GetMap(Isolate* isolate) {
+  return isolate->heap()->hash_table_map();
+}
 
 template <typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
@@ -7473,14 +7476,16 @@ void BaseDictionaryShape<Key>::SetEntry(Dictionary* dict, int entry,
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyDetails details) {
-  STATIC_ASSERT(Dictionary::kEntrySize == 3);
+  STATIC_ASSERT(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key->IsName() || details.dictionary_index() > 0);
   int index = dict->EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = dict->GetWriteBarrierMode(no_gc);
   dict->set(index + Dictionary::kEntryKeyIndex, *key, mode);
   dict->set(index + Dictionary::kEntryValueIndex, *value, mode);
-  dict->set(index + Dictionary::kEntryDetailsIndex, details.AsSmi());
+  if (Dictionary::kEntrySize == 3) {
+    dict->set(index + Dictionary::kEntryDetailsIndex, details.AsSmi());
+  }
 }
 
 
@@ -7517,6 +7522,9 @@ uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
 }
 
+Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {
+  return *isolate->factory()->unseeded_number_dictionary_map();
+}
 
 uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
   return ComputeIntegerHash(key, seed);

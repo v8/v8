@@ -46,6 +46,7 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, one_byte_string_map, OneByteStringMap)                                \
   V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
