@@ -1358,44 +1358,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 }
 
 
-// A testing entry. Returns statement position which is the closest to
-// source_position.
-RUNTIME_FUNCTION(Runtime_GetFunctionCodePositionFromSource) {
-  HandleScope scope(isolate);
-  CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
-  RUNTIME_ASSERT(isolate->debug()->is_active());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-
-  Handle<Code> code(function->code(), isolate);
-
-  if (code->kind() != Code::FUNCTION &&
-      code->kind() != Code::OPTIMIZED_FUNCTION) {
-    return isolate->heap()->undefined_value();
-  }
-
-  RelocIterator it(*code, RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION));
-  int closest_pc = 0;
-  int distance = kMaxInt;
-  while (!it.done()) {
-    int statement_position = static_cast<int>(it.rinfo()->data());
-    // Check if this break point is closer that what was previously found.
-    if (source_position <= statement_position &&
-        statement_position - source_position < distance) {
-      closest_pc =
-          static_cast<int>(it.rinfo()->pc() - code->instruction_start());
-      distance = statement_position - source_position;
-      // Check whether we can't get any closer.
-      if (distance == 0) break;
-    }
-    it.next();
-  }
-
-  return Smi::FromInt(closest_pc);
-}
-
-
 // Calls specified function with or without entering the debugger.
 // This is used in unit tests to run code as if debugger is entered or simply
 // to have a stack with C++ frame in the middle.

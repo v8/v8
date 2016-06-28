@@ -173,7 +173,6 @@ namespace internal {
   F(DebugSetScriptSource, 2, 1)                 \
   F(FunctionGetInferredName, 1, 1)              \
   F(FunctionGetDebugName, 1, 1)                 \
-  F(GetFunctionCodePositionFromSource, 2, 1)    \
   F(ExecuteInDebugContext, 1, 1)                \
   F(GetDebugContext, 0, 1)                      \
   F(CollectGarbage, 1, 1)                       \
