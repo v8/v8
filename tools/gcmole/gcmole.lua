@@ -197,7 +197,7 @@ local function ParseGYPFile()
       local gyp_file = assert(io.open(filename), "failed to open GYP file")
       local gyp = gyp_file:read('*a')
       for condition, sources in
-         gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
+         gyp:gmatch "%[.-### gcmole%((.-)%) ###(.-)%]" do
          if result[condition] == nil then result[condition] = {} end
          for file in sources:gmatch(pattern) do
             table.insert(result[condition], prefix .. file)
