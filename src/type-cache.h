@@ -48,11 +48,15 @@ class TypeCache final {
   Type* const kZeroish =
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
-  Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
   Type* const kIntegerOrMinusZero =
       Type::Union(kInteger, Type::MinusZero(), zone());
   Type* const kIntegerOrMinusZeroOrNaN =
       Type::Union(kIntegerOrMinusZero, Type::NaN(), zone());
+  Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
+  Type* const kPositiveIntegerOrMinusZero =
+      Type::Union(kPositiveInteger, Type::MinusZero(), zone());
+  Type* const kPositiveIntegerOrMinusZeroOrNaN =
+      Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 
   Type* const kAdditiveSafeInteger =
       CreateRange(-4503599627370496.0, 4503599627370496.0);
@@ -62,6 +66,7 @@ class TypeCache final {
   Type* const kSafeIntegerOrMinusZero =
       Type::Union(kSafeInteger, Type::MinusZero(), zone());
   Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
+  Type* const kSafeSigned32 = CreateRange(-kMaxInt, kMaxInt);
 
   Type* const kUntaggedUndefined =
       Type::Intersect(Type::Undefined(), Type::Untagged(), zone());

@@ -1487,6 +1487,27 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kNumberAbs: {
+        if (InputIs(node, Type::Unsigned32())) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if (InputIs(node, type_cache_.kSafeSigned32)) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, lowering->Int32Abs(node));
+        } else if (InputIs(node,
+                           type_cache_.kPositiveIntegerOrMinusZeroOrNaN)) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        }
+        return;
+      }
       case IrOpcode::kNumberClz32: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kWord32);
@@ -2780,6 +2801,17 @@ Node* SimplifiedLowering::Float64Trunc(Node* const node) {
   Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   return graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
                           vtrue0, vfalse0, merge0);
+}
+
+Node* SimplifiedLowering::Int32Abs(Node* const node) {
+  Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const input = node->InputAt(0);
+
+  // if 0 < input then input else 0 - input
+  return graph()->NewNode(
+      common()->Select(MachineRepresentation::kWord32, BranchHint::kTrue),
+      graph()->NewNode(machine()->Int32LessThan(), zero, input), input,
+      graph()->NewNode(machine()->Int32Sub(), zero, input));
 }
 
 Node* SimplifiedLowering::Int32Div(Node* const node) {

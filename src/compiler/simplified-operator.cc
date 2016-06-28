@@ -251,6 +251,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberShiftRight, Operator::kNoProperties, 2)          \
   V(NumberShiftRightLogical, Operator::kNoProperties, 2)   \
   V(NumberImul, Operator::kCommutative, 2)                 \
+  V(NumberAbs, Operator::kNoProperties, 1)                 \
   V(NumberClz32, Operator::kNoProperties, 1)               \
   V(NumberCeil, Operator::kNoProperties, 1)                \
   V(NumberFloor, Operator::kNoProperties, 1)               \

@@ -399,6 +399,18 @@ TEST_F(SimplifiedOperatorReducerTest, CheckTaggedSignedWithNumberConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// NumberAbs
+
+TEST_F(SimplifiedOperatorReducerTest, NumberAbsWithNumberConstant) {
+  TRACED_FOREACH(double, n, kFloat64Values) {
+    Reduction reduction =
+        Reduce(graph()->NewNode(simplified()->NumberAbs(), NumberConstant(n)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsNumberConstant(std::fabs(n)));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // ObjectIsSmi
 
 TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithChangeBitToTagged) {

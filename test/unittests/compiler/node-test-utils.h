@@ -224,6 +224,7 @@ Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberAbs(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan2(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);

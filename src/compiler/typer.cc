@@ -243,6 +243,7 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
+  static Type* NumberAbs(Type*, Typer*);
   static Type* NumberCeil(Type*, Typer*);
   static Type* NumberFloor(Type*, Typer*);
   static Type* NumberRound(Type*, Typer*);
@@ -476,6 +477,34 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
   type = ToPrimitive(type, t);
   if (type->Is(Type::String())) return type;
   return Type::String();
+}
+
+// static
+Type* Typer::Visitor::NumberAbs(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  Factory* const f = t->isolate()->factory();
+  bool const maybe_nan = type->Maybe(Type::NaN());
+  bool const maybe_minuszero = type->Maybe(Type::MinusZero());
+  type = Type::Intersect(type, Type::PlainNumber(), t->zone());
+  double const max = type->Max();
+  double const min = type->Min();
+  if (min < 0) {
+    if (type->Is(t->cache_.kInteger)) {
+      type =
+          Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), t->zone());
+    } else if (min == max) {
+      type = Type::Constant(f->NewNumber(std::fabs(min)), t->zone());
+    } else {
+      type = Type::PlainNumber();
+    }
+  }
+  if (maybe_minuszero) {
+    type = Type::Union(type, t->cache_.kSingletonZero, t->zone());
+  }
+  if (maybe_nan) {
+    type = Type::Union(type, Type::NaN(), t->zone());
+  }
+  return type;
 }
 
 // static
@@ -1596,6 +1625,10 @@ Type* Typer::Visitor::TypePlainPrimitiveToFloat64(Node* node) {
 }
 
 Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
+
+Type* Typer::Visitor::TypeNumberAbs(Node* node) {
+  return TypeUnaryOp(node, NumberAbs);
+}
 
 Type* Typer::Visitor::TypeNumberClz32(Node* node) {
   return typer_->cache_.kZeroToThirtyTwo;

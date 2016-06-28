@@ -200,6 +200,7 @@
   V(NumberShiftRight)                 \
   V(NumberShiftRightLogical)          \
   V(NumberImul)                       \
+  V(NumberAbs)                        \
   V(NumberClz32)                      \
   V(NumberCeil)                       \
   V(NumberCos)                        \

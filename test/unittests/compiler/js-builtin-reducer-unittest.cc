@@ -87,6 +87,45 @@ Type* const kNumberTypes[] = {
 
 
 // -----------------------------------------------------------------------------
+// Math.abs
+
+TEST_F(JSBuiltinReducerTest, MathAbsWithNumber) {
+  Node* function = MathFunction("abs");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAbs(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAbsWithPlainPrimitive) {
+  Node* function = MathFunction("abs");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAbs(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
 // Math.atan
 
 TEST_F(JSBuiltinReducerTest, MathAtanWithNumber) {

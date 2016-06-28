@@ -91,6 +91,18 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph)
       jsgraph_(jsgraph),
       type_cache_(TypeCache::Get()) {}
 
+// ES6 section 20.2.2.1 Math.abs ( x )
+Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.abs(a:plain-primitive) -> NumberAbs(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAbs(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.6 Math.atan ( x )
 Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
   JSCallReduction r(node);
@@ -417,6 +429,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
+    case kMathAbs:
+      reduction = ReduceMathAbs(node);
+      break;
     case kMathAtan:
       reduction = ReduceMathAtan(node);
       break;

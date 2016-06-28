@@ -144,7 +144,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "hypot", MathHypot,
 ]);
 
-%SetForceInlineFlag(MathAbs);
 %SetForceInlineFlag(MathRandom);
 %SetForceInlineFlag(MathSign);
 

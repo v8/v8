@@ -751,6 +751,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Number());
       CheckUpperIs(node, Type::Number());
       break;
+    case IrOpcode::kNumberAbs:
     case IrOpcode::kNumberCeil:
     case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberFround:

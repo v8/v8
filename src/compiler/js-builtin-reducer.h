@@ -29,6 +29,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAtan(Node* node);
   Reduction ReduceMathAtan2(Node* node);
   Reduction ReduceMathAtanh(Node* node);

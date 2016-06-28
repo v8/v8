@@ -687,6 +687,8 @@ const Operator* RepresentationChanger::Float64OperatorFor(
     case IrOpcode::kNumberLessThanOrEqual:
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       return machine()->Float64LessThanOrEqual();
+    case IrOpcode::kNumberAbs:
+      return machine()->Float64Abs();
     case IrOpcode::kNumberAtan:
       return machine()->Float64Atan();
     case IrOpcode::kNumberAtan2:
