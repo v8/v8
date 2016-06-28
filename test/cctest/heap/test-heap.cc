@@ -4890,7 +4890,7 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   Isolate* isolate = CcTest::i_isolate();
 
   // Do not run for no-snap builds.
-  if (!i::Snapshot::HaveASnapshotToStartFrom(isolate)) return;
+  if (!i::Snapshot::HasContextSnapshot(isolate, 0)) return;
 
   v8::internal::Heap* heap = CcTest::heap();
 
@@ -6029,7 +6029,7 @@ TEST(BootstrappingExports) {
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
 
-  if (Snapshot::HaveASnapshotToStartFrom(CcTest::i_isolate())) return;
+  if (Snapshot::HasContextSnapshot(CcTest::i_isolate(), 0)) return;
 
   utils_has_been_collected = false;
 

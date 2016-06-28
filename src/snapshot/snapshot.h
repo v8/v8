@@ -63,6 +63,8 @@ class Snapshot : public AllStatic {
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate);
 
+  static bool HasContextSnapshot(Isolate* isolate, size_t index);
+
   static bool EmbedsScript(Isolate* isolate);
 
   static uint32_t SizeOfFirstPage(Isolate* isolate, AllocationSpace space);

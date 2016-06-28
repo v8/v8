@@ -4490,7 +4490,8 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0);
 
   /** Get a template included in the snapshot by index. */
-  static Local<FunctionTemplate> FromSnapshot(Isolate* isolate, size_t index);
+  static MaybeLocal<FunctionTemplate> FromSnapshot(Isolate* isolate,
+                                                   size_t index);
 
   /**
    * Creates a function template with a fast handler. If a fast handler is set,
@@ -4668,7 +4669,8 @@ class V8_EXPORT ObjectTemplate : public Template {
   static V8_DEPRECATED("Use isolate version", Local<ObjectTemplate> New());
 
   /** Get a template included in the snapshot by index. */
-  static Local<ObjectTemplate> FromSnapshot(Isolate* isolate, size_t index);
+  static MaybeLocal<ObjectTemplate> FromSnapshot(Isolate* isolate,
+                                                 size_t index);
 
   /** Creates a new instance of this template.*/
   V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance());
@@ -7141,8 +7143,13 @@ class V8_EXPORT Context {
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = NULL,
       Local<ObjectTemplate> global_template = Local<ObjectTemplate>(),
-      Local<Value> global_object = Local<Value>(),
-      size_t context_snapshot_index = 0);
+      Local<Value> global_object = Local<Value>());
+
+  static MaybeLocal<Context> FromSnapshot(
+      Isolate* isolate, size_t context_snapshot_index,
+      ExtensionConfiguration* extensions = NULL,
+      Local<ObjectTemplate> global_template = Local<ObjectTemplate>(),
+      Local<Value> global_object = Local<Value>());
 
   /**
    * Sets the security token for the context.  To access an object in

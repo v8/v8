@@ -22,11 +22,13 @@ bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
 }
 #endif  // DEBUG
 
-
-bool Snapshot::HaveASnapshotToStartFrom(Isolate* isolate) {
+bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   // Do not use snapshots if the isolate is used to create snapshots.
-  return isolate->snapshot_blob() != NULL &&
-         isolate->snapshot_blob()->data != NULL;
+  const v8::StartupData* blob = isolate->snapshot_blob();
+  if (blob == nullptr) return false;
+  if (blob->data == nullptr) return false;
+  size_t num_contexts = static_cast<size_t>(ExtractNumContexts(blob));
+  return index < num_contexts;
 }
 
 

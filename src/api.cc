@@ -1200,13 +1200,13 @@ Local<FunctionTemplate> FunctionTemplate::New(Isolate* isolate,
                              length, false);
 }
 
-Local<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
-                                                       size_t index) {
+MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
+                                                            size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::FixedArray* templates = i_isolate->heap()->serialized_templates();
   int int_index = static_cast<int>(index);
   if (int_index < templates->length()) {
-    i::Object* info = i_isolate->heap()->serialized_templates()->get(int_index);
+    i::Object* info = templates->get(int_index);
     if (info->IsFunctionTemplateInfo()) {
       return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
           i::FunctionTemplateInfo::cast(info)));
@@ -1425,13 +1425,13 @@ Local<ObjectTemplate> ObjectTemplate::New(
   return ObjectTemplateNew(isolate, constructor, false);
 }
 
-Local<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
-                                                   size_t index) {
+MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
+                                                        size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::FixedArray* templates = i_isolate->heap()->serialized_templates();
   int int_index = static_cast<int>(index);
   if (int_index < templates->length()) {
-    i::Object* info = i_isolate->heap()->serialized_templates()->get(int_index);
+    i::Object* info = templates->get(int_index);
     if (info->IsObjectTemplateInfo()) {
       return Utils::ToLocal(
           i::Handle<i::ObjectTemplateInfo>(i::ObjectTemplateInfo::cast(info)));
@@ -5684,11 +5684,11 @@ static i::Handle<i::Context> CreateEnvironment(
   return env;
 }
 
-Local<Context> v8::Context::New(v8::Isolate* external_isolate,
-                                v8::ExtensionConfiguration* extensions,
-                                v8::Local<ObjectTemplate> global_template,
-                                v8::Local<Value> global_object,
-                                size_t context_snapshot_index) {
+Local<Context> NewContext(v8::Isolate* external_isolate,
+                          v8::ExtensionConfiguration* extensions,
+                          v8::Local<ObjectTemplate> global_template,
+                          v8::Local<Value> global_object,
+                          size_t context_snapshot_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   LOG_API(isolate, Context, New);
   i::HandleScope scope(isolate);
@@ -5706,6 +5706,26 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
   return Utils::ToLocal(scope.CloseAndEscape(env));
 }
 
+Local<Context> v8::Context::New(v8::Isolate* external_isolate,
+                                v8::ExtensionConfiguration* extensions,
+                                v8::Local<ObjectTemplate> global_template,
+                                v8::Local<Value> global_object) {
+  return NewContext(external_isolate, extensions, global_template,
+                    global_object, 0);
+}
+
+MaybeLocal<Context> v8::Context::FromSnapshot(
+    v8::Isolate* external_isolate, size_t context_snapshot_index,
+    v8::ExtensionConfiguration* extensions,
+    v8::Local<ObjectTemplate> global_template, v8::Local<Value> global_object) {
+  if (!i::Snapshot::HasContextSnapshot(
+          reinterpret_cast<i::Isolate*>(external_isolate),
+          context_snapshot_index)) {
+    return MaybeLocal<Context>();
+  }
+  return NewContext(external_isolate, extensions, global_template,
+                    global_object, context_snapshot_index);
+}
 
 void v8::Context::SetSecurityToken(Local<Value> token) {
   i::Handle<i::Context> env = Utils::OpenHandle(this);

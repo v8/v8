@@ -1921,27 +1921,24 @@ TEST(SnapshotCreatorMultipleContexts) {
   v8::Isolate* isolate = v8::Isolate::New(params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
-    v8::ExtensionConfiguration* no_extension = nullptr;
-    v8::Local<v8::ObjectTemplate> no_template = v8::Local<v8::ObjectTemplate>();
-    v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, no_extension, no_template, no_object, 0);
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 1);
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, no_extension, no_template, no_object, 1);
+          v8::Context::FromSnapshot(isolate, 1).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 2);
     }
     {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, no_extension, no_template, no_object, 2);
+          v8::Context::FromSnapshot(isolate, 2).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectUndefined("this.f");
     }
@@ -1999,12 +1996,8 @@ TEST(SnapshotCreatorExternalReferences) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::ExtensionConfiguration* no_extension = nullptr;
-      v8::Local<v8::ObjectTemplate> no_template =
-          v8::Local<v8::ObjectTemplate>();
-      v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, no_extension, no_template, no_object, 0);
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
     }
@@ -2021,12 +2014,8 @@ TEST(SnapshotCreatorExternalReferences) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::ExtensionConfiguration* no_extension = nullptr;
-      v8::Local<v8::ObjectTemplate> no_template =
-          v8::Local<v8::ObjectTemplate>();
-      v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
       v8::Local<v8::Context> context =
-          v8::Context::New(isolate, no_extension, no_template, no_object, 0);
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 1337);
     }
@@ -2072,18 +2061,14 @@ TEST(SnapshotCreatorTemplates) {
       {
         // Create a new context without a new object template.
         v8::HandleScope handle_scope(isolate);
-        v8::ExtensionConfiguration* no_extension = nullptr;
-        v8::Local<v8::ObjectTemplate> no_template =
-            v8::Local<v8::ObjectTemplate>();
-        v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
         v8::Local<v8::Context> context =
-            v8::Context::New(isolate, no_extension, no_template, no_object, 0);
+            v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
         v8::Context::Scope context_scope(context);
         ExpectInt32("f()", 42);
 
         // Retrieve the snapshotted object template.
         v8::Local<v8::ObjectTemplate> obj_template =
-            v8::ObjectTemplate::FromSnapshot(isolate, 1);
+            v8::ObjectTemplate::FromSnapshot(isolate, 1).ToLocalChecked();
         CHECK(!obj_template.IsEmpty());
         v8::Local<v8::Object> object =
             obj_template->NewInstance(context).ToLocalChecked();
@@ -2094,7 +2079,7 @@ TEST(SnapshotCreatorTemplates) {
 
         // Retrieve the snapshotted function template.
         v8::Local<v8::FunctionTemplate> fun_template =
-            v8::FunctionTemplate::FromSnapshot(isolate, 0);
+            v8::FunctionTemplate::FromSnapshot(isolate, 0).ToLocalChecked();
         CHECK(!fun_template.IsEmpty());
         v8::Local<v8::Function> fun =
             fun_template->GetFunction(context).ToLocalChecked();
@@ -2102,6 +2087,11 @@ TEST(SnapshotCreatorTemplates) {
         ExpectInt32("g()", 42);
         // Check that it instantiates to the same prototype.
         ExpectTrue("g.prototype === f.prototype");
+
+        // Accessing out of bound returns empty MaybeHandle.
+        CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());
+        CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
+        CHECK(v8::Context::FromSnapshot(isolate, 2).IsEmpty());
       }
 
       {
@@ -2114,9 +2104,9 @@ TEST(SnapshotCreatorTemplates) {
         global_template->Set(
             v8_str("g"),
             v8::FunctionTemplate::New(isolate, SerializedCallbackReplacement));
-        v8::Local<v8::Value> no_object = v8::Local<v8::Value>();
-        v8::Local<v8::Context> context = v8::Context::New(
-            isolate, no_extension, global_template, no_object, 0);
+        v8::Local<v8::Context> context =
+            v8::Context::FromSnapshot(isolate, 0, no_extension, global_template)
+                .ToLocalChecked();
         v8::Context::Scope context_scope(context);
         ExpectInt32("g()", 1337);
         ExpectInt32("f()", 42);
