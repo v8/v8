@@ -1530,3 +1530,15 @@ assertWasm(1, TestXor);
   assertEquals(0x80000000, wasm.u0x80000000());
   assertEquals(0x87654321, wasm.u0x87654321());
 })();
+
+(function TestBadNoDeclaration() {
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm('33;');
+  });
+})();
+
+(function TestBadVarDeclaration() {
+  assertThrows(function() {
+    Wasm.instantiateModuleFromAsm('var x = 3;');
+  });
+})();

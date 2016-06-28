@@ -141,6 +141,11 @@ v8::internal::wasm::ZoneBuffer* TranslateAsmModule(
     return nullptr;
   }
 
+  if (!info->scope()->declarations()->at(0)->IsFunctionDeclaration()) {
+    thrower->Error("Asm.js validation failed: non-function declaration");
+    return nullptr;
+  }
+
   info->set_literal(
       info->scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
