@@ -1189,11 +1189,6 @@ void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
 }
 
 
-void AstGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitBlock(Block* stmt) {
   BlockBuilder block(this);
   ControlScopeForBreakable scope(this, stmt, &block);

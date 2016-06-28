@@ -119,9 +119,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case ODDBALL_TYPE:
       Oddball::cast(this)->to_string()->Print(os);
       break;
-    case JS_MODULE_TYPE:
-      JSModule::cast(this)->JSModulePrint(os);
-      break;
     case JS_BOUND_FUNCTION_TYPE:
       JSBoundFunction::cast(this)->JSBoundFunctionPrint(os);
       break;
@@ -451,14 +448,6 @@ void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
 void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSRegExp");
   os << "\n - data = " << Brief(data());
-  JSObjectPrintBody(os, this);
-}
-
-
-void JSModule::JSModulePrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "JSModule");
-  os << "\n - context = " << Brief(context());
-  os << " - scope_info = " << Brief(scope_info());
   JSObjectPrintBody(os, this);
 }
 

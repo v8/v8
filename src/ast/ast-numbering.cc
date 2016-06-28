@@ -92,13 +92,6 @@ void AstNumberingVisitor::VisitVariableDeclaration(VariableDeclaration* node) {
 }
 
 
-void AstNumberingVisitor::VisitExportDeclaration(ExportDeclaration* node) {
-  IncrementNodeCount();
-  DisableOptimization(kExportDeclaration);
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstNumberingVisitor::VisitEmptyStatement(EmptyStatement* node) {
   IncrementNodeCount();
 }

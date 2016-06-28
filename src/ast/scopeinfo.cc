@@ -758,26 +758,5 @@ void ScopeInfo::Print() {
 #endif  // DEBUG
 
 
-//---------------------------------------------------------------------------
-// ModuleInfo.
-
-Handle<ModuleInfo> ModuleInfo::Create(Isolate* isolate,
-                                      ModuleDescriptor* descriptor,
-                                      Scope* scope) {
-  Handle<ModuleInfo> info = Allocate(isolate, descriptor->Length());
-  info->set_host_index(descriptor->Index());
-  int i = 0;
-  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
-       it.Advance(), ++i) {
-    Variable* var = scope->LookupLocal(it.local_name());
-    info->set_name(i, *(it.export_name()->string()));
-    info->set_mode(i, var->mode());
-    DCHECK(var->index() >= 0);
-    info->set_index(i, var->index());
-  }
-  DCHECK(i == info->length());
-  return info;
-}
-
 }  // namespace internal
 }  // namespace v8

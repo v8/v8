@@ -40,8 +40,7 @@ namespace internal {
 #define DECLARATION_NODE_LIST(V) \
   V(VariableDeclaration)         \
   V(FunctionDeclaration)         \
-  V(ImportDeclaration)           \
-  V(ExportDeclaration)
+  V(ImportDeclaration)
 
 #define STATEMENT_NODE_LIST(V)    \
   V(Block)                        \
@@ -600,20 +599,6 @@ class ImportDeclaration final : public Declaration {
  private:
   const AstRawString* import_name_;
   const AstRawString* module_specifier_;
-};
-
-
-class ExportDeclaration final : public Declaration {
- public:
-  DECLARE_NODE_TYPE(ExportDeclaration)
-
-  InitializationFlag initialization() const override {
-    return kCreatedInitialized;
-  }
-
- protected:
-  ExportDeclaration(Zone* zone, VariableProxy* proxy, Scope* scope, int pos)
-      : Declaration(zone, proxy, LET, scope, pos) {}
 };
 
 
@@ -3115,13 +3100,6 @@ class AstNodeFactory final BASE_EMBEDDED {
                                           Scope* scope, int pos) {
     return new (parser_zone_) ImportDeclaration(
         parser_zone_, proxy, import_name, module_specifier, scope, pos);
-  }
-
-  ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
-                                          Scope* scope,
-                                          int pos) {
-    return new (parser_zone_)
-        ExportDeclaration(parser_zone_, proxy, scope, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,

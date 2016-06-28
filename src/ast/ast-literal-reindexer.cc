@@ -16,11 +16,6 @@ void AstLiteralReindexer::VisitVariableDeclaration(VariableDeclaration* node) {
 }
 
 
-void AstLiteralReindexer::VisitExportDeclaration(ExportDeclaration* node) {
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstLiteralReindexer::VisitEmptyStatement(EmptyStatement* node) {}
 
 

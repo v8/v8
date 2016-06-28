@@ -881,14 +881,6 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
-  // Call the runtime to declare the modules.
-  __ Push(descriptions);
-  __ CallRuntime(Runtime::kDeclareModules);
-  // Return value is ignored.
-}
-
-
 void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   ASM_LOCATION("FullCodeGenerator::VisitSwitchStatement");
   Comment cmnt(masm_, "[ SwitchStatement");

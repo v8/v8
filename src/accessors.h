@@ -86,10 +86,6 @@ class Accessors : public AllStatic {
       Handle<JSFunction> object, Handle<Object> value);
   static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
-  // Accessor infos.
-  static Handle<AccessorInfo> MakeModuleExport(
-      Handle<String> name, int index, PropertyAttributes attributes);
-
   // Returns true for properties that are accessors to object fields.
   // If true, *object_offset contains offset of object field.
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,

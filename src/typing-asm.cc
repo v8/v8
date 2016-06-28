@@ -1407,11 +1407,6 @@ void AsmTyper::VisitImportDeclaration(ImportDeclaration* decl) {
 }
 
 
-void AsmTyper::VisitExportDeclaration(ExportDeclaration* decl) {
-  FAIL(decl, "export declaration encountered");
-}
-
-
 void AsmTyper::VisitClassLiteral(ClassLiteral* expr) {
   FAIL(expr, "class literal not allowed");
 }

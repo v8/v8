@@ -105,9 +105,6 @@ void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
 }
 
 
-void CallPrinter::VisitExportDeclaration(ExportDeclaration* node) {}
-
-
 void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
   Find(node->expression());
 }
@@ -522,13 +519,6 @@ void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   PrintLiteral(node->proxy()->name(), false);
   Print(" from ");
   PrintLiteral(node->module_specifier()->string(), true);
-  Print(";");
-}
-
-
-void PrettyPrinter::VisitExportDeclaration(ExportDeclaration* node) {
-  Print("export ");
-  PrintLiteral(node->proxy()->name(), false);
   Print(";");
 }
 
@@ -1308,12 +1298,6 @@ void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
   IndentedScope indent(this, "IMPORT", node->position());
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
   PrintLiteralIndented("FROM", node->module_specifier()->string(), true);
-}
-
-
-void AstPrinter::VisitExportDeclaration(ExportDeclaration* node) {
-  IndentedScope indent(this, "EXPORT", node->position());
-  PrintLiteral(node->proxy()->name(), true);
 }
 
 

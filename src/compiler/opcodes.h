@@ -137,7 +137,6 @@
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
   V(JSCreateBlockContext)     \
-  V(JSCreateModuleContext)    \
   V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V)         \

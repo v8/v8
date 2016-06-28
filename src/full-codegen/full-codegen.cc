@@ -432,11 +432,6 @@ void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
 }
 
 
-void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
-  // TODO(rossberg)
-}
-
-
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);

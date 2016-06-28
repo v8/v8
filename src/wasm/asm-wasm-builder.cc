@@ -137,8 +137,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitImportDeclaration(ImportDeclaration* decl) override {}
 
-  void VisitExportDeclaration(ExportDeclaration* decl) override {}
-
   void VisitStatements(ZoneList<Statement*>* stmts) override {
     for (int i = 0; i < stmts->length(); ++i) {
       Statement* stmt = stmts->at(i);

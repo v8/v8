@@ -67,10 +67,6 @@ void Context::set_extension(HeapObject* object) {
 }
 
 
-JSModule* Context::module() { return JSModule::cast(get(EXTENSION_INDEX)); }
-void Context::set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
-
-
 Context* Context::native_context() {
   Object* result = get(NATIVE_CONTEXT_INDEX);
   DCHECK(IsBootstrappingOrNativeContext(this->GetIsolate(), result));

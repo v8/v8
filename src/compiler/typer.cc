@@ -1340,12 +1340,6 @@ Type* Typer::Visitor::TypeJSCreateBlockContext(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeJSCreateModuleContext(Node* node) {
-  // TODO(rossberg): this is probably incorrect
-  return WrapContextTypeForInput(node);
-}
-
-
 Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
   return WrapContextTypeForInput(node);
 }

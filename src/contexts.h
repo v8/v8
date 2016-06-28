@@ -350,7 +350,6 @@ class ScriptContextTable : public FixedArray {
 //                block scopes, it may also be a struct being a
 //                SloppyBlockWithEvalContextExtension, pairing the ScopeInfo
 //                with an extension object.
-//                For module contexts, points back to the respective JSModule.
 //
 // [ global_object ]  A pointer to the global object. Provided for quick
 //                access to the global object from inside the code (since
@@ -429,9 +428,6 @@ class Context: public FixedArray {
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();
   String* catch_name();
-
-  inline JSModule* module();
-  inline void set_module(JSModule* module);
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.

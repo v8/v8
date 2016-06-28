@@ -870,8 +870,6 @@ void AstTraversalVisitor::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 
 void AstTraversalVisitor::VisitImportDeclaration(ImportDeclaration* decl) {}
 
-void AstTraversalVisitor::VisitExportDeclaration(ExportDeclaration* decl) {}
-
 void AstTraversalVisitor::VisitBlock(Block* stmt) {
   RECURSE(VisitStatements(stmt->statements()));
 }

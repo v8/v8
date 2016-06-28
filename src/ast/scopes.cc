@@ -227,11 +227,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       current_scope = new (zone) Scope(zone, current_scope, SCRIPT_SCOPE,
                                        Handle<ScopeInfo>(scope_info),
                                        script_scope->ast_value_factory_);
-    } else if (context->IsModuleContext()) {
-      ScopeInfo* scope_info = context->module()->scope_info();
-      current_scope = new (zone) Scope(zone, current_scope, MODULE_SCOPE,
-                                       Handle<ScopeInfo>(scope_info),
-                                       script_scope->ast_value_factory_);
     } else if (context->IsFunctionContext()) {
       ScopeInfo* scope_info = context->closure()->shared()->scope_info();
       current_scope = new (zone) Scope(zone, current_scope, FUNCTION_SCOPE,

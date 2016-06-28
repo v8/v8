@@ -492,9 +492,6 @@ namespace internal {
   F(PushWithContext, 2, 1)            \
   F(PushCatchContext, 3, 1)           \
   F(PushBlockContext, 2, 1)           \
-  F(IsJSModule, 1, 1)                 \
-  F(PushModuleContext, 2, 1)          \
-  F(DeclareModules, 1, 1)             \
   F(DeleteLookupSlot, 1, 1)           \
   F(LoadLookupSlot, 1, 1)             \
   F(LoadLookupSlotInsideTypeof, 1, 1) \

@@ -587,7 +587,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
     case IrOpcode::kJSCreateBlockContext:
-    case IrOpcode::kJSCreateModuleContext:
     case IrOpcode::kJSCreateScriptContext: {
       // Type is Context, and operand is Internal.
       Node* context = NodeProperties::GetContextInput(node);
