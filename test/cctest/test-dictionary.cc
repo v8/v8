@@ -113,6 +113,74 @@ TEST(HashMap) {
   TestHashMap(ObjectHashTable::New(isolate, 23));
 }
 
+template <typename HashSet>
+static void TestHashSet(Handle<HashSet> table) {
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+
+  Handle<JSObject> a = factory->NewJSArray(7);
+  Handle<JSObject> b = factory->NewJSArray(11);
+  table = HashSet::Add(table, a);
+  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK(table->Has(isolate, a));
+  CHECK(!table->Has(isolate, b));
+
+  // Keys still have to be valid after objects were moved.
+  CcTest::heap()->CollectGarbage(NEW_SPACE);
+  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK(table->Has(isolate, a));
+  CHECK(!table->Has(isolate, b));
+
+  // Keys that are overwritten should not change number of elements.
+  table = HashSet::Add(table, a);
+  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK(table->Has(isolate, a));
+  CHECK(!table->Has(isolate, b));
+
+  // Keys that have been removed are mapped to the hole.
+  // TODO(cbruni): not implemented yet.
+  // bool was_present = false;
+  // table = HashSet::Remove(table, a, &was_present);
+  // CHECK(was_present);
+  // CHECK_EQ(table->NumberOfElements(), 0);
+  // CHECK(!table->Has(a));
+  // CHECK(!table->Has(b));
+
+  // Keys should map back to their respective values and also should get
+  // an identity hash code generated.
+  for (int i = 0; i < 100; i++) {
+    Handle<JSReceiver> key = factory->NewJSArray(7);
+    table = HashSet::Add(table, key);
+    CHECK_EQ(table->NumberOfElements(), i + 2);
+    CHECK(table->Has(isolate, key));
+    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+  }
+
+  // Keys never added to the map which already have an identity hash
+  // code should not be found.
+  for (int i = 0; i < 100; i++) {
+    Handle<JSReceiver> key = factory->NewJSArray(7);
+    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
+    CHECK(!table->Has(isolate, key));
+    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+  }
+
+  // Keys that don't have an identity hash should not be found and also
+  // should not get an identity hash code generated.
+  for (int i = 0; i < 100; i++) {
+    Handle<JSReceiver> key = factory->NewJSArray(7);
+    CHECK(!table->Has(isolate, key));
+    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
+  }
+}
+
+TEST(HashSet) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashSet(ObjectHashSet::New(isolate, 23));
+}
 
 class ObjectHashTableTest: public ObjectHashTable {
  public:

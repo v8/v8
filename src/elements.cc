@@ -1323,10 +1323,14 @@ class DictionaryElementsAccessor
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     for (int i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
-      if (key == kMaxUInt32) continue;
-      Handle<Object> key_handle = isolate->factory()->NewNumberFromUint(key);
-      elements->set(insertion_index, *key_handle);
+      Object* raw_key = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(isolate, raw_key)) continue;
+      uint32_t key = FilterKey(dictionary, i, raw_key, filter);
+      if (key == kMaxUInt32) {
+        keys->AddShadowKey(raw_key);
+        continue;
+      }
+      elements->set(insertion_index, raw_key);
       insertion_index++;
     }
     SortIndices(elements, insertion_index);
