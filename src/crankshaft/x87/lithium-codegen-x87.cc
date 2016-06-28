@@ -3697,6 +3697,33 @@ void LCodeGen::DoMathClz32(LMathClz32* instr) {
   __ Lzcnt(result, input);
 }
 
+void LCodeGen::DoMathCos(LMathCos* instr) {
+  X87Register result = ToX87Register(instr->result());
+  X87Register input_reg = ToX87Register(instr->value());
+  __ fld(x87_stack_.st(input_reg));
+
+  // Pass one double as argument on the stack.
+  __ PrepareCallCFunction(2, eax);
+  __ fstp_d(MemOperand(esp, 0));
+  X87PrepareToWrite(result);
+  __ CallCFunction(ExternalReference::ieee754_cos_function(isolate()), 2);
+  // Return value is in st(0) on ia32.
+  X87CommitWrite(result);
+}
+
+void LCodeGen::DoMathSin(LMathSin* instr) {
+  X87Register result = ToX87Register(instr->result());
+  X87Register input_reg = ToX87Register(instr->value());
+  __ fld(x87_stack_.st(input_reg));
+
+  // Pass one double as argument on the stack.
+  __ PrepareCallCFunction(2, eax);
+  __ fstp_d(MemOperand(esp, 0));
+  X87PrepareToWrite(result);
+  __ CallCFunction(ExternalReference::ieee754_sin_function(isolate()), 2);
+  // Return value is in st(0) on ia32.
+  X87CommitWrite(result);
+}
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
   X87Register result = ToX87Register(instr->result());

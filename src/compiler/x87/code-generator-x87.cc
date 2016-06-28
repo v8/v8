@@ -754,6 +754,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Atan2:
       ASSEMBLE_IEEE754_BINOP(atan2);
       break;
+    case kIeee754Float64Cbrt:
+      ASSEMBLE_IEEE754_UNOP(cbrt);
+      break;
+    case kIeee754Float64Cos:
+      __ X87SetFPUCW(0x027F);
+      ASSEMBLE_IEEE754_UNOP(cos);
+      __ X87SetFPUCW(0x037F);
+      break;
+    case kIeee754Float64Expm1:
+      __ X87SetFPUCW(0x027F);
+      ASSEMBLE_IEEE754_UNOP(expm1);
+      __ X87SetFPUCW(0x037F);
+      break;
     case kIeee754Float64Exp:
       ASSEMBLE_IEEE754_UNOP(exp);
       break;
@@ -772,11 +785,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Cbrt:
-      ASSEMBLE_IEEE754_UNOP(cbrt);
-      break;
-    case kIeee754Float64Expm1:
-      ASSEMBLE_IEEE754_UNOP(expm1);
+    case kIeee754Float64Sin:
+      __ X87SetFPUCW(0x027F);
+      ASSEMBLE_IEEE754_UNOP(sin);
+      __ X87SetFPUCW(0x037F);
       break;
     case kX87Add:
       if (HasImmediateInput(instr, 1)) {

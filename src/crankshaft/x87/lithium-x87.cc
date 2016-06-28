@@ -1110,15 +1110,28 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   switch (instr->op()) {
-    case kMathFloor: return DoMathFloor(instr);
-    case kMathRound: return DoMathRound(instr);
-    case kMathFround: return DoMathFround(instr);
-    case kMathAbs: return DoMathAbs(instr);
-    case kMathLog: return DoMathLog(instr);
-    case kMathExp: return DoMathExp(instr);
-    case kMathSqrt: return DoMathSqrt(instr);
-    case kMathPowHalf: return DoMathPowHalf(instr);
-    case kMathClz32: return DoMathClz32(instr);
+    case kMathCos:
+      return DoMathCos(instr);
+    case kMathFloor:
+      return DoMathFloor(instr);
+    case kMathRound:
+      return DoMathRound(instr);
+    case kMathFround:
+      return DoMathFround(instr);
+    case kMathAbs:
+      return DoMathAbs(instr);
+    case kMathLog:
+      return DoMathLog(instr);
+    case kMathExp:
+      return DoMathExp(instr);
+    case kMathSqrt:
+      return DoMathSqrt(instr);
+    case kMathPowHalf:
+      return DoMathPowHalf(instr);
+    case kMathClz32:
+      return DoMathClz32(instr);
+    case kMathSin:
+      return DoMathSin(instr);
     default:
       UNREACHABLE();
       return NULL;
@@ -1173,6 +1186,19 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
   return DefineAsRegister(result);
 }
 
+LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathCos(input)), instr);
+}
+
+LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathSin(input)), instr);
+}
 
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
