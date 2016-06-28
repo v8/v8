@@ -326,10 +326,8 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  Factory* factory = isolate()->factory();
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent.is(eax));
-  const Register base = edx;
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;
@@ -342,38 +340,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ mov(scratch, Immediate(1));
   __ Cvtsi2sd(double_result, scratch);
 
-  if (exponent_type() == ON_STACK) {
-    Label base_is_smi, unpack_exponent;
-    // The exponent and base are supplied as arguments on the stack.
-    // This can only happen if the stub is called from non-optimized code.
-    // Load input parameters from stack.
-    __ mov(base, Operand(esp, 2 * kPointerSize));
-    __ mov(exponent, Operand(esp, 1 * kPointerSize));
-
-    __ JumpIfSmi(base, &base_is_smi, Label::kNear);
-    __ cmp(FieldOperand(base, HeapObject::kMapOffset),
-           factory->heap_number_map());
-    __ j(not_equal, &call_runtime);
-
-    __ movsd(double_base, FieldOperand(base, HeapNumber::kValueOffset));
-    __ jmp(&unpack_exponent, Label::kNear);
-
-    __ bind(&base_is_smi);
-    __ SmiUntag(base);
-    __ Cvtsi2sd(double_base, base);
-
-    __ bind(&unpack_exponent);
-    __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
-    __ SmiUntag(exponent);
-    __ jmp(&int_exponent);
-
-    __ bind(&exponent_not_smi);
-    __ cmp(FieldOperand(exponent, HeapObject::kMapOffset),
-           factory->heap_number_map());
-    __ j(not_equal, &call_runtime);
-    __ movsd(double_exponent,
-              FieldOperand(exponent, HeapNumber::kValueOffset));
-  } else if (exponent_type() == TAGGED) {
+  if (exponent_type() == TAGGED) {
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
     __ SmiUntag(exponent);
     __ jmp(&int_exponent);
@@ -396,79 +363,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cvttsd2si(exponent, Operand(double_exponent));
     __ cmp(exponent, Immediate(0x1));
     __ j(overflow, &call_runtime);
-
-    if (exponent_type() == ON_STACK) {
-      // Detect square root case.  Crankshaft detects constant +/-0.5 at
-      // compile time and uses DoMathPowHalf instead.  We then skip this check
-      // for non-constant cases of +/-0.5 as these hardly occur.
-      Label continue_sqrt, continue_rsqrt, not_plus_half;
-      // Test for 0.5.
-      // Load double_scratch with 0.5.
-      __ mov(scratch, Immediate(0x3F000000u));
-      __ movd(double_scratch, scratch);
-      __ cvtss2sd(double_scratch, double_scratch);
-      // Already ruled out NaNs for exponent.
-      __ ucomisd(double_scratch, double_exponent);
-      __ j(not_equal, &not_plus_half, Label::kNear);
-
-      // Calculates square root of base.  Check for the special case of
-      // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      // According to IEEE-754, single-precision -Infinity has the highest
-      // 9 bits set and the lowest 23 bits cleared.
-      __ mov(scratch, 0xFF800000u);
-      __ movd(double_scratch, scratch);
-      __ cvtss2sd(double_scratch, double_scratch);
-      __ ucomisd(double_base, double_scratch);
-      // Comparing -Infinity with NaN results in "unordered", which sets the
-      // zero flag as if both were equal.  However, it also sets the carry flag.
-      __ j(not_equal, &continue_sqrt, Label::kNear);
-      __ j(carry, &continue_sqrt, Label::kNear);
-
-      // Set result to Infinity in the special case.
-      __ xorps(double_result, double_result);
-      __ subsd(double_result, double_scratch);
-      __ jmp(&done);
-
-      __ bind(&continue_sqrt);
-      // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-      __ xorps(double_scratch, double_scratch);
-      __ addsd(double_scratch, double_base);  // Convert -0 to +0.
-      __ sqrtsd(double_result, double_scratch);
-      __ jmp(&done);
-
-      // Test for -0.5.
-      __ bind(&not_plus_half);
-      // Load double_exponent with -0.5 by substracting 1.
-      __ subsd(double_scratch, double_result);
-      // Already ruled out NaNs for exponent.
-      __ ucomisd(double_scratch, double_exponent);
-      __ j(not_equal, &fast_power, Label::kNear);
-
-      // Calculates reciprocal of square root of base.  Check for the special
-      // case of Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      // According to IEEE-754, single-precision -Infinity has the highest
-      // 9 bits set and the lowest 23 bits cleared.
-      __ mov(scratch, 0xFF800000u);
-      __ movd(double_scratch, scratch);
-      __ cvtss2sd(double_scratch, double_scratch);
-      __ ucomisd(double_base, double_scratch);
-      // Comparing -Infinity with NaN results in "unordered", which sets the
-      // zero flag as if both were equal.  However, it also sets the carry flag.
-      __ j(not_equal, &continue_rsqrt, Label::kNear);
-      __ j(carry, &continue_rsqrt, Label::kNear);
-
-      // Set result to 0 in the special case.
-      __ xorps(double_result, double_result);
-      __ jmp(&done);
-
-      __ bind(&continue_rsqrt);
-      // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
-      __ xorps(double_exponent, double_exponent);
-      __ addsd(double_exponent, double_base);  // Convert -0 to +0.
-      __ sqrtsd(double_exponent, double_exponent);
-      __ divsd(double_result, double_exponent);
-      __ jmp(&done);
-    }
 
     // Using FPU instructions to calculate power.
     Label fast_power_failed;
@@ -559,39 +453,25 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Cvtsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
-  if (exponent_type() == ON_STACK) {
-    // The arguments are still on the stack.
-    __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kMathPowRT);
-
-    // The stub is called from non-optimized code, which expects the result
-    // as heap number in exponent.
-    __ bind(&done);
-    __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
-    __ movsd(FieldOperand(eax, HeapNumber::kValueOffset), double_result);
-    __ ret(2 * kPointerSize);
-  } else {
-    __ bind(&call_runtime);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(4, scratch);
-      __ movsd(Operand(esp, 0 * kDoubleSize), double_base);
-      __ movsd(Operand(esp, 1 * kDoubleSize), double_exponent);
-      __ CallCFunction(
-          ExternalReference::power_double_double_function(isolate()), 4);
-    }
-    // Return value is in st(0) on ia32.
-    // Store it into the (fixed) result register.
-    __ sub(esp, Immediate(kDoubleSize));
-    __ fstp_d(Operand(esp, 0));
-    __ movsd(double_result, Operand(esp, 0));
-    __ add(esp, Immediate(kDoubleSize));
-
-    __ bind(&done);
-    __ ret(0);
+  __ bind(&call_runtime);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(4, scratch);
+    __ movsd(Operand(esp, 0 * kDoubleSize), double_base);
+    __ movsd(Operand(esp, 1 * kDoubleSize), double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     4);
   }
-}
+  // Return value is in st(0) on ia32.
+  // Store it into the (fixed) result register.
+  __ sub(esp, Immediate(kDoubleSize));
+  __ fstp_d(Operand(esp, 0));
+  __ movsd(double_result, Operand(esp, 0));
+  __ add(esp, Immediate(kDoubleSize));
 
+  __ bind(&done);
+  __ ret(0);
+}
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;

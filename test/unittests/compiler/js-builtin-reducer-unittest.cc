@@ -792,6 +792,50 @@ TEST_F(JSBuiltinReducerTest, MathRoundWithPlainPrimitive) {
 }
 
 // -----------------------------------------------------------------------------
+// Math.pow
+
+TEST_F(JSBuiltinReducerTest, MathPowWithNumber) {
+  Node* function = MathFunction("pow");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    TRACED_FOREACH(Type*, t1, kNumberTypes) {
+      Node* p1 = Parameter(t1, 0);
+      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                    UndefinedConstant(), p0, p1, context,
+                                    frame_state, effect, control);
+      Reduction r = Reduce(call);
+
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsNumberPow(p0, p1));
+    }
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathPowWithPlainPrimitive) {
+  Node* function = MathFunction("pow");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* p1 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                UndefinedConstant(), p0, p1, context,
+                                frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberPow(IsPlainPrimitiveToNumber(p0),
+                                           IsPlainPrimitiveToNumber(p1)));
+}
+
+// -----------------------------------------------------------------------------
 // Math.sin
 
 TEST_F(JSBuiltinReducerTest, MathSinWithNumber) {

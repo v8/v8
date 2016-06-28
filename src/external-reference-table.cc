@@ -65,8 +65,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
       "power_double_double_function");
-  Add(ExternalReference::power_double_int_function(isolate).address(),
-      "power_double_int_function");
   Add(ExternalReference::ieee754_atan_function(isolate).address(),
       "base::ieee754::atan");
   Add(ExternalReference::ieee754_atan2_function(isolate).address(),

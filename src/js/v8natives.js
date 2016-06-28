@@ -397,9 +397,9 @@ utils.InstallConstants(GlobalNumber, [
 
   // --- Harmony constants (no spec refs until settled.)
 
-  "MAX_SAFE_INTEGER", %_MathPow(2, 53) - 1,
-  "MIN_SAFE_INTEGER", -%_MathPow(2, 53) + 1,
-  "EPSILON", %_MathPow(2, -52)
+  "MAX_SAFE_INTEGER", 9007199254740991,
+  "MIN_SAFE_INTEGER", -9007199254740991,
+  "EPSILON", 2.220446049250313e-16,
 ]);
 
 // Set up non-enumerable functions on the Number prototype object.

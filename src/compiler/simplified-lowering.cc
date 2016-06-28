@@ -1538,7 +1538,8 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
       }
-      case IrOpcode::kNumberAtan2: {
+      case IrOpcode::kNumberAtan2:
+      case IrOpcode::kNumberPow: {
         VisitBinop(node, UseInfo::TruncatingFloat64(),
                    MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));

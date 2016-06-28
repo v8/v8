@@ -215,6 +215,7 @@
   V(NumberLog2)                       \
   V(NumberLog10)                      \
   V(NumberCbrt)                       \
+  V(NumberPow)                        \
   V(NumberRound)                      \
   V(NumberSin)                        \
   V(NumberSqrt)                       \
@@ -393,6 +394,7 @@
   V(Float64Log1p)               \
   V(Float64Log10)               \
   V(Float64Log2)                \
+  V(Float64Pow)                 \
   V(Float64Sin)                 \
   V(Float64Sqrt)                \
   V(Float64Tan)                 \

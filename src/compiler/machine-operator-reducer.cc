@@ -43,6 +43,20 @@ Node* MachineOperatorReducer::Int64Constant(int64_t value) {
   return graph()->NewNode(common()->Int64Constant(value));
 }
 
+Node* MachineOperatorReducer::Float64Mul(Node* lhs, Node* rhs) {
+  return graph()->NewNode(machine()->Float64Mul(), lhs, rhs);
+}
+
+Node* MachineOperatorReducer::Float64PowHalf(Node* value) {
+  value =
+      graph()->NewNode(machine()->Float64Add(), Float64Constant(0.0), value);
+  return graph()->NewNode(
+      common()->Select(MachineRepresentation::kFloat64, BranchHint::kFalse),
+      graph()->NewNode(machine()->Float64LessThanOrEqual(), value,
+                       Float64Constant(-V8_INFINITY)),
+      Float64Constant(V8_INFINITY),
+      graph()->NewNode(machine()->Float64Sqrt(), value));
+}
 
 Node* MachineOperatorReducer::Word32And(Node* lhs, Node* rhs) {
   Node* const node = graph()->NewNode(machine()->Word32And(), lhs, rhs);
@@ -377,6 +391,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::atanh(m.Value()));
       break;
     }
+    case IrOpcode::kFloat64Cbrt: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::cbrt(m.Value()));
+      break;
+    }
     case IrOpcode::kFloat64Cos: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::cos(m.Value()));
@@ -402,19 +421,40 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::log1p(m.Value()));
       break;
     }
-    case IrOpcode::kFloat64Log2: {
-      Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(base::ieee754::log2(m.Value()));
-      break;
-    }
     case IrOpcode::kFloat64Log10: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::log10(m.Value()));
       break;
     }
-    case IrOpcode::kFloat64Cbrt: {
+    case IrOpcode::kFloat64Log2: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(base::ieee754::cbrt(m.Value()));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::log2(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Pow: {
+      Float64BinopMatcher m(node);
+      // TODO(bmeurer): Constant fold once we have a unified pow implementation.
+      if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
+        return ReplaceFloat64(1.0);
+      } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)
+        node->ReplaceInput(0, Float64Constant(1.0));
+        node->ReplaceInput(1, Float64Mul(m.left().node(), m.left().node()));
+        NodeProperties::ChangeOp(node, machine()->Float64Div());
+        return Changed(node);
+      } else if (m.right().Is(2.0)) {  // x ** 2.0 => x * x
+        node->ReplaceInput(1, m.left().node());
+        NodeProperties::ChangeOp(node, machine()->Float64Mul());
+        return Changed(node);
+      } else if (m.right().Is(-0.5)) {
+        // x ** 0.5 => 1 / (if x <= -Infinity then Infinity else sqrt(0.0 + x))
+        node->ReplaceInput(0, Float64Constant(1.0));
+        node->ReplaceInput(1, Float64PowHalf(m.left().node()));
+        NodeProperties::ChangeOp(node, machine()->Float64Div());
+        return Changed(node);
+      } else if (m.right().Is(0.5)) {
+        // x ** 0.5 => if x <= -Infinity then Infinity else sqrt(0.0 + x)
+        return Replace(Float64PowHalf(m.left().node()));
+      }
       break;
     }
     case IrOpcode::kFloat64Sin: {
@@ -504,7 +544,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
   DCHECK_EQ(IrOpcode::kInt32Add, node->opcode());

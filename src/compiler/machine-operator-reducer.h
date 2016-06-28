@@ -34,6 +34,8 @@ class MachineOperatorReducer final : public Reducer {
   Node* Uint32Constant(uint32_t value) {
     return Int32Constant(bit_cast<uint32_t>(value));
   }
+  Node* Float64Mul(Node* lhs, Node* rhs);
+  Node* Float64PowHalf(Node* value);
   Node* Word32And(Node* lhs, Node* rhs);
   Node* Word32And(Node* lhs, uint32_t rhs) {
     return Word32And(lhs, Uint32Constant(rhs));

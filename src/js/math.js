@@ -29,11 +29,6 @@ function MathAbs(x) {
   return (x > 0) ? x : 0 - x;
 }
 
-// ECMA 262 - 15.8.2.13
-function MathPowJS(x, y) {
-  return %_MathPow(TO_NUMBER(x), TO_NUMBER(y));
-}
-
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
   // While creating a startup snapshot, %GenerateRandomNumbers returns a
@@ -119,10 +114,6 @@ function MathHypot(x, y) {  // Function length is 2.
 
 // -------------------------------------------------------------------
 
-%InstallToContext([
-  "math_pow", MathPowJS,
-]);
-
 %AddNamedProperty(GlobalMath, toStringTagSymbol, "Math", READ_ONLY | DONT_ENUM);
 
 // Set up math constants.
@@ -137,7 +128,6 @@ utils.InstallConstants(GlobalMath, [
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "abs", MathAbs,
-  "pow", MathPowJS,
   "sign", MathSign,
   "asinh", MathAsinh,
   "acosh", MathAcosh,

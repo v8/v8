@@ -519,19 +519,6 @@ void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
-  // Load the arguments on the stack and call the runtime function.
-  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  __ CallStub(&stub);
-  OperandStackDepthDecrement(2);
-  context()->Plug(result_register());
-}
-
-
 void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
                                                 const Callable& callable) {
   ZoneList<Expression*>* args = expr->arguments();

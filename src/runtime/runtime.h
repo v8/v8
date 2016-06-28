@@ -352,8 +352,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MATHS(F) \
   F(DoubleHi, 1, 1)                 \
   F(DoubleLo, 1, 1)                 \
-  F(MathPow, 2, 1)                  \
-  F(MathPowRT, 2, 1)                \
   F(GenerateRandomNumbers, 1, 1)
 
 

@@ -380,6 +380,8 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // Floating point exponential functions (double-precision).
   const Operator* Float64Exp();
+  const Operator* Float64Expm1();
+  const Operator* Float64Pow();
 
   // Floating point logarithm (double-precision).
   const Operator* Float64Log();
@@ -387,8 +389,8 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64Log2();
   const Operator* Float64Log10();
 
+  // Floating point cube root (double-precision).
   const Operator* Float64Cbrt();
-  const Operator* Float64Expm1();
 
   // Floating point bit representation.
   const Operator* Float64ExtractLowWord32();

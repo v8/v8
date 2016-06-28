@@ -226,13 +226,6 @@ TEST(IntrinsicAsStubCall) {
   CHECK_EQ(Smi::FromInt(502),
            *to_integer_helper.Invoke(to_integer_helper.NewObject("502.67")));
 
-  InvokeIntrinsicHelper math_pow_helper(isolate, handles.main_zone(),
-                                        Runtime::kInlineMathPow);
-  CHECK(math_pow_helper
-            .Invoke(math_pow_helper.NewObject("3"),
-                    math_pow_helper.NewObject("7"))
-            ->SameValue(Smi::FromInt(2187)));
-
   InvokeIntrinsicHelper has_property_helper(isolate, handles.main_zone(),
                                             Runtime::kInlineHasProperty);
   CHECK_EQ(*factory->true_value(),

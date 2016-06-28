@@ -339,6 +339,20 @@ Reduction JSBuiltinReducer::ReduceMathMin(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.26 Math.pow ( x, y )
+Reduction JSBuiltinReducer::ReduceMathPow(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchTwo(Type::PlainPrimitive(), Type::PlainPrimitive())) {
+    // Math.pow(a:plain-primitive,
+    //          b:plain-primitive) -> NumberPow(ToNumber(a), ToNumber(b))
+    Node* left = ToNumber(r.left());
+    Node* right = ToNumber(r.right());
+    Node* value = graph()->NewNode(simplified()->NumberPow(), left, right);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
@@ -441,11 +455,14 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathAtanh:
       reduction = ReduceMathAtanh(node);
       break;
-    case kMathClz32:
-      reduction = ReduceMathClz32(node);
+    case kMathCbrt:
+      reduction = ReduceMathCbrt(node);
       break;
     case kMathCeil:
       reduction = ReduceMathCeil(node);
+      break;
+    case kMathClz32:
+      reduction = ReduceMathClz32(node);
       break;
     case kMathCos:
       reduction = ReduceMathCos(node);
@@ -483,8 +500,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathMin:
       reduction = ReduceMathMin(node);
       break;
-    case kMathCbrt:
-      reduction = ReduceMathCbrt(node);
+    case kMathPow:
+      reduction = ReduceMathPow(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);

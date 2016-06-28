@@ -35,48 +35,6 @@ RUNTIME_FUNCTION(Runtime_DoubleLo) {
 }
 
 
-// Slow version of Math.pow.  We check for fast paths for special cases.
-// Used if VFP3 is not available.
-RUNTIME_FUNCTION(Runtime_MathPow) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_pow_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-
-  // If the second argument is a smi, it is much faster to call the
-  // custom powi() function than the generic pow().
-  if (args[1]->IsSmi()) {
-    int y = args.smi_at(1);
-    return *isolate->factory()->NewNumber(power_double_int(x, y));
-  }
-
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  double result = power_helper(isolate, x, y);
-  if (std::isnan(result)) return isolate->heap()->nan_value();
-  return *isolate->factory()->NewNumber(result);
-}
-
-
-// Fast version of Math.pow if we know that y is not an integer and y is not
-// -0.5 or 0.5.  Used as slow case from full codegen.
-RUNTIME_FUNCTION(Runtime_MathPowRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  isolate->counters()->math_pow_runtime()->Increment();
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (y == 0) {
-    return Smi::FromInt(1);
-  } else {
-    double result = power_double_double(x, y);
-    if (std::isnan(result)) return isolate->heap()->nan_value();
-    return *isolate->factory()->NewNumber(result);
-  }
-}
-
-
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

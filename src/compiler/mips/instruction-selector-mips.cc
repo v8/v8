@@ -937,8 +937,8 @@ void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
                                                    InstructionCode opcode) {
   MipsOperandGenerator g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12),
-       g.UseFixed(node->InputAt(1), f14))
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f2),
+       g.UseFixed(node->InputAt(1), f4))
       ->MarkAsCall();
 }
 

@@ -1017,7 +1017,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference mod_two_doubles_operation(Isolate* isolate);
   static ExternalReference power_double_double_function(Isolate* isolate);
-  static ExternalReference power_double_int_function(Isolate* isolate);
 
   static ExternalReference handle_scope_next_address(Isolate* isolate);
   static ExternalReference handle_scope_limit_address(Isolate* isolate);

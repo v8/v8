@@ -745,6 +745,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Unsigned32());
       break;
     case IrOpcode::kNumberAtan2:
+    case IrOpcode::kNumberPow:
       // (Number, Number) -> Number
       CheckValueInputIs(node, 0, Type::Number());
       CheckValueInputIs(node, 1, Type::Number());
@@ -1090,14 +1091,15 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Atan:
     case IrOpcode::kFloat64Atan2:
     case IrOpcode::kFloat64Atanh:
+    case IrOpcode::kFloat64Cbrt:
     case IrOpcode::kFloat64Cos:
     case IrOpcode::kFloat64Exp:
     case IrOpcode::kFloat64Expm1:
     case IrOpcode::kFloat64Log:
     case IrOpcode::kFloat64Log1p:
-    case IrOpcode::kFloat64Log2:
     case IrOpcode::kFloat64Log10:
-    case IrOpcode::kFloat64Cbrt:
+    case IrOpcode::kFloat64Log2:
+    case IrOpcode::kFloat64Pow:
     case IrOpcode::kFloat64Sin:
     case IrOpcode::kFloat64Sqrt:
     case IrOpcode::kFloat64Tan:

@@ -103,11 +103,11 @@ TEST(SimpleCallRuntime2Arg) {
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
-  m.Return(m.CallRuntime(Runtime::kMathPow, context, a, b));
+  m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 TEST(SimpleTailCallRuntime2Arg) {
@@ -117,11 +117,11 @@ TEST(SimpleTailCallRuntime2Arg) {
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
-  m.TailCallRuntime(Runtime::kMathPow, context, a, b);
+  m.TailCallRuntime(Runtime::kAdd, context, a, b);
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 namespace {

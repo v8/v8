@@ -318,9 +318,10 @@ class CodeStubAssembler;
   V(MathFloor, 2)                     \
   V(MathLog, 2)                       \
   V(MathLog1p, 2)                     \
-  V(MathLog2, 2)                      \
   V(MathLog10, 2)                     \
+  V(MathLog2, 2)                      \
   V(MathRound, 2)                     \
+  V(MathPow, 3)                       \
   V(MathSin, 2)                       \
   V(MathTan, 2)                       \
   V(MathSqrt, 2)                      \
@@ -662,6 +663,8 @@ class Builtins {
   static void Generate_MathMin(MacroAssembler* masm) {
     Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
   }
+  // ES6 section 20.2.2.26 Math.pow ( x, y )
+  static void Generate_MathPow(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.28 Math.round ( x )
   static void Generate_MathRound(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.20 Math.sin ( x )

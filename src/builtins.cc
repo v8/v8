@@ -2561,6 +2561,20 @@ void Builtins::Generate_MathRound(CodeStubAssembler* assembler) {
   Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Round);
 }
 
+// ES6 section 20.2.2.26 Math.pow ( x, y )
+void Builtins::Generate_MathPow(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* y = assembler->Parameter(2);
+  Node* context = assembler->Parameter(5);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* y_value = assembler->TruncateTaggedToFloat64(context, y);
+  Node* value = assembler->Float64Pow(x_value, y_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.30 Math.sin ( x )
 void Builtins::Generate_MathSin(CodeStubAssembler* assembler) {
   using compiler::Node;

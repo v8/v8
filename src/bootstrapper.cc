@@ -1695,6 +1695,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "log10", Builtins::kMathLog10, 1, true);
     SimpleInstallFunction(math, "max", Builtins::kMathMax, 2, false);
     SimpleInstallFunction(math, "min", Builtins::kMathMin, 2, false);
+    Handle<JSFunction> math_pow =
+        SimpleInstallFunction(math, "pow", Builtins::kMathPow, 2, true);
+    native_context()->set_math_pow(*math_pow);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
     SimpleInstallFunction(math, "sin", Builtins::kMathSin, 1, true);
     Handle<JSFunction> math_sqrt =

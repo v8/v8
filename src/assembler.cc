@@ -1688,14 +1688,6 @@ ExternalReference ExternalReference::power_double_double_function(
 }
 
 
-ExternalReference ExternalReference::power_double_int_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(power_double_int),
-                                    BUILTIN_FP_INT_CALL));
-}
-
-
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,

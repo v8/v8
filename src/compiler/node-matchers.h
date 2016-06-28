@@ -157,6 +157,7 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   bool IsMinusZero() const {
     return this->Is(0.0) && std::signbit(this->Value());
   }
+  bool IsNegative() const { return this->HasValue() && this->Value() < 0.0; }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
   bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
 };

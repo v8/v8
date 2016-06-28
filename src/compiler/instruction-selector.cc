@@ -1156,6 +1156,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Log10(node);
     case IrOpcode::kFloat64Log2:
       return MarkAsFloat64(node), VisitFloat64Log2(node);
+    case IrOpcode::kFloat64Pow:
+      return MarkAsFloat64(node), VisitFloat64Pow(node);
     case IrOpcode::kFloat64Sin:
       return MarkAsFloat64(node), VisitFloat64Sin(node);
     case IrOpcode::kFloat64Sqrt:
@@ -1307,6 +1309,10 @@ void InstructionSelector::VisitFloat64Log2(Node* node) {
 
 void InstructionSelector::VisitFloat64Log10(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
+}
+
+void InstructionSelector::VisitFloat64Pow(Node* node) {
+  VisitFloat64Ieee754Binop(node, kIeee754Float64Pow);
 }
 
 void InstructionSelector::VisitFloat64Sin(Node* node) {

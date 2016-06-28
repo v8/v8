@@ -1370,9 +1370,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathTrunc:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         // Unary math functions.
+        case kMathAbs:
         case kMathExp:
           return Type::Union(Type::PlainNumber(), Type::NaN(), t->zone());
-        case kMathAbs:
         case kMathLog:
         case kMathSqrt:
         case kMathCos:
@@ -1662,6 +1662,8 @@ Type* Typer::Visitor::TypeNumberLog2(Node* node) { return Type::Number(); }
 Type* Typer::Visitor::TypeNumberLog10(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberCbrt(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberPow(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberRound(Node* node) {
   return TypeUnaryOp(node, NumberRound);
@@ -2435,6 +2437,8 @@ Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Atanh(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64Cbrt(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeFloat64Cos(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Exp(Node* node) { return Type::Number(); }
@@ -2445,11 +2449,11 @@ Type* Typer::Visitor::TypeFloat64Log(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Log1p(Node* node) { return Type::Number(); }
 
-Type* Typer::Visitor::TypeFloat64Log2(Node* node) { return Type::Number(); }
-
 Type* Typer::Visitor::TypeFloat64Log10(Node* node) { return Type::Number(); }
 
-Type* Typer::Visitor::TypeFloat64Cbrt(Node* node) { return Type::Number(); }
+Type* Typer::Visitor::TypeFloat64Log2(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Pow(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sin(Node* node) { return Type::Number(); }
 
