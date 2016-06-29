@@ -424,6 +424,7 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
 DEFINE_IMPLICATION(turbo, turbo_asm_deoptimization)
 DEFINE_IMPLICATION(turbo, turbo_type_feedback)
+DEFINE_IMPLICATION(turbo, turbo_store_elimination)
 DEFINE_BOOL(turbo_shipping, true, "enable TurboFan compiler on subset")
 DEFINE_BOOL(turbo_from_bytecode, false, "enable building graphs from bytecode")
 DEFINE_BOOL(turbo_sp_frame_access, false,
