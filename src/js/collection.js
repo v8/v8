@@ -14,7 +14,7 @@ var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
-var IntRandom;
+var MathRandom;
 var MakeTypeError;
 var MapIterator;
 var NumberIsNaN;
@@ -23,7 +23,7 @@ var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  IntRandom = from.IntRandom;
+  MathRandom = from.MathRandom;
   MakeTypeError = from.MakeTypeError;
   MapIterator = from.MapIterator;
   NumberIsNaN = from.NumberIsNaN;
@@ -113,7 +113,7 @@ function GetExistingHash(key) {
 function GetHash(key) {
   var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) {
-    hash = IntRandom() | 0;
+    hash = (MathRandom() * 0x40000000) | 0;
     if (hash === 0) hash = 1;
     SET_PRIVATE(key, hashCodeSymbol, hash);
   }

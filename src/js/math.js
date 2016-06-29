@@ -47,14 +47,6 @@ function MathRandom() {
   return randomNumbers[--nextRandomIndex];
 }
 
-function MathRandomRaw() {
-  if (nextRandomIndex <= kRandomNumberStart) {
-    randomNumbers = %GenerateRandomNumbers(randomNumbers);
-    nextRandomIndex = %_TypedArrayGetLength(randomNumbers);
-  }
-  return %_DoubleLo(randomNumbers[--nextRandomIndex]) & 0x3FFFFFFF;
-}
-
 // ES6 draft 09-27-13, section 20.2.2.28.
 function MathSign(x) {
   x = +x;
@@ -142,7 +134,7 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 
 utils.Export(function(to) {
   to.MathAbs = MathAbs;
-  to.IntRandom = MathRandomRaw;
+  to.MathRandom = MathRandom;
 });
 
 })
