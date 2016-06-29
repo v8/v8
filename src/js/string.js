@@ -447,43 +447,19 @@ function StringSubstring(start, end) {
 }
 
 
-// ES6 draft, revision 26 (2014-07-18), section B.2.3.1
-function StringSubstr(start, n) {
+// ecma262/#sec-string.prototype.substr
+function StringSubstr(start, length) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.substr");
-
   var s = TO_STRING(this);
-  var len;
+  var size = s.length;
+  start = TO_INTEGER(start);
+  length = IS_UNDEFINED(length) ? size : TO_INTEGER(length);
 
-  // Correct n: If not given, set to string length; if explicitly
-  // set to undefined, zero, or negative, returns empty string.
-  if (IS_UNDEFINED(n)) {
-    len = s.length;
-  } else {
-    len = TO_INTEGER(n);
-    if (len <= 0) return '';
-  }
+  if (start < 0) start = MaxSimple(size + start, 0);
+  length = MinSimple(MaxSimple(length, 0), size - start);
 
-  // Correct start: If not given (or undefined), set to zero; otherwise
-  // convert to integer and handle negative case.
-  if (IS_UNDEFINED(start)) {
-    start = 0;
-  } else {
-    start = TO_INTEGER(start);
-    // If positive, and greater than or equal to the string length,
-    // return empty string.
-    if (start >= s.length) return '';
-    // If negative and absolute value is larger than the string length,
-    // use zero.
-    if (start < 0) {
-      start += s.length;
-      if (start < 0) start = 0;
-    }
-  }
-
-  var end = start + len;
-  if (end > s.length) end = s.length;
-
-  return %_SubString(s, start, end);
+  if (length <= 0) return '';
+  return %_SubString(s, start, start + length);
 }
 
 

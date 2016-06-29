@@ -469,9 +469,6 @@
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5140
-  'annexB/built-ins/String/prototype/substr/start-to-int-err': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
