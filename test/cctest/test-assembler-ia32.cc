@@ -1506,15 +1506,15 @@ TEST(Regress621926) {
   HandleScope scope(isolate);
   Assembler assm(isolate, nullptr, 0);
 
-  int16_t a = 42;
+  uint16_t a = 42;
 
   Label fail;
   __ push(ebx);
   __ mov(ebx, Immediate(reinterpret_cast<intptr_t>(&a)));
   __ mov(eax, Immediate(41));
-  __ cmpw(eax, Operand(ebx));
+  __ cmpw(eax, Operand(ebx, 0));
   __ j(above_equal, &fail);
-  __ cmpw(Operand(ebx), eax);
+  __ cmpw(Operand(ebx, 0), eax);
   __ j(below_equal, &fail);
   __ mov(eax, 1);
   __ pop(ebx);
