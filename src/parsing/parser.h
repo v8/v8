@@ -1019,7 +1019,9 @@ class Parser : public ParserBase<ParserTraits> {
   void InsertShadowingVarBindingInitializers(Block* block);
 
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
-  void InsertSloppyBlockFunctionVarBindings(Scope* scope, bool* ok);
+  void InsertSloppyBlockFunctionVarBindings(Scope* scope,
+                                            Scope* complex_params_scope,
+                                            bool* ok);
 
   // Parser support
   VariableProxy* NewUnresolved(const AstRawString* name, VariableMode mode);

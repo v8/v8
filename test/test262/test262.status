@@ -323,16 +323,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   'language/module-code/*': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5111
-  'annexB/language/function-code/block-decl-func-skip-param': [FAIL],
-  'annexB/language/function-code/if-decl-else-decl-a-func-skip-param': [FAIL],
-  'annexB/language/function-code/if-decl-else-decl-b-func-skip-param': [FAIL],
-  'annexB/language/function-code/if-decl-else-stmt-func-skip-param': [FAIL],
-  'annexB/language/function-code/if-decl-no-else-func-skip-param': [FAIL],
-  'annexB/language/function-code/if-stmt-else-decl-func-skip-param': [FAIL],
-  'annexB/language/function-code/switch-case-func-skip-param': [FAIL],
-  'annexB/language/function-code/switch-dflt-func-skip-param': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5112
   'language/statements/try/scope-catch-block-lex-open': [FAIL],
   'language/statements/try/scope-catch-param-lex-open': [FAIL],

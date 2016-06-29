@@ -970,7 +970,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       // pre-existing bindings should be made writable, enumerable and
       // nonconfigurable if possible, whereas this code will leave attributes
       // unchanged if the property already exists.
-      InsertSloppyBlockFunctionVarBindings(scope, &ok);
+      InsertSloppyBlockFunctionVarBindings(scope, nullptr, &ok);
     }
     if (ok) {
       CheckConflictingVarDeclarations(scope_, &ok);
@@ -4357,9 +4357,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       CheckDecimalLiteralWithLeadingZero(use_counts_, scope->start_position(),
                                          scope->end_position());
     }
-    if (is_sloppy(language_mode)) {
-      InsertSloppyBlockFunctionVarBindings(scope, CHECK_OK);
-    }
     CheckConflictingVarDeclarations(scope, CHECK_OK);
 
     if (body) {
@@ -4808,6 +4805,11 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     SetLanguageMode(scope_, inner_scope->language_mode());
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
 
+    if (is_sloppy(inner_scope->language_mode())) {
+      InsertSloppyBlockFunctionVarBindings(
+          inner_scope, inner_scope->outer_scope(), CHECK_OK);
+    }
+
     if (IsAsyncFunction(kind)) {
       init_block = BuildRejectPromiseOnException(init_block);
     }
@@ -4823,6 +4825,10 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
     result->Add(init_block, zone());
     result->Add(inner_block, zone());
+  } else {
+    if (is_sloppy(inner_scope->language_mode())) {
+      InsertSloppyBlockFunctionVarBindings(inner_scope, nullptr, CHECK_OK);
+    }
   }
 
   if (function_type == FunctionLiteral::kNamedExpression) {
@@ -5110,37 +5116,83 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   }
 }
 
-
-void Parser::InsertSloppyBlockFunctionVarBindings(Scope* scope, bool* ok) {
+void Parser::InsertSloppyBlockFunctionVarBindings(Scope* scope,
+                                                  Scope* complex_params_scope,
+                                                  bool* ok) {
   // For each variable which is used as a function declaration in a sloppy
   // block,
   DCHECK(scope->is_declaration_scope());
   SloppyBlockFunctionMap* map = scope->sloppy_block_function_map();
   for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     AstRawString* name = static_cast<AstRawString*>(p->key);
-    // If the variable wouldn't conflict with a lexical declaration,
-    Variable* var = scope->LookupLocal(name);
-    if (var == nullptr || !IsLexicalVariableMode(var->mode())) {
-      // Declare a var-style binding for the function in the outer scope
-      VariableProxy* proxy = scope->NewUnresolved(factory(), name);
-      Declaration* declaration = factory()->NewVariableDeclaration(
-          proxy, VAR, scope, RelocInfo::kNoPosition);
-      Declare(declaration, DeclarationDescriptor::NORMAL, true, ok, scope);
-      DCHECK(ok);  // Based on the preceding check, this should not fail
-      if (!ok) return;
 
-      // Write in assignments to var for each block-scoped function declaration
-      auto delegates = static_cast<SloppyBlockFunctionMap::Vector*>(p->value);
-      for (SloppyBlockFunctionStatement* delegate : *delegates) {
-        // Read from the local lexical scope and write to the function scope
-        VariableProxy* to = scope->NewUnresolved(factory(), name);
-        VariableProxy* from = delegate->scope()->NewUnresolved(factory(), name);
-        Expression* assignment = factory()->NewAssignment(
-            Token::ASSIGN, to, from, RelocInfo::kNoPosition);
-        Statement* statement = factory()->NewExpressionStatement(
-            assignment, RelocInfo::kNoPosition);
-        delegate->set_statement(statement);
+    // If the variable wouldn't conflict with a lexical declaration
+    // or parameter,
+
+    // Check if there's a conflict with a parameter.
+    // This depends on the fact that functions always have a scope solely to
+    // hold complex parameters, and the names local to that scope are
+    // precisely the names of the parameters. IsDeclaredParameter(name) does
+    // not hold for names declared by complex parameters, nor are those
+    // bindings necessarily declared lexically, so we have to check for them
+    // explicitly. On the other hand, if there are not complex parameters,
+    // it is sufficient to just check IsDeclaredParameter.
+    if (complex_params_scope != nullptr) {
+      if (complex_params_scope->LookupLocal(name) != nullptr) {
+        continue;
       }
+    } else {
+      if (scope->IsDeclaredParameter(name)) {
+        continue;
+      }
+    }
+
+    bool var_created = false;
+
+    // Write in assignments to var for each block-scoped function declaration
+    auto delegates = static_cast<SloppyBlockFunctionMap::Vector*>(p->value);
+    for (SloppyBlockFunctionStatement* delegate : *delegates) {
+      // Check if there's a conflict with a lexical declaration
+      Scope* outer_scope = scope->outer_scope();
+      Scope* query_scope = delegate->scope()->outer_scope();
+      Variable* var = nullptr;
+      bool should_hoist = true;
+
+      // Note that we perform this loop for each delegate named 'name',
+      // which may duplicate work if those delegates share scopes.
+      // It is not sufficient to just do a Lookup on query_scope: for
+      // example, that does not prevent hoisting of the function in
+      // `{ let e; try {} catch (e) { function e(){} } }`
+      do {
+        var = query_scope->LookupLocal(name);
+        if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+          should_hoist = false;
+          break;
+        }
+        query_scope = query_scope->outer_scope();
+      } while (query_scope != outer_scope);
+
+      if (!should_hoist) continue;
+
+      // Declare a var-style binding for the function in the outer scope
+      if (!var_created) {
+        var_created = true;
+        VariableProxy* proxy = scope->NewUnresolved(factory(), name);
+        Declaration* declaration = factory()->NewVariableDeclaration(
+            proxy, VAR, scope, RelocInfo::kNoPosition);
+        Declare(declaration, DeclarationDescriptor::NORMAL, true, ok, scope);
+        DCHECK(ok);  // Based on the preceding check, this should not fail
+        if (!ok) return;
+      }
+
+      // Read from the local lexical scope and write to the function scope
+      VariableProxy* to = scope->NewUnresolved(factory(), name);
+      VariableProxy* from = delegate->scope()->NewUnresolved(factory(), name);
+      Expression* assignment = factory()->NewAssignment(Token::ASSIGN, to, from,
+                                                        RelocInfo::kNoPosition);
+      Statement* statement =
+          factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
+      delegate->set_statement(statement);
     }
   }
 }

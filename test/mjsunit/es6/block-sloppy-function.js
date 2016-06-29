@@ -109,6 +109,31 @@
   assertEquals('function', typeof f);
 })();
 
+(function complexParams(a = 0) {
+  {
+    let y = 3;
+    function f(b = 0) {
+      y = 2;
+    }
+    f();
+    assertEquals(2, y);
+  }
+  assertEquals('function', typeof f);
+})();
+
+(function complexVarParams(a = 0) {
+  var f;
+  {
+    let y = 3;
+    function f(b = 0) {
+      y = 2;
+    }
+    f();
+    assertEquals(2, y);
+  }
+  assertEquals('function', typeof f);
+})();
+
 (function conditional() {
   if (true) {
     function f() { return 1; }
@@ -142,6 +167,46 @@
   assertEquals(2, f());
 })();
 
+(function executionOrder() {
+  function getOuter() {
+    return f;
+  }
+  assertEquals('undefined', typeof getOuter());
+
+  {
+    assertEquals('function', typeof f);
+    assertEquals('undefined', typeof getOuter());
+    function f () {}
+    assertEquals('function', typeof f);
+    assertEquals('function', typeof getOuter());
+  }
+
+  assertEquals('function', typeof getOuter());
+})();
+
+(function reassignBindings() {
+  function getOuter() {
+    return f;
+  }
+  assertEquals('undefined', typeof getOuter());
+
+  {
+    assertEquals('function', typeof f);
+    assertEquals('undefined', typeof getOuter());
+    f = 1;
+    assertEquals('number', typeof f);
+    assertEquals('undefined', typeof getOuter());
+    function f () {}
+    assertEquals('number', typeof f);
+    assertEquals('number', typeof getOuter());
+    f = '';
+    assertEquals('string', typeof f);
+    assertEquals('number', typeof getOuter());
+  }
+
+  assertEquals('number', typeof getOuter());
+})();
+
 // Test that shadowing arguments is fine
 (function shadowArguments(x) {
   assertArrayEquals([1], arguments);
@@ -153,43 +218,242 @@
   assertEquals('function', typeof arguments);
 })(1);
 
-// Shadow function parameter
-(function shadowParameter(x) {
+
+// Don't shadow simple parameter
+(function shadowingParameterDoesntBind(x) {
   assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})(1);
+
+// Don't shadow complex parameter
+(function shadowingDefaultParameterDoesntBind(x = 0) {
+  assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})(1);
+
+// Don't shadow nested complex parameter
+(function shadowingNestedParameterDoesntBind([[x]]) {
+  assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})([[1]]);
+
+// Don't shadow rest parameter
+(function shadowingRestParameterDoesntBind(...x) {
+  assertArrayEquals([1], x);
+  {
+    function x() {}
+  }
+  assertArrayEquals([1], x);
+})(1);
+
+// Don't shadow complex rest parameter
+(function shadowingComplexRestParameterDoesntBind(...[x]) {
+  assertArrayEquals(1, x);
+  {
+    function x() {}
+  }
+  assertArrayEquals(1, x);
+})(1);
+
+// Previous tests with a var declaration thrown in.
+// Don't shadow simple parameter
+(function shadowingVarParameterDoesntBind(x) {
+  var x;
+  assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})(1);
+
+// Don't shadow complex parameter
+(function shadowingVarDefaultParameterDoesntBind(x = 0) {
+  var x;
+  assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})(1);
+
+// Don't shadow nested complex parameter
+(function shadowingVarNestedParameterDoesntBind([[x]]) {
+  var x;
+  assertEquals(1, x);
+  {
+    function x() {}
+  }
+  assertEquals(1, x);
+})([[1]]);
+
+// Don't shadow rest parameter
+(function shadowingVarRestParameterDoesntBind(...x) {
+  var x;
+  assertArrayEquals([1], x);
+  {
+    function x() {}
+  }
+  assertArrayEquals([1], x);
+})(1);
+
+// Don't shadow complex rest parameter
+(function shadowingVarComplexRestParameterDoesntBind(...[x]) {
+  var x;
+  assertArrayEquals(1, x);
+  {
+    function x() {}
+  }
+  assertArrayEquals(1, x);
+})(1);
+
+
+// Hoisting is not affected by other simple parameters
+(function irrelevantParameterBinds(y, z) {
+  assertEquals(undefined, x);
   {
     function x() {}
   }
   assertEquals('function', typeof x);
 })(1);
 
-// Shadow function parameter
-(function shadowDefaultParameter(x = 0) {
-  assertEquals(1, x);
+// Hoisting is not affected by other complex parameters
+(function irrelevantComplexParameterBinds([y] = [], z) {
+  assertEquals(undefined, x);
   {
     function x() {}
   }
-  // TODO(littledan): Once destructured parameters are no longer
-  // let-bound, enable this assertion. This is the core of the test.
-  // assertEquals('function', typeof x);
-})(1);
+  assertEquals('function', typeof x);
+})();
 
-(function shadowRestParameter(...x) {
-  assertArrayEquals([1], x);
+// Hoisting is not affected by rest parameters
+(function irrelevantRestParameterBinds(y, ...z) {
+  assertEquals(undefined, x);
   {
     function x() {}
   }
-  // TODO(littledan): Once destructured parameters are no longer
-  // let-bound, enable this assertion. This is the core of the test.
-  // assertEquals('function', typeof x);
-})(1);
+  assertEquals('function', typeof x);
+})();
 
-assertThrows(function notInDefaultScope(x = y) {
+// Hoisting is not affected by complex rest parameters
+(function irrelevantRestParameterBinds(y, ...[z]) {
+  assertEquals(undefined, x);
   {
-    function y() {}
+    function x() {}
   }
-  assertEquals('function', typeof y);
-  assertEquals(x, undefined);
-}, ReferenceError);
+  assertEquals('function', typeof x);
+})();
+
+
+// Test that shadowing function name is fine
+{
+  let called = false;
+  (function shadowFunctionName() {
+    if (called) assertUnreachable();
+    called = true;
+    {
+      function shadowFunctionName() {
+        return 0;
+      }
+      assertEquals(0, shadowFunctionName());
+    }
+    assertEquals(0, shadowFunctionName());
+  })();
+}
+
+{
+  let called = false;
+  (function shadowFunctionNameWithComplexParameter(...r) {
+    if (called) assertUnreachable();
+    called = true;
+    {
+      function shadowFunctionNameWithComplexParameter() {
+        return 0;
+      }
+      assertEquals(0, shadowFunctionNameWithComplexParameter());
+    }
+    assertEquals(0, shadowFunctionNameWithComplexParameter());
+  })();
+}
+
+(function shadowOuterVariable() {
+  {
+    let f = 0;
+    (function () {
+      assertEquals(undefined, f);
+      {
+        assertEquals(1, f());
+        function f() { return 1; }
+        assertEquals(1, f());
+      }
+      assertEquals(1, f());
+    })();
+    assertEquals(0, f);
+  }
+})();
+
+(function notInDefaultScope() {
+  var y = 1;
+  (function innerNotInDefaultScope(x = y) {
+    assertEquals('undefined', typeof y);
+    {
+      function y() {}
+    }
+    assertEquals('function', typeof y);
+    assertEquals(1, x);
+  })();
+})();
+
+(function noHoistingThroughNestedLexical() {
+  {
+    let f = 2;
+    {
+      let y = 3;
+      function f() {
+        y = 2;
+      }
+      f();
+      assertEquals(2, y);
+    }
+    assertEquals(2, f);
+  }
+  assertThrows(()=>f, ReferenceError);
+})();
+
+// Only the first function is hoisted; the second is blocked by the first.
+// Contrast overridingLocalFunction, in which the outer function declaration
+// is not lexical and so the inner declaration is hoisted.
+(function noHoistingThroughNestedFunctions() {
+  assertEquals(undefined, f); // Also checks that the var-binding exists
+
+  {
+    assertEquals(4, f());
+
+    function f() {
+      return 4;
+    }
+
+    {
+      assertEquals(5, f());
+      function f() {
+        return 5;
+      }
+      assertEquals(5, f());
+    }
+
+    assertEquals(4, f());
+  }
+
+  assertEquals(4, f());
+})();
 
 // Test that hoisting from blocks does happen in global scope
 function globalHoisted() { return 0; }
