@@ -390,6 +390,10 @@
   'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
+  'test-run-machops/RunFloat64Sin': [SKIP],
+  'test-run-machops/RunFloat64Cos': [SKIP],
+  'test-run-machops/RunFloat64Expm1': [SKIP],
+  'test-run-machops/RunFloat64Tan': [SKIP],
   'test-cpu-profiler/Inlining': [SKIP],
 }],  # 'arch == x87'
 
