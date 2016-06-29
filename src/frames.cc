@@ -16,6 +16,8 @@
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -63,18 +65,13 @@ StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate,
 }
 #undef INITIALIZE_SINGLETON
 
-
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
-    : StackFrameIteratorBase(isolate, true) {
-  Reset(isolate->thread_local_top());
-}
-
+    : StackFrameIterator(isolate, isolate->thread_local_top()) {}
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
     : StackFrameIteratorBase(isolate, true) {
   Reset(t);
 }
-
 
 void StackFrameIterator::Advance() {
   DCHECK(!done());
@@ -165,6 +162,11 @@ StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
   if (!done() && !IsValidFrame(iterator_.frame())) Advance();
 }
 
+StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate,
+                                                 StackFrame::Id id)
+    : StackTraceFrameIterator(isolate) {
+  while (!done() && frame()->id() != id) Advance();
+}
 
 void StackTraceFrameIterator::Advance() {
   do {
@@ -185,6 +187,11 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   return frame->is_wasm();
 }
 
+void StackTraceFrameIterator::AdvanceToArgumentsFrame() {
+  if (!is_javascript() || !javascript_frame()->has_adapted_arguments()) return;
+  iterator_.Advance();
+  DCHECK(iterator_.frame()->is_arguments_adaptor());
+}
 
 // -------------------------------------------------------------------------
 
@@ -630,6 +637,20 @@ Address InterpretedFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kPointerSize;
 }
 
+Script* StandardFrame::script() const {
+  // This should only be called on frames which override this method.
+  DCHECK(false);
+  return nullptr;
+}
+
+Object* StandardFrame::receiver() const {
+  return isolate()->heap()->undefined_value();
+}
+
+Object* StandardFrame::context() const {
+  return isolate()->heap()->undefined_value();
+}
+
 int StandardFrame::ComputeExpressionsCount() const {
   Address base = GetExpressionAddress(0);
   Address limit = sp() - kPointerSize;
@@ -638,6 +659,13 @@ int StandardFrame::ComputeExpressionsCount() const {
   return static_cast<int>((base - limit) / kPointerSize);
 }
 
+Object* StandardFrame::GetParameter(int index) const {
+  // StandardFrame does not define any parameters.
+  UNREACHABLE();
+  return nullptr;
+}
+
+int StandardFrame::ComputeParametersCount() const { return 0; }
 
 void StandardFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
@@ -654,6 +682,7 @@ void StandardFrame::SetCallerFp(Address caller_fp) {
       caller_fp;
 }
 
+bool StandardFrame::IsConstructor() const { return false; }
 
 void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
@@ -867,6 +896,17 @@ JSFunction* JavaScriptFrame::function() const {
 
 Object* JavaScriptFrame::receiver() const { return GetParameter(-1); }
 
+Script* JavaScriptFrame::script() const {
+  return Script::cast(function()->shared()->script());
+}
+
+Object* JavaScriptFrame::context() const {
+  const int offset = StandardFrameConstants::kContextOffset;
+  Object* maybe_result = Memory::Object_at(fp() + offset);
+  DCHECK(!maybe_result->IsSmi());
+  return maybe_result;
+}
+
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
@@ -944,6 +984,14 @@ void JavaScriptFrame::SaveOperandStack(FixedArray* store) const {
   for (int i = 0; i < operands_count; i++) {
     store->set(i, GetOperand(i));
   }
+}
+
+Object* JavaScriptFrame::GetParameter(int index) const {
+  return Memory::Object_at(GetParameterSlot(index));
+}
+
+int JavaScriptFrame::ComputeParametersCount() const {
+  return GetNumberOfIncomingArguments();
 }
 
 namespace {
@@ -1342,23 +1390,22 @@ Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-Object* WasmFrame::wasm_obj() {
+Object* WasmFrame::wasm_obj() const {
   FixedArray* deopt_data = LookupCode()->deoptimization_data();
   DCHECK(deopt_data->length() == 2);
   return deopt_data->get(0);
 }
 
-uint32_t WasmFrame::function_index() {
+uint32_t WasmFrame::function_index() const {
   FixedArray* deopt_data = LookupCode()->deoptimization_data();
   DCHECK(deopt_data->length() == 2);
-  Object* func_index_obj = deopt_data->get(1);
-  if (func_index_obj->IsUndefined(isolate())) return static_cast<uint32_t>(-1);
-  if (func_index_obj->IsSmi()) return Smi::cast(func_index_obj)->value();
-  DCHECK(func_index_obj->IsHeapNumber());
-  uint32_t val = static_cast<uint32_t>(-1);
-  func_index_obj->ToUint32(&val);
-  DCHECK(val != static_cast<uint32_t>(-1));
-  return val;
+  return Smi::cast(deopt_data->get(1))->value();
+}
+
+Script* WasmFrame::script() const {
+  JSObject* wasm = JSObject::cast(wasm_obj());
+  Handle<wasm::WasmDebugInfo> debug_info(wasm::GetDebugInfo(wasm), isolate());
+  return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 
 namespace {

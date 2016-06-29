@@ -271,13 +271,16 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
     return heap->undefined_value();
   }
 
-  JavaScriptFrameIterator it(isolate, id);
+  StackTraceFrameIterator it(isolate, id);
   int inlined_jsframe_index =
       DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
-  if (inlined_jsframe_index == -1) return heap->undefined_value();
+  // Liveedit is not supported on Wasm.
+  if (inlined_jsframe_index == -1 || it.is_wasm()) {
+    return heap->undefined_value();
+  }
   // We don't really care what the inlined frame index is, since we are
   // throwing away the entire frame anyways.
-  const char* error_message = LiveEdit::RestartFrame(it.frame());
+  const char* error_message = LiveEdit::RestartFrame(it.javascript_frame());
   if (error_message) {
     return *(isolate->factory()->InternalizeUtf8String(error_message));
   }

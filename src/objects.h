@@ -6495,7 +6495,8 @@ class Script: public Struct {
   enum Type {
     TYPE_NATIVE = 0,
     TYPE_EXTENSION = 1,
-    TYPE_NORMAL = 2
+    TYPE_NORMAL = 2,
+    TYPE_WASM = 3
   };
 
   // Script compilation types.

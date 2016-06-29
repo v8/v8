@@ -628,6 +628,11 @@ class CaptureStackTraceHelper {
                             isolate_->factory()->NewNumberFromInt(position),
                             NONE);
     }
+    if (!script_id_key_.is_null()) {
+      int script_id = frame->script()->id();
+      JSObject::AddProperty(stack_frame, script_id_key_,
+                            handle(Smi::FromInt(script_id), isolate_), NONE);
+    }
 
     return stack_frame;
   }

@@ -14,6 +14,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -453,12 +454,16 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     return Smi::FromInt(0);
   }
 
-  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) {
+  for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    it.frame()->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0; i--) {
-      // Omit functions from native and extension scripts.
-      if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
+    if (it.is_wasm()) {
+      n++;
+    } else {
+      it.javascript_frame()->Summarize(&frames);
+      for (int i = frames.length() - 1; i >= 0; i--) {
+        // Omit functions from native and extension scripts.
+        if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
+      }
     }
   }
   return Smi::FromInt(n);
@@ -468,14 +473,14 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
 static const int kFrameDetailsFrameIdIndex = 0;
 static const int kFrameDetailsReceiverIndex = 1;
 static const int kFrameDetailsFunctionIndex = 2;
-static const int kFrameDetailsArgumentCountIndex = 3;
-static const int kFrameDetailsLocalCountIndex = 4;
-static const int kFrameDetailsSourcePositionIndex = 5;
-static const int kFrameDetailsConstructCallIndex = 6;
-static const int kFrameDetailsAtReturnIndex = 7;
-static const int kFrameDetailsFlagsIndex = 8;
-static const int kFrameDetailsFirstDynamicIndex = 9;
-
+static const int kFrameDetailsScriptIndex = 3;
+static const int kFrameDetailsArgumentCountIndex = 4;
+static const int kFrameDetailsLocalCountIndex = 5;
+static const int kFrameDetailsSourcePositionIndex = 6;
+static const int kFrameDetailsConstructCallIndex = 7;
+static const int kFrameDetailsAtReturnIndex = 8;
+static const int kFrameDetailsFlagsIndex = 9;
+static const int kFrameDetailsFirstDynamicIndex = 10;
 
 // Return an array with frame details
 // args[0]: number: break id
@@ -485,12 +490,13 @@ static const int kFrameDetailsFirstDynamicIndex = 9;
 // 0: Frame id
 // 1: Receiver
 // 2: Function
-// 3: Argument count
-// 4: Local count
-// 5: Source position
-// 6: Constructor call
-// 7: Is at return
-// 8: Flags
+// 3: Script
+// 4: Argument count
+// 5: Local count
+// 6: Source position
+// 7: Constructor call
+// 8: Is at return
+// 9: Flags
 // Arguments name, value
 // Locals name, value
 // Return value if any
@@ -510,14 +516,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     return heap->undefined_value();
   }
 
-  JavaScriptFrameIterator it(isolate, id);
+  StackTraceFrameIterator it(isolate, id);
   // Inlined frame index in optimized frame, starting from outer function.
   int inlined_jsframe_index =
       DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
 
   FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);
-  bool is_optimized = it.frame()->is_optimized();
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -530,6 +535,59 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Find source position in unoptimized code.
   int position = frame_inspector.GetSourcePosition();
+
+  if (it.is_wasm()) {
+    // Create the details array (no dynamic information for wasm).
+    Handle<FixedArray> details =
+        isolate->factory()->NewFixedArray(kFrameDetailsFirstDynamicIndex);
+
+    // Add the frame id.
+    details->set(kFrameDetailsFrameIdIndex, *frame_id);
+
+    // Add the function name.
+    Handle<Object> wasm_obj(it.wasm_frame()->wasm_obj(), isolate);
+    int func_index = it.wasm_frame()->function_index();
+    Handle<String> func_name =
+        wasm::GetWasmFunctionName(isolate, wasm_obj, func_index);
+    details->set(kFrameDetailsFunctionIndex, *func_name);
+
+    // Add the script wrapper
+    Handle<Object> script_wrapper =
+        Script::GetWrapper(frame_inspector.GetScript());
+    details->set(kFrameDetailsScriptIndex, *script_wrapper);
+
+    // Add the arguments count.
+    details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(0));
+
+    // Add the locals count
+    details->set(kFrameDetailsLocalCountIndex, Smi::FromInt(0));
+
+    // Add the source position.
+    if (position != RelocInfo::kNoPosition) {
+      details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
+    }
+
+    // Add the constructor information.
+    details->set(kFrameDetailsConstructCallIndex, heap->ToBoolean(false));
+
+    // Add the at return information.
+    details->set(kFrameDetailsAtReturnIndex, heap->ToBoolean(false));
+
+    // Add flags to indicate information on whether this frame is
+    //   bit 0: invoked in the debugger context.
+    //   bit 1: optimized frame.
+    //   bit 2: inlined in optimized frame
+    int flags = 0;
+    if (*save->context() == *isolate->debug()->debug_context()) {
+      flags |= 1 << 0;
+    }
+    details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
+
+    return *isolate->factory()->NewJSArrayWithElements(details);
+  }
+
+  // Handle JavaScript frames.
+  bool is_optimized = it.frame()->is_optimized();
 
   // Check for constructor frame.
   bool constructor = frame_inspector.IsConstructor();
@@ -595,7 +653,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // frame or if the frame is optimized it cannot be at a return.
   bool at_return = false;
   if (!is_optimized && index == 0) {
-    at_return = isolate->debug()->IsBreakAtReturn(it.frame());
+    at_return = isolate->debug()->IsBreakAtReturn(it.javascript_frame());
   }
 
   // If positioned just before return find the value to be returned and add it
@@ -609,7 +667,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // the provided parameters whereas the function frame always have the number
   // of arguments matching the functions parameters. The rest of the
   // information (except for what is collected above) is the same.
-  if ((inlined_jsframe_index == 0) && it.frame()->has_adapted_arguments()) {
+  if ((inlined_jsframe_index == 0) &&
+      it.javascript_frame()->has_adapted_arguments()) {
     it.AdvanceToArgumentsFrame();
     frame_inspector.SetArgumentsFrame(it.frame());
   }
@@ -631,6 +690,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Add the function (same as in function frame).
   details->set(kFrameDetailsFunctionIndex, *(frame_inspector.GetFunction()));
+
+  // Add the script wrapper
+  Handle<Object> script_wrapper =
+      Script::GetWrapper(frame_inspector.GetScript());
+  details->set(kFrameDetailsScriptIndex, *script_wrapper);
 
   // Add the arguments count.
   details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(argument_count));
@@ -795,8 +859,8 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(isolate, id);
-  JavaScriptFrame* frame = frame_it.frame();
+  StackTraceFrameIterator frame_it(isolate, id);
+  StandardFrame* frame = frame_it.frame();
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   List<Handle<JSObject> > result(4);
@@ -1517,8 +1581,10 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
   }
 
   Handle<String> source = handle(String::cast(script->source()), isolate);
-  Handle<String> sourceText =
-      isolate->factory()->NewSubString(source, info.line_start, info.line_end);
+  Handle<String> sourceText = script->type() == Script::TYPE_WASM
+                                  ? isolate->factory()->empty_string()
+                                  : isolate->factory()->NewSubString(
+                                        source, info.line_start, info.line_end);
 
   Handle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());

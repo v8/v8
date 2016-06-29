@@ -7584,9 +7584,9 @@ static void DebugBreakInlineListener(
   CHECK_EQ(expected_frame_count, frame_count);
 
   for (int i = 0; i < frame_count; i++) {
-    // The 5. element in the returned array of GetFrameDetails contains the
+    // The 6. element in the returned array of GetFrameDetails contains the
     // source position of that frame.
-    SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[5]", break_id, i);
+    SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[6]", break_id, i);
     v8::Local<v8::Value> result = CompileRun(script);
     CHECK_EQ(expected_line_number[i],
              i::Script::GetLineNumber(source_script,

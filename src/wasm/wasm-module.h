@@ -356,6 +356,9 @@ SeqOneByteString* GetWasmBytes(JSObject* wasm);
 // If no debug info exists yet, it is created automatically.
 WasmDebugInfo* GetDebugInfo(JSObject* wasm);
 
+// Return the number of functions in the given wasm object.
+int GetNumberOfFunctions(JSObject* wasm);
+
 // Check whether the given object is a wasm object.
 // This checks the number and type of internal fields, so it's not 100 percent
 // secure. If it turns out that we need more complete checks, we could add a

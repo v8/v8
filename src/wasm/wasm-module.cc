@@ -1299,6 +1299,12 @@ bool UpdateWasmModuleMemory(JSObject* object, Address old_start,
   return true;
 }
 
+int GetNumberOfFunctions(JSObject* wasm) {
+  Object* func_names_obj = wasm->GetInternalField(kWasmFunctionNamesArray);
+  // TODO(clemensh): this looks inside an array constructed elsewhere. Refactor.
+  return ByteArray::cast(func_names_obj)->get_int(0);
+}
+
 namespace testing {
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,

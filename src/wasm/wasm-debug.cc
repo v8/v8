@@ -20,6 +20,7 @@ enum {
   kWasmDebugInfoWasmObj,
   kWasmDebugInfoWasmBytesHash,
   kWasmDebugInfoFunctionByteOffsets,
+  kWasmDebugInfoFunctionScripts,
   kWasmDebugInfoNumEntries
 };
 
@@ -105,7 +106,9 @@ bool WasmDebugInfo::IsDebugInfo(Object *object) {
          IsWasmObject(arr->get(kWasmDebugInfoWasmObj)) &&
          arr->get(kWasmDebugInfoWasmBytesHash)->IsNumber() &&
          (arr->get(kWasmDebugInfoFunctionByteOffsets)->IsUndefined(isolate) ||
-          arr->get(kWasmDebugInfoFunctionByteOffsets)->IsByteArray());
+          arr->get(kWasmDebugInfoFunctionByteOffsets)->IsByteArray()) &&
+         (arr->get(kWasmDebugInfoFunctionScripts)->IsUndefined(isolate) ||
+          arr->get(kWasmDebugInfoFunctionScripts)->IsFixedArray());
 }
 
 WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
@@ -120,6 +123,43 @@ JSObject *WasmDebugInfo::wasm_object() {
 bool WasmDebugInfo::SetBreakPoint(int byte_offset) {
   // TODO(clemensh): Implement this.
   return false;
+}
+
+Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
+                                         int func_index) {
+  Isolate *isolate = debug_info->GetIsolate();
+  Object *scripts_obj = debug_info->get(kWasmDebugInfoFunctionScripts);
+  Handle<FixedArray> scripts;
+  if (scripts_obj->IsUndefined(isolate)) {
+    int num_functions = wasm::GetNumberOfFunctions(debug_info->wasm_object());
+    scripts = isolate->factory()->NewFixedArray(num_functions, TENURED);
+    debug_info->set(kWasmDebugInfoFunctionScripts, *scripts);
+  } else {
+    scripts = handle(FixedArray::cast(scripts_obj), isolate);
+  }
+
+  DCHECK(func_index >= 0 && func_index < scripts->length());
+  Object *script_or_undef = scripts->get(func_index);
+  if (!script_or_undef->IsUndefined(isolate)) {
+    return Script::cast(script_or_undef);
+  }
+
+  Handle<Script> script =
+      isolate->factory()->NewScript(isolate->factory()->empty_string());
+  scripts->set(func_index, *script);
+
+  script->set_type(Script::TYPE_WASM);
+
+  int func_bytes_len =
+      GetFunctionOffsetAndLength(debug_info, func_index).second;
+  Handle<FixedArray> line_ends = isolate->factory()->NewFixedArray(1, TENURED);
+  line_ends->set(0, Smi::FromInt(func_bytes_len));
+  line_ends->set_map(isolate->heap()->fixed_cow_array_map());
+  script->set_line_ends(*line_ends);
+
+  // TODO(clemensh): Register this new script at the debugger.
+
+  return *script;
 }
 
 Handle<String> WasmDebugInfo::DisassembleFunction(

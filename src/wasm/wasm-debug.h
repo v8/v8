@@ -23,11 +23,16 @@ class WasmDebugInfo : public FixedArray {
 
   bool SetBreakPoint(int byte_offset);
 
+  // Get the Script for the specified function.
+  static Script* GetFunctionScript(Handle<WasmDebugInfo> debug_info,
+                                   int func_index);
+
   // Disassemble the specified function from this module.
   static Handle<String> DisassembleFunction(Handle<WasmDebugInfo> debug_info,
                                             int func_index);
 
-  // Get the offset table for the specified function.
+  // Get the offset table for the specified function, mapping from byte offsets
+  // to position in the disassembly.
   // Returns an array with three entries per instruction: byte offset, line and
   // column.
   static Handle<FixedArray> GetFunctionOffsetTable(

@@ -682,14 +682,23 @@ class StandardFrame : public StackFrame {
   bool is_standard() const override { return true; }
 
   // Accessors.
-  inline Object* context() const;
+  virtual Object* receiver() const;
+  virtual Script* script() const;
+  virtual Object* context() const;
 
   // Access the expressions in the stack frame including locals.
   inline Object* GetExpression(int index) const;
   inline void SetExpression(int index, Object* value);
   int ComputeExpressionsCount() const;
 
+  // Access the parameters.
+  virtual Object* GetParameter(int index) const;
+  virtual int ComputeParametersCount() const;
+
   void SetCallerFp(Address caller_fp) override;
+
+  // Check if this frame is a constructor frame invoked through 'new'.
+  virtual bool IsConstructor() const;
 
   static StandardFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_standard());
@@ -747,16 +756,16 @@ class JavaScriptFrame : public StandardFrame {
 
   // Accessors.
   virtual JSFunction* function() const;
-  virtual Object* receiver() const;
+  Object* receiver() const override;
+  Object* context() const override;
+  Script* script() const override;
 
   inline void set_receiver(Object* value);
 
   // Access the parameters.
   inline Address GetParameterSlot(int index) const;
-  inline Object* GetParameter(int index) const;
-  inline int ComputeParametersCount() const {
-    return GetNumberOfIncomingArguments();
-  }
+  Object* GetParameter(int index) const override;
+  int ComputeParametersCount() const override;
 
   // Access the operand stack.
   inline Address GetOperandSlot(int index) const;
@@ -770,7 +779,7 @@ class JavaScriptFrame : public StandardFrame {
   void SetParameterValue(int index, Object* value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
-  bool IsConstructor() const;
+  bool IsConstructor() const override;
 
   // Determines whether this frame includes inlined activations. To get details
   // about the inlined frames use {GetFunctions} and {Summarize}.
@@ -1001,8 +1010,10 @@ class WasmFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
-  Object* wasm_obj();
-  uint32_t function_index();
+  // Accessors.
+  Object* wasm_obj() const;
+  uint32_t function_index() const;
+  Script* script() const override;
 
   static WasmFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm());
@@ -1192,6 +1203,7 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 class StackTraceFrameIterator BASE_EMBEDDED {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);
+  StackTraceFrameIterator(Isolate* isolate, StackFrame::Id id);
   bool done() const { return iterator_.done(); }
   void Advance();
 
@@ -1201,6 +1213,11 @@ class StackTraceFrameIterator BASE_EMBEDDED {
   inline bool is_wasm() const;
   inline JavaScriptFrame* javascript_frame() const;
   inline WasmFrame* wasm_frame() const;
+
+  // Advance to the frame holding the arguments for the current
+  // frame. This only affects the current frame if it is a javascript frame and
+  // has adapted arguments.
+  void AdvanceToArgumentsFrame();
 
  private:
   StackFrameIterator iterator_;

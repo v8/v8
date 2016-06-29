@@ -1460,7 +1460,7 @@ class SaveContext BASE_EMBEDDED {
   SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(JavaScriptFrame* frame) {
+  bool IsBelowFrame(StandardFrame* frame) {
     return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
   }
 

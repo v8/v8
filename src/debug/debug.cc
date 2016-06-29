@@ -22,11 +22,24 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/snapshot/natives.h"
+#include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-module.h"
 
 #include "include/v8-debug.h"
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+inline int CallOffsetFromCodeOffset(int code_offset, bool is_interpreted) {
+  // Code offset points to the instruction after the call. Subtract 1 to
+  // exclude that instruction from the search. For bytecode, the code offset
+  // still points to the call.
+  return is_interpreted ? code_offset : code_offset - 1;
+}
+
+}  // namespace
 
 Debug::Debug(Isolate* isolate)
     : debug_context_(Handle<Context>()),
@@ -246,18 +259,11 @@ BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
   return it->GetBreakLocation();
 }
 
-int CallOffsetFromCodeOffset(int code_offset, bool is_interpreted) {
-  // Code offset points to the instruction after the call. Subtract 1 to
-  // exclude that instruction from the search. For bytecode, the code offset
-  // still points to the call.
-  return is_interpreted ? code_offset : code_offset - 1;
-}
-
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  int code_offset = FrameSummary::GetFirst(frame).code_offset();
   int call_offset =
-      CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
+      CallOffsetFromCodeOffset(code_offset, frame->is_interpreted());
   return FromCodeOffset(debug_info, call_offset);
 }
 
@@ -779,6 +785,10 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    Handle<Object> break_point_object,
                                    int* source_position,
                                    BreakPositionAlignment alignment) {
+  if (script->type() == Script::TYPE_WASM) {
+    // TODO(clemensh): set breakpoint for wasm.
+    return false;
+  }
   HandleScope scope(isolate_);
 
   // Obtain shared function info for the function.
@@ -1587,23 +1597,20 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   }
 }
 
-
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
   // Get the executing function in which the debug break occurred.
-  Handle<JSFunction> function(JSFunction::cast(frame->function()));
-  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SharedFunctionInfo> shared(frame->function()->shared());
 
   // With no debug info there are no break points, so we can't be at a return.
   if (!shared->HasDebugInfo()) return false;
 
   DCHECK(!frame->is_optimized());
-  FrameSummary summary = FrameSummary::GetFirst(frame);
-
+  int code_offset = FrameSummary::GetFirst(frame).code_offset();
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   BreakLocation location =
-      BreakLocation::FromCodeOffset(debug_info, summary.code_offset());
+      BreakLocation::FromCodeOffset(debug_info, code_offset);
   return location.IsReturn() || location.IsTailCall();
 }
 
@@ -2289,12 +2296,14 @@ DebugScope::DebugScope(Debug* debug)
   break_frame_id_ = debug_->break_frame_id();
   return_value_ = debug_->return_value();
 
-  // Create the new break info. If there is no JavaScript frames there is no
-  // break frame id.
-  JavaScriptFrameIterator it(isolate());
-  bool has_js_frames = !it.done();
-  debug_->thread_local_.break_frame_id_ = has_js_frames ? it.frame()->id()
-                                                        : StackFrame::NO_ID;
+  // Create the new break info. If there is no proper frames there is no break
+  // frame id.
+  StackTraceFrameIterator it(isolate());
+  bool has_frames = !it.done();
+  // We don't currently support breaking inside wasm framess.
+  DCHECK(!has_frames || !it.is_wasm());
+  debug_->thread_local_.break_frame_id_ =
+      has_frames ? it.frame()->id() : StackFrame::NO_ID;
   debug_->SetNextBreakId();
 
   debug_->UpdateState();

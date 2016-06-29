@@ -12821,7 +12821,8 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   if (info->line_end > 0) {
     DCHECK(script->source()->IsString());
     Handle<String> src(String::cast(script->source()));
-    if (src->Get(info->line_end - 1) == '\r') {
+    if (src->length() >= info->line_end &&
+        src->Get(info->line_end - 1) == '\r') {
       info->line_end--;
     }
   }

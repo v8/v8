@@ -107,7 +107,7 @@ class ScopeIterator {
   }
 
   inline Handle<JSFunction> GetFunction() {
-    return Handle<JSFunction>::cast(frame_inspector_->GetFunction());
+    return frame_inspector_->GetFunction();
   }
 
   void RetrieveScopeChain(Scope* scope);
@@ -140,7 +140,6 @@ class ScopeIterator {
                          Handle<String> parameter_name,
                          Handle<Object> new_value);
   bool SetStackVariableValue(Handle<ScopeInfo> scope_info,
-                             JavaScriptFrame* frame,
                              Handle<String> variable_name,
                              Handle<Object> new_value);
   bool SetContextVariableValue(Handle<ScopeInfo> scope_info,

@@ -114,14 +114,6 @@ inline void StandardFrame::SetExpression(int index, Object* value) {
 }
 
 
-inline Object* StandardFrame::context() const {
-  const int offset = StandardFrameConstants::kContextOffset;
-  Object* maybe_result = Memory::Object_at(fp() + offset);
-  DCHECK(!maybe_result->IsSmi());
-  return maybe_result;
-}
-
-
 inline Address StandardFrame::caller_fp() const {
   return Memory::Address_at(fp() + StandardFrameConstants::kCallerFPOffset);
 }
@@ -165,12 +157,6 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   return caller_sp() + parameter_offset;
 }
 
-
-Object* JavaScriptFrame::GetParameter(int index) const {
-  return Memory::Object_at(GetParameterSlot(index));
-}
-
-
 inline Address JavaScriptFrame::GetOperandSlot(int index) const {
   Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
   DCHECK(IsAddressAligned(base, kPointerSize));
@@ -213,7 +199,6 @@ inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);
 }
-
 
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {
