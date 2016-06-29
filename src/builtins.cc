@@ -3239,7 +3239,7 @@ void Generate_TypedArrayProtoypeGetter(CodeStubAssembler* assembler,
   Node* receiver_buffer =
       assembler->LoadObjectField(receiver, JSTypedArray::kBufferOffset);
   Node* receiver_buffer_bit_field = assembler->LoadObjectField(
-      receiver_buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Int8());
+      receiver_buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
   Label if_receiverisneutered(assembler, Label::kDeferred);
   assembler->GotoUnless(
       assembler->Word32Equal(
