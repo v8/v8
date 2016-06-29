@@ -1192,23 +1192,18 @@ TEST(Int32Comparisons) {
 
   struct Entry {
     const Operator* js_op;
-    const Operator* uint_op;
-    const Operator* int_op;
     const Operator* num_op;
     bool commute;
   };
 
-  Entry ops[] = {
-      {R.javascript.LessThan(R.compare_hints), R.machine.Uint32LessThan(),
-       R.machine.Int32LessThan(), R.simplified.NumberLessThan(), false},
-      {R.javascript.LessThanOrEqual(R.compare_hints),
-       R.machine.Uint32LessThanOrEqual(), R.machine.Int32LessThanOrEqual(),
-       R.simplified.NumberLessThanOrEqual(), false},
-      {R.javascript.GreaterThan(R.compare_hints), R.machine.Uint32LessThan(),
-       R.machine.Int32LessThan(), R.simplified.NumberLessThan(), true},
-      {R.javascript.GreaterThanOrEqual(R.compare_hints),
-       R.machine.Uint32LessThanOrEqual(), R.machine.Int32LessThanOrEqual(),
-       R.simplified.NumberLessThanOrEqual(), true}};
+  Entry ops[] = {{R.javascript.LessThan(R.compare_hints),
+                  R.simplified.NumberLessThan(), false},
+                 {R.javascript.LessThanOrEqual(R.compare_hints),
+                  R.simplified.NumberLessThanOrEqual(), false},
+                 {R.javascript.GreaterThan(R.compare_hints),
+                  R.simplified.NumberLessThan(), true},
+                 {R.javascript.GreaterThanOrEqual(R.compare_hints),
+                  R.simplified.NumberLessThanOrEqual(), true}};
 
   for (size_t o = 0; o < arraysize(ops); o++) {
     for (size_t i = 0; i < arraysize(kNumberTypes); i++) {
@@ -1222,15 +1217,7 @@ TEST(Int32Comparisons) {
         Node* cmp = R.Binop(ops[o].js_op, p0, p1);
         Node* r = R.reduce(cmp);
 
-        const Operator* expected;
-        if (t0->Is(Type::Unsigned32()) && t1->Is(Type::Unsigned32())) {
-          expected = ops[o].uint_op;
-        } else if (t0->Is(Type::Signed32()) && t1->Is(Type::Signed32())) {
-          expected = ops[o].int_op;
-        } else {
-          expected = ops[o].num_op;
-        }
-        R.CheckBinop(expected, r);
+        R.CheckBinop(ops[o].num_op, r);
         if (ops[o].commute) {
           CHECK_EQ(p1, r->InputAt(0));
           CHECK_EQ(p0, r->InputAt(1));

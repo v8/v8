@@ -597,17 +597,10 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       r.OneInputCannotBe(Type::StringOrReceiver())) {
     const Operator* less_than;
     const Operator* less_than_or_equal;
-    if (r.BothInputsAre(Type::Unsigned32())) {
-      less_than = machine()->Uint32LessThan();
-      less_than_or_equal = machine()->Uint32LessThanOrEqual();
-    } else if (r.BothInputsAre(Type::Signed32())) {
-      less_than = machine()->Int32LessThan();
-      less_than_or_equal = machine()->Int32LessThanOrEqual();
-    } else if (hint != CompareOperationHints::kAny) {
+    if (hint != CompareOperationHints::kAny) {
       less_than = simplified()->SpeculativeNumberLessThan(hint);
       less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
     } else {
-      // TODO(turbofan): mixed signed/unsigned int32 comparisons.
       Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
       r.ConvertInputsToNumber(frame_state);
       less_than = simplified()->NumberLessThan();
