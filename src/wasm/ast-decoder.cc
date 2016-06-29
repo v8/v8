@@ -109,30 +109,6 @@ class WasmDecoder : public Decoder {
   size_t total_locals_;
   ZoneVector<LocalType>* local_types_;
 
-  byte ByteOperand(const byte* pc, const char* msg = "missing 1-byte operand") {
-    if ((pc + sizeof(byte)) >= limit_) {
-      error(pc, msg);
-      return 0;
-    }
-    return pc[1];
-  }
-
-  uint32_t Uint32Operand(const byte* pc) {
-    if ((pc + sizeof(uint32_t)) >= limit_) {
-      error(pc, "missing 4-byte operand");
-      return 0;
-    }
-    return read_u32(pc + 1);
-  }
-
-  uint64_t Uint64Operand(const byte* pc) {
-    if ((pc + sizeof(uint64_t)) >= limit_) {
-      error(pc, "missing 8-byte operand");
-      return 0;
-    }
-    return read_u64(pc + 1);
-  }
-
   inline bool Validate(const byte* pc, LocalIndexOperand& operand) {
     if (operand.index < total_locals_) {
       if (local_types_) {
