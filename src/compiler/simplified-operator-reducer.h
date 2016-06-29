@@ -9,10 +9,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class TypeCache;
-
 namespace compiler {
 
 // Forward declarations.
@@ -46,7 +42,6 @@ class SimplifiedOperatorReducer final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
-  TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

@@ -20,10 +20,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedOperatorReducerTest : public TypedGraphTest {
+class SimplifiedOperatorReducerTest : public GraphTest {
  public:
   explicit SimplifiedOperatorReducerTest(int num_parameters = 1)
-      : TypedGraphTest(num_parameters), simplified_(zone()) {}
+      : GraphTest(num_parameters), simplified_(zone()) {}
   ~SimplifiedOperatorReducerTest() override {}
 
  protected:

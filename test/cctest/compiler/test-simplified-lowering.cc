@@ -37,14 +37,15 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
   SimplifiedLoweringTester(MachineType p0 = MachineType::None(),
                            MachineType p1 = MachineType::None())
       : GraphBuilderTester<ReturnType>(p0, p1),
-        typer(this->isolate(), this->graph()),
+        typer(new Typer(this->isolate(), this->graph())),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
                 this->simplified(), this->machine()),
         source_positions(jsgraph.graph()),
         lowering(&jsgraph, this->zone(), &source_positions) {}
+  ~SimplifiedLoweringTester() final { delete typer; }
 
-  Typer typer;
+  Typer* typer = nullptr;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   SourcePositionTable source_positions;
@@ -52,13 +53,15 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void LowerAllNodes() {
     this->End();
-    typer.Run();
+    typer->Run();
+    delete typer, typer = nullptr;
     lowering.LowerAllNodes();
   }
 
   void LowerAllNodesAndLowerChanges() {
     this->End();
-    typer.Run();
+    typer->Run();
+    delete typer, typer = nullptr;
     lowering.LowerAllNodes();
 
     Schedule* schedule = Scheduler::ComputeSchedule(this->zone(), this->graph(),
@@ -682,7 +685,7 @@ TEST(RunAllocate) {
 // Fills in most of the nodes of the graph in order to make tests shorter.
 class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
  public:
-  Typer typer;
+  Typer* typer = nullptr;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* p0;
@@ -695,7 +698,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(main_isolate(), graph()),
+        typer(new Typer(main_isolate(), graph())),
         javascript(main_zone()),
         jsgraph(main_isolate(), graph(), common(), &javascript, simplified(),
                 machine()) {
@@ -708,11 +711,12 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     p0 = graph()->NewNode(common()->Parameter(0), start);
     p1 = graph()->NewNode(common()->Parameter(1), start);
     p2 = graph()->NewNode(common()->Parameter(2), start);
-    typer.Run();
+    typer->Run();
     NodeProperties::SetType(p0, p0_type);
     NodeProperties::SetType(p1, p1_type);
     NodeProperties::SetType(p2, p2_type);
   }
+  ~TestingGraph() { delete typer; }
 
   void CheckLoweringBinop(IrOpcode::Value expected, const Operator* op) {
     Node* node = Return(graph()->NewNode(op, p0, p1));
@@ -736,11 +740,14 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   void Lower() {
+    delete typer;
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
+    typer = new Typer(main_isolate(), graph());
   }
 
   void LowerAllNodesAndLowerChanges() {
+    delete typer;
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
 
@@ -751,6 +758,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
 
     MemoryOptimizer memory_optimizer(&jsgraph, this->zone());
     memory_optimizer.Optimize();
+    typer = new Typer(main_isolate(), graph());
   }
 
   // Inserts the node as the return value of the graph.

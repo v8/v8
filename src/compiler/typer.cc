@@ -97,7 +97,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_OP_LIST(DECLARE_CASE)
+      SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
       MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
@@ -126,6 +127,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(OsrLoopEntry)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
+      SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
+      SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -144,7 +147,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(IfException)
       // VALUE_OP_LIST without JS_SIMPLE_BINOP_LIST:
       COMMON_OP_LIST(DECLARE_CASE)
-      SIMPLIFIED_OP_LIST(DECLARE_CASE)
+      SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_CASE)
+      SIMPLIFIED_OTHER_OP_LIST(DECLARE_CASE)
       MACHINE_OP_LIST(DECLARE_CASE)
       MACHINE_SIMD_OP_LIST(DECLARE_CASE)
       JS_SIMPLE_UNOP_LIST(DECLARE_CASE)
@@ -173,6 +177,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(OsrLoopEntry)
       DECLARE_CASE(Throw)
       DECLARE_CASE(End)
+      SIMPLIFIED_CHANGE_OP_LIST(DECLARE_CASE)
+      SIMPLIFIED_CHECKED_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
@@ -189,7 +195,12 @@ class Typer::Visitor : public Reducer {
 #define DECLARE_METHOD(x) inline Type* Type##x(Node* node);
   DECLARE_METHOD(Start)
   DECLARE_METHOD(IfException)
-  VALUE_OP_LIST(DECLARE_METHOD)
+  COMMON_OP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_COMPARE_BINOP_LIST(DECLARE_METHOD)
+  SIMPLIFIED_OTHER_OP_LIST(DECLARE_METHOD)
+  MACHINE_OP_LIST(DECLARE_METHOD)
+  MACHINE_SIMD_OP_LIST(DECLARE_METHOD)
+  JS_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
   Type* TypeOrNone(Node* node) {
@@ -1725,98 +1736,6 @@ Type* Typer::Visitor::TypeStringToNumber(Node* node) {
   return TypeUnaryOp(node, ToNumber);
 }
 
-namespace {
-
-Type* ChangeRepresentation(Type* type, Type* rep, Zone* zone) {
-  return Type::Union(Type::Semantic(type, zone),
-                     Type::Representation(rep, zone), zone);
-}
-
-}  // namespace
-
-Type* Typer::Visitor::TypeChangeTaggedSignedToInt32(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::Signed32()));
-  // Many tests fail this check.
-  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
-}
-
-Type* Typer::Visitor::TypeChangeTaggedToInt32(Node* node) {
-  Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::Signed32()));
-  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
-}
-
-
-Type* Typer::Visitor::TypeChangeTaggedToUint32(Node* node) {
-  Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::Unsigned32()));
-  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
-}
-
-
-Type* Typer::Visitor::TypeChangeTaggedToFloat64(Node* node) {
-  Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::Number()));
-  return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
-}
-
-Type* Typer::Visitor::TypeTruncateTaggedToFloat64(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin) This DCHECK does not work because of speculative feedback.
-  // Re-enable once we record the speculative feedback in types.
-  // DCHECK(arg->Is(Type::NumberOrOddball()));
-  return ChangeRepresentation(arg, Type::UntaggedFloat64(), zone());
-}
-
-Type* Typer::Visitor::TypeChangeInt31ToTaggedSigned(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::Signed31()));
-  // Some mjsunit/asm and mjsunit/wasm tests fail this check.
-  // For instance, asm/int32-umod fails with Signed32/UntaggedIntegral32 in
-  // simplified-lowering (after propagation).
-  Type* rep =
-      arg->Is(Type::SignedSmall()) ? Type::TaggedSigned() : Type::Tagged();
-  return ChangeRepresentation(arg, rep, zone());
-}
-
-Type* Typer::Visitor::TypeChangeInt32ToTagged(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::Signed32()));
-  // Two tests fail this check: mjsunit/asm/sqlite3/sqlite-safe-heap and
-  // mjsunit/wasm/embenchen/lua_binarytrees. The first one fails with Any/Any in
-  // simplified-lowering (after propagation).
-  Type* rep =
-      arg->Is(Type::SignedSmall()) ? Type::TaggedSigned() : Type::Tagged();
-  return ChangeRepresentation(arg, rep, zone());
-}
-
-Type* Typer::Visitor::TypeChangeUint32ToTagged(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::Unsigned32()));
-  // This fails in benchmarks/octane/mandreel (--turbo).
-  return ChangeRepresentation(arg, Type::Tagged(), zone());
-}
-
-Type* Typer::Visitor::TypeChangeFloat64ToTagged(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::Number()));
-  // Some (or all) mjsunit/wasm/embenchen/ tests fail this check when run with
-  // --turbo and --always-opt.
-  return ChangeRepresentation(arg, Type::Tagged(), zone());
-}
-
-Type* Typer::Visitor::TypeChangeTaggedToBit(Node* node) {
-  Type* arg = Operand(node, 0);
-  DCHECK(arg->Is(Type::Boolean()));
-  return ChangeRepresentation(arg, Type::UntaggedBit(), zone());
-}
-
-Type* Typer::Visitor::TypeChangeBitToTagged(Node* node) {
-  Type* arg = Operand(node, 0);
-  return ChangeRepresentation(arg, Type::TaggedPointer(), zone());
-}
-
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   // TODO(bmeurer): We could do better here based on the limit.
   return Type::Unsigned31();
@@ -1835,30 +1754,6 @@ Type* Typer::Visitor::TypeCheckTaggedPointer(Node* node) {
 Type* Typer::Visitor::TypeCheckTaggedSigned(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, typer_->cache_.kSmi, zone());
-}
-
-Type* Typer::Visitor::TypeCheckedInt32Add(Node* node) {
-  return Type::Integral32();
-}
-
-Type* Typer::Visitor::TypeCheckedInt32Sub(Node* node) {
-  return Type::Integral32();
-}
-
-Type* Typer::Visitor::TypeCheckedUint32ToInt32(Node* node) {
-  return Type::Signed32();
-}
-
-Type* Typer::Visitor::TypeCheckedFloat64ToInt32(Node* node) {
-  return Type::Signed32();
-}
-
-Type* Typer::Visitor::TypeCheckedTaggedToInt32(Node* node) {
-  return Type::Signed32();
-}
-
-Type* Typer::Visitor::TypeCheckedTaggedToFloat64(Node* node) {
-  return Type::Number();
 }
 
 Type* Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
@@ -1882,15 +1777,6 @@ Type* Typer::Visitor::TypeCheckTaggedHole(Node* node) {
     }
   }
   return type;
-}
-
-Type* Typer::Visitor::TypeTruncateTaggedToWord32(Node* node) {
-  Type* arg = Operand(node, 0);
-  // TODO(jarin): DCHECK(arg->Is(Type::NumberOrUndefined()));
-  // Several mjsunit and cctest tests fail this check. For instance,
-  // mjsunit/compiler/regress-607493 fails with Any/Any in simplified-lowering
-  // (after propagation).
-  return ChangeRepresentation(arg, Type::UntaggedIntegral32(), zone());
 }
 
 Type* Typer::Visitor::TypeAllocate(Node* node) { return Type::TaggedPointer(); }

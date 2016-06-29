@@ -163,6 +163,28 @@
   JS_OTHER_OP_LIST(V)
 
 // Opcodes for VirtuaMachine-level operators.
+#define SIMPLIFIED_CHANGE_OP_LIST(V) \
+  V(ChangeTaggedSignedToInt32)       \
+  V(ChangeTaggedToInt32)             \
+  V(ChangeTaggedToUint32)            \
+  V(ChangeTaggedToFloat64)           \
+  V(ChangeInt31ToTaggedSigned)       \
+  V(ChangeInt32ToTagged)             \
+  V(ChangeUint32ToTagged)            \
+  V(ChangeFloat64ToTagged)           \
+  V(ChangeTaggedToBit)               \
+  V(ChangeBitToTagged)               \
+  V(TruncateTaggedToWord32)          \
+  V(TruncateTaggedToFloat64)
+
+#define SIMPLIFIED_CHECKED_OP_LIST(V) \
+  V(CheckedInt32Add)                  \
+  V(CheckedInt32Sub)                  \
+  V(CheckedUint32ToInt32)             \
+  V(CheckedFloat64ToInt32)            \
+  V(CheckedTaggedToInt32)             \
+  V(CheckedTaggedToFloat64)
+
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \
   V(NumberLessThan)                      \
@@ -172,8 +194,7 @@
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)
 
-#define SIMPLIFIED_OP_LIST(V)         \
-  SIMPLIFIED_COMPARE_BINOP_LIST(V)    \
+#define SIMPLIFIED_OTHER_OP_LIST(V)   \
   V(PlainPrimitiveToNumber)           \
   V(PlainPrimitiveToWord32)           \
   V(PlainPrimitiveToFloat64)          \
@@ -226,30 +247,12 @@
   V(NumberSilenceNaN)                 \
   V(StringFromCharCode)               \
   V(StringToNumber)                   \
-  V(ChangeTaggedSignedToInt32)        \
-  V(ChangeTaggedToInt32)              \
-  V(ChangeTaggedToUint32)             \
-  V(ChangeTaggedToFloat64)            \
-  V(ChangeInt31ToTaggedSigned)        \
-  V(ChangeInt32ToTagged)              \
-  V(ChangeUint32ToTagged)             \
-  V(ChangeFloat64ToTagged)            \
-  V(ChangeTaggedToBit)                \
-  V(ChangeBitToTagged)                \
   V(CheckBounds)                      \
   V(CheckNumber)                      \
   V(CheckTaggedPointer)               \
   V(CheckTaggedSigned)                \
-  V(CheckedInt32Add)                  \
-  V(CheckedInt32Sub)                  \
-  V(CheckedUint32ToInt32)             \
-  V(CheckedFloat64ToInt32)            \
-  V(CheckedTaggedToInt32)             \
-  V(CheckedTaggedToFloat64)           \
   V(CheckFloat64Hole)                 \
   V(CheckTaggedHole)                  \
-  V(TruncateTaggedToWord32)           \
-  V(TruncateTaggedToFloat64)          \
   V(Allocate)                         \
   V(LoadField)                        \
   V(LoadBuffer)                       \
@@ -263,6 +266,12 @@
   V(ObjectIsSmi)                      \
   V(ObjectIsString)                   \
   V(ObjectIsUndetectable)
+
+#define SIMPLIFIED_OP_LIST(V)      \
+  SIMPLIFIED_CHANGE_OP_LIST(V)     \
+  SIMPLIFIED_CHECKED_OP_LIST(V)    \
+  SIMPLIFIED_COMPARE_BINOP_LIST(V) \
+  SIMPLIFIED_OTHER_OP_LIST(V)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \

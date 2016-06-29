@@ -34,9 +34,7 @@ Decision DecideObjectIsSmi(Node* const input) {
 
 SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
                                                      JSGraph* jsgraph)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      type_cache_(TypeCache::Get()) {}
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
 
@@ -162,37 +160,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(std::fabs(m.Value()));
       break;
     }
-    case IrOpcode::kNumberCeil:
-    case IrOpcode::kNumberFloor:
-    case IrOpcode::kNumberRound:
-    case IrOpcode::kNumberTrunc: {
-      Node* const input = NodeProperties::GetValueInput(node, 0);
-      Type* const input_type = NodeProperties::GetType(input);
-      if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
-        return Replace(input);
-      }
+    case IrOpcode::kReferenceEqual: {
+      HeapObjectBinopMatcher m(node);
+      if (m.left().node() == m.right().node()) return ReplaceBoolean(true);
       break;
     }
-    case IrOpcode::kReferenceEqual:
-      return ReduceReferenceEqual(node);
     default:
       break;
-  }
-  return NoChange();
-}
-
-Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
-  DCHECK_EQ(IrOpcode::kReferenceEqual, node->opcode());
-  Node* const left = NodeProperties::GetValueInput(node, 0);
-  Node* const right = NodeProperties::GetValueInput(node, 1);
-  HeapObjectMatcher match_left(left);
-  HeapObjectMatcher match_right(right);
-  if (match_left.HasValue() && match_right.HasValue()) {
-    if (match_left.Value().is_identical_to(match_right.Value())) {
-      return Replace(jsgraph()->TrueConstant());
-    } else {
-      return Replace(jsgraph()->FalseConstant());
-    }
   }
   return NoChange();
 }
