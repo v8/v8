@@ -16041,12 +16041,11 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                   Smi::FromInt(0), SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
-    PropertyAttributes writable =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->last_index_string(),
-        Handle<Smi>(Smi::FromInt(0), isolate), writable)
-        .Check();
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSReceiver::SetProperty(regexp, factory->last_index_string(),
+                                Handle<Smi>(Smi::FromInt(0), isolate), STRICT),
+        JSRegExp);
   }
 
   return regexp;

@@ -465,9 +465,6 @@
   'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-same': [FAIL],
   'annexB/built-ins/RegExp/prototype/compile/pattern-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5138
-  'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-immutable-lastindex': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5139
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
