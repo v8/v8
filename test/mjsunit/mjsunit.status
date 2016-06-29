@@ -278,6 +278,10 @@
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
+  # BUG(v8:5161): Flaky with turbofan.
+  'regress/regress-201': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
+
   ############################################################################
   # Ignition
 

@@ -123,6 +123,9 @@
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
 
+  # BUG(v8:5161): Flaky with turbofan.
+  'test-thread-termination/TerminateAndReenterFromThreadItself': [PASS, ['system == mac', NO_VARIANTS]],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
