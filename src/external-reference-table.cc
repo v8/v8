@@ -170,8 +170,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
       "f64_asin_wrapper");
-  Add(ExternalReference::f64_pow_wrapper_function(isolate).address(),
-      "f64_pow_wrapper");
   Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),
       "f64_mod_wrapper");
   Add(ExternalReference::log_enter_external_function(isolate).address(),

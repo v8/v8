@@ -1259,16 +1259,6 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
-static void f64_pow_wrapper(double* param0, double* param1) {
-  WriteDoubleValue(param0, power_double_double(ReadDoubleValue(param0),
-                                               ReadDoubleValue(param1)));
-}
-
-ExternalReference ExternalReference::f64_pow_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_pow_wrapper)));
-}
-
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
                    modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));

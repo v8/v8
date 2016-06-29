@@ -973,7 +973,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_pow_wrapper_function(Isolate* isolate);
   static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
 
   // Log support.
