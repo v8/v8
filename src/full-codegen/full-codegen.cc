@@ -875,7 +875,7 @@ void FullCodeGenerator::VisitDoExpression(DoExpression* expr) {
   Comment cmnt(masm_, "[ Do Expression");
   SetExpressionPosition(expr);
   VisitBlock(expr->block());
-  VisitInDuplicateContext(expr->result());
+  EmitVariableLoad(expr->result());
 }
 
 
