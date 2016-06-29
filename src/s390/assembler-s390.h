@@ -1249,10 +1249,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
                                           ConstantPoolEntry::Type type) {
@@ -1448,9 +1444,6 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
 
   List<Handle<Code> > code_targets_;
-
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

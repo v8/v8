@@ -1433,10 +1433,6 @@ class Assembler : public AssemblerBase {
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
   void instr_at_put(int pos, Instr instr) {
@@ -1676,8 +1672,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

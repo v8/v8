@@ -263,11 +263,9 @@ const Instr kLwSwInstrTypeMask = 0xffe00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this) {
+      recorded_ast_id_(TypeFeedbackId::None()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;

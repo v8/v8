@@ -220,12 +220,10 @@ MemOperand::MemOperand(Register ra, Register rb) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits),
-      positions_recorder_(this) {
+      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   no_trampoline_pool_before_ = 0;
@@ -2465,8 +2463,6 @@ void Assembler::EmitRelocations() {
 
     reloc_info_writer.Write(&rinfo);
   }
-
-  reloc_info_writer.Finish();
 }
 
 

@@ -163,7 +163,6 @@
       'test-random-number-generator.cc',
       'test-receiver-check-hidden-prototype.cc',
       'test-regexp.cc',
-      'test-reloc-info.cc',
       'test-representation.cc',
       'test-sampler-api.cc',
       'test-serialize.cc',

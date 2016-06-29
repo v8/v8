@@ -281,8 +281,7 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      code_targets_(100),
-      positions_recorder_(this) {
+      code_targets_(100) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_bound_pos_ = 0;
@@ -3079,8 +3078,6 @@ void Assembler::EmitRelocations() {
 
     reloc_info_writer.Write(&rinfo);
   }
-
-  reloc_info_writer.Finish();
 }
 
 }  // namespace internal

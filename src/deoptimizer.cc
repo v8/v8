@@ -2752,13 +2752,13 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   int last_deopt_id = Deoptimizer::DeoptInfo::kNoDeoptId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
-             RelocInfo::ModeMask(RelocInfo::POSITION);
+             RelocInfo::ModeMask(RelocInfo::DEOPT_POSITION);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->pc() >= pc) {
       return DeoptInfo(last_position, last_reason, last_deopt_id);
     }
-    if (info->rmode() == RelocInfo::POSITION) {
+    if (info->rmode() == RelocInfo::DEOPT_POSITION) {
       int raw_position = static_cast<int>(info->data());
       last_position = raw_position ? SourcePosition::FromRaw(raw_position)
                                    : SourcePosition::Unknown();

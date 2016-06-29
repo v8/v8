@@ -69,7 +69,6 @@ class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
-class PositionsRecorder;
 class RegExpStack;
 class SaveContext;
 class StatsTable;

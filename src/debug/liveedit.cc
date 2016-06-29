@@ -1077,7 +1077,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);
 }
 
-
+namespace {
 // For a script text change (defined as position_change_array), translates
 // position in unchanged text to position in changed text.
 // Text change is a set of non-overlapping regions in text, that have changed
@@ -1119,83 +1119,6 @@ static int TranslatePosition(int original_position,
   return original_position + position_diff;
 }
 
-
-// Auto-growing buffer for writing relocation info code section. This buffer
-// is a simplified version of buffer from Assembler. Unlike Assembler, this
-// class is platform-independent and it works without dealing with instructions.
-// As specified by RelocInfo format, the buffer is filled in reversed order:
-// from upper to lower addresses.
-// It uses NewArray/DeleteArray for memory management.
-class RelocInfoBuffer {
- public:
-  RelocInfoBuffer(int buffer_initial_capicity, byte* pc) {
-    buffer_size_ = buffer_initial_capicity + kBufferGap;
-    buffer_ = NewArray<byte>(buffer_size_);
-
-    reloc_info_writer_.Reposition(buffer_ + buffer_size_, pc);
-  }
-  ~RelocInfoBuffer() {
-    DeleteArray(buffer_);
-  }
-
-  // As specified by RelocInfo format, the buffer is filled in reversed order:
-  // from upper to lower addresses.
-  void Write(const RelocInfo* rinfo) {
-    if (buffer_ + kBufferGap >= reloc_info_writer_.pos()) {
-      Grow();
-    }
-    reloc_info_writer_.Write(rinfo);
-  }
-
-  Vector<byte> GetResult() {
-    // Return the bytes from pos up to end of buffer.
-    int result_size =
-        static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer_.pos());
-    return Vector<byte>(reloc_info_writer_.pos(), result_size);
-  }
-
- private:
-  void Grow() {
-    // Compute new buffer size.
-    int new_buffer_size;
-    if (buffer_size_ < 2 * KB) {
-      new_buffer_size = 4 * KB;
-    } else {
-      new_buffer_size = 2 * buffer_size_;
-    }
-    // Some internal data structures overflow for very large buffers,
-    // they must ensure that kMaximalBufferSize is not too large.
-    if (new_buffer_size > kMaximalBufferSize) {
-      V8::FatalProcessOutOfMemory("RelocInfoBuffer::GrowBuffer");
-    }
-
-    // Set up new buffer.
-    byte* new_buffer = NewArray<byte>(new_buffer_size);
-
-    // Copy the data.
-    int curently_used_size =
-        static_cast<int>(buffer_ + buffer_size_ - reloc_info_writer_.pos());
-    MemMove(new_buffer + new_buffer_size - curently_used_size,
-            reloc_info_writer_.pos(), curently_used_size);
-
-    reloc_info_writer_.Reposition(
-        new_buffer + new_buffer_size - curently_used_size,
-        reloc_info_writer_.last_pc());
-
-    DeleteArray(buffer_);
-    buffer_ = new_buffer;
-    buffer_size_ = new_buffer_size;
-  }
-
-  RelocInfoWriter reloc_info_writer_;
-  byte* buffer_;
-  int buffer_size_;
-
-  static const int kBufferGap = RelocInfoWriter::kMaxSize;
-  static const int kMaximalBufferSize = 512*MB;
-};
-
-namespace {
 Handle<ByteArray> TranslateSourcePositionTable(
     Handle<ByteArray> source_position_table,
     Handle<JSArray> position_change_array) {

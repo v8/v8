@@ -279,11 +279,9 @@ int Label::pos() const {
 //                             followed by pc delta
 //                             followed by optional data depending on type.
 //
-//  2-bit data type tags, used in short_data_record and data_jump long_record:
-//   code_target_with_id: 00
-//   position:            01
-//   statement_position:  10
-//   deopt_reason:        11
+//  1-bit data type tags, used in short_data_record and data_jump long_record:
+//   code_target_with_id: 0
+//   deopt_reason:        1
 //
 //  If a pc delta exceeds 6 bits, it is split into a remainder that fits into
 //  6 bits and a part that does not. The latter is encoded as a long record
@@ -300,7 +298,7 @@ int Label::pos() const {
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
 const int kLongTagBits = 6;
-const int kShortDataTypeTagBits = 2;
+const int kShortDataTypeTagBits = 1;
 const int kShortDataBits = kBitsPerByte - kShortDataTypeTagBits;
 
 const int kEmbeddedObjectTag = 0;
@@ -319,9 +317,7 @@ const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
 const int kCodeWithIdTag = 0;
-const int kNonstatementPositionTag = 1;
-const int kStatementPositionTag = 2;
-const int kDeoptReasonTag = 3;
+const int kDeoptReasonTag = 1;
 
 void RelocInfo::update_wasm_memory_reference(
     Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
@@ -431,38 +427,8 @@ void RelocInfoWriter::WriteData(intptr_t data_delta) {
 }
 
 
-void RelocInfoWriter::WritePosition(int pc_delta, int pos_delta,
-                                    RelocInfo::Mode rmode) {
-  int pos_type_tag = (rmode == RelocInfo::POSITION) ? kNonstatementPositionTag
-                                                    : kStatementPositionTag;
-  // Check if delta is small enough to fit in a tagged byte.
-  if (is_intn(pos_delta, kShortDataBits)) {
-    WriteShortTaggedPC(pc_delta, kLocatableTag);
-    WriteShortTaggedData(pos_delta, pos_type_tag);
-  } else {
-    // Otherwise, use costly encoding.
-    WriteModeAndPC(pc_delta, rmode);
-    WriteIntData(pos_delta);
-  }
-}
-
-
-void RelocInfoWriter::FlushPosition() {
-  if (!next_position_candidate_flushed_) {
-    WritePosition(next_position_candidate_pc_delta_,
-                  next_position_candidate_pos_delta_, RelocInfo::POSITION);
-    next_position_candidate_pos_delta_ = 0;
-    next_position_candidate_pc_delta_ = 0;
-    next_position_candidate_flushed_ = true;
-  }
-}
-
-
 void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   RelocInfo::Mode rmode = rinfo->rmode();
-  if (rmode != RelocInfo::POSITION) {
-    FlushPosition();
-  }
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
@@ -495,31 +461,13 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     DCHECK(rinfo->data() < (1 << kShortDataBits));
     WriteShortTaggedPC(pc_delta, kLocatableTag);
     WriteShortTaggedData(rinfo->data(), kDeoptReasonTag);
-  } else if (RelocInfo::IsPosition(rmode)) {
-    // Use signed delta-encoding for position.
-    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
-    int pos_delta = static_cast<int>(rinfo->data()) - last_position_;
-    if (rmode == RelocInfo::STATEMENT_POSITION) {
-      WritePosition(pc_delta, pos_delta, rmode);
-    } else {
-      DCHECK_EQ(rmode, RelocInfo::POSITION);
-      if (pc_delta != 0 || last_mode_ != RelocInfo::POSITION) {
-        FlushPosition();
-        next_position_candidate_pc_delta_ = pc_delta;
-        next_position_candidate_pos_delta_ = pos_delta;
-      } else {
-        next_position_candidate_pos_delta_ += pos_delta;
-      }
-      next_position_candidate_flushed_ = false;
-    }
-    last_position_ = static_cast<int>(rinfo->data());
   } else {
     WriteModeAndPC(pc_delta, rmode);
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
-               RelocInfo::IsVeneerPool(rmode) ||
-               RelocInfo::IsDeoptId(rmode)) {
+               RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
+               RelocInfo::IsDeoptPosition(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -571,16 +519,6 @@ void RelocIterator::AdvanceReadInt() {
 }
 
 
-void RelocIterator::AdvanceReadPosition() {
-  int x = 0;
-  for (int i = 0; i < kIntSize; i++) {
-    x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
-  }
-  last_position_ += x;
-  rinfo_.data_ = last_position_;
-}
-
-
 void RelocIterator::AdvanceReadData() {
   intptr_t x = 0;
   for (int i = 0; i < kIntptrSize; i++) {
@@ -619,26 +557,9 @@ inline void RelocIterator::ReadShortTaggedId() {
 }
 
 
-inline void RelocIterator::ReadShortTaggedPosition() {
-  int8_t signed_b = *pos_;
-  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-  last_position_ += signed_b >> kShortDataTypeTagBits;
-  rinfo_.data_ = last_position_;
-}
-
-
 inline void RelocIterator::ReadShortTaggedData() {
   uint8_t unsigned_b = *pos_;
-  rinfo_.data_ = unsigned_b >> kTagBits;
-}
-
-
-static inline RelocInfo::Mode GetPositionModeFromTag(int tag) {
-  DCHECK(tag == kNonstatementPositionTag ||
-         tag == kStatementPositionTag);
-  return (tag == kNonstatementPositionTag) ?
-         RelocInfo::POSITION :
-         RelocInfo::STATEMENT_POSITION;
+  rinfo_.data_ = unsigned_b >> kShortDataTypeTagBits;
 }
 
 
@@ -666,19 +587,11 @@ void RelocIterator::next() {
           ReadShortTaggedId();
           return;
         }
-      } else if (data_type_tag == kDeoptReasonTag) {
+      } else {
+        DCHECK(data_type_tag == kDeoptReasonTag);
         if (SetMode(RelocInfo::DEOPT_REASON)) {
           ReadShortTaggedData();
           return;
-        }
-      } else {
-        DCHECK(data_type_tag == kNonstatementPositionTag ||
-               data_type_tag == kStatementPositionTag);
-        if (mode_mask_ & RelocInfo::kPositionMask) {
-          // Always update the position if we are interested in either
-          // statement positions or non-statement positions.
-          ReadShortTaggedPosition();
-          if (SetMode(GetPositionModeFromTag(data_type_tag))) return;
         }
       }
     } else {
@@ -700,18 +613,10 @@ void RelocIterator::next() {
             return;
           }
           Advance(kIntptrSize);
-        } else if (RelocInfo::IsPosition(rmode)) {
-          if (mode_mask_ & RelocInfo::kPositionMask) {
-            // Always update the position if we are interested in either
-            // statement positions or non-statement positions.
-            AdvanceReadPosition();
-            if (SetMode(rmode)) return;
-          } else {
-            Advance(kIntSize);
-          }
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
-                   RelocInfo::IsDeoptId(rmode)) {
+                   RelocInfo::IsDeoptId(rmode) ||
+                   RelocInfo::IsDeoptPosition(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -747,7 +652,6 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
   done_ = false;
   mode_mask_ = mode_mask;
   last_id_ = 0;
-  last_position_ = 0;
   byte* sequence = code->FindCodeAgeSequence();
   // We get the isolate from the map, because at serialization time
   // the code pointer has been cloned and isn't really in heap space.
@@ -772,7 +676,6 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
   done_ = false;
   mode_mask_ = mode_mask;
   last_id_ = 0;
-  last_position_ = 0;
   code_age_sequence_ = NULL;
   if (mode_mask_ == 0) pos_ = end_;
   next();
@@ -822,16 +725,14 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "runtime entry";
     case COMMENT:
       return "comment";
-    case POSITION:
-      return "position";
-    case STATEMENT_POSITION:
-      return "statement position";
     case EXTERNAL_REFERENCE:
       return "external reference";
     case INTERNAL_REFERENCE:
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
+    case DEOPT_POSITION:
+      return "deopt position";
     case DEOPT_REASON:
       return "deopt reason";
     case DEOPT_ID:
@@ -871,6 +772,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
+  } else if (rmode_ == DEOPT_POSITION) {
+    os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
     os << "  (" << Deoptimizer::GetDeoptReason(
                        static_cast<Deoptimizer::DeoptReason>(data_)) << ")";
@@ -889,8 +792,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     if (rmode_ == CODE_TARGET_WITH_ID) {
       os << " (id=" << static_cast<int>(data_) << ")";
     }
-  } else if (IsPosition(rmode_)) {
-    os << "  (" << data() << ")";
   } else if (IsRuntimeEntry(rmode_) &&
              isolate->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
@@ -941,9 +842,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     }
     case RUNTIME_ENTRY:
     case COMMENT:
-    case POSITION:
-    case STATEMENT_POSITION:
     case EXTERNAL_REFERENCE:
+    case DEOPT_POSITION:
     case DEOPT_REASON:
     case DEOPT_ID:
     case CONST_POOL:
@@ -1723,49 +1623,6 @@ std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   return os;
 }
 
-void AssemblerPositionsRecorder::RecordPosition(int pos) {
-  DCHECK(pos != RelocInfo::kNoPosition);
-  DCHECK(pos >= 0);
-  current_position_ = pos;
-  LOG_CODE_EVENT(assembler_->isolate(),
-                 CodeLinePosInfoAddPositionEvent(jit_handler_data_,
-                                                 assembler_->pc_offset(),
-                                                 pos));
-  WriteRecordedPositions();
-}
-
-void AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
-  DCHECK(pos != RelocInfo::kNoPosition);
-  DCHECK(pos >= 0);
-  current_statement_position_ = pos;
-  LOG_CODE_EVENT(assembler_->isolate(),
-                 CodeLinePosInfoAddStatementPositionEvent(
-                     jit_handler_data_,
-                     assembler_->pc_offset(),
-                     pos));
-  RecordPosition(pos);
-}
-
-void AssemblerPositionsRecorder::WriteRecordedPositions() {
-  // Write the statement position if it is different from what was written last
-  // time.
-  if (current_statement_position_ != written_statement_position_) {
-    EnsureSpace ensure_space(assembler_);
-    assembler_->RecordRelocInfo(RelocInfo::STATEMENT_POSITION,
-                                current_statement_position_);
-    written_position_ = current_statement_position_;
-    written_statement_position_ = current_statement_position_;
-  }
-
-  // Write the position if it is different from what was written last time and
-  // also different from the statement position that was just written.
-  if (current_position_ != written_position_) {
-    EnsureSpace ensure_space(assembler_);
-    assembler_->RecordRelocInfo(RelocInfo::POSITION, current_position_);
-    written_position_ = current_position_;
-  }
-}
-
 
 ConstantPoolBuilder::ConstantPoolBuilder(int ptr_reach_bits,
                                          int double_reach_bits) {
@@ -1974,7 +1831,7 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
   if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, raw_position);
+    RecordRelocInfo(RelocInfo::DEOPT_POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
     RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }

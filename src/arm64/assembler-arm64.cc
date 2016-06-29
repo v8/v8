@@ -303,11 +303,11 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 // Constant Pool.
 void ConstPool::RecordEntry(intptr_t data,
                             RelocInfo::Mode mode) {
-  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::POSITION &&
-         mode != RelocInfo::STATEMENT_POSITION &&
-         mode != RelocInfo::CONST_POOL && mode != RelocInfo::VENEER_POOL &&
+  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
+         mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::CODE_AGE_SEQUENCE &&
-         mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
+         mode != RelocInfo::DEOPT_POSITION && mode != RelocInfo::DEOPT_REASON &&
+         mode != RelocInfo::DEOPT_ID);
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
@@ -551,8 +551,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       constpool_(this),
       recorded_ast_id_(TypeFeedbackId::None()),
-      unresolved_branches_(),
-      positions_recorder_(this) {
+      unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   Reset();
@@ -586,7 +585,6 @@ void Assembler::Reset() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  reloc_info_writer.Finish();
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
@@ -2949,12 +2947,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
+      (rmode == RelocInfo::DEOPT_POSITION) ||
       (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
       (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
            RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
-           RelocInfo::IsPosition(rmode) ||
+           RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
            RelocInfo::IsGeneratorContinuation(rmode));

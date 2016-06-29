@@ -990,10 +990,6 @@ class Assembler : public AssemblerBase {
 
   static bool IsNop(Address addr);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   int relocation_writer_size() {
     return (buffer_ + buffer_size_) - reloc_info_writer.pos();
   }
@@ -1079,9 +1075,6 @@ class Assembler : public AssemblerBase {
 
   // code generation
   RelocInfoWriter reloc_info_writer;
-
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
 };
 
 

@@ -394,8 +394,6 @@ class RelocInfo {
     // Everything after runtime_entry (inclusive) is not GC'ed.
     RUNTIME_ENTRY,
     COMMENT,
-    POSITION,            // See comment for kNoPosition above.
-    STATEMENT_POSITION,  // See comment for kNoPosition above.
 
     // Additional code inserted for debug break slot.
     DEBUG_BREAK_SLOT_AT_POSITION,
@@ -417,8 +415,9 @@ class RelocInfo {
     CONST_POOL,
     VENEER_POOL,
 
-    DEOPT_REASON,  // Deoptimization reason index.
-    DEOPT_ID,      // Deoptimization inlining id.
+    DEOPT_POSITION,  // Deoptimization source position.
+    DEOPT_REASON,    // Deoptimization reason index.
+    DEOPT_ID,        // Deoptimization inlining id.
 
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
@@ -475,17 +474,14 @@ class RelocInfo {
   static inline bool IsVeneerPool(Mode mode) {
     return mode == VENEER_POOL;
   }
+  static inline bool IsDeoptPosition(Mode mode) {
+    return mode == DEOPT_POSITION;
+  }
   static inline bool IsDeoptReason(Mode mode) {
     return mode == DEOPT_REASON;
   }
   static inline bool IsDeoptId(Mode mode) {
     return mode == DEOPT_ID;
-  }
-  static inline bool IsPosition(Mode mode) {
-    return mode == POSITION || mode == STATEMENT_POSITION;
-  }
-  static inline bool IsStatementPosition(Mode mode) {
-    return mode == STATEMENT_POSITION;
   }
   static inline bool IsExternalReference(Mode mode) {
     return mode == EXTERNAL_REFERENCE;
@@ -667,9 +663,7 @@ class RelocInfo {
 #endif
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
-  static const int kPositionMask = 1 << POSITION | 1 << STATEMENT_POSITION;
-  static const int kDataMask =
-      (1 << CODE_TARGET_WITH_ID) | kPositionMask | (1 << COMMENT);
+  static const int kDataMask = (1 << CODE_TARGET_WITH_ID) | (1 << COMMENT);
   static const int kDebugBreakSlotMask = 1 << DEBUG_BREAK_SLOT_AT_POSITION |
                                          1 << DEBUG_BREAK_SLOT_AT_RETURN |
                                          1 << DEBUG_BREAK_SLOT_AT_CALL;
@@ -698,24 +692,8 @@ class RelocInfo {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter()
-      : pos_(NULL),
-        last_pc_(NULL),
-        last_id_(0),
-        last_position_(0),
-        last_mode_(RelocInfo::NUMBER_OF_MODES),
-        next_position_candidate_pos_delta_(0),
-        next_position_candidate_pc_delta_(0),
-        next_position_candidate_flushed_(true) {}
-  RelocInfoWriter(byte* pos, byte* pc)
-      : pos_(pos),
-        last_pc_(pc),
-        last_id_(0),
-        last_position_(0),
-        last_mode_(RelocInfo::NUMBER_OF_MODES),
-        next_position_candidate_pos_delta_(0),
-        next_position_candidate_pc_delta_(0),
-        next_position_candidate_flushed_(true) {}
+  RelocInfoWriter() : pos_(NULL), last_pc_(NULL), last_id_(0) {}
+  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc), last_id_(0) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -728,8 +706,6 @@ class RelocInfoWriter BASE_EMBEDDED {
     pos_ = pos;
     last_pc_ = pc;
   }
-
-  void Finish() { FlushPosition(); }
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
@@ -748,18 +724,11 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
   inline void WriteIntData(int data_delta);
   inline void WriteData(intptr_t data_delta);
-  inline void WritePosition(int pc_delta, int pos_delta, RelocInfo::Mode rmode);
-
-  void FlushPosition();
 
   byte* pos_;
   byte* last_pc_;
   int last_id_;
-  int last_position_;
   RelocInfo::Mode last_mode_;
-  int next_position_candidate_pos_delta_;
-  uint32_t next_position_candidate_pc_delta_;
-  bool next_position_candidate_flushed_;
 
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
@@ -805,13 +774,11 @@ class RelocIterator: public Malloced {
   int GetShortDataTypeTag();
   void ReadShortTaggedPC();
   void ReadShortTaggedId();
-  void ReadShortTaggedPosition();
   void ReadShortTaggedData();
 
   void AdvanceReadPC();
   void AdvanceReadId();
   void AdvanceReadInt();
-  void AdvanceReadPosition();
   void AdvanceReadData();
 
   // If the given mode is wanted, set it in rinfo_ and return true.
@@ -827,7 +794,6 @@ class RelocIterator: public Malloced {
   bool done_;
   int mode_mask_;
   int last_id_;
-  int last_position_;
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
@@ -1132,41 +1098,6 @@ bool operator!=(ExternalReference, ExternalReference);
 size_t hash_value(ExternalReference);
 
 std::ostream& operator<<(std::ostream&, ExternalReference);
-
-
-// -----------------------------------------------------------------------------
-// Position recording support
-
-class AssemblerPositionsRecorder : public PositionsRecorder {
- public:
-  explicit AssemblerPositionsRecorder(Assembler* assembler)
-      : assembler_(assembler),
-        current_position_(RelocInfo::kNoPosition),
-        written_position_(RelocInfo::kNoPosition),
-        current_statement_position_(RelocInfo::kNoPosition),
-        written_statement_position_(RelocInfo::kNoPosition) {}
-
-  // Set current position to pos.
-  void RecordPosition(int pos);
-
-  // Set current statement position to pos.
-  void RecordStatementPosition(int pos);
-
- private:
-  // Write recorded positions to relocation information.
-  void WriteRecordedPositions();
-
-  Assembler* assembler_;
-
-  int current_position_;
-  int written_position_;
-
-  int current_statement_position_;
-  int written_statement_position_;
-
-  DISALLOW_COPY_AND_ASSIGN(AssemblerPositionsRecorder);
-};
-
 
 // -----------------------------------------------------------------------------
 // Utility functions

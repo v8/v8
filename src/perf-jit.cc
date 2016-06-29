@@ -30,6 +30,7 @@
 #include "src/assembler.h"
 #include "src/eh-frame.h"
 #include "src/objects-inl.h"
+#include "src/source-position-table.h"
 
 #if V8_OS_LINUX
 #include <fcntl.h>
@@ -246,8 +247,8 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
-  for (RelocIterator it(code, RelocInfo::kPositionMask); !it.done();
-       it.next()) {
+  for (SourcePositionTableIterator iterator(code->source_position_table());
+       !iterator.done(); iterator.Advance()) {
     entry_count++;
   }
   if (entry_count == 0) return;
@@ -292,10 +293,11 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   int script_line_offset = script->line_offset();
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  Address code_start = code->instruction_start();
 
-  for (RelocIterator it(code, RelocInfo::kPositionMask); !it.done();
-       it.next()) {
-    int position = static_cast<int>(it.rinfo()->data());
+  for (SourcePositionTableIterator iterator(code->source_position_table());
+       !iterator.done(); iterator.Advance()) {
+    int position = iterator.source_position();
     int line_number = Script::GetLineNumber(script, position);
     // Compute column.
     int relative_line_number = line_number - script_line_offset;
@@ -310,7 +312,8 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     }
 
     PerfJitDebugEntry entry;
-    entry.address_ = reinterpret_cast<uint64_t>(it.rinfo()->pc());
+    entry.address_ =
+        reinterpret_cast<uint64_t>(code_start + iterator.code_offset());
     entry.line_number_ = line_number;
     entry.column_ = column_offset;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
