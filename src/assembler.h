@@ -564,10 +564,10 @@ class RelocInfo {
   uint32_t wasm_memory_size_reference();
   void update_wasm_memory_reference(
       Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
-      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH);
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_global_reference(
       Address old_base, Address new_base,
-      ICacheFlushMode icache_flush_mode = SKIP_ICACHE_FLUSH);
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
