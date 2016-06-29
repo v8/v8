@@ -269,7 +269,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(zone, jsgraph, sig, source_position_table);
-  TreeResult result =
+  DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
     ptrdiff_t pc = result.error_pc - result.start;

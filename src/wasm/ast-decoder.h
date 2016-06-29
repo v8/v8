@@ -222,15 +222,18 @@ static inline FunctionBody FunctionBodyForTesting(const byte* start,
   return {nullptr, nullptr, start, start, end};
 }
 
-struct Tree;
-typedef Result<Tree*> TreeResult;
+struct DecodeStruct {
+  int unused;
+};
+typedef Result<DecodeStruct*> DecodeResult;
+inline std::ostream& operator<<(std::ostream& os, const DecodeStruct& tree) {
+  return os;
+}
 
-std::ostream& operator<<(std::ostream& os, const Tree& tree);
-
-TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
-                          FunctionBody& body);
-TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                        TFBuilder* builder, FunctionBody& body);
+DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+                            FunctionBody& body);
+DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
+                          TFBuilder* builder, FunctionBody& body);
 bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table);
@@ -238,17 +241,17 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintAstForDebugging(const byte* start, const byte* end);
 
-inline TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
-                                 ModuleEnv* module, FunctionSig* sig,
-                                 const byte* start, const byte* end) {
+inline DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+                                   ModuleEnv* module, FunctionSig* sig,
+                                   const byte* start, const byte* end) {
   FunctionBody body = {module, sig, nullptr, start, end};
   return VerifyWasmCode(allocator, body);
 }
 
-inline TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                               TFBuilder* builder, ModuleEnv* module,
-                               FunctionSig* sig, const byte* start,
-                               const byte* end) {
+inline DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
+                                 TFBuilder* builder, ModuleEnv* module,
+                                 FunctionSig* sig, const byte* start,
+                                 const byte* end) {
   FunctionBody body = {module, sig, nullptr, start, end};
   return BuildTFGraph(allocator, builder, body);
 }

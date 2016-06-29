@@ -29,7 +29,7 @@ namespace wasm {
 struct ModuleEnv;
 struct WasmFunction;
 class ErrorThrower;
-struct Tree;
+struct DecodeStruct;
 
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
@@ -72,7 +72,7 @@ class WasmCompilationUnit final {
   CompilationInfo info_;
   base::SmartPointer<CompilationJob> job_;
   uint32_t index_;
-  wasm::Result<wasm::Tree*> graph_construction_result_;
+  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_;
 };
 

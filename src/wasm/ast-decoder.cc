@@ -31,17 +31,6 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-// The root of a decoded tree.
-struct Tree {
-  LocalType type;     // tree type.
-  uint32_t count;     // number of children.
-  const byte* pc;     // start of the syntax tree.
-  TFNode* node;       // node in the TurboFan graph.
-  Tree* children[1];  // pointers to children.
-
-  WasmOpcode opcode() const { return static_cast<WasmOpcode>(*pc); }
-};
-
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -385,11 +374,11 @@ class WasmDecoder : public Decoder {
   }
 };
 
-// A shift-reduce-parser strategy for decoding Wasm code that uses an explicit
-// shift-reduce strategy with multiple internal stacks.
-class SR_WasmDecoder : public WasmDecoder {
+// The full WASM decoder for bytecode. Both verifies bytecode and generates
+// a TurboFan IR graph.
+class WasmFullDecoder : public WasmDecoder {
  public:
-  SR_WasmDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
+  WasmFullDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
       : WasmDecoder(body.module, body.sig, body.start, body.end),
         zone_(zone),
         builder_(builder),
@@ -1471,39 +1460,24 @@ bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
   base::AccountingAllocator allocator;
   Zone tmp(&allocator);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  SR_WasmDecoder decoder(&tmp, nullptr, body);
+  WasmFullDecoder decoder(&tmp, nullptr, body);
   return decoder.DecodeLocalDecls(decls);
 }
 
-TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
-                          FunctionBody& body) {
+DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+                            FunctionBody& body) {
   Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, nullptr, body);
+  WasmFullDecoder decoder(&zone, nullptr, body);
   decoder.Decode();
-  return decoder.toResult<Tree*>(nullptr);
+  return decoder.toResult<DecodeStruct*>(nullptr);
 }
 
-TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                        TFBuilder* builder, FunctionBody& body) {
+DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
+                          TFBuilder* builder, FunctionBody& body) {
   Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, builder, body);
+  WasmFullDecoder decoder(&zone, builder, body);
   decoder.Decode();
-  return decoder.toResult<Tree*>(nullptr);
-}
-
-std::ostream& operator<<(std::ostream& os, const Tree& tree) {
-  if (tree.pc == nullptr) {
-    os << "null";
-    return os;
-  }
-  PrintF("%s", WasmOpcodes::OpcodeName(tree.opcode()));
-  if (tree.count > 0) os << "(";
-  for (uint32_t i = 0; i < tree.count; ++i) {
-    if (i > 0) os << ", ";
-    os << *tree.children[i];
-  }
-  if (tree.count > 0) os << ")";
-  return os;
+  return decoder.toResult<DecodeStruct*>(nullptr);
 }
 
 unsigned OpcodeLength(const byte* pc, const byte* end) {
@@ -1526,7 +1500,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
               std::ostream& os,
               std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, nullptr, body);
+  WasmFullDecoder decoder(&zone, nullptr, body);
   int line_nr = 0;
 
   // Print the function signature.
@@ -1655,7 +1629,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  SR_WasmDecoder decoder(zone, nullptr, body);
+  WasmFullDecoder decoder(zone, nullptr, body);
   return decoder.AnalyzeLoopAssignmentForTesting(start, num_locals);
 }
 

@@ -84,7 +84,7 @@ class AstDecoderTest : public TestWithZone {
               const byte* end) {
     local_decls.Prepend(zone(), &start, &end);
     // Verify the code.
-    TreeResult result =
+    DecodeResult result =
         VerifyWasmCode(zone()->allocator(), module, sig, start, end);
 
     if (result.error_code != expected) {

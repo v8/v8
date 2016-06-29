@@ -546,7 +546,7 @@ class ModuleDecoder : public Decoder {
     FunctionBody body = {menv, function->sig, start_,
                          start_ + function->code_start_offset,
                          start_ + function->code_end_offset};
-    TreeResult result = VerifyWasmCode(module_zone->allocator(), body);
+    DecodeResult result = VerifyWasmCode(module_zone->allocator(), body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
