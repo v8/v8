@@ -270,18 +270,17 @@ function NAMEConstructor(arg1, arg2, arg3) {
   if (!IS_UNDEFINED(new.target)) {
     if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
       NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
-    } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
-               IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
-      NAMEConstructByLength(this, arg1);
     } else if (IS_TYPEDARRAY(arg1)) {
       NAMEConstructByTypedArray(this, arg1);
-    } else {
+    } else if (IS_RECEIVER(arg1)) {
       var iteratorFn = arg1[iteratorSymbol];
       if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
         NAMEConstructByArrayLike(this, arg1, arg1.length);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
       }
+    } else {
+      NAMEConstructByLength(this, arg1);
     }
   } else {
     throw MakeTypeError(kConstructorNotFunction, "NAME")
