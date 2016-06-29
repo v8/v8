@@ -2161,9 +2161,8 @@ static inline int NumberCacheHash(Handle<FixedArray> cache,
   if (number->IsSmi()) {
     return Handle<Smi>::cast(number)->value() & mask;
   } else {
-    DoubleRepresentation rep(number->Number());
-    return
-        (static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32)) & mask;
+    int64_t bits = bit_cast<int64_t>(number->Number());
+    return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
   }
 }
 

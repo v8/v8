@@ -1004,13 +1004,11 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
                           const Register scratch) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value_rep(imm);
+  int64_t imm_bits = bit_cast<int64_t>(imm);
   // Handle special values first.
-  if (value_rep == zero) {
+  if (imm_bits == bit_cast<int64_t>(0.0)) {
     vmov(dst, kDoubleRegZero);
-  } else if (value_rep == minus_zero) {
+  } else if (imm_bits == bit_cast<int64_t>(-0.0)) {
     vneg(dst, kDoubleRegZero);
   } else {
     vmov(dst, imm, scratch);

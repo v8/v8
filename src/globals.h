@@ -633,18 +633,6 @@ typedef void (*StoreBufferCallback)(Heap* heap,
                                     MemoryChunk* page,
                                     StoreBufferEvent event);
 
-
-// Union used for fast testing of specific double values.
-union DoubleRepresentation {
-  double  value;
-  int64_t bits;
-  DoubleRepresentation(double x) { value = x; }
-  bool operator==(const DoubleRepresentation& other) const {
-    return bits == other.bits;
-  }
-};
-
-
 // Union used for customized checking of the IEEE double types
 // inlined within v8 runtime, rather than going to the underlying
 // platform headers and libraries

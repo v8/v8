@@ -2304,13 +2304,11 @@ void MacroAssembler::Move(FPURegister dst, float imm) {
 
 
 void MacroAssembler::Move(FPURegister dst, double imm) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value_rep(imm);
+  int64_t imm_bits = bit_cast<int64_t>(imm);
   // Handle special values first.
-  if (value_rep == zero && has_double_zero_reg_set_) {
+  if (imm_bits == bit_cast<int64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (value_rep == minus_zero && has_double_zero_reg_set_) {
+  } else if (imm_bits == bit_cast<int64_t>(-0.0) && has_double_zero_reg_set_) {
     neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;

@@ -149,8 +149,7 @@ char* DoubleToRadixCString(double value, int radix);
 
 
 static inline bool IsMinusZero(double value) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  return DoubleRepresentation(value) == minus_zero;
+  return bit_cast<int64_t>(value) == bit_cast<int64_t>(-0.0);
 }
 
 
