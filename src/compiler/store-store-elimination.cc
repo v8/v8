@@ -42,9 +42,9 @@ namespace compiler {
 // upwards. While walking, we maintain a map {futureStore} from offsets to
 // nodes; initially it is empty. As we walk the effect chain upwards, if
 // futureStore[off] = n, then any store to node {n} with offset {off} is
-// guaranteed to be useless because we do a full-width[1] store to that offset
-// of that object in the near future anyway. For example, for this effect
-// chain
+// guaranteed to be useless because we do a tagged-width[2] store to that
+// offset of that object in the near future anyway. For example, for this
+// effect chain
 //
 // 71: StoreField(60, 0)
 // 72: StoreField(65, 8)
@@ -58,7 +58,7 @@ namespace compiler {
 //
 // - We are at the end of a sequence of consecutive StoreFields.
 // - We start out with futureStore = empty.
-// - We then walk the effect chain upwards to find the next StoreField [2].
+// - We then walk the effect chain upwards to find the next StoreField [1].
 //
 //   1. If the offset is not a key of {futureStore} yet, we put it in.
 //   2. If the offset is a key of {futureStore}, but futureStore[offset] is a
@@ -70,17 +70,45 @@ namespace compiler {
 //   output, and as long as its opcode is StoreField, we keep traversing
 //   upwards.
 //
-// [1] This optimization is unsound if we optimize away a store to an offset
-//   because we store to the same offset in the future, even though the future
-//   store is narrower than the store we optimize away. Therefore, in case (1)
-//   and (2) we only add/overwrite to the dictionary when the field access has
-//   maximal size. For simplicity of implementation, we do not try to detect
-//   case (3).
 //
-// [2] We make sure that we only traverse the linear part, that is, the part
+//
+//       footnotes:
+//
+// [1] We make sure that we only traverse the linear part, that is, the part
 //   where every node has exactly one incoming and one outgoing effect edge.
 //   Also, we only keep walking upwards as long as we keep finding consecutive
 //   StoreFields on the same node.
+//
+// [2] This optimization is sound only in certain cases. Specifically, the
+//   presence of a future store to {off} by itself does not automatically mean
+//   that earlier stores to {off} are superfluous: a future narrow store does
+//   not obviate an earlier wide store. However, future stores of a certain
+//   size do obviate stores to the same offset of lesser or equal size.
+//
+//   It turns out that we are most interested in stores of "tagged" size,
+//   which is 8 bytes on 64-bit archs and 4 bit on 32-bit archs. In
+//   {futureStore}, we record future writes that are of at least this size.
+//   The three cases are actually a bit more subtle.
+//
+//   1. If the offset is not a key of {futureStore} and the StoreField is of
+//      "tagged" size or wider, then we put it in.
+//   2. If the offset is present in {futureStore} but the value is different,
+//      then we overwrite the value if the current StoreField is of "tagged"
+//      size or wider.
+//   3. If the offset is present and the value matches the node, and the
+//      current StoreField is AT MOST of "tagged" size, then we eliminate this
+//      StoreField.
+//
+//   Examples of stores that we do not detect as superfluous: 2-byte stores
+//   followed by 2-byte stores to the same offset; 16-byte stores followed by
+//   16-byte stores to the same offset. On ia32, we do not detect consecutive
+//   float64 stores as superfluous, and on x86 we do not detect consecutive
+//   int32 stores as superfluous.
+
+// At a late stage, we realized that this code is more complicated than it
+// needs to be: if we store a set of pairs (offset, node), the code simplifies
+// to 3 cases instead of 6. We could even store a map from nodes to sets of
+// bytes.
 
 StoreStoreElimination::StoreStoreElimination(JSGraph* js_graph, Zone* temp_zone)
     : jsgraph_(js_graph), temp_zone_(temp_zone) {}
@@ -179,6 +207,14 @@ size_t rep_size_of(FieldAccess access) {
   return rep_size_of(access.machine_type.representation());
 }
 
+bool AtMostTagged(FieldAccess access) {
+  return rep_size_of(access) <= rep_size_of(MachineRepresentation::kTagged);
+}
+
+bool AtLeastTagged(FieldAccess access) {
+  return rep_size_of(access) >= rep_size_of(MachineRepresentation::kTagged);
+}
+
 }  // namespace
 
 bool StoreStoreElimination::IsEligibleNode(Node* node) {
@@ -209,44 +245,65 @@ void StoreStoreElimination::ReduceEligibleNode(Node* node) {
 
     Node* previous = PreviousEffectBeforeStoreField(current_node);
 
-    CHECK(rep_size_of(access) <= rep_size_of(MachineRepresentation::kTagged));
-    if (rep_size_of(access) == rep_size_of(MachineRepresentation::kTagged)) {
-      // Try to insert. If it was present, this will preserve the original
-      // value.
-      auto insert_result =
-          futureStore.insert(std::make_pair(offset, object_input));
-      if (insert_result.second) {
-        // Key was not present. This means that there is no matching
-        // StoreField to this offset in the future, so we cannot optimize
-        // current_node away. However, we will record the current StoreField
-        // in futureStore, and continue ascending up the chain.
-        TRACE("#%d[[+%d]] -- wide, key not present", current_node->id(),
-              offset);
-      } else if (insert_result.first->second != object_input) {
-        // Key was present, and the value did not equal object_input. This
-        // means
-        // that there is a StoreField to this offset in the future, but the
-        // object instance comes from a different Node. We pessimistically
-        // assume that we cannot optimize current_node away. However, we will
-        // record the current StoreField in futureStore, and continue
-        // ascending up the chain.
-        insert_result.first->second = object_input;
-        TRACE("#%d[[+%d]] -- wide, diff object", current_node->id(), offset);
-      } else {
-        // Key was present, and the value equalled object_input. This means
-        // that soon after in the effect chain, we will do a StoreField to the
-        // same object with the same offset, therefore current_node can be
-        // optimized away. We don't need to update futureStore.
+    // Find the map entry.
+    ZoneMap<Offset, Node*>::iterator find_result = futureStore.find(offset);
 
-        Node* previous_effect = NodeProperties::GetEffectInput(current_node);
+    bool present = find_result != futureStore.end();
+    Node* value = present ? find_result->second : nullptr;
 
-        NodeProperties::ReplaceUses(current_node, nullptr, previous_effect,
-                                    nullptr, nullptr);
-        current_node->Kill();
-        TRACE("#%d[[+%d]] -- wide, eliminated", current_node->id(), offset);
-      }
+    if (present && value == object_input && AtMostTagged(access)) {
+      // Key was present, and the value equalled object_input. This means
+      // that soon after in the effect chain, we will do a StoreField to the
+      // same object with the same offset, therefore current_node can be
+      // optimized away. Also, the future StoreField is at least as big as this
+      // one.
+      //
+      // We don't need to update futureStore.
+
+      Node* previous_effect = NodeProperties::GetEffectInput(current_node);
+
+      NodeProperties::ReplaceUses(current_node, nullptr, previous_effect,
+                                  nullptr, nullptr);
+      current_node->Kill();
+      TRACE("#%d[[+%d,%s]](#%d) -- at most tagged size, eliminated",
+            current_node->id(), offset,
+            MachineReprToString(access.machine_type.representation()),
+            object_input->id());
+    } else if (present && value == object_input && !AtMostTagged(access)) {
+      TRACE("#%d[[+%d,%s]](#%d) -- too wide, not eliminated",
+            current_node->id(), offset,
+            MachineReprToString(access.machine_type.representation()),
+            object_input->id());
+    } else if (present && value != object_input && AtLeastTagged(access)) {
+      // Key was present, and the value did not equal object_input. This means
+      // that there is a StoreField to this offset in the future, but the
+      // object instance comes from a different Node. We pessimistically
+      // assume that we cannot optimize current_node away. However, we will
+      // guess that the current StoreField is more relevant than the future
+      // one, record the current StoreField in futureStore instead, and
+      // continue ascending up the chain.
+      find_result->second = object_input;
+      TRACE("#%d[[+%d,%s]](#%d) -- wide enough, diff object, updated in map",
+            current_node->id(), offset,
+            MachineReprToString(access.machine_type.representation()),
+            object_input->id());
+    } else if (!present && AtLeastTagged(access)) {
+      // Key was not present. This means that there is no matching
+      // StoreField to this offset in the future, so we cannot optimize
+      // current_node away. However, we will record the current StoreField
+      // in futureStore, and continue ascending up the chain.
+      futureStore.insert(std::make_pair(offset, object_input));
+      TRACE(
+          "#%d[[+%d,%s]](#%d) -- wide enough, key not present, inserted in map",
+          current_node->id(), offset,
+          MachineReprToString(access.machine_type.representation()),
+          object_input->id());
+    } else if (!AtLeastTagged(access)) {
+      TRACE("#%d[[+%d,%s]](#%d) -- too narrow to record", current_node->id(),
+            offset, MachineReprToString(access.machine_type.representation()),
+            object_input->id());
     } else {
-      TRACE("#%d[[+%d]] -- narrow, not eliminated", current_node->id(), offset);
+      UNREACHABLE();
     }
 
     // Regardless of whether we eliminated node {current}, we want to

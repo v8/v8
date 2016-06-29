@@ -28,6 +28,8 @@ enum class MachineRepresentation : uint8_t {
   kTagged
 };
 
+const char* MachineReprToString(MachineRepresentation);
+
 enum class MachineSemantic : uint8_t {
   kNone,
   kBool,
