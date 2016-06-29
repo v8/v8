@@ -29,6 +29,7 @@ class RedundancyElimination final : public AdvancedReducer {
    public:
     static EffectPathChecks* Copy(Zone* zone, EffectPathChecks const* checks);
     static EffectPathChecks const* Empty(Zone* zone);
+    bool Equals(EffectPathChecks const* that) const;
     void Merge(EffectPathChecks const* that);
 
     EffectPathChecks const* AddCheck(Zone* zone, Node* node) const;

@@ -55,6 +55,19 @@ RedundancyElimination::EffectPathChecks::Empty(Zone* zone) {
   return new (zone->New(sizeof(EffectPathChecks))) EffectPathChecks(nullptr, 0);
 }
 
+bool RedundancyElimination::EffectPathChecks::Equals(
+    EffectPathChecks const* that) const {
+  if (this->size_ != that->size_) return false;
+  Check* this_head = this->head_;
+  Check* that_head = that->head_;
+  while (this_head != that_head) {
+    if (this_head->node != that_head->node) return false;
+    this_head = this_head->next;
+    that_head = that_head->next;
+  }
+  return true;
+}
+
 void RedundancyElimination::EffectPathChecks::Merge(
     EffectPathChecks const* that) {
   // Change the current check list to a longest common tail of this check
@@ -207,8 +220,10 @@ Reduction RedundancyElimination::UpdateChecks(Node* node,
   // Only signal that the {node} has Changed, if the information about {checks}
   // has changed wrt. the {original}.
   if (checks != original) {
-    node_checks_.Set(node, checks);
-    return Changed(node);
+    if (original == nullptr || !checks->Equals(original)) {
+      node_checks_.Set(node, checks);
+      return Changed(node);
+    }
   }
   return NoChange();
 }
