@@ -1444,11 +1444,13 @@ bool PipelineImpl::CreateGraph() {
       Run<EscapeAnalysisPhase>();
       RunPrintAndVerify("Escape Analysed");
     }
-
-    // Select representations.
-    Run<RepresentationSelectionPhase>();
-    RunPrintAndVerify("Representations selected", true);
   }
+
+  // Select representations. This has to run w/o the Typer decorator, because
+  // we cannot compute meaningful types anyways, and the computed types might
+  // even conflict with the representation/truncation logic.
+  Run<RepresentationSelectionPhase>();
+  RunPrintAndVerify("Representations selected", true);
 
 #ifdef DEBUG
   // From now on it is invalid to look at types on the nodes, because:

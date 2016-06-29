@@ -671,6 +671,11 @@ class RepresentationSelector {
 
   Type* GetUpperBound(Node* node) { return NodeProperties::GetType(node); }
 
+  bool InputCannotBe(Node* node, Type* type) {
+    DCHECK_EQ(1, node->op()->ValueInputCount());
+    return !GetUpperBound(node->InputAt(0))->Maybe(type);
+  }
+
   bool InputIs(Node* node, Type* type) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
     return GetUpperBound(node->InputAt(0))->Is(type);
@@ -1703,11 +1708,11 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedPointer: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          if (InputIs(node, Type::TaggedPointer())) {
-            DeferReplacement(node, node->InputAt(0));
-          }
+        if (InputCannotBe(node, Type::SignedSmall())) {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
         return;
       }
@@ -1719,11 +1724,6 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-          if (lower()) {
-            if (InputIs(node, Type::TaggedSigned())) {
-              DeferReplacement(node, node->InputAt(0));
-            }
-          }
         }
         return;
       }
@@ -1743,15 +1743,15 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
+        WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
+            access.base_is_tagged, access.machine_type.representation(),
+            access.offset, access.type, node->InputAt(1));
         ProcessInput(node, 0, UseInfoForBasePointer(access));
         ProcessInput(node, 1, TruncatingUseInfoFromRepresentation(
                                   access.machine_type.representation()));
         ProcessRemainingInputs(node, 2);
         SetOutput(node, MachineRepresentation::kNone);
         if (lower()) {
-          WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
-              access.base_is_tagged, access.machine_type.representation(),
-              access.offset, access.type, node->InputAt(1));
           if (write_barrier_kind < access.write_barrier_kind) {
             access.write_barrier_kind = write_barrier_kind;
             NodeProperties::ChangeOp(
@@ -1816,6 +1816,9 @@ class RepresentationSelector {
       }
       case IrOpcode::kStoreElement: {
         ElementAccess access = ElementAccessOf(node->op());
+        WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
+            access.base_is_tagged, access.machine_type.representation(),
+            access.type, node->InputAt(2));
         ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
         ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
         ProcessInput(node, 2,
@@ -1824,9 +1827,6 @@ class RepresentationSelector {
         ProcessRemainingInputs(node, 3);
         SetOutput(node, MachineRepresentation::kNone);
         if (lower()) {
-          WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
-              access.base_is_tagged, access.machine_type.representation(),
-              access.type, node->InputAt(2));
           if (write_barrier_kind < access.write_barrier_kind) {
             access.write_barrier_kind = write_barrier_kind;
             NodeProperties::ChangeOp(
