@@ -2387,6 +2387,9 @@ FreeSpace* FreeList::SearchForNodeInList(FreeListCategoryType type,
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
     }
+    if (current->is_empty()) {
+      RemoveCategory(current);
+    }
   }
   return node;
 }
