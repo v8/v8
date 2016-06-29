@@ -340,8 +340,11 @@ void AsmTyper::VisitIfStatement(IfStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "if statement inside module body");
   }
-  RECURSE(VisitWithExpectation(stmt->condition(), cache_.kAsmSigned,
+  RECURSE(VisitWithExpectation(stmt->condition(), cache_.kAsmInt,
                                "if condition expected to be integer"));
+  if (intish_ != 0) {
+    FAIL(stmt, "if condition expected to be signed or unsigned");
+  }
   RECURSE(Visit(stmt->then_statement()));
   RECURSE(Visit(stmt->else_statement()));
 }
@@ -434,8 +437,11 @@ void AsmTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
     FAIL(stmt, "do statement inside module body");
   }
   RECURSE(Visit(stmt->body()));
-  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
+  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmInt,
                                "do condition expected to be integer"));
+  if (intish_ != 0) {
+    FAIL(stmt, "do condition expected to be signed or unsigned");
+  }
 }
 
 
@@ -443,8 +449,11 @@ void AsmTyper::VisitWhileStatement(WhileStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "while statement inside module body");
   }
-  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
+  RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmInt,
                                "while condition expected to be integer"));
+  if (intish_ != 0) {
+    FAIL(stmt, "while condition expected to be signed or unsigned");
+  }
   RECURSE(Visit(stmt->body()));
 }
 
@@ -457,8 +466,11 @@ void AsmTyper::VisitForStatement(ForStatement* stmt) {
     RECURSE(Visit(stmt->init()));
   }
   if (stmt->cond() != nullptr) {
-    RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmSigned,
+    RECURSE(VisitWithExpectation(stmt->cond(), cache_.kAsmInt,
                                  "for condition expected to be integer"));
+  }
+  if (intish_ != 0) {
+    FAIL(stmt, "for condition expected to be signed or unsigned");
   }
   if (stmt->next() != nullptr) {
     RECURSE(Visit(stmt->next()));

@@ -1542,3 +1542,54 @@ assertWasm(1, TestXor);
     Wasm.instantiateModuleFromAsm('var x = 3;');
   });
 })();
+
+(function TestIfWithUnsigned() {
+  function asmModule() {
+    "use asm";
+    function main() {
+      if (2147483658) { // 2^31 + 10
+        return 231;
+      }
+      return 0;
+    }
+    return {main:main};
+  }
+  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  assertEquals(231, wasm.main());
+})();
+
+(function TestLoopsWithUnsigned() {
+  function asmModule() {
+    "use asm";
+    function main() {
+      var val = 1;
+      var count = 0;
+      for (val = 2147483648; 2147483648;) {
+        val = 2147483649;
+        break;
+      }
+      while (val>>>0) {
+        val = (val + 1) | 0;
+        count = (count + 1)|0;
+        if ((count|0) == 9) {
+          break;
+        }
+      }
+      count = 0;
+      do {
+        val = (val + 2) | 0;
+        count = (count + 1)|0;
+        if ((count|0) == 5) {
+          break;
+        }
+      } while (0xffffffff);
+      if ((val>>>0) == 2147483668) {
+        return 323;
+      }
+      return 0;
+    }
+    return {main:main};
+  }
+  var wasm = Wasm.instantiateModuleFromAsm(asmModule.toString());
+  assertEquals(323, wasm.main());
+})();
