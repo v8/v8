@@ -26,12 +26,6 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-#define UNALIGNED_ACCESS_OK 1
-#else
-#define UNALIGNED_ACCESS_OK 0
-#endif
-
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {
@@ -125,47 +119,19 @@ class Decoder {
   // Reads a single 16-bit unsigned integer (little endian).
   inline uint16_t read_u16(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 2) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint16_t*>(ptr);
-#else
-    uint16_t b0 = ptr[0];
-    uint16_t b1 = ptr[1];
-    return (b1 << 8) | b0;
-#endif
+    return ReadLittleEndianValue<uint16_t>(ptr);
   }
 
   // Reads a single 32-bit unsigned integer (little endian).
   inline uint32_t read_u32(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 4) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint32_t*>(ptr);
-#else
-    uint32_t b0 = ptr[0];
-    uint32_t b1 = ptr[1];
-    uint32_t b2 = ptr[2];
-    uint32_t b3 = ptr[3];
-    return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-#endif
+    return ReadLittleEndianValue<uint32_t>(ptr);
   }
 
   // Reads a single 64-bit unsigned integer (little endian).
   inline uint64_t read_u64(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 8) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint64_t*>(ptr);
-#else
-    uint32_t b0 = ptr[0];
-    uint32_t b1 = ptr[1];
-    uint32_t b2 = ptr[2];
-    uint32_t b3 = ptr[3];
-    uint32_t low = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-    uint32_t b4 = ptr[4];
-    uint32_t b5 = ptr[5];
-    uint32_t b6 = ptr[6];
-    uint32_t b7 = ptr[7];
-    uint64_t high = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
-    return (high << 32) | low;
-#endif
+    return ReadLittleEndianValue<uint64_t>(ptr);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.

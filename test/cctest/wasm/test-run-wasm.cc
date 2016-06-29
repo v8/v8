@@ -1012,7 +1012,7 @@ WASM_EXEC_TEST(F32ReinterpretI32) {
 
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i;
-    memory[0] = expected;
+    module.WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
 }
@@ -1030,7 +1030,7 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i;
     CHECK_EQ(107, r.Call(expected));
-    CHECK_EQ(expected, memory[0]);
+    CHECK_EQ(expected, module.ReadMemory(&memory[0]));
   }
 }
 
@@ -1044,7 +1044,7 @@ WASM_EXEC_TEST(ReturnStore) {
 
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i;
-    memory[0] = expected;
+    module.WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
 }
@@ -1334,13 +1334,13 @@ WASM_EXEC_TEST(LoadMemI32) {
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(0)));
 
-  memory[0] = 99999999;
+  module.WriteMemory(&memory[0], 99999999);
   CHECK_EQ(99999999, r.Call(0));
 
-  memory[0] = 88888888;
+  module.WriteMemory(&memory[0], 88888888);
   CHECK_EQ(88888888, r.Call(0));
 
-  memory[0] = 77777777;
+  module.WriteMemory(&memory[0], 77777777);
   CHECK_EQ(77777777, r.Call(0));
 }
 
@@ -1354,14 +1354,14 @@ WASM_EXEC_TEST(LoadMemI32_alignment) {
     BUILD(r,
           WASM_LOAD_MEM_ALIGNMENT(MachineType::Int32(), WASM_I8(0), alignment));
 
-    memory[0] = 0x1a2b3c4d;
+    module.WriteMemory(&memory[0], 0x1a2b3c4d);
     CHECK_EQ(0x1a2b3c4d, r.Call(0));
 
-    memory[0] = 0x5e6f7a8b;
+    module.WriteMemory(&memory[0], 0x5e6f7a8b);
     CHECK_EQ(0x5e6f7a8b, r.Call(0));
 
-    memory[0] = 0x9ca0b1c2;
-    CHECK_EQ(0x9ca0b1c2, r.Call(0));
+    module.WriteMemory(&memory[0], 0x7ca0b1c2);
+    CHECK_EQ(0x7ca0b1c2, r.Call(0));
   }
 }
 
@@ -1373,7 +1373,7 @@ WASM_EXEC_TEST(LoadMemI32_oob) {
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
 
-  memory[0] = 88888888;
+  module.WriteMemory(&memory[0], 88888888);
   CHECK_EQ(88888888, r.Call(0u));
   for (uint32_t offset = 29; offset < 40; ++offset) {
     CHECK_TRAP(r.Call(offset));
@@ -1418,18 +1418,18 @@ WASM_EXEC_TEST(LoadMemI32_offset) {
 
   BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(), 4, WASM_GET_LOCAL(0)));
 
-  memory[0] = 66666666;
-  memory[1] = 77777777;
-  memory[2] = 88888888;
-  memory[3] = 99999999;
+  module.WriteMemory(&memory[0], 66666666);
+  module.WriteMemory(&memory[1], 77777777);
+  module.WriteMemory(&memory[2], 88888888);
+  module.WriteMemory(&memory[3], 99999999);
   CHECK_EQ(77777777, r.Call(0));
   CHECK_EQ(88888888, r.Call(4));
   CHECK_EQ(99999999, r.Call(8));
 
-  memory[0] = 11111111;
-  memory[1] = 22222222;
-  memory[2] = 33333333;
-  memory[3] = 44444444;
+  module.WriteMemory(&memory[0], 11111111);
+  module.WriteMemory(&memory[1], 22222222);
+  module.WriteMemory(&memory[2], 33333333);
+  module.WriteMemory(&memory[3], 44444444);
   CHECK_EQ(22222222, r.Call(0));
   CHECK_EQ(33333333, r.Call(4));
   CHECK_EQ(44444444, r.Call(8));
@@ -1493,7 +1493,7 @@ WASM_EXEC_TEST(StoreMemI32_alignment) {
     memory[0] = 0;
 
     CHECK_EQ(kWritten, r.Call(kWritten));
-    CHECK_EQ(kWritten, memory[0]);
+    CHECK_EQ(kWritten, module.ReadMemory(&memory[0]));
   }
 }
 
@@ -1508,15 +1508,15 @@ WASM_EXEC_TEST(StoreMemI32_offset) {
 
   for (int i = 0; i < 2; ++i) {
     module.RandomizeMemory(1111);
-    memory[0] = 66666666;
-    memory[1] = 77777777;
-    memory[2] = 88888888;
-    memory[3] = 99999999;
+    module.WriteMemory(&memory[0], 66666666);
+    module.WriteMemory(&memory[1], 77777777);
+    module.WriteMemory(&memory[2], 88888888);
+    module.WriteMemory(&memory[3], 99999999);
     CHECK_EQ(kWritten, r.Call(i * 4));
-    CHECK_EQ(66666666, memory[0]);
-    CHECK_EQ(i == 0 ? kWritten : 77777777, memory[1]);
-    CHECK_EQ(i == 1 ? kWritten : 88888888, memory[2]);
-    CHECK_EQ(i == 2 ? kWritten : 99999999, memory[3]);
+    CHECK_EQ(66666666, module.ReadMemory(&memory[0]));
+    CHECK_EQ(i == 0 ? kWritten : 77777777, module.ReadMemory(&memory[1]));
+    CHECK_EQ(i == 1 ? kWritten : 88888888, module.ReadMemory(&memory[2]));
+    CHECK_EQ(i == 2 ? kWritten : 99999999, module.ReadMemory(&memory[3]));
   }
 }
 
@@ -1559,7 +1559,7 @@ WASM_EXEC_TEST(LoadMemI32_P) {
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
 
   for (int i = 0; i < kNumElems; ++i) {
-    CHECK_EQ(memory[i], r.Call(i * 4));
+    CHECK_EQ(module.ReadMemory(&memory[i]), r.Call(i * 4));
   }
 }
 
@@ -1588,7 +1588,7 @@ WASM_EXEC_TEST(MemI32_Sum) {
     module.RandomizeMemory(i * 33);
     uint32_t expected = 0;
     for (size_t j = kNumElems - 1; j > 0; --j) {
-      expected += memory[j];
+      expected += module.ReadMemory(&memory[j]);
     }
     uint32_t result = r.Call(4 * (kNumElems - 1));
     CHECK_EQ(expected, result);
@@ -1615,11 +1615,11 @@ WASM_EXEC_TEST(MemF32_Sum) {
   TestingModule module(execution_mode);
   module.AddMemoryElems<float>(kSize);
   float* buffer = module.raw_mem_start<float>();
-  buffer[0] = -99.25;
-  buffer[1] = -888.25;
-  buffer[2] = -77.25;
-  buffer[3] = 66666.25;
-  buffer[4] = 5555.25;
+  module.WriteMemory(&buffer[0], -99.25f);
+  module.WriteMemory(&buffer[1], -888.25f);
+  module.WriteMemory(&buffer[2], -77.25f);
+  module.WriteMemory(&buffer[3], 66666.25f);
+  module.WriteMemory(&buffer[4], 5555.25f);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   const byte kSum = r.AllocateLocal(kAstF32);
 
@@ -1639,8 +1639,8 @@ WASM_EXEC_TEST(MemF32_Sum) {
                WASM_GET_LOCAL(0)));
 
   CHECK_EQ(0, r.Call(4 * (kSize - 1)));
-  CHECK_NE(-99.25, buffer[0]);
-  CHECK_EQ(71256.0f, buffer[0]);
+  CHECK_NE(-99.25f, module.ReadMemory(&buffer[0]));
+  CHECK_EQ(71256.0f, module.ReadMemory(&buffer[0]));
 }
 
 template <typename T>
@@ -1648,9 +1648,9 @@ T GenerateAndRunFold(WasmExecutionMode execution_mode, WasmOpcode binop,
                      T* buffer, uint32_t size, LocalType astType,
                      MachineType memType) {
   TestingModule module(execution_mode);
-  module.AddMemoryElems<T>(size);
+  T* memory = module.AddMemoryElems<T>(size);
   for (uint32_t i = 0; i < size; ++i) {
-    module.raw_mem_start<T>()[i] = buffer[i];
+    module.WriteMemory(&memory[i], buffer[i]);
   }
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   const byte kAccum = r.AllocateLocal(astType);
@@ -1671,7 +1671,7 @@ T GenerateAndRunFold(WasmExecutionMode execution_mode, WasmOpcode binop,
           WASM_STORE_MEM(memType, WASM_ZERO, WASM_GET_LOCAL(kAccum)),
           WASM_GET_LOCAL(0)));
   r.Call(static_cast<int>(sizeof(T) * (size - 1)));
-  return module.raw_mem_at<double>(0);
+  return module.ReadMemory(&memory[0]);
 }
 
 WASM_EXEC_TEST(MemF64_Mul) {
@@ -2064,11 +2064,11 @@ WASM_EXEC_TEST(CallF64StackParameter) {
 WASM_EXEC_TEST(CallVoid) {
   const byte kMemOffset = 8;
   const int32_t kElemNum = kMemOffset / sizeof(int32_t);
-  const int32_t kExpected = -414444;
+  const int32_t kExpected = 414444;
   // Build the target function.
   TestSignatures sigs;
   TestingModule module(execution_mode);
-  module.AddMemory(16);
+  int32_t* memory = module.AddMemoryElems<int32_t>(16 / sizeof(int32_t));
   module.RandomizeMemory();
   WasmFunctionCompiler t(sigs.v_v(), &module);
   BUILD(t, WASM_STORE_MEM(MachineType::Int32(), WASM_I8(kMemOffset),
@@ -2082,7 +2082,8 @@ WASM_EXEC_TEST(CallVoid) {
 
   int32_t result = r.Call();
   CHECK_EQ(kExpected, result);
-  CHECK_EQ(kExpected, module.raw_mem_start<int32_t>()[kElemNum]);
+  CHECK_EQ(static_cast<int64_t>(kExpected),
+           static_cast<int64_t>(module.ReadMemory(&memory[kElemNum])));
 }
 
 WASM_EXEC_TEST(Call_Int32Add) {
@@ -2139,14 +2140,15 @@ WASM_EXEC_TEST(Call_Float64Sub) {
 
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
-      memory[0] = *i;
-      memory[1] = *j;
+      module.WriteMemory(&memory[0], *i);
+      module.WriteMemory(&memory[1], *j);
       double expected = *i - *j;
       CHECK_EQ(107, r.Call());
+
       if (expected != expected) {
-        CHECK(memory[0] != memory[0]);
+        CHECK(module.ReadMemory(&memory[0]) != module.ReadMemory(&memory[0]));
       } else {
-        CHECK_EQ(expected, memory[0]);
+        CHECK_EQ(expected, module.ReadMemory(&memory[0]));
       }
     }
   }
