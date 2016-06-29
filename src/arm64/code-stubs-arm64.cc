@@ -925,9 +925,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   int extra_stack_space = 3 + (result_size() <= 2 ? 0 : result_size());
   // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(
-      save_doubles(), x10, extra_stack_space,
-      is_builtin_exit() ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
+  __ EnterExitFrame(save_doubles(), x10, extra_stack_space);
   DCHECK(csp.Is(__ StackPointer()));
 
   // Poke callee-saved registers into reserved space.

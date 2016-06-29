@@ -16,8 +16,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
-                                ExitFrameType exit_frame_type) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // ----------- S t a t e -------------
   //  -- r0                 : number of arguments excluding receiver
   //  -- r1                 : target
@@ -43,8 +42,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   // including the receiver and the extra arguments.
   __ add(r0, r0, Operand(num_extra_args + 1));
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
-                             exit_frame_type == BUILTIN_EXIT);
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
 

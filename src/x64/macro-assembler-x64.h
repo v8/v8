@@ -339,8 +339,7 @@ class MacroAssembler: public Assembler {
   //
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
-                      StackFrame::Type frame_type = StackFrame::EXIT);
+  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false);
 
   // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
   // memory (not GCed) on the stack accessible via StackSpaceOperand.
@@ -1469,8 +1468,7 @@ class MacroAssembler: public Assembler {
   void TailCallRuntime(Runtime::FunctionId fid);
 
   // Jump to a runtime routines
-  void JumpToExternalReference(const ExternalReference& ext,
-                               bool builtin_exit_frame = false);
+  void JumpToExternalReference(const ExternalReference& ext);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
@@ -1635,7 +1633,7 @@ class MacroAssembler: public Assembler {
                       Label::Distance near_jump,
                       const CallWrapper& call_wrapper);
 
-  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
+  void EnterExitFramePrologue(bool save_rax);
 
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.

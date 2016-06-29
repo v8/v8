@@ -1174,8 +1174,7 @@ class MacroAssembler : public Assembler {
                      int num_double_arguments);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& builtin,
-                               bool builtin_exit_frame = false);
+  void JumpToExternalReference(const ExternalReference& builtin);
 
   // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
@@ -1703,9 +1702,9 @@ class MacroAssembler : public Assembler {
   //
   // This function also stores the new frame information in the top frame, so
   // that the new frame becomes the current frame.
-  void EnterExitFrame(bool save_doubles, const Register& scratch,
-                      int extra_space = 0,
-                      StackFrame::Type frame_type = StackFrame::EXIT);
+  void EnterExitFrame(bool save_doubles,
+                      const Register& scratch,
+                      int extra_space = 0);
 
   // Leave the current exit frame, after a C function has returned to generated
   // (JavaScript) code.

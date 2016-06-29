@@ -147,8 +147,7 @@ bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
                             reinterpret_cast<Address>(regs.sp), js_entry_sp);
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
-      (it.top_frame_type() == StackFrame::EXIT ||
-       it.top_frame_type() == StackFrame::BUILTIN_EXIT)) {
+      it.top_frame_type() == StackFrame::EXIT) {
     frames[i++] = isolate->c_function();
   }
   while (!it.done() && i < frames_limit) {

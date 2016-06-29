@@ -1759,13 +1759,13 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   CallStub(&stub);
 }
 
-void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
-                                             bool builtin_exit_frame) {
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   Mov(x1, builtin);
-  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                  builtin_exit_frame);
+  CEntryStub stub(isolate(), 1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
+
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   const Runtime::Function* function = Runtime::FunctionForId(fid);
@@ -2823,17 +2823,16 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
   }
 }
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
-                                    int extra_space,
-                                    StackFrame::Type frame_type) {
+
+void MacroAssembler::EnterExitFrame(bool save_doubles,
+                                    const Register& scratch,
+                                    int extra_space) {
   DCHECK(jssp.Is(StackPointer()));
-  DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the new stack frame.
   Push(lr, fp);
   Mov(fp, StackPointer());
-  Mov(scratch, Smi::FromInt(frame_type));
+  Mov(scratch, Smi::FromInt(StackFrame::EXIT));
   Push(scratch);
   Push(xzr);
   Mov(scratch, Operand(CodeObject()));

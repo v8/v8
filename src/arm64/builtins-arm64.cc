@@ -32,8 +32,7 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
   __ LoadNativeContextSlot(Context::INTERNAL_ARRAY_FUNCTION_INDEX, result);
 }
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
-                                ExitFrameType exit_frame_type) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // ----------- S t a t e -------------
   //  -- x0                 : number of arguments excluding receiver
   //  -- x1                 : target
@@ -59,8 +58,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   // including the receiver and the extra arguments.
   __ Add(x0, x0, num_extra_args + 1);
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
-                             exit_frame_type == BUILTIN_EXIT);
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
 

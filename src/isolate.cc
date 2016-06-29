@@ -426,22 +426,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         }
       } break;
 
-      case StackFrame::BUILTIN_EXIT: {
-        BuiltinExitFrame* exit_frame = BuiltinExitFrame::cast(frame);
-        Handle<JSFunction> fun = handle(exit_frame->function(), this);
-        Handle<Code> code = handle(exit_frame->LookupCode(), this);
-        int offset =
-            static_cast<int>(exit_frame->pc() - code->instruction_start());
-
-        // For now, builtin exit frames do not pass along a receiver.
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, *factory()->undefined_value());
-        elements->set(cursor++, *fun);
-        elements->set(cursor++, *code);
-        elements->set(cursor++, Smi::FromInt(offset));
-        frames_seen++;
-      } break;
-
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
         Code* code = wasm_frame->unchecked_code();
@@ -617,21 +601,6 @@ class CaptureStackTraceHelper {
     return stack_frame;
   }
 
-  Handle<JSObject> NewStackFrameObject(BuiltinExitFrame* frame) {
-    Handle<JSObject> stack_frame =
-        factory()->NewJSObject(isolate_->object_function());
-    Handle<JSFunction> fun = handle(frame->function(), isolate_);
-    if (!function_key_.is_null()) {
-      Handle<Object> fun_name = JSFunction::GetDebugName(fun);
-      JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
-    }
-
-    // We don't have a script and hence cannot set line and col positions.
-    DCHECK(!fun->shared()->script()->IsScript());
-
-    return stack_frame;
-  }
-
   Handle<JSObject> NewStackFrameObject(WasmFrame* frame) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
@@ -765,7 +734,6 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         frames_seen++;
       }
     } else {
-      DCHECK(frame->is_wasm());
       WasmFrame* wasm_frame = WasmFrame::cast(frame);
       Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(wasm_frame);
       stack_trace_elems->set(frames_seen, *new_frame_obj);

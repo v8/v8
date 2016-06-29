@@ -5717,7 +5717,7 @@ Builtins::Builtins() : initialized_(false) {
 Builtins::~Builtins() {
 }
 
-#define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
+#define DEF_ENUM_C(name) FUNCTION_ADDR(Builtin_##name),
 Address const Builtins::c_functions_[cfunction_count] = {
   BUILTIN_LIST_C(DEF_ENUM_C)
 };
@@ -5731,7 +5731,6 @@ struct BuiltinDesc {
   const char* s_name;  // name is only used for generating log information.
   int name;
   Code::Flags flags;
-  Builtins::ExitFrameType exit_frame_type;
   int argc;
 };
 
@@ -5776,13 +5775,13 @@ Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
   MacroAssembler masm(isolate, u.buffer, sizeof(u.buffer),
                       CodeObjectRequired::kYes);
   // Generate the code/adaptor.
-  typedef void (*Generator)(MacroAssembler*, int, Builtins::ExitFrameType);
+  typedef void (*Generator)(MacroAssembler*, int);
   Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
   // We pass all arguments to the generator, but it may not use all of
   // them.  This works because the first arguments are on top of the
   // stack.
   DCHECK(!masm.has_frame());
-  g(&masm, builtin_desc->name, builtin_desc->exit_frame_type);
+  g(&masm, builtin_desc->name);
   // Move the code into the object heap.
   CodeDesc desc;
   masm.GetCode(&desc);
@@ -5836,17 +5835,15 @@ void Builtins::InitBuiltinFunctionTable() {
   functions[builtin_count].s_name = nullptr;
   functions[builtin_count].name = builtin_count;
   functions[builtin_count].flags = static_cast<Code::Flags>(0);
-  functions[builtin_count].exit_frame_type = EXIT;
   functions[builtin_count].argc = 0;
 
-#define DEF_FUNCTION_PTR_C(aname, aexit_frame_type)       \
+#define DEF_FUNCTION_PTR_C(aname)                         \
   functions->builder = &MacroAssemblerBuilder;            \
   functions->generator = FUNCTION_ADDR(Generate_Adaptor); \
   functions->c_code = FUNCTION_ADDR(Builtin_##aname);     \
   functions->s_name = #aname;                             \
   functions->name = c_##aname;                            \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
-  functions->exit_frame_type = aexit_frame_type;          \
   functions->argc = 0;                                    \
   ++functions;
 
@@ -5857,7 +5854,6 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->s_name = #aname;                               \
   functions->name = k##aname;                               \
   functions->flags = Code::ComputeFlags(Code::kind, extra); \
-  functions->exit_frame_type = EXIT;                        \
   functions->argc = 0;                                      \
   ++functions;
 
@@ -5868,7 +5864,6 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->s_name = #aname;                             \
   functions->name = k##aname;                             \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
-  functions->exit_frame_type = EXIT;                      \
   functions->argc = aargc;                                \
   ++functions;
 
@@ -5879,7 +5874,6 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->s_name = #aname;                                        \
   functions->name = k##aname;                                        \
   functions->flags = Code::ComputeFlags(Code::kind, extra);          \
-  functions->exit_frame_type = EXIT;                                 \
   functions->argc = CallDescriptors::interface_descriptor;           \
   ++functions;
 
@@ -5890,7 +5884,6 @@ void Builtins::InitBuiltinFunctionTable() {
   functions->s_name = #aname;                               \
   functions->name = k##aname;                               \
   functions->flags = Code::ComputeHandlerFlags(Code::kind); \
-  functions->exit_frame_type = EXIT;                        \
   functions->argc = 0;                                      \
   ++functions;
 
@@ -6224,7 +6217,7 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   a->Return(a->Int32Constant(0));
 }
 
-#define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)                               \
+#define DEFINE_BUILTIN_ACCESSOR_C(name)                                       \
   Handle<Code> Builtins::name() {                                             \
     Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
     return Handle<Code>(code_address);                                        \

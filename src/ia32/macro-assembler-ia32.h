@@ -241,7 +241,7 @@ class MacroAssembler: public Assembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
+  void EnterExitFrame(int argc, bool save_doubles);
 
   void EnterApiExitFrame(int argc);
 
@@ -786,8 +786,7 @@ class MacroAssembler: public Assembler {
   void CallCFunction(Register function, int num_arguments);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& ext,
-                               bool builtin_exit_frame = false);
+  void JumpToExternalReference(const ExternalReference& ext);
 
   // ---------------------------------------------------------------------------
   // Utilities
@@ -973,7 +972,7 @@ class MacroAssembler: public Assembler {
                       Label::Distance done_distance,
                       const CallWrapper& call_wrapper);
 
-  void EnterExitFramePrologue(StackFrame::Type frame_type);
+  void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue(bool restore_context);

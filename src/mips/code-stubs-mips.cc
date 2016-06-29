@@ -946,9 +946,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles(), 0, is_builtin_exit()
-                                           ? StackFrame::BUILTIN_EXIT
-                                           : StackFrame::EXIT);
+  __ EnterExitFrame(save_doubles());
 
   // s0: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)

@@ -98,12 +98,6 @@ inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
-inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
-    : ExitFrame(iterator) {}
-
-inline Object* BuiltinExitFrame::function_slot_object() const {
-  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kTargetOffset);
-}
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {

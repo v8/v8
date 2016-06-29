@@ -112,8 +112,7 @@ class StackHandler BASE_EMBEDDED {
   V(INTERNAL, InternalFrame)                             \
   V(CONSTRUCT, ConstructFrame)                           \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)            \
-  V(BUILTIN, BuiltinFrame)                               \
-  V(BUILTIN_EXIT, BuiltinExitFrame)
+  V(BUILTIN, BuiltinFrame)
 
 // Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
 // two slots.
@@ -324,12 +323,6 @@ class StubFailureTrampolineFrameConstants : public InternalFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(3);
 };
 
-// Behaves like an exit frame but with target and new target args.
-class BuiltinExitFrameConstants : public CommonFrameConstants {
- public:
-  static const int kNewTargetOffset = kCallerPCOffset + 1 * kPointerSize;
-  static const int kTargetOffset = kNewTargetOffset + 1 * kPointerSize;
-};
 
 class InterpreterFrameConstants : public AllStatic {
  public:
@@ -433,7 +426,6 @@ class StackFrame BASE_EMBEDDED {
     return type() == STUB_FAILURE_TRAMPOLINE;
   }
   bool is_construct() const { return type() == CONSTRUCT; }
-  bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   virtual bool is_standard() const { return false; }
 
   bool is_java_script() const {
@@ -638,7 +630,6 @@ class ExitFrame: public StackFrame {
   // iterator and the frames following entry frames.
   static Type GetStateForFramePointer(Address fp, State* state);
   static Address ComputeStackPointer(Address fp);
-  static StackFrame::Type ComputeFrameType(Address fp);
   static void FillState(Address fp, Address sp, State* state);
 
  protected:
@@ -648,29 +639,6 @@ class ExitFrame: public StackFrame {
 
  private:
   void ComputeCallerState(State* state) const override;
-
-  friend class StackFrameIteratorBase;
-};
-
-// Builtin exit frames are a special case of exit frames, which are used
-// whenever C++ builtins (e.g., Math.acos) are called. Their main purpose is
-// to allow such builtins to appear in stack traces.
-class BuiltinExitFrame : public ExitFrame {
- public:
-  Type type() const override { return BUILTIN_EXIT; }
-
-  static BuiltinExitFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_builtin_exit());
-    return static_cast<BuiltinExitFrame*>(frame);
-  }
-
-  virtual JSFunction* function() const;
-
- protected:
-  inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
-
- private:
-  inline Object* function_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };

@@ -2028,10 +2028,9 @@ class CEntryStub : public PlatformCodeStub {
  public:
   CEntryStub(Isolate* isolate, int result_size,
              SaveFPRegsMode save_doubles = kDontSaveFPRegs,
-             ArgvMode argv_mode = kArgvOnStack, bool builtin_exit_frame = false)
+             ArgvMode argv_mode = kArgvOnStack)
       : PlatformCodeStub(isolate) {
     minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs) |
-                 FrameTypeBits::encode(builtin_exit_frame) |
                  ArgvMode::encode(argv_mode == kArgvInRegister);
     DCHECK(result_size == 1 || result_size == 2 || result_size == 3);
     minor_key_ = ResultSizeBits::update(minor_key_, result_size);
@@ -2046,15 +2045,13 @@ class CEntryStub : public PlatformCodeStub {
  private:
   bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
   bool argv_in_register() const { return ArgvMode::decode(minor_key_); }
-  bool is_builtin_exit() const { return FrameTypeBits::decode(minor_key_); }
   int result_size() const { return ResultSizeBits::decode(minor_key_); }
 
   bool NeedsImmovableCode() override;
 
   class SaveDoublesBits : public BitField<bool, 0, 1> {};
   class ArgvMode : public BitField<bool, 1, 1> {};
-  class FrameTypeBits : public BitField<bool, 2, 1> {};
-  class ResultSizeBits : public BitField<int, 3, 3> {};
+  class ResultSizeBits : public BitField<int, 2, 3> {};
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(CEntry, PlatformCodeStub);

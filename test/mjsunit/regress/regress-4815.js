@@ -19,19 +19,12 @@ function testTraceNativeConversion(nativeFunc) {
 testTraceNativeConversion(Math.max);
 testTraceNativeConversion(Math.min);
 
-// C++ builtins.
-testTraceNativeConversion(Math.acos);
-testTraceNativeConversion(Math.asin);
-testTraceNativeConversion(Math.fround);
-testTraceNativeConversion(Math.imul);
-
-
-function testBuiltinInStackTrace(script, expectedString) {
+function testBuiltinInStackTrace(script, nativeFuncName) {
   try {
     eval(script);
-    assertUnreachable(expectedString);
+    assertUnreachable(nativeFuncName);
   } catch (e) {
-    assertTrue(e.stack.indexOf(expectedString) >= 0, expectedString);
+    assertTrue(e.stack.indexOf(nativeFuncName) >= 0, nativeFuncName);
   }
 }
 
@@ -39,12 +32,7 @@ function testBuiltinInStackTrace(script, expectedString) {
 // results when the method name is mentioned in the error message itself.
 // This occurs, e.g., for Date.prototype.getYear, which uses a different code
 // path and never hits the Generate_DatePrototype_GetField builtin.
-testBuiltinInStackTrace("Date.prototype.getDate.call('')", "at String.getDate");
+testBuiltinInStackTrace("Date.prototype.getDate.call('')", "String.getDate");
 testBuiltinInStackTrace("Date.prototype.getUTCDate.call('')",
-                        "at String.getUTCDate");
-testBuiltinInStackTrace("Date.prototype.getTime.call('')", "at String.getTime");
-
-// C++ builtins.
-testBuiltinInStackTrace("Boolean.prototype.toString.call(thrower);",
-                        "at toString");
-testBuiltinInStackTrace("new Date(thrower);", "at Date");
+                        "String.getUTCDate");
+testBuiltinInStackTrace("Date.prototype.getTime.call('')", "String.getTime");

@@ -318,7 +318,7 @@ void RuntimeCallStats::Print(std::ostream& os) {
   FOR_EACH_INTRINSIC(PRINT_COUNTER)
 #undef PRINT_COUNTER
 
-#define PRINT_COUNTER(name, ignore) entries.Add(&this->Builtin_##name);
+#define PRINT_COUNTER(name) entries.Add(&this->Builtin_##name);
   BUILTIN_LIST_C(PRINT_COUNTER)
 #undef PRINT_COUNTER
 
@@ -343,7 +343,7 @@ void RuntimeCallStats::Reset() {
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
 
-#define RESET_COUNTER(name, ignore) this->Builtin_##name.Reset();
+#define RESET_COUNTER(name) this->Builtin_##name.Reset();
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
 
