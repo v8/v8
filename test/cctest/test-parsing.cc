@@ -1511,6 +1511,7 @@ enum ParserFlag {
   kAllowHarmonyForIn,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
+  kAllowHarmonyTrailingCommas,
 };
 
 enum ParserSyncTestResult {
@@ -1535,6 +1536,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
+  parser->set_allow_harmony_trailing_commas(
+      flags.Contains(kAllowHarmonyTrailingCommas));
 }
 
 
@@ -7839,4 +7842,108 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
                     test_preparser);
   RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
+}
+
+TEST(TrailingCommasInParameters) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { "'use strict';", "" },
+    { "function foo() {", "}" },
+    { "function foo() {'use strict';", "}" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    " function  a(b,) {}",
+    " function* a(b,) {}",
+    "(function  a(b,) {});",
+    "(function* a(b,) {});",
+    "(function   (b,) {});",
+    "(function*  (b,) {});",
+    " function  a(b,c,d,) {}",
+    " function* a(b,c,d,) {}",
+    "(function  a(b,c,d,) {});",
+    "(function* a(b,c,d,) {});",
+    "(function   (b,c,d,) {});",
+    "(function*  (b,c,d,) {});",
+    "(b,) => {};",
+    "(b,c,d,) => {};",
+    "a(1,);",
+    "a(1,2,3,);",
+    "a(...[],);",
+    "a(1, 2, ...[],);",
+    "a(...[], 2, ...[],);",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(TrailingCommasInParametersErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { "'use strict';", "" },
+    { "function foo() {", "}" },
+    { "function foo() {'use strict';", "}" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    // too many trailing commas
+    " function  a(b,,) {}",
+    " function* a(b,,) {}",
+    "(function  a(b,,) {});",
+    "(function* a(b,,) {});",
+    "(function   (b,,) {});",
+    "(function*  (b,,) {});",
+    " function  a(b,c,d,,) {}",
+    " function* a(b,c,d,,) {}",
+    "(function  a(b,c,d,,) {});",
+    "(function* a(b,c,d,,) {});",
+    "(function   (b,c,d,,) {});",
+    "(function*  (b,c,d,,) {});",
+    "(b,,) => {};",
+    "(b,c,d,,) => {};",
+    "a(1,,);",
+    "a(1,2,3,,);",
+    // only a trailing comma and no parameters
+    " function  a1(,) {}",
+    " function* a2(,) {}",
+    "(function  a3(,) {});",
+    "(function* a4(,) {});",
+    "(function    (,) {});",
+    "(function*   (,) {});",
+    "(,) => {};",
+    "a1(,);",
+    // no trailing commas after rest parameter declaration
+    " function  a(...b,) {}",
+    " function* a(...b,) {}",
+    "(function  a(...b,) {});",
+    "(function* a(...b,) {});",
+    "(function   (...b,) {});",
+    "(function*  (...b,) {});",
+    " function  a(b, c, ...d,) {}",
+    " function* a(b, c, ...d,) {}",
+    "(function  a(b, c, ...d,) {});",
+    "(function* a(b, c, ...d,) {});",
+    "(function   (b, c, ...d,) {});",
+    "(function*  (b, c, ...d,) {});",
+    "(...b,) => {};",
+    "(b, c, ...d,) => {};",
+    // parenthesized trailing comma without arrow is still an error
+    "(,);",
+    "(a,);",
+    "(a,b,c,);",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }

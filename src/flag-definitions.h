@@ -208,7 +208,9 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
     "harmony restrictions on generator declarations")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(harmony_for_in, "harmony for-in syntax")
+  V(harmony_for_in, "harmony for-in syntax")                            \
+  V(harmony_trailing_commas,                                            \
+    "harmony trailing commas in function parameter lists")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                               \

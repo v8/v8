@@ -815,6 +815,7 @@ Parser::Parser(ParseInfo* info)
       FLAG_harmony_exponentiation_operator);
   set_allow_harmony_async_await(FLAG_harmony_async_await);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
+  set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -4876,6 +4877,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_exponentiation_operator);
     SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_async_await);
+    SET_ALLOW(harmony_trailing_commas);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

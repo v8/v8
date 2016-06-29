@@ -198,7 +198,8 @@ class ParserBase : public Traits {
         allow_harmony_for_in_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_async_await_(false),
-        allow_harmony_restrictive_generators_(false) {}
+        allow_harmony_restrictive_generators_(false),
+        allow_harmony_trailing_commas_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -219,6 +220,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
+  ALLOW_ACCESSORS(harmony_trailing_commas);
   SCANNER_ACCESSORS(harmony_exponentiation_operator);
 
 #undef SCANNER_ACCESSORS
@@ -1189,6 +1191,7 @@ class ParserBase : public Traits {
   bool allow_harmony_function_sent_;
   bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
+  bool allow_harmony_trailing_commas_;
 };
 
 template <class Traits>
@@ -1700,7 +1703,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     }
     Consume(Token::COMMA);
     bool is_rest = false;
-    if (peek() == Token::ELLIPSIS) {
+    if (allow_harmony_trailing_commas() && peek() == Token::RPAREN &&
+        PeekAhead() == Token::ARROW) {
+      // a trailing comma is allowed at the end of an arrow parameter list
+      break;
+    } else if (peek() == Token::ELLIPSIS) {
       // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
       // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
       // valid expression or binding pattern.
@@ -2196,6 +2203,10 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
     done = (peek() != Token::COMMA);
     if (!done) {
       Next();
+      if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
+        // allow trailing comma
+        done = true;
+      }
     }
   }
   Scanner::Location location = scanner_->location();
@@ -3204,24 +3215,21 @@ void ParserBase<Traits>::ParseFormalParameter(
 template <class Traits>
 void ParserBase<Traits>::ParseFormalParameterList(
     FormalParametersT* parameters, ExpressionClassifier* classifier, bool* ok) {
-  // FormalParameters[Yield,GeneratorParameter] :
+  // FormalParameters[Yield] :
   //   [empty]
-  //   FormalParameterList[?Yield, ?GeneratorParameter]
-  //
-  // FormalParameterList[Yield,GeneratorParameter] :
   //   FunctionRestParameter[?Yield]
-  //   FormalsList[?Yield, ?GeneratorParameter]
-  //   FormalsList[?Yield, ?GeneratorParameter] , FunctionRestParameter[?Yield]
+  //   FormalParameterList[?Yield]
+  //   FormalParameterList[?Yield] ,
+  //   FormalParameterList[?Yield] , FunctionRestParameter[?Yield]
   //
-  // FormalsList[Yield,GeneratorParameter] :
-  //   FormalParameter[?Yield, ?GeneratorParameter]
-  //   FormalsList[?Yield, ?GeneratorParameter] ,
-  //     FormalParameter[?Yield,?GeneratorParameter]
+  // FormalParameterList[Yield] :
+  //   FormalParameter[?Yield]
+  //   FormalParameterList[?Yield] , FormalParameter[?Yield]
 
   DCHECK_EQ(0, parameters->Arity());
 
   if (peek() != Token::RPAREN) {
-    do {
+    while (true) {
       if (parameters->Arity() > Code::kMaxArguments) {
         ReportMessage(MessageTemplate::kTooManyParameters);
         *ok = false;
@@ -3230,16 +3238,22 @@ void ParserBase<Traits>::ParseFormalParameterList(
       parameters->has_rest = Check(Token::ELLIPSIS);
       ParseFormalParameter(parameters, classifier, ok);
       if (!*ok) return;
-    } while (!parameters->has_rest && Check(Token::COMMA));
 
-    if (parameters->has_rest) {
-      parameters->is_simple = false;
-      classifier->RecordNonSimpleParameter();
-      if (peek() == Token::COMMA) {
-        ReportMessageAt(scanner()->peek_location(),
-                      MessageTemplate::kParamAfterRest);
-        *ok = false;
-        return;
+      if (parameters->has_rest) {
+        parameters->is_simple = false;
+        classifier->RecordNonSimpleParameter();
+        if (peek() == Token::COMMA) {
+          ReportMessageAt(scanner()->peek_location(),
+                          MessageTemplate::kParamAfterRest);
+          *ok = false;
+          return;
+        }
+        break;
+      }
+      if (!Check(Token::COMMA)) break;
+      if (allow_harmony_trailing_commas() && peek() == Token::RPAREN) {
+        // allow the trailing comma
+        break;
       }
     }
   }
