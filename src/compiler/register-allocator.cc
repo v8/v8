@@ -64,37 +64,6 @@ Instruction* GetLastInstruction(InstructionSequence* code,
   return code->InstructionAt(block->last_instruction_index());
 }
 
-bool IsOutputRegisterOf(Instruction* instr, int code) {
-  for (size_t i = 0; i < instr->OutputCount(); i++) {
-    InstructionOperand* output = instr->OutputAt(i);
-    if (output->IsRegister() &&
-        LocationOperand::cast(output)->register_code() == code) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool IsOutputFPRegisterOf(Instruction* instr, MachineRepresentation rep,
-                          int code) {
-  for (size_t i = 0; i < instr->OutputCount(); i++) {
-    InstructionOperand* output = instr->OutputAt(i);
-    if (output->IsFPRegister()) {
-      const LocationOperand* op = LocationOperand::cast(output);
-      if (kSimpleFPAliasing) {
-        if (op->register_code() == code) return true;
-      } else {
-        if (RegisterConfiguration::Turbofan()->AreAliases(
-                op->representation(), op->register_code(), rep, code)) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-
 // TODO(dcarney): fix frame to allow frame accesses to half size location.
 int GetByteWidth(MachineRepresentation rep) {
   switch (rep) {
@@ -2050,37 +2019,37 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
 
     if (instr->ClobbersRegisters()) {
       for (int i = 0; i < config()->num_allocatable_general_registers(); ++i) {
+        // Create a UseInterval at this instruction for all fixed registers,
+        // (including the instruction outputs). Adding another UseInterval here
+        // is OK because AddUseInterval will just merge it with the existing
+        // one at the end of the range.
         int code = config()->GetAllocatableGeneralCode(i);
-        if (!IsOutputRegisterOf(instr, code)) {
-          TopLevelLiveRange* range = FixedLiveRangeFor(code);
-          range->AddUseInterval(curr_position, curr_position.End(),
-                                allocation_zone());
-        }
+        TopLevelLiveRange* range = FixedLiveRangeFor(code);
+        range->AddUseInterval(curr_position, curr_position.End(),
+                              allocation_zone());
       }
     }
 
     if (instr->ClobbersDoubleRegisters()) {
       for (int i = 0; i < config()->num_allocatable_double_registers(); ++i) {
+        // Add a UseInterval for all DoubleRegisters. See comment above for
+        // general registers.
         int code = config()->GetAllocatableDoubleCode(i);
-        if (!IsOutputFPRegisterOf(instr, MachineRepresentation::kFloat64,
-                                  code)) {
-          TopLevelLiveRange* range =
-              FixedFPLiveRangeFor(code, MachineRepresentation::kFloat64);
-          range->AddUseInterval(curr_position, curr_position.End(),
-                                allocation_zone());
-        }
+        TopLevelLiveRange* range =
+            FixedFPLiveRangeFor(code, MachineRepresentation::kFloat64);
+        range->AddUseInterval(curr_position, curr_position.End(),
+                              allocation_zone());
       }
       // Preserve fixed float registers on archs with non-simple aliasing.
       if (!kSimpleFPAliasing) {
         for (int i = 0; i < config()->num_allocatable_float_registers(); ++i) {
+          // Add a UseInterval for all FloatRegisters. See comment above for
+          // general registers.
           int code = config()->GetAllocatableFloatCode(i);
-          if (!IsOutputFPRegisterOf(instr, MachineRepresentation::kFloat32,
-                                    code)) {
-            TopLevelLiveRange* range =
-                FixedFPLiveRangeFor(code, MachineRepresentation::kFloat32);
-            range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone());
-          }
+          TopLevelLiveRange* range =
+              FixedFPLiveRangeFor(code, MachineRepresentation::kFloat32);
+          range->AddUseInterval(curr_position, curr_position.End(),
+                                allocation_zone());
         }
       }
     }
