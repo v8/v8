@@ -245,6 +245,16 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate,
         &module->functions[module->function_table[i]];
     fixed->set(i, Smi::FromInt(function->sig_index));
   }
+  // Set the remaining elements to -1 (instead of "undefined"). These
+  // elements are accessed directly as SMIs (without a check). On 64-bit
+  // platforms, it is possible to have the top bits of "undefined" take
+  // small integer values (or zero), which are more likely to be equal to
+  // the signature index we check against.
+  for (uint32_t i = static_cast<uint32_t>(module->function_table.size());
+       i < table_size;
+       ++i) {
+    fixed->set(i, Smi::FromInt(-1));
+  }
   return fixed;
 }
 
