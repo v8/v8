@@ -30,10 +30,35 @@ bool IsRedundantCheckpoint(Node* node) {
 
 }  // namespace
 
-Reduction CheckpointElimination::Reduce(Node* node) {
-  if (node->opcode() != IrOpcode::kCheckpoint) return NoChange();
+Reduction CheckpointElimination::ReduceCheckpoint(Node* node) {
+  DCHECK_EQ(IrOpcode::kCheckpoint, node->opcode());
   if (IsRedundantCheckpoint(node)) {
     return Replace(NodeProperties::GetEffectInput(node));
+  }
+  return NoChange();
+}
+
+Reduction CheckpointElimination::ReduceReturn(Node* node) {
+  DCHECK_EQ(IrOpcode::kReturn, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  if (effect->opcode() == IrOpcode::kCheckpoint && effect->OwnedBy(node)) {
+    // Any checkpoint that is wholly owned by a {Return} node can never be used
+    // for an actual bailout and can hence be cut out of the effect chain.
+    Node* replacement = NodeProperties::GetEffectInput(effect);
+    NodeProperties::ReplaceEffectInput(node, replacement);
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction CheckpointElimination::Reduce(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kCheckpoint:
+      return ReduceCheckpoint(node);
+    case IrOpcode::kReturn:
+      return ReduceReturn(node);
+    default:
+      break;
   }
   return NoChange();
 }
