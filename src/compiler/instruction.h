@@ -606,17 +606,23 @@ bool InstructionOperand::IsSimd128StackSlot() const {
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
     MachineRepresentation rep = LocationOperand::cast(this)->representation();
-    // Preserve FP representation so we can check for interference on
-    // architectures with complex register aliasing.
-    MachineRepresentation canonical =
-        IsFPRegister() ? rep : MachineRepresentation::kNone;
+    MachineRepresentation canonical = MachineRepresentation::kNone;
+    if (IsFloatingPoint(rep)) {
+      if (kSimpleFPAliasing) {
+        // Archs with simple aliasing can treat all FP operands the same.
+        canonical = MachineRepresentation::kFloat64;
+      } else {
+        // We need to distinguish FP operands of different reps when FP
+        // aliasing is not simple (e.g. ARM).
+        canonical = rep;
+      }
+    }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),
         LocationOperand::EXPLICIT);
   }
   return this->value_;
 }
-
 
 // Required for maps that don't care about machine type.
 struct CompareOperandModuloType {

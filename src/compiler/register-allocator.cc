@@ -2070,14 +2070,17 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
                                 allocation_zone());
         }
       }
-      for (int i = 0; i < config()->num_allocatable_float_registers(); ++i) {
-        int code = config()->GetAllocatableFloatCode(i);
-        if (!IsOutputFPRegisterOf(instr, MachineRepresentation::kFloat32,
-                                  code)) {
-          TopLevelLiveRange* range =
-              FixedFPLiveRangeFor(code, MachineRepresentation::kFloat32);
-          range->AddUseInterval(curr_position, curr_position.End(),
-                                allocation_zone());
+      // Preserve fixed float registers on archs with non-simple aliasing.
+      if (!kSimpleFPAliasing) {
+        for (int i = 0; i < config()->num_allocatable_float_registers(); ++i) {
+          int code = config()->GetAllocatableFloatCode(i);
+          if (!IsOutputFPRegisterOf(instr, MachineRepresentation::kFloat32,
+                                    code)) {
+            TopLevelLiveRange* range =
+                FixedFPLiveRangeFor(code, MachineRepresentation::kFloat32);
+            range->AddUseInterval(curr_position, curr_position.End(),
+                                  allocation_zone());
+          }
         }
       }
     }
