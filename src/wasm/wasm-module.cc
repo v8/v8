@@ -1278,10 +1278,11 @@ WasmDebugInfo* GetDebugInfo(JSObject* wasm) {
   return *new_info;
 }
 
-bool UpdateWasmModuleMemory(JSObject* object, Address old_start,
+bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
                             Address new_start, uint32_t old_size,
                             uint32_t new_size) {
-  if (!IsWasmObject(object)) {
+  DisallowHeapAllocation no_allocation;
+  if (!IsWasmObject(*object)) {
     return false;
   }
 

@@ -886,11 +886,6 @@
   'es6/tail-call-megatest*': [SKIP],
 }],  # (ignition or ignition_turbofan) and msan
 
-['system == windows and arch == ia32', {
-  # TODO(gdeepti): Flaky on multiple runs, windows nosnap crashes
-  'wasm/grow-memory': [SKIP],
-}],  # 'system == windows'
-
 ##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.

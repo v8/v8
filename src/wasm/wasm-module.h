@@ -367,7 +367,7 @@ int GetNumberOfFunctions(JSObject* wasm);
 bool IsWasmObject(Object* object);
 
 // Update memory references of code objects associated with the module
-bool UpdateWasmModuleMemory(JSObject* object, Address old_start,
+bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
                             Address new_start, uint32_t old_size,
                             uint32_t new_size);
 

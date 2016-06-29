@@ -22,23 +22,29 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   DCHECK_EQ(1, args.length());
   uint32_t delta_pages = 0;
   RUNTIME_ASSERT(args[0]->ToUint32(&delta_pages));
+  Handle<JSObject> module_object;
 
-  // Get the module JSObject
-  const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
-  Address pc =
-      Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
-  Code* code = isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-  FixedArray* deopt_data = code->deoptimization_data();
-  DCHECK(deopt_data->length() == 2);
-  JSObject* module_object = JSObject::cast(deopt_data->get(0));
-  RUNTIME_ASSERT(!module_object->IsNull(isolate));
+  {
+    // Get the module JSObject
+    DisallowHeapAllocation no_allocation;
+    const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
+    Address pc =
+        Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
+    Code* code =
+        isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
+    FixedArray* deopt_data = code->deoptimization_data();
+    DCHECK(deopt_data->length() == 2);
+    module_object = Handle<JSObject>::cast(handle(deopt_data->get(0), isolate));
+    RUNTIME_ASSERT(!module_object->IsNull(isolate));
+  }
 
   Address old_mem_start, new_mem_start;
   uint32_t old_size, new_size;
   const int kWasmMemArrayBuffer = 2;
 
   // Get mem buffer associated with module object
-  Object* obj = module_object->GetInternalField(kWasmMemArrayBuffer);
+  Handle<Object> obj(module_object->GetInternalField(kWasmMemArrayBuffer),
+                     isolate);
 
   if (obj->IsUndefined(isolate)) {
     // If module object does not have linear memory associated with it,
@@ -65,8 +71,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     }
 #endif
   } else {
-    Handle<JSArrayBuffer> old_buffer =
-        Handle<JSArrayBuffer>(JSArrayBuffer::cast(obj));
+    Handle<JSArrayBuffer> old_buffer = Handle<JSArrayBuffer>::cast(obj);
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
     old_size = old_buffer->byte_length()->Number();
     // If the old memory was zero-sized, we should have been in the
