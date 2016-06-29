@@ -13592,7 +13592,7 @@ int Code::SourcePosition(int code_offset) {
   code_offset--;
   // Find the closest position attached to a pc lower or equal to the current.
   // Note that the pc of reloc infos grow monotonically.
-  if (kind() == FUNCTION) {
+  if (kind() == FUNCTION || (is_optimized_code() && !is_turbofanned())) {
     for (SourcePositionTableIterator it(source_position_table());
          !it.done() && it.code_offset() <= code_offset; it.Advance()) {
       position = it.source_position();
@@ -13617,7 +13617,7 @@ int Code::SourceStatementPosition(int code_offset) {
   int position = SourcePosition(code_offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  if (kind() == FUNCTION) {
+  if (kind() == FUNCTION || (is_optimized_code() && !is_turbofanned())) {
     for (SourcePositionTableIterator it(source_position_table()); !it.done();
          it.Advance()) {
       if (it.is_statement()) {

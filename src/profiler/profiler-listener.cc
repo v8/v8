@@ -90,16 +90,25 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     line_table = new JITLineInfoTable();
     if (abstract_code->IsCode()) {
       Code* code = abstract_code->GetCode();
-      if (code->kind() == Code::FUNCTION) {
-        SourcePositionTableIterator it(code->source_position_table());
-        for (; !it.done(); it.Advance()) {
+      int start_position = shared->start_position();
+      int end_position = shared->end_position();
+      if (code->kind() == Code::FUNCTION ||
+          (code->is_optimized_code() && !code->is_turbofanned())) {
+        for (SourcePositionTableIterator it(code->source_position_table());
+             !it.done(); it.Advance()) {
+          int position = it.source_position();
+          // TODO(alph): in case of inlining the position may correspond to an
+          // inlined function source code. Do not collect positions that fall
+          // beyond the function source code. There's however a chance the
+          // inlined function has similar positions but in another script. So
+          // the proper fix is to store script_id in some form along with the
+          // inlined function positions.
+          if (position < start_position || position >= end_position) continue;
           int line_number = script->GetLineNumber(it.source_position()) + 1;
           int pc_offset = it.code_offset() + Code::kHeaderSize;
           line_table->SetPosition(pc_offset, line_number);
         }
       } else {
-        int start_position = shared->start_position();
-        int end_position = shared->end_position();
         for (RelocIterator it(code); !it.done(); it.next()) {
           RelocInfo* reloc_info = it.rinfo();
           if (!RelocInfo::IsPosition(reloc_info->rmode())) continue;
