@@ -159,20 +159,12 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   return info;
 }
 
-
-void Deoptimizer::DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
-                                                 Isolate* isolate) {
-  delete info;
-}
-
-
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                                 int count,
                                                 BailoutType type) {
   TableEntryGenerator generator(masm, type, count);
   generator.Generate();
 }
-
 
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {

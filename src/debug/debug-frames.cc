@@ -31,14 +31,12 @@ FrameInspector::FrameInspector(JavaScriptFrame* frame,
   }
 }
 
-
 FrameInspector::~FrameInspector() {
   // Get rid of the calculated deoptimized frame if any.
-  if (deoptimized_frame_ != NULL) {
-    Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame_, isolate_);
+  if (deoptimized_frame_ != nullptr) {
+    delete deoptimized_frame_;
   }
 }
-
 
 int FrameInspector::GetParametersCount() {
   return is_optimized_ ? deoptimized_frame_->parameters_count()
