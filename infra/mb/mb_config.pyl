@@ -25,7 +25,7 @@
       'V8 Linux - shared': 'gyp_release_x86_shared_verify_heap',
       'V8 Linux - noi18n - debug': 'gyp_debug_x86_no_i18n',
       # Linux64.
-      'V8 Linux64 - builder': 'gyp_release_x64',
+      'V8 Linux64 - builder': 'gn_release_x64',
       'V8 Linux64 - debug builder': 'gyp_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gyp_release_x64_internal',
@@ -139,8 +139,8 @@
       'v8_linux_nosnap_dbg': 'gyp_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gyp_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gyp_release_x86_gcc_minimal_symbols',
-      'v8_linux64_rel_ng': 'gyp_release_x64_trybot',
-      'v8_linux64_avx2_rel_ng': 'gyp_release_x64_trybot',
+      'v8_linux64_rel_ng': 'gn_release_x64_trybot',
+      'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gyp_debug_x64_trybot',
       'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gyp_release_simulate_arm64_msan_minimal_symbols',
@@ -180,6 +180,8 @@
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
+    'gn_release_x64_trybot': [
+      'gn', 'release_trybot', 'x64', 'swarming'],
 
     # Gyp debug configs for arm.
     'gyp_debug_arm': [
