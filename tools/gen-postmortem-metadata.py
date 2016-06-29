@@ -198,18 +198,21 @@ consts_misc = [
         'value': 'NameDictionaryShape::kPrefixSize' },
     { 'name': 'namedictionaryshape_entry_size',
         'value': 'NameDictionaryShape::kEntrySize' },
+    { 'name': 'globaldictionaryshape_entry_size',
+        'value': 'GlobalDictionaryShape::kEntrySize' },
 
     { 'name': 'namedictionary_prefix_start_index',
         'value': 'NameDictionary::kPrefixStartIndex' },
 
     { 'name': 'seedednumberdictionaryshape_prefix_size',
         'value': 'SeededNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'seedednumberdictionaryshape_entry_size',
+        'value': 'SeededNumberDictionaryShape::kEntrySize' },
 
     { 'name': 'unseedednumberdictionaryshape_prefix_size',
         'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
-
-    { 'name': 'numberdictionaryshape_entry_size',
-        'value': 'NumberDictionaryShape::kEntrySize' }
+    { 'name': 'unseedednumberdictionaryshape_entry_size',
+        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
 ];
 
 #
