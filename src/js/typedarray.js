@@ -46,6 +46,7 @@ var MinSimple;
 var PackedArrayReverse;
 var SpeciesConstructor;
 var ToPositiveInteger;
+var ToIndex;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -99,6 +100,7 @@ utils.Import(function(from) {
   PackedArrayReverse = from.PackedArrayReverse;
   SpeciesConstructor = from.SpeciesConstructor;
   ToPositiveInteger = from.ToPositiveInteger;
+  ToIndex = from.ToIndex;
 });
 
 // --------------- Typed Arrays ---------------------
@@ -143,10 +145,15 @@ function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
-    byteOffset = ToPositiveInteger(byteOffset, kInvalidTypedArrayLength);
+    byteOffset = ToIndex(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-    length = ToPositiveInteger(length, kInvalidTypedArrayLength);
+    length = ToIndex(length, kInvalidTypedArrayLength);
+  }
+  if (length > %_MaxSmi()) {
+    // Note: this is not per spec, but rather a constraint of our current
+    // representation (which uses smi's).
+    throw MakeRangeError(kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -160,35 +167,35 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
       throw MakeRangeError(kInvalidTypedArrayAlignment,
                            "start offset", "NAME", ELEMENT_SIZE);
     }
-    if (offset > bufferByteLength) {
-      throw MakeRangeError(kInvalidTypedArrayOffset);
-    }
   }
 
   var newByteLength;
-  var newLength;
   if (IS_UNDEFINED(length)) {
     if (bufferByteLength % ELEMENT_SIZE !== 0) {
       throw MakeRangeError(kInvalidTypedArrayAlignment,
                            "byte length", "NAME", ELEMENT_SIZE);
     }
     newByteLength = bufferByteLength - offset;
-    newLength = newByteLength / ELEMENT_SIZE;
+    if (newByteLength < 0) {
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "byte length", "NAME", ELEMENT_SIZE);
+    }
   } else {
-    var newLength = length;
-    newByteLength = newLength * ELEMENT_SIZE;
-  }
-  if ((offset + newByteLength > bufferByteLength)
-      || (newLength > %_MaxSmi())) {
-    throw MakeRangeError(kInvalidTypedArrayLength);
+    newByteLength = length * ELEMENT_SIZE;
+    if (offset + newByteLength > bufferByteLength) {
+      throw MakeRangeError(kInvalidTypedArrayAlignment,
+                           "byte length", "NAME", ELEMENT_SIZE);
+    }
   }
   %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength, true);
 }
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : ToPositiveInteger(length, kInvalidTypedArrayLength);
-  if (l > %_MaxSmi()) {
+    0 : ToIndex(length, kInvalidTypedArrayLength);
+  if (length > %_MaxSmi()) {
+    // Note: this is not per spec, but rather a constraint of our current
+    // representation (which uses smi's).
     throw MakeRangeError(kInvalidTypedArrayLength);
   }
   var byteLength = l * ELEMENT_SIZE;
@@ -866,8 +873,7 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.getTYPENAME', this);
   }
-  if (arguments.length < 1) throw MakeTypeError(kInvalidArgument);
-  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
   return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
 %FunctionSetLength(DataViewGetTYPENAMEJS, 1);
@@ -877,8 +883,7 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.setTYPENAME', this);
   }
-  if (arguments.length < 2) throw MakeTypeError(kInvalidArgument);
-  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
   %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
 %FunctionSetLength(DataViewSetTYPENAMEJS, 2);

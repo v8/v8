@@ -228,6 +228,18 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
   return isolate->factory()->NewNumber(len);
 }
 
+// static
+MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
+                                    MessageTemplate::Template error_index) {
+  if (input->IsUndefined(isolate)) return isolate->factory()->NewNumber(0.0);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  double len = DoubleToInteger(input->Number()) + 0.0;
+  auto js_len = isolate->factory()->NewNumber(len);
+  if (len < 0.0 || len > kMaxSafeInteger) {
+    THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
+  }
+  return js_len;
+}
 
 bool Object::BooleanValue() {
   if (IsSmi()) return Smi::cast(this)->value() != 0;
