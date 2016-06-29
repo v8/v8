@@ -133,7 +133,8 @@ int64_t NumberToInt64(Object* number) {
 }
 
 bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
-  SealHandleScope shs(isolate);
+  // Do not create handles in this function! Don't use SealHandleScope because
+  // the function can be used concurrently.
   if (number->IsSmi()) {
     int value = Smi::cast(number)->value();
     DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
