@@ -241,6 +241,20 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return true;
 }
 
+bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
+                                                      Node* node) const {
+  BasicBlock* bb_user = schedule()->block(user);
+  BasicBlock* bb_node = schedule()->block(node);
+  if (bb_user != bb_node) return false;
+  for (Edge const edge : node->use_edges()) {
+    Node* from = edge.from();
+    if ((from != user) && (schedule()->block(from) == bb_user)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 int InstructionSelector::GetVirtualRegister(const Node* node) {
   DCHECK_NOT_NULL(node);
   size_t const id = node->id();

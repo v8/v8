@@ -394,6 +394,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     case kUnorderedEqual:
     case kUnorderedNotEqual:
       break;
+    case kPositiveOrZero:
+      return pl;
+    case kNegative:
+      return mi;
   }
   UNREACHABLE();
   return nv;
@@ -897,12 +901,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kArm64And:
-      __ And(i.OutputRegister(), i.InputOrZeroRegister64(0),
-             i.InputOperand2_64(1));
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        // The ands instruction only sets N and Z, so only the following
+        // conditions make sense.
+        DCHECK(FlagsConditionField::decode(opcode) == kEqual ||
+               FlagsConditionField::decode(opcode) == kNotEqual ||
+               FlagsConditionField::decode(opcode) == kPositiveOrZero ||
+               FlagsConditionField::decode(opcode) == kNegative);
+        __ Ands(i.OutputRegister(), i.InputOrZeroRegister64(0),
+                i.InputOperand2_64(1));
+      } else {
+        __ And(i.OutputRegister(), i.InputOrZeroRegister64(0),
+               i.InputOperand2_64(1));
+      }
       break;
     case kArm64And32:
-      __ And(i.OutputRegister32(), i.InputOrZeroRegister32(0),
-             i.InputOperand2_32(1));
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        // The ands instruction only sets N and Z, so only the following
+        // conditions make sense.
+        DCHECK(FlagsConditionField::decode(opcode) == kEqual ||
+               FlagsConditionField::decode(opcode) == kNotEqual ||
+               FlagsConditionField::decode(opcode) == kPositiveOrZero ||
+               FlagsConditionField::decode(opcode) == kNegative);
+        __ Ands(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+                i.InputOperand2_32(1));
+      } else {
+        __ And(i.OutputRegister32(), i.InputOrZeroRegister32(0),
+               i.InputOperand2_32(1));
+      }
       break;
     case kArm64Bic:
       __ Bic(i.OutputRegister(), i.InputOrZeroRegister64(0),
@@ -1205,10 +1231,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Tst:
-      __ Tst(i.InputRegister(0), i.InputOperand(1));
+      __ Tst(i.InputOrZeroRegister64(0), i.InputOperand(1));
       break;
     case kArm64Tst32:
-      __ Tst(i.InputRegister32(0), i.InputOperand32(1));
+      __ Tst(i.InputOrZeroRegister32(0), i.InputOperand32(1));
       break;
     case kArm64Float32Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {

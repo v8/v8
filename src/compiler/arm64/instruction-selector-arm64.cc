@@ -1921,14 +1921,126 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 }
 
+// This function checks whether we can convert:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+// We only generate conditions <cond'> that are a combination of the N
+// and Z flags. This avoids the need to make this function dependent on
+// the flag-setting operation.
+bool CanUseFlagSettingBinop(FlagsCondition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+    case kSignedLessThan:
+    case kSignedGreaterThanOrEqual:
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+    case kUnsignedGreaterThan:      // x > 0 -> x != 0
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Map <cond> to <cond'> so that the following transformation is possible:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
+  DCHECK(CanUseFlagSettingBinop(cond));
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+      return cond;
+    case kSignedLessThan:
+      return kNegative;
+    case kSignedGreaterThanOrEqual:
+      return kPositiveOrZero;
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+      return kEqual;
+    case kUnsignedGreaterThan:  // x > 0 -> x != 0
+      return kNotEqual;
+    default:
+      UNREACHABLE();
+      return cond;
+  }
+}
+
+// This function checks if we can perform the transformation:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>, and if so,
+// updates {node}, {opcode} and {cont} accordingly.
+void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
+                                             Node** node, Node* binop,
+                                             ArchOpcode* opcode,
+                                             FlagsCondition cond,
+                                             FlagsContinuation* cont,
+                                             ImmediateMode* immediate_mode) {
+  ArchOpcode binop_opcode;
+  ArchOpcode no_output_opcode;
+  ImmediateMode binop_immediate_mode;
+  switch (binop->opcode()) {
+    case IrOpcode::kInt32Add:
+      binop_opcode = kArm64Add32;
+      no_output_opcode = kArm64Cmn32;
+      binop_immediate_mode = kArithmeticImm;
+      break;
+    case IrOpcode::kWord32And:
+      binop_opcode = kArm64And32;
+      no_output_opcode = kArm64Tst32;
+      binop_immediate_mode = kLogical32Imm;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (selector->CanCover(*node, binop)) {
+    // The comparison is the only user of the add or and, so we can generate
+    // a cmn or tst instead.
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = no_output_opcode;
+    *node = binop;
+    *immediate_mode = binop_immediate_mode;
+  } else if (selector->IsOnlyUserOfNodeInSameBlock(*node, binop)) {
+    // We can also handle the case where the add and the compare are in the
+    // same basic block, and the compare is the only use of add in this basic
+    // block (the add has users in other basic blocks).
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = binop_opcode;
+    *node = binop;
+    *immediate_mode = binop_immediate_mode;
+  }
+}
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
   ArchOpcode opcode = kArm64Cmp32;
-
-  // Select negated compare for comparisons with negated right input.
-  if (m.right().IsInt32Sub()) {
+  FlagsCondition cond = cont->condition();
+  ImmediateMode immediate_mode = kArithmeticImm;
+  if (m.right().Is(0) && (m.left().IsInt32Add() || m.left().IsWord32And())) {
+    // Emit flag setting add/and instructions for comparisons against zero.
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.left().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont, &immediate_mode);
+    }
+  } else if (m.left().Is(0) &&
+             (m.right().IsInt32Add() || m.right().IsWord32And())) {
+    // Same as above, but we need to commute the condition before we
+    // continue with the rest of the checks.
+    cond = CommuteFlagsCondition(cond);
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.right().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont, &immediate_mode);
+    }
+  } else if (m.right().IsInt32Sub()) {
+    // Select negated compare for comparisons with negated right input.
     Node* sub = m.right().node();
     Int32BinopMatcher msub(sub);
     if (msub.left().Is(0)) {
@@ -1946,7 +2058,7 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
       opcode = kArm64Cmn32;
     }
   }
-  VisitBinop<Int32BinopMatcher>(selector, node, opcode, kArithmeticImm, cont);
+  VisitBinop<Int32BinopMatcher>(selector, node, opcode, immediate_mode, cont);
 }
 
 
@@ -2245,20 +2357,24 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt32Add:
-          return VisitWordCompare(this, value, kArm64Cmn32, &cont, true,
-                                  kArithmeticImm);
+        case IrOpcode::kWord32And:
+          return VisitWord32Compare(this, node, &cont);
         case IrOpcode::kInt32Sub:
           return VisitWordCompare(this, value, kArm64Cmp32, &cont, false,
                                   kArithmeticImm);
-        case IrOpcode::kWord32And:
-          return VisitWordCompare(this, value, kArm64Tst32, &cont, true,
-                                  kLogical32Imm);
         case IrOpcode::kWord32Equal: {
           // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
           Int32BinopMatcher mequal(value);
           node->ReplaceInput(0, mequal.left().node());
           node->ReplaceInput(1, mequal.right().node());
           cont.Negate();
+          // {node} still does not cover its new operands, because {mequal} is
+          // still using them.
+          // Since we won't generate any more code for {mequal}, set its
+          // operands to zero to make sure {node} can cover them.
+          // This improves pattern matching in VisitWord32Compare.
+          mequal.node()->ReplaceInput(0, m.right().node());
+          mequal.node()->ReplaceInput(1, m.right().node());
           return VisitWord32Compare(this, node, &cont);
         }
         default:

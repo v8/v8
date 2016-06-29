@@ -151,6 +151,31 @@ class InstructionSelector final {
   // edge and the two are in the same basic block.
   bool CanCover(Node* user, Node* node) const;
 
+  // Used in pattern matching during code generation.
+  // This function checks that {node} and {user} are in the same basic block,
+  // and that {user} is the only user of {node} in this basic block.  This
+  // check guarantees that there are no users of {node} scheduled between
+  // {node} and {user}, and thus we can select a single instruction for both
+  // nodes, if such an instruction exists. This check can be used for example
+  // when selecting instructions for:
+  //   n = Int32Add(a, b)
+  //   c = Word32Compare(n, 0, cond)
+  //   Branch(c, true_label, false_label)
+  // Here we can generate a flag-setting add instruction, even if the add has
+  // uses in other basic blocks, since the flag-setting add instruction will
+  // still generate the result of the addition and not just set the flags.
+  // However, if we had uses of the add in the same basic block, we could have:
+  //   n = Int32Add(a, b)
+  //   o = OtherOp(n, ...)
+  //   c = Word32Compare(n, 0, cond)
+  //   Branch(c, true_label, false_label)
+  // where we cannot select the add and the compare together.  If we were to
+  // select a flag-setting add instruction for Word32Compare and Int32Add while
+  // visiting Word32Compare, we would then have to select an instruction for
+  // OtherOp *afterwards*, which means we would attempt to use the result of
+  // the add before we have defined it.
+  bool IsOnlyUserOfNodeInSameBlock(Node* user, Node* node) const;
+
   // Checks if {node} was already defined, and therefore code was already
   // generated for it.
   bool IsDefined(Node* node) const;

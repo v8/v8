@@ -296,6 +296,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
       return vs;
     case kNotOverflow:
       return vc;
+    case kPositiveOrZero:
+      return pl;
+    case kNegative:
+      return mi;
     default:
       break;
   }

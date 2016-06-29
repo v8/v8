@@ -354,6 +354,8 @@ class FlagsContinuation final {
     condition_ = CommuteFlagsCondition(condition_);
   }
 
+  void Overwrite(FlagsCondition condition) { condition_ = condition; }
+
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
     bool negate = condition_ == kEqual;
     condition_ = condition;

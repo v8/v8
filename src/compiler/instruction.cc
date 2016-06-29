@@ -48,6 +48,10 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
       return kFloatGreaterThanOrEqualOrUnordered;
     case kFloatGreaterThan:
       return kFloatLessThan;
+    case kPositiveOrZero:
+    case kNegative:
+      UNREACHABLE();
+      break;
     case kEqual:
     case kNotEqual:
     case kOverflow:
@@ -448,6 +452,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "overflow";
     case kNotOverflow:
       return os << "not overflow";
+    case kPositiveOrZero:
+      return os << "positive or zero";
+    case kNegative:
+      return os << "negative";
   }
   UNREACHABLE();
   return os;

@@ -171,7 +171,9 @@ enum FlagsCondition {
   kUnorderedEqual,
   kUnorderedNotEqual,
   kOverflow,
-  kNotOverflow
+  kNotOverflow,
+  kPositiveOrZero,
+  kNegative
 };
 
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
