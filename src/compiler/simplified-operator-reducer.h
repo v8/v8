@@ -29,7 +29,6 @@ class SimplifiedOperatorReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceReferenceEqual(Node* node);
-  Reduction ReduceTypeGuard(Node* node);
 
   Reduction Change(Node* node, const Operator* op, Node* a);
   Reduction ReplaceBoolean(bool value);

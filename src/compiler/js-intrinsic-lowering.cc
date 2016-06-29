@@ -34,10 +34,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCreateIterResultObject(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
-    case Runtime::kInlineDoubleHi:
-      return ReduceDoubleHi(node);
-    case Runtime::kInlineDoubleLo:
-      return ReduceDoubleLo(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
@@ -123,24 +119,6 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
-  // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
-                                   node->InputAt(0), graph()->start());
-  node->ReplaceInput(0, renamed);
-  return Change(node, machine()->Float64ExtractHighWord32());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
-  // Tell the compiler to assume number input.
-  Node* renamed = graph()->NewNode(simplified()->TypeGuard(Type::Number()),
-                                   node->InputAt(0), graph()->start());
-  node->ReplaceInput(0, renamed);
-  return Change(node, machine()->Float64ExtractLowWord32());
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {

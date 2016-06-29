@@ -262,8 +262,7 @@
   V(ObjectIsReceiver)                 \
   V(ObjectIsSmi)                      \
   V(ObjectIsString)                   \
-  V(ObjectIsUndetectable)             \
-  V(TypeGuard)
+  V(ObjectIsUndetectable)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \

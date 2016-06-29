@@ -51,42 +51,6 @@ class JSIntrinsicLoweringTest : public GraphTest {
 
 
 // -----------------------------------------------------------------------------
-// %_DoubleLo
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleLo) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleLo, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFloat64ExtractLowWord32(IsTypeGuard(Type::Number(), input, _)));
-}
-
-
-// -----------------------------------------------------------------------------
-// %_DoubleHi
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineOptimizedDoubleHi) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineDoubleHi, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFloat64ExtractHighWord32(
-                                   IsTypeGuard(Type::Number(), input, _)));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_IsSmi
 
 

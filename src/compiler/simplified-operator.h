@@ -260,8 +260,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
 
-  const Operator* TypeGuard(Type* type);
-
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 
   const Operator* LoadField(FieldAccess const&);

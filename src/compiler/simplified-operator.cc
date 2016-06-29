@@ -212,11 +212,6 @@ CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator* op) {
   return OpParameter<CheckTaggedHoleMode>(op);
 }
 
-Type* TypeOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kTypeGuard, op->opcode());
-  return OpParameter<Type*>(op);
-}
-
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
@@ -457,23 +452,6 @@ const Operator* SimplifiedOperatorBuilder::CheckBounds() {
   return new (zone())
       Operator(IrOpcode::kCheckBounds, Operator::kFoldable | Operator::kNoThrow,
                "CheckBounds", 2, 1, 1, 1, 1, 0);
-}
-
-const Operator* SimplifiedOperatorBuilder::TypeGuard(Type* type) {
-  class TypeGuardOperator final : public Operator1<Type*> {
-   public:
-    explicit TypeGuardOperator(Type* type)
-        : Operator1<Type*>(                           // --
-              IrOpcode::kTypeGuard, Operator::kPure,  // opcode
-              "TypeGuard",                            // name
-              1, 0, 1, 1, 0, 0,                       // counts
-              type) {}                                // parameter
-
-    void PrintParameter(std::ostream& os) const final {
-      parameter()->PrintTo(os);
-    }
-  };
-  return new (zone()) TypeGuardOperator(type);
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {

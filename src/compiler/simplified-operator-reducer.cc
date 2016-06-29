@@ -175,8 +175,6 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
-    case IrOpcode::kTypeGuard:
-      return ReduceTypeGuard(node);
     default:
       break;
   }
@@ -196,15 +194,6 @@ Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
       return Replace(jsgraph()->FalseConstant());
     }
   }
-  return NoChange();
-}
-
-Reduction SimplifiedOperatorReducer::ReduceTypeGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kTypeGuard, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetTypeOrAny(input);
-  Type* const guard_type = TypeOf(node->op());
-  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 

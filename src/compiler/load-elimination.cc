@@ -61,21 +61,20 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
               NodeProperties::GetValueInput(effect, 0));
           if (object == value_input) {
             Node* const value = NodeProperties::GetValueInput(effect, 1);
-            Type* stored_value_type = NodeProperties::GetType(value);
-            Type* load_type = NodeProperties::GetType(node);
+            Type* value_type = NodeProperties::GetType(value);
+            Type* node_type = NodeProperties::GetType(node);
             // Make sure the replacement's type is a subtype of the node's
             // type. Otherwise we could confuse optimizations that were
             // based on the original type.
-            if (stored_value_type->Is(load_type)) {
+            if (value_type->Is(node_type)) {
               ReplaceWithValue(node, value);
               return Replace(value);
             } else {
-              Node* renamed = graph()->NewNode(
-                  simplified()->TypeGuard(Type::Intersect(
-                      stored_value_type, load_type, graph()->zone())),
-                  value, NodeProperties::GetControlInput(node));
-              ReplaceWithValue(node, renamed);
-              return Replace(renamed);
+              // This LoadField has stronger guarantees than the stored value
+              // can give us, which suggests that we are probably in unreachable
+              // code, guarded by some Check, so don't bother trying to optimize
+              // this LoadField {node}.
+              return NoChange();
             }
           }
           // TODO(turbofan): Alias analysis to the rescue?

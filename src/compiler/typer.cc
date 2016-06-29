@@ -703,12 +703,6 @@ Type* Typer::Visitor::TypeEffectPhi(Node* node) {
   return nullptr;
 }
 
-Type* Typer::Visitor::TypeTypeGuard(Node* node) {
-  Type* input_type = Operand(node, 0);
-  Type* guard_type = TypeOf(node->op());
-  return Type::Intersect(input_type, guard_type, zone());
-}
-
 Type* Typer::Visitor::TypeCheckpoint(Node* node) {
   UNREACHABLE();
   return nullptr;

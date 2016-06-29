@@ -1343,32 +1343,6 @@ class IsStackSlotMatcher final : public NodeMatcher {
   const Matcher<MachineRepresentation> rep_matcher_;
 };
 
-class IsTypeGuardMatcher final : public NodeMatcher {
- public:
-  IsTypeGuardMatcher(const Matcher<Type*>& type_matcher,
-                     const Matcher<Node*>& value_matcher,
-                     const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kTypeGuard),
-        type_matcher_(type_matcher),
-        value_matcher_(value_matcher),
-        control_matcher_(control_matcher) {}
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<Type*>(node->op()), "type",
-                                 type_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node, 0),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<Type*> type_matcher_;
-  const Matcher<Node*> value_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
 class IsToNumberMatcher final : public NodeMatcher {
  public:
   IsToNumberMatcher(const Matcher<Node*>& base_matcher,
@@ -2047,13 +2021,6 @@ Matcher<Node*> IsTailCall(
   value_matchers.push_back(value7_matcher);
   return MakeMatcher(new IsTailCallMatcher(descriptor_matcher, value_matchers,
                                            effect_matcher, control_matcher));
-}
-
-Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
-                           const Matcher<Node*>& value_matcher,
-                           const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(
-      new IsTypeGuardMatcher(type_matcher, value_matcher, control_matcher));
 }
 
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,

@@ -417,9 +417,6 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(input_count, 1 + effect_count);
       break;
     }
-    case IrOpcode::kTypeGuard:
-      // TODO(bmeurer): what are the constraints on these?
-      break;
     case IrOpcode::kCheckpoint:
       // Type is empty.
       CheckNotTyped(node);
