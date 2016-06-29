@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <unordered_set>
+#include <unordered_map>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -59,6 +59,7 @@ class ArrayBufferTracker : public AllStatic {
 // Never use directly but instead always call through |ArrayBufferTracker|.
 class LocalArrayBufferTracker {
  public:
+  typedef std::pair<void*, size_t> Value;
   typedef JSArrayBuffer* Key;
 
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
@@ -67,8 +68,8 @@ class LocalArrayBufferTracker {
   explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~LocalArrayBufferTracker();
 
-  inline void Add(Key key);
-  inline void Remove(Key key);
+  inline void Add(Key key, const Value& value);
+  inline Value Remove(Key key);
 
   // Frees up array buffers determined by |free_mode|.
   template <FreeMode free_mode>
@@ -80,7 +81,7 @@ class LocalArrayBufferTracker {
   // Callback should be of type:
   //   CallbackResult fn(JSArrayBuffer* buffer, JSArrayBuffer** new_buffer);
   template <typename Callback>
-  void Process(Callback callback);
+  inline void Process(Callback callback);
 
   bool IsEmpty() { return array_buffers_.empty(); }
 
@@ -89,10 +90,10 @@ class LocalArrayBufferTracker {
   }
 
  private:
-  typedef std::unordered_set<Key> TrackingData;
+  typedef std::unordered_map<Key, Value> TrackingMap;
 
   Heap* heap_;
-  TrackingData array_buffers_;
+  TrackingMap array_buffers_;
 };
 
 }  // namespace internal
