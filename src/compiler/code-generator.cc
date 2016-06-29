@@ -52,7 +52,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       last_lazy_deopt_pc_(0),
       jump_tables_(nullptr),
       ools_(nullptr),
-      osr_pc_offset_(-1) {
+      osr_pc_offset_(-1),
+      source_position_table_builder_(info->isolate(), zone()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -73,8 +74,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
 
   // Emit a code line info recording start event.
-  PositionsRecorder* recorder = masm()->positions_recorder();
-  LOG_CODE_EVENT(isolate(), CodeStartLinePosInfoRecordEvent(recorder));
+  LOG_CODE_EVENT(isolate(), CodeStartLinePosInfoRecordEvent(
+                                &source_position_table_builder_));
 
   // Place function entry hook if requested to do so.
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
@@ -209,6 +210,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
+  Handle<ByteArray> source_positions =
+      source_position_table_builder_.ToSourcePositionTable();
+  result->set_source_position_table(*source_positions);
 
   // Emit exception handler table.
   if (!handlers_.empty()) {
@@ -235,7 +239,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
 
   // Emit a code line info recording stop event.
-  void* line_info = recorder->DetachJITHandlerData();
+  void* line_info = source_position_table_builder_.DetachJITHandlerData();
   LOG_CODE_EVENT(isolate(), CodeEndLinePosInfoRecordEvent(
                                 AbstractCode::cast(*result), line_info));
 
@@ -398,7 +402,8 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   current_source_position_ = source_position;
   if (source_position.IsUnknown()) return;
   int code_pos = source_position.raw();
-  masm()->positions_recorder()->RecordPosition(code_pos);
+  source_position_table_builder_.AddPosition(masm()->pc_offset(), code_pos,
+                                             false);
   if (FLAG_code_comments) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;

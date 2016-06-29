@@ -951,7 +951,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
     SharedFunctionInfo* shared = function->shared();
-    int source_pos = code->SourcePosition(code_offset);
+    int source_pos = AbstractCode::cast(code)->SourcePosition(code_offset);
     Object* maybe_script = shared->script();
     if (maybe_script->IsScript()) {
       Script* script = Script::cast(maybe_script);
@@ -1480,7 +1480,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     if (code != NULL && code->kind() == Code::FUNCTION &&
         pc >= code->instruction_start() && pc < code->instruction_end()) {
       int offset = static_cast<int>(pc - code->instruction_start());
-      int source_pos = code->SourcePosition(offset);
+      int source_pos = AbstractCode::cast(code)->SourcePosition(offset);
       int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d] [pc=%p]", line, pc);
     } else if (is_interpreted()) {
@@ -1488,7 +1488,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
           reinterpret_cast<const InterpretedFrame*>(this);
       BytecodeArray* bytecodes = iframe->GetBytecodeArray();
       int offset = iframe->GetBytecodeOffset();
-      int source_pos = bytecodes->SourcePosition(offset);
+      int source_pos = AbstractCode::cast(bytecodes)->SourcePosition(offset);
       int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d] [bytecode=%p offset=%d]", line, bytecodes, offset);
     } else {

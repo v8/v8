@@ -652,7 +652,7 @@ class CaptureStackTraceHelper {
     if (!column_key_.is_null()) {
       Code* code = frame->LookupCode();
       int offset = static_cast<int>(frame->pc() - code->instruction_start());
-      int position = code->SourcePosition(offset);
+      int position = AbstractCode::cast(code)->SourcePosition(offset);
       // Make position 1-based.
       if (position >= 0) ++position;
       JSObject::AddProperty(stack_frame, column_key_,
@@ -1354,20 +1354,19 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     HandleScope scope(this);
     // Find code position if recorded in relocation info.
     StandardFrame* frame = it.frame();
-    int pos;
+    AbstractCode* abstract_code;
+    int code_offset;
     if (frame->is_interpreted()) {
       InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-      pos = iframe->GetBytecodeArray()->SourcePosition(
-          iframe->GetBytecodeOffset());
-    } else if (frame->is_java_script()) {
-      Code* code = frame->LookupCode();
-      int offset = static_cast<int>(frame->pc() - code->instruction_start());
-      pos = frame->LookupCode()->SourcePosition(offset);
+      abstract_code = AbstractCode::cast(iframe->GetBytecodeArray());
+      code_offset = iframe->GetBytecodeOffset();
     } else {
-      DCHECK(frame->is_wasm());
-      // TODO(clemensh): include wasm frames here
-      continue;
+      DCHECK(frame->is_java_script() || frame->is_wasm());
+      Code* code = frame->LookupCode();
+      abstract_code = AbstractCode::cast(code);
+      code_offset = static_cast<int>(frame->pc() - code->instruction_start());
     }
+    int pos = abstract_code->SourcePosition(code_offset);
     JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.

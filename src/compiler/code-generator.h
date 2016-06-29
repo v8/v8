@@ -10,6 +10,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -241,6 +242,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   int osr_pc_offset_;
+  SourcePositionTableBuilder source_position_table_builder_;
 };
 
 }  // namespace compiler

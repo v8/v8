@@ -5267,10 +5267,6 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  // Locating source position.
-  int SourcePosition(int code_offset);
-  int SourceStatementPosition(int code_offset);
-
   DECLARE_CAST(Code)
 
   // Dispatched behavior.
@@ -5496,6 +5492,9 @@ class AbstractCode : public HeapObject {
 
   // Returns the size of the code instructions.
   inline int instruction_size();
+
+  // Return the source position table.
+  inline ByteArray* source_position_table();
 
   // Returns the size of instructions and the metadata.
   inline int SizeIncludingMetadata();

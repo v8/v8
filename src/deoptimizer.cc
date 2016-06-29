@@ -2775,19 +2775,20 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
 // static
 int Deoptimizer::ComputeSourcePosition(SharedFunctionInfo* shared,
                                        BailoutId node_id) {
-  if (shared->HasBytecodeArray()) {
-    BytecodeArray* bytecodes = shared->bytecode_array();
+  AbstractCode* abstract_code = shared->abstract_code();
+  int code_offset;
+  if (abstract_code->IsBytecodeArray()) {
     // BailoutId points to the next bytecode in the bytecode aray. Subtract
     // 1 to get the end of current bytecode.
-    return bytecodes->SourcePosition(node_id.ToInt() - 1);
+    code_offset = node_id.ToInt() - 1;
   } else {
-    Code* non_optimized_code = shared->code();
-    FixedArray* raw_data = non_optimized_code->deoptimization_data();
+    FixedArray* raw_data = abstract_code->GetCode()->deoptimization_data();
     DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
     unsigned pc_and_state = Deoptimizer::GetOutputInfo(data, node_id, shared);
-    unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
-    return non_optimized_code->SourcePosition(pc_offset);
+    code_offset =
+        static_cast<int>(FullCodeGenerator::PcField::decode(pc_and_state));
   }
+  return abstract_code->SourcePosition(code_offset);
 }
 
 // static

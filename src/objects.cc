@@ -13583,65 +13583,6 @@ void Code::CopyFrom(const CodeDesc& desc) {
   Assembler::FlushICache(GetIsolate(), instruction_start(), instruction_size());
 }
 
-// Locate the source position which is closest to the code offset. This is
-// using the source position information embedded in the relocation info.
-// The position returned is relative to the beginning of the script where the
-// source for this function is found.
-int Code::SourcePosition(int code_offset) {
-  int position = RelocInfo::kNoPosition;  // Initially no position found.
-  // Subtract one because the current PC is one instruction after the call site.
-  code_offset--;
-  // Find the closest position attached to a pc lower or equal to the current.
-  // Note that the pc of reloc infos grow monotonically.
-  if (kind() == FUNCTION || (is_optimized_code() && !is_turbofanned())) {
-    for (SourcePositionTableIterator it(source_position_table());
-         !it.done() && it.code_offset() <= code_offset; it.Advance()) {
-      position = it.source_position();
-    }
-  } else {
-    Address pc = instruction_start() + code_offset;
-    for (RelocIterator it(this, RelocInfo::kPositionMask);
-         !it.done() && it.rinfo()->pc() <= pc; it.next()) {
-      position = static_cast<int>(it.rinfo()->data());
-    }
-  }
-  DCHECK(kind() == FUNCTION || (is_optimized_code() && is_turbofanned()) ||
-         is_wasm_code() || position == RelocInfo::kNoPosition);
-  return position;
-}
-
-
-// Same as Code::SourcePosition above except it only looks for statement
-// positions.
-int Code::SourceStatementPosition(int code_offset) {
-  // First find the closest position.
-  int position = SourcePosition(code_offset);
-  // Now find the closest statement position before the position.
-  int statement_position = 0;
-  if (kind() == FUNCTION || (is_optimized_code() && !is_turbofanned())) {
-    for (SourcePositionTableIterator it(source_position_table()); !it.done();
-         it.Advance()) {
-      if (it.is_statement()) {
-        int p = it.source_position();
-        if (statement_position < p && p <= position) {
-          statement_position = p;
-        }
-      }
-    }
-  } else {
-    for (RelocIterator it(this, RelocInfo::kPositionMask); !it.done();
-         it.next()) {
-      if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
-        int p = static_cast<int>(it.rinfo()->data());
-        if (statement_position < p && p <= position) {
-          statement_position = p;
-        }
-      }
-    }
-  }
-  return statement_position;
-}
-
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
@@ -13716,13 +13657,32 @@ void Code::ClearInlineCaches() {
 }
 
 int AbstractCode::SourcePosition(int offset) {
-  return IsBytecodeArray() ? GetBytecodeArray()->SourcePosition(offset)
-                           : GetCode()->SourcePosition(offset);
+  int position = 0;
+  // Subtract one because the current PC is one instruction after the call site.
+  if (IsCode()) offset--;
+  for (SourcePositionTableIterator iterator(source_position_table());
+       !iterator.done() && iterator.code_offset() <= offset;
+       iterator.Advance()) {
+    position = iterator.source_position();
+  }
+  return position;
 }
 
 int AbstractCode::SourceStatementPosition(int offset) {
-  return IsBytecodeArray() ? GetBytecodeArray()->SourceStatementPosition(offset)
-                           : GetCode()->SourceStatementPosition(offset);
+  // First find the closest position.
+  int position = SourcePosition(offset);
+  // Now find the closest statement position before the position.
+  int statement_position = 0;
+  for (SourcePositionTableIterator it(source_position_table()); !it.done();
+       it.Advance()) {
+    if (it.is_statement()) {
+      int p = it.source_position();
+      if (statement_position < p && p <= position) {
+        statement_position = p;
+      }
+    }
+  }
+  return statement_position;
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
@@ -14438,32 +14398,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 }
 #endif  // ENABLE_DISASSEMBLER
 
-int BytecodeArray::SourcePosition(int offset) {
-  int last_position = 0;
-  for (SourcePositionTableIterator iterator(source_position_table());
-       !iterator.done() && iterator.code_offset() <= offset;
-       iterator.Advance()) {
-    last_position = iterator.source_position();
-  }
-  return last_position;
-}
-
-int BytecodeArray::SourceStatementPosition(int offset) {
-  // First find the closest position.
-  int position = SourcePosition(offset);
-  // Now find the closest statement position before the position.
-  int statement_position = 0;
-  for (SourcePositionTableIterator it(source_position_table()); !it.done();
-       it.Advance()) {
-    if (it.is_statement()) {
-      int p = it.source_position();
-      if (statement_position < p && p <= position) {
-        statement_position = p;
-      }
-    }
-  }
-  return statement_position;
-}
 
 void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
@@ -18970,19 +18904,23 @@ void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
 
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
+  AbstractCode* code;
+  int code_offset;
   if (function()->shared()->HasBytecodeArray()) {
     // New-style generators.
-    int offset = Smi::cast(input_or_debug_pos())->value();
+    code_offset = Smi::cast(input_or_debug_pos())->value();
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
-    offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
-    return function()->shared()->bytecode_array()->SourcePosition(offset);
+    code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+    code = AbstractCode::cast(function()->shared()->bytecode_array());
   } else {
     // Old-style generators.
-    int offset = continuation();
-    CHECK(0 <= offset && offset < function()->code()->instruction_size());
-    return function()->code()->SourcePosition(offset);
+    code_offset = continuation();
+    CHECK(0 <= code_offset);
+    CHECK(code_offset < function()->code()->instruction_size());
+    code = AbstractCode::cast(function()->shared()->code());
   }
+  return code->SourcePosition(code_offset);
 }
 
 // static

@@ -79,17 +79,18 @@ Handle<Object> FrameInspector::GetExpression(int index) {
 
 
 int FrameInspector::GetSourcePosition() {
-  if (is_optimized_) {
-    return deoptimized_frame_->GetSourcePosition();
-  } else if (is_interpreted_) {
+  if (is_optimized_) return deoptimized_frame_->GetSourcePosition();
+  AbstractCode* code;
+  int code_offset;
+  if (is_interpreted_) {
     InterpretedFrame* frame = reinterpret_cast<InterpretedFrame*>(frame_);
-    BytecodeArray* bytecode_array = frame->GetBytecodeArray();
-    return bytecode_array->SourcePosition(frame->GetBytecodeOffset());
+    code = AbstractCode::cast(frame->GetBytecodeArray());
+    code_offset = frame->GetBytecodeOffset();
   } else {
-    Code* code = frame_->LookupCode();
-    int offset = static_cast<int>(frame_->pc() - code->instruction_start());
-    return code->SourcePosition(offset);
+    code = AbstractCode::cast(frame_->LookupCode());
+    code_offset = static_cast<int>(frame_->pc() - code->instruction_start());
   }
+  return code->SourcePosition(code_offset);
 }
 
 
