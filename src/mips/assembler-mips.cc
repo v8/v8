@@ -3006,9 +3006,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (rmode >= RelocInfo::COMMENT &&
       rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode));
     // These modes do not need an entry in the constant pool.
   }
   if (!RelocInfo::IsNone(rinfo.rmode())) {
