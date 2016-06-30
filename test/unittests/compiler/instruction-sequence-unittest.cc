@@ -72,7 +72,8 @@ RegisterConfiguration* InstructionSequenceTest::config() {
                           : RegisterConfiguration::COMBINE,
         general_register_names_,
         double_register_names_,  // float register names
-        double_register_names_));
+        double_register_names_,
+        double_register_names_));  // SIMD 128 register names
   }
   return config_.get();
 }

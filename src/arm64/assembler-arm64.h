@@ -40,7 +40,7 @@ namespace internal {
   R(x8)  R(x9)  R(x10) R(x11) R(x12) R(x13) R(x14) R(x15) \
   R(x18) R(x19) R(x20) R(x21) R(x22) R(x23) R(x24) R(x27)
 
-#define FLOAT_REGISTERS(V)                               \
+#define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
   V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
   V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
@@ -51,6 +51,10 @@ namespace internal {
   R(d8)  R(d9)  R(d10) R(d11) R(d12) R(d13) R(d14) R(d15) \
   R(d16) R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) \
   R(d24) R(d25) R(d26) R(d27) R(d28) R(d29) R(d30) R(d31)
+
+#define SIMD128_REGISTERS(V)                              \
+  V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
+  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
   R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \

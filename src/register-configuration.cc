@@ -45,10 +45,20 @@ static const char* const kDoubleRegisterNames[] = {
 #undef REGISTER_NAME
 };
 
+static const char* const kSimd128RegisterNames[] = {
+#define REGISTER_NAME(R) #R,
+    SIMD128_REGISTERS(REGISTER_NAME)
+#undef REGISTER_NAME
+};
+
 STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+              FloatRegister::kMaxNumRegisters);
+STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
               DoubleRegister::kMaxNumRegisters);
+STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+              Simd128Register::kMaxNumRegisters);
 
 enum CompilerSelector { CRANKSHAFT, TURBOFAN };
 
@@ -93,7 +103,8 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 #endif
             kAllocatableGeneralCodes, kAllocatableDoubleCodes,
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
-            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames) {
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {
   }
 };
 
@@ -128,22 +139,27 @@ RegisterConfiguration::RegisterConfiguration(
     const int* allocatable_general_codes, const int* allocatable_double_codes,
     AliasingKind fp_aliasing_kind, const char* const* general_register_names,
     const char* const* float_register_names,
-    const char* const* double_register_names)
+    const char* const* double_register_names,
+    const char* const* simd128_register_names)
     : num_general_registers_(num_general_registers),
       num_float_registers_(0),
       num_double_registers_(num_double_registers),
+      num_simd128_registers_(0),
       num_allocatable_general_registers_(num_allocatable_general_registers),
-      num_allocatable_double_registers_(num_allocatable_double_registers),
       num_allocatable_float_registers_(0),
+      num_allocatable_double_registers_(num_allocatable_double_registers),
+      num_allocatable_simd128_registers_(0),
       allocatable_general_codes_mask_(0),
-      allocatable_double_codes_mask_(0),
       allocatable_float_codes_mask_(0),
+      allocatable_double_codes_mask_(0),
+      allocatable_simd128_codes_mask_(0),
       allocatable_general_codes_(allocatable_general_codes),
       allocatable_double_codes_(allocatable_double_codes),
       fp_aliasing_kind_(fp_aliasing_kind),
       general_register_names_(general_register_names),
       float_register_names_(float_register_names),
-      double_register_names_(double_register_names) {
+      double_register_names_(double_register_names),
+      simd128_register_names_(simd128_register_names) {
   DCHECK(num_general_registers_ <= RegisterConfiguration::kMaxGeneralRegisters);
   DCHECK(num_double_registers_ <= RegisterConfiguration::kMaxFPRegisters);
   for (int i = 0; i < num_allocatable_general_registers_; ++i) {
@@ -166,67 +182,82 @@ RegisterConfiguration::RegisterConfiguration(
           base_code + 1;
       allocatable_float_codes_mask_ |= (0x3 << base_code);
     }
+    num_simd128_registers_ = num_double_registers_ / 2;
+    num_allocatable_simd128_registers_ = 0;
+    int last_simd128_code = allocatable_double_codes_[0] / 2;
+    for (int i = 1; i < num_allocatable_double_registers_; i++) {
+      int next_simd128_code = allocatable_double_codes_[i] / 2;
+      // This scheme assumes allocatable_double_codes_ are strictly increasing.
+      DCHECK_GE(next_simd128_code, last_simd128_code);
+      if (last_simd128_code == next_simd128_code) {
+        allocatable_simd128_codes_[num_allocatable_simd128_registers_++] =
+            next_simd128_code;
+        allocatable_simd128_codes_mask_ |= (0x1 << next_simd128_code);
+      }
+      last_simd128_code = next_simd128_code;
+    }
   } else {
     DCHECK(fp_aliasing_kind_ == OVERLAP);
-    num_float_registers_ = num_double_registers_;
-    num_allocatable_float_registers_ = num_allocatable_double_registers_;
+    num_float_registers_ = num_simd128_registers_ = num_double_registers_;
+    num_allocatable_float_registers_ = num_allocatable_simd128_registers_ =
+        num_allocatable_double_registers_;
     for (int i = 0; i < num_allocatable_float_registers_; ++i) {
-      allocatable_float_codes_[i] = allocatable_double_codes_[i];
+      allocatable_float_codes_[i] = allocatable_simd128_codes_[i] =
+          allocatable_double_codes_[i];
     }
-    allocatable_float_codes_mask_ = allocatable_double_codes_mask_;
+    allocatable_float_codes_mask_ = allocatable_simd128_codes_mask_ =
+        allocatable_double_codes_mask_;
   }
 }
+
+// Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.
+STATIC_ASSERT(static_cast<int>(MachineRepresentation::kSimd128) ==
+              static_cast<int>(MachineRepresentation::kFloat64) + 1);
+STATIC_ASSERT(static_cast<int>(MachineRepresentation::kFloat64) ==
+              static_cast<int>(MachineRepresentation::kFloat32) + 1);
 
 int RegisterConfiguration::GetAliases(MachineRepresentation rep, int index,
                                       MachineRepresentation other_rep,
                                       int* alias_base_index) const {
   DCHECK(fp_aliasing_kind_ == COMBINE);
-  DCHECK(rep == MachineRepresentation::kFloat32 ||
-         rep == MachineRepresentation::kFloat64);
-  DCHECK(other_rep == MachineRepresentation::kFloat32 ||
-         other_rep == MachineRepresentation::kFloat64);
+  DCHECK(IsFloatingPoint(rep) && IsFloatingPoint(other_rep));
   if (rep == other_rep) {
     *alias_base_index = index;
     return 1;
   }
-  if (rep == MachineRepresentation::kFloat32) {
-    DCHECK(other_rep == MachineRepresentation::kFloat64);
-    DCHECK(index < num_allocatable_float_registers_);
-    *alias_base_index = index / 2;
-    return 1;
+  int rep_int = static_cast<int>(rep);
+  int other_rep_int = static_cast<int>(other_rep);
+  if (rep_int > other_rep_int) {
+    int shift = rep_int - other_rep_int;
+    int base_index = index << shift;
+    if (base_index >= kMaxFPRegisters) {
+      // Alias indices would be out of FP register range.
+      return 0;
+    }
+    *alias_base_index = base_index;
+    return 1 << shift;
   }
-  DCHECK(rep == MachineRepresentation::kFloat64);
-  DCHECK(other_rep == MachineRepresentation::kFloat32);
-  if (index * 2 >= kMaxFPRegisters) {
-    // Alias indices are out of float register range.
-    return 0;
-  }
-  *alias_base_index = index * 2;
-  return 2;
+  int shift = other_rep_int - rep_int;
+  *alias_base_index = index >> shift;
+  return 1;
 }
 
 bool RegisterConfiguration::AreAliases(MachineRepresentation rep, int index,
                                        MachineRepresentation other_rep,
                                        int other_index) const {
   DCHECK(fp_aliasing_kind_ == COMBINE);
-  DCHECK(rep == MachineRepresentation::kFloat32 ||
-         rep == MachineRepresentation::kFloat64);
-  DCHECK(other_rep == MachineRepresentation::kFloat32 ||
-         other_rep == MachineRepresentation::kFloat64);
+  DCHECK(IsFloatingPoint(rep) && IsFloatingPoint(other_rep));
   if (rep == other_rep) {
     return index == other_index;
   }
-  if (rep == MachineRepresentation::kFloat32) {
-    DCHECK(other_rep == MachineRepresentation::kFloat64);
-    return index / 2 == other_index;
+  int rep_int = static_cast<int>(rep);
+  int other_rep_int = static_cast<int>(other_rep);
+  if (rep_int > other_rep_int) {
+    int shift = rep_int - other_rep_int;
+    return index == other_index >> shift;
   }
-  DCHECK(rep == MachineRepresentation::kFloat64);
-  DCHECK(other_rep == MachineRepresentation::kFloat32);
-  if (index * 2 >= kMaxFPRegisters) {
-    // Alias indices are out of float register range.
-    return false;
-  }
-  return index == other_index / 2;
+  int shift = other_rep_int - rep_int;
+  return index >> shift == other_index;
 }
 
 #undef REGISTER_COUNT

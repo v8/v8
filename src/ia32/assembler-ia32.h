@@ -75,7 +75,7 @@ namespace internal {
   V(xmm7)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
-#define SIMD_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm1)                               \

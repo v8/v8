@@ -182,6 +182,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm15)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm0)                               \
