@@ -14333,6 +14333,17 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   }
   os << "\n";
 
+  SourcePositionTableIterator it(source_position_table());
+  if (!it.done()) {
+    os << "Source positions:\n pc offset  position\n";
+    for (; !it.done(); it.Advance()) {
+      os << std::setw(10) << it.code_offset() << std::setw(10)
+         << it.source_position() << (it.is_statement() ? "  statement" : "")
+         << "\n";
+    }
+    os << "\n";
+  }
+
   if (kind() == FUNCTION) {
     DeoptimizationOutputData* data =
         DeoptimizationOutputData::cast(this->deoptimization_data());
