@@ -12749,24 +12749,6 @@ void HOptimizedGraphBuilder::GenerateRegExpSource(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateDoubleLo(CallRuntime* call) {
-  DCHECK_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HInstruction* result = NewUncasted<HDoubleBits>(value, HDoubleBits::LOW);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-void HOptimizedGraphBuilder::GenerateDoubleHi(CallRuntime* call) {
-  DCHECK_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HInstruction* result = NewUncasted<HDoubleBits>(value, HDoubleBits::HIGH);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 // Construct a RegExp exec result with two in-object properties.
 void HOptimizedGraphBuilder::GenerateRegExpConstructResult(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());

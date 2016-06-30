@@ -13,28 +13,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_DoubleHi) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  uint64_t unsigned64 = double_to_uint64(x);
-  uint32_t unsigned32 = static_cast<uint32_t>(unsigned64 >> 32);
-  int32_t signed32 = bit_cast<int32_t, uint32_t>(unsigned32);
-  return *isolate->factory()->NewNumber(signed32);
-}
-
-
-RUNTIME_FUNCTION(Runtime_DoubleLo) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  uint64_t unsigned64 = double_to_uint64(x);
-  uint32_t unsigned32 = static_cast<uint32_t>(unsigned64);
-  int32_t signed32 = bit_cast<int32_t, uint32_t>(unsigned32);
-  return *isolate->factory()->NewNumber(signed32);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

@@ -1439,9 +1439,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsTypedArray:
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
-    case Runtime::kInlineDoubleLo:
-    case Runtime::kInlineDoubleHi:
-      return Type::Signed32();
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();

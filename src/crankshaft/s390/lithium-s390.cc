@@ -1787,12 +1787,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   }
 }
 
-LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
-  HValue* value = instr->value();
-  DCHECK(value->representation().IsDouble());
-  return DefineAsRegister(new (zone()) LDoubleBits(UseRegister(value)));
-}
-
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub() ? UseFixed(instr->context(), cp) : NULL;
   LOperand* parameter_count = UseRegisterOrConstant(instr->parameter_count());

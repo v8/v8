@@ -5190,17 +5190,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   __ bind(&done);
 }
 
-void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
-  DoubleRegister value_reg = ToDoubleRegister(instr->value());
-  Register result_reg = ToRegister(instr->result());
-  __ lgdr(result_reg, value_reg);
-  if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ srlg(result_reg, result_reg, Operand(32));
-  } else {
-    __ llgfr(result_reg, result_reg);
-  }
-}
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:

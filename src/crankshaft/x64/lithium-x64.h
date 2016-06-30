@@ -60,7 +60,6 @@ class LCodeGen;
   V(DivByConstI)                             \
   V(DivByPowerOf2I)                          \
   V(DivI)                                    \
-  V(DoubleBits)                              \
   V(DoubleToI)                               \
   V(DoubleToSmi)                             \
   V(Drop)                                    \
@@ -2329,19 +2328,6 @@ class LCheckNonSmi final : public LTemplateInstruction<0, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CheckNonSmi, "check-non-smi")
   DECLARE_HYDROGEN_ACCESSOR(CheckHeapObject)
-};
-
-
-class LDoubleBits final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LDoubleBits(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
-  DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
 };
 
 

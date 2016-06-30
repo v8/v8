@@ -83,7 +83,6 @@ class LChunkBuilder;
   V(DeclareGlobals)                           \
   V(Deoptimize)                               \
   V(Div)                                      \
-  V(DoubleBits)                               \
   V(DummyUse)                                 \
   V(EnterInlined)                             \
   V(EnvironmentMarker)                        \
@@ -1657,37 +1656,6 @@ class HClampToUint8 final : public HUnaryOperation {
   }
 
   bool IsDeletable() const override { return true; }
-};
-
-
-class HDoubleBits final : public HUnaryOperation {
- public:
-  enum Bits { HIGH, LOW };
-  DECLARE_INSTRUCTION_FACTORY_P2(HDoubleBits, HValue*, Bits);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Double();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(DoubleBits)
-
-  Bits bits() { return bits_; }
-
- protected:
-  bool DataEquals(HValue* other) override {
-    return other->IsDoubleBits() && HDoubleBits::cast(other)->bits() == bits();
-  }
-
- private:
-  HDoubleBits(HValue* value, Bits bits)
-      : HUnaryOperation(value), bits_(bits) {
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-  }
-
-  bool IsDeletable() const override { return true; }
-
-  Bits bits_;
 };
 
 

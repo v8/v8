@@ -788,7 +788,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kContext:
     case HValue::kDebugBreak:
     case HValue::kDeclareGlobals:
-    case HValue::kDoubleBits:
     case HValue::kDummyUse:
     case HValue::kEnterInlined:
     case HValue::kEnvironmentMarker:

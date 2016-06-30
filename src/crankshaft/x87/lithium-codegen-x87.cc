@@ -5283,21 +5283,6 @@ void LCodeGen::DoClampTToUint8NoSSE2(LClampTToUint8NoSSE2* instr) {
 }
 
 
-void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
-  X87Register value_reg = ToX87Register(instr->value());
-  Register result_reg = ToRegister(instr->result());
-  X87Fxch(value_reg);
-  __ sub(esp, Immediate(kDoubleSize));
-  __ fst_d(Operand(esp, 0));
-  if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ mov(result_reg, Operand(esp, kPointerSize));
-  } else {
-    __ mov(result_reg, Operand(esp, 0));
-  }
-  __ add(esp, Immediate(kDoubleSize));
-}
-
-
 void LCodeGen::DoAllocate(LAllocate* instr) {
   class DeferredAllocate final : public LDeferredCode {
    public:
