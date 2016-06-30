@@ -1575,11 +1575,14 @@ void CEntryStub::Generate(MacroAssembler* masm) {
       (result_size() <= kMaxRegisterResultSize ? 0 : result_size());
   if (argv_in_register()) {
     DCHECK(!save_doubles());
+    DCHECK(!is_builtin_exit());
     __ EnterApiExitFrame(arg_stack_space);
     // Move argc into r14 (argv is already in r15).
     __ movp(r14, rax);
   } else {
-    __ EnterExitFrame(arg_stack_space, save_doubles());
+    __ EnterExitFrame(
+        arg_stack_space, save_doubles(),
+        is_builtin_exit() ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
   }
 
   // rbx: pointer to builtin function  (C callee-saved).

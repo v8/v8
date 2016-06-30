@@ -98,6 +98,12 @@ inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
 }
 
+inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
+    : ExitFrame(iterator) {}
+
+inline Object* BuiltinExitFrame::function_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kTargetOffset);
+}
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)
     : StackFrame(iterator) {
@@ -291,7 +297,8 @@ WasmFrame* StackTraceFrameIterator::wasm_frame() const {
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
-  DCHECK(frame_->is_java_script() || frame_->is_exit());
+  DCHECK(frame_->is_java_script() || frame_->is_exit() ||
+         frame_->is_builtin_exit());
   return frame_;
 }
 

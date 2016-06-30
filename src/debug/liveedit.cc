@@ -1567,7 +1567,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
 
   for (; frame_index < frames.length(); frame_index++) {
     StackFrame* frame = frames[frame_index];
-    if (frame->is_exit()) {
+    if (frame->is_exit() || frame->is_builtin_exit()) {
       non_droppable_frame_found = true;
       non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE;
       break;

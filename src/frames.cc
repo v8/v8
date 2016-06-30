@@ -332,7 +332,7 @@ void SafeStackFrameIterator::Advance() {
       external_callback_scope_ = external_callback_scope_->previous();
     }
     if (frame_->is_java_script()) break;
-    if (frame_->is_exit()) {
+    if (frame_->is_exit() || frame_->is_builtin_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
@@ -492,6 +492,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case ENTRY:
     case ENTRY_CONSTRUCT:
     case EXIT:
+    case BUILTIN_EXIT:
     case STUB:
     case STUB_FAILURE_TRAMPOLINE:
     case INTERNAL:
@@ -565,7 +566,6 @@ Object*& ExitFrame::code_slot() const {
   return Memory::Object_at(fp() + offset);
 }
 
-
 Code* ExitFrame::unchecked_code() const {
   return reinterpret_cast<Code*>(code_slot());
 }
@@ -607,6 +607,26 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   Address sp = ComputeStackPointer(fp);
   FillState(fp, sp, state);
   DCHECK(*state->pc_address != NULL);
+
+  return ComputeFrameType(fp);
+}
+
+StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
+  // Distinguish between between regular and builtin exit frames.
+  // Default to EXIT in all hairy cases (e.g., when called from profiler).
+  const int offset = ExitFrameConstants::kFrameTypeOffset;
+  Object* marker = Memory::Object_at(fp + offset);
+
+  if (!marker->IsSmi()) {
+    return EXIT;
+  }
+
+  StackFrame::Type frame_type =
+      static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+  if (frame_type == EXIT || frame_type == BUILTIN_EXIT) {
+    return frame_type;
+  }
+
   return EXIT;
 }
 
@@ -625,6 +645,10 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   // stub).  ComputeCallerState will retrieve the constant pool
   // together with the associated caller pc.
   state->constant_pool_address = NULL;
+}
+
+JSFunction* BuiltinExitFrame::function() const {
+  return JSFunction::cast(function_slot_object());
 }
 
 Address StandardFrame::GetExpressionAddress(int n) const {
@@ -707,6 +731,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
       case ENTRY:
       case ENTRY_CONSTRUCT:
       case EXIT:
+      case BUILTIN_EXIT:
       case STUB_FAILURE_TRAMPOLINE:
       case ARGUMENTS_ADAPTOR:
       case STUB:

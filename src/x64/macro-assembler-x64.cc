@@ -738,14 +738,14 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-
-void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
+                                             bool builtin_exit_frame) {
   // Set the entry point and jump to the C entry runtime stub.
   LoadAddress(rbx, ext);
-  CEntryStub ces(isolate(), 1);
+  CEntryStub ces(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                 builtin_exit_frame);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
-
 
 #define REG(Name) \
   { Register::kCode_##Name }
@@ -4436,8 +4436,11 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
+void MacroAssembler::EnterExitFramePrologue(bool save_rax,
+                                            StackFrame::Type frame_type) {
+  DCHECK(frame_type == StackFrame::EXIT ||
+         frame_type == StackFrame::BUILTIN_EXIT);
 
-void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
   DCHECK_EQ(kFPOnStackSize + kPCOnStackSize,
@@ -4448,7 +4451,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   movp(rbp, rsp);
 
   // Reserve room for entry stack pointer and push the code object.
-  Push(Smi::FromInt(StackFrame::EXIT));
+  Push(Smi::FromInt(frame_type));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
@@ -4499,9 +4502,9 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   movp(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
 }
 
-
-void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles) {
-  EnterExitFramePrologue(true);
+void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
+                                    StackFrame::Type frame_type) {
+  EnterExitFramePrologue(true, frame_type);
 
   // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
@@ -4513,7 +4516,7 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles) {
 
 
 void MacroAssembler::EnterApiExitFrame(int arg_stack_space) {
-  EnterExitFramePrologue(false);
+  EnterExitFramePrologue(false, StackFrame::EXIT);
   EnterExitFrameEpilogue(arg_stack_space, false);
 }
 

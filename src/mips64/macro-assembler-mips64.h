@@ -1064,8 +1064,8 @@ class MacroAssembler: public Assembler {
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
   // stack_space - extra stack space.
-  void EnterExitFrame(bool save_doubles,
-                      int stack_space = 0);
+  void EnterExitFrame(bool save_doubles, int stack_space = 0,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles, Register arg_count,
@@ -1548,7 +1548,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT);
+                               BranchDelaySlot bd = PROTECT,
+                               bool builtin_exit_frame = false);
 
   struct Unresolved {
     int pc;
