@@ -357,6 +357,34 @@
   'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5120
+  'built-ins/DataView/negative-bytelength-throws': [FAIL],
+  'built-ins/DataView/prototype/getFloat32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getFloat64/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getInt16/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getInt32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getInt8/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getUint16/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getUint32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/getUint8/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setFloat32/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setFloat32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setFloat64/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setFloat64/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setInt16/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setInt16/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setInt32/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setInt32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setInt8/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setInt8/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setUint16/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setUint16/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setUint32/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setUint32/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setUint8/no-value-arg': [FAIL],
+  'built-ins/DataView/prototype/setUint8/toindex-byteoffset': [FAIL],
+  'built-ins/DataView/toindex-byteoffset': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5121
   'language/expressions/assignment/destructuring/obj-prop-__proto__dup': [FAIL],
 
@@ -495,20 +523,6 @@
 
   # https://github.com/tc39/test262/issues/696
   'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
-
-  # https://github.com/tc39/test262/issues/685
-  'built-ins/DataView/prototype/setUint8/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setUint16/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setUint32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt8/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt16/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/range-check-after-value-conversion': [FAIL],
-
-  # https://github.com/tc39/test262/issues/686
-  'built-ins/DataView/prototype/setFloat32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/toindex-byteoffset': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
