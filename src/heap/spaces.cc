@@ -2037,24 +2037,6 @@ static void ClearHistograms(Isolate* isolate) {
   isolate->js_spill_information()->Clear();
 }
 
-
-static void ClearCodeKindStatistics(int* code_kind_statistics) {
-  for (int i = 0; i < AbstractCode::NUMBER_OF_KINDS; i++) {
-    code_kind_statistics[i] = 0;
-  }
-}
-static void ReportCodeKindStatistics(int* code_kind_statistics) {
-  PrintF("\n   Code kind histograms: \n");
-  for (int i = 0; i < AbstractCode::NUMBER_OF_KINDS; i++) {
-    if (code_kind_statistics[i] > 0) {
-      PrintF("     %-20s: %10d bytes\n",
-             AbstractCode::Kind2String(static_cast<AbstractCode::Kind>(i)),
-             code_kind_statistics[i]);
-    }
-  }
-  PrintF("\n");
-}
-
 static int CollectHistogramInfo(HeapObject* obj) {
   Isolate* isolate = obj->GetIsolate();
   InstanceType type = obj->map()->instance_type();
@@ -2753,127 +2735,6 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 }
 
 #ifdef DEBUG
-void PagedSpace::ReportCodeStatistics(Isolate* isolate) {
-  CommentStatistic* comments_statistics =
-      isolate->paged_space_comments_statistics();
-  ReportCodeKindStatistics(isolate->code_kind_statistics());
-  PrintF("Code size including metadata    : %10d bytes\n",
-         isolate->code_and_metadata_size());
-  PrintF("Bytecode size including metadata: %10d bytes\n",
-         isolate->bytecode_and_metadata_size());
-  PrintF(
-      "Code comment statistics (\"   [ comment-txt   :    size/   "
-      "count  (average)\"):\n");
-  for (int i = 0; i <= CommentStatistic::kMaxComments; i++) {
-    const CommentStatistic& cs = comments_statistics[i];
-    if (cs.size > 0) {
-      PrintF("   %-30s: %10d/%6d     (%d)\n", cs.comment, cs.size, cs.count,
-             cs.size / cs.count);
-    }
-  }
-  PrintF("\n");
-}
-
-void PagedSpace::ResetCodeStatistics(Isolate* isolate) {
-  CommentStatistic* comments_statistics =
-      isolate->paged_space_comments_statistics();
-  ClearCodeKindStatistics(isolate->code_kind_statistics());
-  for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
-    comments_statistics[i].Clear();
-  }
-  comments_statistics[CommentStatistic::kMaxComments].comment = "Unknown";
-  comments_statistics[CommentStatistic::kMaxComments].size = 0;
-  comments_statistics[CommentStatistic::kMaxComments].count = 0;
-}
-
-
-// Adds comment to 'comment_statistics' table. Performance OK as long as
-// 'kMaxComments' is small
-static void EnterComment(Isolate* isolate, const char* comment, int delta) {
-  CommentStatistic* comments_statistics =
-      isolate->paged_space_comments_statistics();
-  // Do not count empty comments
-  if (delta <= 0) return;
-  CommentStatistic* cs = &comments_statistics[CommentStatistic::kMaxComments];
-  // Search for a free or matching entry in 'comments_statistics': 'cs'
-  // points to result.
-  for (int i = 0; i < CommentStatistic::kMaxComments; i++) {
-    if (comments_statistics[i].comment == NULL) {
-      cs = &comments_statistics[i];
-      cs->comment = comment;
-      break;
-    } else if (strcmp(comments_statistics[i].comment, comment) == 0) {
-      cs = &comments_statistics[i];
-      break;
-    }
-  }
-  // Update entry for 'comment'
-  cs->size += delta;
-  cs->count += 1;
-}
-
-
-// Call for each nested comment start (start marked with '[ xxx', end marked
-// with ']'.  RelocIterator 'it' must point to a comment reloc info.
-static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it) {
-  DCHECK(!it->done());
-  DCHECK(it->rinfo()->rmode() == RelocInfo::COMMENT);
-  const char* tmp = reinterpret_cast<const char*>(it->rinfo()->data());
-  if (tmp[0] != '[') {
-    // Not a nested comment; skip
-    return;
-  }
-
-  // Search for end of nested comment or a new nested comment
-  const char* const comment_txt =
-      reinterpret_cast<const char*>(it->rinfo()->data());
-  const byte* prev_pc = it->rinfo()->pc();
-  int flat_delta = 0;
-  it->next();
-  while (true) {
-    // All nested comments must be terminated properly, and therefore exit
-    // from loop.
-    DCHECK(!it->done());
-    if (it->rinfo()->rmode() == RelocInfo::COMMENT) {
-      const char* const txt =
-          reinterpret_cast<const char*>(it->rinfo()->data());
-      flat_delta += static_cast<int>(it->rinfo()->pc() - prev_pc);
-      if (txt[0] == ']') break;  // End of nested  comment
-      // A new comment
-      CollectCommentStatistics(isolate, it);
-      // Skip code that was covered with previous comment
-      prev_pc = it->rinfo()->pc();
-    }
-    it->next();
-  }
-  EnterComment(isolate, comment_txt, flat_delta);
-}
-
-// Collects code comment statistics
-static void CollectCodeCommentStatistics(HeapObject* obj, Isolate* isolate) {
-  if (!obj->IsCode()) {
-    return;
-  }
-  Code* code = Code::cast(obj);
-  RelocIterator it(code);
-  int delta = 0;
-  const byte* prev_pc = code->instruction_start();
-  while (!it.done()) {
-    if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
-      delta += static_cast<int>(it.rinfo()->pc() - prev_pc);
-      CollectCommentStatistics(isolate, &it);
-      prev_pc = it.rinfo()->pc();
-    }
-    it.next();
-  }
-
-  DCHECK(code->instruction_start() <= prev_pc &&
-         prev_pc <= code->instruction_end());
-  delta += static_cast<int>(code->instruction_end() - prev_pc);
-  EnterComment(isolate, "NoComment", delta);
-}
-
-
 void PagedSpace::ReportStatistics() {
   int pct = static_cast<int>(Available() * 100 / Capacity());
   PrintF("  capacity: %" V8PRIdPTR ", waste: %" V8PRIdPTR
@@ -2891,44 +2752,6 @@ void PagedSpace::ReportStatistics() {
 }
 #endif
 
-static void RecordCodeSizeIncludingMetadata(AbstractCode* abstract_code,
-                                            Isolate* isolate) {
-  int size = abstract_code->SizeIncludingMetadata();
-  if (abstract_code->IsCode()) {
-    size += isolate->code_and_metadata_size();
-    isolate->set_code_and_metadata_size(size);
-  } else {
-    size += isolate->bytecode_and_metadata_size();
-    isolate->set_bytecode_and_metadata_size(size);
-  }
-}
-
-// Collects code size statistics:
-// - code and metadata size
-// - by code kind (only in debug mode)
-// - by code comment (only in debug mode)
-void PagedSpace::CollectCodeStatistics() {
-  Isolate* isolate = heap()->isolate();
-  HeapObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsAbstractCode()) {
-      AbstractCode* code = AbstractCode::cast(obj);
-      RecordCodeSizeIncludingMetadata(code, isolate);
-#ifdef DEBUG
-      isolate->code_kind_statistics()[code->kind()] += code->Size();
-      CollectCodeCommentStatistics(obj, isolate);
-#endif
-    }
-  }
-}
-
-void PagedSpace::ResetCodeAndMetadataStatistics(Isolate* isolate) {
-  isolate->set_code_and_metadata_size(0);
-  isolate->set_bytecode_and_metadata_size(0);
-#ifdef DEBUG
-  ResetCodeStatistics(isolate);
-#endif
-}
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
@@ -3230,21 +3053,6 @@ void LargeObjectSpace::Verify() {
   }
 }
 #endif
-
-void LargeObjectSpace::CollectCodeStatistics() {
-  Isolate* isolate = heap()->isolate();
-  LargeObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next()) {
-    if (obj->IsAbstractCode()) {
-      AbstractCode* code = AbstractCode::cast(obj);
-      RecordCodeSizeIncludingMetadata(code, isolate);
-#ifdef DEBUG
-      isolate->code_kind_statistics()[code->kind()] += code->Size();
-      CollectCodeCommentStatistics(obj, isolate);
-#endif
-    }
-  }
-}
 
 #ifdef DEBUG
 void LargeObjectSpace::Print() {

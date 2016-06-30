@@ -2269,11 +2269,6 @@ class PagedSpace : public Space {
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
 
-  // Collect code size related statistics
-  void CollectCodeStatistics();
-
-  // Reset code size related statistics
-  static void ResetCodeAndMetadataStatistics(Isolate* isolate);
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.

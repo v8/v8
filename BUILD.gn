@@ -1178,6 +1178,8 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker-inl.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
+    "src/heap/code-stats.cc",
+    "src/heap/code-stats.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",

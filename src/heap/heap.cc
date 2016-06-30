@@ -18,6 +18,7 @@
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/code-stats.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
@@ -4438,12 +4439,12 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 }
 
 void Heap::CollectCodeStatistics() {
-  PagedSpace::ResetCodeAndMetadataStatistics(isolate());
+  CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
   // We do not look for code in new space, or map space.  If code
   // somehow ends up in those spaces, we would miss it here.
-  code_space_->CollectCodeStatistics();
-  old_space_->CollectCodeStatistics();
-  lo_space_->CollectCodeStatistics();
+  CodeStatistics::CollectCodeStatistics(code_space_, isolate());
+  CodeStatistics::CollectCodeStatistics(old_space_, isolate());
+  CodeStatistics::CollectCodeStatistics(lo_space_, isolate());
 }
 
 #ifdef DEBUG
@@ -4461,7 +4462,7 @@ void Heap::Print() {
 void Heap::ReportCodeStatistics(const char* title) {
   PrintF(">>>>>> Code Stats (%s) >>>>>>\n", title);
   CollectCodeStatistics();
-  PagedSpace::ReportCodeStatistics(isolate());
+  CodeStatistics::ReportCodeStatistics(isolate());
 }
 
 
