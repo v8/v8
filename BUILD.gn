@@ -44,10 +44,6 @@ declare_args() {
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
 
-  # Indicate if valgrind was fetched as a custom deps to make it available on
-  # swarming.
-  v8_has_valgrind = false
-
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
   v8_interpreted_regexp = false

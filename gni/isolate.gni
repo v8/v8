@@ -101,11 +101,6 @@ template("v8_isolate_run") {
       } else {
         use_snapshot = "false"
       }
-      if (v8_has_valgrind) {
-        has_valgrind = "1"
-      } else {
-        has_valgrind = "0"
-      }
 
       # Note, all paths will be rebased in isolate_driver.py to be relative to
       # the isolate file.
@@ -137,7 +132,7 @@ template("v8_isolate_run") {
         "--config-variable",
         "gcmole=0",
         "--config-variable",
-        "has_valgrind=$has_valgrind",
+        "has_valgrind=0",
         "--config-variable",
         "icu_use_data_file_flag=$icu_use_data_file_flag",
         "--config-variable",
