@@ -45,7 +45,7 @@ function FOREIGN_SUB(a, b) {
 function check_FOREIGN_SUB(r, a, b) {
     assertEquals(a - b | 0, r);
     assertTrue(was_called);
-//    assertEquals(global, params[0]);  // sloppy mode
+    assertEquals(global, params[0]);  // sloppy mode
     assertEquals(a, params[1]);
     assertEquals(b, params[2]);
     was_called = false;
@@ -68,7 +68,7 @@ function FOREIGN_ABCD(a, b, c, d) {
 function check_FOREIGN_ABCD(r, a, b) {
     assertEquals((a * b * 6) | 0, r);
     assertTrue(was_called);
-//    assertEquals(global, params[0]);  // sloppy mode.
+    assertEquals(global, params[0]);  // sloppy mode.
     assertEquals(a, params[1]);
     assertEquals(b, params[2]);
     assertEquals(undefined, params[3]);

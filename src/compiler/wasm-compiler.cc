@@ -2605,9 +2605,12 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   if (arg_count_before_args) {
     args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
   }
-  // JS receiver.
-  Handle<Object> global(function->context()->global_object(), isolate);
-  args[pos++] = jsgraph()->Constant(global);
+  // Create the receiver constant (either undefined or the global proxy).
+  Handle<Object> receiver(isolate->heap()->undefined_value(), isolate);
+  if (is_sloppy(function->shared()->language_mode())) {
+    receiver = Handle<Object>(function->context()->global_proxy(), isolate);
+  }
+  args[pos++] = jsgraph()->Constant(receiver);
 
   // Convert WASM numbers to JS values.
   int param_index = 0;
