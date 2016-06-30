@@ -618,14 +618,14 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 #endif  // V8_OS_WIN
 
 
-// TODO(lpy): For windows ThreadTicks implementation,
-// see http://crbug.com/v8/5000
 bool ThreadTicks::IsSupported() {
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID)
-    return true;
+  defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID)
+  return true;
+#elif defined(V8_OS_WIN)
+  return IsSupportedWin();
 #else
-    return false;
+  return false;
 #endif
 }
 

@@ -186,7 +186,6 @@ TEST(TimeTicks, IsMonotonic) {
 }
 
 
-// Disable on windows until it is implemented.
 #if V8_OS_ANDROID
 #define MAYBE_ThreadNow DISABLED_ThreadNow
 #else
@@ -194,6 +193,7 @@ TEST(TimeTicks, IsMonotonic) {
 #endif
 TEST(ThreadTicks, MAYBE_ThreadNow) {
   if (ThreadTicks::IsSupported()) {
+    ThreadTicks::WaitUntilInitialized();
     TimeTicks begin = TimeTicks::Now();
     ThreadTicks begin_thread = ThreadTicks::Now();
     // Make sure that ThreadNow value is non-zero.
