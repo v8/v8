@@ -6,6 +6,7 @@
 
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "src/type-feedback-vector-inl.h"
 
@@ -220,7 +221,6 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
-  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Try to specialize JSCallFunction {node}s with constant {target}s.
   HeapObjectMatcher m(target);
@@ -323,16 +323,13 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(
-        javascript()->StrictEqual(CompareOperationHints::Any()), target,
-        array_function, context);
-    control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                        frame_state, effect, control);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                   target, array_function);
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
     NodeProperties::ReplaceValueInput(node, array_function, 0);
     NodeProperties::ReplaceEffectInput(node, effect);
-    NodeProperties::ReplaceControlInput(node, control);
     return ReduceArrayConstructor(node);
   } else if (feedback->IsWeakCell()) {
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
@@ -341,16 +338,14 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(
-          javascript()->StrictEqual(CompareOperationHints::Any()), target,
-          target_function, context);
-      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                          frame_state, effect, control);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                     target, target_function);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
       // Specialize the JSCallFunction node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
       NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ReplaceControlInput(node, control);
 
       // Try to further reduce the JSCallFunction {node}.
       Reduction const reduction = ReduceJSCallFunction(node);
@@ -371,7 +366,6 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Try to specialize JSCallConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
@@ -445,15 +439,12 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     }
 
     // Check that the {target} is still the {array_function}.
-    Node* check = graph()->NewNode(
-        javascript()->StrictEqual(CompareOperationHints::Any()), target,
-        array_function, context);
-    control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                        frame_state, effect, control);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                   target, array_function);
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
     // Turn the {node} into a {JSCreateArray} call.
     NodeProperties::ReplaceEffectInput(node, effect);
-    NodeProperties::ReplaceControlInput(node, control);
     for (int i = arity; i > 0; --i) {
       NodeProperties::ReplaceValueInput(
           node, NodeProperties::GetValueInput(node, i), i + 1);
@@ -468,16 +459,14 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
       // Check that the {target} is still the {target_function}.
-      Node* check = graph()->NewNode(
-          javascript()->StrictEqual(CompareOperationHints::Any()), target,
-          target_function, context);
-      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                          frame_state, effect, control);
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                                     target, target_function);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
       // Specialize the JSCallConstruct node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
       NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ReplaceControlInput(node, control);
       if (target == new_target) {
         NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
       }
@@ -512,6 +501,10 @@ CommonOperatorBuilder* JSCallReducer::common() const {
 
 JSOperatorBuilder* JSCallReducer::javascript() const {
   return jsgraph()->javascript();
+}
+
+SimplifiedOperatorBuilder* JSCallReducer::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler

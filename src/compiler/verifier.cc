@@ -948,6 +948,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Number());
       break;
+    case IrOpcode::kCheckIf:
+      CheckValueInputIs(node, 0, Type::Boolean());
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kCheckTaggedSigned:
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::TaggedSigned());

@@ -43,9 +43,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.HasValue()) {
-        return Replace(jsgraph()->BooleanConstant(!m.Value()->BooleanValue()));
-      }
+      if (m.Is(factory()->true_value())) return ReplaceBoolean(false);
+      if (m.Is(factory()->false_value())) return ReplaceBoolean(true);
       if (m.IsBooleanNot()) return Replace(m.InputAt(0));
       break;
     }
@@ -127,6 +126,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckIf: {
+      HeapObjectMatcher m(node->InputAt(0));
+      if (m.Is(factory()->true_value())) {
+        Node* const effect = NodeProperties::GetEffectInput(node);
+        return Replace(effect);
+      }
+      break;
+    }
     case IrOpcode::kCheckTaggedPointer: {
       Node* const input = node->InputAt(0);
       if (DecideObjectIsSmi(input) == Decision::kFalse) {
@@ -203,9 +210,15 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
   return Replace(jsgraph()->Constant(value));
 }
 
+Factory* SimplifiedOperatorReducer::factory() const {
+  return isolate()->factory();
+}
 
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
 
+Isolate* SimplifiedOperatorReducer::isolate() const {
+  return jsgraph()->isolate();
+}
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

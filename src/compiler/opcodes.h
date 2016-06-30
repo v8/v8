@@ -248,6 +248,7 @@
   V(StringFromCharCode)               \
   V(StringToNumber)                   \
   V(CheckBounds)                      \
+  V(CheckIf)                          \
   V(CheckNumber)                      \
   V(CheckTaggedPointer)               \
   V(CheckTaggedSigned)                \

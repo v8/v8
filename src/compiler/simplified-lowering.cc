@@ -1692,14 +1692,24 @@ class RepresentationSelector {
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         return;
       }
+      case IrOpcode::kCheckIf: {
+        ProcessInput(node, 0, UseInfo::Bool());
+        ProcessRemainingInputs(node, 1);
+        SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
       case IrOpcode::kCheckNumber: {
         if (InputIs(node, Type::Number())) {
           if (truncation.TruncatesToWord32()) {
             VisitUnop(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
           } else {
-            VisitUnop(node, UseInfo::TruncatingFloat64(),
-                      MachineRepresentation::kFloat64);
+            // TODO(jarin,bmeurer): We need to go to Tagged here, because
+            // otherwise we cannot distinguish the hole NaN (which might need to
+            // be treated as undefined). We should have a dedicated Type for
+            // that at some point, and maybe even a dedicated truncation.
+            VisitUnop(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kTagged);
           }
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {

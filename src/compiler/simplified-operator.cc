@@ -305,16 +305,18 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(SpeculativeNumberMultiply)    \
   V(SpeculativeNumberModulus)
 
-#define CHECKED_OP_LIST(V)    \
-  V(CheckNumber, 1)           \
-  V(CheckTaggedPointer, 1)    \
-  V(CheckTaggedSigned, 1)     \
-  V(CheckedInt32Add, 2)       \
-  V(CheckedInt32Sub, 2)       \
-  V(CheckedUint32ToInt32, 1)  \
-  V(CheckedFloat64ToInt32, 1) \
-  V(CheckedTaggedToInt32, 1)  \
-  V(CheckedTaggedToFloat64, 1)
+#define CHECKED_OP_LIST(V)       \
+  V(CheckBounds, 2, 1)           \
+  V(CheckIf, 1, 0)               \
+  V(CheckNumber, 1, 1)           \
+  V(CheckTaggedPointer, 1, 1)    \
+  V(CheckTaggedSigned, 1, 1)     \
+  V(CheckedInt32Add, 2, 1)       \
+  V(CheckedInt32Sub, 2, 1)       \
+  V(CheckedUint32ToInt32, 1, 1)  \
+  V(CheckedFloat64ToInt32, 1, 1) \
+  V(CheckedTaggedToInt32, 1, 1)  \
+  V(CheckedTaggedToFloat64, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
@@ -327,13 +329,13 @@ struct SimplifiedOperatorGlobalCache final {
   PURE_OP_LIST(PURE)
 #undef PURE
 
-#define CHECKED(Name, value_input_count)                            \
-  struct Name##Operator final : public Operator {                   \
-    Name##Operator()                                                \
-        : Operator(IrOpcode::k##Name,                               \
-                   Operator::kFoldable | Operator::kNoThrow, #Name, \
-                   value_input_count, 1, 1, 1, 1, 0) {}             \
-  };                                                                \
+#define CHECKED(Name, value_input_count, value_output_count)             \
+  struct Name##Operator final : public Operator {                        \
+    Name##Operator()                                                     \
+        : Operator(IrOpcode::k##Name,                                    \
+                   Operator::kFoldable | Operator::kNoThrow, #Name,      \
+                   value_input_count, 1, 1, value_output_count, 1, 0) {} \
+  };                                                                     \
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
@@ -412,7 +414,7 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 
-#define GET_FROM_CACHE(Name, value_input_count) \
+#define GET_FROM_CACHE(Name, value_input_count, value_output_count) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
@@ -445,13 +447,6 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
                                Operator::kCommutative | Operator::kPure,
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
-}
-
-const Operator* SimplifiedOperatorBuilder::CheckBounds() {
-  // TODO(bmeurer): Cache this operator. Make it pure!
-  return new (zone())
-      Operator(IrOpcode::kCheckBounds, Operator::kFoldable | Operator::kNoThrow,
-               "CheckBounds", 2, 1, 1, 1, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {

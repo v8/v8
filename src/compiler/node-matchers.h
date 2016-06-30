@@ -172,6 +172,10 @@ struct HeapObjectMatcher final
     : public ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
       : ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant>(node) {}
+
+  bool Is(Handle<HeapObject> const& value) const {
+    return this->HasValue() && this->Value().address() == value.address();
+  }
 };
 
 

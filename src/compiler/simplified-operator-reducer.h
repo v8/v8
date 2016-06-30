@@ -9,6 +9,11 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Factory;
+class Isolate;
+
 namespace compiler {
 
 // Forward declarations.
@@ -36,7 +41,9 @@ class SimplifiedOperatorReducer final : public AdvancedReducer {
   Reduction ReplaceNumber(double value);
   Reduction ReplaceNumber(int32_t value);
 
+  Factory* factory() const;
   Graph* graph() const;
+  Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;

@@ -434,6 +434,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckNumber:
       state = LowerCheckNumber(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckIf:
+      state = LowerCheckIf(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckTaggedPointer:
       state = LowerCheckTaggedPointer(node, frame_state, *effect, *control);
       break;
@@ -828,6 +831,20 @@ EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state,
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
+                                      Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), value,
+                                      frame_state, effect, control);
 
   // Make sure the lowered node does not appear in any use lists.
   node->TrimInputCount(0);

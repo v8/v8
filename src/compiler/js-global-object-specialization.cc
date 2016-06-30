@@ -133,7 +133,6 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Retrieve the global object from the given {node}.
   Handle<JSGlobalObject> global_object;
@@ -173,20 +172,19 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Node* check =
           graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
                            jsgraph()->Constant(property_cell_value));
-      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                          frame_state, effect, control);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
       break;
     }
     case PropertyCellType::kConstantType: {
       // Record a code dependency on the cell, and just deoptimize if the new
       // values' type doesn't match the type of the previous value in the cell.
       dependencies()->AssumePropertyCell(property_cell);
-      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-      Type* property_cell_value_type = Type::TaggedSigned();
+      Type* property_cell_value_type;
       if (property_cell_value->IsHeapObject()) {
-        // Deoptimize if the {value} is a Smi.
-        control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                            frame_state, effect, control);
+        // Check that the {value} is a HeapObject.
+        value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                          value, effect, control);
 
         // Load the {value} map check against the {property_cell} map.
         Node* value_map = effect =
@@ -194,13 +192,18 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                              value, effect, control);
         Handle<Map> property_cell_value_map(
             Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-        check = graph()->NewNode(
+        Node* check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Any()), value_map,
             jsgraph()->HeapConstant(property_cell_value_map));
+        effect =
+            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
         property_cell_value_type = Type::TaggedPointer();
+      } else {
+        // Check that the {value} is a Smi.
+        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                          value, effect, control);
+        property_cell_value_type = Type::TaggedSigned();
       }
-      control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                          frame_state, effect, control);
       effect = graph()->NewNode(
           simplified()->StoreField(
               AccessBuilder::ForPropertyCellValue(property_cell_value_type)),
