@@ -28,6 +28,9 @@ declare_args() {
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
   v8_imminent_deprecation_warnings = false
 
+  # Embeds the given script into the snapshot.
+  v8_embed_script = ""
+
   # Sets -dENABLE_DISASSEMBLER.
   v8_enable_disassembler = false
 
@@ -588,6 +591,8 @@ action("run_mksnapshot") {
 
   script = "tools/run.py"
 
+  sources = []
+
   outputs = [
     "$target_gen_dir/snapshot.cc",
   ]
@@ -613,6 +618,11 @@ action("run_mksnapshot") {
       "--startup_blob",
       rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
     ]
+  }
+
+  if (v8_embed_script != "") {
+    sources += [ v8_embed_script ]
+    args += [ rebase_path(v8_embed_script, root_build_dir) ]
   }
 }
 
