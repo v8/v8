@@ -690,7 +690,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   //
   // The (tagged) result will be returned in x0, as a heap number.
 
-  Register result_tagged = x0;
   Register exponent_tagged = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent_tagged.is(x11));
   Register exponent_integer = MathPowIntegerDescriptor::exponent();
