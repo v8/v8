@@ -4,6 +4,7 @@
 
 #include "src/source-position-table.h"
 
+#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
@@ -102,6 +103,23 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 }
 
 }  // namespace
+
+SourcePositionTableBuilder::SourcePositionTableBuilder(Isolate* isolate,
+                                                       Zone* zone)
+    : isolate_(isolate),
+      bytes_(zone),
+#ifdef ENABLE_SLOW_DCHECKS
+      raw_entries_(zone),
+#endif
+      previous_(),
+      jit_handler_data_(nullptr) {
+  LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(&jit_handler_data_));
+}
+
+void SourcePositionTableBuilder::EndJitLogging(AbstractCode* code) {
+  LOG_CODE_EVENT(isolate_,
+                 CodeEndLinePosInfoRecordEvent(code, jit_handler_data_));
+}
 
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
                                              int source_position,

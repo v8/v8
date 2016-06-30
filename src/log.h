@@ -66,7 +66,6 @@ class CodeEventListener;
 class CpuProfiler;
 class Isolate;
 class Log;
-class PositionsRecorder;
 class Profiler;
 class Ticker;
 struct TickSample;
@@ -193,7 +192,7 @@ class Logger : public CodeEventListener {
                                                 int pc_offset,
                                                 int position);
   // Emits a code line info start to record event
-  void CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder);
+  void CodeStartLinePosInfoRecordEvent(void** jit_handler_data_out);
   // Emits a code line info finish record event.
   // It's the callee's responsibility to dispose the parameter jit_handler_data.
   void CodeEndLinePosInfoRecordEvent(AbstractCode* code,
@@ -351,6 +350,7 @@ class Logger : public CodeEventListener {
   base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
+  friend class SourcePositionTableBuilder;
 };
 
 #define TIMER_EVENTS_LIST(V)    \
@@ -388,27 +388,6 @@ class TimerEventScope {
 
  private:
   Isolate* isolate_;
-};
-
-class PositionsRecorder BASE_EMBEDDED {
- public:
-  PositionsRecorder() { jit_handler_data_ = NULL; }
-
-  void AttachJITHandlerData(void* user_data) { jit_handler_data_ = user_data; }
-
-  void* DetachJITHandlerData() {
-    void* old_data = jit_handler_data_;
-    jit_handler_data_ = NULL;
-    return old_data;
-  }
-
- protected:
-  // Currently jit_handler_data_ is used to store JITHandler-specific data
-  // over the lifetime of a PositionsRecorder
-  void* jit_handler_data_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PositionsRecorder);
 };
 
 class CodeEventLogger : public CodeEventListener {

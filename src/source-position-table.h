@@ -8,12 +8,12 @@
 #include "src/assert-scope.h"
 #include "src/checks.h"
 #include "src/handles.h"
-#include "src/log.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class AbstractCode;
 class BytecodeArray;
 class ByteArray;
 class Isolate;
@@ -30,23 +30,17 @@ struct PositionTableEntry {
   bool is_statement;
 };
 
-class SourcePositionTableBuilder final : public PositionsRecorder {
+class SourcePositionTableBuilder {
  public:
-  SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
-      : isolate_(isolate),
-        bytes_(zone),
-#ifdef ENABLE_SLOW_DCHECKS
-        raw_entries_(zone),
-#endif
-        previous_() {
-  }
+  SourcePositionTableBuilder(Isolate* isolate, Zone* zone);
+
+  void EndJitLogging(AbstractCode* code);
 
   void AddPosition(size_t code_offset, int source_position, bool is_statement);
   Handle<ByteArray> ToSourcePositionTable();
 
  private:
   void AddEntry(const PositionTableEntry& entry);
-  void CommitEntry();
 
   Isolate* isolate_;
   ZoneVector<byte> bytes_;
@@ -54,6 +48,9 @@ class SourcePositionTableBuilder final : public PositionsRecorder {
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
   PositionTableEntry previous_;  // Previously written entry, to compute delta.
+  // Currently jit_handler_data_ is used to store JITHandler-specific data
+  // over the lifetime of a SourcePositionTableBuilder.
+  void* jit_handler_data_;
 };
 
 class SourcePositionTableIterator {

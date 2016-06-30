@@ -73,10 +73,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
 
-  // Emit a code line info recording start event.
-  LOG_CODE_EVENT(isolate(), CodeStartLinePosInfoRecordEvent(
-                                &source_position_table_builder_));
-
   // Place function entry hook if requested to do so.
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm());
@@ -213,6 +209,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   Handle<ByteArray> source_positions =
       source_position_table_builder_.ToSourcePositionTable();
   result->set_source_position_table(*source_positions);
+  source_position_table_builder_.EndJitLogging(AbstractCode::cast(*result));
 
   // Emit exception handler table.
   if (!handlers_.empty()) {
@@ -237,11 +234,6 @@ Handle<Code> CodeGenerator::GenerateCode() {
   if (info->ShouldEnsureSpaceForLazyDeopt()) {
     Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(result);
   }
-
-  // Emit a code line info recording stop event.
-  void* line_info = source_position_table_builder_.DetachJITHandlerData();
-  LOG_CODE_EVENT(isolate(), CodeEndLinePosInfoRecordEvent(
-                                AbstractCode::cast(*result), line_info));
 
   return result;
 }

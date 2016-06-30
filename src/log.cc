@@ -1241,11 +1241,9 @@ void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
                                   JitCodeEvent::STATEMENT_POSITION));
 }
 
-
-void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
-  if (jit_logger_ != NULL) {
-      pos_recorder->AttachJITHandlerData(jit_logger_->StartCodePosInfoEvent());
-  }
+void Logger::CodeStartLinePosInfoRecordEvent(void** jit_handler_data_out) {
+  *jit_handler_data_out =
+      (jit_logger_ == NULL) ? NULL : jit_logger_->StartCodePosInfoEvent();
 }
 
 void Logger::CodeEndLinePosInfoRecordEvent(AbstractCode* code,

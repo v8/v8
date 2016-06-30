@@ -23,10 +23,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
       max_register_count_(0),
       unbound_jumps_(0),
       source_position_table_builder_(isolate, zone),
-      constant_array_builder_(constant_array_builder) {
-  LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(
-                               source_position_table_builder()));
-}
+      constant_array_builder_(constant_array_builder) {}
 
 // override
 BytecodeArrayWriter::~BytecodeArrayWriter() {}
@@ -45,17 +42,15 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   int frame_size_used = max_register_count() * kPointerSize;
   int frame_size = std::max(frame_size_for_locals, frame_size_used);
   Handle<FixedArray> constant_pool = constant_array_builder()->ToFixedArray();
-  Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable();
   Handle<BytecodeArray> bytecode_array = isolate_->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder()->ToSourcePositionTable();
   bytecode_array->set_source_position_table(*source_position_table);
-
-  void* line_info = source_position_table_builder()->DetachJITHandlerData();
-  LOG_CODE_EVENT(isolate_, CodeEndLinePosInfoRecordEvent(
-                               AbstractCode::cast(*bytecode_array), line_info));
+  source_position_table_builder()->EndJitLogging(
+      AbstractCode::cast(*bytecode_array));
   return bytecode_array;
 }
 

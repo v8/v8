@@ -47,8 +47,6 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   if (info->will_serialize()) masm.enable_serializer();
 
   FullCodeGenerator cgen(&masm, info);
-  LOG_CODE_EVENT(isolate, CodeStartLinePosInfoRecordEvent(
-                              &cgen.source_position_table_builder_));
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -68,11 +66,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<ByteArray> source_positions =
       cgen.source_position_table_builder_.ToSourcePositionTable();
   code->set_source_position_table(*source_positions);
+  cgen.source_position_table_builder_.EndJitLogging(AbstractCode::cast(*code));
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);
-  void* line_info = cgen.source_position_table_builder_.DetachJITHandlerData();
-  LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(
-                              AbstractCode::cast(*code), line_info));
 
 #ifdef DEBUG
   // Check that no context-specific object has been embedded.

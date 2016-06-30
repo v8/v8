@@ -452,10 +452,6 @@ Handle<Code> LChunk::Codegen() {
   DCHECK(!info()->will_serialize());
   LCodeGen generator(this, &assembler, info());
 
-  LOG_CODE_EVENT(info()->isolate(),
-                 CodeStartLinePosInfoRecordEvent(
-                     generator.source_position_table_builder()));
-
   MarkEmptyBlocks();
 
   if (generator.GenerateCode()) {
@@ -464,12 +460,9 @@ Handle<Code> LChunk::Codegen() {
     Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&assembler, info());
     generator.FinishCode(code);
     CommitDependencies(code);
+    generator.source_position_table_builder()->EndJitLogging(
+        AbstractCode::cast(*code));
     code->set_is_crankshafted(true);
-    void* jit_handler_data =
-        generator.source_position_table_builder()->DetachJITHandlerData();
-    LOG_CODE_EVENT(info()->isolate(),
-                   CodeEndLinePosInfoRecordEvent(AbstractCode::cast(*code),
-                                                 jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
     DCHECK(!(info()->GetMustNotHaveEagerFrame() &&
