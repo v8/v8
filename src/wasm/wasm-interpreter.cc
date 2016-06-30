@@ -498,7 +498,14 @@ static inline double ExecuteF64Sqrt(double a, TrapReason* trap) {
 }
 
 static int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
-  if (a < static_cast<float>(INT32_MAX) && a >= static_cast<float>(INT32_MIN)) {
+  // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
+  // number above INT32_MAX which cannot be represented as int32.
+  float upper_bound = 2147483648.0f;
+  // We use INT32_MIN as a lower bound because (INT32_MIN - 1) is not
+  // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
+  // is.
+  float lower_bound = static_cast<float>(INT32_MIN);
+  if (a < upper_bound && a >= lower_bound) {
     return static_cast<int32_t>(a);
   }
   *trap = kTrapFloatUnrepresentable;
@@ -506,8 +513,13 @@ static int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
 }
 
 static int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
-  if (a < (static_cast<double>(INT32_MAX) + 1.0) &&
-      a > (static_cast<double>(INT32_MIN) - 1.0)) {
+  // The upper bound is (INT32_MAX + 1), which is the lowest double-
+  // representable number above INT32_MAX which cannot be represented as int32.
+  double upper_bound = 2147483648.0;
+  // The lower bound is (INT32_MIN - 1), which is the greatest double-
+  // representable number below INT32_MIN which cannot be represented as int32.
+  double lower_bound = -2147483649.0;
+  if (a < upper_bound && a > lower_bound) {
     return static_cast<int32_t>(a);
   }
   *trap = kTrapFloatUnrepresentable;
@@ -515,7 +527,12 @@ static int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
 }
 
 static uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
-  if (a < (static_cast<float>(UINT32_MAX) + 1.0) && a > -1) {
+  // The upper bound is (UINT32_MAX + 1), which is the lowest
+  // float-representable number above UINT32_MAX which cannot be represented as
+  // uint32.
+  double upper_bound = 4294967296.0f;
+  double lower_bound = -1.0f;
+  if (a < upper_bound && a > lower_bound) {
     return static_cast<uint32_t>(a);
   }
   *trap = kTrapFloatUnrepresentable;
@@ -523,7 +540,12 @@ static uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
 }
 
 static uint32_t ExecuteI32UConvertF64(double a, TrapReason* trap) {
-  if (a < (static_cast<float>(UINT32_MAX) + 1.0) && a > -1) {
+  // The upper bound is (UINT32_MAX + 1), which is the lowest
+  // double-representable number above UINT32_MAX which cannot be represented as
+  // uint32.
+  double upper_bound = 4294967296.0;
+  double lower_bound = -1.0;
+  if (a < upper_bound && a > lower_bound) {
     return static_cast<uint32_t>(a);
   }
   *trap = kTrapFloatUnrepresentable;

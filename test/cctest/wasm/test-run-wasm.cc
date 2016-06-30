@@ -2731,9 +2731,15 @@ WASM_EXEC_TEST(I32SConvertF32) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Float32());
   BUILD(r, WASM_I32_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
+  // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
+  // number above INT32_MAX which cannot be represented as int32.
+  float upper_bound = 2147483648.0f;
+  // We use INT32_MIN as a lower bound because (INT32_MIN - 1) is not
+  // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
+  // is.
+  float lower_bound = static_cast<float>(INT32_MIN);
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(INT32_MAX) &&
-        *i >= static_cast<float>(INT32_MIN)) {
+    if (*i < upper_bound && *i >= lower_bound) {
       CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
@@ -2745,10 +2751,15 @@ WASM_EXEC_TEST(I32SConvertF64) {
   WasmRunner<int32_t> r(execution_mode, MachineType::Float64());
   BUILD(r, WASM_I32_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
+  // The upper bound is (INT32_MAX + 1), which is the lowest double-
+  // representable number above INT32_MAX which cannot be represented as int32.
+  double upper_bound = 2147483648.0;
+  // The lower bound is (INT32_MIN - 1), which is the greatest double-
+  // representable number below INT32_MIN which cannot be represented as int32.
+  double lower_bound = -2147483649.0;
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < (static_cast<double>(INT32_MAX) + 1.0) &&
-        *i > (static_cast<double>(INT32_MIN) - 1.0)) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    if (*i<upper_bound&& * i> lower_bound) {
+      CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
     }
@@ -2758,9 +2769,13 @@ WASM_EXEC_TEST(I32SConvertF64) {
 WASM_EXEC_TEST(I32UConvertF32) {
   WasmRunner<uint32_t> r(execution_mode, MachineType::Float32());
   BUILD(r, WASM_I32_UCONVERT_F32(WASM_GET_LOCAL(0)));
-
+  // The upper bound is (UINT32_MAX + 1), which is the lowest
+  // float-representable number above UINT32_MAX which cannot be represented as
+  // uint32.
+  double upper_bound = 4294967296.0f;
+  double lower_bound = -1.0f;
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < (static_cast<float>(UINT32_MAX) + 1.0) && *i > -1) {
+    if (*i<upper_bound&& * i> lower_bound) {
       CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
@@ -2771,9 +2786,13 @@ WASM_EXEC_TEST(I32UConvertF32) {
 WASM_EXEC_TEST(I32UConvertF64) {
   WasmRunner<uint32_t> r(execution_mode, MachineType::Float64());
   BUILD(r, WASM_I32_UCONVERT_F64(WASM_GET_LOCAL(0)));
-
+  // The upper bound is (UINT32_MAX + 1), which is the lowest
+  // double-representable number above UINT32_MAX which cannot be represented as
+  // uint32.
+  double upper_bound = 4294967296.0;
+  double lower_bound = -1.0;
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < (static_cast<float>(UINT32_MAX) + 1.0) && *i > -1) {
+    if (*i<upper_bound&& * i> lower_bound) {
       CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));

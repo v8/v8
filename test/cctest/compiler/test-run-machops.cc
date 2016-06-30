@@ -4018,9 +4018,15 @@ TEST(RunChangeUint32ToFloat64) {
 TEST(RunTruncateFloat32ToInt32) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Float32());
   m.Return(m.TruncateFloat32ToInt32(m.Parameter(0)));
+  // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
+  // number above INT32_MAX which cannot be represented as int32.
+  float upper_bound = 2147483648.0f;
+  // We use INT32_MIN as a lower bound because (INT32_MIN - 1) is not
+  // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
+  // is.
+  float lower_bound = static_cast<float>(INT32_MIN);
   FOR_FLOAT32_INPUTS(i) {
-    if (*i <= static_cast<float>(std::numeric_limits<int32_t>::max()) &&
-        *i >= static_cast<float>(std::numeric_limits<int32_t>::min())) {
+    if (*i < upper_bound && *i >= lower_bound) {
       CHECK_FLOAT_EQ(static_cast<int32_t>(*i), m.Call(*i));
     }
   }
@@ -4030,23 +4036,20 @@ TEST(RunTruncateFloat32ToInt32) {
 TEST(RunTruncateFloat32ToUint32) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
   m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
-  {
-    FOR_UINT32_INPUTS(i) {
-      volatile float input = static_cast<float>(*i);
-      // This condition on 'input' is required because
-      // static_cast<float>(std::numeric_limits<uint32_t>::max()) results in a
-      // value outside uint32 range.
-      if (input < static_cast<float>(std::numeric_limits<uint32_t>::max())) {
-        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
-      }
+  // The upper bound is (UINT32_MAX + 1), which is the lowest
+  // float-representable number above UINT32_MAX which cannot be represented as
+  // uint32.
+  double upper_bound = 4294967296.0f;
+  double lower_bound = -1.0f;
+  FOR_UINT32_INPUTS(i) {
+    volatile float input = static_cast<float>(*i);
+    if (input < upper_bound) {
+      CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
     }
   }
-  {
-    FOR_FLOAT32_INPUTS(i) {
-      if (*i <= static_cast<float>(std::numeric_limits<uint32_t>::max()) &&
-          *i >= static_cast<float>(std::numeric_limits<uint32_t>::min())) {
-        CHECK_FLOAT_EQ(static_cast<uint32_t>(*i), m.Call(*i));
-      }
+  FOR_FLOAT32_INPUTS(j) {
+    if ((*j < upper_bound) && (*j > lower_bound)) {
+      CHECK_FLOAT_EQ(static_cast<uint32_t>(*j), m.Call(*j));
     }
   }
 }

@@ -1358,12 +1358,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float32ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputFloat32Register(0));
+      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+      // because INT32_MIN allows easier out-of-bounds detection.
+      __ Cmn(i.OutputRegister32(), 1);
+      __ Csinc(i.OutputRegister32(), i.OutputRegister32(), i.OutputRegister32(),
+               vc);
       break;
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
     case kArm64Float32ToUint32:
       __ Fcvtzu(i.OutputRegister32(), i.InputFloat32Register(0));
+      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+      // because 0 allows easier out-of-bounds detection.
+      __ Cmn(i.OutputRegister32(), 1);
+      __ Adc(i.OutputRegister32(), i.OutputRegister32(), Operand(0));
       break;
     case kArm64Float64ToUint32:
       __ Fcvtzu(i.OutputRegister32(), i.InputDoubleRegister(0));

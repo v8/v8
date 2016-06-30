@@ -1134,6 +1134,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vcvt_s32_f32(scratch, i.InputFloatRegister(0));
       __ vmov(i.OutputRegister(), scratch);
+      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+      // because INT32_MIN allows easier out-of-bounds detection.
+      __ cmn(i.OutputRegister(), Operand(1));
+      __ mov(i.OutputRegister(), Operand(INT32_MIN), SBit::LeaveCC, vs);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1141,6 +1145,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vcvt_u32_f32(scratch, i.InputFloatRegister(0));
       __ vmov(i.OutputRegister(), scratch);
+      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+      // because 0 allows easier out-of-bounds detection.
+      __ cmn(i.OutputRegister(), Operand(1));
+      __ adc(i.OutputRegister(), i.OutputRegister(), Operand::Zero());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
