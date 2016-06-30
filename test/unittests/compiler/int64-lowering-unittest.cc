@@ -628,7 +628,7 @@ TEST_F(Int64LoweringTest, I64Clz) {
 }
 
 TEST_F(Int64LoweringTest, I64Ctz) {
-  LowerGraph(graph()->NewNode(machine()->Word64CtzPlaceholder(),
+  LowerGraph(graph()->NewNode(machine()->Word64Ctz().placeholder(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);
   Capture<Node*> branch_capture;
@@ -668,7 +668,7 @@ TEST_F(Int64LoweringTest, Dfs) {
 }
 
 TEST_F(Int64LoweringTest, I64Popcnt) {
-  LowerGraph(graph()->NewNode(machine()->Word64PopcntPlaceholder(),
+  LowerGraph(graph()->NewNode(machine()->Word64Popcnt().placeholder(),
                               Int64Constant(value(0))),
              MachineRepresentation::kWord64);
 

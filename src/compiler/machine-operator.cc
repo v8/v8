@@ -601,10 +601,10 @@ MachineOperatorBuilder::MachineOperatorBuilder(
 PURE_OP_LIST(PURE)
 #undef PURE
 
-#define PURE(Name, properties, value_input_count, control_input_count,     \
-             output_count)                                                 \
-  const OptionalOperator MachineOperatorBuilder::Name() {                  \
-    return OptionalOperator(flags_ & k##Name ? &cache_.k##Name : nullptr); \
+#define PURE(Name, properties, value_input_count, control_input_count, \
+             output_count)                                             \
+  const OptionalOperator MachineOperatorBuilder::Name() {              \
+    return OptionalOperator(flags_ & k##Name, &cache_.k##Name);        \
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
@@ -696,20 +696,6 @@ const Operator* MachineOperatorBuilder::CheckedStore(
   }
   UNREACHABLE();
   return nullptr;
-}
-
-// On 32 bit platforms we need to get a reference to optional operators of
-// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
-// don't support the original 64-bit instruction.
-const Operator* MachineOperatorBuilder::Word64PopcntPlaceholder() {
-  return &cache_.kWord64Popcnt;
-}
-
-// On 32 bit platforms we need to get a reference to optional operators of
-// 64-bit instructions for later Int64Lowering, even though 32 bit platforms
-// don't support the original 64-bit instruction.
-const Operator* MachineOperatorBuilder::Word64CtzPlaceholder() {
-  return &cache_.kWord64Ctz;
 }
 
 const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {

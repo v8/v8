@@ -20,15 +20,21 @@ class Operator;
 // For operators that are not supported on all platforms.
 class OptionalOperator final {
  public:
-  explicit OptionalOperator(const Operator* op) : op_(op) {}
+  OptionalOperator(bool supported, const Operator* op)
+      : supported_(supported), op_(op) {}
 
-  bool IsSupported() const { return op_ != nullptr; }
+  bool IsSupported() const { return supported_; }
+  // Gets the operator only if it is supported.
   const Operator* op() const {
-    DCHECK_NOT_NULL(op_);
+    DCHECK(supported_);
     return op_;
   }
+  // Always gets the operator, even for unsupported operators. This is useful to
+  // use the operator as a placeholder in a graph, for instance.
+  const Operator* placeholder() const { return op_; }
 
  private:
+  bool supported_;
   const Operator* const op_;
 };
 
@@ -209,7 +215,6 @@ class MachineOperatorBuilder final : public ZoneObject {
   const OptionalOperator Word32Ctz();
   const OptionalOperator Word32Popcnt();
   const OptionalOperator Word64Popcnt();
-  const Operator* Word64PopcntPlaceholder();
   const OptionalOperator Word32ReverseBits();
   const OptionalOperator Word64ReverseBits();
   bool Word32ShiftIsSafe() const { return flags_ & kWord32ShiftIsSafe; }
@@ -223,7 +228,6 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Word64Ror();
   const Operator* Word64Clz();
   const OptionalOperator Word64Ctz();
-  const Operator* Word64CtzPlaceholder();
   const Operator* Word64Equal();
 
   const Operator* Int32PairAdd();
