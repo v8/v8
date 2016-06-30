@@ -279,7 +279,7 @@ def BuildOptions():
                     default=(utils.GuessOS() != "linux"),
                     dest="no_network", action="store_true")
   result.add_option("--no-presubmit", "--nopresubmit",
-                    help='Skip presubmit checks',
+                    help='Skip presubmit checks (deprecated)',
                     default=False, dest="no_presubmit", action="store_true")
   result.add_option("--no-snap", "--nosnap",
                     help='Test a build compiled without snapshot.',
@@ -490,11 +490,7 @@ def ProcessOptions(options):
   # Special processing of other options, sorted alphabetically.
 
   if options.buildbot:
-    # Buildbots run presubmit tests as a separate step.
-    options.no_presubmit = True
     options.no_network = True
-  if options.download_data_only:
-    options.no_presubmit = True
   if options.command_prefix:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
@@ -636,10 +632,6 @@ def Main():
     print ' '.join(sys.argv)
 
   exit_code = 0
-  if not options.no_presubmit:
-    print ">>> running presubmit tests"
-    exit_code = subprocess.call(
-        [sys.executable, join(BASE_DIR, "tools", "presubmit.py")])
 
   suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
 

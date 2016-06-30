@@ -122,10 +122,6 @@ endif
 ifeq ($(werror), no)
   GYPFLAGS += -Dwerror=''
 endif
-# presubmit=no
-ifeq ($(presubmit), no)
-  TESTFLAGS += --no-presubmit
-endif
 # strictaliasing=off (workaround for GCC-4.5)
 ifeq ($(strictaliasing), off)
   GYPFLAGS += -Dv8_no_strict_aliasing=1
@@ -392,7 +388,7 @@ $(addsuffix .check, $(ANDROID_ARCHES)): \
 $(addsuffix .check, $(NACL_BUILDS)): $$(basename $$@)
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
-	     --timeout=600 --nopresubmit --noi18n \
+	     --timeout=600 --noi18n \
 	     --command-prefix="tools/nacl-run.py"
 
 $(addsuffix .check, $(NACL_ARCHES)): \
