@@ -85,11 +85,6 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4778
-  'intl402/Collator/prototype/compare/name': [FAIL],
-  'intl402/DateTimeFormat/prototype/format/name': [FAIL],
-  'intl402/NumberFormat/prototype/format/name': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],

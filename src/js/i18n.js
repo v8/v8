@@ -87,40 +87,42 @@ function InstallConstructor(object, name, func) {
 function AddBoundMethod(obj, methodName, implementation, length, type) {
   %CheckIsBootstrapping();
   var internalName = %CreatePrivateSymbol(methodName);
-  var getter = function() {
+  // Making getter an anonymous function will cause
+  // %DefineGetterPropertyUnchecked to properly set the "name"
+  // property on each JSFunction instance created here, rather
+  // than (as utils.InstallGetter would) on the SharedFunctionInfo
+  // associated with all functions returned from AddBoundMethod.
+  var getter = ANONYMOUS_FUNCTION(function() {
     if (!%IsInitializedIntlObjectOfType(this, type)) {
       throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
     }
     if (IS_UNDEFINED(this[internalName])) {
       var boundMethod;
       if (IS_UNDEFINED(length) || length === 2) {
-        boundMethod = (x, y) => implementation(this, x, y);
+        boundMethod = ANONYMOUS_FUNCTION((x, y) => implementation(this, x, y));
       } else if (length === 1) {
-        boundMethod = x => implementation(this, x);
+        boundMethod = ANONYMOUS_FUNCTION(x => implementation(this, x));
       } else {
-        boundMethod = (...args) => {
-          // DateTimeFormat.format needs to be 0 arg method, but can stil
-          // receive optional dateValue param. If one was provided, pass it
+        boundMethod = ANONYMOUS_FUNCTION((...args) => {
+          // DateTimeFormat.format needs to be 0 arg method, but can still
+          // receive an optional dateValue param. If one was provided, pass it
           // along.
           if (args.length > 0) {
             return implementation(this, args[0]);
           } else {
             return implementation(this);
           }
-        }
+        });
       }
-      // TODO(littledan): Once function name reform is shipped, remove the
-      // following line and wrap the boundMethod definition in an anonymous
-      // function macro.
-      %FunctionSetName(boundMethod, '__bound' + methodName + '__');
-      %FunctionRemovePrototype(boundMethod);
       %SetNativeFlag(boundMethod);
       this[internalName] = boundMethod;
     }
     return this[internalName];
-  };
+  });
 
-  InstallGetter(obj.prototype, methodName, getter, DONT_ENUM);
+  %FunctionRemovePrototype(getter);
+  %DefineGetterPropertyUnchecked(obj.prototype, methodName, getter, DONT_ENUM);
+  %SetNativeFlag(getter);
 }
 
 // -------------------------------------------------------------------
