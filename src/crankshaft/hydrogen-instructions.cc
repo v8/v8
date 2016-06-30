@@ -2194,7 +2194,11 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     int32_value_ = DoubleToInt32(n);
     bit_field_ = HasSmiValueField::update(
         bit_field_, has_int32_value && Smi::IsValid(int32_value_));
-    double_value_ = n;
+    if (std::isnan(n)) {
+      double_value_ = std::numeric_limits<double>::quiet_NaN();
+    } else {
+      double_value_ = n;
+    }
     bit_field_ = HasDoubleValueField::update(bit_field_, true);
   }
 
@@ -2247,7 +2251,6 @@ HConstant::HConstant(int32_t integer_value, Representation r,
   Initialize(r);
 }
 
-
 HConstant::HConstant(double double_value, Representation r,
                      bool is_not_in_new_space, Unique<Object> object)
     : object_(object),
@@ -2261,8 +2264,7 @@ HConstant::HConstant(double double_value, Representation r,
                                            !std::isnan(double_value)) |
                  IsUndetectableField::encode(false) |
                  InstanceTypeField::encode(kUnknownInstanceType)),
-      int32_value_(DoubleToInt32(double_value)),
-      double_value_(double_value) {
+      int32_value_(DoubleToInt32(double_value)) {
   bit_field_ = HasSmiValueField::update(
       bit_field_, HasInteger32Value() && Smi::IsValid(int32_value_));
   // It's possible to create a constant with a value in Smi-range but stored
@@ -2270,6 +2272,11 @@ HConstant::HConstant(double double_value, Representation r,
   bool could_be_heapobject = r.IsTagged() && !object.handle().is_null();
   bool is_smi = HasSmiValue() && !could_be_heapobject;
   set_type(is_smi ? HType::Smi() : HType::TaggedNumber());
+  if (std::isnan(double_value)) {
+    double_value_ = std::numeric_limits<double>::quiet_NaN();
+  } else {
+    double_value_ = double_value;
+  }
   Initialize(r);
 }
 
@@ -3288,13 +3295,11 @@ bool HStoreKeyed::NeedsCanonicalization() {
       Representation from = HChange::cast(value())->from();
       return from.IsTagged() || from.IsHeapObject();
     }
-    case kLoadNamedField:
-    case kPhi: {
-      // Better safe than sorry...
-      return true;
-    }
-    default:
+    case kConstant:
+      // Double constants are canonicalized upon construction.
       return false;
+    default:
+      return !value()->IsBinaryOperation();
   }
 }
 
