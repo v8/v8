@@ -1916,6 +1916,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
+        if (!property->emit_store()) continue;
         Node* attr = jsgraph()->Constant(NONE);
         Node* set_function_name =
             jsgraph()->Constant(property->NeedsSetFunctionName());
@@ -4037,14 +4038,13 @@ bool AstGraphBuilder::CheckOsrEntry(IterationStatement* stmt) {
 void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
                                         OutputFrameStateCombine combine) {
   if (OperatorProperties::GetFrameStateInputCount(node->op()) > 0) {
+    DCHECK(ast_id.IsNone() || info()->shared_info()->VerifyBailoutId(ast_id));
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node, 0)->opcode());
-    bool node_has_exception = NodeProperties::IsExceptionalCall(node);
-    NodeProperties::ReplaceFrameStateInput(
-        node, 0,
-        environment()->Checkpoint(ast_id, combine, node_has_exception));
+    bool has_exception = NodeProperties::IsExceptionalCall(node);
+    Node* state = environment()->Checkpoint(ast_id, combine, has_exception);
+    NodeProperties::ReplaceFrameStateInput(node, 0, state);
   }
 }
 
@@ -4059,8 +4059,8 @@ void AstGraphBuilder::PrepareEagerCheckpoint(BailoutId ast_id) {
     Node* node = NewNode(common()->Checkpoint());
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node, 0)->opcode());
-    NodeProperties::ReplaceFrameStateInput(node, 0,
-                                           environment()->Checkpoint(ast_id));
+    Node* state = environment()->Checkpoint(ast_id);
+    NodeProperties::ReplaceFrameStateInput(node, 0, state);
   }
 }
 
