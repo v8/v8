@@ -27,7 +27,7 @@
       # Linux64.
       'V8 Linux64 - builder': 'gn_release_x64',
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
-      'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
+      'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
       # Windows.
       'V8 Win32 - builder': 'gyp_release_x86_minimal_symbols',
@@ -186,8 +186,6 @@
       'gn', 'release_trybot', 'x64', 'swarming'],
 
     # GN debug configs for x64.
-    'gn_debug_x64_custom': [
-      'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_trybot': [
       'gn', 'debug_trybot', 'x64', 'swarming'],
     'gn_debug_x64_valgrind': [
@@ -218,6 +216,8 @@
       'gyp', 'debug_bot', 'x64', 'swarming'],
     'gyp_debug_x64_asan_edge': [
       'gyp', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
+    'gyp_debug_x64_custom': [
+      'gyp', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gyp_debug_x64_minimal_symbols': [
       'gyp', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
 
@@ -589,10 +589,8 @@
     },
 
     'v8_snapshot_custom': {
-      # GN path is relative to project root.
-      'gn_args': 'v8_embed_script=test/mjsunit/mjsunit.js',
-
-      # Gyp path is relative to src/v8.gyp.
+      # TODO(machenbach): Add this to gn.
+      # Path needs to be relative to src/v8.gyp.
       'gyp_defines': 'embed_script=../test/mjsunit/mjsunit.js',
     },
 
