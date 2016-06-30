@@ -25,19 +25,6 @@ Reduction LoadElimination::Reduce(Node* node) {
   return NoChange();
 }
 
-namespace {
-
-// If {node} is a CheckTaggedPointer, follow its input until {node} is no
-// longer a CheckTaggedPointer.
-Node* NormalizeCheckTaggedPointer(Node* node) {
-  while (node->opcode() == IrOpcode::kCheckTaggedPointer) {
-    node = NodeProperties::GetValueInput(node, 0);
-  }
-  return node;
-}
-
-}  // namespace
-
 Reduction LoadElimination::ReduceLoadField(Node* node) {
   DCHECK_EQ(IrOpcode::kLoadField, node->opcode());
   FieldAccess const access = FieldAccessOf(node->op());
@@ -57,9 +44,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
       }
       case IrOpcode::kStoreField: {
         if (access == FieldAccessOf(effect->op())) {
-          Node* value_input = NormalizeCheckTaggedPointer(
-              NodeProperties::GetValueInput(effect, 0));
-          if (object == value_input) {
+          if (object == NodeProperties::GetValueInput(effect, 0)) {
             Node* const value = NodeProperties::GetValueInput(effect, 1);
             Type* value_type = NodeProperties::GetType(value);
             Type* node_type = NodeProperties::GetType(node);
@@ -88,8 +73,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         // These can never interfere with field loads.
         break;
       }
-      case IrOpcode::kFinishRegion:
-      case IrOpcode::kCheckTaggedPointer: {
+      case IrOpcode::kFinishRegion: {
         // "Look through" FinishRegion nodes to make LoadElimination capable
         // of looking into atomic regions.
         if (object == effect) object = NodeProperties::GetValueInput(effect, 0);
