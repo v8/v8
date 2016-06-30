@@ -322,7 +322,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5112
   'language/statements/try/scope-catch-block-lex-open': [FAIL],
-  'language/statements/try/scope-catch-param-lex-open': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   'intl402/Intl/getCanonicalLocales/*': [FAIL],
