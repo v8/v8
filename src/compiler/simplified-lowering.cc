@@ -2102,20 +2102,9 @@ class RepresentationSelector {
       DCHECK_EQ(0, node->op()->ControlInputCount());
     }
 
-    if (replacement->id() < count_ &&
-        GetUpperBound(node)->Is(GetUpperBound(replacement)) &&
-        TypeOf(node)->Is(TypeOf(replacement))) {
-      // Replace with a previously existing node eagerly only if the type is the
-      // same.
-      node->ReplaceUses(replacement);
-    } else {
-      // Otherwise, we are replacing a node with a representation change.
-      // Such a substitution must be done after all lowering is done, because
-      // changing the type could confuse the representation change
-      // insertion for uses of the node.
-      replacements_.push_back(node);
-      replacements_.push_back(replacement);
-    }
+    replacements_.push_back(node);
+    replacements_.push_back(replacement);
+
     node->NullAllInputs();  // Node is now dead.
   }
 
