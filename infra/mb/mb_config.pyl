@@ -544,8 +544,7 @@
     },
 
     'valgrind': {
-      # TODO(machenbach): Add this to gn.
-      'gn_args': 'has_valgrind=true',
+      'gn_args': 'v8_has_valgrind=true',
       'gyp_defines': 'has_valgrind=1',
     },
 
