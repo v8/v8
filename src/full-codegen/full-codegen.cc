@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
+#include "src/globals.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
@@ -600,12 +601,12 @@ void FullCodeGenerator::EmitHasProperty() {
 }
 
 void FullCodeGenerator::RecordStatementPosition(int pos) {
-  DCHECK_NE(RelocInfo::kNoPosition, pos);
+  DCHECK_NE(kNoSourcePosition, pos);
   source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, true);
 }
 
 void FullCodeGenerator::RecordPosition(int pos) {
-  DCHECK_NE(RelocInfo::kNoPosition, pos);
+  DCHECK_NE(kNoSourcePosition, pos);
   source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
 }
 
@@ -629,7 +630,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 
 void FullCodeGenerator::SetStatementPosition(
     Statement* stmt, FullCodeGenerator::InsertBreak insert_break) {
-  if (stmt->position() == RelocInfo::kNoPosition) return;
+  if (stmt->position() == kNoSourcePosition) return;
   RecordStatementPosition(stmt->position());
   if (insert_break == INSERT_BREAK && info_->is_debug() &&
       !stmt->IsDebuggerStatement()) {
@@ -638,13 +639,13 @@ void FullCodeGenerator::SetStatementPosition(
 }
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (expr->position() == kNoSourcePosition) return;
   RecordPosition(expr->position());
 }
 
 
 void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (expr->position() == kNoSourcePosition) return;
   RecordStatementPosition(expr->position());
   if (info_->is_debug()) {
     DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
@@ -653,7 +654,7 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
 
 void FullCodeGenerator::SetCallPosition(Expression* expr,
                                         TailCallMode tail_call_mode) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (expr->position() == kNoSourcePosition) return;
   RecordPosition(expr->position());
   if (info_->is_debug()) {
     RelocInfo::Mode mode = (tail_call_mode == TailCallMode::kAllow)
@@ -1964,8 +1965,8 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
   }
 
   // Check that we always have valid source position.
-  DCHECK(var->initializer_position() != RelocInfo::kNoPosition);
-  DCHECK(proxy->position() != RelocInfo::kNoPosition);
+  DCHECK(var->initializer_position() != kNoSourcePosition);
+  DCHECK(proxy->position() != kNoSourcePosition);
 
   return var->scope()->is_nonlinear() ||
          var->initializer_position() >= proxy->position();

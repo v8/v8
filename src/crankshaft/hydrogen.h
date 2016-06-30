@@ -14,6 +14,7 @@
 #include "src/compiler.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
+#include "src/globals.h"
 #include "src/parsing/parser.h"
 #include "src/zone.h"
 
@@ -1923,7 +1924,7 @@ class HGraphBuilder {
 
  protected:
   void SetSourcePosition(int position) {
-    if (position != RelocInfo::kNoPosition) {
+    if (position != kNoSourcePosition) {
       position_.set_position(position - start_position_);
     }
     // Otherwise position remains unknown.
@@ -1940,7 +1941,7 @@ class HGraphBuilder {
   // the SourcePosition assuming that this position corresponds to the
   // same function as current position_.
   SourcePosition ScriptPositionToSourcePosition(int position) {
-    if (position == RelocInfo::kNoPosition) {
+    if (position == kNoSourcePosition) {
       return SourcePosition::Unknown();
     }
     SourcePosition pos = position_;

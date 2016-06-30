@@ -505,7 +505,7 @@ class ParserTraits {
   const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
   Expression* ThisExpression(Scope* scope, AstNodeFactory* factory,
-                             int pos = RelocInfo::kNoPosition);
+                             int pos = kNoSourcePosition);
   Expression* SuperPropertyReference(Scope* scope, AstNodeFactory* factory,
                                      int pos);
   Expression* SuperCallReference(Scope* scope, AstNodeFactory* factory,
@@ -971,7 +971,7 @@ class Parser : public ParserBase<ParserTraits> {
                                   int each_keyword_pos);
   void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                 Expression* iterable, Statement* body,
-                                int next_result_pos = RelocInfo::kNoPosition);
+                                int next_result_pos = kNoSourcePosition);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,

@@ -352,17 +352,6 @@ enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
 
 class RelocInfo {
  public:
-  // The constant kNoPosition is used with the collecting of source positions
-  // in the relocation information. Two types of source positions are collected
-  // "position" (RelocMode position) and "statement position" (RelocMode
-  // statement_position). The "position" is collected at places in the source
-  // code which are of interest when making stack traces to pin-point the source
-  // location of a stack frame as close as possible. The "statement position" is
-  // collected at the beginning at each statement, and is used to indicate
-  // possible break locations. kNoPosition is used to indicate an
-  // invalid/uninitialized position value.
-  static const int kNoPosition = -1;
-
   // This string is used to add padding comments to the reloc info in cases
   // where we are not sure to have enough space for patching in during
   // lazy deoptimization. This is the case if we have indirect calls for which

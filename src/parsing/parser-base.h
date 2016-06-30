@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/base/hashmap.h"
+#include "src/globals.h"
 #include "src/messages.h"
 #include "src/parsing/expression-classifier.h"
 #include "src/parsing/func-name-inferrer.h"
@@ -1978,7 +1979,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         classifier->Accumulate(&rhs_classifier,
                                ExpressionClassifier::ExpressionProductions);
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
-                                         RelocInfo::kNoPosition);
+                                         kNoSourcePosition);
         classifier->RecordCoverInitializedNameError(
             Scanner::Location(next_beg_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidCoverInitializedName);
@@ -2032,8 +2033,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-        RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        kNoSourcePosition, FunctionLiteral::kAccessorOrMethod, language_mode(),
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -2071,8 +2072,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck,
         is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
-        RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
-        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        kNoSourcePosition, FunctionLiteral::kAccessorOrMethod, language_mode(),
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
     // Runtime_DefineAccessorPropertyUnchecked and since we can determine this
@@ -3365,7 +3366,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
         }
       } else {
         body = this->ParseEagerFunctionBody(
-            this->EmptyIdentifier(), RelocInfo::kNoPosition, formal_parameters,
+            this->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
             arrow_kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();

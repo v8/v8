@@ -194,8 +194,8 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   rest_parameter_ = NULL;
   rest_index_ = -1;
   scope_info_ = scope_info;
-  start_position_ = RelocInfo::kNoPosition;
-  end_position_ = RelocInfo::kNoPosition;
+  start_position_ = kNoSourcePosition;
+  end_position_ = kNoSourcePosition;
   is_hidden_ = false;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
@@ -455,8 +455,8 @@ Variable* Scope::LookupFunctionVar(const AstRawString* name,
     Variable* var = new (zone())
         Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
     VariableProxy* proxy = factory->NewVariableProxy(var);
-    VariableDeclaration* declaration = factory->NewVariableDeclaration(
-        proxy, mode, this, RelocInfo::kNoPosition);
+    VariableDeclaration* declaration =
+        factory->NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
     DeclareFunctionVar(declaration);
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
@@ -1016,8 +1016,8 @@ void Scope::CheckScopePositions() {
   // A scope is allowed to have invalid positions if it is hidden and has no
   // inner scopes
   if (!is_hidden() && inner_scopes_.length() == 0) {
-    CHECK_NE(RelocInfo::kNoPosition, start_position());
-    CHECK_NE(RelocInfo::kNoPosition, end_position());
+    CHECK_NE(kNoSourcePosition, start_position());
+    CHECK_NE(kNoSourcePosition, end_position());
   }
   for (Scope* scope : inner_scopes_) scope->CheckScopePositions();
 }

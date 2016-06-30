@@ -37,6 +37,8 @@
 #error Unsupported target architecture.
 #endif
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -137,7 +139,7 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 }
 
 void LCodeGenBase::RecordAndWritePosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
+  if (pos == kNoSourcePosition) return;
   source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
 }
 

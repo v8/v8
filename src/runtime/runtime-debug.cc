@@ -10,6 +10,7 @@
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -563,7 +564,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsLocalCountIndex, Smi::FromInt(0));
 
     // Add the source position.
-    if (position != RelocInfo::kNoPosition) {
+    if (position != kNoSourcePosition) {
       details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
     }
 
@@ -703,7 +704,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   details->set(kFrameDetailsLocalCountIndex, Smi::FromInt(local_count));
 
   // Add the source position.
-  if (position != RelocInfo::kNoPosition) {
+  if (position != kNoSourcePosition) {
     details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
   } else {
     details->set(kFrameDetailsSourcePositionIndex, heap->undefined_value());

@@ -5,6 +5,7 @@
 #include "src/interpreter/bytecode-array-builder.h"
 
 #include "src/compiler.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-dead-code-optimizer.h"
 #include "src/interpreter/bytecode-label.h"
@@ -52,7 +53,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
 
   return_position_ =
       literal ? std::max(literal->start_position(), literal->end_position() - 1)
-              : RelocInfo::kNoPosition;
+              : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::first_context_register() const {
@@ -443,7 +444,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
-  if (position != RelocInfo::kNoPosition) {
+  if (position != kNoSourcePosition) {
     // We need to attach a non-breakable source position to a stack
     // check, so we simply add it as expression position. There can be
     // a prior statement position from constructs like:
@@ -631,17 +632,17 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 }
 
 void BytecodeArrayBuilder::SetReturnPosition() {
-  if (return_position_ == RelocInfo::kNoPosition) return;
+  if (return_position_ == kNoSourcePosition) return;
   latest_source_info_.MakeStatementPosition(return_position_);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
-  if (stmt->position() == RelocInfo::kNoPosition) return;
+  if (stmt->position() == kNoSourcePosition) return;
   latest_source_info_.MakeStatementPosition(stmt->position());
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (expr->position() == kNoSourcePosition) return;
   if (!latest_source_info_.is_statement()) {
     // Ensure the current expression position is overwritten with the
     // latest value.
@@ -650,7 +651,7 @@ void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
 }
 
 void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
+  if (expr->position() == kNoSourcePosition) return;
   latest_source_info_.MakeStatementPosition(expr->position());
 }
 

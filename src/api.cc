@@ -38,6 +38,7 @@
 #include "src/execution.h"
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
+#include "src/globals.h"
 #include "src/icu_util.h"
 #include "src/isolate-inl.h"
 #include "src/json-parser.h"
@@ -2112,7 +2113,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
 
   i::Handle<i::Object> name_obj;
   int eval_scope_position = 0;
-  int eval_position = i::RelocInfo::kNoPosition;
+  int eval_position = i::kNoSourcePosition;
   int line_offset = 0;
   int column_offset = 0;
   if (!source->resource_name.IsEmpty()) {

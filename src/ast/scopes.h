@@ -7,6 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
+#include "src/globals.h"
 #include "src/pending-compilation-error-handler.h"
 #include "src/zone.h"
 
@@ -174,8 +175,8 @@ class Scope: public ZoneObject {
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
                                Variable::Kind kind = Variable::NORMAL,
-                               int start_position = RelocInfo::kNoPosition,
-                               int end_position = RelocInfo::kNoPosition) {
+                               int start_position = kNoSourcePosition,
+                               int end_position = kNoSourcePosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().

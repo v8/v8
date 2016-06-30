@@ -16,6 +16,7 @@
 #include "src/crankshaft/hydrogen-types.h"
 #include "src/crankshaft/unique.h"
 #include "src/deoptimizer.h"
+#include "src/globals.h"
 #include "src/small-pointer-list.h"
 #include "src/utils.h"
 #include "src/zone.h"
@@ -1113,7 +1114,7 @@ class HInstruction : public HValue {
       : HValue(type),
         next_(NULL),
         previous_(NULL),
-        position_(RelocInfo::kNoPosition) {
+        position_(kNoSourcePosition) {
     SetDependsOnFlag(kOsrEntries);
   }
 

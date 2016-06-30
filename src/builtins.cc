@@ -16,6 +16,7 @@
 #include "src/elements.h"
 #include "src/frames-inl.h"
 #include "src/gdb-jit.h"
+#include "src/globals.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
@@ -2183,7 +2184,7 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
 
   // Compile source string in the native context.
   int eval_scope_position = 0;
-  int eval_position = RelocInfo::kNoPosition;
+  int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
   return Compiler::GetFunctionFromEval(source, outer_info, native_context,
                                        SLOPPY, restriction, eval_scope_position,

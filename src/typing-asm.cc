@@ -19,14 +19,13 @@ namespace internal {
 #define FAIL(node, msg)                                        \
   do {                                                         \
     valid_ = false;                                            \
-    int line = node->position() == RelocInfo::kNoPosition      \
+    int line = node->position() == kNoSourcePosition           \
                    ? -1                                        \
                    : script_->GetLineNumber(node->position()); \
     base::OS::SNPrintF(error_message_, sizeof(error_message_), \
                        "asm: line %d: %s\n", line + 1, msg);   \
     return;                                                    \
   } while (false)
-
 
 #define RECURSE(call)               \
   do {                              \

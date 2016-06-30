@@ -35,6 +35,7 @@
 #include "src/crankshaft/typing.h"
 #include "src/field-type.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/globals.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 // GetRootConstructor
@@ -78,7 +79,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 #define DEF_VISIT(type)                                      \
   void Visit##type(type* node) override {                    \
     SourcePosition old_position = SourcePosition::Unknown(); \
-    if (node->position() != RelocInfo::kNoPosition) {        \
+    if (node->position() != kNoSourcePosition) {             \
       old_position = source_position();                      \
       SetSourcePosition(node->position());                   \
     }                                                        \
@@ -93,7 +94,7 @@ class HOptimizedGraphBuilderWithPositions : public HOptimizedGraphBuilder {
 #define DEF_VISIT(type)                                      \
   void Visit##type(type* node) override {                    \
     SourcePosition old_position = SourcePosition::Unknown(); \
-    if (node->position() != RelocInfo::kNoPosition) {        \
+    if (node->position() != kNoSourcePosition) {             \
       old_position = source_position();                      \
       SetSourcePosition(node->position());                   \
     }                                                        \

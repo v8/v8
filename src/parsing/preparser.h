@@ -292,7 +292,7 @@ class PreParserExpression {
   void set_index(int index) {}  // For YieldExpressions
   void set_should_eager_compile() {}
 
-  int position() const { return RelocInfo::kNoPosition; }
+  int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
 
  private:

@@ -1,0 +1,48 @@
+diff --git a/test/cctest/test-api.cc b/test/cctest/test-api.cc
+index 5624e3f..81936c1 100644
+--- a/test/cctest/test-api.cc
++++ b/test/cctest/test-api.cc
+@@ -17049,6 +17049,43 @@ TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+ }
+ 
+ 
++static void StackTraceFunctionNameListenerForEval(v8::Local<v8::Message> message,
++                                           v8::Local<Value>) {
++  v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
++  for (int i = 0; i < stack_trace->GetFrameCount(); i++) {
++    v8::Local<v8::StackFrame> frame = stack_trace->GetFrame(i);
++    v8::String::Utf8Value func_name(frame->GetFunctionName());
++    v8::String::Utf8Value script_name(frame->GetScriptName());
++    printf("%s:%s, %d,%d\n", *script_name, *func_name, frame->GetLineNumber(), frame->GetColumn());
++  }
++
++
++  CHECK_EQ(5, stack_trace->GetFrameCount());
++  checkStackFrame("origin", "foo:0", 4, 7, false, false,
++                  stack_trace->GetFrame(0));
++  checkStackFrame("origin", "foo:1", 5, 27, false, false,
++                  stack_trace->GetFrame(1));
++  checkStackFrame("origin", "foo", 5, 27, false, false,
++                  stack_trace->GetFrame(2));
++  checkStackFrame("origin", "foo", 5, 27, false, false,
++                  stack_trace->GetFrame(3));
++  checkStackFrame("origin", "", 1, 14, false, false, stack_trace->GetFrame(4));
++}
++
++
++TEST(CaptureStackTraceForUncaughtExceptionInEval) {
++  LocalContext env;
++  v8::Isolate* isolate = env->GetIsolate();
++  v8::HandleScope scope(isolate);
++  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 1024,
++                                                     v8::StackTrace::kDetailed);
++  isolate->AddMessageListener(StackTraceFunctionNameListenerForEval);
++
++  CompileRun("eval('throw new Error()');");
++  isolate->SetCaptureStackTraceForUncaughtExceptions(false);
++}
++
++
+ static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
+                                            v8::Local<Value>) {
+   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();

@@ -34,6 +34,7 @@
 #include "src/field-type.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/globals.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -12706,7 +12707,7 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
 void Script::SetEvalOrigin(Handle<Script> script,
                            Handle<SharedFunctionInfo> outer_info,
                            int eval_position) {
-  if (eval_position == RelocInfo::kNoPosition) {
+  if (eval_position == kNoSourcePosition) {
     // If the position is missing, attempt to get the code offset from the
     // current activation.  Do not translate the code offset into source
     // position, but store it as negative value for lazy translation.
@@ -17077,7 +17078,7 @@ Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
                                              LanguageMode language_mode) {
   Isolate* isolate = GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  StringSharedKey key(src, shared, language_mode, RelocInfo::kNoPosition);
+  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   int index = EntryToIndex(entry);
@@ -17117,7 +17118,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
     Handle<Context> context, LanguageMode language_mode, Handle<Object> value) {
   Isolate* isolate = cache->GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
-  StringSharedKey key(src, shared, language_mode, RelocInfo::kNoPosition);
+  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(cache, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());

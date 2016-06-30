@@ -6,10 +6,11 @@
 
 #include "src/accessors.h"
 #include "src/contexts.h"
-#include "src/debug/debug.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
+#include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/globals.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -98,9 +99,9 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(
-          source, outer_info, context, SLOPPY, NO_PARSE_RESTRICTION,
-          RelocInfo::kNoPosition, RelocInfo::kNoPosition),
+      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
+                                    NO_PARSE_RESTRICTION, kNoSourcePosition,
+                                    kNoSourcePosition),
       Object);
 
   Handle<Object> result;

@@ -16,6 +16,7 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/globals.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
@@ -466,7 +467,7 @@ void Debug::ThreadInit() {
   thread_local_.break_id_ = 0;
   thread_local_.break_frame_id_ = StackFrame::NO_ID;
   thread_local_.last_step_action_ = StepNone;
-  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
+  thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
   thread_local_.return_value_ = Handle<Object>();
@@ -1070,7 +1071,7 @@ void Debug::PrepareStep(StepAction step_action) {
         thread_local_.target_fp_ = frames_it.frame()->UnpaddedFP();
       }
       // Clear last position info. For stepping out it does not matter.
-      thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
+      thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_fp_ = 0;
       break;
     case StepNext:
@@ -1131,7 +1132,7 @@ void Debug::ClearStepping() {
   ClearOneShot();
 
   thread_local_.last_step_action_ = StepNone;
-  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
+  thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
 }
@@ -1393,13 +1394,13 @@ class SharedFunctionInfoFinder {
   explicit SharedFunctionInfoFinder(int target_position)
       : current_candidate_(NULL),
         current_candidate_closure_(NULL),
-        current_start_position_(RelocInfo::kNoPosition),
+        current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
   void NewCandidate(SharedFunctionInfo* shared, JSFunction* closure = NULL) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
-    if (start_position == RelocInfo::kNoPosition) {
+    if (start_position == kNoSourcePosition) {
       start_position = shared->start_position();
     }
 

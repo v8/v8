@@ -5,7 +5,6 @@
 #ifndef V8_AST_AST_H_
 #define V8_AST_AST_H_
 
-#include "src/assembler.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
@@ -13,6 +12,7 @@
 #include "src/base/flags.h"
 #include "src/base/smart-pointers.h"
 #include "src/factory.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/list.h"
 #include "src/parsing/token.h"
@@ -1263,7 +1263,7 @@ class SloppyBlockFunctionStatement final : public Statement {
 
  private:
   SloppyBlockFunctionStatement(Zone* zone, Statement* statement, Scope* scope)
-      : Statement(zone, RelocInfo::kNoPosition),
+      : Statement(zone, kNoSourcePosition),
         statement_(statement),
         scope_(scope) {}
 
@@ -2704,7 +2704,7 @@ class FunctionLiteral final : public Expression {
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
-        function_token_position_(RelocInfo::kNoPosition),
+        function_token_position_(kNoSourcePosition),
         yield_count_(0) {
     bitfield_ =
         FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
@@ -3292,16 +3292,16 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
-                                  int start_position = RelocInfo::kNoPosition,
-                                  int end_position = RelocInfo::kNoPosition) {
+                                  int start_position = kNoSourcePosition,
+                                  int end_position = kNoSourcePosition) {
     return new (parser_zone_)
         VariableProxy(parser_zone_, var, start_position, end_position);
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
                                   Variable::Kind variable_kind,
-                                  int start_position = RelocInfo::kNoPosition,
-                                  int end_position = RelocInfo::kNoPosition) {
+                                  int start_position = kNoSourcePosition,
+                                  int end_position = kNoSourcePosition) {
     DCHECK_NOT_NULL(name);
     return new (parser_zone_) VariableProxy(parser_zone_, name, variable_kind,
                                             start_position, end_position);
