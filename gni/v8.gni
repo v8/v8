@@ -6,6 +6,10 @@ import("//build/config/v8_target_cpu.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 
 declare_args() {
+  # Indicate if valgrind was fetched as a custom deps to make it available on
+  # swarming.
+  v8_has_valgrind = false
+
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 

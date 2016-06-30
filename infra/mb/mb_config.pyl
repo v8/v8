@@ -26,9 +26,9 @@
       'V8 Linux - noi18n - debug': 'gyp_debug_x86_no_i18n',
       # Linux64.
       'V8 Linux64 - builder': 'gn_release_x64',
-      'V8 Linux64 - debug builder': 'gyp_debug_x64_valgrind',
+      'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gyp_debug_x64_custom',
-      'V8 Linux64 - internal snapshot': 'gyp_release_x64_internal',
+      'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
       # Windows.
       'V8 Win32 - builder': 'gyp_release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'gyp_debug_x86_minimal_symbols',
@@ -141,7 +141,7 @@
       'v8_linux_gcc_rel': 'gyp_release_x86_gcc_minimal_symbols',
       'v8_linux64_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
-      'v8_linux64_avx2_dbg': 'gyp_debug_x64_trybot',
+      'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
       'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gyp_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
@@ -180,8 +180,16 @@
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
+    'gn_release_x64_internal': [
+      'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_trybot': [
       'gn', 'release_trybot', 'x64', 'swarming'],
+
+    # GN debug configs for x64.
+    'gn_debug_x64_trybot': [
+      'gn', 'debug_trybot', 'x64', 'swarming'],
+    'gn_debug_x64_valgrind': [
+      'gn', 'debug_bot', 'x64', 'swarming', 'valgrind'],
 
     # Gyp debug configs for arm.
     'gyp_debug_arm': [
@@ -212,10 +220,6 @@
       'gyp', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gyp_debug_x64_minimal_symbols': [
       'gyp', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
-    'gyp_debug_x64_trybot': [
-      'gyp', 'debug_trybot', 'x64', 'swarming'],
-    'gyp_debug_x64_valgrind': [
-      'gyp', 'debug_bot', 'x64', 'swarming', 'valgrind'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
@@ -302,8 +306,6 @@
       'gyp', 'release_bot', 'x64', 'tsan', 'swarming'],
     'gyp_release_x64_tsan_minimal_symbols': [
       'gyp', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
-    'gyp_release_x64_internal': [
-      'gyp', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gyp_release_x64_trybot': [
       'gyp', 'release_trybot', 'x64', 'swarming'],
 
@@ -542,8 +544,7 @@
     },
 
     'valgrind': {
-      # TODO(machenbach): Add this to gn.
-      'gn_args': 'has_valgrind=true',
+      'gn_args': 'v8_has_valgrind=true',
       'gyp_defines': 'has_valgrind=1',
     },
 
