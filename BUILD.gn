@@ -626,6 +626,26 @@ action("run_mksnapshot") {
   }
 }
 
+action("v8_dump_build_config") {
+  script = "tools/testrunner/utils/dump_build_config.py"
+  outputs = [ "$root_out_dir/v8_build_config.json" ]
+  args = [
+    rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
+    "dcheck_always_on=$dcheck_always_on",
+    "is_asan=$is_asan",
+    "is_cfi=$is_cfi",
+    "is_component_build=$is_component_build",
+    "is_debug=$is_debug",
+    "is_msan=$is_msan",
+    "is_tsan=$is_tsan",
+    "target_cpu=\"$target_cpu\"",
+    "v8_enable_i18n_support=$v8_enable_i18n_support",
+    "v8_target_cpu=\"$v8_target_cpu\"",
+    "v8_use_snapshot=$v8_use_snapshot",
+  ]  
+}
+
+
 ###############################################################################
 # Source Sets (aka static libraries)
 #
@@ -2109,6 +2129,8 @@ if (is_component_build) {
       "src/v8dll-main.cc",
     ]
 
+    deps = [ ":v8_dump_build_config" ]
+
     public_deps = [
       ":v8_base",
       ":v8_maybe_snapshot",
@@ -2120,6 +2142,8 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
+    deps = [ ":v8_dump_build_config" ]
+
     public_deps = [
       ":v8_base",
       ":v8_maybe_snapshot",
