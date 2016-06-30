@@ -6814,5 +6814,67 @@ TEST(UncommitUnusedLargeObjectMemory) {
               base::OS::CommitPageSize());
   CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
 }
+
+TEST(RememberedSetRemoveRange) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(500000);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+  CHECK(chunk->owner()->identity() == LO_SPACE);
+  Address start = array->address();
+  // Maps slot to boolean indicator of whether the slot should be in the set.
+  std::map<Address, bool> slots;
+  slots[start + 0] = true;
+  slots[start + kPointerSize] = true;
+  slots[start + Page::kPageSize - kPointerSize] = true;
+  slots[start + Page::kPageSize] = true;
+  slots[start + Page::kPageSize + kPointerSize] = true;
+  slots[chunk->area_end() - kPointerSize] = true;
+
+  for (auto x : slots) {
+    RememberedSet<OLD_TO_NEW>::Insert(chunk, x.first);
+  }
+
+  RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
+    CHECK(slots[addr]);
+    return KEEP_SLOT;
+  });
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kPointerSize);
+  slots[start] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
+    CHECK(slots[addr]);
+    return KEEP_SLOT;
+  });
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kPointerSize,
+                                         start + Page::kPageSize);
+  slots[start + kPointerSize] = false;
+  slots[start + Page::kPageSize - kPointerSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
+    CHECK(slots[addr]);
+    return KEEP_SLOT;
+  });
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(
+      chunk, start, start + Page::kPageSize + kPointerSize);
+  slots[start + Page::kPageSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
+    CHECK(slots[addr]);
+    return KEEP_SLOT;
+  });
+
+  RememberedSet<OLD_TO_NEW>::RemoveRange(
+      chunk, chunk->area_end() - kPointerSize, chunk->area_end());
+  slots[chunk->area_end() - kPointerSize] = false;
+  RememberedSet<OLD_TO_NEW>::Iterate(chunk, [&slots](Address addr) {
+    CHECK(slots[addr]);
+    return KEEP_SLOT;
+  });
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -2774,16 +2774,10 @@ Address LargePage::GetAddressToShrink() {
 }
 
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
-  if (old_to_new_slots() != nullptr) {
-    old_to_new_slots()->RemoveRange(
-        static_cast<int>(free_start - address()),
-        static_cast<int>(free_start + size() - address()));
-  }
-  if (old_to_old_slots() != nullptr) {
-    old_to_old_slots()->RemoveRange(
-        static_cast<int>(free_start - address()),
-        static_cast<int>(free_start + size() - address()));
-  }
+  RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end());
+  RememberedSet<OLD_TO_OLD>::RemoveRange(this, free_start, area_end());
+  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(this, free_start, area_end());
+  RememberedSet<OLD_TO_OLD>::RemoveRangeTyped(this, free_start, area_end());
 }
 
 // -----------------------------------------------------------------------------
