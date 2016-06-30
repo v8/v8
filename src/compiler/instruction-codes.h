@@ -94,6 +94,7 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(Ieee754Float64Atanh)                  \
   V(Ieee754Float64Cbrt)                   \
   V(Ieee754Float64Cos)                    \
+  V(Ieee754Float64Cosh)                   \
   V(Ieee754Float64Exp)                    \
   V(Ieee754Float64Expm1)                  \
   V(Ieee754Float64Log)                    \
@@ -102,7 +103,9 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(Ieee754Float64Log2)                   \
   V(Ieee754Float64Pow)                    \
   V(Ieee754Float64Sin)                    \
-  V(Ieee754Float64Tan)
+  V(Ieee754Float64Sinh)                   \
+  V(Ieee754Float64Tan)                    \
+  V(Ieee754Float64Tanh)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \

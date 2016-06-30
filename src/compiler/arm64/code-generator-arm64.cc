@@ -820,6 +820,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Cos:
       ASSEMBLE_IEEE754_UNOP(cos);
       break;
+    case kIeee754Float64Cosh:
+      ASSEMBLE_IEEE754_UNOP(cosh);
+      break;
     case kIeee754Float64Cbrt:
       ASSEMBLE_IEEE754_UNOP(cbrt);
       break;
@@ -852,8 +855,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Sin:
       ASSEMBLE_IEEE754_UNOP(sin);
       break;
+    case kIeee754Float64Sinh:
+      ASSEMBLE_IEEE754_UNOP(sinh);
+      break;
     case kIeee754Float64Tan:
       ASSEMBLE_IEEE754_UNOP(tan);
+      break;
+    case kIeee754Float64Tanh:
+      ASSEMBLE_IEEE754_UNOP(tanh);
       break;
     case kArm64Float32RoundDown:
       __ Frintm(i.OutputFloat32Register(), i.InputFloat32Register(0));

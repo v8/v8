@@ -5537,6 +5537,14 @@ TEST(RunFloat64Cos) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::cos(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Cosh) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Cosh(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::cosh(*i), m.Call(*i)); }
+}
+
 TEST(RunFloat64Exp) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.Float64Exp(m.Parameter(0)));
@@ -5639,12 +5647,28 @@ TEST(RunFloat64Sin) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::sin(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Sinh) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Sinh(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::sinh(*i), m.Call(*i)); }
+}
+
 TEST(RunFloat64Tan) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.Float64Tan(m.Parameter(0)));
   CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
   CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::tan(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Tanh) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Tanh(m.Parameter(0)));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::quiet_NaN())));
+  CHECK(std::isnan(m.Call(std::numeric_limits<double>::signaling_NaN())));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::tanh(*i), m.Call(*i)); }
 }
 
 static double two_30 = 1 << 30;             // 2^30 is a smi boundary.

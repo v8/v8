@@ -1004,6 +1004,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_atanh_function(Isolate* isolate);
   static ExternalReference ieee754_cbrt_function(Isolate* isolate);
   static ExternalReference ieee754_cos_function(Isolate* isolate);
+  static ExternalReference ieee754_cosh_function(Isolate* isolate);
   static ExternalReference ieee754_exp_function(Isolate* isolate);
   static ExternalReference ieee754_expm1_function(Isolate* isolate);
   static ExternalReference ieee754_log_function(Isolate* isolate);
@@ -1011,7 +1012,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_log10_function(Isolate* isolate);
   static ExternalReference ieee754_log2_function(Isolate* isolate);
   static ExternalReference ieee754_sin_function(Isolate* isolate);
+  static ExternalReference ieee754_sinh_function(Isolate* isolate);
   static ExternalReference ieee754_tan_function(Isolate* isolate);
+  static ExternalReference ieee754_tanh_function(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

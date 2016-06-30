@@ -233,6 +233,7 @@ Matcher<Node*> IsNumberCbrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberCeil(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberClz32(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberCos(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberCosh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberExp(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberExpm1(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberFloor(const Matcher<Node*>& value_matcher);
@@ -245,8 +246,10 @@ Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberPow(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberSin(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberSinh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTan(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberTanh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberTrunc(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsStringFromCharCode(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,

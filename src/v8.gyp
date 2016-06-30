@@ -2066,7 +2066,6 @@
           'js/array.js',
           'js/string.js',
           'js/math.js',
-          'third_party/fdlibm/fdlibm.js',
           'js/regexp.js',
           'js/arraybuffer.js',
           'js/typedarray.js',

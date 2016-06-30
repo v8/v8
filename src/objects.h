@@ -6724,8 +6724,11 @@ class Script: public Struct {
   V(Math, max, MathMax)                                     \
   V(Math, min, MathMin)                                     \
   V(Math, cos, MathCos)                                     \
+  V(Math, cosh, MathCosh)                                   \
   V(Math, sin, MathSin)                                     \
+  V(Math, sinh, MathSinh)                                   \
   V(Math, tan, MathTan)                                     \
+  V(Math, tanh, MathTanh)                                   \
   V(Math, acos, MathAcos)                                   \
   V(Math, asin, MathAsin)                                   \
   V(Math, atan, MathAtan)                                   \

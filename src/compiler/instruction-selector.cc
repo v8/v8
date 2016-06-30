@@ -1158,6 +1158,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Cbrt(node);
     case IrOpcode::kFloat64Cos:
       return MarkAsFloat64(node), VisitFloat64Cos(node);
+    case IrOpcode::kFloat64Cosh:
+      return MarkAsFloat64(node), VisitFloat64Cosh(node);
     case IrOpcode::kFloat64Exp:
       return MarkAsFloat64(node), VisitFloat64Exp(node);
     case IrOpcode::kFloat64Expm1:
@@ -1174,10 +1176,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Pow(node);
     case IrOpcode::kFloat64Sin:
       return MarkAsFloat64(node), VisitFloat64Sin(node);
+    case IrOpcode::kFloat64Sinh:
+      return MarkAsFloat64(node), VisitFloat64Sinh(node);
     case IrOpcode::kFloat64Sqrt:
       return MarkAsFloat64(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Tan:
       return MarkAsFloat64(node), VisitFloat64Tan(node);
+    case IrOpcode::kFloat64Tanh:
+      return MarkAsFloat64(node), VisitFloat64Tanh(node);
     case IrOpcode::kFloat64Equal:
       return VisitFloat64Equal(node);
     case IrOpcode::kFloat64LessThan:
@@ -1301,6 +1307,10 @@ void InstructionSelector::VisitFloat64Cos(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cos);
 }
 
+void InstructionSelector::VisitFloat64Cosh(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Cosh);
+}
+
 void InstructionSelector::VisitFloat64Exp(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
@@ -1333,8 +1343,16 @@ void InstructionSelector::VisitFloat64Sin(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sin);
 }
 
+void InstructionSelector::VisitFloat64Sinh(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Sinh);
+}
+
 void InstructionSelector::VisitFloat64Tan(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tan);
+}
+
+void InstructionSelector::VisitFloat64Tanh(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
 void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,

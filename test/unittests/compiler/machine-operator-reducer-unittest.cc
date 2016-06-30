@@ -1485,6 +1485,20 @@ TEST_F(MachineOperatorReducerTest, Float64CosWithConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// Float64Cosh
+
+TEST_F(MachineOperatorReducerTest, Float64CoshWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Cosh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::cosh(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Float64Exp
 
 TEST_F(MachineOperatorReducerTest, Float64ExpWithConstant) {
@@ -1538,6 +1552,20 @@ TEST_F(MachineOperatorReducerTest, Float64SinWithConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// Float64Sinh
+
+TEST_F(MachineOperatorReducerTest, Float64SinhWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Sinh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::sinh(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Float64Tan
 
 TEST_F(MachineOperatorReducerTest, Float64TanWithConstant) {
@@ -1547,6 +1575,20 @@ TEST_F(MachineOperatorReducerTest, Float64TanWithConstant) {
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::tan(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Tanh
+
+TEST_F(MachineOperatorReducerTest, Float64TanhWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Tanh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::tanh(x))));
   }
 }
 

@@ -1679,6 +1679,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(math, "expm1", Builtins::kMathExpm1, 1, true);
     SimpleInstallFunction(math, "clz32", Builtins::kMathClz32, 1, true);
     SimpleInstallFunction(math, "cos", Builtins::kMathCos, 1, true);
+    SimpleInstallFunction(math, "cosh", Builtins::kMathCosh, 1, true);
     Handle<JSFunction> math_exp =
         SimpleInstallFunction(math, "exp", Builtins::kMathExp, 1, true);
     native_context()->set_math_exp(*math_exp);
@@ -1700,10 +1701,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_math_pow(*math_pow);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
     SimpleInstallFunction(math, "sin", Builtins::kMathSin, 1, true);
+    SimpleInstallFunction(math, "sinh", Builtins::kMathSinh, 1, true);
     Handle<JSFunction> math_sqrt =
         SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
     native_context()->set_math_sqrt(*math_sqrt);
     SimpleInstallFunction(math, "tan", Builtins::kMathTan, 1, true);
+    SimpleInstallFunction(math, "tanh", Builtins::kMathTanh, 1, true);
     SimpleInstallFunction(math, "trunc", Builtins::kMathTrunc, 1, true);
 
     // Install math constants.
@@ -2610,13 +2613,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           Handle<Name>(Name::cast(script_is_embedder_debug_script->name())),
           script_is_embedder_debug_script, attribs);
       script_map->AppendDescriptor(&d);
-    }
-
-    {
-      // TODO(mvstanton): Remove this when MathSinh, MathCosh and MathTanh are
-      // no longer implemented in fdlibm.js.
-      SimpleInstallFunction(container, "MathExpm1", Builtins::kMathExpm1, 1,
-                            true);
     }
 
     {

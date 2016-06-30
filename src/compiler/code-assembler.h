@@ -111,6 +111,7 @@ class Schedule;
   V(Float64Atan)                        \
   V(Float64Atanh)                       \
   V(Float64Cos)                         \
+  V(Float64Cosh)                        \
   V(Float64Exp)                         \
   V(Float64Expm1)                       \
   V(Float64Log)                         \
@@ -120,8 +121,10 @@ class Schedule;
   V(Float64Cbrt)                        \
   V(Float64Neg)                         \
   V(Float64Sin)                         \
+  V(Float64Sinh)                        \
   V(Float64Sqrt)                        \
   V(Float64Tan)                         \
+  V(Float64Tanh)                        \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
   V(BitcastWordToTagged)                \

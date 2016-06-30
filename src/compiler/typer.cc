@@ -1651,6 +1651,8 @@ Type* Typer::Visitor::TypeNumberAtanh(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberCos(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeNumberCosh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberExp(Node* node) {
   return Type::Union(Type::PlainNumber(), Type::NaN(), zone());
 }
@@ -1676,9 +1678,13 @@ Type* Typer::Visitor::TypeNumberRound(Node* node) {
 
 Type* Typer::Visitor::TypeNumberSin(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeNumberSinh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberSqrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberTan(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberTanh(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberTrunc(Node* node) {
   return TypeUnaryOp(node, NumberTrunc);
@@ -2331,6 +2337,8 @@ Type* Typer::Visitor::TypeFloat64Cbrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Cos(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64Cosh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeFloat64Exp(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Expm1(Node* node) { return Type::Number(); }
@@ -2347,9 +2355,13 @@ Type* Typer::Visitor::TypeFloat64Pow(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Sin(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeFloat64Sinh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeFloat64Sqrt(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Tan(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Tanh(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Equal(Node* node) { return Type::Boolean(); }
 

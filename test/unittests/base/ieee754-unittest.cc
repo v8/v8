@@ -117,6 +117,18 @@ TEST(Ieee754, Cos) {
   EXPECT_EQ(-0.9258790228548379e0, cos(-kTwo120));
 }
 
+TEST(Ieee754, Cosh) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(cosh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(cosh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(cosh(std::numeric_limits<double>::infinity()),
+              std::numeric_limits<double>::infinity());
+  EXPECT_THAT(cosh(-std::numeric_limits<double>::infinity()),
+              std::numeric_limits<double>::infinity());
+  EXPECT_EQ(1, cosh(0.0));
+  EXPECT_EQ(1, cosh(-0.0));
+}
+
 TEST(Ieee754, Exp) {
   EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
   EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
@@ -281,6 +293,18 @@ TEST(Ieee754, Sin) {
   EXPECT_EQ(-0.377820109360752e0, sin(-kTwo120));
 }
 
+TEST(Ieee754, Sinh) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(sinh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(sinh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(sinh(std::numeric_limits<double>::infinity()),
+              std::numeric_limits<double>::infinity());
+  EXPECT_THAT(sinh(-std::numeric_limits<double>::infinity()),
+              -std::numeric_limits<double>::infinity());
+  EXPECT_EQ(0.0, sinh(0.0));
+  EXPECT_EQ(-0.0, sinh(-0.0));
+}
+
 TEST(Ieee754, Tan) {
   // Test values mentioned in the EcmaScript spec.
   EXPECT_THAT(tan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
@@ -316,6 +340,16 @@ TEST(Ieee754, Tan) {
   // Test Hayne-Panek reduction.
   EXPECT_EQ(-0.40806638884180424e0, tan(kTwo120));
   EXPECT_EQ(0.40806638884180424e0, tan(-kTwo120));
+}
+
+TEST(Ieee754, Tanh) {
+  // Test values mentioned in the EcmaScript spec.
+  EXPECT_THAT(tanh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
+  EXPECT_THAT(tanh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(tanh(std::numeric_limits<double>::infinity()), 1);
+  EXPECT_THAT(tanh(-std::numeric_limits<double>::infinity()), -1);
+  EXPECT_EQ(0.0, tanh(0.0));
+  EXPECT_EQ(-0.0, tanh(-0.0));
 }
 
 }  // namespace ieee754

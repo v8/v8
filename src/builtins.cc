@@ -2457,6 +2457,18 @@ void Builtins::Generate_MathCos(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+// ES6 section 20.2.2.13 Math.cosh ( x )
+void Builtins::Generate_MathCosh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Cosh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.14 Math.exp ( x )
 void Builtins::Generate_MathExp(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2587,6 +2599,18 @@ void Builtins::Generate_MathSin(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+// ES6 section 20.2.2.31 Math.sinh ( x )
+void Builtins::Generate_MathSinh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Sinh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.32 Math.sqrt ( x )
 void Builtins::Generate_MathSqrt(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2607,6 +2631,18 @@ void Builtins::Generate_MathTan(CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(4);
   Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
   Node* value = assembler->Float64Tan(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.34 Math.tanh ( x )
+void Builtins::Generate_MathTanh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Tanh(x_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
 }

@@ -50,6 +50,15 @@ double sin(double x);
 // Returns the tangent of |x|, where |x| is given in radians.
 double tan(double x);
 
+// Returns the hyperbolic cosine of |x|, where |x| is given radians.
+double cosh(double x);
+
+// Returns the hyperbolic sine of |x|, where |x| is given radians.
+double sinh(double x);
+
+// Returns the hyperbolic tangent of |x|, where |x| is given radians.
+double tanh(double x);
+
 }  // namespace ieee754
 }  // namespace base
 }  // namespace v8

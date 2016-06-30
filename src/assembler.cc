@@ -1431,6 +1431,11 @@ ExternalReference ExternalReference::ieee754_cos_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::cos), BUILTIN_FP_CALL));
 }
 
+ExternalReference ExternalReference::ieee754_cosh_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::cosh), BUILTIN_FP_CALL));
+}
+
 ExternalReference ExternalReference::ieee754_exp_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::exp), BUILTIN_FP_CALL));
@@ -1466,9 +1471,19 @@ ExternalReference ExternalReference::ieee754_sin_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::sin), BUILTIN_FP_CALL));
 }
 
+ExternalReference ExternalReference::ieee754_sinh_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::sinh), BUILTIN_FP_CALL));
+}
+
 ExternalReference ExternalReference::ieee754_tan_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::tan), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
 }
 
 ExternalReference ExternalReference::page_flags(Page* page) {
