@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/bits.h"
+#include "src/code-stubs.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecode-traits.h"
 #include "src/interpreter/interpreter.h"
@@ -914,6 +915,33 @@ std::string Register::ToString(int parameter_count) {
     s << "r" << index();
     return s.str();
   }
+}
+
+// static
+uint8_t CreateObjectLiteralFlags::Encode(bool fast_clone_supported,
+                                         int properties_count,
+                                         int runtime_flags) {
+  uint8_t result = FlagsBits::encode(runtime_flags);
+  if (fast_clone_supported) {
+    STATIC_ASSERT(
+        FastCloneShallowObjectStub::kMaximumClonedProperties <=
+        1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
+    DCHECK_LE(properties_count,
+              FastCloneShallowObjectStub::kMaximumClonedProperties);
+    result |= CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
+        properties_count);
+  }
+  return result;
+}
+
+// static
+uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope) {
+  uint8_t result = PretenuredBit::encode(pretenure);
+  if (!FLAG_always_opt && !FLAG_prepare_always_opt &&
+      pretenure == NOT_TENURED && is_function_scope) {
+    result |= FastNewClosureBit::encode(true);
+  }
+  return result;
 }
 
 }  // namespace interpreter

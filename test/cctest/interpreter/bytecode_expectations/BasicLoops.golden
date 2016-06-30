@@ -712,7 +712,7 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
-                B(CreateClosure), U8(1), U8(0),
+                B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   73 S> */ B(LdaSmi), U8(1),
   /*   73 E> */ B(StaContextSlot), R(context), U8(4),

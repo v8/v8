@@ -1492,17 +1492,29 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
 // Creates a new closure for SharedFunctionInfo at position |index| in the
 // constant pool and with the PretenureFlag <tenured>.
 void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
-  // TODO(rmcilroy): Possibly call FastNewClosureStub when possible instead of
-  // calling into the runtime.
   Node* index = __ BytecodeOperandIdx(0);
   Node* shared = __ LoadConstantPoolEntry(index);
-  Node* tenured_raw = __ BytecodeOperandFlag(1);
-  Node* tenured = __ SmiTag(tenured_raw);
+  Node* flags = __ BytecodeOperandFlag(1);
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kInterpreterNewClosure, context, shared, tenured);
-  __ SetAccumulator(result);
+
+  Label call_runtime(assembler, Label::kDeferred);
+  Node* fast_new_closure = __ Word32And(
+      flags, __ Int32Constant(CreateClosureFlags::FastNewClosureBit::kMask));
+  __ GotoUnless(fast_new_closure, &call_runtime);
+  __ SetAccumulator(FastNewClosureStub::Generate(assembler, shared, context));
   __ Dispatch();
+
+  __ Bind(&call_runtime);
+  {
+    STATIC_ASSERT(CreateClosureFlags::PretenuredBit::kShift == 0);
+    Node* tenured_raw = __ Word32And(
+        flags, __ Int32Constant(CreateClosureFlags::PretenuredBit::kMask));
+    Node* tenured = __ SmiTag(tenured_raw);
+    Node* result = __ CallRuntime(Runtime::kInterpreterNewClosure, context,
+                                  shared, tenured);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 // CreateMappedArguments

@@ -119,7 +119,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(StaContextSlot), R(context), U8(4),
-  /*   45 S> */ B(CreateClosure), U8(0), U8(0),
+  /*   45 S> */ B(CreateClosure), U8(0), U8(2),
   /*   75 S> */ B(LdrContextSlot), R(context), U8(4), R(1),
                 B(LdaSmi), U8(24),
                 B(BitwiseOr), R(1),

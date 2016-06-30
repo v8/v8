@@ -661,7 +661,23 @@ class CreateObjectLiteralFlags {
   class FlagsBits : public BitField8<int, 0, 3> {};
   class FastClonePropertiesCountBits
       : public BitField8<int, FlagsBits::kNext, 3> {};
-  STATIC_ASSERT((FlagsBits::kMask & FastClonePropertiesCountBits::kMask) == 0);
+
+  static uint8_t Encode(bool fast_clone_supported, int properties_count,
+                        int runtime_flags);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateObjectLiteralFlags);
+};
+
+class CreateClosureFlags {
+ public:
+  class PretenuredBit : public BitField8<bool, 0, 1> {};
+  class FastNewClosureBit : public BitField8<bool, PretenuredBit::kNext, 1> {};
+
+  static uint8_t Encode(bool pretenure, bool is_function_scope);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);
 };
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);

@@ -1300,8 +1300,9 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   if (shared_info.is_null()) {
     return SetStackOverflow();
   }
-  builder()->CreateClosure(shared_info,
-                           expr->pretenure() ? TENURED : NOT_TENURED);
+  uint8_t flags = CreateClosureFlags::Encode(expr->pretenure(),
+                                             scope()->is_function_scope());
+  builder()->CreateClosure(shared_info, flags);
   execution_result()->SetResultInAccumulator();
 }
 
@@ -1518,18 +1519,10 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // Copy the literal boilerplate.
-  int fast_clone_properties_count = 0;
-  if (FastCloneShallowObjectStub::IsSupported(expr)) {
-    STATIC_ASSERT(
-        FastCloneShallowObjectStub::kMaximumClonedProperties <=
-        1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
-    fast_clone_properties_count =
-        FastCloneShallowObjectStub::PropertiesCount(expr->properties_count());
-  }
-  uint8_t flags =
-      CreateObjectLiteralFlags::FlagsBits::encode(expr->ComputeFlags()) |
-      CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
-          fast_clone_properties_count);
+  uint8_t flags = CreateObjectLiteralFlags::Encode(
+      FastCloneShallowObjectStub::IsSupported(expr),
+      FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
+      expr->ComputeFlags());
   builder()->CreateObjectLiteral(expr->constant_properties(),
                                  expr->literal_index(), flags);
 

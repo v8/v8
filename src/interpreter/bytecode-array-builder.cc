@@ -323,10 +323,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, PretenureFlag tenured) {
+    Handle<SharedFunctionInfo> shared_info, int flags) {
   size_t entry = GetConstantPoolEntry(shared_info);
   Output(Bytecode::kCreateClosure, UnsignedOperand(entry),
-         UnsignedOperand(static_cast<size_t>(tenured)));
+         UnsignedOperand(flags));
   return *this;
 }
 

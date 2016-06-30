@@ -129,7 +129,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Create a new closure for the SharedFunctionInfo.
   BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                      PretenureFlag tenured);
+                                      int flags);
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
