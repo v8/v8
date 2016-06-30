@@ -5677,8 +5677,7 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
   if (!expr->pretenure()) {
-    FastNewClosureStub stub(isolate(), shared_info->language_mode(),
-                            shared_info->kind());
+    FastNewClosureStub stub(isolate());
     FastNewClosureDescriptor descriptor(isolate());
     HValue* values[] = {context(), shared_info_value};
     HConstant* stub_value = Add<HConstant>(stub.GetCode());

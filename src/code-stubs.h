@@ -63,7 +63,6 @@ namespace internal {
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
   V(FastFunctionBind)                       \
-  V(FastNewClosure)                         \
   V(FastNewContext)                         \
   V(FastNewObject)                          \
   V(FastNewRestParameter)                   \
@@ -118,6 +117,7 @@ namespace internal {
   V(InternalArraySingleArgumentConstructor) \
   V(Dec)                                    \
   V(FastCloneShallowObject)                 \
+  V(FastNewClosure)                         \
   V(InstanceOf)                             \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
@@ -1034,32 +1034,16 @@ class TypeofStub final : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(Typeof, HydrogenCodeStub);
 };
 
-
-class FastNewClosureStub : public HydrogenCodeStub {
+class FastNewClosureStub : public TurboFanCodeStub {
  public:
-  FastNewClosureStub(Isolate* isolate, LanguageMode language_mode,
-                     FunctionKind kind)
-      : HydrogenCodeStub(isolate) {
-    DCHECK(IsValidFunctionKind(kind));
-    set_sub_minor_key(LanguageModeBits::encode(language_mode) |
-                      FunctionKindBits::encode(kind));
-  }
+  explicit FastNewClosureStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  LanguageMode language_mode() const {
-    return LanguageModeBits::decode(sub_minor_key());
-  }
-
-  FunctionKind kind() const {
-    return FunctionKindBits::decode(sub_minor_key());
-  }
-
- private:
-  STATIC_ASSERT(LANGUAGE_END == 3);
-  class LanguageModeBits : public BitField<LanguageMode, 0, 2> {};
-  class FunctionKindBits : public BitField<FunctionKind, 2, 9> {};
+  static compiler::Node* Generate(CodeStubAssembler* assembler,
+                                  compiler::Node* shared_info,
+                                  compiler::Node* context);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
-  DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(FastNewClosure, TurboFanCodeStub);
 };
 
 

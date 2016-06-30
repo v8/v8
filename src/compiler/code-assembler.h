@@ -239,6 +239,9 @@ class CodeAssembler {
   void Switch(Node* index, Label* default_label, int32_t* case_values,
               Label** case_labels, size_t case_count);
 
+  Node* Select(Node* condition, Node* true_value, Node* false_value,
+               MachineRepresentation rep = MachineRepresentation::kTagged);
+
   // Access to the frame pointer
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();

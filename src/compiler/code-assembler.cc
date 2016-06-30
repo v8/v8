@@ -694,6 +694,27 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
                                 labels, case_count);
 }
 
+Node* CodeAssembler::Select(Node* condition, Node* true_value,
+                            Node* false_value, MachineRepresentation rep) {
+  Variable value(this, rep);
+  Label vtrue(this), vfalse(this), end(this);
+  Branch(condition, &vtrue, &vfalse);
+
+  Bind(&vtrue);
+  {
+    value.Bind(true_value);
+    Goto(&end);
+  }
+  Bind(&vfalse);
+  {
+    value.Bind(false_value);
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return value.value();
+}
+
 // RawMachineAssembler delegate helpers:
 Isolate* CodeAssembler::isolate() const { return raw_assembler_->isolate(); }
 

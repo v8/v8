@@ -460,10 +460,8 @@ Callable CodeFactory::FastNewContext(Isolate* isolate, int slot_count) {
 
 
 // static
-Callable CodeFactory::FastNewClosure(Isolate* isolate,
-                                     LanguageMode language_mode,
-                                     FunctionKind kind) {
-  FastNewClosureStub stub(isolate, language_mode, kind);
+Callable CodeFactory::FastNewClosure(Isolate* isolate) {
+  FastNewClosureStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

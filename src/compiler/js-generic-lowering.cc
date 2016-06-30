@@ -465,8 +465,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 
   // Use the FastNewClosureStub only for functions allocated in new space.
   if (p.pretenure() == NOT_TENURED) {
-    Callable callable = CodeFactory::FastNewClosure(
-        isolate(), shared_info->language_mode(), shared_info->kind());
+    Callable callable = CodeFactory::FastNewClosure(isolate());
     ReplaceWithStubCall(node, callable, flags);
   } else {
     ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)

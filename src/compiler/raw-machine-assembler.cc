@@ -112,7 +112,6 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Return(Node* value) {
   Node* ret = MakeNode(common()->Return(), 1, &value);
   schedule()->AddReturn(CurrentBlock(), ret);

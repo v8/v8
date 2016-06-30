@@ -1924,66 +1924,6 @@ HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
 
 Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
-
-template<>
-HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
-  Counters* counters = isolate()->counters();
-  Factory* factory = isolate()->factory();
-  HInstruction* empty_fixed_array =
-      Add<HConstant>(factory->empty_fixed_array());
-  HInstruction* empty_literals_array =
-      Add<HConstant>(factory->empty_literals_array());
-  HValue* shared_info = GetParameter(0);
-
-  AddIncrementCounter(counters->fast_new_closure_total());
-
-  // Create a new closure from the given function info in new space
-  HValue* size = Add<HConstant>(JSFunction::kSize);
-  HInstruction* js_function =
-      Add<HAllocate>(size, HType::JSObject(), NOT_TENURED, JS_FUNCTION_TYPE,
-                     graph()->GetConstant0());
-
-  int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
-                                            casted_stub()->kind());
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  HInstruction* native_context = BuildGetNativeContext();
-  HInstruction* map_slot_value = Add<HLoadNamedField>(
-      native_context, nullptr, HObjectAccess::ForContextSlot(map_index));
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
-
-  // Initialize the rest of the function.
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_literals_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
-                        graph()->GetConstantHole());
-  Add<HStoreNamedField>(
-      js_function, HObjectAccess::ForSharedFunctionInfoPointer(), shared_info);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
-                        context());
-
-  Handle<Code> lazy_builtin(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy));
-  HConstant* lazy = Add<HConstant>(lazy_builtin);
-  Add<HStoreCodeEntry>(js_function, lazy);
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForNextFunctionLinkPointer(),
-                        graph()->GetConstantUndefined());
-
-  return js_function;
-}
-
-
-Handle<Code> FastNewClosureStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template<>
 HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
   int length = casted_stub()->slots() + Context::MIN_CONTEXT_SLOTS;

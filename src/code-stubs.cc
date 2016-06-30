@@ -4189,13 +4189,9 @@ ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
   return VectorStoreTransitionDescriptor(isolate());
 }
 
-void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
-
 void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
-
 void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
-
 
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
@@ -4423,6 +4419,154 @@ compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&end);
   return result.value();
+}
+
+// static
+compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
+                                             compiler::Node* shared_info,
+                                             compiler::Node* context) {
+  typedef compiler::Node Node;
+  typedef compiler::CodeAssembler::Label Label;
+  typedef compiler::CodeAssembler::Variable Variable;
+
+  Isolate* isolate = assembler->isolate();
+  Factory* factory = assembler->isolate()->factory();
+  assembler->IncrementCounter(isolate->counters()->fast_new_closure_total(), 1);
+
+  // Create a new closure from the given function info in new space
+  Node* result = assembler->Allocate(JSFunction::kSize);
+
+  // Calculate the index of the map we should install on the function based on
+  // the FunctionKind and LanguageMode of the function.
+  // Note: Must be kept in sync with Context::FunctionMapIndex
+  Node* compiler_hints = assembler->LoadObjectField(
+      shared_info, SharedFunctionInfo::kCompilerHintsOffset,
+      MachineType::Uint32());
+  Node* is_strict = assembler->Word32And(
+      compiler_hints,
+      assembler->Int32Constant(1 << SharedFunctionInfo::kStrictModeBit));
+
+  Label if_normal(assembler), if_generator(assembler), if_async(assembler),
+      if_class_constructor(assembler), if_function_without_prototype(assembler),
+      load_map(assembler);
+  Variable map_index(assembler, MachineRepresentation::kTagged);
+
+  Node* is_not_normal = assembler->Word32And(
+      compiler_hints,
+      assembler->Int32Constant(SharedFunctionInfo::kFunctionKindMaskBits));
+  assembler->GotoUnless(is_not_normal, &if_normal);
+
+  Node* is_generator = assembler->Word32And(
+      compiler_hints,
+      assembler->Int32Constant(1 << SharedFunctionInfo::kIsGeneratorBit));
+  assembler->GotoIf(is_generator, &if_generator);
+
+  Node* is_async = assembler->Word32And(
+      compiler_hints,
+      assembler->Int32Constant(1 << SharedFunctionInfo::kIsAsyncFunctionBit));
+  assembler->GotoIf(is_async, &if_async);
+
+  Node* is_class_constructor = assembler->Word32And(
+      compiler_hints,
+      assembler->Int32Constant(SharedFunctionInfo::kClassConstructorBits));
+  assembler->GotoIf(is_class_constructor, &if_class_constructor);
+
+  if (FLAG_debug_code) {
+    // Function must be a function without a prototype.
+    assembler->Assert(assembler->Word32And(
+        compiler_hints, assembler->Int32Constant(
+                            SharedFunctionInfo::kAccessorFunctionBits |
+                            (1 << SharedFunctionInfo::kIsArrowBit) |
+                            (1 << SharedFunctionInfo::kIsConciseMethodBit))));
+  }
+  assembler->Goto(&if_function_without_prototype);
+
+  assembler->Bind(&if_normal);
+  {
+    map_index.Bind(assembler->Select(
+        is_strict, assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX),
+        assembler->Int32Constant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
+    assembler->Goto(&load_map);
+  }
+
+  assembler->Bind(&if_generator);
+  {
+    map_index.Bind(assembler->Select(
+        is_strict,
+        assembler->Int32Constant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
+        assembler->Int32Constant(
+            Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX)));
+    assembler->Goto(&load_map);
+  }
+
+  assembler->Bind(&if_async);
+  {
+    map_index.Bind(assembler->Select(
+        is_strict,
+        assembler->Int32Constant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
+        assembler->Int32Constant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
+    assembler->Goto(&load_map);
+  }
+
+  assembler->Bind(&if_class_constructor);
+  {
+    map_index.Bind(
+        assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX));
+    assembler->Goto(&load_map);
+  }
+
+  assembler->Bind(&if_function_without_prototype);
+  {
+    map_index.Bind(assembler->Int32Constant(
+        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+    assembler->Goto(&load_map);
+  }
+
+  assembler->Bind(&load_map);
+
+  // Get the function map in the current native context and set that
+  // as the map of the allocated object.
+  Node* native_context = assembler->LoadNativeContext(context);
+  Node* map_slot_value =
+      assembler->LoadFixedArrayElement(native_context, map_index.value());
+  assembler->StoreMapNoWriteBarrier(result, map_slot_value);
+
+  // Initialize the rest of the function.
+  Node* empty_fixed_array =
+      assembler->HeapConstant(factory->empty_fixed_array());
+  Node* empty_literals_array =
+      assembler->HeapConstant(factory->empty_literals_array());
+  assembler->StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
+                                            empty_fixed_array);
+  assembler->StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
+                                            empty_fixed_array);
+  assembler->StoreObjectFieldNoWriteBarrier(result, JSFunction::kLiteralsOffset,
+                                            empty_literals_array);
+  assembler->StoreObjectFieldNoWriteBarrier(
+      result, JSFunction::kPrototypeOrInitialMapOffset,
+      assembler->TheHoleConstant());
+  assembler->StoreObjectFieldNoWriteBarrier(
+      result, JSFunction::kSharedFunctionInfoOffset, shared_info);
+  assembler->StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset,
+                                            context);
+  Handle<Code> lazy_builtin_handle(
+      assembler->isolate()->builtins()->builtin(Builtins::kCompileLazy));
+  Node* lazy_builtin = assembler->HeapConstant(lazy_builtin_handle);
+  Node* lazy_builtin_entry = assembler->IntPtrAdd(
+      lazy_builtin,
+      assembler->IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+  assembler->StoreObjectFieldNoWriteBarrier(
+      result, JSFunction::kCodeEntryOffset, lazy_builtin_entry);
+  assembler->StoreObjectFieldNoWriteBarrier(result,
+                                            JSFunction::kNextFunctionLinkOffset,
+                                            assembler->UndefinedConstant());
+
+  return result;
+}
+
+void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  assembler->Return(
+      Generate(assembler, assembler->Parameter(0), assembler->Parameter(1)));
 }
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {

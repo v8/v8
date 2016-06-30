@@ -523,6 +523,7 @@ class Context: public FixedArray {
   }
 
   static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
+    // Note: Must be kept in sync with FastNewClosureStub::Generate.
     if (IsGeneratorFunction(kind)) {
       return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;

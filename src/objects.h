@@ -7423,9 +7423,21 @@ class SharedFunctionInfo: public HeapObject {
   static const int kHasDuplicateParametersBit =
       kHasDuplicateParameters + kCompilerHintsSmiTagSize;
 
+  static const int kIsArrowBit = kIsArrow + kCompilerHintsSmiTagSize;
+  static const int kIsGeneratorBit = kIsGenerator + kCompilerHintsSmiTagSize;
+  static const int kIsConciseMethodBit =
+      kIsConciseMethod + kCompilerHintsSmiTagSize;
+  static const int kIsAsyncFunctionBit =
+      kIsAsyncFunction + kCompilerHintsSmiTagSize;
+
+  static const int kAccessorFunctionBits =
+      FunctionKind::kAccessorFunction
+      << (kFunctionKind + kCompilerHintsSmiTagSize);
   static const int kClassConstructorBits =
       FunctionKind::kClassConstructor
       << (kFunctionKind + kCompilerHintsSmiTagSize);
+  static const int kFunctionKindMaskBits = FunctionKindBits::kMask
+                                           << kCompilerHintsSmiTagSize;
 
   // Constants for optimizing codegen for strict mode function and
   // native tests.
