@@ -13,22 +13,13 @@
 // The first two slots are reserved to persist PRNG state.
 define kRandomNumberStart = 2;
 
-var GlobalFloat64Array = global.Float64Array;
 var GlobalMath = global.Math;
-var GlobalObject = global.Object;
 var NaN = %GetRootNaN();
 var nextRandomIndex = 0;
 var randomNumbers = UNDEFINED;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 //-------------------------------------------------------------------
-
-// ECMA 262 - 15.8.2.1
-function MathAbs(x) {
-  x = +x;
-  return (x > 0) ? x : 0 - x;
-}
-
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
   // While creating a startup snapshot, %GenerateRandomNumbers returns a
@@ -83,7 +74,7 @@ function MathHypot(x, y) {  // Function length is 2.
   var length = arguments.length;
   var max = 0;
   for (var i = 0; i < length; i++) {
-    var n = MathAbs(arguments[i]);
+    var n = %math_abs(arguments[i]);
     if (n > max) max = n;
     arguments[i] = n;
   }
@@ -119,7 +110,6 @@ utils.InstallConstants(GlobalMath, [
 // set their names.
 utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
-  "abs", MathAbs,
   "sign", MathSign,
   "asinh", MathAsinh,
   "acosh", MathAcosh,
@@ -133,7 +123,6 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
 // Exports
 
 utils.Export(function(to) {
-  to.MathAbs = MathAbs;
   to.MathRandom = MathRandom;
 });
 

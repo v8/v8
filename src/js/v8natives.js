@@ -9,23 +9,19 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var GlobalArray = global.Array;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeRangeError;
 var MakeSyntaxError;
 var MakeTypeError;
-var MathAbs;
 var NaN = %GetRootNaN();
 var ObjectToString = utils.ImportNow("object_to_string");
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MakeRangeError = from.MakeRangeError;
   MakeSyntaxError = from.MakeSyntaxError;
   MakeTypeError = from.MakeTypeError;
-  MathAbs = from.MathAbs;
 });
 
 // ----------------------------------------------------------------------------
@@ -367,7 +363,7 @@ function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
     if (integral == number) {
-      return MathAbs(integral) <= kMaxSafeInteger;
+      return %math_abs(integral) <= kMaxSafeInteger;
     }
   }
   return false;

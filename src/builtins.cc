@@ -2240,6 +2240,16 @@ BUILTIN(JsonStringify) {
 // -----------------------------------------------------------------------------
 // ES6 section 20.2.2 Function Properties of the Math Object
 
+// ES6 section - 20.2.2.1 Math.abs ( x )
+void Builtins::Generate_MathAbs(CodeStubAssembler* assembler) {
+  using compiler::Node;
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Abs(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
 
 // ES6 section 20.2.2.2 Math.acos ( x )
 BUILTIN(MathAcos) {
@@ -2249,7 +2259,6 @@ BUILTIN(MathAcos) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
   return *isolate->factory()->NewHeapNumber(std::acos(x->Number()));
 }
-
 
 // ES6 section 20.2.2.4 Math.asin ( x )
 BUILTIN(MathAsin) {

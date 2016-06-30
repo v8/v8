@@ -311,6 +311,7 @@ class CodeStubAssembler;
   V(MathAtanh, 2)                     \
   V(MathCeil, 2)                      \
   V(MathCbrt, 2)                      \
+  V(MathAbs, 2)                       \
   V(MathExpm1, 2)                     \
   V(MathClz32, 2)                     \
   V(MathCos, 2)                       \
@@ -631,6 +632,8 @@ class Builtins {
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
 
+  // ES6 section 20.2.2.1 Math.abs ( x )
+  static void Generate_MathAbs(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.6 Math.atan ( x )
   static void Generate_MathAtan(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.8 Math.atan2 ( y, x )

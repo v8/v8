@@ -108,6 +108,7 @@ class Schedule;
   V(Word64Ror)
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
+  V(Float64Abs)                         \
   V(Float64Atan)                        \
   V(Float64Atanh)                       \
   V(Float64Cos)                         \

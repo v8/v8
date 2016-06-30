@@ -89,6 +89,7 @@ enum BindingFlags {
   V(MATH_EXP_INDEX, JSFunction, math_exp)                               \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
   V(MATH_LOG_INDEX, JSFunction, math_log)                               \
+  V(MATH_ABS_INDEX, JSFunction, math_abs)                               \
   V(MATH_SQRT_INDEX, JSFunction, math_sqrt)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                   \
