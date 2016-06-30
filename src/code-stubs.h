@@ -1966,6 +1966,10 @@ class CompareICStub : public PlatformCodeStub {
     minor_key_ = extra_ic_state;
   }
 
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
   void set_known_map(Handle<Map> map) { known_map_ = map; }
 
   InlineCacheState GetICState() const;
