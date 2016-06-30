@@ -1024,7 +1024,10 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // gaps
 // Args
 // ABIRes <- newSP
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+                                    StackFrame::Type frame_type) {
+  DCHECK(frame_type == StackFrame::EXIT ||
+         frame_type == StackFrame::BUILTIN_EXIT);
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1035,7 +1038,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // all of the pushes that have happened inside of V8
   // since we were called from C code
   CleanseP(r14);
-  LoadSmiLiteral(r1, Smi::FromInt(StackFrame::EXIT));
+  LoadSmiLiteral(r1, Smi::FromInt(frame_type));
   PushCommonFrame(r1);
   // Reserve room for saved entry sp and code object.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
@@ -2614,9 +2617,11 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
+                                             bool builtin_exit_frame) {
   mov(r3, Operand(builtin));
-  CEntryStub stub(isolate(), 1);
+  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                  builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

@@ -897,7 +897,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   arg_stack_space += 2;
 #endif
 
-  __ EnterExitFrame(save_doubles(), arg_stack_space);
+  __ EnterExitFrame(save_doubles(), arg_stack_space, is_builtin_exit()
+                                           ? StackFrame::BUILTIN_EXIT
+                                           : StackFrame::EXIT);
 
   // Store a copy of argc, argv in callee-saved registers for later.
   __ LoadRR(r6, r2);
