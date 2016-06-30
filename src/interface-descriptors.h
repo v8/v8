@@ -78,6 +78,7 @@ class PlatformInterfaceDescriptor;
   V(Keyed)                             \
   V(Named)                             \
   V(HasProperty)                       \
+  V(GetProperty)                       \
   V(CallHandler)                       \
   V(ArgumentAdaptor)                   \
   V(ApiCallbackWith0Args)              \
@@ -542,6 +543,13 @@ class HasPropertyDescriptor final : public CallInterfaceDescriptor {
   enum ParameterIndices { kKeyIndex, kObjectIndex };
 
   DECLARE_DEFAULT_DESCRIPTOR(HasPropertyDescriptor, CallInterfaceDescriptor, 2)
+};
+
+class GetPropertyDescriptor final : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kObjectIndex, kKeyIndex };
+
+  DECLARE_DEFAULT_DESCRIPTOR(GetPropertyDescriptor, CallInterfaceDescriptor, 2)
 };
 
 class TypeofDescriptor : public CallInterfaceDescriptor {

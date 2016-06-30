@@ -4300,102 +4300,27 @@ compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
   Label call_runtime(assembler, Label::kDeferred), return_true(assembler),
       return_false(assembler), end(assembler);
 
-  // Ensure object is JSReceiver, otherwise call runtime to throw error.
-  Label if_objectisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), &call_runtime,
-                    &if_objectisnotsmi);
-  assembler->Bind(&if_objectisnotsmi);
+  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
+      [assembler, &return_true](Node* receiver, Node* holder, Node* holder_map,
+                                Node* holder_instance_type, Node* unique_name,
+                                Label* next_holder, Label* if_bailout) {
+        assembler->TryHasOwnProperty(holder, holder_map, holder_instance_type,
+                                     unique_name, &return_true, next_holder,
+                                     if_bailout);
+      };
 
-  Node* map = assembler->LoadMap(object);
-  Node* instance_type = assembler->LoadMapInstanceType(map);
-  {
-    Label if_objectisreceiver(assembler);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    assembler->Branch(
-        assembler->Int32GreaterThanOrEqual(
-            instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-        &if_objectisreceiver, &call_runtime);
-    assembler->Bind(&if_objectisreceiver);
-  }
+  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+      [assembler, &return_true](Node* receiver, Node* holder, Node* holder_map,
+                                Node* holder_instance_type, Node* index,
+                                Label* next_holder, Label* if_bailout) {
+        assembler->TryLookupElement(holder, holder_map, holder_instance_type,
+                                    index, &return_true, next_holder,
+                                    if_bailout);
+      };
 
-  Variable var_index(assembler, MachineRepresentation::kWord32);
-
-  Label keyisindex(assembler), if_iskeyunique(assembler);
-  assembler->TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
-                       &call_runtime);
-
-  assembler->Bind(&if_iskeyunique);
-  {
-    Variable var_object(assembler, MachineRepresentation::kTagged);
-    Variable var_map(assembler, MachineRepresentation::kTagged);
-    Variable var_instance_type(assembler, MachineRepresentation::kWord8);
-
-    Variable* merged_variables[] = {&var_object, &var_map, &var_instance_type};
-    Label loop(assembler, arraysize(merged_variables), merged_variables);
-    var_object.Bind(object);
-    var_map.Bind(map);
-    var_instance_type.Bind(instance_type);
-    assembler->Goto(&loop);
-    assembler->Bind(&loop);
-    {
-      Label next_proto(assembler);
-      assembler->TryHasOwnProperty(var_object.value(), var_map.value(),
-                                   var_instance_type.value(), key, &return_true,
-                                   &next_proto, &call_runtime);
-      assembler->Bind(&next_proto);
-
-      Node* proto = assembler->LoadMapPrototype(var_map.value());
-
-      Label if_not_null(assembler);
-      assembler->Branch(assembler->WordEqual(proto, assembler->NullConstant()),
-                        &return_false, &if_not_null);
-      assembler->Bind(&if_not_null);
-
-      Node* map = assembler->LoadMap(proto);
-      Node* instance_type = assembler->LoadMapInstanceType(map);
-
-      var_object.Bind(proto);
-      var_map.Bind(map);
-      var_instance_type.Bind(instance_type);
-      assembler->Goto(&loop);
-    }
-  }
-  assembler->Bind(&keyisindex);
-  {
-    Variable var_object(assembler, MachineRepresentation::kTagged);
-    Variable var_map(assembler, MachineRepresentation::kTagged);
-    Variable var_instance_type(assembler, MachineRepresentation::kWord8);
-
-    Variable* merged_variables[] = {&var_object, &var_map, &var_instance_type};
-    Label loop(assembler, arraysize(merged_variables), merged_variables);
-    var_object.Bind(object);
-    var_map.Bind(map);
-    var_instance_type.Bind(instance_type);
-    assembler->Goto(&loop);
-    assembler->Bind(&loop);
-    {
-      Label next_proto(assembler);
-      assembler->TryLookupElement(var_object.value(), var_map.value(),
-                                  var_instance_type.value(), var_index.value(),
-                                  &return_true, &next_proto, &call_runtime);
-      assembler->Bind(&next_proto);
-
-      Node* proto = assembler->LoadMapPrototype(var_map.value());
-
-      Label if_not_null(assembler);
-      assembler->Branch(assembler->WordEqual(proto, assembler->NullConstant()),
-                        &return_false, &if_not_null);
-      assembler->Bind(&if_not_null);
-
-      Node* map = assembler->LoadMap(proto);
-      Node* instance_type = assembler->LoadMapInstanceType(map);
-
-      var_object.Bind(proto);
-      var_map.Bind(map);
-      var_instance_type.Bind(instance_type);
-      assembler->Goto(&loop);
-    }
-  }
+  assembler->TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                                     lookup_element_in_holder, &return_false,
+                                     &call_runtime);
 
   Variable result(assembler, MachineRepresentation::kTagged);
   assembler->Bind(&return_true);
@@ -4419,6 +4344,67 @@ compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&end);
   return result.value();
+}
+
+void GetPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label call_runtime(assembler, Label::kDeferred), return_undefined(assembler),
+      end(assembler);
+
+  Node* object = assembler->Parameter(0);
+  Node* key = assembler->Parameter(1);
+  Node* context = assembler->Parameter(2);
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+
+  CodeStubAssembler::LookupInHolder lookup_property_in_holder =
+      [assembler, context, &var_result, &end](
+          Node* receiver, Node* holder, Node* holder_map,
+          Node* holder_instance_type, Node* unique_name, Label* next_holder,
+          Label* if_bailout) {
+        Variable var_value(assembler, MachineRepresentation::kTagged);
+        Label if_found(assembler);
+        assembler->TryGetOwnProperty(
+            context, receiver, holder, holder_map, holder_instance_type,
+            unique_name, &if_found, &var_value, next_holder, if_bailout);
+        assembler->Bind(&if_found);
+        {
+          var_result.Bind(var_value.value());
+          assembler->Goto(&end);
+        }
+      };
+
+  CodeStubAssembler::LookupInHolder lookup_element_in_holder =
+      [assembler, context, &var_result, &end](
+          Node* receiver, Node* holder, Node* holder_map,
+          Node* holder_instance_type, Node* index, Label* next_holder,
+          Label* if_bailout) {
+        // Not supported yet.
+        assembler->Use(next_holder);
+        assembler->Goto(if_bailout);
+      };
+
+  assembler->TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+                                     lookup_element_in_holder,
+                                     &return_undefined, &call_runtime);
+
+  assembler->Bind(&return_undefined);
+  {
+    var_result.Bind(assembler->UndefinedConstant());
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&call_runtime);
+  {
+    var_result.Bind(
+        assembler->CallRuntime(Runtime::kGetProperty, context, object, key));
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&end);
+  assembler->Return(var_result.value());
 }
 
 // static

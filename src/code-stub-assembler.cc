@@ -1502,6 +1502,10 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   }
 }
 
+void CodeStubAssembler::Use(Label* label) {
+  GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
+}
+
 void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
                                   Label* if_bailout) {
@@ -2174,6 +2178,114 @@ template void CodeStubAssembler::NumberDictionaryLookup<SeededNumberDictionary>(
     Node*, Node*, Label*, Variable*, Label*);
 template void CodeStubAssembler::NumberDictionaryLookup<
     UnseededNumberDictionary>(Node*, Node*, Label*, Variable*, Label*);
+
+void CodeStubAssembler::TryPrototypeChainLookup(
+    Node* receiver, Node* key, LookupInHolder& lookup_property_in_holder,
+    LookupInHolder& lookup_element_in_holder, Label* if_end,
+    Label* if_bailout) {
+  // Ensure receiver is JSReceiver, otherwise bailout.
+  Label if_objectisnotsmi(this);
+  Branch(WordIsSmi(receiver), if_bailout, &if_objectisnotsmi);
+  Bind(&if_objectisnotsmi);
+
+  Node* map = LoadMap(receiver);
+  Node* instance_type = LoadMapInstanceType(map);
+  {
+    Label if_objectisreceiver(this);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    Branch(Int32GreaterThanOrEqual(instance_type,
+                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+           &if_objectisreceiver, if_bailout);
+    Bind(&if_objectisreceiver);
+  }
+
+  Variable var_index(this, MachineRepresentation::kWord32);
+
+  Label if_keyisindex(this), if_iskeyunique(this);
+  TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, if_bailout);
+
+  Bind(&if_iskeyunique);
+  {
+    Variable var_holder(this, MachineRepresentation::kTagged);
+    Variable var_holder_map(this, MachineRepresentation::kTagged);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord8);
+
+    Variable* merged_variables[] = {&var_holder, &var_holder_map,
+                                    &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
+    var_holder.Bind(receiver);
+    var_holder_map.Bind(map);
+    var_holder_instance_type.Bind(instance_type);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      Node* holder_map = var_holder_map.value();
+      Node* holder_instance_type = var_holder_instance_type.value();
+
+      Label next_proto(this);
+      lookup_property_in_holder(receiver, var_holder.value(), holder_map,
+                                holder_instance_type, key, &next_proto,
+                                if_bailout);
+      Bind(&next_proto);
+
+      // Bailout if it can be an integer indexed exotic case.
+      GotoIf(
+          Word32Equal(holder_instance_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
+          if_bailout);
+
+      Node* proto = LoadMapPrototype(holder_map);
+
+      Label if_not_null(this);
+      Branch(WordEqual(proto, NullConstant()), if_end, &if_not_null);
+      Bind(&if_not_null);
+
+      Node* map = LoadMap(proto);
+      Node* instance_type = LoadMapInstanceType(map);
+
+      var_holder.Bind(proto);
+      var_holder_map.Bind(map);
+      var_holder_instance_type.Bind(instance_type);
+      Goto(&loop);
+    }
+  }
+  Bind(&if_keyisindex);
+  {
+    Variable var_holder(this, MachineRepresentation::kTagged);
+    Variable var_holder_map(this, MachineRepresentation::kTagged);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord8);
+
+    Variable* merged_variables[] = {&var_holder, &var_holder_map,
+                                    &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
+    var_holder.Bind(receiver);
+    var_holder_map.Bind(map);
+    var_holder_instance_type.Bind(instance_type);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      Label next_proto(this);
+      lookup_element_in_holder(receiver, var_holder.value(),
+                               var_holder_map.value(),
+                               var_holder_instance_type.value(),
+                               var_index.value(), &next_proto, if_bailout);
+      Bind(&next_proto);
+
+      Node* proto = LoadMapPrototype(var_holder_map.value());
+
+      Label if_not_null(this);
+      Branch(WordEqual(proto, NullConstant()), if_end, &if_not_null);
+      Bind(&if_not_null);
+
+      Node* map = LoadMap(proto);
+      Node* instance_type = LoadMapInstanceType(map);
+
+      var_holder.Bind(proto);
+      var_holder_map.Bind(map);
+      var_holder_instance_type.Bind(instance_type);
+      Goto(&loop);
+    }
+  }
+}
 
 Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
                                              Node* object) {

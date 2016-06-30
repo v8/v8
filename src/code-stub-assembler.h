@@ -5,6 +5,8 @@
 #ifndef V8_CODE_STUB_ASSEMBLER_H_
 #define V8_CODE_STUB_ASSEMBLER_H_
 
+#include <functional>
+
 #include "src/compiler/code-assembler.h"
 #include "src/objects.h"
 
@@ -270,6 +272,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);
 
+  // Generates "if (false) goto label" code. Useful for marking a label as
+  // "live" to avoid assertion failures during graph building. In the resulting
+  // code this check will be eliminated.
+  void Use(Label* label);
+
   // Various building blocks for stubs doing property lookups.
   void TryToName(compiler::Node* key, Label* if_keyisindex, Variable* var_index,
                  Label* if_keyisunique, Label* if_bailout);
@@ -355,6 +362,26 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                         compiler::Node* instance_type, compiler::Node* index,
                         Label* if_found, Label* if_not_found,
                         Label* if_bailout);
+
+  // This is a type of a lookup in holder generator function. In case of a
+  // property lookup the {key} is guaranteed to be a unique name and in case of
+  // element lookup the key is an Int32 index.
+  typedef std::function<void(compiler::Node* receiver, compiler::Node* holder,
+                             compiler::Node* map, compiler::Node* instance_type,
+                             compiler::Node* key, Label* next_holder,
+                             Label* if_bailout)>
+      LookupInHolder;
+
+  // Generic property prototype chain lookup generator.
+  // For properties it generates lookup using given {lookup_property_in_holder}
+  // and for elements it uses {lookup_element_in_holder}.
+  // Upon reaching the end of prototype chain the control goes to {if_end}.
+  // If it can't handle the case {receiver}/{key} case then the control goes
+  // to {if_bailout}.
+  void TryPrototypeChainLookup(compiler::Node* receiver, compiler::Node* key,
+                               LookupInHolder& lookup_property_in_holder,
+                               LookupInHolder& lookup_element_in_holder,
+                               Label* if_end, Label* if_bailout);
 
   // Instanceof helpers.
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)

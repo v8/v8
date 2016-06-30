@@ -137,6 +137,7 @@ namespace internal {
   V(ToInteger)                              \
   V(ToLength)                               \
   V(HasProperty)                            \
+  V(GetProperty)                            \
   V(LoadICTrampolineTF)                     \
   V(LoadICTF)                               \
   /* IC Handler stubs */                    \
@@ -988,6 +989,15 @@ class HasPropertyStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(HasProperty);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(HasProperty, TurboFanCodeStub);
+};
+
+// ES6 [[Get]] operation.
+class GetPropertyStub : public TurboFanCodeStub {
+ public:
+  explicit GetPropertyStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(GetProperty);
+  DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
 };
 
 enum StringAddFlags {
