@@ -3101,52 +3101,65 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
 
-  // 4. Let offset be ToIndex(byteOffset).
-  Handle<Object> offset;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, offset,
-      Object::ToIndex(isolate, byte_offset,
-                      MessageTemplate::kInvalidDataViewOffset));
+  // 4. Let numberOffset be ? ToNumber(byteOffset).
+  Handle<Object> number_offset;
+  if (byte_offset->IsUndefined(isolate)) {
+    // We intentionally violate the specification at this point to allow
+    // for new DataView(buffer) invocations to be equivalent to the full
+    // new DataView(buffer, 0) invocation.
+    number_offset = handle(Smi::FromInt(0), isolate);
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_offset,
+                                       Object::ToNumber(byte_offset));
+  }
 
-  // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  // 5. Let offset be ToInteger(numberOffset).
+  Handle<Object> offset;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, offset,
+                                     Object::ToInteger(isolate, number_offset));
+
+  // 6. If numberOffset ≠ offset or offset < 0, throw a RangeError exception.
+  if (number_offset->Number() != offset->Number() || offset->Number() < 0.0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewOffset));
+  }
+
+  // 7. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   // We currently violate the specification at this point.
 
-  // 6. Let bufferByteLength be the value of buffer's [[ArrayBufferByteLength]]
+  // 8. Let bufferByteLength be the value of buffer's [[ArrayBufferByteLength]]
   // internal slot.
   double const buffer_byte_length = array_buffer->byte_length()->Number();
 
-  // 7. If offset > bufferByteLength, throw a RangeError exception
+  // 9. If offset > bufferByteLength, throw a RangeError exception
   if (offset->Number() > buffer_byte_length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidDataViewOffset, offset));
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewOffset));
   }
 
   Handle<Object> view_byte_length;
   if (byte_length->IsUndefined(isolate)) {
-    // 8. If byteLength is undefined, then
+    // 10. If byteLength is undefined, then
     //       a. Let viewByteLength be bufferByteLength - offset.
     view_byte_length =
         isolate->factory()->NewNumber(buffer_byte_length - offset->Number());
   } else {
-    // 9. Else,
-    //       a. Let viewByteLength be ? ToIndex(byteLength).
+    // 11. Else,
+    //       a. Let viewByteLength be ? ToLength(byteLength).
     //       b. If offset+viewByteLength > bufferByteLength, throw a RangeError
     //          exception
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, view_byte_length,
-        Object::ToIndex(isolate, byte_length,
-                        MessageTemplate::kInvalidDataViewLength));
+        isolate, view_byte_length, Object::ToLength(isolate, byte_length));
     if (offset->Number() + view_byte_length->Number() > buffer_byte_length) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
     }
   }
 
-  // 10. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+  // 12. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
   //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
   //     [[ByteLength]], [[ByteOffset]]»).
-  // 11. Set O's [[DataView]] internal slot to true.
+  // 13. Set O's [[DataView]] internal slot to true.
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
@@ -3154,16 +3167,16 @@ BUILTIN(DataViewConstructor_ConstructStub) {
     Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::FromInt(0));
   }
 
-  // 12. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
+  // 14. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
   Handle<JSDataView>::cast(result)->set_buffer(*array_buffer);
 
-  // 13. Set O's [[ByteLength]] internal slot to viewByteLength.
+  // 15. Set O's [[ByteLength]] internal slot to viewByteLength.
   Handle<JSDataView>::cast(result)->set_byte_length(*view_byte_length);
 
-  // 14. Set O's [[ByteOffset]] internal slot to offset.
+  // 16. Set O's [[ByteOffset]] internal slot to offset.
   Handle<JSDataView>::cast(result)->set_byte_offset(*offset);
 
-  // 15. Return O.
+  // 17. Return O.
   return *result;
 }
 
