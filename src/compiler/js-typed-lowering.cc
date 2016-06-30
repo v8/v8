@@ -62,7 +62,7 @@ class JSBinopReduction final {
     return CompareOperationHints::kAny;
   }
 
-  void ConvertInputsToNumber(Node* frame_state) {
+  void ConvertInputsToNumber() {
     // To convert the inputs to numbers, we have to provide frame states
     // for lazy bailouts in the ToNumber conversions.
     // We use a little hack here: we take the frame state before the binary
@@ -78,17 +78,17 @@ class JSBinopReduction final {
     bool handles_exception = NodeProperties::IsExceptionalCall(node_);
 
     if (!left_is_primitive && !right_is_primitive && handles_exception) {
-      ConvertBothInputsToNumber(&left_input, &right_input, frame_state);
+      ConvertBothInputsToNumber(&left_input, &right_input);
     } else {
       left_input = left_is_primitive
                        ? ConvertPlainPrimitiveToNumber(left())
                        : ConvertSingleInputToNumber(
-                             left(), CreateFrameStateForLeftInput(frame_state));
-      right_input = right_is_primitive
-                        ? ConvertPlainPrimitiveToNumber(right())
-                        : ConvertSingleInputToNumber(
-                              right(), CreateFrameStateForRightInput(
-                                           frame_state, left_input));
+                             left(), CreateFrameStateForLeftInput());
+      right_input =
+          right_is_primitive
+              ? ConvertPlainPrimitiveToNumber(right())
+              : ConvertSingleInputToNumber(
+                    right(), CreateFrameStateForRightInput(left_input));
     }
 
     node_->ReplaceInput(0, left_input);
@@ -229,7 +229,8 @@ class JSBinopReduction final {
   JSTypedLowering* lowering_;  // The containing lowering instance.
   Node* node_;                 // The original node.
 
-  Node* CreateFrameStateForLeftInput(Node* frame_state) {
+  Node* CreateFrameStateForLeftInput() {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
     if (state_info.bailout_id() == BailoutId::None()) {
@@ -259,7 +260,8 @@ class JSBinopReduction final {
                             frame_state->InputAt(kFrameStateOuterStateInput));
   }
 
-  Node* CreateFrameStateForRightInput(Node* frame_state, Node* converted_left) {
+  Node* CreateFrameStateForRightInput(Node* converted_left) {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
     if (state_info.bailout_id() == BailoutId::None()) {
@@ -320,8 +322,7 @@ class JSBinopReduction final {
     return n;
   }
 
-  void ConvertBothInputsToNumber(Node** left_result, Node** right_result,
-                                 Node* frame_state) {
+  void ConvertBothInputsToNumber(Node** left_result, Node** right_result) {
     Node* projections[2];
 
     // Find {IfSuccess} and {IfException} continuations of the operation.
@@ -331,12 +332,12 @@ class JSBinopReduction final {
     Node* if_success = projections[0];
 
     // Insert two ToNumber() operations that both potentially throw.
-    Node* left_state = CreateFrameStateForLeftInput(frame_state);
+    Node* left_state = CreateFrameStateForLeftInput();
     Node* left_conv =
         graph()->NewNode(javascript()->ToNumber(), left(), context(),
                          left_state, effect(), control());
     Node* left_success = graph()->NewNode(common()->IfSuccess(), left_conv);
-    Node* right_state = CreateFrameStateForRightInput(frame_state, left_conv);
+    Node* right_state = CreateFrameStateForRightInput(left_conv);
     Node* right_conv =
         graph()->NewNode(javascript()->ToNumber(), right(), context(),
                          right_state, left_conv, left_success);
@@ -425,8 +426,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       r.BothInputsAre(Type::PlainPrimitive()) &&
       r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumber(frame_state);
+    r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (feedback != BinaryOperationHints::kAny) {
@@ -436,14 +436,12 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   }
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumber(frame_state);
+    r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumber(frame_state);
+    r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.OneInputIs(Type::String())) {
@@ -495,8 +493,7 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
       r.BothInputsAre(Type::PlainPrimitive())) {
     // JSSubtract(x:plain-primitive, y:plain-primitive)
     //   => NumberSubtract(ToNumber(x), ToNumber(y))
-    Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-    r.ConvertInputsToNumber(frame_state);
+    r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberSubtract(),
                                   Type::Number());
   }
@@ -505,8 +502,7 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberSubtract(feedback), Type::Number());
   }
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsToNumber();
   return r.ChangeToPureOperator(simplified()->NumberSubtract(), Type::Number());
 }
 
@@ -520,8 +516,7 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
         simplified()->SpeculativeNumberMultiply(feedback), Type::Number());
   }
 
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsToNumber();
   return r.ChangeToPureOperator(simplified()->NumberMultiply(), Type::Number());
 }
 
@@ -533,8 +528,7 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberDivide(feedback), Type::Number());
   }
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsToNumber();
   return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
 }
 
@@ -543,8 +537,7 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsToNumber();
   r.ConvertInputsToUI32(kSigned, kSigned);
   return r.ChangeToPureOperator(intOp, Type::Integral32());
 }
@@ -556,8 +549,7 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-  r.ConvertInputsToNumber(frame_state);
+  r.ConvertInputsToNumber();
   r.ConvertInputsToUI32(left_signedness, kUnsigned);
   return r.ChangeToPureOperator(shift_op);
 }
@@ -601,8 +593,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       less_than = simplified()->SpeculativeNumberLessThan(hint);
       less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
     } else {
-      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
-      r.ConvertInputsToNumber(frame_state);
+      r.ConvertInputsToNumber();
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
     }
