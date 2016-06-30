@@ -120,11 +120,6 @@ JSObject *WasmDebugInfo::wasm_object() {
   return JSObject::cast(get(kWasmDebugInfoWasmObj));
 }
 
-bool WasmDebugInfo::SetBreakPoint(int byte_offset) {
-  // TODO(clemensh): Implement this.
-  return false;
-}
-
 Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
                                          int func_index) {
   Isolate *isolate = debug_info->GetIsolate();
@@ -149,6 +144,16 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   scripts->set(func_index, *script);
 
   script->set_type(Script::TYPE_WASM);
+  script->set_wasm_object(debug_info->wasm_object());
+  script->set_wasm_function_index(func_index);
+
+  int hash = 0;
+  debug_info->get(kWasmDebugInfoWasmBytesHash)->ToInt32(&hash);
+  char buffer[32];
+  SNPrintF(ArrayVector(buffer), "wasm://%08x/%d", hash, func_index);
+  Handle<String> source_url =
+      isolate->factory()->NewStringFromAsciiChecked(buffer, TENURED);
+  script->set_source_url(*source_url);
 
   int func_bytes_len =
       GetFunctionOffsetAndLength(debug_info, func_index).second;
@@ -157,7 +162,7 @@ Script *WasmDebugInfo::GetFunctionScript(Handle<WasmDebugInfo> debug_info,
   line_ends->set_map(isolate->heap()->fixed_cow_array_map());
   script->set_line_ends(*line_ends);
 
-  // TODO(clemensh): Register this new script at the debugger.
+  isolate->debug()->OnAfterCompile(script);
 
   return *script;
 }

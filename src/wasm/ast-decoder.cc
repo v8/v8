@@ -1521,6 +1521,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
       os << " " << count << " " << WasmOpcodes::TypeName(type);
     }
     os << std::endl;
+    ++line_nr;
 
     for (const byte* locals = body.start; locals < pc; locals++) {
       os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";

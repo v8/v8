@@ -15,6 +15,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -1786,5 +1787,35 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
 }
+
+RUNTIME_FUNCTION(Runtime_GetWasmFunctionOffsetTable) {
+  DCHECK(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(JSValue, script_val, 0);
+
+  RUNTIME_ASSERT(script_val->value()->IsScript());
+  Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
+
+  Handle<wasm::WasmDebugInfo> debug_info(
+      wasm::GetDebugInfo(script->wasm_object()), isolate);
+  Handle<FixedArray> elements = wasm::WasmDebugInfo::GetFunctionOffsetTable(
+      debug_info, script->wasm_function_index());
+  return *isolate->factory()->NewJSArrayWithElements(elements);
+}
+
+RUNTIME_FUNCTION(Runtime_DisassembleWasmFunction) {
+  DCHECK(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(JSValue, script_val, 0);
+
+  RUNTIME_ASSERT(script_val->value()->IsScript());
+  Handle<Script> script = Handle<Script>(Script::cast(script_val->value()));
+
+  Handle<wasm::WasmDebugInfo> debug_info(
+      wasm::GetDebugInfo(script->wasm_object()), isolate);
+  return *wasm::WasmDebugInfo::DisassembleFunction(
+      debug_info, script->wasm_function_index());
+}
+
 }  // namespace internal
 }  // namespace v8
