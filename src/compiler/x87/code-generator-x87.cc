@@ -785,6 +785,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
+    case kIeee754Float64Pow: {
+      // Keep the x87 FPU stack empty before calling stub code
+      __ fstp(0);
+      // Call the MathStub and put return value in stX_0
+      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
+      __ CallStub(&stub);
+      /* Return value is in st(0) on x87. */
+      __ lea(esp, Operand(esp, 2 * kDoubleSize));
+      break;
+    }
     case kIeee754Float64Sin:
       __ X87SetFPUCW(0x027F);
       ASSEMBLE_IEEE754_UNOP(sin);

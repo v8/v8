@@ -270,26 +270,26 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  const Register base = edx;
   const Register scratch = ecx;
-  Label call_runtime;
 
-  // We will call runtime helper function directly.
-  if (exponent_type() == ON_STACK) {
-    // The arguments are still on the stack.
-    __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kMathPowRT);
+  // Load the double_exponent into x87 FPU
+  __ fld_d(Operand(esp, 0 * kDoubleSize + 4));
+  // Load the double_base into x87 FPU
+  __ fld_d(Operand(esp, 1 * kDoubleSize + 4));
 
-    // The stub is called from non-optimized code, which expects the result
-    // as heap number in exponent.
-    __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
-    __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    __ ret(2 * kPointerSize);
-  } else {
-    // Currently it's only called from full-compiler and exponent type is
-    // ON_STACK.
-    UNIMPLEMENTED();
+  // Call ieee754 runtime directly.
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(4, scratch);
+    // Put the double_base parameter in call stack
+    __ fstp_d(Operand(esp, 0 * kDoubleSize));
+    // Put the double_exponent parameter in call stack
+    __ fstp_d(Operand(esp, 1 * kDoubleSize));
+    __ CallCFunction(ExternalReference::power_double_double_function(isolate()),
+                     4);
   }
+  // Return value is in st(0) on ia32.
+  __ ret(0);
 }
 
 
