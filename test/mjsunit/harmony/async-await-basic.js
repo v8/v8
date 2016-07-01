@@ -70,6 +70,15 @@ function assertEqualsAsync(expected, run, msg) {
 assertEquals(undefined, this.AsyncFunction);
 let AsyncFunction = (async function() {}).constructor;
 
+// The AsyncFunction Constructor is the %AsyncFunction% intrinsic object and
+// is a subclass of Function.
+// (https://tc39.github.io/ecmascript-asyncawait/#async-function-constructor)
+assertEquals(Object.getPrototypeOf(AsyncFunction), Function);
+assertEquals(Object.getPrototypeOf(AsyncFunction.prototype),
+             Function.prototype);
+assertTrue(async function() {} instanceof Function);
+
+
 // Let functionPrototype be the intrinsic object %AsyncFunctionPrototype%.
 async function asyncFunctionForProto() {}
 assertEquals(AsyncFunction.prototype,

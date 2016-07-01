@@ -2637,14 +2637,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
           async_function_prototype, Builtins::kAsyncFunctionConstructor,
           kUseStrictFunctionMap);
-      async_function_constructor->set_prototype_or_initial_map(
-          native_context->sloppy_async_function_map());
       async_function_constructor->shared()->DontAdaptArguments();
       async_function_constructor->shared()->set_construct_stub(
           *isolate->builtins()->AsyncFunctionConstructor());
       async_function_constructor->shared()->set_length(1);
       InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
                                        Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+      SetObjectPrototype(async_function_constructor,
+                         isolate->function_function());
 
       JSObject::AddProperty(
           async_function_prototype, factory->constructor_string(),
