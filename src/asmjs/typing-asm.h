@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPING_ASM_H_
-#define V8_TYPING_ASM_H_
+#ifndef V8_ASMJS_TYPING_ASM_H_
+#define V8_ASMJS_TYPING_ASM_H_
 
 #include "src/allocation.h"
 #include "src/ast/ast-type-bounds.h"
@@ -24,6 +24,7 @@ class AsmTyper : public AstVisitor {
                     FunctionLiteral* root);
   bool Validate();
   void set_allow_simd(bool simd) { allow_simd_ = simd; }
+  void set_fixed_signature(bool fixed) { fixed_signature_ = fixed; }
   const char* error_message() { return error_message_; }
   const AstTypeBounds* bounds() { return &bounds_; }
 
@@ -71,6 +72,7 @@ class AsmTyper : public AstVisitor {
   FunctionLiteral* root_;
   bool valid_;
   bool allow_simd_;
+  bool fixed_signature_;
 
   struct VariableInfo : public ZoneObject {
     Type* type;

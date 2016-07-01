@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/asm-types.h"
+#include "src/asmjs/asm-types.h"
 
 #include <unordered_map>
 #include <unordered_set>

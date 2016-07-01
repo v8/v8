@@ -628,7 +628,9 @@ action("run_mksnapshot") {
 
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
-  outputs = [ "$root_out_dir/v8_build_config.json" ]
+  outputs = [
+    "$root_out_dir/v8_build_config.json",
+  ]
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "dcheck_always_on=$dcheck_always_on",
@@ -642,9 +644,8 @@ action("v8_dump_build_config") {
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
-  ]  
+  ]
 }
-
 
 ###############################################################################
 # Source Sets (aka static libraries)
@@ -779,6 +780,14 @@ v8_source_set("v8_base") {
     "src/api.h",
     "src/arguments.cc",
     "src/arguments.h",
+    "src/asmjs/asm-js.cc",
+    "src/asmjs/asm-js.h",
+    "src/asmjs/asm-types.cc",
+    "src/asmjs/asm-types.h",
+    "src/asmjs/asm-wasm-builder.cc",
+    "src/asmjs/asm-wasm-builder.h",
+    "src/asmjs/typing-asm.cc",
+    "src/asmjs/typing-asm.h",
     "src/assembler.cc",
     "src/assembler.h",
     "src/assert-scope.cc",
@@ -1493,8 +1502,6 @@ v8_source_set("v8_base") {
     "src/type-info.h",
     "src/types.cc",
     "src/types.h",
-    "src/typing-asm.cc",
-    "src/typing-asm.h",
     "src/unicode-cache-inl.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",
@@ -1516,10 +1523,6 @@ v8_source_set("v8_base") {
     "src/version.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
-    "src/wasm/asm-types.cc",
-    "src/wasm/asm-types.h",
-    "src/wasm/asm-wasm-builder.cc",
-    "src/wasm/asm-wasm-builder.h",
     "src/wasm/ast-decoder.cc",
     "src/wasm/ast-decoder.h",
     "src/wasm/decoder.h",
@@ -2129,7 +2132,9 @@ if (is_component_build) {
       "src/v8dll-main.cc",
     ]
 
-    deps = [ ":v8_dump_build_config" ]
+    deps = [
+      ":v8_dump_build_config",
+    ]
 
     public_deps = [
       ":v8_base",
@@ -2142,7 +2147,9 @@ if (is_component_build) {
   }
 } else {
   group("v8") {
-    deps = [ ":v8_dump_build_config" ]
+    deps = [
+      ":v8_dump_build_config",
+    ]
 
     public_deps = [
       ":v8_base",

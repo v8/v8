@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_ASM_WASM_BUILDER_H_
-#define V8_WASM_ASM_WASM_BUILDER_H_
+#ifndef V8_ASMJS_ASM_WASM_BUILDER_H_
+#define V8_ASMJS_ASM_WASM_BUILDER_H_
 
 #include "src/allocation.h"
+#include "src/asmjs/typing-asm.h"
 #include "src/objects.h"
-#include "src/typing-asm.h"
 #include "src/wasm/encoder.h"
 #include "src/zone.h"
 

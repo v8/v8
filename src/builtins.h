@@ -225,6 +225,7 @@ class CodeStubAssembler;
   V(JSEntryTrampoline, BUILTIN, kNoExtraICState)                             \
   V(JSConstructEntryTrampoline, BUILTIN, kNoExtraICState)                    \
   V(ResumeGeneratorTrampoline, BUILTIN, kNoExtraICState)                     \
+  V(InstantiateAsmJs, BUILTIN, kNoExtraICState)                              \
   V(CompileLazy, BUILTIN, kNoExtraICState)                                   \
   V(CompileBaseline, BUILTIN, kNoExtraICState)                               \
   V(CompileOptimized, BUILTIN, kNoExtraICState)                              \
@@ -480,6 +481,7 @@ class Builtins {
   static void Generate_AllocateInNewSpace(MacroAssembler* masm);
   static void Generate_AllocateInOldSpace(MacroAssembler* masm);
   static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
+  static void Generate_InstantiateAsmJs(MacroAssembler* masm);
   static void Generate_CompileLazy(MacroAssembler* masm);
   static void Generate_CompileBaseline(MacroAssembler* masm);
   static void Generate_InOptimizationQueue(MacroAssembler* masm);

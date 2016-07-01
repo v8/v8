@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/typing-asm.h"
+#include "src/asmjs/typing-asm.h"
 
 #include <limits>
 
@@ -43,6 +43,7 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       root_(root),
       valid_(true),
       allow_simd_(false),
+      fixed_signature_(false),
       property_info_(nullptr),
       intish_(0),
       stdlib_types_(zone),
@@ -67,12 +68,10 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
   InitializeStdlib();
 }
 
-
 bool AsmTyper::Validate() {
   VisitAsmModule(root_);
   return valid_ && !HasStackOverflow();
 }
-
 
 void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
@@ -84,6 +83,13 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
   if (use_asm_literal == nullptr) FAIL(fun, "missing \"use asm\"");
   if (!use_asm_literal->raw_value()->AsString()->IsOneByteEqualTo("use asm"))
     FAIL(fun, "missing \"use asm\"");
+
+  // TODO(bradnelson): Generalize this.
+  if (fixed_signature_ && scope->num_parameters() != 3) {
+    FAIL(fun,
+         "only asm modules with (stdlib, foreign, heap) "
+         "parameters currently supported");
+  }
 
   // Module parameters.
   for (int i = 0; i < scope->num_parameters(); ++i) {
@@ -143,7 +149,6 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
                                "expected object export"));
 }
 
-
 void AsmTyper::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* var = decl->proxy()->var();
   if (var->location() != VariableLocation::PARAMETER) {
@@ -156,7 +161,6 @@ void AsmTyper::VisitVariableDeclaration(VariableDeclaration* decl) {
   DCHECK(GetType(var) != nullptr);
   intish_ = 0;
 }
-
 
 void AsmTyper::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   if (in_function_) {
@@ -171,7 +175,6 @@ void AsmTyper::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   }
   SetType(var, Type::Function());
 }
-
 
 void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
   // Extract result type.
@@ -222,7 +225,6 @@ void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
 
   SetResult(fun, type);
 }
-
 
 void AsmTyper::VisitExpressionAnnotation(Expression* expr, Variable* var,
                                          bool is_return) {
@@ -303,7 +305,6 @@ void AsmTyper::VisitExpressionAnnotation(Expression* expr, Variable* var,
   FAIL(expr, "invalid type annotation");
 }
 
-
 void AsmTyper::VisitStatements(ZoneList<Statement*>* stmts) {
   for (int i = 0; i < stmts->length(); ++i) {
     Statement* stmt = stmts->at(i);
@@ -311,29 +312,23 @@ void AsmTyper::VisitStatements(ZoneList<Statement*>* stmts) {
   }
 }
 
-
 void AsmTyper::VisitBlock(Block* stmt) {
   RECURSE(VisitStatements(stmt->statements()));
 }
-
 
 void AsmTyper::VisitExpressionStatement(ExpressionStatement* stmt) {
   RECURSE(VisitWithExpectation(stmt->expression(), Type::Any(),
                                "expression statement expected to be any"));
 }
 
-
 void AsmTyper::VisitEmptyStatement(EmptyStatement* stmt) {}
-
 
 void AsmTyper::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* stmt) {
   Visit(stmt->statement());
 }
 
-
 void AsmTyper::VisitEmptyParentheses(EmptyParentheses* expr) { UNREACHABLE(); }
-
 
 void AsmTyper::VisitIfStatement(IfStatement* stmt) {
   if (!in_function_) {
@@ -348,20 +343,17 @@ void AsmTyper::VisitIfStatement(IfStatement* stmt) {
   RECURSE(Visit(stmt->else_statement()));
 }
 
-
 void AsmTyper::VisitContinueStatement(ContinueStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "continue statement inside module body");
   }
 }
 
-
 void AsmTyper::VisitBreakStatement(BreakStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "continue statement inside module body");
   }
 }
-
 
 void AsmTyper::VisitReturnStatement(ReturnStatement* stmt) {
   // Handle module return statement in VisitAsmModule.
@@ -381,11 +373,9 @@ void AsmTyper::VisitReturnStatement(ReturnStatement* stmt) {
   }
 }
 
-
 void AsmTyper::VisitWithStatement(WithStatement* stmt) {
   FAIL(stmt, "bad with statement");
 }
-
 
 void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   if (!in_function_) {
@@ -427,9 +417,7 @@ void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 }
 
-
 void AsmTyper::VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
-
 
 void AsmTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
   if (!in_function_) {
@@ -443,7 +431,6 @@ void AsmTyper::VisitDoWhileStatement(DoWhileStatement* stmt) {
   }
 }
 
-
 void AsmTyper::VisitWhileStatement(WhileStatement* stmt) {
   if (!in_function_) {
     FAIL(stmt, "while statement inside module body");
@@ -455,7 +442,6 @@ void AsmTyper::VisitWhileStatement(WhileStatement* stmt) {
   }
   RECURSE(Visit(stmt->body()));
 }
-
 
 void AsmTyper::VisitForStatement(ForStatement* stmt) {
   if (!in_function_) {
@@ -477,31 +463,25 @@ void AsmTyper::VisitForStatement(ForStatement* stmt) {
   RECURSE(Visit(stmt->body()));
 }
 
-
 void AsmTyper::VisitForInStatement(ForInStatement* stmt) {
   FAIL(stmt, "for-in statement encountered");
 }
-
 
 void AsmTyper::VisitForOfStatement(ForOfStatement* stmt) {
   FAIL(stmt, "for-of statement encountered");
 }
 
-
 void AsmTyper::VisitTryCatchStatement(TryCatchStatement* stmt) {
   FAIL(stmt, "try statement encountered");
 }
-
 
 void AsmTyper::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   FAIL(stmt, "try statement encountered");
 }
 
-
 void AsmTyper::VisitDebuggerStatement(DebuggerStatement* stmt) {
   FAIL(stmt, "debugger statement encountered");
 }
-
 
 void AsmTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
   if (in_function_) {
@@ -526,16 +506,13 @@ void AsmTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
   RECURSE(IntersectResult(expr, type));
 }
 
-
 void AsmTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
   FAIL(expr, "function info literal encountered");
 }
 
-
 void AsmTyper::VisitDoExpression(DoExpression* expr) {
   FAIL(expr, "do-expression encountered");
 }
-
 
 void AsmTyper::VisitConditional(Conditional* expr) {
   if (!in_function_) {
@@ -571,7 +548,6 @@ void AsmTyper::VisitConditional(Conditional* expr) {
 
   RECURSE(IntersectResult(expr, then_type));
 }
-
 
 void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
   Variable* var = expr->var();
@@ -627,14 +603,11 @@ void AsmTyper::VisitLiteral(Literal* expr, bool is_return) {
   }
 }
 
-
 void AsmTyper::VisitLiteral(Literal* expr) { VisitLiteral(expr, false); }
-
 
 void AsmTyper::VisitRegExpLiteral(RegExpLiteral* expr) {
   FAIL(expr, "regular expression encountered");
 }
-
 
 void AsmTyper::VisitObjectLiteral(ObjectLiteral* expr) {
   if (in_function_) {
@@ -652,7 +625,6 @@ void AsmTyper::VisitObjectLiteral(ObjectLiteral* expr) {
   }
   RECURSE(IntersectResult(expr, Type::Object()));
 }
-
 
 void AsmTyper::VisitArrayLiteral(ArrayLiteral* expr) {
   if (in_function_) {
@@ -672,7 +644,6 @@ void AsmTyper::VisitArrayLiteral(ArrayLiteral* expr) {
   array_size_ = values->length();
   RECURSE(IntersectResult(expr, Type::Array(elem_type, zone())));
 }
-
 
 void AsmTyper::VisitAssignment(Assignment* expr) {
   // Handle function tables and everything else in different passes.
@@ -739,16 +710,13 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
   RECURSE(IntersectResult(expr, target_type));
 }
 
-
 void AsmTyper::VisitYield(Yield* expr) {
   FAIL(expr, "yield expression encountered");
 }
 
-
 void AsmTyper::VisitThrow(Throw* expr) {
   FAIL(expr, "throw statement encountered");
 }
-
 
 int AsmTyper::ElementShiftSize(Type* type) {
   if (type->Is(cache_.kAsmSize8)) return 0;
@@ -758,7 +726,6 @@ int AsmTyper::ElementShiftSize(Type* type) {
   return -1;
 }
 
-
 Type* AsmTyper::StorageType(Type* type) {
   if (type->Is(cache_.kAsmInt)) {
     return cache_.kAsmInt;
@@ -766,7 +733,6 @@ Type* AsmTyper::StorageType(Type* type) {
     return type;
   }
 }
-
 
 void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
                                Type* assignment_type) {
@@ -861,7 +827,6 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
   }
 }
 
-
 bool AsmTyper::IsStdlibObject(Expression* expr) {
   VariableProxy* proxy = expr->AsVariableProxy();
   if (proxy == nullptr) {
@@ -881,7 +846,6 @@ bool AsmTyper::IsStdlibObject(Expression* expr) {
   return true;
 }
 
-
 Expression* AsmTyper::GetReceiverOfPropertyAccess(Expression* expr,
                                                   const char* name) {
   Property* property = expr->AsProperty();
@@ -896,24 +860,20 @@ Expression* AsmTyper::GetReceiverOfPropertyAccess(Expression* expr,
   return property->obj();
 }
 
-
 bool AsmTyper::IsMathObject(Expression* expr) {
   Expression* obj = GetReceiverOfPropertyAccess(expr, "Math");
   return obj && IsStdlibObject(obj);
 }
-
 
 bool AsmTyper::IsSIMDObject(Expression* expr) {
   Expression* obj = GetReceiverOfPropertyAccess(expr, "SIMD");
   return obj && IsStdlibObject(obj);
 }
 
-
 bool AsmTyper::IsSIMDTypeObject(Expression* expr, const char* name) {
   Expression* obj = GetReceiverOfPropertyAccess(expr, name);
   return obj && IsSIMDObject(obj);
 }
-
 
 void AsmTyper::VisitProperty(Property* expr) {
   if (IsMathObject(expr->obj())) {
@@ -1078,7 +1038,6 @@ void AsmTyper::VisitCall(Call* expr) {
   }
 }
 
-
 void AsmTyper::VisitCallNew(CallNew* expr) {
   if (in_function_) {
     FAIL(expr, "new not allowed in module function");
@@ -1103,11 +1062,9 @@ void AsmTyper::VisitCallNew(CallNew* expr) {
   FAIL(expr, "ill-typed new operator");
 }
 
-
 void AsmTyper::VisitCallRuntime(CallRuntime* expr) {
   FAIL(expr, "runtime call not allowed");
 }
-
 
 void AsmTyper::VisitUnaryOperation(UnaryOperation* expr) {
   if (!in_function_) {
@@ -1130,11 +1087,9 @@ void AsmTyper::VisitUnaryOperation(UnaryOperation* expr) {
   }
 }
 
-
 void AsmTyper::VisitCountOperation(CountOperation* expr) {
   FAIL(expr, "increment or decrement operator encountered");
 }
-
 
 void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
                                            Type* left_expected,
@@ -1178,7 +1133,6 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
   }
   RECURSE(IntersectResult(expr, result_type));
 }
-
 
 void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
   if (!in_function_) {
@@ -1377,7 +1331,6 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
   }
 }
 
-
 void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
   if (!in_function_) {
     FAIL(expr, "comparison inside module body");
@@ -1416,11 +1369,9 @@ void AsmTyper::VisitCompareOperation(CompareOperation* expr) {
   RECURSE(IntersectResult(expr, cache_.kAsmSigned));
 }
 
-
 void AsmTyper::VisitThisFunction(ThisFunction* expr) {
   FAIL(expr, "this function not allowed");
 }
-
 
 void AsmTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
   for (int i = 0; i < decls->length(); ++i) {
@@ -1429,29 +1380,23 @@ void AsmTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
   }
 }
 
-
 void AsmTyper::VisitImportDeclaration(ImportDeclaration* decl) {
   FAIL(decl, "import declaration encountered");
 }
-
 
 void AsmTyper::VisitClassLiteral(ClassLiteral* expr) {
   FAIL(expr, "class literal not allowed");
 }
 
-
 void AsmTyper::VisitSpread(Spread* expr) { FAIL(expr, "spread not allowed"); }
-
 
 void AsmTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {
   FAIL(expr, "super property reference not allowed");
 }
 
-
 void AsmTyper::VisitSuperCallReference(SuperCallReference* expr) {
   FAIL(expr, "call reference not allowed");
 }
-
 
 void AsmTyper::InitializeStdlibSIMD() {
 #define V(NAME, Name, name, lane_count, lane_type)                            \
@@ -1467,7 +1412,6 @@ void AsmTyper::InitializeStdlibSIMD() {
   SIMD128_TYPES(V)
 #undef V
 }
-
 
 void AsmTyper::InitializeStdlib() {
   if (allow_simd_) {
@@ -1544,7 +1488,6 @@ void AsmTyper::InitializeStdlib() {
 #undef TYPED_ARRAY
 }
 
-
 void AsmTyper::VisitLibraryAccess(ObjectTypeMap* map, Property* expr) {
   Literal* key = expr->key()->AsLiteral();
   if (key == nullptr || !key->IsPropertyName())
@@ -1557,7 +1500,6 @@ void AsmTyper::VisitLibraryAccess(ObjectTypeMap* map, Property* expr) {
   property_info_ = info;
 }
 
-
 AsmTyper::VariableInfo* AsmTyper::LibType(ObjectTypeMap* map,
                                           Handle<String> name) {
   base::SmartArrayPointer<char> aname = name->ToCString();
@@ -1568,12 +1510,10 @@ AsmTyper::VariableInfo* AsmTyper::LibType(ObjectTypeMap* map,
   return i->second;
 }
 
-
 void AsmTyper::SetType(Variable* variable, Type* type) {
   VariableInfo* info = MakeVariableInfo(variable);
   info->type = type;
 }
-
 
 Type* AsmTyper::GetType(Variable* variable) {
   VariableInfo* info = GetVariableInfo(variable);
@@ -1610,7 +1550,6 @@ void AsmTyper::SetVariableInfo(Variable* variable, const VariableInfo* info) {
   dest->standard_member = info->standard_member;
 }
 
-
 AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(
     Variable* variable) {
   VariableInfo* info = GetVariableInfo(variable);
@@ -1618,12 +1557,10 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(
   return info->standard_member;
 }
 
-
 void AsmTyper::SetResult(Expression* expr, Type* type) {
   computed_type_ = type;
   bounds_.set(expr, Bounds(computed_type_));
 }
-
 
 void AsmTyper::IntersectResult(Expression* expr, Type* type) {
   computed_type_ = type;
@@ -1639,7 +1576,6 @@ void AsmTyper::IntersectResult(Expression* expr, Type* type) {
   }
   bounds_.set(expr, Bounds(bounded_type));
 }
-
 
 void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
                                     const char* msg) {
@@ -1659,11 +1595,9 @@ void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
   expected_type_ = save;
 }
 
-
 void AsmTyper::VisitRewritableExpression(RewritableExpression* expr) {
   RECURSE(Visit(expr->expression()));
 }
-
 
 }  // namespace internal
 }  // namespace v8

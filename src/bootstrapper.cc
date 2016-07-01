@@ -3450,9 +3450,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     JSObject::AddProperty(global, debug_string, global_proxy, DONT_ENUM);
   }
 
-  if (FLAG_expose_wasm) {
-    WasmJs::Install(isolate, global);
-  }
+  WasmJs::Install(isolate, global);
 
   return true;
 }

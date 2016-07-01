@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/wasm/asm-types.h"
+#include "src/asmjs/asm-types.h"
 
 namespace v8 {
 namespace internal {

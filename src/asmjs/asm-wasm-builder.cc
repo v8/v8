@@ -10,7 +10,7 @@
 #endif
 #include <math.h>
 
-#include "src/wasm/asm-wasm-builder.h"
+#include "src/asmjs/asm-wasm-builder.h"
 #include "src/wasm/switch-logic.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"

@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/asmjs/asm-js.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -79,6 +80,31 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   return function->code();
 }
 
+RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 4);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  Handle<JSObject> foreign;
+  if (args[2]->IsJSObject()) {
+    foreign = args.at<i::JSObject>(2);
+  }
+  Handle<JSArrayBuffer> memory;
+  if (args[3]->IsJSArrayBuffer()) {
+    memory = args.at<i::JSArrayBuffer>(3);
+  }
+  if (args[1]->IsJSObject()) {
+    MaybeHandle<Object> result;
+    result = AsmJs::InstantiateAsmWasm(
+        isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);
+    if (!result.is_null()) {
+      return *result.ToHandleChecked();
+    }
+  }
+  // Remove wasm data and return a smi 0 to indicate failure.
+  function->shared()->ClearAsmWasmData();
+  return Smi::FromInt(0);
+}
 
 RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
   HandleScope scope(isolate);
@@ -88,7 +114,6 @@ RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
   delete deoptimizer;
   return isolate->heap()->undefined_value();
 }
-
 
 class ActivationsFinder : public ThreadVisitor {
  public:

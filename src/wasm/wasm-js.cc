@@ -4,6 +4,8 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/asmjs/asm-wasm-builder.h"
+#include "src/asmjs/typing-asm.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -13,9 +15,7 @@
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/parsing/parser.h"
-#include "src/typing-asm.h"
 
-#include "src/wasm/asm-wasm-builder.h"
 #include "src/wasm/encoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
