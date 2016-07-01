@@ -128,12 +128,12 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
-  //  -- a0                 : number of arguments
-  //  -- a1                 : function
-  //  -- cp                 : context
-  //  -- ra                 : return address
-  //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- sp[(argc + 1) * 8] : receiver
+  //  -- a0                     : number of arguments
+  //  -- a1                     : function
+  //  -- cp                     : context
+  //  -- ra                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- sp[argc * 4]           : receiver
   // -----------------------------------
   Heap::RootListIndex const root_index =
       (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
@@ -143,17 +143,17 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // +Infinity), with the tagged value in t2 and the double value in f0.
   __ LoadRoot(t2, root_index);
   __ ldc1(f0, FieldMemOperand(t2, HeapNumber::kValueOffset));
-  __ Addu(a3, a0, Operand(1));
 
   Label done_loop, loop;
+  __ mov(a3, a0);
   __ bind(&loop);
   {
     // Check if all parameters done.
-    __ Subu(a0, a0, Operand(1));
-    __ Branch(&done_loop, lt, a0, Operand(zero_reg));
+    __ Subu(a3, a3, Operand(1));
+    __ Branch(&done_loop, lt, a3, Operand(zero_reg));
 
     // Load the next parameter tagged value into a2.
-    __ Lsa(at, sp, a0, kPointerSizeLog2);
+    __ Lsa(at, sp, a3, kPointerSizeLog2);
     __ lw(a2, MemOperand(at));
 
     // Load the double value of the parameter into f2, maybe converting the
@@ -228,7 +228,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ bind(&done_loop);
-  __ Lsa(sp, sp, a3, kPointerSizeLog2);
+  // Drop all slots, including the receiver.
+  __ Addu(a0, a0, Operand(1));
+  __ Lsa(sp, sp, a0, kPointerSizeLog2);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, t2);  // In delay slot.
 }
