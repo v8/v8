@@ -251,6 +251,10 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberCeil, Operator::kNoProperties, 1)                \
   V(NumberFloor, Operator::kNoProperties, 1)               \
   V(NumberFround, Operator::kNoProperties, 1)              \
+  V(NumberAcos, Operator::kNoProperties, 1)                \
+  V(NumberAcosh, Operator::kNoProperties, 1)               \
+  V(NumberAsin, Operator::kNoProperties, 1)                \
+  V(NumberAsinh, Operator::kNoProperties, 1)               \
   V(NumberAtan, Operator::kNoProperties, 1)                \
   V(NumberAtan2, Operator::kNoProperties, 2)               \
   V(NumberAtanh, Operator::kNoProperties, 1)               \
@@ -265,6 +269,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberLog2, Operator::kNoProperties, 1)                \
   V(NumberPow, Operator::kNoProperties, 2)                 \
   V(NumberRound, Operator::kNoProperties, 1)               \
+  V(NumberSign, Operator::kNoProperties, 1)                \
   V(NumberSin, Operator::kNoProperties, 1)                 \
   V(NumberSinh, Operator::kNoProperties, 1)                \
   V(NumberSqrt, Operator::kNoProperties, 1)                \

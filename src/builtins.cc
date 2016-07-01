@@ -2252,73 +2252,51 @@ void Builtins::Generate_MathAbs(CodeStubAssembler* assembler) {
 }
 
 // ES6 section 20.2.2.2 Math.acos ( x )
-BUILTIN(MathAcos) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at<Object>(1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-  return *isolate->factory()->NewHeapNumber(std::acos(x->Number()));
+void Builtins::Generate_MathAcos(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Acos(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.3 Math.acosh ( x )
+void Builtins::Generate_MathAcosh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Acosh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
 // ES6 section 20.2.2.4 Math.asin ( x )
-BUILTIN(MathAsin) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at<Object>(1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-  return *isolate->factory()->NewHeapNumber(std::asin(x->Number()));
+void Builtins::Generate_MathAsin(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Asin(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
-// ES6 section 20.2.2.18 Math.hypot ( value1, value2, ...values )
-BUILTIN(MathHypot) {
-  HandleScope scope(isolate);
-  int const length = args.length() - 1;
-  if (length == 0) return Smi::FromInt(0);
-  DCHECK_LT(0, length);
-  double max = 0;
-  bool one_arg_is_nan = false;
-  List<double> abs_values(length);
-  for (int i = 0; i < length; i++) {
-    Handle<Object> x = args.at<Object>(i + 1);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-    double abs_value = std::abs(x->Number());
+// ES6 section 20.2.2.5 Math.asinh ( x )
+void Builtins::Generate_MathAsinh(CodeStubAssembler* assembler) {
+  using compiler::Node;
 
-    if (std::isnan(abs_value)) {
-      one_arg_is_nan = true;
-    } else {
-      abs_values.Add(abs_value);
-      if (max < abs_value) {
-        max = abs_value;
-      }
-    }
-  }
-
-  if (max == V8_INFINITY) {
-    return *isolate->factory()->NewNumber(V8_INFINITY);
-  }
-
-  if (one_arg_is_nan) {
-    return *isolate->factory()->nan_value();
-  }
-
-  if (max == 0) {
-    return Smi::FromInt(0);
-  }
-  DCHECK_GT(max, 0);
-
-  // Kahan summation to avoid rounding errors.
-  // Normalize the numbers to the largest one to avoid overflow.
-  double sum = 0;
-  double compensation = 0;
-  for (int i = 0; i < length; i++) {
-    double n = abs_values.at(i) / max;
-    double summand = n * n - compensation;
-    double preliminary = sum + summand;
-    compensation = (preliminary - sum) - summand;
-    sum = preliminary;
-  }
-
-  return *isolate->factory()->NewNumber(std::sqrt(sum) * max);
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Asinh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
 }
 
 // ES6 section 20.2.2.6 Math.atan ( x )
@@ -2333,6 +2311,18 @@ void Builtins::Generate_MathAtan(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
+// ES6 section 20.2.2.7 Math.atanh ( x )
+void Builtins::Generate_MathAtanh(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Atanh(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
 // ES6 section 20.2.2.8 Math.atan2 ( y, x )
 void Builtins::Generate_MathAtan2(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2343,18 +2333,6 @@ void Builtins::Generate_MathAtan2(CodeStubAssembler* assembler) {
   Node* y_value = assembler->TruncateTaggedToFloat64(context, y);
   Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
   Node* value = assembler->Float64Atan2(y_value, x_value);
-  Node* result = assembler->ChangeFloat64ToTagged(value);
-  assembler->Return(result);
-}
-
-// ES6 section 20.2.2.7 Math.atanh ( x )
-void Builtins::Generate_MathAtanh(CodeStubAssembler* assembler) {
-  using compiler::Node;
-
-  Node* x = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
-  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
-  Node* value = assembler->Float64Atanh(x_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
 }
@@ -2549,25 +2527,82 @@ void Builtins::Generate_MathFloor(CodeStubAssembler* assembler) {
 }
 
 // ES6 section 20.2.2.17 Math.fround ( x )
-BUILTIN(MathFround) {
+void Builtins::Generate_MathFround(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value32 = assembler->TruncateFloat64ToFloat32(x_value);
+  Node* value = assembler->ChangeFloat32ToFloat64(value32);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.18 Math.hypot ( value1, value2, ...values )
+BUILTIN(MathHypot) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at<Object>(1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-  float x32 = DoubleToFloat32(x->Number());
-  return *isolate->factory()->NewNumber(x32);
+  int const length = args.length() - 1;
+  if (length == 0) return Smi::FromInt(0);
+  DCHECK_LT(0, length);
+  double max = 0;
+  bool one_arg_is_nan = false;
+  List<double> abs_values(length);
+  for (int i = 0; i < length; i++) {
+    Handle<Object> x = args.at<Object>(i + 1);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+    double abs_value = std::abs(x->Number());
+
+    if (std::isnan(abs_value)) {
+      one_arg_is_nan = true;
+    } else {
+      abs_values.Add(abs_value);
+      if (max < abs_value) {
+        max = abs_value;
+      }
+    }
+  }
+
+  if (max == V8_INFINITY) {
+    return *isolate->factory()->NewNumber(V8_INFINITY);
+  }
+
+  if (one_arg_is_nan) {
+    return *isolate->factory()->nan_value();
+  }
+
+  if (max == 0) {
+    return Smi::FromInt(0);
+  }
+  DCHECK_GT(max, 0);
+
+  // Kahan summation to avoid rounding errors.
+  // Normalize the numbers to the largest one to avoid overflow.
+  double sum = 0;
+  double compensation = 0;
+  for (int i = 0; i < length; i++) {
+    double n = abs_values.at(i) / max;
+    double summand = n * n - compensation;
+    double preliminary = sum + summand;
+    compensation = (preliminary - sum) - summand;
+    sum = preliminary;
+  }
+
+  return *isolate->factory()->NewNumber(std::sqrt(sum) * max);
 }
 
 // ES6 section 20.2.2.19 Math.imul ( x, y )
-BUILTIN(MathImul) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> x = args.at<Object>(1);
-  Handle<Object> y = args.at<Object>(2);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, y, Object::ToNumber(y));
-  int product = static_cast<int>(NumberToUint32(*x) * NumberToUint32(*y));
-  return *isolate->factory()->NewNumberFromInt(product);
+void Builtins::Generate_MathImul(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* y = assembler->Parameter(2);
+  Node* context = assembler->Parameter(5);
+  Node* x_value = assembler->TruncateTaggedToWord32(context, x);
+  Node* y_value = assembler->TruncateTaggedToWord32(context, y);
+  Node* value = assembler->Int32Mul(x_value, y_value);
+  Node* result = assembler->ChangeInt32ToTagged(value);
+  assembler->Return(result);
 }
 
 // ES6 section 20.2.2.20 Math.log ( x )
@@ -2594,18 +2629,6 @@ void Builtins::Generate_MathLog1p(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
-// ES6 section 20.2.2.23 Math.log2 ( x )
-void Builtins::Generate_MathLog2(CodeStubAssembler* assembler) {
-  using compiler::Node;
-
-  Node* x = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
-  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
-  Node* value = assembler->Float64Log2(x_value);
-  Node* result = assembler->ChangeFloat64ToTagged(value);
-  assembler->Return(result);
-}
-
 // ES6 section 20.2.2.22 Math.log10 ( x )
 void Builtins::Generate_MathLog10(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2614,6 +2637,18 @@ void Builtins::Generate_MathLog10(CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(4);
   Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
   Node* value = assembler->Float64Log10(x_value);
+  Node* result = assembler->ChangeFloat64ToTagged(value);
+  assembler->Return(result);
+}
+
+// ES6 section 20.2.2.23 Math.log2 ( x )
+void Builtins::Generate_MathLog2(CodeStubAssembler* assembler) {
+  using compiler::Node;
+
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+  Node* value = assembler->Float64Log2(x_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
 }
@@ -2630,11 +2665,6 @@ void Builtins::Generate_MathExpm1(CodeStubAssembler* assembler) {
   assembler->Return(result);
 }
 
-// ES6 section 20.2.2.28 Math.round ( x )
-void Builtins::Generate_MathRound(CodeStubAssembler* assembler) {
-  Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Round);
-}
-
 // ES6 section 20.2.2.26 Math.pow ( x, y )
 void Builtins::Generate_MathPow(CodeStubAssembler* assembler) {
   using compiler::Node;
@@ -2647,6 +2677,38 @@ void Builtins::Generate_MathPow(CodeStubAssembler* assembler) {
   Node* value = assembler->Float64Pow(x_value, y_value);
   Node* result = assembler->ChangeFloat64ToTagged(value);
   assembler->Return(result);
+}
+
+// ES6 section 20.2.2.28 Math.round ( x )
+void Builtins::Generate_MathRound(CodeStubAssembler* assembler) {
+  Generate_MathRoundingOperation(assembler, &CodeStubAssembler::Float64Round);
+}
+
+// ES6 section 20.2.2.29 Math.sign ( x )
+void Builtins::Generate_MathSign(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  using compiler::Node;
+
+  // Convert the {x} value to a Number.
+  Node* x = assembler->Parameter(1);
+  Node* context = assembler->Parameter(4);
+  Node* x_value = assembler->TruncateTaggedToFloat64(context, x);
+
+  // Return -1 if {x} is negative, 1 if {x} is positive, or {x} itself.
+  Label if_xisnegative(assembler), if_xispositive(assembler);
+  assembler->GotoIf(
+      assembler->Float64LessThan(x_value, assembler->Float64Constant(0.0)),
+      &if_xisnegative);
+  assembler->GotoIf(
+      assembler->Float64LessThan(assembler->Float64Constant(0.0), x_value),
+      &if_xispositive);
+  assembler->Return(assembler->ChangeFloat64ToTagged(x_value));
+
+  assembler->Bind(&if_xisnegative);
+  assembler->Return(assembler->SmiConstant(Smi::FromInt(-1)));
+
+  assembler->Bind(&if_xispositive);
+  assembler->Return(assembler->SmiConstant(Smi::FromInt(1)));
 }
 
 // ES6 section 20.2.2.30 Math.sin ( x )

@@ -5499,6 +5499,30 @@ TEST(RunFloat64Abs) {
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(std::abs(*i), m.Call(*i)); }
 }
 
+TEST(RunFloat64Acos) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Acos(m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::acos(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Acosh) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Acosh(m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::acosh(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Asin) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Asin(m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::asin(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Asinh) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  m.Return(m.Float64Asinh(m.Parameter(0)));
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::asinh(*i), m.Call(*i)); }
+}
+
 TEST(RunFloat64Atan) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.Float64Atan(m.Parameter(0)));
@@ -5507,17 +5531,6 @@ TEST(RunFloat64Atan) {
   CHECK_DOUBLE_EQ(-0.0, m.Call(-0.0));
   CHECK_DOUBLE_EQ(0.0, m.Call(0.0));
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::atan(*i), m.Call(*i)); }
-}
-
-TEST(RunFloat64Atan2) {
-  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
-                                              MachineType::Float64());
-  m.Return(m.Float64Atan2(m.Parameter(0), m.Parameter(1)));
-  FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) {
-      CHECK_DOUBLE_EQ(ieee754::atan2(*i, *j), m.Call(*i, *j));
-    }
-  }
 }
 
 TEST(RunFloat64Atanh) {
@@ -5530,6 +5543,17 @@ TEST(RunFloat64Atanh) {
   CHECK_DOUBLE_EQ(-0.0, m.Call(-0.0));
   CHECK_DOUBLE_EQ(0.0, m.Call(0.0));
   FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(ieee754::atanh(*i), m.Call(*i)); }
+}
+
+TEST(RunFloat64Atan2) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Atan2(m.Parameter(0), m.Parameter(1)));
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) {
+      CHECK_DOUBLE_EQ(ieee754::atan2(*i, *j), m.Call(*i, *j));
+    }
+  }
 }
 
 TEST(RunFloat64Cos) {

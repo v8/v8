@@ -1148,12 +1148,20 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64Max(node);
     case IrOpcode::kFloat64Abs:
       return MarkAsFloat64(node), VisitFloat64Abs(node);
+    case IrOpcode::kFloat64Acos:
+      return MarkAsFloat64(node), VisitFloat64Acos(node);
+    case IrOpcode::kFloat64Acosh:
+      return MarkAsFloat64(node), VisitFloat64Acosh(node);
+    case IrOpcode::kFloat64Asin:
+      return MarkAsFloat64(node), VisitFloat64Asin(node);
+    case IrOpcode::kFloat64Asinh:
+      return MarkAsFloat64(node), VisitFloat64Asinh(node);
     case IrOpcode::kFloat64Atan:
       return MarkAsFloat64(node), VisitFloat64Atan(node);
-    case IrOpcode::kFloat64Atan2:
-      return MarkAsFloat64(node), VisitFloat64Atan2(node);
     case IrOpcode::kFloat64Atanh:
       return MarkAsFloat64(node), VisitFloat64Atanh(node);
+    case IrOpcode::kFloat64Atan2:
+      return MarkAsFloat64(node), VisitFloat64Atan2(node);
     case IrOpcode::kFloat64Cbrt:
       return MarkAsFloat64(node), VisitFloat64Cbrt(node);
     case IrOpcode::kFloat64Cos:
@@ -1287,16 +1295,32 @@ void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
 }
 
+void InstructionSelector::VisitFloat64Acos(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Acos);
+}
+
+void InstructionSelector::VisitFloat64Acosh(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Acosh);
+}
+
+void InstructionSelector::VisitFloat64Asin(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Asin);
+}
+
+void InstructionSelector::VisitFloat64Asinh(Node* node) {
+  VisitFloat64Ieee754Unop(node, kIeee754Float64Asinh);
+}
+
 void InstructionSelector::VisitFloat64Atan(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atan);
 }
 
-void InstructionSelector::VisitFloat64Atan2(Node* node) {
-  VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
-}
-
 void InstructionSelector::VisitFloat64Atanh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atanh);
+}
+
+void InstructionSelector::VisitFloat64Atan2(Node* node) {
+  VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
 }
 
 void InstructionSelector::VisitFloat64Cbrt(Node* node) {

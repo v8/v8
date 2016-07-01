@@ -811,8 +811,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
+    case kIeee754Float64Acos:
+      ASSEMBLE_IEEE754_UNOP(acos);
+      break;
+    case kIeee754Float64Acosh:
+      ASSEMBLE_IEEE754_UNOP(acosh);
+      break;
+    case kIeee754Float64Asin:
+      ASSEMBLE_IEEE754_UNOP(asin);
+      break;
+    case kIeee754Float64Asinh:
+      ASSEMBLE_IEEE754_UNOP(asinh);
+      break;
     case kIeee754Float64Atan:
       ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atanh:
+      ASSEMBLE_IEEE754_UNOP(atanh);
       break;
     case kIeee754Float64Atan2:
       ASSEMBLE_IEEE754_BINOP(atan2);
@@ -831,9 +846,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIeee754Float64Expm1:
       ASSEMBLE_IEEE754_UNOP(expm1);
-      break;
-    case kIeee754Float64Atanh:
-      ASSEMBLE_IEEE754_UNOP(atanh);
       break;
     case kIeee754Float64Log:
       ASSEMBLE_IEEE754_UNOP(log);

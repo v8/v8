@@ -367,9 +367,34 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kFloat64Acos: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::acos(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Acosh: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::acosh(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Asin: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::asin(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Asinh: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::asinh(m.Value()));
+      break;
+    }
     case IrOpcode::kFloat64Atan: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(base::ieee754::atan(m.Value()));
+      break;
+    }
+    case IrOpcode::kFloat64Atanh: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(base::ieee754::atanh(m.Value()));
       break;
     }
     case IrOpcode::kFloat64Atan2: {
@@ -384,11 +409,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceFloat64(
             base::ieee754::atan2(m.left().Value(), m.right().Value()));
       }
-      break;
-    }
-    case IrOpcode::kFloat64Atanh: {
-      Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(base::ieee754::atanh(m.Value()));
       break;
     }
     case IrOpcode::kFloat64Cbrt: {

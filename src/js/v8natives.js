@@ -363,7 +363,7 @@ function NumberIsSafeInteger(number) {
   if (NumberIsFinite(number)) {
     var integral = TO_INTEGER(number);
     if (integral == number) {
-      return %math_abs(integral) <= kMaxSafeInteger;
+      return -kMaxSafeInteger <= integral && integral <= kMaxSafeInteger;
     }
   }
   return false;

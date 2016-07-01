@@ -689,8 +689,18 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64LessThanOrEqual();
     case IrOpcode::kNumberAbs:
       return machine()->Float64Abs();
+    case IrOpcode::kNumberAcos:
+      return machine()->Float64Acos();
+    case IrOpcode::kNumberAcosh:
+      return machine()->Float64Acosh();
+    case IrOpcode::kNumberAsin:
+      return machine()->Float64Asin();
+    case IrOpcode::kNumberAsinh:
+      return machine()->Float64Asinh();
     case IrOpcode::kNumberAtan:
       return machine()->Float64Atan();
+    case IrOpcode::kNumberAtanh:
+      return machine()->Float64Atanh();
     case IrOpcode::kNumberAtan2:
       return machine()->Float64Atan2();
     case IrOpcode::kNumberCbrt:
@@ -705,8 +715,6 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Expm1();
     case IrOpcode::kNumberFround:
       return machine()->TruncateFloat64ToFloat32();
-    case IrOpcode::kNumberAtanh:
-      return machine()->Float64Atanh();
     case IrOpcode::kNumberLog:
       return machine()->Float64Log();
     case IrOpcode::kNumberLog1p:

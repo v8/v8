@@ -258,6 +258,7 @@ class Typer::Visitor : public Reducer {
   static Type* NumberCeil(Type*, Typer*);
   static Type* NumberFloor(Type*, Typer*);
   static Type* NumberRound(Type*, Typer*);
+  static Type* NumberSign(Type*, Typer*);
   static Type* NumberTrunc(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
@@ -540,6 +541,33 @@ Type* Typer::Visitor::NumberRound(Type* type, Typer* t) {
   if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
   // TODO(bmeurer): We could infer a more precise type here.
   return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberSign(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kZeroish)) return type;
+  bool maybe_minuszero = type->Maybe(Type::MinusZero());
+  bool maybe_nan = type->Maybe(Type::NaN());
+  type = Type::Intersect(type, Type::PlainNumber(), t->zone());
+  if (type->Max() < 0.0) {
+    type = t->cache_.kSingletonMinusOne;
+  } else if (type->Max() <= 0.0) {
+    type = t->cache_.kMinusOneOrZero;
+  } else if (type->Min() > 0.0) {
+    type = t->cache_.kSingletonOne;
+  } else if (type->Min() >= 0.0) {
+    type = t->cache_.kZeroOrOne;
+  } else {
+    type = Type::Range(-1.0, 1.0, t->zone());
+  }
+  if (maybe_minuszero) {
+    type = Type::Union(type, Type::MinusZero(), t->zone());
+  }
+  if (maybe_nan) {
+    type = Type::Union(type, Type::NaN(), t->zone());
+  }
+  return type;
 }
 
 // static
@@ -1384,9 +1412,13 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathSin:
         case kMathTan:
         case kMathAcos:
+        case kMathAcosh:
         case kMathAsin:
+        case kMathAsinh:
         case kMathAtan:
+        case kMathAtanh:
         case kMathFround:
+        case kMathSign:
           return Type::Number();
         // Binary math functions.
         case kMathAtan2:
@@ -1640,11 +1672,23 @@ Type* Typer::Visitor::TypeNumberFloor(Node* node) {
 
 Type* Typer::Visitor::TypeNumberFround(Node* node) { return Type::Number(); }
 
+Type* Typer::Visitor::TypeNumberSign(Node* node) {
+  return TypeUnaryOp(node, NumberSign);
+}
+
+Type* Typer::Visitor::TypeNumberAcos(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberAcosh(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberAsin(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberAsinh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeNumberAtan(Node* node) { return Type::Number(); }
 
-Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
-
 Type* Typer::Visitor::TypeNumberAtanh(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeNumberAtan2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberCos(Node* node) { return Type::Number(); }
 
@@ -2324,11 +2368,19 @@ Type* Typer::Visitor::TypeFloat64Abs(Node* node) {
   return Type::Number();
 }
 
+Type* Typer::Visitor::TypeFloat64Acos(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Acosh(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Asin(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Asinh(Node* node) { return Type::Number(); }
+
 Type* Typer::Visitor::TypeFloat64Atan(Node* node) { return Type::Number(); }
 
-Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
-
 Type* Typer::Visitor::TypeFloat64Atanh(Node* node) { return Type::Number(); }
+
+Type* Typer::Visitor::TypeFloat64Atan2(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeFloat64Cbrt(Node* node) { return Type::Number(); }
 

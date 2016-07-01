@@ -460,11 +460,15 @@ class RawMachineAssembler {
   }
   Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
   Node* Float64Neg(Node* a) { return Float64Sub(Float64Constant(-0.0), a); }
+  Node* Float64Acos(Node* a) { return AddNode(machine()->Float64Acos(), a); }
+  Node* Float64Acosh(Node* a) { return AddNode(machine()->Float64Acosh(), a); }
+  Node* Float64Asin(Node* a) { return AddNode(machine()->Float64Asin(), a); }
+  Node* Float64Asinh(Node* a) { return AddNode(machine()->Float64Asinh(), a); }
   Node* Float64Atan(Node* a) { return AddNode(machine()->Float64Atan(), a); }
+  Node* Float64Atanh(Node* a) { return AddNode(machine()->Float64Atanh(), a); }
   Node* Float64Atan2(Node* a, Node* b) {
     return AddNode(machine()->Float64Atan2(), a, b);
   }
-  Node* Float64Atanh(Node* a) { return AddNode(machine()->Float64Atanh(), a); }
   Node* Float64Cbrt(Node* a) { return AddNode(machine()->Float64Cbrt(), a); }
   Node* Float64Cos(Node* a) { return AddNode(machine()->Float64Cos(), a); }
   Node* Float64Cosh(Node* a) { return AddNode(machine()->Float64Cosh(), a); }

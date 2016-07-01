@@ -109,6 +109,10 @@ class Schedule;
 
 #define CODE_ASSEMBLER_UNARY_OP_LIST(V) \
   V(Float64Abs)                         \
+  V(Float64Acos)                        \
+  V(Float64Acosh)                       \
+  V(Float64Asin)                        \
+  V(Float64Asinh)                       \
   V(Float64Atan)                        \
   V(Float64Atanh)                       \
   V(Float64Cos)                         \
@@ -129,8 +133,10 @@ class Schedule;
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
   V(BitcastWordToTagged)                \
+  V(TruncateFloat64ToFloat32)           \
   V(TruncateFloat64ToWord32)            \
   V(TruncateInt64ToInt32)               \
+  V(ChangeFloat32ToFloat64)             \
   V(ChangeFloat64ToUint32)              \
   V(ChangeInt32ToFloat64)               \
   V(ChangeInt32ToInt64)                 \

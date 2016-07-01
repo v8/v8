@@ -30,9 +30,13 @@ class JSBuiltinReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceMathAbs(Node* node);
+  Reduction ReduceMathAcos(Node* node);
+  Reduction ReduceMathAcosh(Node* node);
+  Reduction ReduceMathAsin(Node* node);
+  Reduction ReduceMathAsinh(Node* node);
   Reduction ReduceMathAtan(Node* node);
-  Reduction ReduceMathAtan2(Node* node);
   Reduction ReduceMathAtanh(Node* node);
+  Reduction ReduceMathAtan2(Node* node);
   Reduction ReduceMathCbrt(Node* node);
   Reduction ReduceMathCeil(Node* node);
   Reduction ReduceMathClz32(Node* node);
@@ -51,6 +55,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathMin(Node* node);
   Reduction ReduceMathPow(Node* node);
   Reduction ReduceMathRound(Node* node);
+  Reduction ReduceMathSign(Node* node);
   Reduction ReduceMathSin(Node* node);
   Reduction ReduceMathSinh(Node* node);
   Reduction ReduceMathSqrt(Node* node);

@@ -117,11 +117,7 @@ class CodeStubAssembler;
   V(JsonParse, BUILTIN_EXIT)                            \
   V(JsonStringify, BUILTIN_EXIT)                        \
                                                         \
-  V(MathAcos, BUILTIN_EXIT)                             \
-  V(MathAsin, BUILTIN_EXIT)                             \
-  V(MathFround, BUILTIN_EXIT)                           \
   V(MathHypot, BUILTIN_EXIT)                            \
-  V(MathImul, BUILTIN_EXIT)                             \
                                                         \
   V(ObjectAssign, BUILTIN_EXIT)                         \
   V(ObjectCreate, BUILTIN_EXIT)                         \
@@ -308,9 +304,13 @@ class CodeStubAssembler;
   V(GeneratorPrototypeNext, 2)        \
   V(GeneratorPrototypeReturn, 2)      \
   V(GeneratorPrototypeThrow, 2)       \
+  V(MathAcos, 2)                      \
+  V(MathAcosh, 2)                     \
+  V(MathAsin, 2)                      \
+  V(MathAsinh, 2)                     \
   V(MathAtan, 2)                      \
-  V(MathAtan2, 3)                     \
   V(MathAtanh, 2)                     \
+  V(MathAtan2, 3)                     \
   V(MathCeil, 2)                      \
   V(MathCbrt, 2)                      \
   V(MathAbs, 2)                       \
@@ -320,12 +320,15 @@ class CodeStubAssembler;
   V(MathCosh, 2)                      \
   V(MathExp, 2)                       \
   V(MathFloor, 2)                     \
+  V(MathFround, 2)                    \
+  V(MathImul, 3)                      \
   V(MathLog, 2)                       \
   V(MathLog1p, 2)                     \
   V(MathLog10, 2)                     \
   V(MathLog2, 2)                      \
   V(MathRound, 2)                     \
   V(MathPow, 3)                       \
+  V(MathSign, 2)                      \
   V(MathSin, 2)                       \
   V(MathSinh, 2)                      \
   V(MathTan, 2)                       \
@@ -637,12 +640,20 @@ class Builtins {
 
   // ES6 section 20.2.2.1 Math.abs ( x )
   static void Generate_MathAbs(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.2 Math.acos ( x )
+  static void Generate_MathAcos(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.3 Math.acosh ( x )
+  static void Generate_MathAcosh(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.4 Math.asin ( x )
+  static void Generate_MathAsin(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.5 Math.asinh ( x )
+  static void Generate_MathAsinh(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.6 Math.atan ( x )
   static void Generate_MathAtan(CodeStubAssembler* assembler);
-  // ES6 section 20.2.2.8 Math.atan2 ( y, x )
-  static void Generate_MathAtan2(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.7 Math.atanh ( x )
   static void Generate_MathAtanh(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.8 Math.atan2 ( y, x )
+  static void Generate_MathAtan2(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.10 Math.ceil ( x )
   static void Generate_MathCeil(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.9 Math.ceil ( x )
@@ -659,6 +670,10 @@ class Builtins {
   static void Generate_MathExp(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.16 Math.floor ( x )
   static void Generate_MathFloor(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.17 Math.fround ( x )
+  static void Generate_MathFround(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.20 Math.imul ( x, y )
+  static void Generate_MathImul(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.20 Math.log ( x )
   static void Generate_MathLog(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.21 Math.log ( x )
@@ -681,9 +696,11 @@ class Builtins {
   static void Generate_MathPow(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.28 Math.round ( x )
   static void Generate_MathRound(CodeStubAssembler* assembler);
-  // ES6 section 20.2.2.20 Math.sin ( x )
+  // ES6 section 20.2.2.29 Math.sign ( x )
+  static void Generate_MathSign(CodeStubAssembler* assembler);
+  // ES6 section 20.2.2.30 Math.sin ( x )
   static void Generate_MathSin(CodeStubAssembler* assembler);
-  // ES6 section 20.2.2.21 Math.sinh ( x )
+  // ES6 section 20.2.2.31 Math.sinh ( x )
   static void Generate_MathSinh(CodeStubAssembler* assembler);
   // ES6 section 20.2.2.32 Math.sqrt ( x )
   static void Generate_MathSqrt(CodeStubAssembler* assembler);

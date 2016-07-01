@@ -1669,32 +1669,28 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> math = factory->NewJSObject(cons, TENURED);
     DCHECK(math->IsJSObject());
     JSObject::AddProperty(global, name, math, DONT_ENUM);
-    Handle<JSFunction> math_abs =
-        SimpleInstallFunction(math, "abs", Builtins::kMathAbs, 1, true);
-    native_context()->set_math_abs(*math_abs);
+    SimpleInstallFunction(math, "abs", Builtins::kMathAbs, 1, true);
     SimpleInstallFunction(math, "acos", Builtins::kMathAcos, 1, true);
+    SimpleInstallFunction(math, "acosh", Builtins::kMathAcosh, 1, true);
     SimpleInstallFunction(math, "asin", Builtins::kMathAsin, 1, true);
+    SimpleInstallFunction(math, "asinh", Builtins::kMathAsinh, 1, true);
     SimpleInstallFunction(math, "atan", Builtins::kMathAtan, 1, true);
-    SimpleInstallFunction(math, "atan2", Builtins::kMathAtan2, 2, true);
     SimpleInstallFunction(math, "atanh", Builtins::kMathAtanh, 1, true);
+    SimpleInstallFunction(math, "atan2", Builtins::kMathAtan2, 2, true);
     SimpleInstallFunction(math, "ceil", Builtins::kMathCeil, 1, true);
     SimpleInstallFunction(math, "cbrt", Builtins::kMathCbrt, 1, true);
     SimpleInstallFunction(math, "expm1", Builtins::kMathExpm1, 1, true);
     SimpleInstallFunction(math, "clz32", Builtins::kMathClz32, 1, true);
     SimpleInstallFunction(math, "cos", Builtins::kMathCos, 1, true);
     SimpleInstallFunction(math, "cosh", Builtins::kMathCosh, 1, true);
-    Handle<JSFunction> math_exp =
-        SimpleInstallFunction(math, "exp", Builtins::kMathExp, 1, true);
-    native_context()->set_math_exp(*math_exp);
+    SimpleInstallFunction(math, "exp", Builtins::kMathExp, 1, true);
     Handle<JSFunction> math_floor =
         SimpleInstallFunction(math, "floor", Builtins::kMathFloor, 1, true);
     native_context()->set_math_floor(*math_floor);
     SimpleInstallFunction(math, "fround", Builtins::kMathFround, 1, true);
     SimpleInstallFunction(math, "hypot", Builtins::kMathHypot, 2, false);
     SimpleInstallFunction(math, "imul", Builtins::kMathImul, 2, true);
-    Handle<JSFunction> math_log =
-        SimpleInstallFunction(math, "log", Builtins::kMathLog, 1, true);
-    native_context()->set_math_log(*math_log);
+    SimpleInstallFunction(math, "log", Builtins::kMathLog, 1, true);
     SimpleInstallFunction(math, "log1p", Builtins::kMathLog1p, 1, true);
     SimpleInstallFunction(math, "log2", Builtins::kMathLog2, 1, true);
     SimpleInstallFunction(math, "log10", Builtins::kMathLog10, 1, true);
@@ -1704,17 +1700,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(math, "pow", Builtins::kMathPow, 2, true);
     native_context()->set_math_pow(*math_pow);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
+    SimpleInstallFunction(math, "sign", Builtins::kMathSign, 1, true);
     SimpleInstallFunction(math, "sin", Builtins::kMathSin, 1, true);
     SimpleInstallFunction(math, "sinh", Builtins::kMathSinh, 1, true);
-    Handle<JSFunction> math_sqrt =
-        SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
-    native_context()->set_math_sqrt(*math_sqrt);
+    SimpleInstallFunction(math, "sqrt", Builtins::kMathSqrt, 1, true);
     SimpleInstallFunction(math, "tan", Builtins::kMathTan, 1, true);
     SimpleInstallFunction(math, "tanh", Builtins::kMathTanh, 1, true);
     SimpleInstallFunction(math, "trunc", Builtins::kMathTrunc, 1, true);
 
     // Install math constants.
     double const kE = base::ieee754::exp(1.0);
+    double const kPI = 3.1415926535897932;
     JSObject::AddProperty(
         math, factory->NewStringFromAsciiChecked("E"), factory->NewNumber(kE),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
@@ -1733,6 +1729,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(
         math, factory->NewStringFromAsciiChecked("LOG2E"),
         factory->NewNumber(base::ieee754::log2(kE)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("PI"), factory->NewNumber(kPI),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("SQRT1_2"),
+        factory->NewNumber(std::sqrt(0.5)),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->NewStringFromAsciiChecked("SQRT2"),
+        factory->NewNumber(std::sqrt(2.0)),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
   }
 

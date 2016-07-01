@@ -65,12 +65,20 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
       "power_double_double_function");
+  Add(ExternalReference::ieee754_acos_function(isolate).address(),
+      "base::ieee754::acos");
+  Add(ExternalReference::ieee754_acosh_function(isolate).address(),
+      "base::ieee754::acosh");
+  Add(ExternalReference::ieee754_asin_function(isolate).address(),
+      "base::ieee754::asin");
+  Add(ExternalReference::ieee754_asinh_function(isolate).address(),
+      "base::ieee754::asinh");
   Add(ExternalReference::ieee754_atan_function(isolate).address(),
       "base::ieee754::atan");
-  Add(ExternalReference::ieee754_atan2_function(isolate).address(),
-      "base::ieee754::atan2");
   Add(ExternalReference::ieee754_atanh_function(isolate).address(),
       "base::ieee754::atanh");
+  Add(ExternalReference::ieee754_atan2_function(isolate).address(),
+      "base::ieee754::atan2");
   Add(ExternalReference::ieee754_cbrt_function(isolate).address(),
       "base::ieee754::cbrt");
   Add(ExternalReference::ieee754_cos_function(isolate).address(),

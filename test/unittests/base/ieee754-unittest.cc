@@ -21,62 +21,122 @@ namespace {
 double const kE = 2.718281828459045;
 double const kPI = 3.141592653589793;
 double const kTwo120 = 1.329227995784916e+36;
+double const kInfinity = std::numeric_limits<double>::infinity();
+double const kQNaN = std::numeric_limits<double>::quiet_NaN();
+double const kSNaN = std::numeric_limits<double>::signaling_NaN();
 
 }  // namespace
 
+TEST(Ieee754, Acos) {
+  EXPECT_THAT(acos(kInfinity), IsNaN());
+  EXPECT_THAT(acos(-kInfinity), IsNaN());
+  EXPECT_THAT(acos(kQNaN), IsNaN());
+  EXPECT_THAT(acos(kSNaN), IsNaN());
+
+  EXPECT_EQ(0.0, acos(1.0));
+}
+
+TEST(Ieee754, Acosh) {
+  // Tests for acosh for exceptional values
+  EXPECT_EQ(kInfinity, acosh(kInfinity));
+  EXPECT_THAT(acosh(-kInfinity), IsNaN());
+  EXPECT_THAT(acosh(kQNaN), IsNaN());
+  EXPECT_THAT(acosh(kSNaN), IsNaN());
+  EXPECT_THAT(acosh(0.9), IsNaN());
+
+  // Test basic acosh functionality
+  EXPECT_EQ(0.0, acosh(1.0));
+  // acosh(1.5) = log((sqrt(5)+3)/2), case 1 < x < 2
+  EXPECT_EQ(0.9624236501192069e0, acosh(1.5));
+  // acosh(4) = log(sqrt(15)+4), case 2 < x < 2^28
+  EXPECT_EQ(2.0634370688955608e0, acosh(4.0));
+  // acosh(2^50), case 2^28 < x
+  EXPECT_EQ(35.35050620855721e0, acosh(1125899906842624.0));
+  // acosh(most-positive-float), no overflow
+  EXPECT_EQ(710.4758600739439e0, acosh(1.7976931348623157e308));
+}
+
+TEST(Ieee754, Asin) {
+  EXPECT_THAT(asin(kInfinity), IsNaN());
+  EXPECT_THAT(asin(-kInfinity), IsNaN());
+  EXPECT_THAT(asin(kQNaN), IsNaN());
+  EXPECT_THAT(asin(kSNaN), IsNaN());
+
+  EXPECT_THAT(asin(0.0), BitEq(0.0));
+  EXPECT_THAT(asin(-0.0), BitEq(-0.0));
+}
+
+TEST(Ieee754, Asinh) {
+  // Tests for asinh for exceptional values
+  EXPECT_EQ(kInfinity, asinh(kInfinity));
+  EXPECT_EQ(-kInfinity, asinh(-kInfinity));
+  EXPECT_THAT(asin(kQNaN), IsNaN());
+  EXPECT_THAT(asin(kSNaN), IsNaN());
+
+  // Test basic asinh functionality
+  EXPECT_THAT(asinh(0.0), BitEq(0.0));
+  EXPECT_THAT(asinh(-0.0), BitEq(-0.0));
+  // asinh(2^-29) = 2^-29, case |x| < 2^-28, where acosh(x) = x
+  EXPECT_EQ(1.862645149230957e-9, asinh(1.862645149230957e-9));
+  // asinh(-2^-29) = -2^-29, case |x| < 2^-28, where acosh(x) = x
+  EXPECT_EQ(-1.862645149230957e-9, asinh(-1.862645149230957e-9));
+  // asinh(2^-28), case 2 > |x| >= 2^-28
+  EXPECT_EQ(3.725290298461914e-9, asinh(3.725290298461914e-9));
+  // asinh(-2^-28), case 2 > |x| >= 2^-28
+  EXPECT_EQ(-3.725290298461914e-9, asinh(-3.725290298461914e-9));
+  // asinh(1), case 2 > |x| > 2^-28
+  EXPECT_EQ(0.881373587019543e0, asinh(1.0));
+  // asinh(-1), case 2 > |x| > 2^-28
+  EXPECT_EQ(-0.881373587019543e0, asinh(-1.0));
+  // asinh(5), case 2^28 > |x| > 2
+  EXPECT_EQ(2.3124383412727525e0, asinh(5.0));
+  // asinh(-5), case 2^28 > |x| > 2
+  EXPECT_EQ(-2.3124383412727525e0, asinh(-5.0));
+  // asinh(2^28), case 2^28 > |x|
+  EXPECT_EQ(20.101268236238415e0, asinh(268435456.0));
+  // asinh(-2^28), case 2^28 > |x|
+  EXPECT_EQ(-20.101268236238415e0, asinh(-268435456.0));
+  // asinh(<most-positive-float>), no overflow
+  EXPECT_EQ(710.4758600739439e0, asinh(1.7976931348623157e308));
+  // asinh(-<most-positive-float>), no overflow
+  EXPECT_EQ(-710.4758600739439e0, asinh(-1.7976931348623157e308));
+}
+
 TEST(Ieee754, Atan) {
-  EXPECT_THAT(atan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(atan(std::numeric_limits<double>::signaling_NaN()), IsNaN());
+  EXPECT_THAT(atan(kQNaN), IsNaN());
+  EXPECT_THAT(atan(kSNaN), IsNaN());
   EXPECT_THAT(atan(-0.0), BitEq(-0.0));
   EXPECT_THAT(atan(0.0), BitEq(0.0));
-  EXPECT_DOUBLE_EQ(1.5707963267948966,
-                   atan(std::numeric_limits<double>::infinity()));
-  EXPECT_DOUBLE_EQ(-1.5707963267948966,
-                   atan(-std::numeric_limits<double>::infinity()));
+  EXPECT_DOUBLE_EQ(1.5707963267948966, atan(kInfinity));
+  EXPECT_DOUBLE_EQ(-1.5707963267948966, atan(-kInfinity));
 }
 
 TEST(Ieee754, Atan2) {
-  EXPECT_THAT(atan2(std::numeric_limits<double>::quiet_NaN(),
-                    std::numeric_limits<double>::quiet_NaN()),
-              IsNaN());
-  EXPECT_THAT(atan2(std::numeric_limits<double>::quiet_NaN(),
-                    std::numeric_limits<double>::signaling_NaN()),
-              IsNaN());
-  EXPECT_THAT(atan2(std::numeric_limits<double>::signaling_NaN(),
-                    std::numeric_limits<double>::quiet_NaN()),
-              IsNaN());
-  EXPECT_THAT(atan2(std::numeric_limits<double>::signaling_NaN(),
-                    std::numeric_limits<double>::signaling_NaN()),
-              IsNaN());
-  EXPECT_DOUBLE_EQ(0.7853981633974483,
-                   atan2(std::numeric_limits<double>::infinity(),
-                         std::numeric_limits<double>::infinity()));
-  EXPECT_DOUBLE_EQ(2.356194490192345,
-                   atan2(std::numeric_limits<double>::infinity(),
-                         -std::numeric_limits<double>::infinity()));
-  EXPECT_DOUBLE_EQ(-0.7853981633974483,
-                   atan2(-std::numeric_limits<double>::infinity(),
-                         std::numeric_limits<double>::infinity()));
-  EXPECT_DOUBLE_EQ(-2.356194490192345,
-                   atan2(-std::numeric_limits<double>::infinity(),
-                         -std::numeric_limits<double>::infinity()));
+  EXPECT_THAT(atan2(kQNaN, kQNaN), IsNaN());
+  EXPECT_THAT(atan2(kQNaN, kSNaN), IsNaN());
+  EXPECT_THAT(atan2(kSNaN, kQNaN), IsNaN());
+  EXPECT_THAT(atan2(kSNaN, kSNaN), IsNaN());
+  EXPECT_DOUBLE_EQ(0.7853981633974483, atan2(kInfinity, kInfinity));
+  EXPECT_DOUBLE_EQ(2.356194490192345, atan2(kInfinity, -kInfinity));
+  EXPECT_DOUBLE_EQ(-0.7853981633974483, atan2(-kInfinity, kInfinity));
+  EXPECT_DOUBLE_EQ(-2.356194490192345, atan2(-kInfinity, -kInfinity));
 }
 
 TEST(Ieee754, Atanh) {
-  EXPECT_THAT(atanh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(atanh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(atanh(std::numeric_limits<double>::infinity()), IsNaN());
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), atanh(1));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), atanh(-1));
+  EXPECT_THAT(atanh(kQNaN), IsNaN());
+  EXPECT_THAT(atanh(kSNaN), IsNaN());
+  EXPECT_THAT(atanh(kInfinity), IsNaN());
+  EXPECT_EQ(kInfinity, atanh(1));
+  EXPECT_EQ(-kInfinity, atanh(-1));
   EXPECT_DOUBLE_EQ(0.54930614433405478, atanh(0.5));
 }
 
 TEST(Ieee754, Cos) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(cos(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(cos(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(cos(std::numeric_limits<double>::infinity()), IsNaN());
-  EXPECT_THAT(cos(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(cos(kQNaN), IsNaN());
+  EXPECT_THAT(cos(kSNaN), IsNaN());
+  EXPECT_THAT(cos(kInfinity), IsNaN());
+  EXPECT_THAT(cos(-kInfinity), IsNaN());
 
   // Tests for cos for |x| < pi/4
   EXPECT_EQ(1.0, 1 / cos(-0.0));
@@ -119,20 +179,18 @@ TEST(Ieee754, Cos) {
 
 TEST(Ieee754, Cosh) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(cosh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(cosh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(cosh(std::numeric_limits<double>::infinity()),
-              std::numeric_limits<double>::infinity());
-  EXPECT_THAT(cosh(-std::numeric_limits<double>::infinity()),
-              std::numeric_limits<double>::infinity());
+  EXPECT_THAT(cosh(kQNaN), IsNaN());
+  EXPECT_THAT(cosh(kSNaN), IsNaN());
+  EXPECT_THAT(cosh(kInfinity), kInfinity);
+  EXPECT_THAT(cosh(-kInfinity), kInfinity);
   EXPECT_EQ(1, cosh(0.0));
   EXPECT_EQ(1, cosh(-0.0));
 }
 
 TEST(Ieee754, Exp) {
-  EXPECT_THAT(exp(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(exp(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_EQ(0.0, exp(-std::numeric_limits<double>::infinity()));
+  EXPECT_THAT(exp(kQNaN), IsNaN());
+  EXPECT_THAT(exp(kSNaN), IsNaN());
+  EXPECT_EQ(0.0, exp(-kInfinity));
   EXPECT_EQ(0.0, exp(-1000));
   EXPECT_EQ(0.0, exp(-745.1332191019412));
   EXPECT_EQ(2.2250738585072626e-308, exp(-708.39641853226408));
@@ -155,51 +213,47 @@ TEST(Ieee754, Exp) {
   EXPECT_EQ(2.6881171418161356e+43, exp(100.0));
   EXPECT_EQ(8.218407461554972e+307, exp(709.0));
   EXPECT_EQ(1.7968190737295725e308, exp(709.7822265625e0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(709.7827128933841e0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(710.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), exp(1000.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            exp(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(kInfinity, exp(709.7827128933841e0));
+  EXPECT_EQ(kInfinity, exp(710.0));
+  EXPECT_EQ(kInfinity, exp(1000.0));
+  EXPECT_EQ(kInfinity, exp(kInfinity));
 }
 
 TEST(Ieee754, Expm1) {
-  EXPECT_THAT(expm1(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(expm1(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_EQ(-1.0, expm1(-std::numeric_limits<double>::infinity()));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            expm1(std::numeric_limits<double>::infinity()));
+  EXPECT_THAT(expm1(kQNaN), IsNaN());
+  EXPECT_THAT(expm1(kSNaN), IsNaN());
+  EXPECT_EQ(-1.0, expm1(-kInfinity));
+  EXPECT_EQ(kInfinity, expm1(kInfinity));
   EXPECT_EQ(0.0, expm1(-0.0));
   EXPECT_EQ(0.0, expm1(0.0));
   EXPECT_EQ(1.718281828459045, expm1(1.0));
   EXPECT_EQ(2.6881171418161356e+43, expm1(100.0));
   EXPECT_EQ(8.218407461554972e+307, expm1(709.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), expm1(710.0));
+  EXPECT_EQ(kInfinity, expm1(710.0));
 }
 
 TEST(Ieee754, Log) {
-  EXPECT_THAT(log(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(log(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(log(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(log(kQNaN), IsNaN());
+  EXPECT_THAT(log(kSNaN), IsNaN());
+  EXPECT_THAT(log(-kInfinity), IsNaN());
   EXPECT_THAT(log(-1.0), IsNaN());
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log(-0.0));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log(0.0));
+  EXPECT_EQ(-kInfinity, log(-0.0));
+  EXPECT_EQ(-kInfinity, log(0.0));
   EXPECT_EQ(0.0, log(1.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            log(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(kInfinity, log(kInfinity));
 
   // Test that log(E) produces the correctly rounded result.
   EXPECT_EQ(1.0, log(kE));
 }
 
 TEST(Ieee754, Log1p) {
-  EXPECT_THAT(log1p(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(log1p(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(log1p(-std::numeric_limits<double>::infinity()), IsNaN());
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log1p(-1.0));
+  EXPECT_THAT(log1p(kQNaN), IsNaN());
+  EXPECT_THAT(log1p(kSNaN), IsNaN());
+  EXPECT_THAT(log1p(-kInfinity), IsNaN());
+  EXPECT_EQ(-kInfinity, log1p(-1.0));
   EXPECT_EQ(0.0, log1p(0.0));
   EXPECT_EQ(-0.0, log1p(-0.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            log1p(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(kInfinity, log1p(kInfinity));
   EXPECT_EQ(6.9756137364252422e-03, log1p(0.007));
   EXPECT_EQ(709.782712893384, log1p(1.7976931348623157e308));
   EXPECT_EQ(2.7755575615628914e-17, log1p(2.7755575615628914e-17));
@@ -217,25 +271,23 @@ TEST(Ieee754, Log1p) {
 }
 
 TEST(Ieee754, Log2) {
-  EXPECT_THAT(log2(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(log2(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(log2(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(log2(kQNaN), IsNaN());
+  EXPECT_THAT(log2(kSNaN), IsNaN());
+  EXPECT_THAT(log2(-kInfinity), IsNaN());
   EXPECT_THAT(log2(-1.0), IsNaN());
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log2(0.0));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log2(-0.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            log2(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(-kInfinity, log2(0.0));
+  EXPECT_EQ(-kInfinity, log2(-0.0));
+  EXPECT_EQ(kInfinity, log2(kInfinity));
 }
 
 TEST(Ieee754, Log10) {
-  EXPECT_THAT(log10(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(log10(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(log10(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(log10(kQNaN), IsNaN());
+  EXPECT_THAT(log10(kSNaN), IsNaN());
+  EXPECT_THAT(log10(-kInfinity), IsNaN());
   EXPECT_THAT(log10(-1.0), IsNaN());
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log10(0.0));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), log10(-0.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            log10(std::numeric_limits<double>::infinity()));
+  EXPECT_EQ(-kInfinity, log10(0.0));
+  EXPECT_EQ(-kInfinity, log10(-0.0));
+  EXPECT_EQ(kInfinity, log10(kInfinity));
   EXPECT_EQ(3.0, log10(1000.0));
   EXPECT_EQ(14.0, log10(100000000000000));  // log10(10 ^ 14)
   EXPECT_EQ(3.7389561269540406, log10(5482.2158));
@@ -245,12 +297,10 @@ TEST(Ieee754, Log10) {
 }
 
 TEST(Ieee754, Cbrt) {
-  EXPECT_THAT(cbrt(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(cbrt(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_EQ(std::numeric_limits<double>::infinity(),
-            cbrt(std::numeric_limits<double>::infinity()));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(),
-            cbrt(-std::numeric_limits<double>::infinity()));
+  EXPECT_THAT(cbrt(kQNaN), IsNaN());
+  EXPECT_THAT(cbrt(kSNaN), IsNaN());
+  EXPECT_EQ(kInfinity, cbrt(kInfinity));
+  EXPECT_EQ(-kInfinity, cbrt(-kInfinity));
   EXPECT_EQ(1.4422495703074083, cbrt(3));
   EXPECT_EQ(100, cbrt(100 * 100 * 100));
   EXPECT_EQ(46.415888336127786, cbrt(100000));
@@ -258,14 +308,14 @@ TEST(Ieee754, Cbrt) {
 
 TEST(Ieee754, Sin) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(sin(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(sin(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(sin(std::numeric_limits<double>::infinity()), IsNaN());
-  EXPECT_THAT(sin(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(sin(kQNaN), IsNaN());
+  EXPECT_THAT(sin(kSNaN), IsNaN());
+  EXPECT_THAT(sin(kInfinity), IsNaN());
+  EXPECT_THAT(sin(-kInfinity), IsNaN());
 
   // Tests for sin for |x| < pi/4
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), 1 / sin(-0.0));
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), 1 / sin(0.0));
+  EXPECT_EQ(-kInfinity, 1 / sin(-0.0));
+  EXPECT_EQ(kInfinity, 1 / sin(0.0));
   // sin(x) = x for x < 2^-27
   EXPECT_EQ(2.3283064365386963e-10, sin(2.3283064365386963e-10));
   EXPECT_EQ(-2.3283064365386963e-10, sin(-2.3283064365386963e-10));
@@ -295,26 +345,24 @@ TEST(Ieee754, Sin) {
 
 TEST(Ieee754, Sinh) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(sinh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(sinh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(sinh(std::numeric_limits<double>::infinity()),
-              std::numeric_limits<double>::infinity());
-  EXPECT_THAT(sinh(-std::numeric_limits<double>::infinity()),
-              -std::numeric_limits<double>::infinity());
+  EXPECT_THAT(sinh(kQNaN), IsNaN());
+  EXPECT_THAT(sinh(kSNaN), IsNaN());
+  EXPECT_THAT(sinh(kInfinity), kInfinity);
+  EXPECT_THAT(sinh(-kInfinity), -kInfinity);
   EXPECT_EQ(0.0, sinh(0.0));
   EXPECT_EQ(-0.0, sinh(-0.0));
 }
 
 TEST(Ieee754, Tan) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(tan(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(tan(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(tan(std::numeric_limits<double>::infinity()), IsNaN());
-  EXPECT_THAT(tan(-std::numeric_limits<double>::infinity()), IsNaN());
+  EXPECT_THAT(tan(kQNaN), IsNaN());
+  EXPECT_THAT(tan(kSNaN), IsNaN());
+  EXPECT_THAT(tan(kInfinity), IsNaN());
+  EXPECT_THAT(tan(-kInfinity), IsNaN());
 
   // Tests for tan for |x| < pi/4
-  EXPECT_EQ(std::numeric_limits<double>::infinity(), 1 / tan(0.0));
-  EXPECT_EQ(-std::numeric_limits<double>::infinity(), 1 / tan(-0.0));
+  EXPECT_EQ(kInfinity, 1 / tan(0.0));
+  EXPECT_EQ(-kInfinity, 1 / tan(-0.0));
   // tan(x) = x for |x| < 2^-28
   EXPECT_EQ(2.3283064365386963e-10, tan(2.3283064365386963e-10));
   EXPECT_EQ(-2.3283064365386963e-10, tan(-2.3283064365386963e-10));
@@ -344,10 +392,10 @@ TEST(Ieee754, Tan) {
 
 TEST(Ieee754, Tanh) {
   // Test values mentioned in the EcmaScript spec.
-  EXPECT_THAT(tanh(std::numeric_limits<double>::quiet_NaN()), IsNaN());
-  EXPECT_THAT(tanh(std::numeric_limits<double>::signaling_NaN()), IsNaN());
-  EXPECT_THAT(tanh(std::numeric_limits<double>::infinity()), 1);
-  EXPECT_THAT(tanh(-std::numeric_limits<double>::infinity()), -1);
+  EXPECT_THAT(tanh(kQNaN), IsNaN());
+  EXPECT_THAT(tanh(kSNaN), IsNaN());
+  EXPECT_THAT(tanh(kInfinity), 1);
+  EXPECT_THAT(tanh(-kInfinity), -1);
   EXPECT_EQ(0.0, tanh(0.0));
   EXPECT_EQ(-0.0, tanh(-0.0));
 }

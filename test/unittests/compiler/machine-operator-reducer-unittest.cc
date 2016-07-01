@@ -1423,6 +1423,61 @@ TEST_F(MachineOperatorReducerTest, Float64MulWithMinusOne) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Float64Acos
+
+TEST_F(MachineOperatorReducerTest, Float64AcosWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Acos(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::acos(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Acosh
+
+TEST_F(MachineOperatorReducerTest, Float64AcoshWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Acosh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::acosh(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Asin
+
+TEST_F(MachineOperatorReducerTest, Float64AsinWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Asin(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::asin(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Asinh
+
+TEST_F(MachineOperatorReducerTest, Float64AsinhWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Asinh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::asinh(x))));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Float64Atan
@@ -1435,6 +1490,20 @@ TEST_F(MachineOperatorReducerTest, Float64AtanWithConstant) {
     EXPECT_THAT(
         r.replacement(),
         IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::atan(x))));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Float64Atanh
+
+TEST_F(MachineOperatorReducerTest, Float64AtanhWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction const r =
+        Reduce(graph()->NewNode(machine()->Float64Atanh(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::atanh(x))));
   }
 }
 

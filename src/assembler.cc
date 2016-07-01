@@ -1142,7 +1142,7 @@ ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
 }
 
 static void f64_acos_wrapper(double* param) {
-  WriteDoubleValue(param, std::acos(ReadDoubleValue(param)));
+  WriteDoubleValue(param, base::ieee754::acos(ReadDoubleValue(param)));
 }
 
 ExternalReference ExternalReference::f64_acos_wrapper_function(
@@ -1151,7 +1151,7 @@ ExternalReference ExternalReference::f64_acos_wrapper_function(
 }
 
 static void f64_asin_wrapper(double* param) {
-  WriteDoubleValue(param, std::asin(ReadDoubleValue(param)));
+  WriteDoubleValue(param, base::ieee754::asin(ReadDoubleValue(param)));
 }
 
 ExternalReference ExternalReference::f64_asin_wrapper_function(
@@ -1406,19 +1406,39 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
 
 #endif  // V8_INTERPRETED_REGEXP
 
+ExternalReference ExternalReference::ieee754_acos_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::acos), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_acosh_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::acosh), BUILTIN_FP_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_asin_function(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(base::ieee754::asin), BUILTIN_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_asinh_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::asinh), BUILTIN_FP_FP_CALL));
+}
+
 ExternalReference ExternalReference::ieee754_atan_function(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::atan), BUILTIN_FP_CALL));
 }
 
-ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
-}
-
 ExternalReference ExternalReference::ieee754_atanh_function(Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate, FUNCTION_ADDR(base::ieee754::atanh), BUILTIN_FP_FP_CALL));
+}
+
+ExternalReference ExternalReference::ieee754_atan2_function(Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(base::ieee754::atan2), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::ieee754_cbrt_function(Isolate* isolate) {

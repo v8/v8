@@ -126,6 +126,162 @@ TEST_F(JSBuiltinReducerTest, MathAbsWithPlainPrimitive) {
 }
 
 // -----------------------------------------------------------------------------
+// Math.acos
+
+TEST_F(JSBuiltinReducerTest, MathAcosWithNumber) {
+  Node* function = MathFunction("acos");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAcos(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAcosWithPlainPrimitive) {
+  Node* function = MathFunction("acos");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAcos(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.acosh
+
+TEST_F(JSBuiltinReducerTest, MathAcoshWithNumber) {
+  Node* function = MathFunction("acosh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAcosh(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAcoshWithPlainPrimitive) {
+  Node* function = MathFunction("acosh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAcosh(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.asin
+
+TEST_F(JSBuiltinReducerTest, MathAsinWithNumber) {
+  Node* function = MathFunction("asin");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAsin(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAsinWithPlainPrimitive) {
+  Node* function = MathFunction("asin");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAsin(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.asinh
+
+TEST_F(JSBuiltinReducerTest, MathAsinhWithNumber) {
+  Node* function = MathFunction("asinh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAsinh(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAsinhWithPlainPrimitive) {
+  Node* function = MathFunction("asinh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAsinh(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
 // Math.atan
 
 TEST_F(JSBuiltinReducerTest, MathAtanWithNumber) {
@@ -162,6 +318,45 @@ TEST_F(JSBuiltinReducerTest, MathAtanWithPlainPrimitive) {
 
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberAtan(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.atanh
+
+TEST_F(JSBuiltinReducerTest, MathAtanhWithNumber) {
+  Node* function = MathFunction("atanh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberAtanh(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathAtanhWithPlainPrimitive) {
+  Node* function = MathFunction("atanh");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberAtanh(IsPlainPrimitiveToNumber(p0)));
 }
 
 // -----------------------------------------------------------------------------
@@ -872,6 +1067,45 @@ TEST_F(JSBuiltinReducerTest, MathPowWithPlainPrimitive) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberPow(IsPlainPrimitiveToNumber(p0),
                                            IsPlainPrimitiveToNumber(p1)));
+}
+
+// -----------------------------------------------------------------------------
+// Math.sign
+
+TEST_F(JSBuiltinReducerTest, MathSignWithNumber) {
+  Node* function = MathFunction("sign");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberSign(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, MathSignWithPlainPrimitive) {
+  Node* function = MathFunction("sign");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberSign(IsPlainPrimitiveToNumber(p0)));
 }
 
 // -----------------------------------------------------------------------------

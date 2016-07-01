@@ -103,6 +103,54 @@ Reduction JSBuiltinReducer::ReduceMathAbs(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.2 Math.acos ( x )
+Reduction JSBuiltinReducer::ReduceMathAcos(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.acos(a:plain-primitive) -> NumberAcos(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAcos(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.3 Math.acosh ( x )
+Reduction JSBuiltinReducer::ReduceMathAcosh(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.acosh(a:plain-primitive) -> NumberAcosh(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAcosh(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.4 Math.asin ( x )
+Reduction JSBuiltinReducer::ReduceMathAsin(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.asin(a:plain-primitive) -> NumberAsin(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAsin(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.5 Math.asinh ( x )
+Reduction JSBuiltinReducer::ReduceMathAsinh(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.asinh(a:plain-primitive) -> NumberAsinh(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAsinh(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.6 Math.atan ( x )
 Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
   JSCallReduction r(node);
@@ -110,6 +158,18 @@ Reduction JSBuiltinReducer::ReduceMathAtan(Node* node) {
     // Math.atan(a:plain-primitive) -> NumberAtan(ToNumber(a))
     Node* input = ToNumber(r.GetJSCallInput(0));
     Node* value = graph()->NewNode(simplified()->NumberAtan(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.7 Math.atanh ( x )
+Reduction JSBuiltinReducer::ReduceMathAtanh(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.atanh(a:plain-primitive) -> NumberAtanh(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberAtanh(), input);
     return Replace(value);
   }
   return NoChange();
@@ -125,17 +185,6 @@ Reduction JSBuiltinReducer::ReduceMathAtan2(Node* node) {
     Node* left = ToNumber(r.left());
     Node* right = ToNumber(r.right());
     Node* value = graph()->NewNode(simplified()->NumberAtan2(), left, right);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
-// ES6 section 20.2.2.7 Math.atanh ( x )
-Reduction JSBuiltinReducer::ReduceMathAtanh(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Math.atanh(a:number) -> NumberAtanh(a)
-    Node* value = graph()->NewNode(simplified()->NumberAtanh(), r.left());
     return Replace(value);
   }
   return NoChange();
@@ -388,6 +437,18 @@ Reduction JSBuiltinReducer::ReduceMathCbrt(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.29 Math.sign ( x )
+Reduction JSBuiltinReducer::ReduceMathSign(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // Math.sign(a:plain-primitive) -> NumberSign(ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->NumberSign(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.2.2.30 Math.sin ( x )
 Reduction JSBuiltinReducer::ReduceMathSin(Node* node) {
   JSCallReduction r(node);
@@ -482,14 +543,26 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathAbs:
       reduction = ReduceMathAbs(node);
       break;
+    case kMathAcos:
+      reduction = ReduceMathAcos(node);
+      break;
+    case kMathAcosh:
+      reduction = ReduceMathAcosh(node);
+      break;
+    case kMathAsin:
+      reduction = ReduceMathAsin(node);
+      break;
+    case kMathAsinh:
+      reduction = ReduceMathAsinh(node);
+      break;
     case kMathAtan:
       reduction = ReduceMathAtan(node);
       break;
-    case kMathAtan2:
-      reduction = ReduceMathAtan2(node);
-      break;
     case kMathAtanh:
       reduction = ReduceMathAtanh(node);
+      break;
+    case kMathAtan2:
+      reduction = ReduceMathAtan2(node);
       break;
     case kMathCbrt:
       reduction = ReduceMathCbrt(node);
@@ -544,6 +617,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
+      break;
+    case kMathSign:
+      reduction = ReduceMathSign(node);
       break;
     case kMathSin:
       reduction = ReduceMathSin(node);

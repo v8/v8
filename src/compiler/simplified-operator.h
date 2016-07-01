@@ -180,6 +180,10 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberCeil();
   const Operator* NumberFloor();
   const Operator* NumberFround();
+  const Operator* NumberAcos();
+  const Operator* NumberAcosh();
+  const Operator* NumberAsin();
+  const Operator* NumberAsinh();
   const Operator* NumberAtan();
   const Operator* NumberAtan2();
   const Operator* NumberAtanh();
@@ -194,6 +198,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberLog2();
   const Operator* NumberPow();
   const Operator* NumberRound();
+  const Operator* NumberSign();
   const Operator* NumberSin();
   const Operator* NumberSinh();
   const Operator* NumberSqrt();

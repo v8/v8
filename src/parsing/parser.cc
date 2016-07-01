@@ -5761,7 +5761,7 @@ Expression* Parser::RewriteExponentiation(Expression* left, Expression* right,
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(left, zone());
   args->Add(right, zone());
-  return factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+  return factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
 }
 
 Expression* Parser::RewriteAssignExponentiation(Expression* left,
@@ -5778,7 +5778,7 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
     args->Add(left, zone());
     args->Add(right, zone());
     Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
     return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
   } else if (left->IsProperty()) {
     Property* prop = left->AsProperty();
@@ -5796,7 +5796,7 @@ Expression* Parser::RewriteAssignExponentiation(Expression* left,
               zone());
     args->Add(right, zone());
     Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_METHOD_INDEX, args, pos);
+        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
     Expression* target = factory()->NewProperty(
         factory()->NewVariableProxy(temp_obj),
         factory()->NewVariableProxy(temp_key), kNoSourcePosition);

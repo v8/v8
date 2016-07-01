@@ -67,10 +67,12 @@ class SimplifiedLowering final {
   Node* Float64Ceil(Node* const node);
   Node* Float64Floor(Node* const node);
   Node* Float64Round(Node* const node);
+  Node* Float64Sign(Node* const node);
   Node* Float64Trunc(Node* const node);
   Node* Int32Abs(Node* const node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);
+  Node* Int32Sign(Node* const node);
   Node* Uint32Div(Node* const node);
   Node* Uint32Mod(Node* const node);
 

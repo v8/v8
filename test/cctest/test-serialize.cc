@@ -811,7 +811,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("Math.sign"));
+    CHECK(!IsCompiled("Number.isFinite"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -821,8 +821,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
       "function f() { return Math.abs(1); }\n"
-      "function g() { return Math.sign(1); }\n"
-      "Math.asinh(1);"
+      "function g() { return Number.isFinite(1); }\n"
+      "Number.isNaN(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -846,8 +846,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Math.sign"));
-    CHECK(!IsCompiled("Math.asinh"));
+    CHECK(!IsCompiled("Number.isFinite"));
+    CHECK(!IsCompiled("Number.isNaN"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();

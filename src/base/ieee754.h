@@ -9,6 +9,20 @@ namespace v8 {
 namespace base {
 namespace ieee754 {
 
+// Returns the arc cosine of |x|; that is the value whose cosine is |x|.
+double acos(double x);
+
+// Returns the inverse hyperbolic cosine of |x|; that is the value whose
+// hyperbolic cosine is |x|.
+double acosh(double x);
+
+// Returns the arc sine of |x|; that is the value whose sine is |x|.
+double asin(double x);
+
+// Returns the inverse hyperbolic sine of |x|; that is the value whose
+// hyperbolic sine is |x|.
+double asinh(double x);
+
 // Returns the principal value of the arc tangent of |x|; that is the value
 // whose tangent is |x|.
 double atan(double x);

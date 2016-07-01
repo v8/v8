@@ -373,11 +373,13 @@ class MachineOperatorBuilder final : public ZoneObject {
   const OptionalOperator Float64Neg();
 
   // Floating point trigonometric functions (double-precision).
+  const Operator* Float64Acos();
+  const Operator* Float64Acosh();
+  const Operator* Float64Asin();
+  const Operator* Float64Asinh();
   const Operator* Float64Atan();
   const Operator* Float64Atan2();
   const Operator* Float64Atanh();
-
-  // Floating point trigonometric functions (double-precision).
   const Operator* Float64Cos();
   const Operator* Float64Cosh();
   const Operator* Float64Sin();

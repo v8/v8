@@ -149,6 +149,10 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32Div, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Asin, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Asinh, Operator::kNoProperties, 1, 0, 1)                          \
   V(Float64Atan, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Atan2, Operator::kNoProperties, 2, 0, 1)                          \
   V(Float64Atanh, Operator::kNoProperties, 1, 0, 1)                          \

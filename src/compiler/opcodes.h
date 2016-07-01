@@ -227,9 +227,13 @@
   V(NumberCosh)                       \
   V(NumberFloor)                      \
   V(NumberFround)                     \
+  V(NumberAcos)                       \
+  V(NumberAcosh)                      \
+  V(NumberAsin)                       \
+  V(NumberAsinh)                      \
   V(NumberAtan)                       \
-  V(NumberAtan2)                      \
   V(NumberAtanh)                      \
+  V(NumberAtan2)                      \
   V(NumberExp)                        \
   V(NumberExpm1)                      \
   V(NumberLog)                        \
@@ -239,6 +243,7 @@
   V(NumberCbrt)                       \
   V(NumberPow)                        \
   V(NumberRound)                      \
+  V(NumberSign)                       \
   V(NumberSin)                        \
   V(NumberSinh)                       \
   V(NumberSqrt)                       \
@@ -396,9 +401,13 @@
   V(Float64Max)                 \
   V(Float64Min)                 \
   V(Float64Abs)                 \
+  V(Float64Acos)                \
+  V(Float64Acosh)               \
+  V(Float64Asin)                \
+  V(Float64Asinh)               \
   V(Float64Atan)                \
-  V(Float64Atan2)               \
   V(Float64Atanh)               \
+  V(Float64Atan2)               \
   V(Float64Cbrt)                \
   V(Float64Cos)                 \
   V(Float64Cosh)                \

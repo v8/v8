@@ -1550,6 +1550,10 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kNumberAcos:
+      case IrOpcode::kNumberAcosh:
+      case IrOpcode::kNumberAsin:
+      case IrOpcode::kNumberAsinh:
       case IrOpcode::kNumberAtan:
       case IrOpcode::kNumberAtanh:
       case IrOpcode::kNumberCos:
@@ -1571,6 +1575,18 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) DeferReplacement(node, lowering->Float64Round(node));
+        return;
+      }
+      case IrOpcode::kNumberSign: {
+        if (InputIs(node, Type::Signed32())) {
+          VisitUnop(node, UseInfo::TruncatingWord32(),
+                    MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, lowering->Int32Sign(node));
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) DeferReplacement(node, lowering->Float64Sign(node));
+        }
         return;
       }
       case IrOpcode::kNumberSqrt: {
@@ -2695,6 +2711,22 @@ Node* SimplifiedLowering::Float64Round(Node* const node) {
       result, graph()->NewNode(machine()->Float64Sub(), result, one));
 }
 
+Node* SimplifiedLowering::Float64Sign(Node* const node) {
+  Node* const minus_one = jsgraph()->Float64Constant(-1.0);
+  Node* const zero = jsgraph()->Float64Constant(0.0);
+  Node* const one = jsgraph()->Float64Constant(1.0);
+
+  Node* const input = node->InputAt(0);
+
+  return graph()->NewNode(
+      common()->Select(MachineRepresentation::kFloat64),
+      graph()->NewNode(machine()->Float64LessThan(), input, zero), minus_one,
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kFloat64),
+          graph()->NewNode(machine()->Float64LessThan(), zero, input), one,
+          zero));
+}
+
 Node* SimplifiedLowering::Float64Trunc(Node* const node) {
   Node* const one = jsgraph()->Float64Constant(1.0);
   Node* const zero = jsgraph()->Float64Constant(0.0);
@@ -3001,6 +3033,21 @@ Node* SimplifiedLowering::Int32Mod(Node* const node) {
   return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
+Node* SimplifiedLowering::Int32Sign(Node* const node) {
+  Node* const minus_one = jsgraph()->Int32Constant(-1);
+  Node* const zero = jsgraph()->Int32Constant(0);
+  Node* const one = jsgraph()->Int32Constant(1);
+
+  Node* const input = node->InputAt(0);
+
+  return graph()->NewNode(
+      common()->Select(MachineRepresentation::kWord32),
+      graph()->NewNode(machine()->Int32LessThan(), input, zero), minus_one,
+      graph()->NewNode(
+          common()->Select(MachineRepresentation::kWord32),
+          graph()->NewNode(machine()->Int32LessThan(), zero, input), one,
+          zero));
+}
 
 Node* SimplifiedLowering::Uint32Div(Node* const node) {
   Uint32BinopMatcher m(node);

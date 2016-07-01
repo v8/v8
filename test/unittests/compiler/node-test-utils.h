@@ -225,10 +225,14 @@ Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberAbs(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAcos(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAcosh(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAsin(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAsinh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAtanh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan2(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsNumberAtanh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberCbrt(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberCeil(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberClz32(const Matcher<Node*>& value_matcher);
@@ -245,6 +249,7 @@ Matcher<Node*> IsNumberLog2(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberPow(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberSign(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSin(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSinh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
