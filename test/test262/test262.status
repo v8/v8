@@ -245,8 +245,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
-  'language/statements/try/early-catch-lex': [FAIL],
-  'language/statements/try/early-catch-var': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/dstr-array-elem-iter-rtrn-close': [FAIL],
@@ -330,9 +328,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   'language/module-code/*': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5112
-  'language/statements/try/scope-catch-block-lex-open': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   'intl402/Intl/getCanonicalLocales/*': [FAIL],

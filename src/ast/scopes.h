@@ -236,6 +236,14 @@ class Scope: public ZoneObject {
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
 
+  // Check if the scope has a conflicting lexical declaration that has a name in
+  // the given list. This is used to catch patterns like
+  // `try{}catch(e){let e;}`,
+  // which is an error even though the two 'e's are declared in different
+  // scopes.
+  Declaration* CheckLexDeclarationsConflictingWith(
+      ZoneList<const AstRawString*>* names);
+
   // ---------------------------------------------------------------------------
   // Scope-specific info.
 
@@ -491,6 +499,12 @@ class Scope: public ZoneObject {
   // The ModuleDescriptor for this scope; only for module scopes.
   ModuleDescriptor* module() const { return module_descriptor_; }
 
+  AstRawString* catch_variable_name() const {
+    DCHECK(is_catch_scope());
+    DCHECK(num_var() == 1);
+    return static_cast<AstRawString*>(variables_.Start()->key);
+  }
+
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
@@ -501,8 +515,8 @@ class Scope: public ZoneObject {
                                     ZoneList<Variable*>* context_locals,
                                     ZoneList<Variable*>* context_globals);
 
-  // Current number of var or const locals.
-  int num_var_or_const() { return num_var_or_const_; }
+  // Current number of var locals.
+  int num_var() const { return num_var_; }
 
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
@@ -673,7 +687,7 @@ class Scope: public ZoneObject {
   bool is_declaration_scope_;
 
   // Computed as variables are declared.
-  int num_var_or_const_;
+  int num_var_;
 
   // Computed via AllocateVariables; function, block and catch scopes only.
   int num_stack_slots_;
