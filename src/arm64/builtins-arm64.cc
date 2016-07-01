@@ -124,12 +124,12 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
-  //  -- x0                 : number of arguments
-  //  -- x1                 : function
-  //  -- cp                 : context
-  //  -- lr                 : return address
-  //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- sp[(argc + 1) * 8] : receiver
+  //  -- x0                     : number of arguments
+  //  -- x1                     : function
+  //  -- cp                     : context
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero-based)
+  //  -- sp[argc * 8]           : receiver
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_MathMaxMin");
 
@@ -142,18 +142,16 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ LoadRoot(x5, root_index);
   __ Ldr(d5, FieldMemOperand(x5, HeapNumber::kValueOffset));
 
-  // Remember how many slots to drop (including the receiver).
-  __ Add(x4, x0, 1);
-
   Label done_loop, loop;
+  __ mov(x4, x0);
   __ Bind(&loop);
   {
     // Check if all parameters done.
-    __ Subs(x0, x0, 1);
+    __ Subs(x4, x4, 1);
     __ B(lt, &done_loop);
 
     // Load the next parameter tagged value into x2.
-    __ Peek(x2, Operand(x0, LSL, kPointerSizeLog2));
+    __ Peek(x2, Operand(x4, LSL, kPointerSizeLog2));
 
     // Load the double value of the parameter into d2, maybe converting the
     // parameter to a number first using the ToNumber builtin if necessary.
@@ -212,7 +210,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ Bind(&done_loop);
-  __ Drop(x4);
+  // Drop all slots, including the receiver.
+  __ Add(x0, x0, 1);
+  __ Drop(x0);
   __ Mov(x0, x5);
   __ Ret();
 }

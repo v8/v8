@@ -123,12 +123,12 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
-  //  -- r0                 : number of arguments
-  //  -- r1                 : function
-  //  -- cp                 : context
-  //  -- lr                 : return address
-  //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- sp[(argc + 1) * 8] : receiver
+  //  -- r0                     : number of arguments
+  //  -- r1                     : function
+  //  -- cp                     : context
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
+  //  -- sp[argc * 4]           : receiver
   // -----------------------------------
   Condition const cc_done = (kind == MathMaxMinKind::kMin) ? mi : gt;
   Condition const cc_swap = (kind == MathMaxMinKind::kMin) ? gt : mi;
@@ -142,18 +142,16 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ LoadRoot(r5, root_index);
   __ vldr(d1, FieldMemOperand(r5, HeapNumber::kValueOffset));
 
-  // Remember how many slots to drop (including the receiver).
-  __ add(r4, r0, Operand(1));
-
   Label done_loop, loop;
+  __ mov(r4, r0);
   __ bind(&loop);
   {
     // Check if all parameters done.
-    __ sub(r0, r0, Operand(1), SetCC);
+    __ sub(r4, r4, Operand(1), SetCC);
     __ b(lt, &done_loop);
 
     // Load the next parameter tagged value into r2.
-    __ ldr(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+    __ ldr(r2, MemOperand(sp, r4, LSL, kPointerSizeLog2));
 
     // Load the double value of the parameter into d2, maybe converting the
     // parameter to a number first using the ToNumber builtin if necessary.
@@ -222,8 +220,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ bind(&done_loop);
+  // Drop all slots, including the receiver.
+  __ add(r0, r0, Operand(1));
+  __ Drop(r0);
   __ mov(r0, r5);
-  __ Drop(r4);
   __ Ret();
 }
 
