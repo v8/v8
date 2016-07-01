@@ -41,9 +41,9 @@ Reduction CheckpointElimination::ReduceCheckpoint(Node* node) {
 Reduction CheckpointElimination::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
-  if (effect->opcode() == IrOpcode::kCheckpoint && effect->OwnedBy(node)) {
-    // Any checkpoint that is wholly owned by a {Return} node can never be used
-    // for an actual bailout and can hence be cut out of the effect chain.
+  if (effect->opcode() == IrOpcode::kCheckpoint) {
+    // Any {Return} node can never be used to insert a deoptimization point,
+    // hence checkpoints can be cut out of the effect chain flowing into it.
     Node* replacement = NodeProperties::GetEffectInput(effect);
     NodeProperties::ReplaceEffectInput(node, replacement);
     return Changed(node);
