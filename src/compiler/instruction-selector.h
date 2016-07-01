@@ -249,7 +249,7 @@ class InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            CallBufferFlags flags, int stack_param_delta = 0);
+                            CallBufferFlags flags, int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
   int GetTempsCountForTailCallFromJSFunction();
 

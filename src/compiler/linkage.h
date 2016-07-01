@@ -86,7 +86,7 @@ class LinkageLocation {
       LinkageLocation caller_location, int stack_param_delta) {
     if (!caller_location.IsRegister()) {
       return LinkageLocation(STACK_SLOT,
-                             caller_location.GetLocation() - stack_param_delta);
+                             caller_location.GetLocation() + stack_param_delta);
     }
     return caller_location;
   }

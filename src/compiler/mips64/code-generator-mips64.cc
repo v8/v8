@@ -524,21 +524,7 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ Pop(ra, fp);
 }
 
-void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
-  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
-  if (sp_slot_delta > 0) {
-    __ daddiu(sp, sp, sp_slot_delta * kPointerSize);
-  }
-  frame_access_state()->SetFrameAccessToDefault();
-}
-
-
-void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
-  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
-  if (sp_slot_delta < 0) {
-    __ Dsubu(sp, sp, Operand(-sp_slot_delta * kPointerSize));
-    frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
-  }
+void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
     __ ld(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
     __ ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -571,6 +557,38 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   __ bind(&done);
 }
 
+namespace {
+
+void AdjustStackPointerForTailCall(MacroAssembler* masm,
+                                   FrameAccessState* state,
+                                   int new_slot_above_sp,
+                                   bool allow_shrinkage = true) {
+  int current_sp_offset = state->GetSPToFPSlotCount() +
+                          StandardFrameConstants::kFixedSlotCountAboveFp;
+  int stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  if (stack_slot_delta > 0) {
+    masm->Dsubu(sp, sp, stack_slot_delta * kPointerSize);
+    state->IncreaseSPDelta(stack_slot_delta);
+  } else if (allow_shrinkage && stack_slot_delta < 0) {
+    masm->Daddu(sp, sp, stack_slot_delta * kPointerSize);
+    state->IncreaseSPDelta(stack_slot_delta);
+  }
+}
+
+}  // namespace
+
+void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
+                                              int first_unused_stack_slot) {
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+                                first_unused_stack_slot, false);
+}
+
+void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
+                                             int first_unused_stack_slot) {
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+                                first_unused_stack_slot);
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -593,8 +611,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
@@ -608,14 +624,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(at);
       }
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchTailCallAddress: {
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       CHECK(!instr->InputAt(0)->IsImmediate());
       __ Jump(i.InputRegister(0));
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchCallJSFunction: {
@@ -640,8 +656,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ld(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
       }
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       if (arch_opcode == kArchTailCallJSFunctionFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
@@ -650,6 +664,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ld(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(at);
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchPrepareCallCFunction: {
@@ -660,7 +675,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchPrepareTailCall:
-      AssemblePrepareTailCall(i.InputInt32(instr->InputCount() - 1));
+      AssemblePrepareTailCall();
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());

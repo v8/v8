@@ -1812,10 +1812,12 @@ void InstructionSelector::VisitTailCall(Node* node) {
     }
     opcode |= MiscField::encode(descriptor->flags());
 
-    buffer.instruction_args.push_back(g.TempImmediate(stack_param_delta));
+    Emit(kArchPrepareTailCall, g.NoOutput());
 
-    Emit(kArchPrepareTailCall, g.NoOutput(),
-         g.TempImmediate(stack_param_delta));
+    int first_unused_stack_slot =
+        (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
+        stack_param_delta;
+    buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
 
     // Emit the tailcall instruction.
     Emit(opcode, 0, nullptr, buffer.instruction_args.size(),

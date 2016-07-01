@@ -160,7 +160,7 @@ void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
 
   // The ret instruction makes any assignment before it unnecessary, except for
   // the one for its input.
-  if (instruction->opcode() == ArchOpcode::kArchRet) {
+  if (instruction->IsRet() || instruction->IsTailCall()) {
     for (MoveOperands* move : *moves) {
       if (inputs.find(move->destination()) == inputs.end()) {
         move->Eliminate();

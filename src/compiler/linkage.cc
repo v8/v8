@@ -97,14 +97,14 @@ bool CallDescriptor::CanTailCall(const Node* node,
   while (more_other || more_this) {
     if (other_input < other->InputCount()) {
       if (!other->GetInputLocation(other_input).IsRegister()) {
-        (*stack_param_delta)--;
+        (*stack_param_delta)++;
       }
     } else {
       more_other = false;
     }
     if (current_input < InputCount()) {
       if (!GetInputLocation(current_input).IsRegister()) {
-        (*stack_param_delta)++;
+        (*stack_param_delta)--;
       }
     } else {
       more_this = false;

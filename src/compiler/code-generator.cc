@@ -5,6 +5,7 @@
 #include "src/compiler/code-generator.h"
 
 #include "src/address-map.h"
+#include "src/base/adapters.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -312,9 +313,95 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleBlock(
   return kSuccess;
 }
 
+bool CodeGenerator::IsValidPush(InstructionOperand source,
+                                CodeGenerator::PushTypeFlags push_type) {
+  if (source.IsImmediate() &&
+      ((push_type & CodeGenerator::kImmediatePush) != 0)) {
+    return true;
+  }
+  if ((source.IsRegister() || source.IsStackSlot()) &&
+      ((push_type & CodeGenerator::kScalarPush) != 0)) {
+    return true;
+  }
+  if ((source.IsFloatRegister() || source.IsFloatStackSlot()) &&
+      ((push_type & CodeGenerator::kFloat32Push) != 0)) {
+    return true;
+  }
+  if ((source.IsDoubleRegister() || source.IsFloatStackSlot()) &&
+      ((push_type & CodeGenerator::kFloat64Push) != 0)) {
+    return true;
+  }
+  return false;
+}
+
+void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
+                                           PushTypeFlags push_type,
+                                           ZoneVector<MoveOperands*>* pushes) {
+  pushes->clear();
+  for (int i = Instruction::FIRST_GAP_POSITION;
+       i <= Instruction::LAST_GAP_POSITION; ++i) {
+    Instruction::GapPosition inner_pos =
+        static_cast<Instruction::GapPosition>(i);
+    ParallelMove* parallel_move = instr->GetParallelMove(inner_pos);
+    if (parallel_move != nullptr) {
+      for (auto move : *parallel_move) {
+        InstructionOperand source = move->source();
+        InstructionOperand destination = move->destination();
+        int first_push_compatible_index =
+            V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+        // If there are any moves from slots that will be overridden by pushes,
+        // then the full gap resolver must be used since optimization with
+        // pushes don't participate in the parallel move and might clobber
+        // values needed for the gap resolve.
+        if (source.IsStackSlot() &&
+            LocationOperand::cast(source).index() >=
+                first_push_compatible_index) {
+          pushes->clear();
+          return;
+        }
+        // TODO(danno): Right now, only consider moves from the FIRST gap for
+        // pushes. Theoretically, we could extract pushes for both gaps (there
+        // are cases where this happens), but the logic for that would also have
+        // to check to make sure that non-memory inputs to the pushes from the
+        // LAST gap don't get clobbered in the FIRST gap.
+        if (i == Instruction::FIRST_GAP_POSITION) {
+          if (destination.IsStackSlot() &&
+              LocationOperand::cast(destination).index() >=
+                  first_push_compatible_index) {
+            int index = LocationOperand::cast(destination).index();
+            if (IsValidPush(source, push_type)) {
+              if (index >= static_cast<int>(pushes->size())) {
+                pushes->resize(index + 1);
+              }
+              (*pushes)[index] = move;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // For now, only support a set of continuous pushes at the end of the list.
+  size_t push_count_upper_bound = pushes->size();
+  size_t push_begin = push_count_upper_bound;
+  for (auto move : base::Reversed(*pushes)) {
+    if (move == nullptr) break;
+    push_begin--;
+  }
+  size_t push_count = pushes->size() - push_begin;
+  std::copy(pushes->begin() + push_begin,
+            pushes->begin() + push_begin + push_count, pushes->begin());
+  pushes->resize(push_count);
+}
+
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     Instruction* instr, const InstructionBlock* block) {
+  int first_unused_stack_slot;
+  bool adjust_stack =
+      GetSlotAboveSPBeforeTailCall(instr, &first_unused_stack_slot);
+  if (adjust_stack) AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
   AssembleGaps(instr);
+  if (adjust_stack) AssembleTailCallAfterGap(instr, first_unused_stack_slot);
   DCHECK_IMPLIES(
       block->must_deconstruct_frame(),
       instr != code()->InstructionAt(block->last_instruction_index()) ||
@@ -414,6 +501,16 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   }
 }
 
+bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
+                                                 int* slot) {
+  if (instr->IsTailCall()) {
+    InstructionOperandConverter g(this, instr);
+    *slot = g.InputInt32(instr->InputCount() - 1);
+    return true;
+  } else {
+    return false;
+  }
+}
 
 void CodeGenerator::AssembleGaps(Instruction* instr) {
   for (int i = Instruction::FIRST_GAP_POSITION;
@@ -795,18 +892,6 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
   deoptimization_exits_.push_back(exit);
   return exit;
 }
-
-int CodeGenerator::TailCallFrameStackSlotDelta(int stack_param_delta) {
-  // Leave the PC on the stack on platforms that have that as part of their ABI
-  int pc_slots = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
-  int sp_slot_delta = frame_access_state()->has_frame()
-                          ? (frame()->GetTotalFrameSlotCount() - pc_slots)
-                          : 0;
-  // Discard only slots that won't be used by new parameters.
-  sp_slot_delta += stack_param_delta;
-  return sp_slot_delta;
-}
-
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
     : frame_(gen->frame()), masm_(gen->masm()), next_(gen->ools_) {

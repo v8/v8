@@ -34,7 +34,6 @@ void GapResolver::Resolve(ParallelMove* moves) const {
   }
 }
 
-
 void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // Each call to this function performs a move and deletes it from the move
   // graph.  We first recursively perform any move blocking this one.  We mark a

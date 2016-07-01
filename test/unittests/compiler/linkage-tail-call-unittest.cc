@@ -160,7 +160,7 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCallee) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   int stack_param_delta = 0;
   EXPECT_TRUE(desc1->CanTailCall(node, &stack_param_delta));
-  EXPECT_EQ(-1, stack_param_delta);
+  EXPECT_EQ(1, stack_param_delta);
 }
 
 
@@ -181,7 +181,7 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCaller) {
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   int stack_param_delta = 0;
   EXPECT_TRUE(desc1->CanTailCall(node, &stack_param_delta));
-  EXPECT_EQ(1, stack_param_delta);
+  EXPECT_EQ(-1, stack_param_delta);
 }
 
 
@@ -316,7 +316,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   int stack_param_delta = 0;
   EXPECT_TRUE(desc1->CanTailCall(node, &stack_param_delta));
-  EXPECT_EQ(1, stack_param_delta);
+  EXPECT_EQ(-1, stack_param_delta);
 }
 
 
@@ -344,7 +344,7 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   int stack_param_delta = 0;
   EXPECT_TRUE(desc1->CanTailCall(node, &stack_param_delta));
-  EXPECT_EQ(-1, stack_param_delta);
+  EXPECT_EQ(1, stack_param_delta);
 }
 
 }  // namespace compiler
