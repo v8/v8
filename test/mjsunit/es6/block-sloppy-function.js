@@ -455,45 +455,6 @@
   assertEquals(4, f());
 })();
 
-// B.3.5 interacts with B.3.3 to allow this.
-(function hoistingThroughSimpleCatch() {
-  assertEquals(undefined, f);
-
-  try {
-    throw 0;
-  } catch(f) {
-    {
-      assertEquals(4, f());
-
-      function f() {
-        return 4;
-      }
-
-      assertEquals(4, f());
-    }
-  }
-
-  assertEquals(4, f());
-})();
-
-(function noHoistingThroughComplexCatch() {
-  try {
-    throw 0;
-  } catch({f}) {
-    {
-      assertEquals(4, f());
-
-      function f() {
-        return 4;
-      }
-
-      assertEquals(4, f());
-    }
-  }
-
-  assertThrows(()=>f, ReferenceError);
-})();
-
 // Test that hoisting from blocks does happen in global scope
 function globalHoisted() { return 0; }
 {

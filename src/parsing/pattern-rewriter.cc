@@ -164,7 +164,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Scope* declaration_scope = IsLexicalVariableMode(descriptor_->mode)
                                  ? descriptor_->scope
                                  : descriptor_->scope->DeclarationScope();
-  if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
+  if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
     return;
