@@ -1557,6 +1557,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberAtan:
       case IrOpcode::kNumberAtanh:
       case IrOpcode::kNumberCos:
+      case IrOpcode::kNumberCosh:
       case IrOpcode::kNumberExp:
       case IrOpcode::kNumberExpm1:
       case IrOpcode::kNumberLog:
@@ -1565,7 +1566,9 @@ class RepresentationSelector {
       case IrOpcode::kNumberLog10:
       case IrOpcode::kNumberCbrt:
       case IrOpcode::kNumberSin:
-      case IrOpcode::kNumberTan: {
+      case IrOpcode::kNumberSinh:
+      case IrOpcode::kNumberTan:
+      case IrOpcode::kNumberTanh: {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
