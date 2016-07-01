@@ -1191,12 +1191,10 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-
 SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
     : live_ranges_(zone),
       assigned_slot_(kUnassignedSlot),
-      byte_width_(GetByteWidth(parent->representation())),
-      kind_(parent->kind()) {
+      byte_width_(GetByteWidth(parent->representation())) {
   // Spill ranges are created for top level, non-splintered ranges. This is so
   // that, when merging decisions are made, we consider the full extent of the
   // virtual register, and avoid clobbering it.
@@ -1235,11 +1233,8 @@ bool SpillRange::IsIntersectingWith(SpillRange* other) const {
 
 bool SpillRange::TryMerge(SpillRange* other) {
   if (HasSlot() || other->HasSlot()) return false;
-  // TODO(dcarney): byte widths should be compared here not kinds.
-  if (live_ranges_[0]->kind() != other->live_ranges_[0]->kind() ||
-      IsIntersectingWith(other)) {
+  if (byte_width() != other->byte_width() || IsIntersectingWith(other))
     return false;
-  }
 
   LifetimePosition max = LifetimePosition::MaxPosition();
   if (End() < other->End() && other->End() != max) {

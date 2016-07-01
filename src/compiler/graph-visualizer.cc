@@ -581,9 +581,9 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->kind() == FP_REGISTERS) {
-          os_ << " \"double_stack:" << index << "\"";
-        } else if (top->kind() == GENERAL_REGISTERS) {
+        if (IsFloatingPoint(top->representation())) {
+          os_ << " \"fp_stack:" << index << "\"";
+        } else {
           os_ << " \"stack:" << index << "\"";
         }
       }

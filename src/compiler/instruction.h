@@ -605,16 +605,15 @@ bool InstructionOperand::IsSimd128StackSlot() const {
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
-    MachineRepresentation rep = LocationOperand::cast(this)->representation();
     MachineRepresentation canonical = MachineRepresentation::kNone;
-    if (IsFloatingPoint(rep)) {
+    if (IsFPRegister()) {
       if (kSimpleFPAliasing) {
-        // Archs with simple aliasing can treat all FP operands the same.
+        // We treat all FP register operands the same for simple aliasing.
         canonical = MachineRepresentation::kFloat64;
       } else {
-        // We need to distinguish FP operands of different reps when FP
+        // We need to distinguish FP register operands of different reps when
         // aliasing is not simple (e.g. ARM).
-        canonical = rep;
+        canonical = LocationOperand::cast(this)->representation();
       }
     }
     return InstructionOperand::KindField::update(
