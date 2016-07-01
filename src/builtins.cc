@@ -2269,6 +2269,58 @@ BUILTIN(MathAsin) {
   return *isolate->factory()->NewHeapNumber(std::asin(x->Number()));
 }
 
+// ES6 section 20.2.2.18 Math.hypot ( value1, value2, ...values )
+BUILTIN(MathHypot) {
+  HandleScope scope(isolate);
+  int const length = args.length() - 1;
+  if (length == 0) return Smi::FromInt(0);
+  DCHECK_LT(0, length);
+  double max = 0;
+  bool one_arg_is_nan = false;
+  List<double> abs_values(length);
+  for (int i = 0; i < length; i++) {
+    Handle<Object> x = args.at<Object>(i + 1);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+    double abs_value = std::abs(x->Number());
+
+    if (std::isnan(abs_value)) {
+      one_arg_is_nan = true;
+    } else {
+      abs_values.Add(abs_value);
+      if (max < abs_value) {
+        max = abs_value;
+      }
+    }
+  }
+
+  if (max == V8_INFINITY) {
+    return *isolate->factory()->NewNumber(V8_INFINITY);
+  }
+
+  if (one_arg_is_nan) {
+    return *isolate->factory()->nan_value();
+  }
+
+  if (max == 0) {
+    return Smi::FromInt(0);
+  }
+  DCHECK_GT(max, 0);
+
+  // Kahan summation to avoid rounding errors.
+  // Normalize the numbers to the largest one to avoid overflow.
+  double sum = 0;
+  double compensation = 0;
+  for (int i = 0; i < length; i++) {
+    double n = abs_values.at(i) / max;
+    double summand = n * n - compensation;
+    double preliminary = sum + summand;
+    compensation = (preliminary - sum) - summand;
+    sum = preliminary;
+  }
+
+  return *isolate->factory()->NewNumber(std::sqrt(sum) * max);
+}
+
 // ES6 section 20.2.2.6 Math.atan ( x )
 void Builtins::Generate_MathAtan(CodeStubAssembler* assembler) {
   using compiler::Node;

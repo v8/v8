@@ -66,34 +66,6 @@ function MathAcosh(x) {
   return %math_log(x + %math_sqrt(x + 1) * %math_sqrt(x - 1));
 }
 
-// ES6 draft 09-27-13, section 20.2.2.17.
-function MathHypot(x, y) {  // Function length is 2.
-  // We may want to introduce fast paths for two arguments and when
-  // normalization to avoid overflow is not necessary.  For now, we
-  // simply assume the general case.
-  var length = arguments.length;
-  var max = 0;
-  for (var i = 0; i < length; i++) {
-    var n = %math_abs(arguments[i]);
-    if (n > max) max = n;
-    arguments[i] = n;
-  }
-  if (max === INFINITY) return INFINITY;
-
-  // Kahan summation to avoid rounding errors.
-  // Normalize the numbers to the largest one to avoid overflow.
-  if (max === 0) max = 1;
-  var sum = 0;
-  var compensation = 0;
-  for (var i = 0; i < length; i++) {
-    var n = arguments[i] / max;
-    var summand = n * n - compensation;
-    var preliminary = sum + summand;
-    compensation = (preliminary - sum) - summand;
-    sum = preliminary;
-  }
-  return %math_sqrt(sum) * max;
-}
 
 // -------------------------------------------------------------------
 
@@ -112,8 +84,7 @@ utils.InstallFunctions(GlobalMath, DONT_ENUM, [
   "random", MathRandom,
   "sign", MathSign,
   "asinh", MathAsinh,
-  "acosh", MathAcosh,
-  "hypot", MathHypot,
+  "acosh", MathAcosh
 ]);
 
 %SetForceInlineFlag(MathRandom);

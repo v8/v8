@@ -120,6 +120,7 @@ class CodeStubAssembler;
   V(MathAcos, BUILTIN_EXIT)                             \
   V(MathAsin, BUILTIN_EXIT)                             \
   V(MathFround, BUILTIN_EXIT)                           \
+  V(MathHypot, BUILTIN_EXIT)                            \
   V(MathImul, BUILTIN_EXIT)                             \
                                                         \
   V(ObjectAssign, BUILTIN_EXIT)                         \
