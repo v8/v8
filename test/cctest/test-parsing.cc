@@ -5510,8 +5510,8 @@ TEST(BasicImportExportParsing) {
       "export default function() {}",
       "export default function*() {}",
       "export default class C {}",
-      "export default class {}"
-      "export default class extends C {}"
+      "export default class {}",
+      "export default class extends C {}",
       "export default 42",
       "var x; export default x = 7",
       "export { Q } from 'somemodule.js';",

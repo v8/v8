@@ -782,18 +782,15 @@ class Parser : public ParserBase<ParserTraits> {
                                    bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
-                                      bool* ok);
+                                       bool default_export, bool* ok);
   Statement* ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
                                        ZoneList<const AstRawString*>* names,
-                                       bool* ok);
+                                       bool default_export, bool* ok);
   Statement* ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                           bool* ok);
+                                           bool default_export, bool* ok);
   Expression* ParseAsyncFunctionExpression(bool* ok);
-  Statement* ParseFunctionDeclaration(int pos, bool is_generator,
-                                      ZoneList<const AstRawString*>* names,
-                                      bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                   bool* ok);
+                                   bool default_export, bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels,
