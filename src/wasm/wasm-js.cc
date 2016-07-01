@@ -415,11 +415,19 @@ static Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
 }
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
+  if (!FLAG_expose_wasm && !FLAG_validate_asm) {
+    return;
+  }
+
   Factory* factory = isolate->factory();
 
   // Setup wasm function map.
   Handle<Context> context(global->native_context(), isolate);
   InstallWasmFunctionMap(isolate, context);
+
+  if (!FLAG_expose_wasm) {
+    return;
+  }
 
   // Bind the experimental WASM object.
   // TODO(rossberg, titzer): remove once it's no longer needed.
