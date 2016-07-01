@@ -8,17 +8,17 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "e952e32616ec1865f9c5d28feb6030f12ebf0952",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "c80c063b314ab9cc6c3c5955c7444c2fa514bcec",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "35eafcd939515d51d19556c543f9cf97faf75ee6",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "ffa4b6704cf5cc9fec9485731f24a05b2ba94bca",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "c36df184fb212b911d5e0fdee45647610e3ea54d",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "454e53abae6e4d68ee992b0a93a4174b75519393",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "ec76395b928f16607fca76f5fa3b63233c775877",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "ea4154b4daca60a5f5c04ef764b7eaf50362250c",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
   "v8/testing/gtest":
