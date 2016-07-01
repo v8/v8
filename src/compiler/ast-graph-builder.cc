@@ -3052,6 +3052,10 @@ void AstGraphBuilder::VisitNot(UnaryOperation* expr) {
 void AstGraphBuilder::VisitComma(BinaryOperation* expr) {
   VisitForEffect(expr->left());
   Visit(expr->right());
+  // Skip plugging AST evaluation contexts of the test kind. This is to stay in
+  // sync with full codegen which doesn't prepare the proper bailout point (see
+  // the implementation of FullCodeGenerator::VisitForControl).
+  if (ast_context()->IsTest()) return;
   ast_context()->ReplaceValue(expr);
 }
 
