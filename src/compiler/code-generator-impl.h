@@ -39,6 +39,10 @@ class InstructionOperandConverter {
     return ToDoubleRegister(instr_->InputAt(index));
   }
 
+  Simd128Register InputSimd128Register(size_t index) {
+    return ToSimd128Register(instr_->InputAt(index));
+  }
+
   double InputDouble(size_t index) { return ToDouble(instr_->InputAt(index)); }
 
   float InputFloat32(size_t index) { return ToFloat32(instr_->InputAt(index)); }
@@ -101,6 +105,10 @@ class InstructionOperandConverter {
     return ToDoubleRegister(instr_->Output());
   }
 
+  Simd128Register OutputSimd128Register() {
+    return ToSimd128Register(instr_->Output());
+  }
+
   // -- Conversions for operands -----------------------------------------------
 
   Label* ToLabel(InstructionOperand* op) {
@@ -115,12 +123,16 @@ class InstructionOperandConverter {
     return LocationOperand::cast(op)->GetRegister();
   }
 
+  FloatRegister ToFloatRegister(InstructionOperand* op) {
+    return LocationOperand::cast(op)->GetFloatRegister();
+  }
+
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
     return LocationOperand::cast(op)->GetDoubleRegister();
   }
 
-  FloatRegister ToFloatRegister(InstructionOperand* op) {
-    return LocationOperand::cast(op)->GetFloatRegister();
+  Simd128Register ToSimd128Register(InstructionOperand* op) {
+    return LocationOperand::cast(op)->GetSimd128Register();
   }
 
   Constant ToConstant(InstructionOperand* op) {
