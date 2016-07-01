@@ -64,6 +64,7 @@ class SlotSet : public Malloced {
   // The slot offsets specify a range of slots at addresses:
   // [page_start_ + start_offset ... page_start_ + end_offset).
   void RemoveRange(int start_offset, int end_offset) {
+    CHECK_LE(end_offset, 1 << kPageSizeBits);
     DCHECK_LE(start_offset, end_offset);
     int start_bucket, start_cell, start_bit;
     SlotToIndices(start_offset, &start_bucket, &start_cell, &start_bit);
