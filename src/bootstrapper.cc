@@ -599,6 +599,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<Map> map = Map::Copy(handle(object_function_prototype->map()),
                                 "EmptyObjectPrototype");
     map->set_is_prototype_map(true);
+    // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
+    map->set_immutable_proto(true);
     object_function_prototype->set_map(*map);
 
     native_context()->set_initial_object_prototype(*object_function_prototype);

@@ -304,7 +304,8 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
         JSFunction::cast(*new_target)->shared()->function_data() ==
             info->constructor() &&
         JSFunction::cast(*new_target)->context()->native_context() ==
-            isolate->context()->native_context()) {
+            isolate->context()->native_context() &&
+        !info->immutable_proto()) {
       constructor = Handle<JSFunction>::cast(new_target);
     } else {
       // Disable caching for subclass instantiation.
@@ -346,6 +347,9 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       ConfigureInstance(isolate, object, info, is_hidden_prototype), JSObject);
+  if (info->immutable_proto()) {
+    JSObject::SetImmutableProto(object);
+  }
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
 
@@ -572,8 +576,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->instance_template()));
-    internal_field_count =
-        Smi::cast(instance_template->internal_field_count())->value();
+    internal_field_count = instance_template->internal_field_count();
   }
 
   // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing

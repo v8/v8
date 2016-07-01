@@ -25348,3 +25348,32 @@ TEST(PrivateForApiIsNumber) {
   // Shouldn't crash.
   v8::Private::ForApi(isolate, v8_str("42"));
 }
+
+THREADED_TEST(ImmutableProto) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->InstanceTemplate()->SetImmutableProto();
+
+  Local<v8::Object> object = templ->GetFunction(context.local())
+                                 .ToLocalChecked()
+                                 ->NewInstance(context.local())
+                                 .ToLocalChecked();
+
+  // Look up the prototype
+  Local<v8::Value> original_proto =
+      object->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+
+  // Setting the prototype (e.g., to null) throws
+  CHECK(object->SetPrototype(context.local(), v8::Null(isolate)).IsNothing());
+
+  // The original prototype is still there
+  Local<Value> new_proto =
+      object->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+  CHECK(new_proto->IsObject());
+  CHECK(new_proto.As<v8::Object>()
+            ->Equals(context.local(), original_proto)
+            .FromJust());
+}
