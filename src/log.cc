@@ -644,6 +644,7 @@ class Ticker: public sampler::Sampler {
   }
 
   void SampleStack(const v8::RegisterState& state) override {
+    if (!profiler_) return;
     v8::Isolate* v8_isolate = isolate();
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
 #if defined(USE_SIMULATOR)
@@ -651,18 +652,9 @@ class Ticker: public sampler::Sampler {
                                         const_cast<v8::RegisterState*>(&state)))
       return;
 #endif
-    TickSample* sample = isolate->cpu_profiler()->StartTickSample();
-    TickSample sample_obj;
-    if (sample == NULL) sample = &sample_obj;
-    sample->Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
-    if (is_counting_samples_ && !sample->timestamp.IsNull()) {
-      if (sample->state == JS) ++js_sample_count_;
-      if (sample->state == EXTERNAL) ++external_sample_count_;
-    }
-    if (profiler_) profiler_->Insert(sample);
-    if (sample != &sample_obj) {
-      isolate->cpu_profiler()->FinishTickSample();
-    }
+    TickSample sample;
+    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
+    profiler_->Insert(&sample);
   }
 
  private:

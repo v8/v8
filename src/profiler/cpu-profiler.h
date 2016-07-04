@@ -133,8 +133,7 @@ class CodeEventsContainer {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public base::Thread {
  public:
-  ProfilerEventsProcessor(ProfileGenerator* generator,
-                          sampler::Sampler* sampler,
+  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
                           base::TimeDelta period);
   virtual ~ProfilerEventsProcessor();
 
@@ -160,6 +159,8 @@ class ProfilerEventsProcessor : public base::Thread {
   void* operator new(size_t size);
   void operator delete(void* ptr);
 
+  sampler::Sampler* sampler() { return sampler_.get(); }
+
  private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -172,7 +173,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SampleProcessingResult ProcessOneSample();
 
   ProfileGenerator* generator_;
-  sampler::Sampler* sampler_;
+  std::unique_ptr<sampler::Sampler> sampler_;
   base::Atomic32 running_;
   const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
@@ -208,10 +209,6 @@ class CpuProfiler : public CodeEventObserver {
   void DeleteProfile(CpuProfile* profile);
 
   void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
-
-  // Invoked from stack sampler (thread or signal handler.)
-  inline TickSample* StartTickSample();
-  inline void FinishTickSample();
 
   bool is_profiling() const { return is_profiling_; }
 

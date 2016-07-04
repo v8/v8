@@ -19,21 +19,51 @@ namespace internal {
 
 static const int kProfilerStackSize = 64 * KB;
 
+class CpuSampler : public sampler::Sampler {
+ public:
+  CpuSampler(Isolate* isolate, ProfilerEventsProcessor* processor)
+      : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
+        processor_(processor) {}
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
-                                                 sampler::Sampler* sampler,
+  void SampleStack(const v8::RegisterState& state) override {
+    v8::Isolate* v8_isolate = isolate();
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(v8_isolate);
+#if defined(USE_SIMULATOR)
+    v8::RegisterState regs;
+    if (!SimulatorHelper::FillRegisters(i_isolate, &regs)) return;
+#else
+    const v8::RegisterState& regs = state;
+#endif
+    TickSample* sample = processor_->StartTickSample();
+    if (sample == NULL) return;
+    sample->Init(i_isolate, regs, TickSample::kIncludeCEntryFrame, true);
+    if (is_counting_samples_ && !sample->timestamp.IsNull()) {
+      if (sample->state == JS) ++js_sample_count_;
+      if (sample->state == EXTERNAL) ++external_sample_count_;
+    }
+    processor_->FinishTickSample();
+  }
+
+ private:
+  ProfilerEventsProcessor* processor_;
+};
+
+ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
+                                                 ProfileGenerator* generator,
                                                  base::TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      sampler_(sampler),
+      sampler_(new CpuSampler(isolate, this)),
       running_(1),
       period_(period),
       last_code_event_id_(0),
-      last_processed_code_event_id_(0) {}
+      last_processed_code_event_id_(0) {
+  sampler_->IncreaseProfilingDepth();
+}
 
-
-ProfilerEventsProcessor::~ProfilerEventsProcessor() {}
-
+ProfilerEventsProcessor::~ProfilerEventsProcessor() {
+  sampler_->DecreaseProfilingDepth();
+}
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
   event.generic.order = last_code_event_id_.Increment(1);
@@ -283,9 +313,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  sampler::Sampler* sampler = logger->sampler();
   generator_.reset(new ProfileGenerator(profiles_.get()));
-  processor_.reset(new ProfilerEventsProcessor(generator_.get(), sampler,
+  processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
   logger->SetUpProfilerListener();
   ProfilerListener* profiler_listener = logger->profiler_listener();
@@ -301,8 +330,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   logger->LogAccessorCallbacks();
   LogBuiltins();
   // Enable stack sampling.
-  sampler->SetHasProcessingThread(true);
-  sampler->IncreaseProfilingDepth();
   processor_->AddCurrentStack(isolate_);
   processor_->StartSynchronously();
 }
@@ -336,8 +363,6 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
 
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
-  sampler::Sampler* sampler =
-      reinterpret_cast<sampler::Sampler*>(logger->ticker_);
   is_profiling_ = false;
   isolate_->set_is_profiling(false);
   ProfilerListener* profiler_listener = logger->profiler_listener();
@@ -346,8 +371,6 @@ void CpuProfiler::StopProcessor() {
   logger->TearDownProfilerListener();
   processor_.reset();
   generator_.reset();
-  sampler->SetHasProcessingThread(false);
-  sampler->DecreaseProfilingDepth();
   logger->is_logging_ = saved_is_logging_;
 }
 
