@@ -433,9 +433,17 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
 
-        // For now, builtin exit frames do not pass along a receiver.
+        // In order to help CallSite::IsConstructor detect builtin constructors,
+        // we reuse the receiver field to pass along a special symbol.
+        Handle<Object> recv;
+        if (exit_frame->IsConstructor()) {
+          recv = handle(heap()->call_site_constructor_symbol(), this);
+        } else {
+          recv = handle(exit_frame->receiver(), this);
+        }
+
         elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, *factory()->undefined_value());
+        elements->set(cursor++, *recv);
         elements->set(cursor++, *fun);
         elements->set(cursor++, *code);
         elements->set(cursor++, Smi::FromInt(offset));

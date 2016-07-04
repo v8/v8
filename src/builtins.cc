@@ -64,17 +64,24 @@ class BuiltinArguments : public Arguments {
     return Arguments::at<Object>(0);
   }
 
+  static const int kNewTargetOffset = 0;
+  static const int kTargetOffset = 1;
+  static const int kArgcOffset = 2;
+  static const int kNumExtraArgs = 3;
+  static const int kNumExtraArgsWithReceiver = 4;
+
   template <class S>
   Handle<S> target() {
-    return Arguments::at<S>(Arguments::length() - 2);
+    return Arguments::at<S>(Arguments::length() - 1 - kTargetOffset);
   }
   Handle<HeapObject> new_target() {
-    return Arguments::at<HeapObject>(Arguments::length() - 1);
+    return Arguments::at<HeapObject>(Arguments::length() - 1 -
+                                     kNewTargetOffset);
   }
 
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).
-  int length() const { return Arguments::length() - 2; }
+  int length() const { return Arguments::length() - kNumExtraArgs; }
 };
 
 
@@ -423,8 +430,8 @@ RUNTIME_FUNCTION(Runtime_ArrayPush) {
   DCHECK_EQ(2, args.length());
   Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
   // Rewrap the arguments as builtins arguments.
-  BuiltinArguments caller_args(incoming->length() + 3,
-                               incoming->arguments() + 1);
+  int argc = incoming->length() + BuiltinArguments::kNumExtraArgsWithReceiver;
+  BuiltinArguments caller_args(argc, incoming->arguments() + 1);
   return DoArrayPush(isolate, caller_args);
 }
 
@@ -4721,8 +4728,8 @@ RUNTIME_FUNCTION(Runtime_FunctionBind) {
   DCHECK_EQ(2, args.length());
   Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
   // Rewrap the arguments as builtins arguments.
-  BuiltinArguments caller_args(incoming->length() + 3,
-                               incoming->arguments() + 1);
+  int argc = incoming->length() + BuiltinArguments::kNumExtraArgsWithReceiver;
+  BuiltinArguments caller_args(argc, incoming->arguments() + 1);
   return DoFunctionBind(isolate, caller_args);
 }
 
@@ -5645,20 +5652,24 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   const int kBufferSize = 32;
   Object* small_argv[kBufferSize];
   Object** argv;
-  if (argc + 3 <= kBufferSize) {
+  const int frame_argc = argc + BuiltinArguments::kNumExtraArgsWithReceiver;
+  if (frame_argc <= kBufferSize) {
     argv = small_argv;
   } else {
-    argv = new Object*[argc + 3];
+    argv = new Object*[frame_argc];
   }
-  argv[argc + 2] = *receiver;
+  int cursor = frame_argc - 1;
+  argv[cursor--] = *receiver;
   for (int i = 0; i < argc; ++i) {
-    argv[argc - i + 1] = *args[i];
+    argv[cursor--] = *args[i];
   }
-  argv[1] = *function;
-  argv[0] = *new_target;
+  DCHECK(cursor == BuiltinArguments::kArgcOffset);
+  argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc);
+  argv[BuiltinArguments::kTargetOffset] = *function;
+  argv[BuiltinArguments::kNewTargetOffset] = *new_target;
   MaybeHandle<Object> result;
   {
-    RelocatableArguments arguments(isolate, argc + 3, &argv[argc] + 2);
+    RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);
     result = HandleApiCallHelper<false>(isolate, function, new_target, fun_data,
                                         receiver, arguments);
   }

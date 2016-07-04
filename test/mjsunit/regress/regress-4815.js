@@ -46,5 +46,5 @@ testBuiltinInStackTrace("Date.prototype.getTime.call('')", "at String.getTime");
 
 // C++ builtins.
 testBuiltinInStackTrace("Boolean.prototype.toString.call(thrower);",
-                        "at toString");
-testBuiltinInStackTrace("new Date(thrower);", "at Date");
+                        "at Object.toString");
+testBuiltinInStackTrace("new Date(thrower);", "at new Date");

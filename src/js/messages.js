@@ -15,6 +15,8 @@ var ArrayJoin;
 var Bool16x8ToString;
 var Bool32x4ToString;
 var Bool8x16ToString;
+var callSiteConstructorSymbol =
+    utils.ImportNow("call_site_constructor_symbol");
 var callSiteReceiverSymbol =
     utils.ImportNow("call_site_receiver_symbol");
 var callSiteFunctionSymbol =
@@ -302,8 +304,11 @@ function CheckCallSite(obj, name) {
 
 function CallSiteGetThis() {
   CheckCallSite(this, "getThis");
-  return GET_PRIVATE(this, callSiteStrictSymbol)
-      ? UNDEFINED : GET_PRIVATE(this, callSiteReceiverSymbol);
+  if (GET_PRIVATE(this, callSiteStrictSymbol)) {
+    return UNDEFINED;
+  }
+  var recv = GET_PRIVATE(this, callSiteReceiverSymbol);
+  return (recv == callSiteConstructorSymbol) ? UNDEFINED : recv;
 }
 
 function CallSiteGetFunction() {

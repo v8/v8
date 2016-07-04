@@ -329,6 +329,7 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
  public:
   static const int kNewTargetOffset = kCallerPCOffset + 1 * kPointerSize;
   static const int kTargetOffset = kNewTargetOffset + 1 * kPointerSize;
+  static const int kArgcOffset = kTargetOffset + 1 * kPointerSize;
 };
 
 class InterpreterFrameConstants : public AllStatic {
@@ -664,13 +665,18 @@ class BuiltinExitFrame : public ExitFrame {
     return static_cast<BuiltinExitFrame*>(frame);
   }
 
-  virtual JSFunction* function() const;
+  JSFunction* function() const;
+  Object* receiver() const;
+
+  bool IsConstructor() const;
 
  protected:
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  inline Object* function_slot_object() const;
+  inline Object* target_slot_object() const;
+  inline Object* new_target_slot_object() const;
+  inline Object* receiver_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };

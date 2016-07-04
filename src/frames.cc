@@ -648,7 +648,13 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
 }
 
 JSFunction* BuiltinExitFrame::function() const {
-  return JSFunction::cast(function_slot_object());
+  return JSFunction::cast(target_slot_object());
+}
+
+Object* BuiltinExitFrame::receiver() const { return receiver_slot_object(); }
+
+bool BuiltinExitFrame::IsConstructor() const {
+  return !new_target_slot_object()->IsUndefined(isolate());
 }
 
 Address StandardFrame::GetExpressionAddress(int n) const {

@@ -35,17 +35,20 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   // ordinary functions).
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Unconditionally insert the target and new target as extra arguments. They
+  // JumpToExternalReference expects rax to contain the number of arguments
+  // including the receiver and the extra arguments.
+  const int num_extra_args = 3;
+  __ addp(rax, Immediate(num_extra_args + 1));
+
+  // Unconditionally insert argc, target and new target as extra arguments. They
   // will be used by stack frame iterators when constructing the stack trace.
-  const int num_extra_args = 2;
   __ PopReturnAddressTo(kScratchRegister);
+  __ Integer32ToSmi(rax, rax);
+  __ Push(rax);
+  __ SmiToInteger32(rax, rax);
   __ Push(rdi);
   __ Push(rdx);
   __ PushReturnAddressFrom(kScratchRegister);
-
-  // JumpToExternalReference expects rax to contain the number of arguments
-  // including the receiver and the extra arguments.
-  __ addp(rax, Immediate(num_extra_args + 1));
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
                              exit_frame_type == BUILTIN_EXIT);

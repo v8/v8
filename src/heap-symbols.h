@@ -151,6 +151,7 @@
   V(array_iteration_kind_symbol)            \
   V(array_iterator_next_symbol)             \
   V(array_iterator_object_symbol)           \
+  V(call_site_constructor_symbol)           \
   V(call_site_function_symbol)              \
   V(call_site_position_symbol)              \
   V(call_site_receiver_symbol)              \

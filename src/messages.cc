@@ -354,6 +354,10 @@ bool CallSite::IsEval() {
 
 
 bool CallSite::IsConstructor() {
+  // Builtin exit frames mark constructors by passing a special symbol as the
+  // receiver.
+  Object* ctor_symbol = isolate_->heap()->call_site_constructor_symbol();
+  if (*receiver_ == ctor_symbol) return true;
   if (!IsJavaScript() || !receiver_->IsJSObject()) return false;
   Handle<Object> constructor =
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),

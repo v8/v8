@@ -36,16 +36,19 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   // ordinary functions).
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+  // JumpToExternalReference expects eax to contain the number of arguments
+  // including the receiver and the extra arguments.
+  const int num_extra_args = 3;
+  __ add(eax, Immediate(num_extra_args + 1));
+
   // Insert extra arguments.
-  const int num_extra_args = 2;
   __ PopReturnAddressTo(ecx);
+  __ SmiTag(eax);
+  __ Push(eax);
+  __ SmiUntag(eax);
   __ Push(edi);
   __ Push(edx);
   __ PushReturnAddressFrom(ecx);
-
-  // JumpToExternalReference expects eax to contain the number of arguments
-  // including the receiver and the extra arguments.
-  __ add(eax, Immediate(num_extra_args + 1));
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
                              exit_frame_type == BUILTIN_EXIT);
