@@ -372,7 +372,8 @@ bool LinkFunction(Handle<Code> unlinked,
         Handle<Code> new_target = code_targets[index];
         if (target != *new_target) {
           it.rinfo()->set_target_address(new_target->instruction_start(),
-                                         SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+                                         UPDATE_WRITE_BARRIER,
+                                         SKIP_ICACHE_FLUSH);
           modified = true;
         }
       }
