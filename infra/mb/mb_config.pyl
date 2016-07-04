@@ -18,8 +18,8 @@
     },
     'client.v8': {
       # Linux.
-      'V8 Linux - builder': 'gyp_release_x86_gcmole',
-      'V8 Linux - debug builder': 'gyp_debug_x86',
+      'V8 Linux - builder': 'gn_release_x86_gcmole',
+      'V8 Linux - debug builder': 'gn_debug_x86',
       'V8 Linux - nosnap builder': 'gyp_release_x86_no_snap',
       'V8 Linux - nosnap debug builder': 'gyp_debug_x86_no_snap',
       'V8 Linux - shared': 'gyp_release_x86_shared_verify_heap',
@@ -129,10 +129,10 @@
       'V8 s390x - sim - stable branch': 'gyp_release_simulate_s390x',
     },
     'tryserver.v8': {
-      'v8_linux_rel_ng': 'gyp_release_x86_gcmole_trybot',
-      'v8_linux_avx2_dbg': 'gyp_debug_x86_trybot',
-      'v8_linux_nodcheck_rel_ng': 'gyp_release_x86_minimal_symbols',
-      'v8_linux_dbg_ng': 'gyp_debug_x86_trybot',
+      'v8_linux_rel_ng': 'gn_release_x86_gcmole_trybot',
+      'v8_linux_avx2_dbg': 'gn_debug_x86_trybot',
+      'v8_linux_nodcheck_rel_ng': 'gn_release_x86_minimal_symbols',
+      'v8_linux_dbg_ng': 'gn_debug_x86_trybot',
       'v8_linux_noi18n_rel_ng': 'gyp_release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg': 'gyp_debug_x86_trybot',
       'v8_linux_nosnap_rel': 'gyp_release_x86_no_snap_trybot',
@@ -192,6 +192,20 @@
       'gn', 'debug_trybot', 'x64', 'swarming'],
     'gn_debug_x64_valgrind': [
       'gn', 'debug_bot', 'x64', 'swarming', 'valgrind'],
+
+    # GN debug configs for x86.
+    'gn_debug_x86': [
+      'gn', 'debug_bot', 'x86', 'swarming'],
+    'gn_debug_x86_trybot': [
+      'gn', 'debug_trybot', 'x86', 'swarming'],
+
+    # GN release configs for x86.
+    'gn_release_x86_gcmole': [
+      'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
+    'gn_release_x86_gcmole_trybot': [
+      'gn', 'release_trybot', 'x86', 'gcmole', 'swarming'],
+    'gn_release_x86_minimal_symbols': [
+      'gn', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
 
     # Gyp debug configs for arm.
     'gyp_debug_arm': [
@@ -320,10 +334,6 @@
       'gyp', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'gyp_release_x86_interpreted_regexp': [
       'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
-    'gyp_release_x86_gcmole': [
-      'gyp', 'release_bot', 'x86', 'gcmole', 'swarming'],
-    'gyp_release_x86_gcmole_trybot': [
-      'gyp', 'release_trybot', 'x86', 'gcmole', 'swarming'],
     'gyp_release_x86_minimal_symbols': [
       'gyp', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gyp_release_x86_no_i18n_trybot': [
@@ -418,8 +428,7 @@
     },
 
     'gcmole': {
-      # TODO(machenbach): Add this to gn.
-      'gn_args': 'gcmole=true',
+      'gn_args': 'v8_gcmole=true',
       'gyp_defines': 'gcmole=1',
     },
 

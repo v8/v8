@@ -31,6 +31,9 @@ declare_args() {
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
 
+  # Support for backtrace_symbols on linux.
+  v8_enable_backtrace = false
+
   # Sets -dENABLE_DISASSEMBLER.
   v8_enable_disassembler = false
 
@@ -292,6 +295,10 @@ config("toolchain") {
   # TODO(jochen): Add support for compiling with simulators.
 
   if (is_debug) {
+    if (is_linux && v8_enable_backtrace) {
+      ldflags += [ "-rdynamic" ]
+    }
+
     # TODO(jochen): Add support for different debug optimization levels.
     defines += [
       "ENABLE_DISASSEMBLER",

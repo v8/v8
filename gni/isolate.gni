@@ -106,6 +106,12 @@ template("v8_isolate_run") {
       } else {
         has_valgrind = "0"
       }
+      if (v8_gcmole) {
+        gcmole = "1"
+      } else {
+        gcmole = "0"
+      }
+
 
       # Note, all paths will be rebased in isolate_driver.py to be relative to
       # the isolate file.
@@ -135,7 +141,7 @@ template("v8_isolate_run") {
         "--config-variable",
         "cfi_vptr=$cfi_vptr",
         "--config-variable",
-        "gcmole=0",
+        "gcmole=$gcmole",
         "--config-variable",
         "has_valgrind=$has_valgrind",
         "--config-variable",

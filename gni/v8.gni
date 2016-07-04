@@ -10,6 +10,9 @@ declare_args() {
   # swarming.
   v8_has_valgrind = false
 
+  # Indicate if gcmole was fetched as a hook to make it available on swarming.
+  v8_gcmole = false
+
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
