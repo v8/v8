@@ -570,7 +570,7 @@ void AdjustStackPointerForTailCall(MacroAssembler* masm,
     masm->Dsubu(sp, sp, stack_slot_delta * kPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
-    masm->Daddu(sp, sp, stack_slot_delta * kPointerSize);
+    masm->Daddu(sp, sp, -stack_slot_delta * kPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
