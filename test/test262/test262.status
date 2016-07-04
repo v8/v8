@@ -469,6 +469,9 @@
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
+  # Fixed by https://github.com/tc39/test262/pull/662.
+  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

@@ -2025,7 +2025,6 @@ BUILTIN(ObjectEntries) {
 BUILTIN(ObjectGetOwnPropertyDescriptors) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<Object> undefined = isolate->factory()->undefined_value();
 
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
@@ -2047,9 +2046,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
         isolate, receiver, key, &descriptor);
     MAYBE_RETURN(did_get_descriptor, isolate->heap()->exception());
 
-    Handle<Object> from_descriptor = did_get_descriptor.FromJust()
-                                         ? descriptor.ToObject(isolate)
-                                         : undefined;
+    if (!did_get_descriptor.FromJust()) continue;
+    Handle<Object> from_descriptor = descriptor.ToObject(isolate);
 
     LookupIterator it = LookupIterator::PropertyOrElement(
         isolate, descriptors, key, descriptors, LookupIterator::OWN);
