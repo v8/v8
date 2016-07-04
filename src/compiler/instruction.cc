@@ -146,10 +146,14 @@ std::ostream& operator<<(std::ostream& os,
         os << "["
            << GetRegConfig()->GetDoubleRegisterName(allocated.register_code())
            << "|R";
-      } else {
-        DCHECK(op.IsFloatRegister());
+      } else if (op.IsFloatRegister()) {
         os << "["
            << GetRegConfig()->GetFloatRegisterName(allocated.register_code())
+           << "|R";
+      } else {
+        DCHECK(op.IsSimd128Register());
+        os << "["
+           << GetRegConfig()->GetSimd128RegisterName(allocated.register_code())
            << "|R";
       }
       if (allocated.IsExplicit()) {
