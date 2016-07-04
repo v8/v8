@@ -3380,19 +3380,15 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
   }
 };
 
-template <MarkCompactCollector::Sweeper::SweepingMode sweeping_mode,
-          MarkCompactCollector::Sweeper::SweepingParallelism parallelism,
-          MarkCompactCollector::Sweeper::SkipListRebuildingMode skip_list_mode,
-          MarkCompactCollector::Sweeper::FreeListRebuildingMode free_list_mode,
-          MarkCompactCollector::Sweeper::FreeSpaceTreatmentMode free_space_mode>
-int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
-                                            ObjectVisitor* v) {
+int MarkCompactCollector::Sweeper::RawSweep(
+    Page* p, FreeListRebuildingMode free_list_mode,
+    FreeSpaceTreatmentMode free_space_mode) {
+  Space* space = p->owner();
+  DCHECK_NOT_NULL(space);
+  DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
+         space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
   DCHECK(!p->IsFlagSet(Page::BLACK_PAGE));
-  DCHECK((space == nullptr) || (space->identity() != CODE_SPACE) ||
-         (skip_list_mode == REBUILD_SKIP_LIST));
-  DCHECK((p->skip_list() == NULL) || (skip_list_mode == REBUILD_SKIP_LIST));
-  DCHECK(parallelism == SWEEP_ON_MAIN_THREAD || sweeping_mode == SWEEP_ONLY);
 
   // Before we sweep objects on the page, we free dead array buffers which
   // requires valid mark bits.
@@ -3404,8 +3400,10 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the
   // deoptimizer.
+  const bool rebuild_skip_list =
+      space->identity() == CODE_SPACE && p->skip_list() != nullptr;
   SkipList* skip_list = p->skip_list();
-  if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list) {
+  if (rebuild_skip_list) {
     skip_list->Clear();
   }
 
@@ -3424,7 +3422,8 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
         memset(free_start, 0xcc, size);
       }
       if (free_list_mode == REBUILD_FREE_LIST) {
-        freed_bytes = space->UnaccountedFree(free_start, size);
+        freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
+            free_start, size);
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
       } else {
         p->heap()->CreateFillerObjectAt(free_start, size,
@@ -3433,10 +3432,7 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
     }
     Map* map = object->synchronized_map();
     int size = object->SizeFromMap(map);
-    if (sweeping_mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
-      object->IterateBody(map->instance_type(), size, v);
-    }
-    if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list != NULL) {
+    if (rebuild_skip_list) {
       int new_region_start = SkipList::RegionNumber(free_end);
       int new_region_end =
           SkipList::RegionNumber(free_end + size - kPointerSize);
@@ -3457,7 +3453,8 @@ int MarkCompactCollector::Sweeper::RawSweep(PagedSpace* space, Page* p,
       memset(free_start, 0xcc, size);
     }
     if (free_list_mode == REBUILD_FREE_LIST) {
-      freed_bytes = space->UnaccountedFree(free_start, size);
+      freed_bytes = reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(
+          free_start, size);
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     } else {
       p->heap()->CreateFillerObjectAt(free_start, size,
@@ -3883,21 +3880,16 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
       return 0;
     }
     page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
+    const Sweeper::FreeSpaceTreatmentMode free_space_mode =
+        Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     if (identity == NEW_SPACE) {
-      RawSweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
-               IGNORE_FREE_LIST, IGNORE_FREE_SPACE>(nullptr, page, nullptr);
+      RawSweep(page, IGNORE_FREE_LIST, free_space_mode);
     } else if (identity == OLD_SPACE) {
-      max_freed = RawSweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
-                           REBUILD_FREE_LIST, IGNORE_FREE_SPACE>(
-          heap_->paged_space(identity), page, nullptr);
+      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     } else if (identity == CODE_SPACE) {
-      max_freed = RawSweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, REBUILD_SKIP_LIST,
-                           REBUILD_FREE_LIST, IGNORE_FREE_SPACE>(
-          heap_->paged_space(identity), page, nullptr);
+      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     } else {
-      max_freed = RawSweep<SWEEP_ONLY, SWEEP_IN_PARALLEL, IGNORE_SKIP_LIST,
-                           REBUILD_FREE_LIST, IGNORE_FREE_SPACE>(
-          heap_->paged_space(identity), page, nullptr);
+      max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
     {
       base::LockGuard<base::Mutex> guard(&mutex_);
@@ -3990,9 +3982,9 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       // (in the free list) dropped again. Since we only use the flag for
       // testing this is fine.
       p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
-      Sweeper::RawSweep<Sweeper::SWEEP_ONLY, Sweeper::SWEEP_ON_MAIN_THREAD,
-                        Sweeper::IGNORE_SKIP_LIST, Sweeper::IGNORE_FREE_LIST,
-                        Sweeper::IGNORE_FREE_SPACE>(space, p, nullptr);
+      Sweeper::RawSweep(p, Sweeper::IGNORE_FREE_LIST,
+                        Heap::ShouldZapGarbage() ? Sweeper::ZAP_FREE_SPACE
+                                                 : Sweeper::IGNORE_FREE_SPACE);
       continue;
     }
 

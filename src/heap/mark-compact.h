@@ -406,20 +406,14 @@ class MarkCompactCollector {
    public:
     class SweeperTask;
 
-    enum SweepingMode { SWEEP_ONLY, SWEEP_AND_VISIT_LIVE_OBJECTS };
-    enum SkipListRebuildingMode { REBUILD_SKIP_LIST, IGNORE_SKIP_LIST };
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
     enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
-    enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
 
     typedef std::deque<Page*> SweepingList;
     typedef List<Page*> SweptList;
 
-    template <SweepingMode sweeping_mode, SweepingParallelism parallelism,
-              SkipListRebuildingMode skip_list_mode,
-              FreeListRebuildingMode free_list_mode,
-              FreeSpaceTreatmentMode free_space_mode>
-    static int RawSweep(PagedSpace* space, Page* p, ObjectVisitor* v);
+    static int RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
+                        FreeSpaceTreatmentMode free_space_mode);
 
     explicit Sweeper(Heap* heap)
         : heap_(heap),
