@@ -1499,12 +1499,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ TruncateX87TOSToI(i.OutputRegister(0));
       __ test(i.OutputRegister(0), i.OutputRegister(0));
       __ j(positive, &success);
+      // Need to reserve the input float32 data.
+      __ fld(0);
       __ push(Immediate(INT32_MIN));
       __ fild_s(Operand(esp, 0));
       __ lea(esp, Operand(esp, kPointerSize));
       __ faddp();
       __ TruncateX87TOSToI(i.OutputRegister(0));
       __ or_(i.OutputRegister(0), Immediate(0x80000000));
+      // Only keep input float32 data in x87 stack when return.
+      __ fstp(0);
       __ bind(&success);
       if (!instr->InputAt(0)->IsFPRegister()) {
         __ fstp(0);
