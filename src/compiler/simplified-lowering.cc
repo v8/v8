@@ -357,17 +357,25 @@ class RepresentationSelector {
     Type* type = info->feedback_type();
     Type* new_type = type;
 
+    // For any non-phi node just wait until we get all inputs typed. We only
+    // allow untyped inputs for phi nodes because phis are the only places
+    // where cycles need to be broken.
+    if (node->opcode() != IrOpcode::kPhi) {
+      for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+        if (GetInfo(node->InputAt(i))->feedback_type() == nullptr) {
+          return false;
+        }
+      }
+    }
+
     switch (node->opcode()) {
       case IrOpcode::kSpeculativeNumberAdd: {
-        Type* lhs = FeedbackTypeOf(node->InputAt(0));
-        Type* rhs = FeedbackTypeOf(node->InputAt(1));
-        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
         // TODO(jarin) The ToNumber conversion is too conservative here,
         // e.g. it will treat true as 1 even though the number check will
         // fail on a boolean. OperationTyper should have a function that
         // computes a more precise type.
-        lhs = op_typer_.ToNumber(lhs);
-        rhs = op_typer_.ToNumber(rhs);
+        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
         Type* static_type = op_typer_.NumericAdd(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
@@ -379,15 +387,12 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kSpeculativeNumberSubtract: {
-        Type* lhs = FeedbackTypeOf(node->InputAt(0));
-        Type* rhs = FeedbackTypeOf(node->InputAt(1));
-        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
         // TODO(jarin) The ToNumber conversion is too conservative here,
         // e.g. it will treat true as 1 even though the number check will
         // fail on a boolean. OperationTyper should have a function that
         // computes a more precise type.
-        lhs = op_typer_.ToNumber(lhs);
-        rhs = op_typer_.ToNumber(rhs);
+        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
         Type* static_type = op_typer_.NumericSubtract(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
@@ -399,15 +404,12 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kSpeculativeNumberMultiply: {
-        Type* lhs = FeedbackTypeOf(node->InputAt(0));
-        Type* rhs = FeedbackTypeOf(node->InputAt(1));
-        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
         // TODO(jarin) The ToNumber conversion is too conservative here,
         // e.g. it will treat true as 1 even though the number check will
         // fail on a boolean. OperationTyper should have a function that
         // computes a more precise type.
-        lhs = op_typer_.ToNumber(lhs);
-        rhs = op_typer_.ToNumber(rhs);
+        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
         Type* static_type = op_typer_.NumericMultiply(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
@@ -419,15 +421,12 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kSpeculativeNumberDivide: {
-        Type* lhs = FeedbackTypeOf(node->InputAt(0));
-        Type* rhs = FeedbackTypeOf(node->InputAt(1));
-        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
         // TODO(jarin) The ToNumber conversion is too conservative here,
         // e.g. it will treat true as 1 even though the number check will
         // fail on a boolean. OperationTyper should have a function that
         // computes a more precise type.
-        lhs = op_typer_.ToNumber(lhs);
-        rhs = op_typer_.ToNumber(rhs);
+        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
         Type* static_type = op_typer_.NumericDivide(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
@@ -439,15 +438,12 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kSpeculativeNumberModulus: {
-        Type* lhs = FeedbackTypeOf(node->InputAt(0));
-        Type* rhs = FeedbackTypeOf(node->InputAt(1));
-        if (lhs->Is(Type::None()) || rhs->Is(Type::None())) return false;
         // TODO(jarin) The ToNumber conversion is too conservative here,
         // e.g. it will treat true as 1 even though the number check will
         // fail on a boolean. OperationTyper should have a function that
         // computes a more precise type.
-        lhs = op_typer_.ToNumber(lhs);
-        rhs = op_typer_.ToNumber(rhs);
+        Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
         Type* static_type = op_typer_.NumericModulus(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
@@ -945,7 +941,6 @@ class RepresentationSelector {
   }
 
   MachineSemantic DeoptValueSemanticOf(Type* type) {
-    CHECK(!type->Is(Type::None()));
     // We only need signedness to do deopt correctly.
     if (type->Is(Type::Signed32())) {
       return MachineSemantic::kInt32;

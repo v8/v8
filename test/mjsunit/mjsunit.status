@@ -251,7 +251,7 @@
   'debug-scopes': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
-  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
@@ -412,12 +412,6 @@
   # BUG(v8:5053).
   'wasm/embenchen/fasta': [PASS, FAST_VARIANTS],
 }],  # 'gc_stress == True'
-
-##############################################################################
-['no_i18n == True and mode == debug', {
-  # Tests too slow for no18n debug.
-  'regress/regress-1200351': [SKIP],
-}],  # 'no_i18n == True and mode == debug'
 
 ##############################################################################
 ['byteorder == big', {

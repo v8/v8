@@ -289,6 +289,10 @@ Type* OperationTyper::NumericAdd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   // We can give more precise types for integers.
   if (!lhs->Is(cache_.kIntegerOrMinusZeroOrNaN) ||
       !rhs->Is(cache_.kIntegerOrMinusZeroOrNaN)) {
@@ -311,6 +315,10 @@ Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   lhs = Rangify(lhs);
   rhs = Rangify(rhs);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
@@ -324,6 +332,11 @@ Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumericMultiply(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   lhs = Rangify(lhs);
   rhs = Rangify(rhs);
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
@@ -337,6 +350,10 @@ Type* OperationTyper::NumericDivide(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
   // Division is tricky, so all we do is try ruling out nan.
   bool maybe_nan =
@@ -349,6 +366,11 @@ Type* OperationTyper::NumericDivide(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumericModulus(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
 
   if (lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
@@ -403,6 +425,11 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
 Type* OperationTyper::TypeJSAdd(Type* lhs, Type* rhs) {
   lhs = ToPrimitive(lhs);
   rhs = ToPrimitive(rhs);
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   if (lhs->Maybe(Type::String()) || rhs->Maybe(Type::String())) {
     if (lhs->Is(Type::String()) || rhs->Is(Type::String())) {
       return Type::String();
