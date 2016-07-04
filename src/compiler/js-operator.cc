@@ -422,7 +422,7 @@ const CompareOperationHints& CompareOperationHintsOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
   V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoProperties, 0, 0)              \
+  V(StackCheck, Operator::kNoWrite, 0, 0)                   \
   V(CreateWithContext, Operator::kNoProperties, 2, 1)
 
 struct JSOperatorGlobalCache final {
