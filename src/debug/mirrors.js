@@ -15,7 +15,6 @@ var JSONStringify = global.JSON.stringify;
 var MakeError;
 var MapEntries;
 var MapIteratorNext;
-var MathMin = global.Math.min;
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
 var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
@@ -122,7 +121,7 @@ function ObjectIsPromise(value) {
 /**
  * Returns the mirror for a specified value or object.
  *
- * @param {value or Object} value the value or object to retreive the mirror for
+ * @param {value or Object} value the value or object to retrieve the mirror for
  * @param {boolean} transient indicate whether this object is transient and
  *    should not be added to the mirror cache. The default is not transient.
  * @returns {Mirror} the mirror reflects the passed value or object
