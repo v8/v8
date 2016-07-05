@@ -35,6 +35,9 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStrictNotEqual:
       return 0;
 
+    // Binary operations
+    case IrOpcode::kJSMultiply:
+
     // Compare operations
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
@@ -83,7 +86,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     // Binary operators that can deopt in the middle the operation (e.g.,
     // as a result of lazy deopt in ToNumber conversion) need a second frame
     // state so that we can resume before the operation.
-    case IrOpcode::kJSMultiply:
     case IrOpcode::kJSAdd:
     case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSBitwiseOr:

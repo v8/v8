@@ -34,7 +34,7 @@ class JSBinopReduction final {
     }
     DCHECK_NE(0, node_->op()->ControlOutputCount());
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
-    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
     BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
     BinaryOperationHints::Hint combined = hints.combined();
     if (combined == BinaryOperationHints::kSignedSmall ||
@@ -155,7 +155,7 @@ class JSBinopReduction final {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     DCHECK_EQ(1, node_->op()->ControlInputCount());
     DCHECK_LT(1, node_->op()->ControlOutputCount());
-    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
     DCHECK_EQ(2, node_->op()->ValueInputCount());
 
     // Reconnect the control output to bypass the IfSuccess node and
@@ -175,7 +175,9 @@ class JSBinopReduction final {
     }
 
     // Remove both bailout frame states and the context.
-    node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_) + 1);
+    if (OperatorProperties::GetFrameStateInputCount(node_->op()) == 2) {
+      node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_) + 1);
+    }
     node_->RemoveInput(NodeProperties::FirstFrameStateIndex(node_));
     node_->RemoveInput(NodeProperties::FirstContextIndex(node_));
 
@@ -230,6 +232,13 @@ class JSBinopReduction final {
   Node* node_;                 // The original node.
 
   Node* CreateFrameStateForLeftInput() {
+    if (OperatorProperties::GetFrameStateInputCount(node_->op()) < 2) {
+      // Deoptimization is disabled => return dummy frame state instead.
+      Node* dummy_state = NodeProperties::GetFrameStateInput(node_, 0);
+      DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
+      return dummy_state;
+    }
+
     Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
@@ -261,6 +270,13 @@ class JSBinopReduction final {
   }
 
   Node* CreateFrameStateForRightInput(Node* converted_left) {
+    if (OperatorProperties::GetFrameStateInputCount(node_->op()) < 2) {
+      // Deoptimization is disabled => return dummy frame state instead.
+      Node* dummy_state = NodeProperties::GetFrameStateInput(node_, 0);
+      DCHECK(OpParameter<FrameStateInfo>(dummy_state).bailout_id().IsNone());
+      return dummy_state;
+    }
+
     Node* frame_state = NodeProperties::GetFrameStateInput(node_, 1);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
 
@@ -516,8 +532,15 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
         simplified()->SpeculativeNumberMultiply(feedback), Type::Number());
   }
 
-  r.ConvertInputsToNumber();
-  return r.ChangeToPureOperator(simplified()->NumberMultiply(), Type::Number());
+  // If deoptimization is enabled we rely on type feedback.
+  if (r.BothInputsAre(Type::PlainPrimitive()) ||
+      !(flags() & kDeoptimizationEnabled)) {
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberMultiply(),
+                                  Type::Number());
+  }
+
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSDivide(Node* node) {

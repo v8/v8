@@ -19,7 +19,9 @@ namespace compiler {
 
 class JSTypedLoweringTester : public HandleAndZoneScope {
  public:
-  explicit JSTypedLoweringTester(int num_parameters = 0)
+  JSTypedLoweringTester(
+      int num_parameters = 0,
+      JSTypedLowering::Flags flags = JSTypedLowering::kDeoptimizationEnabled)
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
@@ -30,7 +32,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         deps(main_isolate(), main_zone()),
         graph(main_zone()),
         typer(main_isolate(), &graph),
-        context_node(NULL) {
+        context_node(NULL),
+        flags(flags) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -47,6 +50,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Graph graph;
   Typer typer;
   Node* context_node;
+  JSTypedLowering::Flags flags;
   BinaryOperationHints const binop_hints = BinaryOperationHints::Any();
   CompareOperationHints const compare_hints = CompareOperationHints::Any();
 
@@ -83,8 +87,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(main_zone(), &graph);
-    JSTypedLowering reducer(&graph_reducer, &deps,
-                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
+    JSTypedLowering reducer(&graph_reducer, &deps, flags, &jsgraph,
                             main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
@@ -749,8 +752,10 @@ TEST(RemoveToNumberEffects) {
 // Helper class for testing the reduction of a single binop.
 class BinopEffectsTester {
  public:
-  explicit BinopEffectsTester(const Operator* op, Type* t0, Type* t1)
-      : R(),
+  BinopEffectsTester(
+      const Operator* op, Type* t0, Type* t1,
+      JSTypedLowering::Flags flags = JSTypedLowering::kDeoptimizationEnabled)
+      : R(0, flags),
         p0(R.Parameter(t0, 0)),
         p1(R.Parameter(t1, 1)),
         binop(R.Binop(op, p0, p1)),
@@ -930,7 +935,8 @@ TEST(OrderNumberBinopEffects1) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Symbol());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Symbol(),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
@@ -956,7 +962,8 @@ TEST(OrderNumberBinopEffects2) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol(),
+                         JSTypedLowering::kNoFlags);
 
     Node* i0 = B.CheckNoOp(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
@@ -969,7 +976,8 @@ TEST(OrderNumberBinopEffects2) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.CheckNoOp(1);
