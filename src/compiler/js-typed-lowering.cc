@@ -455,7 +455,9 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
-  if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
+  if ((r.BothInputsAre(Type::PlainPrimitive()) ||
+       !(flags() & kDeoptimizationEnabled)) &&
+      r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
@@ -474,8 +476,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node->op()));
-    node->RemoveInput(NodeProperties::FirstFrameStateIndex(node) + 1);
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
     NodeProperties::ChangeOp(node, common()->Call(desc));
@@ -518,8 +519,16 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberSubtract(feedback), Type::Number());
   }
-  r.ConvertInputsToNumber();
-  return r.ChangeToPureOperator(simplified()->NumberSubtract(), Type::Number());
+
+  // If deoptimization is enabled we rely on type feedback.
+  if (r.BothInputsAre(Type::PlainPrimitive()) ||
+      !(flags() & kDeoptimizationEnabled)) {
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberSubtract(),
+                                  Type::Number());
+  }
+
+  return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {

@@ -714,13 +714,11 @@ TEST(RemoveToNumberEffects) {
         effect_use = R.graph.NewNode(R.common.EffectPhi(1), ton, R.start());
       case 3:
         effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), ton, ton,
-                                     R.context(), frame_state, frame_state, ton,
-                                     R.start());
+                                     R.context(), frame_state, ton, R.start());
         break;
       case 4:
         effect_use = R.graph.NewNode(R.javascript.Add(R.binop_hints), p0, p0,
-                                     R.context(), frame_state, frame_state, ton,
-                                     R.start());
+                                     R.context(), frame_state, ton, R.start());
         break;
       case 5:
         effect_use = R.graph.NewNode(R.common.Return(), p0, ton, R.start());

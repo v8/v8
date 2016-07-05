@@ -826,19 +826,19 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
     Node* lhs = Parameter(Type::String(), 0);
     Node* rhs = Parameter(Type::String(), 1);
     Node* context = Parameter(Type::Any(), 2);
-    Node* frame_state0 = EmptyFrameState();
-    Node* frame_state1 = EmptyFrameState();
+    Node* frame_state = EmptyFrameState();
     Node* effect = graph()->start();
     Node* control = graph()->start();
     Reduction r =
         Reduce(graph()->NewNode(javascript()->Add(hints), lhs, rhs, context,
-                                frame_state0, frame_state1, effect, control));
+                                frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
-                IsCall(_, IsHeapConstant(CodeFactory::StringAdd(
-                                             isolate(), STRING_ADD_CHECK_NONE,
-                                             NOT_TENURED).code()),
-                       lhs, rhs, context, frame_state0, effect, control));
+                IsCall(_, IsHeapConstant(
+                              CodeFactory::StringAdd(
+                                  isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED)
+                                  .code()),
+                       lhs, rhs, context, frame_state, effect, control));
 }
 
 TEST_F(JSTypedLoweringTest, JSAddSmis) {
@@ -849,13 +849,12 @@ TEST_F(JSTypedLoweringTest, JSAddSmis) {
     Node* lhs = Parameter(Type::Number(), 0);
     Node* rhs = Parameter(Type::Number(), 1);
     Node* context = Parameter(Type::Any(), 2);
-    Node* frame_state0 = EmptyFrameState();
-    Node* frame_state1 = EmptyFrameState();
+    Node* frame_state = EmptyFrameState();
     Node* effect = graph()->start();
     Node* control = graph()->start();
     Reduction r =
         Reduce(graph()->NewNode(javascript()->Add(hints), lhs, rhs, context,
-                                frame_state0, frame_state1, effect, control));
+                                frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsSpeculativeNumberAdd(BinaryOperationHints::kSignedSmall, lhs,
@@ -874,13 +873,12 @@ TEST_F(JSTypedLoweringTest, JSSubtractSmis) {
     Node* lhs = Parameter(Type::Number(), 0);
     Node* rhs = Parameter(Type::Number(), 1);
     Node* context = Parameter(Type::Any(), 2);
-    Node* frame_state0 = EmptyFrameState();
-    Node* frame_state1 = EmptyFrameState();
+    Node* frame_state = EmptyFrameState();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->Subtract(hints), lhs,
-                                          rhs, context, frame_state0,
-                                          frame_state1, effect, control));
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->Subtract(hints), lhs, rhs,
+                                context, frame_state, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsSpeculativeNumberSubtract(BinaryOperationHints::kSignedSmall,
