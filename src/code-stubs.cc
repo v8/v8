@@ -4759,16 +4759,31 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
   assembler->Branch(assembler->WordIsSmi(size), &smi_size, &call_runtime);
 
   assembler->Bind(&smi_size);
-  int element_size =
-      IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
-  int max_fast_elements =
-      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-       JSArray::kSize - AllocationMemento::kSize) /
-      element_size;
-  assembler->Branch(
-      assembler->SmiAboveOrEqual(
-          size, assembler->SmiConstant(Smi::FromInt(max_fast_elements))),
-      &call_runtime, &small_smi_size);
+
+  if (IsFastPackedElementsKind(elements_kind)) {
+    Label abort(assembler, Label::kDeferred);
+    assembler->Branch(
+        assembler->SmiEqual(size, assembler->SmiConstant(Smi::FromInt(0))),
+        &small_smi_size, &abort);
+
+    assembler->Bind(&abort);
+    Node* reason =
+        assembler->SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
+    Node* context = assembler->Parameter(
+        ArraySingleArgumentConstructorDescriptor::kContextIndex);
+    assembler->TailCallRuntime(Runtime::kAbort, context, reason);
+  } else {
+    int element_size =
+        IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
+    int max_fast_elements =
+        (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
+         JSArray::kSize - AllocationMemento::kSize) /
+        element_size;
+    assembler->Branch(
+        assembler->SmiAboveOrEqual(
+            size, assembler->SmiConstant(Smi::FromInt(max_fast_elements))),
+        &call_runtime, &small_smi_size);
+  }
 
   assembler->Bind(&small_smi_size);
   {

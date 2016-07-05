@@ -834,8 +834,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   Heap* heap = isolate()->heap();
   Node* array = Allocate(total_size);
   StoreMapNoWriteBarrier(array, array_map);
-  Node* empty_properties =
-      HeapConstant(Handle<HeapObject>(heap->empty_fixed_array()));
+  Node* empty_properties = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kPropertiesOffset,
                                  empty_properties);
   StoreObjectFieldNoWriteBarrier(
