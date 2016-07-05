@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,31 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function veryLongString() {
-  return "Lorem ipsum dolor sit amet, consectetur adipiscing elit." +
-         "Nam vulputate metus est. Maecenas quis pellentesque eros," +
-         "ac mattis augue. Nam porta purus vitae tincidunt blandit." +
-         "Aliquam lacus dui, blandit id consectetur id, hendrerit ut" +
-         "felis. Class aptent taciti sociosqu ad litora torquent per" +
-         "conubia nostra, per inceptos himenaeos. Ut posuere eros et" +
-         "tempus luctus. Nullam condimentum aliquam odio, at dignissim" +
-         "augue tincidunt in. Nam mattis vitae mauris eget dictum." +
-         "Nam accumsan dignissim turpis a turpis duis.";
-}
+// Flags: --allow-natives-syntax
 
-assertTrue(veryLongString().length > 256);
+// Test valueof with integer input.
+function f(x) { var y = x + 1; return %_ValueOf(y); }
 
-var re = /...<omitted>.../;
+for (var i=0; i<100000; i++) f(42);
 
-try {
-  Number.prototype.toFixed.call(veryLongString);
-} catch (e) {
-  assertTrue(e.message.length < 256);
-  assertTrue(re.test(e.message));
-}
-
-try {
-  throw Error(veryLongString());
-} catch (e) {
-  assertEquals(veryLongString(), e.message);
-}
+assertEquals(43, f(42));

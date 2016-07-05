@@ -234,14 +234,6 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotGeneric, arg0));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

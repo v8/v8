@@ -17,8 +17,6 @@ class CallInterfaceDescriptor;
 class StatsCounter;
 class StubCache;
 
-enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
-
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -253,12 +251,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // or returns the {value} converted to a String otherwise.
   compiler::Node* ToThisString(compiler::Node* context, compiler::Node* value,
                                char const* method_name);
-  // Throws a TypeError for {method_name} if {value} is neither of the given
-  // {primitive_type} nor a JSValue wrapping a value of {primitive_type}, or
-  // returns the {value} (or wrapped value) otherwise.
-  compiler::Node* ToThisValue(compiler::Node* context, compiler::Node* value,
-                              PrimitiveType primitive_type,
-                              char const* method_name);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).

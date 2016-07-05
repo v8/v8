@@ -37,6 +37,24 @@ utils.Import(function(from) {
 
 //-------------------------------------------------------------------
 
+// ECMA-262 section 15.5.4.2
+function StringToString() {
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
+    throw MakeTypeError(kNotGeneric, 'String.prototype.toString');
+  }
+  return %_ValueOf(this);
+}
+
+
+// ECMA-262 section 15.5.4.3
+function StringValueOf() {
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this)) {
+    throw MakeTypeError(kNotGeneric, 'String.prototype.valueOf');
+  }
+  return %_ValueOf(this);
+}
+
+
 // ECMA-262, section 15.5.4.6
 function StringConcat(other /* and more */) {  // length == 1
   "use strict";
@@ -738,6 +756,8 @@ utils.InstallFunctions(GlobalString, DONT_ENUM, [
 
 // Set up the non-enumerable functions on the String prototype object.
 utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
+  "valueOf", StringValueOf,
+  "toString", StringToString,
   "codePointAt", StringCodePointAt,
   "concat", StringConcat,
   "endsWith", StringEndsWith,

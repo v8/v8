@@ -215,6 +215,7 @@ function PostNatives(utils) {
     "SetIterator",
     "SetIteratorNext",
     "SetValues",
+    "SymbolToString",
     "ToLocaleLowerCaseI18N",
     "ToLocaleUpperCaseI18N",
     "ToLowerCaseI18N",

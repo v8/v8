@@ -176,6 +176,50 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
   EXPECT_THAT(r.replacement(), IsObjectIsReceiver(input));
 }
 
+
+// -----------------------------------------------------------------------------
+// %_ValueOf
+
+
+TEST_F(JSIntrinsicLoweringTest, InlineValueOf) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineValueOf, 1),
+                       input, context, effect, control));
+  ASSERT_TRUE(r.Changed());
+
+  Node* phi = r.replacement();
+  Capture<Node*> branch0, if_false0, branch1, if_true1;
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          MachineRepresentation::kTagged, input,
+          IsPhi(MachineRepresentation::kTagged,
+                IsLoadField(AccessBuilder::ForValue(), input, effect,
+                            CaptureEq(&if_true1)),
+                input,
+                IsMerge(
+                    AllOf(CaptureEq(&if_true1), IsIfTrue(CaptureEq(&branch1))),
+                    IsIfFalse(AllOf(
+                        CaptureEq(&branch1),
+                        IsBranch(
+                            IsWord32Equal(
+                                IsLoadField(
+                                    AccessBuilder::ForMapInstanceType(),
+                                    IsLoadField(AccessBuilder::ForMap(), input,
+                                                effect, CaptureEq(&if_false0)),
+                                    effect, _),
+                                IsInt32Constant(JS_VALUE_TYPE)),
+                            CaptureEq(&if_false0)))))),
+          IsMerge(
+              IsIfTrue(AllOf(CaptureEq(&branch0),
+                             IsBranch(IsObjectIsSmi(input), control))),
+              AllOf(CaptureEq(&if_false0), IsIfFalse(CaptureEq(&branch0))))));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

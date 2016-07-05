@@ -2741,6 +2741,25 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done;
+  // If the object is a smi return the object.
+  __ JumpIfSmi(eax, &done, Label::kNear);
+  // If the object is not a value type, return the object.
+  __ CmpObjectType(eax, JS_VALUE_TYPE, ebx);
+  __ j(not_equal, &done, Label::kNear);
+  __ mov(eax, FieldOperand(eax, JSValue::kValueOffset));
+
+  __ bind(&done);
+  context()->Plug(eax);
+}
+
+
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

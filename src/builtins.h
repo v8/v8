@@ -58,6 +58,8 @@ class CodeStubAssembler;
                                                         \
   V(BooleanConstructor, BUILTIN_EXIT)                   \
   V(BooleanConstructor_ConstructStub, BUILTIN_EXIT)     \
+  V(BooleanPrototypeToString, BUILTIN_EXIT)             \
+  V(BooleanPrototypeValueOf, BUILTIN_EXIT)              \
                                                         \
   V(DataViewConstructor, BUILTIN_EXIT)                  \
   V(DataViewConstructor_ConstructStub, BUILTIN_EXIT)    \
@@ -116,11 +118,6 @@ class CodeStubAssembler;
   V(JsonStringify, BUILTIN_EXIT)                        \
                                                         \
   V(MathHypot, BUILTIN_EXIT)                            \
-                                                        \
-  V(NumberPrototypeToExponential, BUILTIN_EXIT)         \
-  V(NumberPrototypeToFixed, BUILTIN_EXIT)               \
-  V(NumberPrototypeToPrecision, BUILTIN_EXIT)           \
-  V(NumberPrototypeToString, BUILTIN_EXIT)              \
                                                         \
   V(ObjectAssign, BUILTIN_EXIT)                         \
   V(ObjectCreate, BUILTIN_EXIT)                         \
@@ -303,8 +300,6 @@ class CodeStubAssembler;
 
 // Define list of builtins implemented in TurboFan (with JS linkage).
 #define BUILTIN_LIST_T(V)             \
-  V(BooleanPrototypeToString, 1)      \
-  V(BooleanPrototypeValueOf, 1)       \
   V(FunctionPrototypeHasInstance, 2)  \
   V(GeneratorPrototypeNext, 2)        \
   V(GeneratorPrototypeReturn, 2)      \
@@ -340,17 +335,11 @@ class CodeStubAssembler;
   V(MathTanh, 2)                      \
   V(MathSqrt, 2)                      \
   V(MathTrunc, 2)                     \
-  V(NumberPrototypeValueOf, 1)        \
   V(ObjectHasOwnProperty, 2)          \
   V(ArrayIsArray, 2)                  \
   V(StringFromCharCode, 2)            \
   V(StringPrototypeCharAt, 2)         \
   V(StringPrototypeCharCodeAt, 2)     \
-  V(StringPrototypeToString, 1)       \
-  V(StringPrototypeValueOf, 1)        \
-  V(SymbolPrototypeToPrimitive, 2)    \
-  V(SymbolPrototypeToString, 1)       \
-  V(SymbolPrototypeValueOf, 1)        \
   V(TypedArrayPrototypeByteLength, 1) \
   V(TypedArrayPrototypeByteOffset, 1) \
   V(TypedArrayPrototypeLength, 1)     \
@@ -601,11 +590,6 @@ class Builtins {
 
   static void Generate_HandleFastApiCall(MacroAssembler* masm);
 
-  // ES6 section 19.3.3.2 Boolean.prototype.toString ( )
-  static void Generate_BooleanPrototypeToString(CodeStubAssembler* assembler);
-  // ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
-  static void Generate_BooleanPrototypeValueOf(CodeStubAssembler* assembler);
-
   static void Generate_DatePrototype_GetField(MacroAssembler* masm,
                                               int field_index);
   // ES6 section 20.3.4.2 Date.prototype.getDate ( )
@@ -731,8 +715,6 @@ class Builtins {
   static void Generate_NumberConstructor(MacroAssembler* masm);
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
   static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
-  // ES6 section 20.1.3.7 Number.prototype.valueOf ( )
-  static void Generate_NumberPrototypeValueOf(CodeStubAssembler* assembler);
 
   // ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
   static void Generate_FunctionPrototypeHasInstance(
@@ -757,20 +739,9 @@ class Builtins {
   static void Generate_StringPrototypeCharAt(CodeStubAssembler* assembler);
   // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
   static void Generate_StringPrototypeCharCodeAt(CodeStubAssembler* assembler);
-  // ES6 section 21.1.3.25 String.prototype.toString ()
-  static void Generate_StringPrototypeToString(CodeStubAssembler* assembler);
-  // ES6 section 21.1.3.28 String.prototype.valueOf ()
-  static void Generate_StringPrototypeValueOf(CodeStubAssembler* assembler);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);
-
-  // ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
-  static void Generate_SymbolPrototypeToPrimitive(CodeStubAssembler* assembler);
-  // ES6 section 19.4.3.2 Symbol.prototype.toString ( )
-  static void Generate_SymbolPrototypeToString(CodeStubAssembler* assembler);
-  // ES6 section 19.4.3.3 Symbol.prototype.valueOf ( )
-  static void Generate_SymbolPrototypeValueOf(CodeStubAssembler* assembler);
 
   // ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength
   static void Generate_TypedArrayPrototypeByteLength(

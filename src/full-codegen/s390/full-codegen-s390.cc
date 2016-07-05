@@ -2786,6 +2786,23 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   context()->Plug(r2);
 }
 
+void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done;
+  // If the object is a smi return the object.
+  __ JumpIfSmi(r2, &done);
+  // If the object is not a value type, return the object.
+  __ CompareObjectType(r2, r3, r3, JS_VALUE_TYPE);
+  __ bne(&done, Label::kNear);
+  __ LoadP(r2, FieldMemOperand(r2, JSValue::kValueOffset));
+
+  __ bind(&done);
+  context()->Plug(r2);
+}
+
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

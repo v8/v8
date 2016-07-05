@@ -43,6 +43,7 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringIndexOf;
+var SymbolToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var Uint16x8ToString;
 var Uint32x4ToString;
@@ -59,6 +60,7 @@ utils.Import(function(from) {
   Int8x16ToString = from.Int8x16ToString;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringIndexOf = from.StringIndexOf;
+  SymbolToString = from.SymbolToString;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
   Uint8x16ToString = from.Uint8x16ToString;
@@ -115,7 +117,7 @@ function NoSideEffectsToString(obj) {
     }
     return str;
   }
-  if (IS_SYMBOL(obj)) return %SymbolDescriptiveString(obj);
+  if (IS_SYMBOL(obj)) return %_Call(SymbolToString, obj);
   if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
       case 'float32x4': return %_Call(Float32x4ToString, obj);

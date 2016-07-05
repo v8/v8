@@ -32,6 +32,34 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
+// 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
+function SymbolToPrimitive(hint) {
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype [ @@toPrimitive ]", this);
+  }
+  return %_ValueOf(this);
+}
+
+
+function SymbolToString() {
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype.toString", this);
+  }
+  return %SymbolDescriptiveString(%_ValueOf(this));
+}
+
+
+function SymbolValueOf() {
+  if (!(IS_SYMBOL(this) || IS_SYMBOL_WRAPPER(this))) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "Symbol.prototype.valueOf", this);
+  }
+  return %_ValueOf(this);
+}
+
+
 function SymbolFor(key) {
   key = TO_STRING(key);
   var registry = %SymbolRegistry();
@@ -69,5 +97,24 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
   "for", SymbolFor,
   "keyFor", SymbolKeyFor
 ]);
+
+%AddNamedProperty(
+    GlobalSymbol.prototype, toStringTagSymbol, "Symbol", DONT_ENUM | READ_ONLY);
+
+utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM | READ_ONLY, [
+  toPrimitiveSymbol, SymbolToPrimitive
+]);
+
+utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
+  "toString", SymbolToString,
+  "valueOf", SymbolValueOf
+]);
+
+// -------------------------------------------------------------------
+// Exports
+
+utils.Export(function(to) {
+  to.SymbolToString = SymbolToString;
+})
 
 })
