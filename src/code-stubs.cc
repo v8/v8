@@ -1698,7 +1698,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
       Node* pair = assembler->SmiAddWithOverflow(value, one);
       Node* overflow = assembler->Projection(1, pair);
 
-      // Check if the Smi additon overflowed.
+      // Check if the Smi addition overflowed.
       Label if_overflow(assembler), if_notoverflow(assembler);
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 

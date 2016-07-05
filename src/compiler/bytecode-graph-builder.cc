@@ -1155,6 +1155,45 @@ void BytecodeGraphBuilder::VisitShiftRightLogical() {
   BuildBinaryOp(javascript()->ShiftRightLogical(hints));
 }
 
+void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* js_op) {
+  FrameStateBeforeAndAfter states(this);
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
+  Node* node = NewNode(js_op, left, right);
+  environment()->BindAccumulator(node, &states);
+}
+
+void BytecodeGraphBuilder::VisitAddSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->Add(hints));
+}
+
+void BytecodeGraphBuilder::VisitSubSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->Subtract(hints));
+}
+
+void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->BitwiseOr(hints));
+}
+
+void BytecodeGraphBuilder::VisitBitwiseAndSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd(hints));
+}
+
+void BytecodeGraphBuilder::VisitShiftLeftSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->ShiftLeft(hints));
+}
+
+void BytecodeGraphBuilder::VisitShiftRightSmi() {
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOpWithImmediate(javascript()->ShiftRight(hints));
+}
+
 void BytecodeGraphBuilder::VisitInc() {
   FrameStateBeforeAndAfter states(this);
   // Note: Use subtract -1 here instead of add 1 to ensure we always convert to

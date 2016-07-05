@@ -157,6 +157,18 @@ namespace interpreter {
   V(ShiftRight, AccumulatorUse::kReadWrite, OperandType::kReg)                 \
   V(ShiftRightLogical, AccumulatorUse::kReadWrite, OperandType::kReg)          \
                                                                                \
+  /* Binary operators with immediate operands */                               \
+  V(AddSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg)      \
+  V(SubSmi, AccumulatorUse::kWrite, OperandType::kImm, OperandType::kReg)      \
+  V(BitwiseOrSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
+    OperandType::kReg)                                                         \
+  V(BitwiseAndSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
+    OperandType::kReg)                                                         \
+  V(ShiftLeftSmi, AccumulatorUse::kWrite, OperandType::kImm,                   \
+    OperandType::kReg)                                                         \
+  V(ShiftRightSmi, AccumulatorUse::kWrite, OperandType::kImm,                  \
+    OperandType::kReg)                                                         \
+                                                                               \
   /* Unary Operators */                                                        \
   V(Inc, AccumulatorUse::kReadWrite)                                           \
   V(Dec, AccumulatorUse::kReadWrite)                                           \
@@ -591,6 +603,9 @@ class Bytecodes {
 
   // Returns true if the bytecode is Ldar or Star.
   static bool IsLdarOrStar(Bytecode bytecode);
+
+  // Returns true if the bytecode is LdaSmi or LdaZero.
+  static bool IsLdaSmiOrLdaZero(Bytecode bytecode);
 
   // Returns true if the bytecode has wider operand forms.
   static bool IsBytecodeWithScalableOperands(Bytecode bytecode);

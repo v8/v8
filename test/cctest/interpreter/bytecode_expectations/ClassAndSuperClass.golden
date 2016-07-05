@@ -24,7 +24,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 53
 bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
@@ -44,8 +44,7 @@ bytecodes: [
                 B(Star), R(1),
   /*  117 E> */ B(Call), R(1), R(2), U8(1), U8(1),
                 B(Star), R(3),
-                B(LdaSmi), U8(1),
-                B(Add), R(3),
+                B(AddSmi), U8(1), R(3),
   /*  131 S> */ B(Return),
 ]
 constant pool: [

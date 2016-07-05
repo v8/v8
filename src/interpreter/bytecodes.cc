@@ -474,6 +474,11 @@ bool Bytecodes::IsLdarOrStar(Bytecode bytecode) {
 }
 
 // static
+bool Bytecodes::IsLdaSmiOrLdaZero(Bytecode bytecode) {
+  return bytecode == Bytecode::kLdaSmi || bytecode == Bytecode::kLdaZero;
+}
+
+// static
 bool Bytecodes::IsBytecodeWithScalableOperands(Bytecode bytecode) {
   switch (bytecode) {
 #define CASE(Name, ...)                              \

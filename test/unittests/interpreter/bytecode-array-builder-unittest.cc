@@ -42,6 +42,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::FromInt(0))
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
+      .CompareOperation(Token::Value::NE, reg)  // Prevent peephole optimization
+                                                // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
       .StoreAccumulatorInRegister(reg)
@@ -135,6 +137,20 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.BinaryOperation(Token::Value::SHL, reg)
       .BinaryOperation(Token::Value::SAR, reg)
       .BinaryOperation(Token::Value::SHR, reg);
+
+  // Emit peephole optimizations of LdaSmi followed by binary operation.
+  builder.LoadLiteral(Smi::FromInt(1))
+      .BinaryOperation(Token::Value::ADD, reg)
+      .LoadLiteral(Smi::FromInt(2))
+      .BinaryOperation(Token::Value::SUB, reg)
+      .LoadLiteral(Smi::FromInt(3))
+      .BinaryOperation(Token::Value::BIT_AND, reg)
+      .LoadLiteral(Smi::FromInt(4))
+      .BinaryOperation(Token::Value::BIT_OR, reg)
+      .LoadLiteral(Smi::FromInt(5))
+      .BinaryOperation(Token::Value::SHL, reg)
+      .LoadLiteral(Smi::FromInt(6))
+      .BinaryOperation(Token::Value::SAR, reg);
 
   // Emit count operatior invocations
   builder.CountOperation(Token::Value::ADD).CountOperation(Token::Value::SUB);
@@ -399,6 +415,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     scorecard[Bytecodes::ToByte(Bytecode::kJumpIfFalse)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJumpIfTrueConstant)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJumpIfFalseConstant)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kAddSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kSubSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kBitwiseAndSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kBitwiseOrSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kShiftLeftSmi)] = 1;
+    scorecard[Bytecodes::ToByte(Bytecode::kShiftRightSmi)] = 1;
   }
 
   // Check return occurs at the end and only once in the BytecodeArray.

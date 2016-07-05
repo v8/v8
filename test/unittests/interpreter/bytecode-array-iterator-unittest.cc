@@ -43,8 +43,10 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(zero)
       .StoreAccumulatorInRegister(reg_0)
       .LoadLiteral(smi_0)
+      .StackCheck(0)
       .StoreAccumulatorInRegister(reg_0)
       .LoadLiteral(smi_1)
+      .StackCheck(1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
       .BinaryOperation(Token::Value::ADD, reg_0)
@@ -122,6 +124,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   offset += Bytecodes::Size(Bytecode::kLdaSmi, OperandScale::kSingle);
   iterator.Advance();
 
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kStackCheck);
+  CHECK_EQ(iterator.current_offset(), offset);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::NumberOfOperands(iterator.current_bytecode()), 0);
+  CHECK(!iterator.done());
+  offset += Bytecodes::Size(Bytecode::kStackCheck, OperandScale::kSingle);
+  iterator.Advance();
+
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);
   CHECK_EQ(iterator.current_offset(), offset);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
@@ -138,6 +148,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaSmi, OperandScale::kQuadruple) +
             kPrefixByteSize;
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kStackCheck);
+  CHECK_EQ(iterator.current_offset(), offset);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
+  CHECK_EQ(Bytecodes::NumberOfOperands(iterator.current_bytecode()), 0);
+  CHECK(!iterator.done());
+  offset += Bytecodes::Size(Bytecode::kStackCheck, OperandScale::kSingle);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kStar);

@@ -836,6 +836,174 @@ void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
   DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
+// AddSmi <imm> <reg>
+//
+// Adds an immediate value <imm> to register <reg>. For this
+// operation <reg> is the lhs operand and <imm> is the <rhs> operand.
+void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Try fast Smi addition first.
+    Node* pair = __ SmiAddWithOverflow(left, right);
+    Node* overflow = __ Projection(1, pair);
+
+    // Check if the Smi additon overflowed.
+    Label if_notoverflow(assembler);
+    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Bind(&if_notoverflow);
+    {
+      var_result.Bind(__ Projection(0, pair));
+      __ Goto(&end);
+    }
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    Callable callable = CodeFactory::Add(__ isolate());
+    var_result.Bind(__ CallStub(callable, context, left, right));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// SubSmi <imm> <reg>
+//
+// Subtracts an immediate value <imm> to register <reg>. For this
+// operation <reg> is the lhs operand and <imm> is the rhs operand.
+void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Try fast Smi subtraction first.
+    Node* pair = __ SmiSubWithOverflow(left, right);
+    Node* overflow = __ Projection(1, pair);
+
+    // Check if the Smi subtraction overflowed.
+    Label if_notoverflow(assembler);
+    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Bind(&if_notoverflow);
+    {
+      var_result.Bind(__ Projection(0, pair));
+      __ Goto(&end);
+    }
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    Callable callable = CodeFactory::Subtract(__ isolate());
+    var_result.Bind(__ CallStub(callable, context, left, right));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// BitwiseOr <imm> <reg>
+//
+// BitwiseOr <reg> with <imm>. For this operation <reg> is the lhs
+// operand and <imm> is the rhs operand.
+void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* value = __ Word32Or(lhs_value, rhs_value);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// BitwiseAnd <imm> <reg>
+//
+// BitwiseAnd <reg> with <imm>. For this operation <reg> is the lhs
+// operand and <imm> is the rhs operand.
+void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* value = __ Word32And(lhs_value, rhs_value);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// ShiftLeftSmi <imm> <reg>
+//
+// Left shifts register <src> by the count specified in <imm>.
+// Register <src> is converted to an int32 before the operation. The 5
+// lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
+  Node* value = __ Word32Shl(lhs_value, shift_count);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// ShiftRightSmi <imm> <reg>
+//
+// Right shifts register <src> by the count specified in <imm>.
+// Register <src> is converted to an int32 before the operation. The 5
+// lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
+  Node* value = __ Word32Sar(lhs_value, shift_count);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 void Interpreter::DoUnaryOp(Callable callable,
                             InterpreterAssembler* assembler) {
   Node* target = __ HeapConstant(callable.code());

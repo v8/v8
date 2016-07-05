@@ -74,6 +74,11 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
+  // Generates code to perform the binary operation via |Generator| using
+  // an immediate value rather the accumulator as the rhs operand.
+  template <class Generator>
+  void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
+
   // Generates code to perform the unary operation via |callable|.
   void DoUnaryOp(Callable callable, InterpreterAssembler* assembler);
 

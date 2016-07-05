@@ -125,7 +125,8 @@ bool BytecodePeepholeOptimizer::CanElideCurrent(
     return true;
   } else {
     // Additional candidates for eliding current:
-    // (i) ToNumber if the last puts a number in the accumulator.
+    // (i) current is Nop.
+    // (ii) ToNumber if the last puts a number in the accumulator.
     return false;
   }
 }
@@ -188,6 +189,18 @@ void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
   current->set_bytecode(Bytecode::kLdar, current->operand(0));
 }
 
+void TransformToBinaryOpWithSmiOnRhs(Bytecode new_bytecode,
+                                     BytecodeNode* const last,
+                                     BytecodeNode* const current) {
+  DCHECK(Bytecodes::IsLdaSmiOrLdaZero(last->bytecode()));
+  uint32_t imm_operand =
+      last->bytecode() == Bytecode::kLdaSmi ? last->operand(0) : 0;
+  current->set_bytecode(new_bytecode, imm_operand, current->operand(0));
+  if (last->source_info().is_valid()) {
+    current->source_info().Clone(last->source_info());
+  }
+}
+
 }  // namespace
 
 bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
@@ -216,7 +229,43 @@ bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
       default:
         break;
     }
+  } else if (Bytecodes::IsLdaSmiOrLdaZero(last_.bytecode()) &&
+             (!last_.source_info().is_valid() ||
+              !current->source_info().is_valid())) {
+    switch (current->bytecode()) {
+      case Bytecode::kAdd:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kAddSmi, &last_, current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kSub:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kSubSmi, &last_, current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kBitwiseOr:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kBitwiseOrSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kBitwiseAnd:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kBitwiseAndSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kShiftLeft:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kShiftLeftSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kShiftRight:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kShiftRightSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      default:
+        break;
+    }
   }
+
   return false;
 }
 
@@ -279,7 +328,6 @@ bool BytecodePeepholeOptimizer::CanElideLast(
 
 BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
   TryToRemoveLastExpressionPosition(current);
-
   if (TransformCurrentBytecode(current) ||
       TransformLastAndCurrentBytecodes(current)) {
     return current;

@@ -59,17 +59,6 @@ BytecodeNode& BytecodeNode::operator=(const BytecodeNode& other) {
   return *this;
 }
 
-void BytecodeNode::set_bytecode(Bytecode bytecode) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
-  bytecode_ = bytecode;
-}
-
-void BytecodeNode::set_bytecode(Bytecode bytecode, uint32_t operand0) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
-}
-
 void BytecodeNode::Clone(const BytecodeNode* const other) {
   memcpy(this, other, sizeof(*other));
 }
