@@ -216,7 +216,11 @@ class Scope: public ZoneObject {
   // Adds a temporary variable in this scope's TemporaryScope. This is for
   // adjusting the scope of temporaries used when desugaring parameter
   // initializers.
-  void AddTemporary(Variable* var) { temps_.Add(var, zone()); }
+  void AddTemporary(Variable* var) {
+    // Temporaries are only placed in ClosureScopes.
+    DCHECK_EQ(ClosureScope(), this);
+    temps_.Add(var, zone());
+  }
 
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
