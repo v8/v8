@@ -2880,52 +2880,6 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 }
 
 
-HValue* HGraphBuilder::BuildAllocateArrayFromLength(
-    JSArrayBuilder* array_builder,
-    HValue* length_argument) {
-  if (length_argument->IsConstant() &&
-      HConstant::cast(length_argument)->HasSmiValue()) {
-    int array_length = HConstant::cast(length_argument)->Integer32Value();
-    if (array_length == 0) {
-      return array_builder->AllocateEmptyArray();
-    } else {
-      return array_builder->AllocateArray(length_argument,
-                                          length_argument);
-    }
-  }
-
-  HValue* constant_zero = graph()->GetConstant0();
-  HConstant* max_alloc_length =
-      Add<HConstant>(JSArray::kInitialMaxFastElementArray);
-  HInstruction* checked_length = Add<HBoundsCheck>(length_argument,
-                                                   max_alloc_length);
-  IfBuilder if_builder(this);
-  if_builder.If<HCompareNumericAndBranch>(checked_length, constant_zero,
-                                          Token::EQ);
-  if_builder.Then();
-  const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  HConstant* initial_capacity_node = Add<HConstant>(initial_capacity);
-  Push(initial_capacity_node);  // capacity
-  Push(constant_zero);          // length
-  if_builder.Else();
-  if (!(top_info()->IsStub()) &&
-      IsFastPackedElementsKind(array_builder->kind())) {
-    // We'll come back later with better (holey) feedback.
-    if_builder.Deopt(
-        Deoptimizer::kHoleyArrayDespitePackedElements_kindFeedback);
-  } else {
-    Push(checked_length);         // capacity
-    Push(checked_length);         // length
-  }
-  if_builder.End();
-
-  // Figure out total size
-  HValue* length = Pop();
-  HValue* capacity = Pop();
-  return array_builder->AllocateArray(capacity, length);
-}
-
-
 HValue* HGraphBuilder::BuildCalculateElementsSize(ElementsKind kind,
                                                   HValue* capacity) {
   int elements_size = IsFastDoubleElementsKind(kind)
@@ -3016,15 +2970,13 @@ void HGraphBuilder::BuildJSArrayHeader(HValue* array,
                                        HValue* length_field) {
   Add<HStoreNamedField>(array, HObjectAccess::ForMap(), array_map);
 
-  HConstant* empty_fixed_array =
-    Add<HConstant>(isolate()->factory()->empty_fixed_array());
+  HValue* empty_fixed_array = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
 
   Add<HStoreNamedField>(
       array, HObjectAccess::ForPropertiesPointer(), empty_fixed_array);
 
-  Add<HStoreNamedField>(
-      array, HObjectAccess::ForElementsPointer(),
-      elements != NULL ? elements : empty_fixed_array);
+  Add<HStoreNamedField>(array, HObjectAccess::ForElementsPointer(),
+                        elements != nullptr ? elements : empty_fixed_array);
 
   Add<HStoreNamedField>(
       array, HObjectAccess::ForArrayLength(elements_kind), length_field);
@@ -3534,140 +3486,6 @@ HValue* HGraphBuilder::BuildArrayBufferViewFieldAccessor(HValue* object,
 
   return Pop();
 }
-
-
-HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
-    ElementsKind kind,
-    HValue* allocation_site_payload,
-    HValue* constructor_function,
-    AllocationSiteOverrideMode override_mode) :
-        builder_(builder),
-        kind_(kind),
-        allocation_site_payload_(allocation_site_payload),
-        constructor_function_(constructor_function) {
-  DCHECK(!allocation_site_payload->IsConstant() ||
-         HConstant::cast(allocation_site_payload)->handle(
-             builder_->isolate())->IsAllocationSite());
-  mode_ = override_mode == DISABLE_ALLOCATION_SITES
-      ? DONT_TRACK_ALLOCATION_SITE
-      : AllocationSite::GetMode(kind);
-}
-
-
-HGraphBuilder::JSArrayBuilder::JSArrayBuilder(HGraphBuilder* builder,
-                                              ElementsKind kind,
-                                              HValue* constructor_function) :
-    builder_(builder),
-    kind_(kind),
-    mode_(DONT_TRACK_ALLOCATION_SITE),
-    allocation_site_payload_(NULL),
-    constructor_function_(constructor_function) {
-}
-
-
-HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
-  if (!builder()->top_info()->IsStub()) {
-    // A constant map is fine.
-    Handle<Map> map(builder()->isolate()->get_initial_js_array_map(kind_),
-                    builder()->isolate());
-    return builder()->Add<HConstant>(map);
-  }
-
-  if (constructor_function_ != NULL && kind_ == GetInitialFastElementsKind()) {
-    // No need for a context lookup if the kind_ matches the initial
-    // map, because we can just load the map in that case.
-    HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
-    return builder()->Add<HLoadNamedField>(constructor_function_, nullptr,
-                                           access);
-  }
-
-  // TODO(mvstanton): we should always have a constructor function if we
-  // are creating a stub.
-  HInstruction* native_context = constructor_function_ != NULL
-      ? builder()->BuildGetNativeContext(constructor_function_)
-      : builder()->BuildGetNativeContext();
-
-  HObjectAccess access =
-      HObjectAccess::ForContextSlot(Context::ArrayMapIndex(kind_));
-  return builder()->Add<HLoadNamedField>(native_context, nullptr, access);
-}
-
-
-HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
-  // Find the map near the constructor function
-  HObjectAccess access = HObjectAccess::ForPrototypeOrInitialMap();
-  return builder()->Add<HLoadNamedField>(constructor_function_, nullptr,
-                                         access);
-}
-
-
-HAllocate* HGraphBuilder::JSArrayBuilder::AllocateEmptyArray() {
-  HConstant* capacity = builder()->Add<HConstant>(initial_capacity());
-  return AllocateArray(capacity,
-                       builder()->graph()->GetConstant0());
-}
-
-
-HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
-    HValue* capacity,
-    HValue* length_field,
-    FillMode fill_mode) {
-  // These HForceRepresentations are because we store these as fields in the
-  // objects we construct, and an int32-to-smi HChange could deopt. Accept
-  // the deopt possibility now, before allocation occurs.
-  capacity =
-      builder()->AddUncasted<HForceRepresentation>(capacity,
-                                                   Representation::Smi());
-  length_field =
-      builder()->AddUncasted<HForceRepresentation>(length_field,
-                                                   Representation::Smi());
-
-  // Generate size calculation code here in order to make it dominate
-  // the JSArray allocation.
-  HValue* elements_size =
-      builder()->BuildCalculateElementsSize(kind_, capacity);
-
-  // Bail out for large objects.
-  HValue* max_regular_heap_object_size =
-      builder()->Add<HConstant>(Page::kMaxRegularHeapObjectSize);
-  builder()->Add<HBoundsCheck>(elements_size, max_regular_heap_object_size);
-
-  // Allocate (dealing with failure appropriately)
-  HAllocate* array_object = builder()->AllocateJSArrayObject(mode_);
-
-  // Fill in the fields: map, properties, length
-  HValue* map;
-  if (allocation_site_payload_ == NULL) {
-    map = EmitInternalMapCode();
-  } else {
-    map = EmitMapCode();
-  }
-
-  builder()->BuildJSArrayHeader(array_object,
-                                map,
-                                NULL,  // set elements to empty fixed array
-                                mode_,
-                                kind_,
-                                allocation_site_payload_,
-                                length_field);
-
-  // Allocate and initialize the elements
-  elements_location_ = builder()->BuildAllocateElements(kind_, elements_size);
-
-  builder()->BuildInitializeElementsHeader(elements_location_, kind_, capacity);
-
-  // Set the elements
-  builder()->Add<HStoreNamedField>(
-      array_object, HObjectAccess::ForElementsPointer(), elements_location_);
-
-  if (fill_mode == FILL_WITH_HOLE) {
-    builder()->BuildFillElementsWithHole(elements_location_, kind_,
-                                         graph()->GetConstant0(), capacity);
-  }
-
-  return array_object;
-}
-
 
 HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
   HValue* native_context = BuildGetNativeContext();
@@ -9704,26 +9522,6 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
 }
 
 
-void HOptimizedGraphBuilder::BuildArrayCall(Expression* expression,
-                                            int arguments_count,
-                                            HValue* function,
-                                            Handle<AllocationSite> site) {
-  Add<HCheckValue>(function, array_function());
-
-  if (IsCallArrayInlineable(arguments_count, site)) {
-    BuildInlinedCallArray(expression, arguments_count, site);
-    return;
-  }
-
-  HInstruction* call = PreProcessCall(New<HCallNewArray>(
-      function, arguments_count + 1, site->GetElementsKind(), site));
-  if (expression->IsCall()) {
-    Drop(1);
-  }
-  ast_context()->ReturnInstruction(call, expression->id());
-}
-
-
 HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
                                                   HValue* search_element,
                                                   ElementsKind kind,
@@ -9870,8 +9668,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
   return Pop();
 }
 
-
-bool HOptimizedGraphBuilder::TryHandleArrayCall(Call* expr, HValue* function) {
+template <class T>
+bool HOptimizedGraphBuilder::TryHandleArrayCall(T* expr, HValue* function) {
   if (!array_function().is_identical_to(expr->target())) {
     return false;
   }
@@ -9879,24 +9677,16 @@ bool HOptimizedGraphBuilder::TryHandleArrayCall(Call* expr, HValue* function) {
   Handle<AllocationSite> site = expr->allocation_site();
   if (site.is_null()) return false;
 
-  BuildArrayCall(expr,
-                 expr->arguments()->length(),
-                 function,
-                 site);
-  return true;
-}
+  Add<HCheckValue>(function, array_function());
 
+  int arguments_count = expr->arguments()->length();
+  if (TryInlineArrayCall(expr, arguments_count, site)) return true;
 
-bool HOptimizedGraphBuilder::TryHandleArrayCallNew(CallNew* expr,
-                                                   HValue* function) {
-  if (!array_function().is_identical_to(expr->target())) {
-    return false;
-  }
+  HInstruction* call = PreProcessCall(New<HCallNewArray>(
+      function, arguments_count + 1, site->GetElementsKind(), site));
+  if (expr->IsCall()) Drop(1);
+  ast_context()->ReturnInstruction(call, expr->id());
 
-  Handle<AllocationSite> site = expr->allocation_site();
-  if (site.is_null()) return false;
-
-  BuildArrayCall(expr, expr->arguments()->length(), function, site);
   return true;
 }
 
@@ -10082,50 +9872,108 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
   return ast_context()->ReturnInstruction(call, expr->id());
 }
 
+bool HOptimizedGraphBuilder::TryInlineArrayCall(Expression* expression,
+                                                int argument_count,
+                                                Handle<AllocationSite> site) {
+  Handle<JSFunction> caller = current_info()->closure();
+  Handle<JSFunction> target = array_function();
 
-void HOptimizedGraphBuilder::BuildInlinedCallArray(
-    Expression* expression,
-    int argument_count,
-    Handle<AllocationSite> site) {
-  DCHECK(!site.is_null());
-  DCHECK(argument_count >= 0 && argument_count <= 1);
-  NoObservableSideEffectsScope no_effects(this);
+  if (!site->CanInlineCall()) {
+    TraceInline(target, caller, "AllocationSite requested no inlining.");
+    return false;
+  }
 
-  // We should at least have the constructor on the expression stack.
-  HValue* constructor = environment()->ExpressionStackAt(argument_count);
+  if (argument_count > 1) {
+    TraceInline(target, caller, "Too many arguments to inline.");
+    return false;
+  }
 
-  // Register on the site for deoptimization if the transition feedback changes.
-  top_info()->dependencies()->AssumeTransitionStable(site);
-  ElementsKind kind = site->GetElementsKind();
-  HInstruction* site_instruction = Add<HConstant>(site);
+  int array_length = 0;
+  // Do not inline if the constant length argument is not a smi or outside the
+  // valid range for unrolled loop initialization.
+  if (argument_count == 1) {
+    HValue* argument = Top();
+    if (!argument->IsConstant()) {
+      TraceInline(target, caller,
+                  "Dont inline [new] Array(n) where n isn't constant.");
+      return false;
+    }
 
-  // In the single constant argument case, we may have to adjust elements kind
-  // to avoid creating a packed non-empty array.
-  if (argument_count == 1 && !IsHoleyElementsKind(kind)) {
-    HValue* argument = environment()->Top();
-    if (argument->IsConstant()) {
-      HConstant* constant_argument = HConstant::cast(argument);
-      DCHECK(constant_argument->HasSmiValue());
-      int constant_array_size = constant_argument->Integer32Value();
-      if (constant_array_size != 0) {
-        kind = GetHoleyElementsKind(kind);
-      }
+    HConstant* constant_argument = HConstant::cast(argument);
+    if (!constant_argument->HasSmiValue()) {
+      TraceInline(target, caller,
+                  "Constant length outside of valid inlining range.");
+      return false;
+    }
+    array_length = constant_argument->Integer32Value();
+    if (array_length < 0 || array_length > kElementLoopUnrollThreshold) {
+      TraceInline(target, caller,
+                  "Constant length outside of valid inlining range.");
+      return false;
     }
   }
 
+  TraceInline(target, caller, NULL);
+
+  NoObservableSideEffectsScope no_effects(this);
+
+  // Register on the site for deoptimization if the transition feedback changes.
+  top_info()->dependencies()->AssumeTransitionStable(site);
+
   // Build the array.
-  JSArrayBuilder array_builder(this,
-                               kind,
-                               site_instruction,
-                               constructor,
-                               DISABLE_ALLOCATION_SITES);
-  HValue* new_object = argument_count == 0
-      ? array_builder.AllocateEmptyArray()
-      : BuildAllocateArrayFromLength(&array_builder, Top());
+  ElementsKind kind = site->GetElementsKind();
+  HValue* capacity;
+  HValue* length;
+  if (array_length == 0) {
+    STATIC_ASSERT(0 < JSArray::kPreallocatedArrayElements);
+    const int initial_capacity = JSArray::kPreallocatedArrayElements;
+    capacity = Add<HConstant>(initial_capacity);
+    length = graph()->GetConstant0();
+  } else {
+    length = Top();
+    capacity = length;
+    kind = GetHoleyElementsKind(kind);
+  }
+
+  // These HForceRepresentations are because we store these as fields in the
+  // objects we construct, and an int32-to-smi HChange could deopt. Accept
+  // the deopt possibility now, before allocation occurs.
+  length = AddUncasted<HForceRepresentation>(length, Representation::Smi());
+  capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
+
+  // Generate size calculation code here in order to make it dominate
+  // the JSArray allocation.
+  HValue* elements_size = BuildCalculateElementsSize(kind, capacity);
+
+  // Bail out for large objects.
+  HValue* max_size = Add<HConstant>(Page::kMaxRegularHeapObjectSize);
+  Add<HBoundsCheck>(elements_size, max_size);
+
+  // Allocate (dealing with failure appropriately).
+  AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE;
+  HAllocate* new_object = AllocateJSArrayObject(mode);
+
+  // Fill in the fields: map, properties, length.
+  Handle<Map> map_constant(isolate()->get_initial_js_array_map(kind));
+  HValue* map = Add<HConstant>(map_constant);
+
+  BuildJSArrayHeader(new_object, map,
+                     nullptr,  // set elements to empty fixed array
+                     mode, kind, nullptr, length);
+
+  // Allocate and initialize the elements.
+  HAllocate* elements = BuildAllocateElements(kind, elements_size);
+  BuildInitializeElementsHeader(elements, kind, capacity);
+  BuildFillElementsWithHole(elements, kind, graph()->GetConstant0(), capacity);
+
+  // Set the elements.
+  Add<HStoreNamedField>(new_object, HObjectAccess::ForElementsPointer(),
+                        elements);
 
   int args_to_drop = argument_count + (expression->IsCall() ? 2 : 1);
   Drop(args_to_drop);
   ast_context()->ReturnValue(new_object);
+  return true;
 }
 
 
@@ -10137,53 +9985,6 @@ static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
          constructor->initial_map()->instance_size() <
              HAllocate::kMaxInlineSize;
 }
-
-
-bool HOptimizedGraphBuilder::IsCallArrayInlineable(
-    int argument_count,
-    Handle<AllocationSite> site) {
-  Handle<JSFunction> caller = current_info()->closure();
-  Handle<JSFunction> target = array_function();
-  // We should have the function plus array arguments on the environment stack.
-  DCHECK(environment()->length() >= (argument_count + 1));
-  DCHECK(!site.is_null());
-
-  bool inline_ok = false;
-  if (site->CanInlineCall()) {
-    // We also want to avoid inlining in certain 1 argument scenarios.
-    if (argument_count == 1) {
-      HValue* argument = Top();
-      if (argument->IsConstant()) {
-        // Do not inline if the constant length argument is not a smi or
-        // outside the valid range for unrolled loop initialization.
-        HConstant* constant_argument = HConstant::cast(argument);
-        if (constant_argument->HasSmiValue()) {
-          int value = constant_argument->Integer32Value();
-          inline_ok = value >= 0 && value <= kElementLoopUnrollThreshold;
-          if (!inline_ok) {
-            TraceInline(target, caller,
-                        "Constant length outside of valid inlining range.");
-          }
-        }
-      } else {
-        TraceInline(target, caller,
-                    "Dont inline [new] Array(n) where n isn't constant.");
-      }
-    } else if (argument_count == 0) {
-      inline_ok = true;
-    } else {
-      TraceInline(target, caller, "Too many arguments to inline.");
-    }
-  } else {
-    TraceInline(target, caller, "AllocationSite requested no inlining.");
-  }
-
-  if (inline_ok) {
-    TraceInline(target, caller, NULL);
-  }
-  return inline_ok;
-}
-
 
 void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   DCHECK(!HasStackOverflow());
@@ -10278,7 +10079,7 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
-    if (TryHandleArrayCallNew(expr, function)) return;
+    if (TryHandleArrayCall(expr, function)) return;
   }
 
   HValue* arity = Add<HConstant>(argument_count - 1);

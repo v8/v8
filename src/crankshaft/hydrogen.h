@@ -1779,57 +1779,6 @@ class HGraphBuilder {
 
   HValue* BuildNewElementsCapacity(HValue* old_capacity);
 
-  class JSArrayBuilder final {
-   public:
-    JSArrayBuilder(HGraphBuilder* builder,
-                   ElementsKind kind,
-                   HValue* allocation_site_payload,
-                   HValue* constructor_function,
-                   AllocationSiteOverrideMode override_mode);
-
-    JSArrayBuilder(HGraphBuilder* builder,
-                   ElementsKind kind,
-                   HValue* constructor_function = NULL);
-
-    enum FillMode {
-      DONT_FILL_WITH_HOLE,
-      FILL_WITH_HOLE
-    };
-
-    ElementsKind kind() { return kind_; }
-    HAllocate* elements_location() { return elements_location_; }
-
-    HAllocate* AllocateEmptyArray();
-    HAllocate* AllocateArray(HValue* capacity,
-                             HValue* length_field,
-                             FillMode fill_mode = FILL_WITH_HOLE);
-    HValue* GetElementsLocation() { return elements_location_; }
-    HValue* EmitMapCode();
-
-   private:
-    Zone* zone() const { return builder_->zone(); }
-    int elements_size() const {
-      return IsFastDoubleElementsKind(kind_) ? kDoubleSize : kPointerSize;
-    }
-    HGraphBuilder* builder() { return builder_; }
-    HGraph* graph() { return builder_->graph(); }
-    int initial_capacity() {
-      STATIC_ASSERT(JSArray::kPreallocatedArrayElements > 0);
-      return JSArray::kPreallocatedArrayElements;
-    }
-
-    HValue* EmitInternalMapCode();
-
-    HGraphBuilder* builder_;
-    ElementsKind kind_;
-    AllocationSiteMode mode_;
-    HValue* allocation_site_payload_;
-    HValue* constructor_function_;
-    HAllocate* elements_location_;
-  };
-
-  HValue* BuildAllocateArrayFromLength(JSArrayBuilder* array_builder,
-                                       HValue* length_argument);
   HValue* BuildCalculateElementsSize(ElementsKind kind,
                                      HValue* capacity);
   HAllocate* AllocateJSArrayObject(AllocationSiteMode mode);
@@ -2439,10 +2388,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildFunctionApply(Call* expr);
   void BuildFunctionCall(Call* expr);
 
-  bool TryHandleArrayCall(Call* expr, HValue* function);
-  bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
-  void BuildArrayCall(Expression* expr, int arguments_count, HValue* function,
-                      Handle<AllocationSite> cell);
+  template <class T>
+  bool TryHandleArrayCall(T* expr, HValue* function);
 
   enum ArrayIndexOfMode { kFirstIndexOf, kLastIndexOf };
   HValue* BuildArrayIndexOf(HValue* receiver,
@@ -2554,9 +2501,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     return handle(isolate()->native_context()->array_function());
   }
 
-  bool IsCallArrayInlineable(int argument_count, Handle<AllocationSite> site);
-  void BuildInlinedCallArray(Expression* expression, int argument_count,
-                             Handle<AllocationSite> site);
+  bool TryInlineArrayCall(Expression* expression, int argument_count,
+                          Handle<AllocationSite> site);
 
   void BuildInitializeInobjectProperties(HValue* receiver,
                                          Handle<Map> initial_map);
