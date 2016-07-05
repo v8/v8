@@ -2695,7 +2695,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
   // Create a proper eager frame state for the stores.
   environment()->Push(old_value);
-  FrameStateBeforeAndAfter binop_states(this, expr->ToNumberId());
+  PrepareEagerCheckpoint(expr->ToNumberId());
   old_value = environment()->Pop();
 
   // Save result for postfix expressions at correct stack depth.
@@ -2708,12 +2708,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Create node to perform +1/-1 operation.
-  // TODO(bmeurer): Cleanup this feedback/bailout mess!
   Node* value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
                               expr->binary_op(), expr->CountBinOpFeedbackId());
-  // This should never deoptimize because we have converted to number before.
-  binop_states.AddToNode(value, BailoutId::None(),
-                         OutputFrameStateCombine::Ignore());
+  // This should never lazy deopt because we have converted to number before.
+  PrepareFrameState(value, BailoutId::None());
 
   // Store the value.
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CountSlot());
