@@ -47,4 +47,22 @@ testBuiltinInStackTrace("Date.prototype.getTime.call('')", "at String.getTime");
 // C++ builtins.
 testBuiltinInStackTrace("Boolean.prototype.toString.call(thrower);",
                         "at Object.toString");
+
+// Constructor builtins.
 testBuiltinInStackTrace("new Date(thrower);", "at new Date");
+
+// Ensure we correctly pick up the receiver's string tag.
+testBuiltinInStackTrace("Math.max(thrower);", "at Math.max");
+testBuiltinInStackTrace("Math.min(thrower);", "at Math.min");
+testBuiltinInStackTrace("Math.acos(thrower);", "at Math.acos");
+testBuiltinInStackTrace("Math.asin(thrower);", "at Math.asin");
+testBuiltinInStackTrace("Math.fround(thrower);", "at Math.fround");
+testBuiltinInStackTrace("Math.imul(thrower);", "at Math.imul");
+
+// As above, but function passed as an argument and then called.
+testBuiltinInStackTrace("((f, x) => f(x))(Math.max, thrower);", "at max");
+testBuiltinInStackTrace("((f, x) => f(x))(Math.min, thrower);", "at min");
+testBuiltinInStackTrace("((f, x) => f(x))(Math.acos, thrower);", "at acos");
+testBuiltinInStackTrace("((f, x) => f(x))(Math.asin, thrower);", "at asin");
+testBuiltinInStackTrace("((f, x) => f(x))(Math.fround, thrower);", "at fround");
+testBuiltinInStackTrace("((f, x) => f(x))(Math.imul, thrower);", "at imul");

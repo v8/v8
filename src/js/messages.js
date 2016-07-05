@@ -599,12 +599,7 @@ function FormatStackTrace(obj, raw_stack) {
 function GetTypeName(receiver, requireConstructor) {
   if (IS_NULL_OR_UNDEFINED(receiver)) return null;
   if (IS_PROXY(receiver)) return "Proxy";
-
-  var constructor = %GetDataProperty(TO_OBJECT(receiver), "constructor");
-  if (!IS_FUNCTION(constructor)) {
-    return requireConstructor ? null : %_Call(NoSideEffectsToString, receiver);
-  }
-  return %FunctionGetName(constructor);
+  return %GetConstructorName(receiver);
 }
 
 

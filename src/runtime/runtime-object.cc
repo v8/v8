@@ -758,6 +758,15 @@ RUNTIME_FUNCTION(Runtime_GetDataProperty) {
   return *JSReceiver::GetDataProperty(object, name);
 }
 
+RUNTIME_FUNCTION(Runtime_GetConstructorName) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+
+  CHECK(!object->IsUndefined(isolate) && !object->IsNull(isolate));
+  Handle<JSReceiver> recv = Object::ToObject(isolate, object).ToHandleChecked();
+  return *JSReceiver::GetConstructorName(recv);
+}
 
 RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   SealHandleScope shs(isolate);
