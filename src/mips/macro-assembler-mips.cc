@@ -5493,11 +5493,14 @@ void MacroAssembler::AddBranchOvf(Register dst, Register left, Register right,
     DCHECK(!right.is(scratch));
 
     if (left.is(right) && dst.is(left)) {
-      mov(overflow_dst, right);
-      right = overflow_dst;
-    }
-
-    if (dst.is(left)) {
+      mov(scratch, left);                // Preserve left and right.
+      addu(dst, left, right);            // Both are overwritten.
+      xor_(overflow_dst, dst, scratch);  // Left and right are equal.
+      Label done;                        // Restore inputs if overflow.
+      Branch(&done, ge, overflow_dst, Operand(zero_reg));
+      mov(left, scratch);  // Original left and right.
+      bind(&done);
+    } else if (dst.is(left)) {
       mov(scratch, left);           // Preserve left.
       addu(dst, left, right);       // Left is overwritten.
       xor_(scratch, dst, scratch);  // Original left.
