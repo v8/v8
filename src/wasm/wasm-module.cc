@@ -648,15 +648,22 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
           *thrower, isolate->factory(), ffi, index, module_name, function_name);
       if (function.is_null()) return false;
 
-      FunctionSig sig(
-          ret_count, param_count,
-          reinterpret_cast<const MachineRepresentation*>(sig_data->data()));
+      {
+        // Copy the signature to avoid a raw pointer into a heap object when
+        // GC can happen.
+        Zone zone(isolate->allocator());
+        MachineRepresentation* reps =
+            zone.NewArray<MachineRepresentation>(sig_data_size);
+        memcpy(reps, sig_data->data(),
+               sizeof(MachineRepresentation) * sig_data_size);
+        FunctionSig sig(ret_count, param_count, reps);
 
-      Handle<Code> code = compiler::CompileWasmToJSWrapper(
-          isolate, function.ToHandleChecked(), &sig, index, module_name,
-          function_name);
+        Handle<Code> code = compiler::CompileWasmToJSWrapper(
+            isolate, function.ToHandleChecked(), &sig, index, module_name,
+            function_name);
 
-      imports.push_back(code);
+        imports.push_back(code);
+      }
     }
   }
   return true;
