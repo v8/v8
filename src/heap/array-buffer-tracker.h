@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <unordered_map>
+#include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -60,7 +60,6 @@ class ArrayBufferTracker : public AllStatic {
 class LocalArrayBufferTracker {
  public:
   typedef JSArrayBuffer* Key;
-  typedef size_t Value;
 
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
@@ -68,8 +67,8 @@ class LocalArrayBufferTracker {
   explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~LocalArrayBufferTracker();
 
-  inline void Add(Key key, const Value& value);
-  inline Value Remove(Key key);
+  inline void Add(Key key);
+  inline void Remove(Key key);
 
   // Frees up array buffers determined by |free_mode|.
   template <FreeMode free_mode>
@@ -90,7 +89,7 @@ class LocalArrayBufferTracker {
   }
 
  private:
-  typedef std::unordered_map<Key, Value> TrackingData;
+  typedef std::unordered_set<Key> TrackingData;
 
   Heap* heap_;
   TrackingData array_buffers_;
