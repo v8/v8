@@ -50,8 +50,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineValueOf:
-      return ReduceValueOf(node);
     case Runtime::kInlineFixedArrayGet:
       return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
@@ -201,70 +199,6 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceValueOf(Node* node) {
-  // if (%_IsSmi(value)) {
-  //   return value;
-  // } else if (%_GetInstanceType(%_GetMap(value)) == JS_VALUE_TYPE) {
-  //   return %_GetValue(value);
-  // } else {
-  //   return value;
-  // }
-  const Operator* const merge_op = common()->Merge(2);
-  const Operator* const ephi_op = common()->EffectPhi(2);
-  const Operator* const phi_op =
-      common()->Phi(MachineRepresentation::kTagged, 2);
-
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  Node* check0 = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-  Node* branch0 = graph()->NewNode(common()->Branch(), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0 = value;
-
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* efalse0;
-  Node* vfalse0;
-  {
-    Node* check1 = graph()->NewNode(
-        machine()->Word32Equal(),
-        graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                             value, effect, if_false0),
-            effect, if_false0),
-        jsgraph()->Int32Constant(JS_VALUE_TYPE));
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1 =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForValue()),
-                         value, effect, if_true1);
-    Node* vtrue1 = etrue1;
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1 = effect;
-    Node* vfalse1 = value;
-
-    Node* merge1 = graph()->NewNode(merge_op, if_true1, if_false1);
-    efalse0 = graph()->NewNode(ephi_op, etrue1, efalse1, merge1);
-    vfalse0 = graph()->NewNode(phi_op, vtrue1, vfalse1, merge1);
-  }
-
-  Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
-
-  // Replace all effect uses of {node} with the {ephi0}.
-  Node* ephi0 = graph()->NewNode(ephi_op, etrue0, efalse0, merge0);
-  ReplaceWithValue(node, node, ephi0);
-
-  // Turn the {node} into a Phi.
-  return Change(node, phi_op, vtrue0, vfalse0, merge0);
 }
 
 

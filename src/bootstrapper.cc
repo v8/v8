@@ -1311,6 +1311,32 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     number_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
+
+    // Create the %NumberPrototype%
+    Handle<JSValue> prototype =
+        Handle<JSValue>::cast(factory->NewJSObject(number_fun, TENURED));
+    prototype->set_value(Smi::FromInt(0));
+    Accessors::FunctionSetPrototype(number_fun, prototype).Assert();
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), number_fun,
+                          DONT_ENUM);
+
+    // Install the Number.prototype methods.
+    SimpleInstallFunction(prototype, "toExponential",
+                          Builtins::kNumberPrototypeToExponential, 1, false);
+    SimpleInstallFunction(prototype, "toFixed",
+                          Builtins::kNumberPrototypeToFixed, 1, false);
+    SimpleInstallFunction(prototype, "toPrecision",
+                          Builtins::kNumberPrototypeToPrecision, 1, false);
+    SimpleInstallFunction(prototype, "toString",
+                          Builtins::kNumberPrototypeToString, 1, false);
+    SimpleInstallFunction(prototype, "valueOf",
+                          Builtins::kNumberPrototypeValueOf, 0, true);
+
+    // Install i18n fallback functions.
+    SimpleInstallFunction(prototype, "toLocaleString",
+                          Builtins::kNumberPrototypeToString, 1, true);
   }
 
   {  // --- B o o l e a n ---
@@ -1337,9 +1363,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Install the Boolean.prototype methods.
     SimpleInstallFunction(prototype, "toString",
-                          Builtins::kBooleanPrototypeToString, 0, false);
+                          Builtins::kBooleanPrototypeToString, 0, true);
     SimpleInstallFunction(prototype, "valueOf",
-                          Builtins::kBooleanPrototypeValueOf, 0, false);
+                          Builtins::kBooleanPrototypeValueOf, 0, true);
   }
 
   {  // --- S t r i n g ---
@@ -1392,12 +1418,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, true);
     SimpleInstallFunction(prototype, "charCodeAt",
                           Builtins::kStringPrototypeCharCodeAt, 1, true);
+    SimpleInstallFunction(prototype, "toString",
+                          Builtins::kStringPrototypeToString, 0, true);
     SimpleInstallFunction(prototype, "trim", Builtins::kStringPrototypeTrim, 0,
                           false);
     SimpleInstallFunction(prototype, "trimLeft",
                           Builtins::kStringPrototypeTrimLeft, 0, false);
     SimpleInstallFunction(prototype, "trimRight",
                           Builtins::kStringPrototypeTrimRight, 0, false);
+    SimpleInstallFunction(prototype, "valueOf",
+                          Builtins::kStringPrototypeValueOf, 0, true);
   }
 
   {
@@ -1413,9 +1443,34 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
 
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        prototype, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("Symbol"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(), symbol_fun,
                           DONT_ENUM);
+
+    // Install the Symbol.prototype methods.
+    SimpleInstallFunction(prototype, "toString",
+                          Builtins::kSymbolPrototypeToString, 0, true);
+    SimpleInstallFunction(prototype, "valueOf",
+                          Builtins::kSymbolPrototypeValueOf, 0, true);
+
+    // Install the @@toPrimitive function.
+    Handle<JSFunction> to_primitive = InstallFunction(
+        prototype, factory->to_primitive_symbol(), JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+        Builtins::kSymbolPrototypeToPrimitive,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
+    to_primitive->shared()->set_internal_formal_parameter_count(1);
+
+    // Set the length for the function to satisfy ECMA-262.
+    to_primitive->shared()->set_length(1);
   }
 
   {  // --- D a t e ---
