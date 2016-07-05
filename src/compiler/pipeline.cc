@@ -872,8 +872,6 @@ struct TypedLoweringPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
-    LoadElimination load_elimination(&graph_reducer, data->graph(),
-                                     data->jsgraph()->simplified());
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     MaybeHandle<LiteralsArray> literals_array =
         data->info()->is_native_context_specializing()
@@ -912,7 +910,6 @@ struct TypedLoweringPhase {
     }
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
@@ -1040,6 +1037,22 @@ struct StoreStoreEliminationPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     StoreStoreElimination store_store_elimination(data->jsgraph(), temp_zone);
     store_store_elimination.Run();
+  }
+};
+
+struct LoadEliminationPhase {
+  static const char* phase_name() { return "load elimination"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    // The memory optimizer requires the graphs to be trimmed, so trim now.
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+
+    // Eliminate redundant loads.
+    LoadElimination load_elimination(data->graph(), temp_zone);
+    load_elimination.Run();
   }
 };
 
@@ -1445,6 +1458,11 @@ bool PipelineImpl::CreateGraph() {
     if (FLAG_turbo_escape) {
       Run<EscapeAnalysisPhase>();
       RunPrintAndVerify("Escape Analysed");
+    }
+
+    if (FLAG_turbo_load_elimination) {
+      Run<LoadEliminationPhase>();
+      RunPrintAndVerify("Load eliminated");
     }
   }
 
