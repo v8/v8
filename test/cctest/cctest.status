@@ -373,6 +373,7 @@
   'test-run-machops/RunFloat64Expm1': [SKIP],
   'test-run-machops/RunFloat64Tan': [SKIP],
   'test-cpu-profiler/Inlining': [SKIP],
+  'test-gap-resolver/FuzzResolver': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
