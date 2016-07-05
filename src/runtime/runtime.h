@@ -293,6 +293,7 @@ namespace internal {
   F(ThrowIllegalInvocation, 0, 1)                   \
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
+  F(ThrowNotGeneric, 1, 1)                          \
   F(ThrowGeneratorRunning, 0, 1)                    \
   F(ThrowStackOverflow, 0, 1)                       \
   F(ThrowWasmError, 2, 1)                           \
@@ -354,10 +355,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 1, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
-  F(NumberToRadixString, 2, 1)         \
-  F(NumberToFixed, 2, 1)               \
-  F(NumberToExponential, 2, 1)         \
-  F(NumberToPrecision, 2, 1)           \
   F(IsValidSmi, 1, 1)                  \
   F(StringToNumber, 1, 1)              \
   F(StringParseInt, 2, 1)              \

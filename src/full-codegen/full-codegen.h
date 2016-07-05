@@ -510,7 +510,6 @@ class FullCodeGenerator: public AstVisitor {
   F(IsJSProxy)                          \
   F(Call)                               \
   F(NewObject)                          \
-  F(ValueOf)                            \
   F(StringCharFromCode)                 \
   F(IsJSReceiver)                       \
   F(HasCachedArrayIndex)                \

@@ -19,7 +19,6 @@ var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
 var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
-var SymbolToString;
 
 utils.Import(function(from) {
   ErrorToString = from.ErrorToString;
@@ -28,7 +27,6 @@ utils.Import(function(from) {
   MapIteratorNext = from.MapIteratorNext;
   SetIteratorNext = from.SetIteratorNext;
   SetValues = from.SetValues;
-  SymbolToString = from.SymbolToString;
 });
 
 // ----------------------------------------------------------------------------
@@ -686,12 +684,12 @@ inherits(SymbolMirror, ValueMirror);
 
 
 SymbolMirror.prototype.description = function() {
-  return %SymbolDescription(%_ValueOf(this.value_));
+  return %SymbolDescription(%ValueOf(this.value_));
 }
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_Call(SymbolToString, this.value_);
+  return %SymbolDescriptiveString(%ValueOf(this.value_));
 }
 
 

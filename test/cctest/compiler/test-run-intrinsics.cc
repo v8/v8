@@ -156,16 +156,6 @@ TEST(SubString) {
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(0.0));
 }
 
-
-TEST(ValueOf) {
-  FunctionTester T("(function(a) { return %_ValueOf(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val("a"));
-  T.CheckCall(T.Val("b"), T.NewObject("(new String('b'))"));
-  T.CheckCall(T.Val(123), T.Val(123));
-  T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

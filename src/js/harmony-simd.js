@@ -62,7 +62,7 @@ function NAMECheckJS(a) {
 }
 
 function NAMEToString() {
-  var value = %_ValueOf(this);
+  var value = %ValueOf(this);
   if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.toString", this);
@@ -76,7 +76,7 @@ function NAMEToString() {
 }
 
 function NAMEToLocaleString() {
-  var value = %_ValueOf(this);
+  var value = %ValueOf(this);
   if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.toLocaleString", this);
@@ -90,7 +90,7 @@ function NAMEToLocaleString() {
 }
 
 function NAMEValueOf() {
-  var value = %_ValueOf(this);
+  var value = %ValueOf(this);
   if (typeof(value) !== 'TYPE') {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "NAME.prototype.valueOf", this);

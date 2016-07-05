@@ -39,11 +39,6 @@ define NEW_TWO_BYTE_STRING = false;
 define GETTER = 0;
 define SETTER = 1;
 
-# Safe maximum number of arguments to push to stack, when multiplied by
-# pointer size. Used by Function.prototype.apply(), Reflect.apply() and
-# Reflect.construct().
-define kSafeArgumentsLength = 0x800000;
-
 # 2^53 - 1
 define kMaxSafeInteger = 9007199254740991;
 
@@ -65,7 +60,6 @@ define STRING_TO_REGEXP_CACHE_ID = 0;
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
-macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
 macro IS_DATE(arg)              = (%IsDate(arg));
 macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
@@ -77,7 +71,6 @@ macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
-macro IS_NUMBER_WRAPPER(arg)    = (%_ClassOf(arg) === 'Number');
 macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
 macro IS_PROXY(arg)             = (%_IsJSProxy(arg));
 macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
@@ -87,9 +80,7 @@ macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
 macro IS_SIMD_VALUE(arg)        = (%IsSimdValue(arg));
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
-macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
 macro IS_SYMBOL(arg)            = (typeof(arg) === 'symbol');
-macro IS_SYMBOL_WRAPPER(arg)    = (%_ClassOf(arg) === 'Symbol');
 macro IS_TYPEDARRAY(arg)        = (%_IsTypedArray(arg));
 macro IS_UNDEFINED(arg)         = (arg === (void 0));
 macro IS_WEAKMAP(arg)           = (%_ClassOf(arg) === 'WeakMap');
