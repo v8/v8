@@ -42,7 +42,12 @@ class TypeCache final {
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
+  Type* const kSingletonTen = CreateRange(10.0, 10.0);
   Type* const kSingletonMinusOne = CreateRange(-1.0, -1.0);
+  Type* const kZeroOrUndefined =
+      Type::Union(kSingletonZero, Type::Undefined(), zone());
+  Type* const kTenOrUndefined =
+      Type::Union(kSingletonTen, Type::Undefined(), zone());
   Type* const kMinusOneOrZero = CreateRange(-1.0, 0.0);
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
   Type* const kZeroToThirtyOne = CreateRange(0.0, 31.0);

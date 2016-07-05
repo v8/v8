@@ -521,6 +521,23 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.1.2.13 Number.parseInt ( string, radix )
+Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(type_cache_.kSafeInteger) ||
+      r.InputsMatchTwo(type_cache_.kSafeInteger,
+                       type_cache_.kZeroOrUndefined) ||
+      r.InputsMatchTwo(type_cache_.kSafeInteger, type_cache_.kTenOrUndefined)) {
+    // Number.parseInt(a:safe-integer) -> NumberToInt32(a)
+    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> NumberToInt32(a)
+    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> NumberToInt32(a)
+    Node* input = r.GetJSCallInput(0);
+    Node* value = graph()->NewNode(simplified()->NumberToInt32(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
 Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
   JSCallReduction r(node);
@@ -638,6 +655,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);
+      break;
+    case kNumberParseInt:
+      reduction = ReduceNumberParseInt(node);
       break;
     case kStringFromCharCode:
       reduction = ReduceStringFromCharCode(node);

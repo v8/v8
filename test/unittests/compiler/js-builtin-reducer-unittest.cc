@@ -49,6 +49,19 @@ class JSBuiltinReducerTest : public TypedGraphTest {
     return HeapConstant(f);
   }
 
+  Node* NumberFunction(const char* name) {
+    Handle<Object> m =
+        JSObject::GetProperty(
+            isolate()->global_object(),
+            isolate()->factory()->NewStringFromAsciiChecked("Number"))
+            .ToHandleChecked();
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        Object::GetProperty(
+            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return HeapConstant(f);
+  }
+
   Node* StringFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(
@@ -1340,6 +1353,48 @@ TEST_F(JSBuiltinReducerTest, MathTruncWithPlainPrimitive) {
 
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberTrunc(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Number.parseInt
+
+TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32) {
+  Node* function = NumberFunction("parseInt");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32AndUndefined) {
+  Node* function = NumberFunction("parseInt");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
+    Node* p0 = Parameter(t0, 0);
+    Node* p1 = Parameter(Type::Undefined(), 1);
+    Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                  UndefinedConstant(), p0, p1, context,
+                                  frame_state, effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+  }
 }
 
 // -----------------------------------------------------------------------------
