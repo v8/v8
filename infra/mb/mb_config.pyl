@@ -225,7 +225,7 @@
     'gyp_debug_simulate_mipsel_asan_edge': [
       'gyp', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
     'gyp_debug_simulate_x87_no_snap': [
-      'gyp', 'debug_bot', 'simulate_x87', 'v8_snapshot_none'],
+      'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
 
     # Gyp debug configs for x64.
     'gyp_debug_x64': [
