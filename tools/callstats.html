@@ -1744,7 +1744,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     <h2>Usage</h2>
     <ol>
       <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
-      <li>Build chrome with the <a href="https://codereview.chromium.org/1923893002">extended runtime callstats</a>.</li>
+      <li>Build chrome.</li>
+      <li>Check out a known working version of webpagereply:
+        <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
+      </li>
       <li>Run <code>callstats.py</code> with a web-page-replay archive:
         <pre>$V8_DIR/tools/callstats.py run \
         --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
