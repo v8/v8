@@ -39,6 +39,19 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
           });
     }
   }
+  if (Heap::ShouldZapGarbage()) {
+    // Need to filter invalid slots as we overwrite them with zap values in
+    // during sweeping which runs concurrently with pointer updating.
+    for (MemoryChunk* chunk : *heap->map_space()) {
+      SlotSet* slots = GetSlotSet(chunk);
+      if (slots != nullptr) {
+        slots->Iterate([heap, chunk](Address addr) {
+          Object** slot = reinterpret_cast<Object**>(addr);
+          return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
+        });
+      }
+    }
+  }
 }
 
 template <PointerDirection direction>
