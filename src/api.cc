@@ -1186,19 +1186,18 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   return Utils::ToLocal(obj);
 }
 
-
-Local<FunctionTemplate> FunctionTemplate::New(Isolate* isolate,
-                                              FunctionCallback callback,
-                                              v8::Local<Value> data,
-                                              v8::Local<Signature> signature,
-                                              int length) {
+Local<FunctionTemplate> FunctionTemplate::New(
+    Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
+    v8::Local<Signature> signature, int length, ConstructorBehavior behavior) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,
-                             length, false);
+  auto templ = FunctionTemplateNew(i_isolate, callback, nullptr, data,
+                                   signature, length, false);
+  if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
+  return templ;
 }
 
 MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
@@ -4497,22 +4496,23 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
   RETURN_TO_LOCAL_UNCHECKED(CallAsConstructor(context, argc, argv_cast), Value);
 }
 
-
 MaybeLocal<Function> Function::New(Local<Context> context,
                                    FunctionCallback callback, Local<Value> data,
-                                   int length) {
+                                   int length, ConstructorBehavior behavior) {
   i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   LOG_API(isolate, Function, New);
   ENTER_V8(isolate);
-  return FunctionTemplateNew(isolate, callback, nullptr, data,
-                             Local<Signature>(), length, true)
-      ->GetFunction(context);
+  auto templ = FunctionTemplateNew(isolate, callback, nullptr, data,
+                                   Local<Signature>(), length, true);
+  if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
+  return templ->GetFunction(context);
 }
 
 
 Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
                               Local<Value> data, int length) {
-  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length)
+  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length,
+                       ConstructorBehavior::kAllow)
       .FromMaybe(Local<Function>());
 }
 
