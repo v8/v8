@@ -668,7 +668,7 @@ source_set("v8_maybe_snapshot") {
       ":v8_snapshot",
     ]
   } else {
-    assert(!v8_use_external_startup_data)
+    # Ignore v8_use_external_startup_data setting if no snapshot is used.
     public_deps = [
       ":v8_nosnapshot",
     ]
