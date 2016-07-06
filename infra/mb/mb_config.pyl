@@ -29,6 +29,7 @@
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
+      'V8 Linux64 - gyp': 'gyp_release_x64',
       # Windows.
       'V8 Win32 - builder': 'gyp_release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'gyp_debug_x86_minimal_symbols',
@@ -140,6 +141,7 @@
       'v8_linux_gcc_compile_rel': 'gyp_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gyp_release_x86_gcc_minimal_symbols',
       'v8_linux64_rel_ng': 'gn_release_x64_trybot',
+      'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
       'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
