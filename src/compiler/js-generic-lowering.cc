@@ -393,67 +393,13 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
   Handle<AllocationSite> const site = p.site();
-
-  // TODO(turbofan): We embed the AllocationSite from the Operator at this
-  // point, which we should not do once we want to both consume the feedback
-  // but at the same time shared the optimized code across native contexts,
-  // as the AllocationSite is associated with a single native context (it's
-  // stored in the type feedback vector after all). Once we go for cross
-  // context code generation, we should somehow find a way to get to the
-  // allocation site for the actual native context at runtime.
-  if (!site.is_null()) {
-    // Reduce {node} to the appropriate ArrayConstructorStub backend.
-    // Note that these stubs "behave" like JSFunctions, which means they
-    // expect a receiver on the stack, which they remove. We just push
-    // undefined for the receiver.
-    ElementsKind elements_kind = site->GetElementsKind();
-    AllocationSiteOverrideMode override_mode =
-        (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
-            ? DISABLE_ALLOCATION_SITES
-            : DONT_OVERRIDE;
-    if (arity == 0) {
-      ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
-                                          override_mode);
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
-          CallDescriptor::kNeedsFrameState);
-      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(0));
-      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-      NodeProperties::ChangeOp(node, common()->Call(desc));
-    } else if (arity == 1) {
-      // TODO(bmeurer): Optimize for the 0 length non-holey case?
-      ArraySingleArgumentConstructorStub stub(
-          isolate(), GetHoleyElementsKind(elements_kind), override_mode);
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
-      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(1));
-      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-      NodeProperties::ChangeOp(node, common()->Call(desc));
-    } else {
-      ArrayNArgumentsConstructorStub stub(isolate());
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
-          arity + 1, CallDescriptor::kNeedsFrameState);
-      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
-      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-      NodeProperties::ChangeOp(node, common()->Call(desc));
-    }
-  } else {
-    Node* new_target = node->InputAt(1);
-    Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
-                                     : jsgraph()->HeapConstant(site);
-    node->RemoveInput(1);
-    node->InsertInput(zone(), 1 + arity, new_target);
-    node->InsertInput(zone(), 2 + arity, type_info);
-    ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
-  }
+  Node* new_target = node->InputAt(1);
+  Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
+                                   : jsgraph()->HeapConstant(site);
+  node->RemoveInput(1);
+  node->InsertInput(zone(), 1 + arity, new_target);
+  node->InsertInput(zone(), 2 + arity, type_info);
+  ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
 }
 
 

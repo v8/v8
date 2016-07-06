@@ -59,11 +59,7 @@
   # TurboFan compiler failures.
 
   # TODO(verwaest): Some tests are over-restrictive about object layout.
-  'array-constructor-feedback': [PASS, NO_VARIANTS],
-  'array-feedback': [PASS, NO_VARIANTS],
   'compare-known-objects-slow': [PASS, NO_VARIANTS],
-  'elements-kind': [PASS, NO_VARIANTS],
-  'opt-elements-kind': [PASS, NO_VARIANTS],
   'smi-representation': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
@@ -143,9 +139,6 @@
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
   'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
-
-  # issue 4078:
-  'allocation-site-info': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -326,6 +319,9 @@
   'smi-mul-const': [PASS, NO_IGNITION],
   'smi-mul': [PASS, NO_IGNITION],
   'unary-minus-deopt': [PASS, NO_IGNITION],
+  'array-constructor-feedback': [PASS, NO_IGNITION],
+  'array-feedback': [PASS, NO_IGNITION],
+  'allocation-site-info': [PASS, NO_IGNITION],
 
   # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
   # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
@@ -819,6 +815,9 @@
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
+  'array-constructor-feedback': [FAIL],
+  'array-feedback': [FAIL],
+  'allocation-site-info': [FAIL],
 
   # TODO(mythria, 4764): lack of osr support.
   'regress/regress-2618': [FAIL],

@@ -72,6 +72,8 @@ class JSCreateLowering final : public AdvancedReducer {
                                     PretenureFlag pretenure,
                                     AllocationSiteUsageContext* site_context);
 
+  Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
+
   // Infers the LiteralsArray to use for a given {node}.
   MaybeHandle<LiteralsArray> GetSpecializationLiterals(Node* node);
 
