@@ -22,13 +22,7 @@ declare_args() {
 
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
-  v8_use_external_startup_data = ""
-}
-
-if (v8_use_external_startup_data == "") {
-  # If not specified as a gn arg, use external startup data by default if
-  # a snapshot is used and if we're not on ios.
-  v8_use_external_startup_data = v8_use_snapshot && !is_ios
+  v8_use_external_startup_data = !is_ios
 }
 
 ###############################################################################
