@@ -34,12 +34,15 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   // ordinary functions).
   __ LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
 
-  // Insert extra arguments.
-  const int num_extra_args = 2;
-  __ Push(r3, r5);
   // JumpToExternalReference expects r2 to contain the number of arguments
   // including the receiver and the extra arguments.
+  const int num_extra_args = 3;
   __ AddP(r2, r2, Operand(num_extra_args + 1));
+
+  // Insert extra arguments.
+  __ SmiTag(r2);
+  __ Push(r2, r3, r5);
+  __ SmiUntag(r2);
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
                              exit_frame_type == BUILTIN_EXIT);
