@@ -7001,6 +7001,12 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   return final_loop;
 }
 
+#ifdef DEBUG
+void Parser::Print(AstNode* node) {
+  ast_value_factory()->Internalize(Isolate::Current());
+  node->Print(Isolate::Current());
+}
+#endif  // DEBUG
 
 }  // namespace internal
 }  // namespace v8
