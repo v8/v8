@@ -21,7 +21,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   uint32_t delta_pages = 0;
-  RUNTIME_ASSERT(args[0]->ToUint32(&delta_pages));
+  CHECK(args[0]->ToUint32(&delta_pages));
   Handle<JSObject> module_object;
 
   {
@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK(deopt_data->length() == 2);
     module_object = Handle<JSObject>::cast(handle(deopt_data->get(0), isolate));
-    RUNTIME_ASSERT(!module_object->IsNull(isolate));
+    CHECK(!module_object->IsNull(isolate));
   }
 
   Address old_mem_start, new_mem_start;
@@ -103,8 +103,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   // Set new buffer to be wasm memory
   module_object->SetInternalField(kWasmMemArrayBuffer, *buffer);
 
-  RUNTIME_ASSERT(wasm::UpdateWasmModuleMemory(
-      module_object, old_mem_start, new_mem_start, old_size, new_size));
+  CHECK(wasm::UpdateWasmModuleMemory(module_object, old_mem_start,
+                                     new_mem_start, old_size, new_size));
 
   return *isolate->factory()->NewNumberFromUint(old_size /
                                                 wasm::WasmModule::kPageSize);
