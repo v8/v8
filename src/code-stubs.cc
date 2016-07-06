@@ -4189,8 +4189,6 @@ ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
   return VectorStoreTransitionDescriptor(isolate());
 }
 
-void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
-
 void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
 
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
@@ -4555,6 +4553,58 @@ void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       Generate(assembler, assembler->Parameter(0), assembler->Parameter(1)));
 }
 
+void FastNewFunctionContextStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  int length = slots() + Context::MIN_CONTEXT_SLOTS;
+  int size = length * kPointerSize + FixedArray::kHeaderSize;
+
+  // Get the function
+  Node* function =
+      assembler->Parameter(FastNewFunctionContextDescriptor::kFunctionIndex);
+  Node* context =
+      assembler->Parameter(FastNewFunctionContextDescriptor::kContextIndex);
+
+  // Create a new closure from the given function info in new space
+  Node* function_context = assembler->Allocate(size);
+
+  assembler->StoreMapNoWriteBarrier(
+      function_context,
+      assembler->HeapConstant(isolate()->factory()->function_context_map()));
+  assembler->StoreObjectFieldNoWriteBarrier(
+      function_context, Context::kLengthOffset,
+      assembler->SmiConstant(Smi::FromInt(length)));
+
+  // Set up the fixed slots.
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::CLOSURE_INDEX),
+      function, SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::PREVIOUS_INDEX),
+      context, SKIP_WRITE_BARRIER);
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::EXTENSION_INDEX),
+      assembler->TheHoleConstant(), SKIP_WRITE_BARRIER);
+
+  // Copy the native context from the previous context.
+  Node* native_context = assembler->LoadFixedArrayElement(
+      context, assembler->Int32Constant(Context::NATIVE_CONTEXT_INDEX));
+  assembler->StoreFixedArrayElement(
+      function_context, assembler->Int32Constant(Context::NATIVE_CONTEXT_INDEX),
+      native_context, SKIP_WRITE_BARRIER);
+
+  // Initialize the rest of the slots to undefined.
+  Node* undefined = assembler->UndefinedConstant();
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
+    assembler->StoreFixedArrayElement(function_context,
+                                      assembler->Int32Constant(i), undefined,
+                                      SKIP_WRITE_BARRIER);
+  }
+
+  assembler->Return(function_context);
+}
+
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
   stub.GetCode();
@@ -4586,7 +4636,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
         .GetCode();
   }
 }
-
 
 void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArrayConstructorStub";

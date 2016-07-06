@@ -63,7 +63,6 @@ namespace internal {
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
   V(FastFunctionBind)                       \
-  V(FastNewContext)                         \
   V(FastNewObject)                          \
   V(FastNewRestParameter)                   \
   V(FastNewSloppyArguments)                 \
@@ -118,6 +117,7 @@ namespace internal {
   V(Dec)                                    \
   V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
+  V(FastNewFunctionContext)                 \
   V(InstanceOf)                             \
   V(LessThan)                               \
   V(LessThanOrEqual)                        \
@@ -1056,26 +1056,23 @@ class FastNewClosureStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(FastNewClosure, TurboFanCodeStub);
 };
 
-
-class FastNewContextStub final : public HydrogenCodeStub {
+class FastNewFunctionContextStub final : public TurboFanCodeStub {
  public:
   static const int kMaximumSlots = 64;
 
-  FastNewContextStub(Isolate* isolate, int slots) : HydrogenCodeStub(isolate) {
+  FastNewFunctionContextStub(Isolate* isolate, int slots)
+      : TurboFanCodeStub(isolate) {
     DCHECK(slots >= 0 && slots <= kMaximumSlots);
-    set_sub_minor_key(SlotsBits::encode(slots));
+    minor_key_ = SlotsBits::encode(slots);
   }
 
-  int slots() const { return SlotsBits::decode(sub_minor_key()); }
-
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kFunction = 0;
+  int slots() const { return SlotsBits::decode(minor_key_); }
 
  private:
   class SlotsBits : public BitField<int, 0, 8> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewContext);
-  DEFINE_HYDROGEN_CODE_STUB(FastNewContext, HydrogenCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
+  DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };
 
 

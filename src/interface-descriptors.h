@@ -34,7 +34,7 @@ class PlatformInterfaceDescriptor;
   V(LoadWithVector)                    \
   V(VarArgFunction)                    \
   V(FastNewClosure)                    \
-  V(FastNewContext)                    \
+  V(FastNewFunctionContext)            \
   V(FastNewObject)                     \
   V(FastNewRestParameter)              \
   V(FastNewSloppyArguments)            \
@@ -501,10 +501,10 @@ class FastNewClosureDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(FastNewClosureDescriptor, CallInterfaceDescriptor)
 };
 
-
-class FastNewContextDescriptor : public CallInterfaceDescriptor {
+class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastNewContextDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
+  enum ParameterIndices { kFunctionIndex, kContextIndex };
 };
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {

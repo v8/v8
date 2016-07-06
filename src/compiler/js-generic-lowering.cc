@@ -479,8 +479,9 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   int const slot_count = OpParameter<int>(node->op());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
 
-  // Use the FastNewContextStub only for function contexts up maximum size.
-  if (slot_count <= FastNewContextStub::kMaximumSlots) {
+  // Use the FastNewFunctionContextStub only for function contexts up maximum
+  // size.
+  if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
     Callable callable = CodeFactory::FastNewContext(isolate(), slot_count);
     ReplaceWithStubCall(node, callable, flags);
   } else {

@@ -454,7 +454,7 @@ Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
 
 // static
 Callable CodeFactory::FastNewContext(Isolate* isolate, int slot_count) {
-  FastNewContextStub stub(isolate, slot_count);
+  FastNewFunctionContextStub stub(isolate, slot_count);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

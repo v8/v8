@@ -1924,61 +1924,6 @@ HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
 
 Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
-template<>
-HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
-  int length = casted_stub()->slots() + Context::MIN_CONTEXT_SLOTS;
-
-  // Get the function.
-  HParameter* function = GetParameter(FastNewContextStub::kFunction);
-
-  // Allocate the context in new space.
-  HAllocate* function_context = Add<HAllocate>(
-      Add<HConstant>(length * kPointerSize + FixedArray::kHeaderSize),
-      HType::HeapObject(), NOT_TENURED, FIXED_ARRAY_TYPE,
-      graph()->GetConstant0());
-
-  // Set up the object header.
-  AddStoreMapConstant(function_context,
-                      isolate()->factory()->function_context_map());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForFixedArrayLength(),
-                        Add<HConstant>(length));
-
-  // Set up the fixed slots.
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::CLOSURE_INDEX),
-                        function);
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX),
-                        context());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
-                        graph()->GetConstantHole());
-
-  // Copy the native context from the previous context.
-  HValue* native_context = Add<HLoadNamedField>(
-      context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
-  Add<HStoreNamedField>(function_context, HObjectAccess::ForContextSlot(
-                                              Context::NATIVE_CONTEXT_INDEX),
-                        native_context);
-
-  // Initialize the rest of the slots to undefined.
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
-    Add<HStoreNamedField>(function_context,
-                          HObjectAccess::ForContextSlot(i),
-                          graph()->GetConstantUndefined());
-  }
-
-  return function_context;
-}
-
-
-Handle<Code> FastNewContextStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
