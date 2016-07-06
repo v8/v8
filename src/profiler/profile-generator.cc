@@ -11,7 +11,6 @@
 #include "src/global-handles.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/profiler/tick-sample.h"
 #include "src/unicode.h"
 
 namespace v8 {
@@ -578,22 +577,24 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      entries.push_back(code_map_.FindEntry(sample.external_callback_entry));
+      entries.push_back(code_map_.FindEntry(
+          reinterpret_cast<Address>(sample.external_callback_entry)));
     } else {
-      CodeEntry* pc_entry = code_map_.FindEntry(sample.pc);
+      CodeEntry* pc_entry =
+          code_map_.FindEntry(reinterpret_cast<Address>(sample.pc));
       // If there is no pc_entry we're likely in native code.
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
       if (!pc_entry && !sample.has_external_callback) {
-        pc_entry = code_map_.FindEntry(sample.tos);
+        pc_entry = code_map_.FindEntry(reinterpret_cast<Address>(sample.tos));
       }
       // If pc is in the function code before it set up stack frame or after the
       // frame was destroyed SafeStackFrameIterator incorrectly thinks that
       // ebp contains return address of the current function and skips caller's
       // frame. Check for this case and just skip such samples.
       if (pc_entry) {
-        int pc_offset =
-            static_cast<int>(sample.pc - pc_entry->instruction_start());
+        int pc_offset = static_cast<int>(reinterpret_cast<Address>(sample.pc) -
+                                         pc_entry->instruction_start());
         src_line = pc_entry->GetSourceLine(pc_offset);
         if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
           src_line = pc_entry->line_number();
@@ -616,15 +617,14 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       }
     }
 
-    for (const Address *stack_pos = sample.stack,
-                       *stack_end = stack_pos + sample.frames_count;
-         stack_pos != stack_end; ++stack_pos) {
-      CodeEntry* entry = code_map_.FindEntry(*stack_pos);
+    for (unsigned i = 0; i < sample.frames_count; ++i) {
+      Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
+      CodeEntry* entry = code_map_.FindEntry(stack_pos);
 
       if (entry) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
-            static_cast<int>(*stack_pos - entry->instruction_start());
+            static_cast<int>(stack_pos - entry->instruction_start());
         const std::vector<CodeEntry*>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {

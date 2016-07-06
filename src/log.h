@@ -68,8 +68,8 @@ class Isolate;
 class Log;
 class Profiler;
 class Ticker;
-struct TickSample;
 class RuntimeCallTimer;
+struct TickSample;
 
 #undef LOG
 #define LOG(isolate, Call)                              \

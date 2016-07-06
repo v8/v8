@@ -36,6 +36,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
+#include "src/frames-inl.h"
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
@@ -7579,12 +7580,9 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
 
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
 #if defined(USE_SIMULATOR)
   RegisterState regs;
-  regs.pc = state.pc;
-  regs.sp = state.sp;
-  regs.fp = state.fp;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (!i::SimulatorHelper::FillRegisters(isolate, &regs)) {
     sample_info->frames_count = 0;
     sample_info->vm_state = OTHER;
@@ -7594,8 +7592,8 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
 #else
   const RegisterState& regs = state;
 #endif
-  i::TickSample::GetStackSample(isolate, regs, i::TickSample::kSkipCEntryFrame,
-                                frames, frames_limit, sample_info);
+  TickSample::GetStackSample(this, regs, TickSample::kSkipCEntryFrame, frames,
+                             frames_limit, sample_info);
 }
 
 size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {

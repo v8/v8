@@ -12,8 +12,6 @@
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
 
-#include "include/v8-profiler.h"
-
 namespace v8 {
 namespace internal {
 

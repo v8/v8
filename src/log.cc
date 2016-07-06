@@ -23,6 +23,7 @@
 #include "src/perf-jit.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
+#include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
@@ -646,14 +647,14 @@ class Ticker: public sampler::Sampler {
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
     v8::Isolate* v8_isolate = isolate();
-    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(v8_isolate);
 #if defined(USE_SIMULATOR)
-    if (!SimulatorHelper::FillRegisters(isolate,
+    if (!SimulatorHelper::FillRegisters(i_isolate,
                                         const_cast<v8::RegisterState*>(&state)))
       return;
 #endif
     TickSample sample;
-    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
+    sample.Init(i_isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
   }
 
@@ -1373,14 +1374,15 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   }
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[CodeEventListener::TICK_EVENT]);
-  msg.AppendAddress(sample->pc);
+  msg.AppendAddress(reinterpret_cast<Address>(sample->pc));
   msg.Append(",%d", static_cast<int>(timer_.Elapsed().InMicroseconds()));
   if (sample->has_external_callback) {
     msg.Append(",1,");
-    msg.AppendAddress(sample->external_callback_entry);
+    msg.AppendAddress(
+        reinterpret_cast<Address>(sample->external_callback_entry));
   } else {
     msg.Append(",0,");
-    msg.AppendAddress(sample->tos);
+    msg.AppendAddress(reinterpret_cast<Address>(sample->tos));
   }
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
@@ -1388,7 +1390,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   }
   for (unsigned i = 0; i < sample->frames_count; ++i) {
     msg.Append(',');
-    msg.AppendAddress(sample->stack[i]);
+    msg.AppendAddress(reinterpret_cast<Address>(sample->stack[i]));
   }
   msg.WriteToLogFile();
 }
