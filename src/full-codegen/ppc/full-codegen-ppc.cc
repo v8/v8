@@ -1665,7 +1665,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       PushOperand(result_register());
       if (expr->is_compound()) {
         const Register scratch1 = r5;
-        const Register scratch = r4;
+        const Register scratch2 = r4;
         __ LoadP(scratch1, MemOperand(sp, 2 * kPointerSize));
         __ LoadP(scratch2, MemOperand(sp, 1 * kPointerSize));
         PushOperands(scratch1, scratch2, result_register());
