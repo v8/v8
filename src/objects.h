@@ -6774,6 +6774,7 @@ enum BuiltinFunctionId {
   // list of math functions.
   kMathPowHalf,
   // These are manually assigned to special getters during bootstrapping.
+  kArrayBufferByteLength,
   kDataViewBuffer,
   kDataViewByteLength,
   kDataViewByteOffset,

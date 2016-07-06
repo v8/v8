@@ -5622,6 +5622,15 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
   return *result;
 }
 
+// ES6 section 24.1.4.1 get ArrayBuffer.prototype.byteLength
+BUILTIN(ArrayBufferPrototypeGetByteLength) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
+                 "get ArrayBuffer.prototype.byteLength");
+  // TODO(franzih): According to the ES6 spec, we should throw a TypeError
+  // here if the JSArrayBuffer is detached.
+  return array_buffer->byte_length();
+}
 
 // ES6 section 24.1.3.1 ArrayBuffer.isView ( arg )
 BUILTIN(ArrayBufferIsView) {

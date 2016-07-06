@@ -54,6 +54,7 @@ class CodeStubAssembler;
                                                         \
   V(ArrayBufferConstructor, BUILTIN_EXIT)               \
   V(ArrayBufferConstructor_ConstructStub, BUILTIN_EXIT) \
+  V(ArrayBufferPrototypeGetByteLength, BUILTIN_EXIT)    \
   V(ArrayBufferIsView, BUILTIN_EXIT)                    \
                                                         \
   V(BooleanConstructor, BUILTIN_EXIT)                   \

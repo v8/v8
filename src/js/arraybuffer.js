@@ -27,14 +27,6 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
-function ArrayBufferGetByteLen() {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'ArrayBuffer.prototype.byteLength', this);
-  }
-  return %_ArrayBufferGetByteLength(this);
-}
-
 // ES6 Draft 15.13.5.5.3
 function ArrayBufferSlice(start, end) {
   if (!IS_ARRAYBUFFER(this)) {
@@ -91,9 +83,6 @@ function ArrayBufferSpecies() {
 }
 
 utils.InstallGetter(GlobalArrayBuffer, speciesSymbol, ArrayBufferSpecies);
-
-utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
-                    ArrayBufferGetByteLen);
 
 utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice

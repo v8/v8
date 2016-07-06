@@ -2887,6 +2887,7 @@ void Genesis::InitializeGlobal_harmony_array_prototype_values() {
 
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                                                const char* name) {
+  // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
@@ -2910,6 +2911,11 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
 
   SimpleInstallFunction(array_buffer_fun, factory()->isView_string(),
                         Builtins::kArrayBufferIsView, 1, true);
+
+  // Install the "byteLength" getter on the {prototype}.
+  SimpleInstallGetter(prototype, factory()->byte_length_string(),
+                      Builtins::kArrayBufferPrototypeGetByteLength, false,
+                      kArrayBufferByteLength);
 
   return array_buffer_fun;
 }
