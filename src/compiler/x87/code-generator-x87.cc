@@ -790,6 +790,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_IEEE754_UNOP(sin);
       __ X87SetFPUCW(0x037F);
       break;
+    case kIeee754Float64Tan:
+      __ X87SetFPUCW(0x027F);
+      ASSEMBLE_IEEE754_UNOP(tan);
+      __ X87SetFPUCW(0x037F);
+      break;
     case kX87Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));

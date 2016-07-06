@@ -12,4 +12,9 @@
   'AstDecoderTest.AllLoadMemCombinations': [SKIP],
   'AstDecoderTest.AllStoreMemCombinations': [SKIP],
 }],  # 'byteorder == big'
+['arch == x87', {
+  'Ieee754.Expm1': [SKIP],
+  'Ieee754.Cos': [SKIP],
+  'Ieee754.Tan': [SKIP],
+}],  # 'arch == x87'
 ]
