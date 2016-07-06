@@ -1088,8 +1088,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   Local<Function> fun = Local<Function>::New(isolate, stringify_function_);
   Local<Value> argv[1] = {value};
   v8::TryCatch try_catch(isolate);
-  MaybeLocal<Value> result =
-      fun->Call(context, Undefined(isolate), 1, argv).ToLocalChecked();
+  MaybeLocal<Value> result = fun->Call(context, Undefined(isolate), 1, argv);
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
 }
