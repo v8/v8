@@ -874,7 +874,16 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
 
     // Copy the parameters to the arguments object.
     DCHECK(array->length() == length);
-    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    for (int i = 0; i < length; i++) {
+      Object* value = frame->GetParameter(i);
+      if (value->IsTheHole(isolate)) {
+        // Generators currently use holes as dummy arguments when resuming.  We
+        // must not leak those.
+        DCHECK(IsResumableFunction(function->shared()->kind()));
+        value = isolate->heap()->undefined_value();
+      }
+      array->set(i, value);
+    }
     arguments->set_elements(*array);
 
     // Return the freshly allocated arguments object.
