@@ -391,9 +391,6 @@
   # Issue 3723.
   'regress/regress-3717': [SKIP],
 
-  # BUG(chromium:625752): Too slow.
-  'regress/regress-625752': [SKIP],
-
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
 
