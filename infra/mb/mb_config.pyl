@@ -341,14 +341,14 @@
     'gyp_release_x86_no_snap': [
       'gyp', 'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gyp_release_x86_no_snap_shared_minimal_symbols': [
-      'gyp', 'release_bot', 'x86', 'minimal_symbols', 'shared', 'swarming',
+      'gyp', 'release', 'x86', 'goma', 'minimal_symbols', 'shared', 'swarming',
       'v8_snapshot_none'],
     'gyp_release_x86_no_snap_trybot': [
       'gyp', 'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gyp_release_x86_predictable': [
       'gyp', 'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'gyp_release_x86_shared_verify_heap': [
-      'gyp', 'release_bot', 'x86', 'shared', 'swarming', 'v8_verify_heap'],
+      'gyp', 'release', 'x86', 'goma', 'shared', 'swarming', 'v8_verify_heap'],
     'gyp_release_x86_trybot': [
       'gyp', 'release_trybot', 'x86', 'swarming'],
   },
