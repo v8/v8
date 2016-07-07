@@ -5643,20 +5643,51 @@ const char* v8::V8::GetVersion() {
   return i::Version::GetVersion();
 }
 
-static i::Handle<i::Context> CreateEnvironment(
+template <typename ObjectType>
+struct InvokeBootstrapper;
+
+template <>
+struct InvokeBootstrapper<i::Context> {
+  i::Handle<i::Context> Invoke(
+      i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
+      v8::Local<v8::ObjectTemplate> global_object_template,
+      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index) {
+    return isolate->bootstrapper()->CreateEnvironment(
+        maybe_global_proxy, global_object_template, extensions,
+        context_snapshot_index);
+  }
+};
+
+template <>
+struct InvokeBootstrapper<i::JSGlobalProxy> {
+  i::Handle<i::JSGlobalProxy> Invoke(
+      i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
+      v8::Local<v8::ObjectTemplate> global_object_template,
+      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index) {
+    USE(extensions);
+    USE(context_snapshot_index);
+    return isolate->bootstrapper()->NewRemoteContext(maybe_global_proxy,
+                                                     global_object_template);
+  }
+};
+
+template <typename ObjectType>
+static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* isolate, v8::ExtensionConfiguration* extensions,
-    v8::Local<ObjectTemplate> global_template,
-    v8::Local<Value> maybe_global_proxy, size_t context_snapshot_index) {
-  i::Handle<i::Context> env;
+    v8::MaybeLocal<ObjectTemplate> maybe_global_template,
+    v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index) {
+  i::Handle<ObjectType> result;
 
   // Enter V8 via an ENTER_V8 scope.
   {
     ENTER_V8(isolate);
-    v8::Local<ObjectTemplate> proxy_template = global_template;
+    v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
 
-    if (!global_template.IsEmpty()) {
+    if (!maybe_global_template.IsEmpty()) {
+      v8::Local<v8::ObjectTemplate> global_template =
+          maybe_global_template.ToLocalChecked();
       // Make sure that the global_template has a constructor.
       global_constructor = EnsureConstructor(isolate, *global_template);
 
@@ -5684,17 +5715,18 @@ static i::Handle<i::Context> CreateEnvironment(
       }
     }
 
-    i::Handle<i::Object> proxy = Utils::OpenHandle(*maybe_global_proxy, true);
     i::MaybeHandle<i::JSGlobalProxy> maybe_proxy;
-    if (!proxy.is_null()) {
-      maybe_proxy = i::Handle<i::JSGlobalProxy>::cast(proxy);
+    if (!maybe_global_proxy.IsEmpty()) {
+      maybe_proxy = i::Handle<i::JSGlobalProxy>::cast(
+          Utils::OpenHandle(*maybe_global_proxy.ToLocalChecked()));
     }
     // Create the environment.
-    env = isolate->bootstrapper()->CreateEnvironment(
-        maybe_proxy, proxy_template, extensions, context_snapshot_index);
+    InvokeBootstrapper<ObjectType> invoke;
+    result = invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
+                           context_snapshot_index);
 
     // Restore the access check info on the global template.
-    if (!global_template.IsEmpty()) {
+    if (!maybe_global_template.IsEmpty()) {
       DCHECK(!global_constructor.is_null());
       DCHECK(!proxy_constructor.is_null());
       global_constructor->set_access_check_info(
@@ -5705,13 +5737,13 @@ static i::Handle<i::Context> CreateEnvironment(
   }
   // Leave V8.
 
-  return env;
+  return result;
 }
 
 Local<Context> NewContext(v8::Isolate* external_isolate,
                           v8::ExtensionConfiguration* extensions,
-                          v8::Local<ObjectTemplate> global_template,
-                          v8::Local<Value> global_object,
+                          v8::MaybeLocal<ObjectTemplate> global_template,
+                          v8::MaybeLocal<Value> global_object,
                           size_t context_snapshot_index) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   LOG_API(isolate, Context, New);
@@ -5719,8 +5751,8 @@ Local<Context> NewContext(v8::Isolate* external_isolate,
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;
   i::Handle<i::Context> env =
-      CreateEnvironment(isolate, extensions, global_template, global_object,
-                        context_snapshot_index);
+      CreateEnvironment<i::Context>(isolate, extensions, global_template,
+                                    global_object, context_snapshot_index);
   if (env.is_null()) {
     if (isolate->has_pending_exception()) {
       isolate->OptionalRescheduleException(true);
@@ -5732,8 +5764,8 @@ Local<Context> NewContext(v8::Isolate* external_isolate,
 
 Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::ExtensionConfiguration* extensions,
-                                v8::Local<ObjectTemplate> global_template,
-                                v8::Local<Value> global_object) {
+                                v8::MaybeLocal<ObjectTemplate> global_template,
+                                v8::MaybeLocal<Value> global_object) {
   return NewContext(external_isolate, extensions, global_template,
                     global_object, 0);
 }
@@ -5741,7 +5773,8 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
     v8::ExtensionConfiguration* extensions,
-    v8::Local<ObjectTemplate> global_template, v8::Local<Value> global_object) {
+    v8::MaybeLocal<ObjectTemplate> global_template,
+    v8::MaybeLocal<Value> global_object) {
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
           context_snapshot_index)) {
@@ -5749,6 +5782,36 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
   }
   return NewContext(external_isolate, extensions, global_template,
                     global_object, context_snapshot_index);
+}
+
+MaybeLocal<Object> v8::Context::NewRemoteContext(
+    v8::Isolate* external_isolate, v8::Local<ObjectTemplate> global_template,
+    v8::MaybeLocal<v8::Value> global_object) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  LOG_API(isolate, Context, NewRemoteContext);
+  i::HandleScope scope(isolate);
+  i::Handle<i::FunctionTemplateInfo> global_constructor =
+      EnsureConstructor(isolate, *global_template);
+  Utils::ApiCheck(global_constructor->needs_access_check(),
+                  "v8::Context::NewRemoteContext",
+                  "Global template needs to have access checks enabled.");
+  i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
+      i::AccessCheckInfo::cast(global_constructor->access_check_info()),
+      isolate);
+  Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
+                  "v8::Context::NewRemoteContext",
+                  "Global template needs to have access check handlers.");
+  i::Handle<i::JSGlobalProxy> global_proxy =
+      CreateEnvironment<i::JSGlobalProxy>(isolate, nullptr, global_template,
+                                          global_object, 0);
+  if (global_proxy.is_null()) {
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(true);
+    }
+    return MaybeLocal<Object>();
+  }
+  return Utils::ToLocal(
+      scope.CloseAndEscape(i::Handle<i::JSObject>::cast(global_proxy)));
 }
 
 void v8::Context::SetSecurityToken(Local<Value> token) {

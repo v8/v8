@@ -141,6 +141,8 @@ class Genesis BASE_EMBEDDED {
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
           GlobalContextType context_type);
+  Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+          v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() { }
 
   Isolate* isolate() const { return isolate_; }
@@ -148,6 +150,8 @@ class Genesis BASE_EMBEDDED {
   Heap* heap() const { return isolate_->heap(); }
 
   Handle<Context> result() { return result_; }
+
+  Handle<JSGlobalProxy> global_proxy() { return global_proxy_; }
 
  private:
   Handle<Context> native_context() { return native_context_; }
@@ -302,6 +306,7 @@ class Genesis BASE_EMBEDDED {
   Isolate* isolate_;
   Handle<Context> result_;
   Handle<Context> native_context_;
+  Handle<JSGlobalProxy> global_proxy_;
 
   // Function maps. Function maps are created initially with a read only
   // prototype for the processing of JS builtins. Later the function maps are
@@ -337,6 +342,15 @@ Handle<Context> Bootstrapper::CreateEnvironment(
   return scope.CloseAndEscape(env);
 }
 
+Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
+    MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+    v8::Local<v8::ObjectTemplate> global_proxy_template) {
+  HandleScope scope(isolate_);
+  Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template);
+  Handle<JSGlobalProxy> global_proxy = genesis.global_proxy();
+  if (global_proxy.is_null()) return Handle<JSGlobalProxy>();
+  return scope.CloseAndEscape(global_proxy);
+}
 
 static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
@@ -3884,6 +3898,8 @@ Genesis::Genesis(Isolate* isolate,
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
+  global_proxy_ = Handle<JSGlobalProxy>::null();
+
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   SaveContext saved_context(isolate);
@@ -3992,6 +4008,67 @@ Genesis::Genesis(Isolate* isolate,
   result_ = native_context();
 }
 
+Genesis::Genesis(Isolate* isolate,
+                 MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+                 v8::Local<v8::ObjectTemplate> global_proxy_template)
+    : isolate_(isolate), active_(isolate->bootstrapper()) {
+  NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
+  result_ = Handle<Context>::null();
+  global_proxy_ = Handle<JSGlobalProxy>::null();
+
+  // Before creating the roots we must save the context and restore it
+  // on all function exits.
+  SaveContext saved_context(isolate);
+
+  // During genesis, the boilerplate for stack overflow won't work until the
+  // environment has been at least partially initialized. Add a stack check
+  // before entering JS code to catch overflow early.
+  StackLimitCheck check(isolate);
+  if (check.HasOverflowed()) {
+    isolate->StackOverflow();
+    return;
+  }
+
+  Handle<JSGlobalProxy> global_proxy;
+  if (!maybe_global_proxy.ToHandle(&global_proxy)) {
+    global_proxy = factory()->NewUninitializedJSGlobalProxy();
+  }
+
+  // CreateNewGlobals.
+  Handle<ObjectTemplateInfo> global_proxy_data =
+      v8::Utils::OpenHandle(*global_proxy_template);
+  Handle<FunctionTemplateInfo> global_constructor(
+      FunctionTemplateInfo::cast(global_proxy_data->constructor()));
+  Handle<SharedFunctionInfo> shared =
+      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate,
+                                                          global_constructor);
+  Handle<Map> initial_map =
+      CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
+  Handle<JSFunction> global_proxy_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          initial_map, shared, factory()->undefined_value());
+  DCHECK_EQ(global_proxy_data->internal_field_count(), 0);
+  Handle<Map> global_proxy_map = isolate->factory()->NewMap(
+      JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize, FAST_HOLEY_SMI_ELEMENTS);
+  JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
+                            factory()->null_value());
+  global_proxy_map->set_is_access_check_needed(true);
+  global_proxy_map->set_is_callable();
+  global_proxy_map->set_is_constructor(true);
+  global_proxy_map->set_has_hidden_prototype(true);
+
+  Handle<String> global_name = factory()->global_string();
+  global_proxy_function->shared()->set_instance_class_name(*global_name);
+  factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
+
+  // HookUpGlobalProxy.
+  global_proxy->set_native_context(*factory()->null_value());
+
+  // DetachGlobal.
+  SetObjectPrototype(global_proxy, factory()->null_value());
+
+  global_proxy_ = global_proxy;
+}
 
 // Support for thread preemption.
 

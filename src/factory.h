@@ -502,6 +502,10 @@ class Factory final {
 
   Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy();
 
+  Handle<JSFunction> NewFunction(Handle<Map> map,
+                                 Handle<SharedFunctionInfo> info,
+                                 Handle<Object> context_or_undefined,
+                                 PretenureFlag pretenure = TENURED);
   Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
                                  Handle<Object> prototype,
                                  bool is_strict = false);
@@ -512,7 +516,7 @@ class Factory final {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Context> context, PretenureFlag pretenure = TENURED);
+      Handle<Object> context_or_undefined, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
@@ -708,12 +712,6 @@ class Factory final {
 
   // Update the cache with a new number-string pair.
   void SetNumberStringCache(Handle<Object> number, Handle<String> string);
-
-  // Creates a function initialized with a shared part.
-  Handle<JSFunction> NewFunction(Handle<Map> map,
-                                 Handle<SharedFunctionInfo> info,
-                                 Handle<Context> context,
-                                 PretenureFlag pretenure = TENURED);
 
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,

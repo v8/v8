@@ -1217,19 +1217,20 @@ DEFINE_ERROR(SyntaxError, syntax_error)
 DEFINE_ERROR(TypeError, type_error)
 #undef DEFINE_ERROR
 
-
 Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         Handle<SharedFunctionInfo> info,
-                                        Handle<Context> context,
+                                        Handle<Object> context_or_undefined,
                                         PretenureFlag pretenure) {
   AllocationSpace space = pretenure == TENURED ? OLD_SPACE : NEW_SPACE;
   Handle<JSFunction> function = New<JSFunction>(map, space);
+  DCHECK(context_or_undefined->IsContext() ||
+         context_or_undefined->IsUndefined(isolate()));
 
   function->initialize_properties();
   function->initialize_elements();
   function->set_shared(*info);
   function->set_code(info->code());
-  function->set_context(*context);
+  function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_literals(LiteralsArray::cast(*empty_literals_array()));
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
@@ -1362,20 +1363,21 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
                                            pretenure);
 }
 
-
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Context> context, PretenureFlag pretenure) {
+    Handle<Object> context_or_undefined, PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
-      NewFunction(initial_map, info, context, pretenure);
+      NewFunction(initial_map, info, context_or_undefined, pretenure);
 
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }
 
-  // Give compiler a chance to pre-initialize.
-  Compiler::PostInstantiation(result, pretenure);
+  if (context_or_undefined->IsContext()) {
+    // Give compiler a chance to pre-initialize.
+    Compiler::PostInstantiation(result, pretenure);
+  }
 
   return result;
 }

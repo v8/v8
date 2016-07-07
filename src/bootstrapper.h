@@ -82,6 +82,10 @@ class Bootstrapper final {
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
       GlobalContextType context_type = FULL_CONTEXT);
 
+  Handle<JSGlobalProxy> NewRemoteContext(
+      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+      v8::Local<v8::ObjectTemplate> global_object_template);
+
   // Detach the environment from its outer global object.
   void DetachGlobal(Handle<Context> env);
 

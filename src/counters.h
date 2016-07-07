@@ -531,6 +531,7 @@ class RuntimeCallTimer {
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
   V(Context_New)                                           \
+  V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
   V(Date_DateTimeConfigurationChangeNotification)          \
   V(Date_New)                                              \
