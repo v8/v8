@@ -159,8 +159,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
       DCHECK(!FLAG_enable_embedded_constant_pool);
       FrameScope scope(masm, StackFrame::MANUAL);
-      __ Push(r14, fp, cp, r3);
-      __ la(fp, MemOperand(sp, 2 * kPointerSize));
+      __ PushStandardFrame(r3);
       __ SmiTag(r2);
       __ SmiTag(r6);
       __ Push(r2, r6, r7);

@@ -820,6 +820,13 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ##############################################################################
+['arch == ppc64', {
+
+  # stack overflow
+  'big-array-literal': [SKIP],
+}],  # 'arch == ppc64'
+
+##############################################################################
 ['ignition or ignition_turbofan', {
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
