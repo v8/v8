@@ -190,6 +190,10 @@ class LookupIterator final BASE_EMBEDDED {
     DCHECK_EQ(TRANSITION, state_);
     return Handle<Map>::cast(transition_);
   }
+  Handle<PropertyCell> transition_cell() const {
+    DCHECK_EQ(TRANSITION, state_);
+    return Handle<PropertyCell>::cast(transition_);
+  }
   template <class T>
   Handle<T> GetHolder() const {
     DCHECK(IsFound());

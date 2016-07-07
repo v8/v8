@@ -1755,11 +1755,10 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::TRANSITION: {
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsJSGlobalObject()) {
-        // TODO(dcarney): this currently just deopts. Use the transition cell.
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransition);
-        auto cell = isolate()->factory()->NewPropertyCell();
+        Handle<PropertyCell> cell = lookup->transition_cell();
         cell->set_value(*value);
-        auto code = PropertyCellStoreHandler(
+        Handle<Code> code = PropertyCellStoreHandler(
             isolate(), store_target, Handle<JSGlobalObject>::cast(store_target),
             lookup->name(), cell, PropertyCellType::kConstant);
         cell->set_value(isolate()->heap()->the_hole_value());

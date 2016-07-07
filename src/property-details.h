@@ -209,7 +209,6 @@ static const int kMaxNumberOfDescriptors =
 static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
-
 enum class PropertyCellType {
   // Meaningful when a property cell does not contain the hole.
   kUndefined,     // The PREMONOMORPHIC of property cells.
@@ -219,12 +218,12 @@ enum class PropertyCellType {
 
   // Meaningful when a property cell contains the hole.
   kUninitialized = kUndefined,  // Cell has never been initialized.
-  kInvalidated = kConstant,     // Cell has been deleted or invalidated.
+  kInvalidated = kConstant,     // Cell has been deleted, invalidated or never
+                                // existed.
 
   // For dictionaries not holding cells.
   kNoCell = kMutable,
 };
-
 
 enum class PropertyCellConstantType {
   kSmi,
@@ -265,8 +264,9 @@ class PropertyDetails BASE_EMBEDDED {
              FieldIndexField::encode(field_index);
   }
 
-  static PropertyDetails Empty() {
-    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
+  static PropertyDetails Empty(
+      PropertyCellType cell_type = PropertyCellType::kNoCell) {
+    return PropertyDetails(NONE, DATA, 0, cell_type);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

@@ -995,6 +995,46 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
   os << "\n - value: " << Brief(value());
   os << "\n - details: " << property_details();
+  PropertyCellType cell_type = property_details().cell_type();
+  os << "\n - cell_type: ";
+  if (value()->IsTheHole(GetIsolate())) {
+    switch (cell_type) {
+      case PropertyCellType::kUninitialized:
+        os << "Uninitialized";
+        break;
+      case PropertyCellType::kInvalidated:
+        os << "Invalidated";
+        break;
+      default:
+        os << "??? " << static_cast<int>(cell_type);
+        break;
+    }
+  } else {
+    switch (cell_type) {
+      case PropertyCellType::kUndefined:
+        os << "Undefined";
+        break;
+      case PropertyCellType::kConstant:
+        os << "Constant";
+        break;
+      case PropertyCellType::kConstantType:
+        os << "ConstantType"
+           << " (";
+        switch (GetConstantType()) {
+          case PropertyCellConstantType::kSmi:
+            os << "Smi";
+            break;
+          case PropertyCellConstantType::kStableMap:
+            os << "StableMap";
+            break;
+        }
+        os << ")";
+        break;
+      case PropertyCellType::kMutable:
+        os << "Mutable";
+        break;
+    }
+  }
   os << "\n";
 }
 

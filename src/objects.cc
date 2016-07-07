@@ -1607,9 +1607,9 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalObject()) {
-    Handle<GlobalDictionary> property_dictionary(object->global_dictionary());
+    Handle<GlobalDictionary> dictionary(object->global_dictionary());
 
-    int entry = property_dictionary->FindEntry(name);
+    int entry = dictionary->FindEntry(name);
     if (entry == GlobalDictionary::kNotFound) {
       Isolate* isolate = object->GetIsolate();
       auto cell = isolate->factory()->NewPropertyCell();
@@ -1619,26 +1619,26 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                            : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
       value = cell;
-      property_dictionary =
-          GlobalDictionary::Add(property_dictionary, name, value, details);
-      object->set_properties(*property_dictionary);
+      dictionary = GlobalDictionary::Add(dictionary, name, value, details);
+      object->set_properties(*dictionary);
     } else {
-      PropertyCell::UpdateCell(property_dictionary, entry, value, details);
+      Handle<PropertyCell> cell =
+          PropertyCell::PrepareForValue(dictionary, entry, value, details);
+      cell->set_value(*value);
     }
   } else {
-    Handle<NameDictionary> property_dictionary(object->property_dictionary());
+    Handle<NameDictionary> dictionary(object->property_dictionary());
 
-    int entry = property_dictionary->FindEntry(name);
+    int entry = dictionary->FindEntry(name);
     if (entry == NameDictionary::kNotFound) {
-      property_dictionary =
-          NameDictionary::Add(property_dictionary, name, value, details);
-      object->set_properties(*property_dictionary);
+      dictionary = NameDictionary::Add(dictionary, name, value, details);
+      object->set_properties(*dictionary);
     } else {
-      PropertyDetails original_details = property_dictionary->DetailsAt(entry);
+      PropertyDetails original_details = dictionary->DetailsAt(entry);
       int enumeration_index = original_details.dictionary_index();
       DCHECK(enumeration_index > 0);
       details = details.set_index(enumeration_index);
-      property_dictionary->SetEntry(entry, name, value, details);
+      dictionary->SetEntry(entry, name, value, details);
     }
   }
 }
@@ -2848,51 +2848,6 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
   DataConstantDescriptor new_constant_desc(name, constant, attributes);
   return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
 }
-
-
-void JSObject::AddSlowProperty(Handle<JSObject> object,
-                               Handle<Name> name,
-                               Handle<Object> value,
-                               PropertyAttributes attributes) {
-  DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
-  if (object->IsJSGlobalObject()) {
-    Handle<GlobalDictionary> dict(object->global_dictionary());
-    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
-    int entry = dict->FindEntry(name);
-    // If there's a cell there, just invalidate and set the property.
-    if (entry != GlobalDictionary::kNotFound) {
-      PropertyCell::UpdateCell(dict, entry, value, details);
-      // TODO(ishell): move this to UpdateCell.
-      // Need to adjust the details.
-      int index = dict->NextEnumerationIndex();
-      dict->SetNextEnumerationIndex(index + 1);
-      PropertyCell* cell = PropertyCell::cast(dict->ValueAt(entry));
-      details = cell->property_details().set_index(index);
-      cell->set_property_details(details);
-
-    } else {
-      auto cell = isolate->factory()->NewPropertyCell();
-      cell->set_value(*value);
-      auto cell_type = value->IsUndefined(isolate)
-                           ? PropertyCellType::kUndefined
-                           : PropertyCellType::kConstant;
-      details = details.set_cell_type(cell_type);
-      value = cell;
-
-      Handle<GlobalDictionary> result =
-          GlobalDictionary::Add(dict, name, value, details);
-      if (*dict != *result) object->set_properties(*result);
-    }
-  } else {
-    Handle<NameDictionary> dict(object->property_dictionary());
-    PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
-    Handle<NameDictionary> result =
-        NameDictionary::Add(dict, name, value, details);
-    if (*dict != *result) object->set_properties(*result);
-  }
-}
-
 
 const char* Representation::Mnemonic() const {
   switch (kind_) {
@@ -4744,14 +4699,8 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     DCHECK_EQ(LookupIterator::TRANSITION, it->state());
     it->ApplyTransitionToDataProperty(receiver);
 
-    // TODO(verwaest): Encapsulate dictionary handling better.
-    if (receiver->map()->is_dictionary_map()) {
-      // TODO(dcarney): just populate TransitionPropertyCell here?
-      JSObject::AddSlowProperty(receiver, it->name(), value, attributes);
-    } else {
-      // Write the property value.
-      it->WriteDataValue(value);
-    }
+    // Write the property value.
+    it->WriteDataValue(value);
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
@@ -6088,9 +6037,8 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
 
     auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
     cell->set_value(isolate->heap()->the_hole_value());
-    // TODO(ishell): InvalidateForDelete
     cell->set_property_details(
-        cell->property_details().set_cell_type(PropertyCellType::kInvalidated));
+        PropertyDetails::Empty(PropertyCellType::kUninitialized));
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary());
     DCHECK_NE(NameDictionary::kNotFound, entry);
@@ -16508,13 +16456,14 @@ template Handle<UnseededNumberDictionary>
               uint32_t>::Shrink(Handle<UnseededNumberDictionary>, uint32_t);
 
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
-    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::Add(
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
 
 template Handle<GlobalDictionary>
-    Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name> >::Add(
-        Handle<GlobalDictionary>, Handle<Name>, Handle<Object>,
-        PropertyDetails);
+Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::Add(
+    Handle<GlobalDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
+    int*);
 
 template Handle<FixedArray> Dictionary<
     NameDictionary, NameDictionaryShape,
@@ -16525,18 +16474,14 @@ template Handle<FixedArray> Dictionary<
     Handle<Name> >::GenerateNewEnumerationIndices(Handle<NameDictionary>);
 
 template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    Add(Handle<SeededNumberDictionary>,
-        uint32_t,
-        Handle<Object>,
-        PropertyDetails);
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::Add(
+    Handle<SeededNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
+    int*);
 
 template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    Add(Handle<UnseededNumberDictionary>,
-        uint32_t,
-        Handle<Object>,
-        PropertyDetails);
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape,
+           uint32_t>::Add(Handle<UnseededNumberDictionary>, uint32_t,
+                          Handle<Object>, PropertyDetails, int*);
 
 template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -16859,29 +16804,35 @@ void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
   PropertyCell::InvalidateEntry(dictionary, entry);
 }
 
-
-// TODO(ishell): rename to EnsureEmptyPropertyCell or something.
-Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
-    Handle<JSGlobalObject> global, Handle<Name> name) {
+Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
+    Handle<JSGlobalObject> global, Handle<Name> name,
+    PropertyCellType cell_type, int* entry_out) {
   Isolate* isolate = global->GetIsolate();
   DCHECK(!global->HasFastProperties());
-  auto dictionary = handle(global->global_dictionary(), isolate);
+  Handle<GlobalDictionary> dictionary(global->global_dictionary(), isolate);
   int entry = dictionary->FindEntry(name);
   Handle<PropertyCell> cell;
   if (entry != GlobalDictionary::kNotFound) {
+    if (entry_out) *entry_out = entry;
     // This call should be idempotent.
     DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
     cell = handle(PropertyCell::cast(dictionary->ValueAt(entry)));
-    DCHECK(cell->property_details().cell_type() ==
-               PropertyCellType::kUninitialized ||
-           cell->property_details().cell_type() ==
-               PropertyCellType::kInvalidated);
+    PropertyCellType original_cell_type = cell->property_details().cell_type();
+    DCHECK(original_cell_type == PropertyCellType::kInvalidated ||
+           original_cell_type == PropertyCellType::kUninitialized);
     DCHECK(cell->value()->IsTheHole(isolate));
+    if (original_cell_type == PropertyCellType::kInvalidated) {
+      cell = PropertyCell::InvalidateEntry(dictionary, entry);
+    }
+    PropertyDetails details(NONE, DATA, 0, cell_type);
+    cell->set_property_details(details);
     return cell;
   }
   cell = isolate->factory()->NewPropertyCell();
-  PropertyDetails details(NONE, DATA, 0, PropertyCellType::kUninitialized);
-  dictionary = GlobalDictionary::Add(dictionary, name, cell, details);
+  PropertyDetails details(NONE, DATA, 0, cell_type);
+  dictionary =
+      GlobalDictionary::Add(dictionary, name, cell, details, entry_out);
+  // {*entry_out} is initialized inside GlobalDictionary::Add().
   global->set_properties(*dictionary);
   return cell;
 }
@@ -17380,31 +17331,28 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
   return dictionary;
 }
 
-
-template<typename Derived, typename Shape, typename Key>
-Handle<Derived> Dictionary<Derived, Shape, Key>::Add(
-    Handle<Derived> dictionary,
-    Key key,
-    Handle<Object> value,
-    PropertyDetails details) {
+template <typename Derived, typename Shape, typename Key>
+Handle<Derived> Dictionary<Derived, Shape, Key>::Add(Handle<Derived> dictionary,
+                                                     Key key,
+                                                     Handle<Object> value,
+                                                     PropertyDetails details,
+                                                     int* entry_out) {
   // Valdate key is absent.
   SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1, key);
 
-  AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  int entry = AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  if (entry_out) *entry_out = entry;
   return dictionary;
 }
 
-
-// Add a key, value pair to the dictionary.
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::AddEntry(
-    Handle<Derived> dictionary,
-    Key key,
-    Handle<Object> value,
-    PropertyDetails details,
-    uint32_t hash) {
+// Add a key, value pair to the dictionary. Returns entry value.
+template <typename Derived, typename Shape, typename Key>
+int Dictionary<Derived, Shape, Key>::AddEntry(Handle<Derived> dictionary,
+                                              Key key, Handle<Object> value,
+                                              PropertyDetails details,
+                                              uint32_t hash) {
   // Compute the key object.
   Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
 
@@ -17421,6 +17369,7 @@ void Dictionary<Derived, Shape, Key>::AddEntry(
   DCHECK((dictionary->KeyAt(entry)->IsNumber() ||
           dictionary->KeyAt(entry)->IsName()));
   dictionary->ElementAdded();
+  return entry;
 }
 
 bool SeededNumberDictionary::HasComplexElements() {
@@ -18811,13 +18760,13 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   // Swap with a copy.
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
   Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
-  auto new_cell = isolate->factory()->NewPropertyCell();
+  Handle<PropertyCell> new_cell = isolate->factory()->NewPropertyCell();
   new_cell->set_value(cell->value());
   dictionary->ValueAtPut(entry, *new_cell);
   bool is_the_hole = cell->value()->IsTheHole(isolate);
   // Cell is officially mutable henceforth.
   PropertyDetails details = cell->property_details();
-  details = details.set_cell_type(is_the_hole ? PropertyCellType::kInvalidated
+  details = details.set_cell_type(is_the_hole ? PropertyCellType::kUninitialized
                                               : PropertyCellType::kMutable);
   new_cell->set_property_details(details);
   // Old cell is ready for invalidation.
@@ -18891,9 +18840,9 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
   return PropertyCellType::kMutable;
 }
 
-
-void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
-                              Handle<Object> value, PropertyDetails details) {
+Handle<PropertyCell> PropertyCell::PrepareForValue(
+    Handle<GlobalDictionary> dictionary, int entry, Handle<Object> value,
+    PropertyDetails details) {
   Isolate* isolate = dictionary->GetIsolate();
   DCHECK(!value->IsTheHole(isolate));
   DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
@@ -18909,8 +18858,6 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
   if (cell->value()->IsTheHole(isolate)) {
     index = dictionary->NextEnumerationIndex();
     dictionary->SetNextEnumerationIndex(index + 1);
-    // Negative lookup cells must be invalidated.
-    invalidate = true;
   }
   DCHECK(index > 0);
   details = details.set_index(index);
@@ -18918,10 +18865,9 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
   PropertyCellType new_type = UpdatedType(cell, value, original_details);
   if (invalidate) cell = PropertyCell::InvalidateEntry(dictionary, entry);
 
-  // Install new property details and cell value.
+  // Install new property details.
   details = details.set_cell_type(new_type);
   cell->set_property_details(details);
-  cell->set_value(*value);
 
   // Deopt when transitioning from a constant type.
   if (!invalidate && (old_type != new_type ||
@@ -18929,6 +18875,7 @@ void PropertyCell::UpdateCell(Handle<GlobalDictionary> dictionary, int entry,
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
   }
+  return cell;
 }
 
 

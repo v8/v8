@@ -220,6 +220,16 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     return;
   }
 
+  if (holder->IsJSGlobalObject()) {
+    Handle<GlobalDictionary> dictionary(holder->global_dictionary());
+    Handle<PropertyCell> cell(
+        PropertyCell::cast(dictionary->ValueAt(dictionary_entry())));
+    DCHECK(!cell->IsTheHole(isolate_));
+    property_details_ = cell->property_details();
+    PropertyCell::PrepareForValue(dictionary, dictionary_entry(), value,
+                                  property_details_);
+    return;
+  }
   if (!holder->HasFastProperties()) return;
 
   Handle<Map> old_map(holder->map(), isolate_);
@@ -252,20 +262,34 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     holder->GetElementsAccessor()->Reconfigure(holder, elements, number_, value,
                                                attributes);
     ReloadPropertyInformation<true>();
-  } else {
-    if (!holder->HasFastProperties()) {
-      PropertyDetails details(attributes, v8::internal::DATA, 0,
-                              PropertyCellType::kMutable);
-      JSObject::SetNormalizedProperty(holder, name(), value, details);
-    } else {
-      Handle<Map> old_map(holder->map(), isolate_);
-      Handle<Map> new_map = Map::ReconfigureExistingProperty(
-          old_map, descriptor_number(), i::kData, attributes);
-      new_map =
-          Map::PrepareForDataProperty(new_map, descriptor_number(), value);
-      JSObject::MigrateToMap(holder, new_map);
-    }
+  } else if (holder->HasFastProperties()) {
+    Handle<Map> old_map(holder->map(), isolate_);
+    Handle<Map> new_map = Map::ReconfigureExistingProperty(
+        old_map, descriptor_number(), i::kData, attributes);
+    new_map = Map::PrepareForDataProperty(new_map, descriptor_number(), value);
+    JSObject::MigrateToMap(holder, new_map);
     ReloadPropertyInformation<false>();
+  } else {
+    PropertyDetails details(attributes, v8::internal::DATA, 0,
+                            PropertyCellType::kMutable);
+    if (holder->IsJSGlobalObject()) {
+      Handle<GlobalDictionary> dictionary(holder->global_dictionary());
+
+      Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
+          dictionary, dictionary_entry(), value, details);
+      cell->set_value(*value);
+      property_details_ = cell->property_details();
+    } else {
+      Handle<NameDictionary> dictionary(holder->property_dictionary());
+      PropertyDetails original_details =
+          dictionary->DetailsAt(dictionary_entry());
+      int enumeration_index = original_details.dictionary_index();
+      DCHECK(enumeration_index > 0);
+      details = details.set_index(enumeration_index);
+      dictionary->SetEntry(dictionary_entry(), name(), value, details);
+      property_details_ = details;
+    }
+    state_ = DATA;
   }
 
   WriteDataValue(value);
@@ -297,11 +321,31 @@ void LookupIterator::PrepareTransitionToDataProperty(
     state_ = TRANSITION;
     if (map->IsJSGlobalObjectMap()) {
       // Install a property cell.
-      auto cell = JSGlobalObject::EnsurePropertyCell(
-          Handle<JSGlobalObject>::cast(receiver), name());
+      Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
+      int entry;
+      Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
+          global, name(), PropertyCellType::kUninitialized, &entry);
+      Handle<GlobalDictionary> dictionary(global->global_dictionary(),
+                                          isolate_);
       DCHECK(cell->value()->IsTheHole(isolate_));
+      DCHECK(!value->IsTheHole(isolate_));
       transition_ = cell;
+      // Assign an enumeration index to the property and update
+      // SetNextEnumerationIndex.
+      int index = dictionary->NextEnumerationIndex();
+      dictionary->SetNextEnumerationIndex(index + 1);
+      property_details_ = PropertyDetails(attributes, i::DATA, index,
+                                          PropertyCellType::kUninitialized);
+      PropertyCellType new_type =
+          PropertyCell::UpdatedType(cell, value, property_details_);
+      property_details_ = property_details_.set_cell_type(new_type);
+      cell->set_property_details(property_details_);
+      number_ = entry;
+      has_property_ = true;
     } else {
+      // Don't set enumeration index (it will be set during value store).
+      property_details_ =
+          PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
       transition_ = map;
     }
     return;
@@ -322,9 +366,11 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
-
-  if (receiver->IsJSGlobalObject()) return;
   holder_ = receiver;
+  if (receiver->IsJSGlobalObject()) {
+    state_ = DATA;
+    return;
+  }
   Handle<Map> transition = transition_map();
   bool simple_transition = transition->GetBackPointer() == receiver->map();
   JSObject::MigrateToMap(receiver, transition);
@@ -334,6 +380,20 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     number_ = static_cast<uint32_t>(number);
     property_details_ = transition->GetLastDescriptorDetails();
     state_ = DATA;
+  } else if (receiver->map()->is_dictionary_map()) {
+    Handle<NameDictionary> dictionary(receiver->property_dictionary(),
+                                      isolate_);
+    int entry;
+    dictionary = NameDictionary::Add(dictionary, name(),
+                                     isolate_->factory()->uninitialized_value(),
+                                     property_details_, &entry);
+    receiver->set_properties(*dictionary);
+    // Reload details containing proper enumeration index value.
+    property_details_ = dictionary->DetailsAt(entry);
+    number_ = entry;
+    has_property_ = true;
+    state_ = DATA;
+
   } else {
     ReloadPropertyInformation<false>();
   }
@@ -572,11 +632,10 @@ Handle<FieldType> LookupIterator::GetFieldType() const {
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   DCHECK(!IsElement());
-  Handle<JSObject> holder = GetHolder<JSObject>();
-  Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(holder);
-  Object* value = global->global_dictionary()->ValueAt(dictionary_entry());
+  Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
+  Object* value = holder->global_dictionary()->ValueAt(dictionary_entry());
   DCHECK(value->IsPropertyCell());
-  return handle(PropertyCell::cast(value));
+  return handle(PropertyCell::cast(value), isolate_);
 }
 
 
@@ -608,13 +667,13 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
       DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
     }
   } else if (holder->IsJSGlobalObject()) {
-    Handle<GlobalDictionary> property_dictionary =
-        handle(JSObject::cast(*holder)->global_dictionary());
-    PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
-                             property_details_);
+    GlobalDictionary* dictionary = JSObject::cast(*holder)->global_dictionary();
+    Object* cell = dictionary->ValueAt(dictionary_entry());
+    DCHECK(cell->IsPropertyCell());
+    PropertyCell::cast(cell)->set_value(*value);
   } else {
-    NameDictionary* property_dictionary = holder->property_dictionary();
-    property_dictionary->ValueAtPut(dictionary_entry(), *value);
+    NameDictionary* dictionary = holder->property_dictionary();
+    dictionary->ValueAtPut(dictionary_entry(), *value);
   }
 }
 
