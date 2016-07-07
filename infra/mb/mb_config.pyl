@@ -60,7 +60,7 @@
       'V8 Linux ASAN mipsel - debug builder':
           'gyp_debug_simulate_mipsel_asan_edge',
       # Misc.
-      'V8 Linux gcc 4.8': 'gyp_release_x86_gcc',
+      'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
       # FYI.
       'V8 Linux - swarming staging': 'gn_release_x64',
       # TODO(machenbach): Figure out if symbolized is still needed. The
@@ -138,8 +138,8 @@
       'v8_linux_gc_stress_dbg': 'gyp_debug_x86_trybot',
       'v8_linux_nosnap_rel': 'gn_release_x86_no_snap_trybot',
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
-      'v8_linux_gcc_compile_rel': 'gyp_release_x86_gcc_minimal_symbols',
-      'v8_linux_gcc_rel': 'gyp_release_x86_gcc_minimal_symbols',
+      'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
+      'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux64_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
@@ -210,6 +210,10 @@
     # GN release configs for x86.
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
+    'gn_release_x86_gcc': [
+      'gn', 'release_bot', 'x86', 'gcc'],
+    'gn_release_x86_gcc_minimal_symbols': [
+      'gn', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'gn_release_x86_gcmole': [
       'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_gcmole_trybot': [
@@ -340,10 +344,6 @@
       'gyp', 'release_bot', 'x86', 'swarming'],
     'gyp_release_x86_disassembler': [
       'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
-    'gyp_release_x86_gcc': [
-      'gyp', 'release_bot', 'x86', 'gcc'],
-    'gyp_release_x86_gcc_minimal_symbols': [
-      'gyp', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'gyp_release_x86_interpreted_regexp': [
       'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
     'gyp_release_x86_minimal_symbols': [
