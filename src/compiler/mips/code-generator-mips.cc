@@ -1328,6 +1328,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister scratch = kScratchDoubleReg;
       __ trunc_w_s(scratch, i.InputDoubleRegister(0));
       __ mfc1(i.OutputRegister(), scratch);
+      // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
+      // because INT32_MIN allows easier out-of-bounds detection.
+      __ addiu(kScratchReg, i.OutputRegister(), 1);
+      __ slt(kScratchReg2, kScratchReg, i.OutputRegister());
+      __ Movn(i.OutputRegister(), kScratchReg, kScratchReg2);
       break;
     }
     case kMipsTruncUwD: {
@@ -1340,6 +1345,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister scratch = kScratchDoubleReg;
       // TODO(plind): Fix wrong param order of Trunc_uw_s() macro-asm function.
       __ Trunc_uw_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
+      // because 0 allows easier out-of-bounds detection.
+      __ addiu(kScratchReg, i.OutputRegister(), 1);
+      __ Movz(i.OutputRegister(), zero_reg, kScratchReg);
       break;
     }
     case kMipsFloat64ExtractLowWord32:
