@@ -2092,7 +2092,6 @@
           'js/macros.py',
           'messages.h',
           'js/harmony-atomics.js',
-          'js/harmony-sharedarraybuffer.js',
           'js/harmony-simd.js',
           'js/harmony-string-padding.js',
           'js/promise-extra.js',

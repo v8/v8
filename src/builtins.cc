@@ -5627,6 +5627,14 @@ BUILTIN(ArrayBufferPrototypeGetByteLength) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSArrayBuffer, array_buffer,
                  "get ArrayBuffer.prototype.byteLength");
+
+  if (array_buffer->is_shared()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "get ArrayBuffer.prototype.byteLength"),
+                              args.receiver()));
+  }
   // TODO(franzih): According to the ES6 spec, we should throw a TypeError
   // here if the JSArrayBuffer is detached.
   return array_buffer->byte_length();
@@ -5640,6 +5648,20 @@ BUILTIN(ArrayBufferIsView) {
   return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
 }
 
+// ES7 sharedmem 6.3.4.1 get SharedArrayBuffer.prototype.byteLength
+BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSArrayBuffer, array_buffer,
+                 "get SharedArrayBuffer.prototype.byteLength");
+  if (!array_buffer->is_shared()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "get SharedArrayBuffer.prototype.byteLength"),
+                              args.receiver()));
+  }
+  return array_buffer->byte_length();
+}
 
 // ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Call]] case.
 BUILTIN(ProxyConstructor) {

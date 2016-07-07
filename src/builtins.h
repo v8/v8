@@ -39,147 +39,149 @@ class CodeStubAssembler;
   V(Make##C##CodeYoungAgainEvenMarking, BUILTIN, kNoExtraICState)
 
 // Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                               \
-  V(Illegal, BUILTIN_EXIT)                              \
-                                                        \
-  V(EmptyFunction, BUILTIN_EXIT)                        \
-                                                        \
-  V(ArrayConcat, BUILTIN_EXIT)                          \
-  V(ArrayPop, BUILTIN_EXIT)                             \
-  V(ArrayPush, BUILTIN_EXIT)                            \
-  V(ArrayShift, BUILTIN_EXIT)                           \
-  V(ArraySlice, BUILTIN_EXIT)                           \
-  V(ArraySplice, BUILTIN_EXIT)                          \
-  V(ArrayUnshift, BUILTIN_EXIT)                         \
-                                                        \
-  V(ArrayBufferConstructor, BUILTIN_EXIT)               \
-  V(ArrayBufferConstructor_ConstructStub, BUILTIN_EXIT) \
-  V(ArrayBufferPrototypeGetByteLength, BUILTIN_EXIT)    \
-  V(ArrayBufferIsView, BUILTIN_EXIT)                    \
-                                                        \
-  V(BooleanConstructor, BUILTIN_EXIT)                   \
-  V(BooleanConstructor_ConstructStub, BUILTIN_EXIT)     \
-                                                        \
-  V(DataViewConstructor, BUILTIN_EXIT)                  \
-  V(DataViewConstructor_ConstructStub, BUILTIN_EXIT)    \
-  V(DataViewPrototypeGetBuffer, BUILTIN_EXIT)           \
-  V(DataViewPrototypeGetByteLength, BUILTIN_EXIT)       \
-  V(DataViewPrototypeGetByteOffset, BUILTIN_EXIT)       \
-                                                        \
-  V(DateConstructor, BUILTIN_EXIT)                      \
-  V(DateConstructor_ConstructStub, BUILTIN_EXIT)        \
-  V(DateNow, BUILTIN_EXIT)                              \
-  V(DateParse, BUILTIN_EXIT)                            \
-  V(DateUTC, BUILTIN_EXIT)                              \
-  V(DatePrototypeSetDate, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetFullYear, BUILTIN_EXIT)             \
-  V(DatePrototypeSetHours, BUILTIN_EXIT)                \
-  V(DatePrototypeSetMilliseconds, BUILTIN_EXIT)         \
-  V(DatePrototypeSetMinutes, BUILTIN_EXIT)              \
-  V(DatePrototypeSetMonth, BUILTIN_EXIT)                \
-  V(DatePrototypeSetSeconds, BUILTIN_EXIT)              \
-  V(DatePrototypeSetTime, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetUTCDate, BUILTIN_EXIT)              \
-  V(DatePrototypeSetUTCFullYear, BUILTIN_EXIT)          \
-  V(DatePrototypeSetUTCHours, BUILTIN_EXIT)             \
-  V(DatePrototypeSetUTCMilliseconds, BUILTIN_EXIT)      \
-  V(DatePrototypeSetUTCMinutes, BUILTIN_EXIT)           \
-  V(DatePrototypeSetUTCMonth, BUILTIN_EXIT)             \
-  V(DatePrototypeSetUTCSeconds, BUILTIN_EXIT)           \
-  V(DatePrototypeToDateString, BUILTIN_EXIT)            \
-  V(DatePrototypeToISOString, BUILTIN_EXIT)             \
-  V(DatePrototypeToPrimitive, BUILTIN_EXIT)             \
-  V(DatePrototypeToUTCString, BUILTIN_EXIT)             \
-  V(DatePrototypeToString, BUILTIN_EXIT)                \
-  V(DatePrototypeToTimeString, BUILTIN_EXIT)            \
-  V(DatePrototypeValueOf, BUILTIN_EXIT)                 \
-  V(DatePrototypeGetYear, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetYear, BUILTIN_EXIT)                 \
-  V(DatePrototypeToJson, BUILTIN_EXIT)                  \
-                                                        \
-  V(FunctionConstructor, BUILTIN_EXIT)                  \
-  V(FunctionPrototypeBind, BUILTIN_EXIT)                \
-  V(FunctionPrototypeToString, BUILTIN_EXIT)            \
-                                                        \
-  V(GeneratorFunctionConstructor, BUILTIN_EXIT)         \
-  V(AsyncFunctionConstructor, BUILTIN_EXIT)             \
-                                                        \
-  V(GlobalDecodeURI, BUILTIN_EXIT)                      \
-  V(GlobalDecodeURIComponent, BUILTIN_EXIT)             \
-  V(GlobalEncodeURI, BUILTIN_EXIT)                      \
-  V(GlobalEncodeURIComponent, BUILTIN_EXIT)             \
-  V(GlobalEscape, BUILTIN_EXIT)                         \
-  V(GlobalUnescape, BUILTIN_EXIT)                       \
-                                                        \
-  V(GlobalEval, BUILTIN_EXIT)                           \
-                                                        \
-  V(JsonParse, BUILTIN_EXIT)                            \
-  V(JsonStringify, BUILTIN_EXIT)                        \
-                                                        \
-  V(MathHypot, BUILTIN_EXIT)                            \
-                                                        \
-  V(NumberPrototypeToExponential, BUILTIN_EXIT)         \
-  V(NumberPrototypeToFixed, BUILTIN_EXIT)               \
-  V(NumberPrototypeToLocaleString, BUILTIN_EXIT)        \
-  V(NumberPrototypeToPrecision, BUILTIN_EXIT)           \
-  V(NumberPrototypeToString, BUILTIN_EXIT)              \
-                                                        \
-  V(ObjectAssign, BUILTIN_EXIT)                         \
-  V(ObjectCreate, BUILTIN_EXIT)                         \
-  V(ObjectDefineGetter, BUILTIN_EXIT)                   \
-  V(ObjectDefineProperties, BUILTIN_EXIT)               \
-  V(ObjectDefineProperty, BUILTIN_EXIT)                 \
-  V(ObjectDefineSetter, BUILTIN_EXIT)                   \
-  V(ObjectEntries, BUILTIN_EXIT)                        \
-  V(ObjectFreeze, BUILTIN_EXIT)                         \
-  V(ObjectGetOwnPropertyDescriptor, BUILTIN_EXIT)       \
-  V(ObjectGetOwnPropertyDescriptors, BUILTIN_EXIT)      \
-  V(ObjectGetOwnPropertyNames, BUILTIN_EXIT)            \
-  V(ObjectGetOwnPropertySymbols, BUILTIN_EXIT)          \
-  V(ObjectGetPrototypeOf, BUILTIN_EXIT)                 \
-  V(ObjectIs, BUILTIN_EXIT)                             \
-  V(ObjectIsExtensible, BUILTIN_EXIT)                   \
-  V(ObjectIsFrozen, BUILTIN_EXIT)                       \
-  V(ObjectIsSealed, BUILTIN_EXIT)                       \
-  V(ObjectKeys, BUILTIN_EXIT)                           \
-  V(ObjectLookupGetter, BUILTIN_EXIT)                   \
-  V(ObjectLookupSetter, BUILTIN_EXIT)                   \
-  V(ObjectPreventExtensions, BUILTIN_EXIT)              \
-  V(ObjectProtoToString, BUILTIN_EXIT)                  \
-  V(ObjectSeal, BUILTIN_EXIT)                           \
-  V(ObjectValues, BUILTIN_EXIT)                         \
-                                                        \
-  V(ProxyConstructor, BUILTIN_EXIT)                     \
-  V(ProxyConstructor_ConstructStub, BUILTIN_EXIT)       \
-                                                        \
-  V(ReflectDefineProperty, BUILTIN_EXIT)                \
-  V(ReflectDeleteProperty, BUILTIN_EXIT)                \
-  V(ReflectGet, BUILTIN_EXIT)                           \
-  V(ReflectGetOwnPropertyDescriptor, BUILTIN_EXIT)      \
-  V(ReflectGetPrototypeOf, BUILTIN_EXIT)                \
-  V(ReflectHas, BUILTIN_EXIT)                           \
-  V(ReflectIsExtensible, BUILTIN_EXIT)                  \
-  V(ReflectOwnKeys, BUILTIN_EXIT)                       \
-  V(ReflectPreventExtensions, BUILTIN_EXIT)             \
-  V(ReflectSet, BUILTIN_EXIT)                           \
-  V(ReflectSetPrototypeOf, BUILTIN_EXIT)                \
-                                                        \
-  V(StringFromCodePoint, BUILTIN_EXIT)                  \
-                                                        \
-  V(StringPrototypeTrim, BUILTIN_EXIT)                  \
-  V(StringPrototypeTrimLeft, BUILTIN_EXIT)              \
-  V(StringPrototypeTrimRight, BUILTIN_EXIT)             \
-                                                        \
-  V(SymbolConstructor, BUILTIN_EXIT)                    \
-  V(SymbolConstructor_ConstructStub, BUILTIN_EXIT)      \
-                                                        \
-  V(TypedArrayPrototypeBuffer, BUILTIN_EXIT)            \
-                                                        \
-  V(HandleApiCall, EXIT)                                \
-  V(HandleApiCallAsFunction, EXIT)                      \
-  V(HandleApiCallAsConstructor, EXIT)                   \
-                                                        \
-  V(RestrictedFunctionPropertiesThrower, BUILTIN_EXIT)  \
+#define BUILTIN_LIST_C(V)                                  \
+  V(Illegal, BUILTIN_EXIT)                                 \
+                                                           \
+  V(EmptyFunction, BUILTIN_EXIT)                           \
+                                                           \
+  V(ArrayConcat, BUILTIN_EXIT)                             \
+  V(ArrayPop, BUILTIN_EXIT)                                \
+  V(ArrayPush, BUILTIN_EXIT)                               \
+  V(ArrayShift, BUILTIN_EXIT)                              \
+  V(ArraySlice, BUILTIN_EXIT)                              \
+  V(ArraySplice, BUILTIN_EXIT)                             \
+  V(ArrayUnshift, BUILTIN_EXIT)                            \
+                                                           \
+  V(ArrayBufferConstructor, BUILTIN_EXIT)                  \
+  V(ArrayBufferConstructor_ConstructStub, BUILTIN_EXIT)    \
+  V(ArrayBufferPrototypeGetByteLength, BUILTIN_EXIT)       \
+  V(ArrayBufferIsView, BUILTIN_EXIT)                       \
+                                                           \
+  V(BooleanConstructor, BUILTIN_EXIT)                      \
+  V(BooleanConstructor_ConstructStub, BUILTIN_EXIT)        \
+                                                           \
+  V(DataViewConstructor, BUILTIN_EXIT)                     \
+  V(DataViewConstructor_ConstructStub, BUILTIN_EXIT)       \
+  V(DataViewPrototypeGetBuffer, BUILTIN_EXIT)              \
+  V(DataViewPrototypeGetByteLength, BUILTIN_EXIT)          \
+  V(DataViewPrototypeGetByteOffset, BUILTIN_EXIT)          \
+                                                           \
+  V(DateConstructor, BUILTIN_EXIT)                         \
+  V(DateConstructor_ConstructStub, BUILTIN_EXIT)           \
+  V(DateNow, BUILTIN_EXIT)                                 \
+  V(DateParse, BUILTIN_EXIT)                               \
+  V(DateUTC, BUILTIN_EXIT)                                 \
+  V(DatePrototypeSetDate, BUILTIN_EXIT)                    \
+  V(DatePrototypeSetFullYear, BUILTIN_EXIT)                \
+  V(DatePrototypeSetHours, BUILTIN_EXIT)                   \
+  V(DatePrototypeSetMilliseconds, BUILTIN_EXIT)            \
+  V(DatePrototypeSetMinutes, BUILTIN_EXIT)                 \
+  V(DatePrototypeSetMonth, BUILTIN_EXIT)                   \
+  V(DatePrototypeSetSeconds, BUILTIN_EXIT)                 \
+  V(DatePrototypeSetTime, BUILTIN_EXIT)                    \
+  V(DatePrototypeSetUTCDate, BUILTIN_EXIT)                 \
+  V(DatePrototypeSetUTCFullYear, BUILTIN_EXIT)             \
+  V(DatePrototypeSetUTCHours, BUILTIN_EXIT)                \
+  V(DatePrototypeSetUTCMilliseconds, BUILTIN_EXIT)         \
+  V(DatePrototypeSetUTCMinutes, BUILTIN_EXIT)              \
+  V(DatePrototypeSetUTCMonth, BUILTIN_EXIT)                \
+  V(DatePrototypeSetUTCSeconds, BUILTIN_EXIT)              \
+  V(DatePrototypeToDateString, BUILTIN_EXIT)               \
+  V(DatePrototypeToISOString, BUILTIN_EXIT)                \
+  V(DatePrototypeToPrimitive, BUILTIN_EXIT)                \
+  V(DatePrototypeToUTCString, BUILTIN_EXIT)                \
+  V(DatePrototypeToString, BUILTIN_EXIT)                   \
+  V(DatePrototypeToTimeString, BUILTIN_EXIT)               \
+  V(DatePrototypeValueOf, BUILTIN_EXIT)                    \
+  V(DatePrototypeGetYear, BUILTIN_EXIT)                    \
+  V(DatePrototypeSetYear, BUILTIN_EXIT)                    \
+  V(DatePrototypeToJson, BUILTIN_EXIT)                     \
+                                                           \
+  V(FunctionConstructor, BUILTIN_EXIT)                     \
+  V(FunctionPrototypeBind, BUILTIN_EXIT)                   \
+  V(FunctionPrototypeToString, BUILTIN_EXIT)               \
+                                                           \
+  V(GeneratorFunctionConstructor, BUILTIN_EXIT)            \
+  V(AsyncFunctionConstructor, BUILTIN_EXIT)                \
+                                                           \
+  V(GlobalDecodeURI, BUILTIN_EXIT)                         \
+  V(GlobalDecodeURIComponent, BUILTIN_EXIT)                \
+  V(GlobalEncodeURI, BUILTIN_EXIT)                         \
+  V(GlobalEncodeURIComponent, BUILTIN_EXIT)                \
+  V(GlobalEscape, BUILTIN_EXIT)                            \
+  V(GlobalUnescape, BUILTIN_EXIT)                          \
+                                                           \
+  V(GlobalEval, BUILTIN_EXIT)                              \
+                                                           \
+  V(JsonParse, BUILTIN_EXIT)                               \
+  V(JsonStringify, BUILTIN_EXIT)                           \
+                                                           \
+  V(MathHypot, BUILTIN_EXIT)                               \
+                                                           \
+  V(NumberPrototypeToExponential, BUILTIN_EXIT)            \
+  V(NumberPrototypeToFixed, BUILTIN_EXIT)                  \
+  V(NumberPrototypeToLocaleString, BUILTIN_EXIT)           \
+  V(NumberPrototypeToPrecision, BUILTIN_EXIT)              \
+  V(NumberPrototypeToString, BUILTIN_EXIT)                 \
+                                                           \
+  V(ObjectAssign, BUILTIN_EXIT)                            \
+  V(ObjectCreate, BUILTIN_EXIT)                            \
+  V(ObjectDefineGetter, BUILTIN_EXIT)                      \
+  V(ObjectDefineProperties, BUILTIN_EXIT)                  \
+  V(ObjectDefineProperty, BUILTIN_EXIT)                    \
+  V(ObjectDefineSetter, BUILTIN_EXIT)                      \
+  V(ObjectEntries, BUILTIN_EXIT)                           \
+  V(ObjectFreeze, BUILTIN_EXIT)                            \
+  V(ObjectGetOwnPropertyDescriptor, BUILTIN_EXIT)          \
+  V(ObjectGetOwnPropertyDescriptors, BUILTIN_EXIT)         \
+  V(ObjectGetOwnPropertyNames, BUILTIN_EXIT)               \
+  V(ObjectGetOwnPropertySymbols, BUILTIN_EXIT)             \
+  V(ObjectGetPrototypeOf, BUILTIN_EXIT)                    \
+  V(ObjectIs, BUILTIN_EXIT)                                \
+  V(ObjectIsExtensible, BUILTIN_EXIT)                      \
+  V(ObjectIsFrozen, BUILTIN_EXIT)                          \
+  V(ObjectIsSealed, BUILTIN_EXIT)                          \
+  V(ObjectKeys, BUILTIN_EXIT)                              \
+  V(ObjectLookupGetter, BUILTIN_EXIT)                      \
+  V(ObjectLookupSetter, BUILTIN_EXIT)                      \
+  V(ObjectPreventExtensions, BUILTIN_EXIT)                 \
+  V(ObjectProtoToString, BUILTIN_EXIT)                     \
+  V(ObjectSeal, BUILTIN_EXIT)                              \
+  V(ObjectValues, BUILTIN_EXIT)                            \
+                                                           \
+  V(ProxyConstructor, BUILTIN_EXIT)                        \
+  V(ProxyConstructor_ConstructStub, BUILTIN_EXIT)          \
+                                                           \
+  V(ReflectDefineProperty, BUILTIN_EXIT)                   \
+  V(ReflectDeleteProperty, BUILTIN_EXIT)                   \
+  V(ReflectGet, BUILTIN_EXIT)                              \
+  V(ReflectGetOwnPropertyDescriptor, BUILTIN_EXIT)         \
+  V(ReflectGetPrototypeOf, BUILTIN_EXIT)                   \
+  V(ReflectHas, BUILTIN_EXIT)                              \
+  V(ReflectIsExtensible, BUILTIN_EXIT)                     \
+  V(ReflectOwnKeys, BUILTIN_EXIT)                          \
+  V(ReflectPreventExtensions, BUILTIN_EXIT)                \
+  V(ReflectSet, BUILTIN_EXIT)                              \
+  V(ReflectSetPrototypeOf, BUILTIN_EXIT)                   \
+                                                           \
+  V(SharedArrayBufferPrototypeGetByteLength, BUILTIN_EXIT) \
+                                                           \
+  V(StringFromCodePoint, BUILTIN_EXIT)                     \
+                                                           \
+  V(StringPrototypeTrim, BUILTIN_EXIT)                     \
+  V(StringPrototypeTrimLeft, BUILTIN_EXIT)                 \
+  V(StringPrototypeTrimRight, BUILTIN_EXIT)                \
+                                                           \
+  V(SymbolConstructor, BUILTIN_EXIT)                       \
+  V(SymbolConstructor_ConstructStub, BUILTIN_EXIT)         \
+                                                           \
+  V(TypedArrayPrototypeBuffer, BUILTIN_EXIT)               \
+                                                           \
+  V(HandleApiCall, EXIT)                                   \
+  V(HandleApiCallAsFunction, EXIT)                         \
+  V(HandleApiCallAsConstructor, EXIT)                      \
+                                                           \
+  V(RestrictedFunctionPropertiesThrower, BUILTIN_EXIT)     \
   V(RestrictedStrictArgumentsPropertiesThrower, BUILTIN_EXIT)
 
 // Define list of builtins implemented in assembly.

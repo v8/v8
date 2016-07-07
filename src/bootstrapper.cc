@@ -214,7 +214,8 @@ class Genesis BASE_EMBEDDED {
 #undef DECLARE_FEATURE_INITIALIZATION
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
-                                        const char* name);
+                                        const char* name, Builtins::Name call,
+                                        BuiltinFunctionId id);
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
@@ -1815,8 +1816,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- A r r a y B u f f e r
-    Handle<JSFunction> array_buffer_fun =
-        InstallArrayBuffer(global, "ArrayBuffer");
+    Handle<JSFunction> array_buffer_fun = InstallArrayBuffer(
+        global, "ArrayBuffer", Builtins::kArrayBufferPrototypeGetByteLength,
+        BuiltinFunctionId::kArrayBufferByteLength);
     InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
                                      Context::ARRAY_BUFFER_FUN_INDEX);
   }
@@ -2799,7 +2801,9 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> shared_array_buffer_fun =
-      InstallArrayBuffer(global, "SharedArrayBuffer");
+      InstallArrayBuffer(global, "SharedArrayBuffer",
+                         Builtins::kSharedArrayBufferPrototypeGetByteLength,
+                         BuiltinFunctionId::kSharedArrayBufferByteLength);
   native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
 
   Handle<String> name = factory->InternalizeUtf8String("Atomics");
@@ -2900,7 +2904,9 @@ void Genesis::InitializeGlobal_harmony_array_prototype_values() {
 }
 
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
-                                               const char* name) {
+                                               const char* name,
+                                               Builtins::Name call,
+                                               BuiltinFunctionId id) {
   // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
   Handle<JSObject> prototype =
@@ -2927,9 +2933,8 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                         Builtins::kArrayBufferIsView, 1, true);
 
   // Install the "byteLength" getter on the {prototype}.
-  SimpleInstallGetter(prototype, factory()->byte_length_string(),
-                      Builtins::kArrayBufferPrototypeGetByteLength, false,
-                      kArrayBufferByteLength);
+  SimpleInstallGetter(prototype, factory()->byte_length_string(), call, false,
+                      id);
 
   return array_buffer_fun;
 }
@@ -3333,7 +3338,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_explicit_tailcalls_natives[] = {nullptr};
   static const char* harmony_tailcalls_natives[] = {nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
-      "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
+      "native harmony-atomics.js", NULL};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};

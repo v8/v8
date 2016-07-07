@@ -400,7 +400,6 @@ action("js2c_experimental") {
     "src/messages.h",
     "src/js/harmony-async-await.js",
     "src/js/harmony-atomics.js",
-    "src/js/harmony-sharedarraybuffer.js",
     "src/js/harmony-simd.js",
     "src/js/harmony-string-padding.js",
     "src/js/promise-extra.js",

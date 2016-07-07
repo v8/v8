@@ -6770,6 +6770,7 @@ enum BuiltinFunctionId {
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayLength,
+  kSharedArrayBufferByteLength,
 };
 
 
