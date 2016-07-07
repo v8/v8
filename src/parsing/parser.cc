@@ -3186,12 +3186,16 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
       throw_call, pos);
 }
 
-void Parser::InitializeForEachStatement(ForEachStatement* stmt,
-                                        Expression* each, Expression* subject,
-                                        Statement* body, int each_keyword_pos) {
+Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
+                                              Expression* each,
+                                              Expression* subject,
+                                              Statement* body,
+                                              int each_keyword_pos) {
   ForOfStatement* for_of = stmt->AsForOfStatement();
   if (for_of != NULL) {
-    InitializeForOfStatement(for_of, each, subject, body, each_keyword_pos);
+    const bool finalize = true;
+    return InitializeForOfStatement(for_of, each, subject, body, finalize,
+                                    each_keyword_pos);
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
       Variable* temp =
@@ -3211,38 +3215,49 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     }
     stmt->AsForInStatement()->Initialize(each, subject, body);
   }
+  return stmt;
 }
 
-void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
-                                      Expression* iterable, Statement* body,
-                                      int next_result_pos) {
+Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
+                                            Expression* each,
+                                            Expression* iterable,
+                                            Statement* body, bool finalize,
+                                            int next_result_pos) {
+  // Create the auxiliary expressions needed for iterating over the iterable,
+  // and initialize the given ForOfStatement with them.
+  // If finalize is true, also instrument the loop with code that performs the
+  // proper ES6 iterator finalization.  In that case, the result is not
+  // immediately a ForOfStatement.
+
+  const int nopos = kNoSourcePosition;
+  auto avfactory = ast_value_factory();
+
   Variable* iterator =
       scope_->NewTemporary(ast_value_factory()->dot_iterator_string());
   Variable* result =
       scope_->NewTemporary(ast_value_factory()->dot_result_string());
-
-  Expression* assign_iterator;
-  Expression* next_result;
-  Expression* result_done;
-  Expression* assign_each;
-
-  int get_iterator_pos = iterable->position();
+  Variable* completion = scope_->NewTemporary(avfactory->empty_string());
 
   // iterator = iterable[Symbol.iterator]()
-  assign_iterator = factory()->NewAssignment(
-      Token::ASSIGN, factory()->NewVariableProxy(iterator),
-      GetIterator(iterable, factory(), get_iterator_pos), iterable->position());
+  Expression* assign_iterator;
+  {
+    assign_iterator = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(iterator),
+        GetIterator(iterable, factory(), iterable->position()),
+        iterable->position());
+  }
 
   // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
+  Expression* next_result;
   {
-    // result = iterator.next()
     Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
     next_result =
         BuildIteratorNextResult(iterator_proxy, result, next_result_pos);
   }
 
   // result.done
+  Expression* result_done;
   {
     Expression* done_literal = factory()->NewStringLiteral(
         ast_value_factory()->done_string(), kNoSourcePosition);
@@ -3251,23 +3266,84 @@ void Parser::InitializeForOfStatement(ForOfStatement* for_of, Expression* each,
         factory()->NewProperty(result_proxy, done_literal, kNoSourcePosition);
   }
 
-  // each = result.value
+  // result.value
+  Expression* result_value;
   {
-    Expression* value_literal = factory()->NewStringLiteral(
-        ast_value_factory()->value_string(), kNoSourcePosition);
+    Expression* value_literal =
+        factory()->NewStringLiteral(avfactory->value_string(), nopos);
     Expression* result_proxy = factory()->NewVariableProxy(result);
-    Expression* result_value =
-        factory()->NewProperty(result_proxy, value_literal, kNoSourcePosition);
-    assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
-                                           kNoSourcePosition);
+    result_value = factory()->NewProperty(result_proxy, value_literal, nopos);
+  }
+
+  // {{completion = kAbruptCompletion;}}
+  Statement* set_completion_abrupt;
+  if (finalize) {
+    Expression* proxy = factory()->NewVariableProxy(completion);
+    Expression* assignment = factory()->NewAssignment(
+        Token::ASSIGN, proxy,
+        factory()->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
+
+    Block* block = factory()->NewBlock(nullptr, 1, true, nopos);
+    block->statements()->Add(
+        factory()->NewExpressionStatement(assignment, nopos), zone());
+    set_completion_abrupt = block;
+  }
+
+  // do { let tmp = #result_value; #set_completion_abrupt; tmp }
+  // Expression* result_value (gets overwritten)
+  if (finalize) {
+    Variable* var_tmp = scope_->NewTemporary(avfactory->empty_string());
+    Expression* tmp = factory()->NewVariableProxy(var_tmp);
+    Expression* assignment =
+        factory()->NewAssignment(Token::ASSIGN, tmp, result_value, nopos);
+
+    Block* block = factory()->NewBlock(nullptr, 2, false, nopos);
+    block->statements()->Add(
+        factory()->NewExpressionStatement(assignment, nopos), zone());
+    block->statements()->Add(set_completion_abrupt, zone());
+
+    result_value = factory()->NewDoExpression(block, var_tmp, nopos);
+  }
+
+  // each = #result_value;
+  Expression* assign_each;
+  {
+    assign_each =
+        factory()->NewAssignment(Token::ASSIGN, each, result_value, nopos);
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
       assign_each = PatternRewriter::RewriteDestructuringAssignment(
           this, assign_each->AsAssignment(), scope_);
     }
   }
 
+  // {{completion = kNormalCompletion;}}
+  Statement* set_completion_normal;
+  if (finalize) {
+    Expression* proxy = factory()->NewVariableProxy(completion);
+    Expression* assignment = factory()->NewAssignment(
+        Token::ASSIGN, proxy,
+        factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
+
+    Block* block = factory()->NewBlock(nullptr, 1, true, nopos);
+    block->statements()->Add(
+        factory()->NewExpressionStatement(assignment, nopos), zone());
+    set_completion_normal = block;
+  }
+
+  // { #loop-body; #set_completion_normal }
+  // Statement* body (gets overwritten)
+  if (finalize) {
+    Block* block = factory()->NewBlock(nullptr, 2, false, nopos);
+    block->statements()->Add(body, zone());
+    block->statements()->Add(set_completion_normal, zone());
+    body = block;
+  }
+
   for_of->Initialize(body, iterator, assign_iterator, next_result, result_done,
                      assign_each);
+  return finalize
+             ? ParserTraits::FinalizeForOfStatement(for_of, completion, nopos)
+             : for_of;
 }
 
 Statement* Parser::DesugarLexicalBindingsInForStatement(
@@ -3652,6 +3728,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, kNoSourcePosition);
 
+        Statement* final_loop;
         {
           ReturnExprScope no_tail_calls(function_state_,
                                         ReturnExprContext::kInsideForInOfBody);
@@ -3678,8 +3755,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           body_block->statements()->Add(body, zone());
           VariableProxy* temp_proxy =
               factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
-          InitializeForEachStatement(loop, temp_proxy, enumerable, body_block,
-                                     each_keyword_position);
+          final_loop = InitializeForEachStatement(
+              loop, temp_proxy, enumerable, body_block, each_keyword_position);
         }
         body_scope->set_end_position(scanner()->location().end_pos);
         body_scope = body_scope->FinalizeBlockScope();
@@ -3705,12 +3782,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             tdz_var->set_initializer_position(position());
           }
         }
-
-        Statement* final_loop =
-            loop->IsForOfStatement()
-                ? FinalizeForOfStatement(loop->AsForOfStatement(),
-                                         kNoSourcePosition)
-                : loop;
 
         for_scope->set_end_position(scanner()->location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
@@ -3775,14 +3846,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         // For legacy compat reasons, give for loops similar treatment to
         // if statements in allowing a function declaration for a body
         Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
-        InitializeForEachStatement(loop, expression, enumerable, body,
-                                   each_keyword_position);
-
-        Statement* final_loop =
-            loop->IsForOfStatement()
-                ? FinalizeForOfStatement(loop->AsForOfStatement(),
-                                         kNoSourcePosition)
-                : loop;
+        Statement* final_loop = InitializeForEachStatement(
+            loop, expression, enumerable, body, each_keyword_position);
 
         for_scope->set_end_position(scanner()->location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
@@ -5876,9 +5941,10 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
       // for (each of spread) %AppendElement($R, each)
       ForEachStatement* loop = factory()->NewForEachStatement(
           ForEachStatement::ITERATE, nullptr, kNoSourcePosition);
+      const bool finalize = false;
       InitializeForOfStatement(loop->AsForOfStatement(),
                                factory()->NewVariableProxy(each), subject,
-                               append_body);
+                               append_body, finalize);
       do_block->statements()->Add(loop, zone());
     }
   }
@@ -6870,13 +6936,13 @@ void ParserTraits::BuildIteratorCloseForCompletion(
   statements->Add(maybe_call_return, zone);
 }
 
-
-Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
+Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop,
+                                                Variable* var_completion,
+                                                int pos) {
   //
   // This function replaces the loop with the following wrapping:
   //
-  //   let each;
-  //   let completion = kNormalCompletion;
+  //   completion = kNormalCompletion;
   //   try {
   //     try {
   //       #loop;
@@ -6890,40 +6956,13 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   //     }
   //   }
   //
-  // where the loop's body is wrapped as follows:
-  //
-  //   {
-  //     #loop-body
-  //     {{completion = kNormalCompletion;}}
-  //   }
-  //
-  // and the loop's assign_each is wrapped as follows
-  //
-  //   do {
-  //     {{completion = kAbruptCompletion;}}
-  //     #assign-each
-  //   }
+  // Note that the loop's body and its assign_each already contain appropriate
+  // assignments to completion (see InitializeForOfStatement).
   //
 
   const int nopos = kNoSourcePosition;
   auto factory = parser_->factory();
-  auto avfactory = parser_->ast_value_factory();
-  auto scope = parser_->scope_;
   auto zone = parser_->zone();
-
-  Variable* var_completion = scope->NewTemporary(avfactory->empty_string());
-
-  // let each;
-  Variable* var_each = scope->NewTemporary(avfactory->empty_string());
-  Statement* initialize_each;
-  {
-    Expression* proxy = factory->NewVariableProxy(var_each);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory->NewUndefinedLiteral(nopos), nopos);
-    initialize_each =
-        factory->NewExpressionStatement(assignment, nopos);
-  }
 
   // !(completion === kNormalCompletion || IS_UNDEFINED(#iterator))
   Expression* closing_condition;
@@ -6939,66 +6978,13 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
         nopos);
   }
 
-  // {{completion = kNormalCompletion;}}
-  Statement* set_completion_normal;
+  Block* final_loop = factory->NewBlock(nullptr, 2, false, nopos);
   {
-    Expression* proxy = factory->NewVariableProxy(var_completion);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
-
-    Block* block = factory->NewBlock(nullptr, 1, true, nopos);
-    block->statements()->Add(
-        factory->NewExpressionStatement(assignment, nopos), zone);
-    set_completion_normal = block;
-  }
-
-  // {{completion = kAbruptCompletion;}}
-  Statement* set_completion_abrupt;
-  {
-    Expression* proxy = factory->NewVariableProxy(var_completion);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
-
-    Block* block = factory->NewBlock(nullptr, 1, true, nopos);
-    block->statements()->Add(factory->NewExpressionStatement(assignment, nopos),
-                             zone);
-    set_completion_abrupt = block;
-  }
-
-  // { #loop-body; #set_completion_normal }
-  Block* new_body = factory->NewBlock(nullptr, 2, false, nopos);
-  {
-    new_body->statements()->Add(loop->body(), zone);
-    new_body->statements()->Add(set_completion_normal, zone);
-  }
-
-  // { #set_completion_abrupt; #assign-each }
-  Block* new_assign_each = factory->NewBlock(nullptr, 2, false, nopos);
-  {
-    new_assign_each->statements()->Add(set_completion_abrupt, zone);
-    new_assign_each->statements()->Add(
-        factory->NewExpressionStatement(loop->assign_each(), nopos), zone);
-  }
-
-  // Now put things together.
-
-  loop->set_body(new_body);
-  loop->set_assign_each(
-      factory->NewDoExpression(new_assign_each, var_each, nopos));
-
-  Statement* final_loop;
-  {
-    Block* target = factory->NewBlock(nullptr, 3, false, nopos);
-    target->statements()->Add(initialize_each, zone);
-
     Block* try_block = factory->NewBlock(nullptr, 1, false, nopos);
     try_block->statements()->Add(loop, zone);
 
     FinalizeIteratorUse(var_completion, closing_condition, loop->iterator(),
-                        try_block, target);
-    final_loop = target;
+                        try_block, final_loop);
   }
 
   return final_loop;

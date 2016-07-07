@@ -966,8 +966,9 @@ function* g() { yield 42; return 88 };
 
 // Next method throws.
 {
+  let closed = false;
   g.prototype.next = () => { throw 666; };
-  g.prototype.return = () => { assertUnreachable() };
+  g.prototype.return = () => { closed = true; };
 
 
   assertThrowsEquals(() => {
@@ -1025,13 +1026,17 @@ function* g() { yield 42; return 88 };
   assertThrowsEquals(() => {
     (([...x]) => x)(g());
   }, 666);
+
+
+  assertFalse(closed);
 }
 
 
 // Value throws.
 {
+  let closed = false;
   g.prototype.next = () => ({get value() {throw 666}});
-  g.prototype.return = () => { assertUnreachable() };
+  g.prototype.return = () => { closed = true; };
 
 
   assertThrowsEquals(() => {
@@ -1089,13 +1094,17 @@ function* g() { yield 42; return 88 };
   assertThrowsEquals(() => {
     (([...x]) => x)(g());
   }, 666);
+
+
+  assertFalse(closed);
 }
 
 
 // Done throws.
 {
+  let closed = false;
   g.prototype.next = () => ({get done() {throw 666}});
-  g.prototype.return = () => { assertUnreachable() };
+  g.prototype.return = () => { closed = true; };
 
 
   assertThrowsEquals(() => {
@@ -1153,6 +1162,9 @@ function* g() { yield 42; return 88 };
   assertThrowsEquals(() => {
     (([...x]) => x)(g());
   }, 666);
+
+
+  assertFalse(closed);
 }
 
 

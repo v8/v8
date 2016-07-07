@@ -458,7 +458,8 @@ class ParserTraits {
   void FinalizeIteratorUse(Variable* completion, Expression* condition,
                            Variable* iter, Block* iterator_use, Block* result);
 
-  Statement* FinalizeForOfStatement(ForOfStatement* loop, int pos);
+  Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
+                                    int pos);
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -961,12 +962,13 @@ class Parser : public ParserBase<ParserTraits> {
 
 
   // Initialize the components of a for-in / for-of statement.
-  void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
-                                  Expression* subject, Statement* body,
-                                  int each_keyword_pos);
-  void InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
-                                Expression* iterable, Statement* body,
-                                int next_result_pos = kNoSourcePosition);
+  Statement* InitializeForEachStatement(ForEachStatement* stmt,
+                                        Expression* each, Expression* subject,
+                                        Statement* body, int each_keyword_pos);
+  Statement* InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
+                                      Expression* iterable, Statement* body,
+                                      bool finalize,
+                                      int next_result_pos = kNoSourcePosition);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, VariableMode mode,
       ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,

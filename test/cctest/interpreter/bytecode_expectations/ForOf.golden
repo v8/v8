@@ -13,10 +13,9 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 284
+bytecode array length: 283
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(LdrUndefined), R(4),
                 B(LdaZero),
                 B(Star), R(3),
                 B(Mov), R(context), R(11),
@@ -35,16 +34,16 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(2), U8(1),
                 B(LdaNamedProperty), R(2), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(22),
+                B(JumpIfToBooleanTrue), U8(23),
+                B(LdrNamedProperty), R(2), U8(4), U8(11), R(4),
                 B(LdaSmi), U8(2),
                 B(Star), R(3),
-                B(LdrNamedProperty), R(2), U8(4), U8(11), R(0),
-                B(Ldar), R(0),
+                B(Mov), R(4), R(0),
   /*   34 E> */ B(StackCheck),
                 B(Mov), R(0), R(7),
                 B(LdaZero),
                 B(Star), R(3),
-                B(Jump), U8(-48),
+                B(Jump), U8(-49),
                 B(Jump), U8(41),
                 B(Star), R(14),
                 B(LdaConstant), U8(5),
@@ -143,9 +142,9 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [9, 122, 128],
-  [12, 81, 83],
-  [201, 211, 213],
+  [7, 121, 127],
+  [10, 80, 82],
+  [200, 210, 212],
 ]
 
 ---
@@ -155,12 +154,11 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 297
+bytecode array length: 296
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(7),
-                B(LdrUndefined), R(4),
                 B(LdaZero),
                 B(Star), R(3),
                 B(Mov), R(context), R(12),
@@ -177,18 +175,18 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(2), U8(1),
                 B(LdaNamedProperty), R(2), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(27),
+                B(JumpIfToBooleanTrue), U8(28),
+                B(LdrNamedProperty), R(2), U8(4), U8(11), R(4),
                 B(LdaSmi), U8(2),
                 B(Star), R(3),
-                B(LdrNamedProperty), R(2), U8(4), U8(11), R(0),
-                B(Ldar), R(0),
+                B(Mov), R(4), R(0),
   /*   54 E> */ B(StackCheck),
                 B(Mov), R(0), R(8),
   /*   73 S> */ B(LdaZero),
                 B(Star), R(10),
                 B(Mov), R(0), R(11),
                 B(Jump), U8(57),
-                B(Jump), U8(-53),
+                B(Jump), U8(-54),
                 B(Jump), U8(41),
                 B(Star), R(15),
                 B(LdaConstant), U8(5),
@@ -292,9 +290,9 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [13, 125, 131],
-  [16, 84, 86],
-  [205, 215, 217],
+  [11, 124, 130],
+  [14, 83, 85],
+  [204, 214, 216],
 ]
 
 ---
@@ -306,10 +304,9 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 300
+bytecode array length: 299
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-                B(LdrUndefined), R(4),
                 B(LdaZero),
                 B(Star), R(3),
                 B(Mov), R(context), R(11),
@@ -328,11 +325,11 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(2), U8(1),
                 B(LdaNamedProperty), R(2), U8(3), U8(9),
-                B(JumpIfToBooleanTrue), U8(38),
+                B(JumpIfToBooleanTrue), U8(39),
+                B(LdrNamedProperty), R(2), U8(4), U8(11), R(4),
                 B(LdaSmi), U8(2),
                 B(Star), R(3),
-                B(LdrNamedProperty), R(2), U8(4), U8(11), R(0),
-                B(Ldar), R(0),
+                B(Mov), R(4), R(0),
   /*   34 E> */ B(StackCheck),
                 B(Mov), R(0), R(7),
   /*   66 S> */ B(LdaSmi), U8(10),
@@ -345,7 +342,7 @@ bytecodes: [
   /*  104 S> */ B(Jump), U8(7),
                 B(LdaZero),
                 B(Star), R(3),
-                B(Jump), U8(-64),
+                B(Jump), U8(-65),
                 B(Jump), U8(41),
                 B(Star), R(14),
                 B(LdaConstant), U8(5),
@@ -444,9 +441,9 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [9, 138, 144],
-  [12, 97, 99],
-  [217, 227, 229],
+  [7, 137, 143],
+  [10, 96, 98],
+  [216, 226, 228],
 ]
 
 ---
@@ -456,13 +453,12 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 308
+bytecode array length: 309
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1),
                 B(Star), R(8),
                 B(Star), R(6),
-                B(LdrUndefined), R(3),
                 B(LdaZero),
                 B(Star), R(2),
                 B(Mov), R(context), R(10),
@@ -481,10 +477,11 @@ bytecodes: [
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(1), U8(1),
                 B(LdaNamedProperty), R(1), U8(4), U8(9),
-                B(JumpIfToBooleanTrue), U8(28),
+                B(JumpIfToBooleanTrue), U8(31),
+  /*   67 E> */ B(LdrNamedProperty), R(1), U8(5), U8(11), R(3),
                 B(LdaSmi), U8(2),
                 B(Star), R(2),
-  /*   67 E> */ B(LdaNamedProperty), R(1), U8(5), U8(11),
+                B(Ldar), R(3),
                 B(StaNamedPropertySloppy), R(6), U8(6), U8(13),
   /*   62 E> */ B(StackCheck),
   /*   88 S> */ B(Nop),
@@ -492,7 +489,7 @@ bytecodes: [
                 B(LdaZero),
                 B(Star), R(8),
                 B(Jump), U8(57),
-                B(Jump), U8(-54),
+                B(Jump), U8(-57),
                 B(Jump), U8(41),
                 B(Star), R(13),
                 B(LdaConstant), U8(7),
@@ -598,8 +595,8 @@ constant pool: [
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
-  [17, 136, 142],
-  [20, 95, 97],
-  [216, 226, 228],
+  [15, 137, 143],
+  [18, 96, 98],
+  [217, 227, 229],
 ]
 
