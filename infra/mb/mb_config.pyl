@@ -425,7 +425,7 @@
     },
 
     'gcc': {
-      'gn_args': 'is_clang=false',
+      'gn_args': 'is_clang=false use_sysroot=false',
       'gyp_defines': 'clang=0',
     },
 
