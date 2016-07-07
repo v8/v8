@@ -372,7 +372,7 @@
     },
 
     'asan': {
-      'gn_args': 'clang=true asan=true',
+      'gn_args': 'is_clang=true asan=true',
       'gyp_defines': 'clang=1 asan=1',
     },
 
@@ -387,7 +387,7 @@
     },
 
     'clang': {
-      'gn_args': 'clang=true',
+      'gn_args': 'is_clang=true',
       'gyp_defines': 'clang=1',
     },
 
@@ -425,7 +425,7 @@
     },
 
     'gcc': {
-      'gn_args': 'clang=false',
+      'gn_args': 'is_clang=false',
       'gyp_defines': 'clang=0',
     },
 
@@ -466,7 +466,7 @@
     },
 
     'msan': {
-      'gn_args': 'clang=true msan=true',
+      'gn_args': 'is_clang=true msan=true',
       'gyp_defines': 'clang=1 msan=1',
     },
 
@@ -550,7 +550,7 @@
     },
 
     'tsan': {
-      'gn_args': 'clang=true tsan=true',
+      'gn_args': 'is_clang=true tsan=true',
       'gyp_defines': 'clang=1 tsan=1',
     },
 
