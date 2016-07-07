@@ -104,14 +104,14 @@
           'gyp_debug_simulate_x87_no_snap',
     },
     'client.v8.branches': {
-      'V8 Linux - beta branch': 'gyp_release_x86',
-      'V8 Linux - beta branch - debug': 'gyp_debug_x86',
-      'V8 Linux - stable branch': 'gyp_release_x86',
-      'V8 Linux - stable branch - debug': 'gyp_debug_x86',
+      'V8 Linux - beta branch': 'gn_release_x86',
+      'V8 Linux - beta branch - debug': 'gn_debug_x86',
+      'V8 Linux - stable branch': 'gn_release_x86',
+      'V8 Linux - stable branch - debug': 'gn_debug_x86',
       'V8 Linux64 - beta branch': 'gyp_release_x64',
-      'V8 Linux64 - beta branch - debug': 'gyp_debug_x64',
-      'V8 Linux64 - stable branch': 'gyp_release_x64',
-      'V8 Linux64 - stable branch - debug': 'gyp_debug_x64',
+      'V8 Linux64 - beta branch - debug': 'gn_debug_x64',
+      'V8 Linux64 - stable branch': 'gn_release_x64',
+      'V8 Linux64 - stable branch - debug': 'gn_debug_x64',
       'V8 arm - sim - beta branch': 'gyp_release_simulate_arm',
       'V8 arm - sim - beta branch - debug': 'gyp_debug_simulate_arm',
       'V8 arm - sim - stable branch': 'gyp_release_simulate_arm',
@@ -188,6 +188,8 @@
       'gn', 'release_trybot', 'x64', 'swarming'],
 
     # GN debug configs for x64.
+    'gn_debug_x64': [
+      'gn', 'debug_bot', 'x64', 'swarming'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_trybot': [
@@ -206,6 +208,8 @@
       'gn', 'debug_trybot', 'x86', 'swarming'],
 
     # GN release configs for x86.
+    'gn_release_x86': [
+      'gn', 'release_bot', 'x86', 'swarming'],
     'gn_release_x86_gcmole': [
       'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_gcmole_trybot': [
