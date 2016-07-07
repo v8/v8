@@ -213,14 +213,6 @@ class AstNode: public ZoneObject {
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
 
-  // The interface for feedback slots, with default no-op implementations for
-  // node types which don't actually have this. Note that this is conceptually
-  // not really nice, but multiple inheritance would introduce yet another
-  // vtable entry per node, something we don't want for space reasons.
-  virtual void AssignFeedbackVectorSlots(Isolate* isolate,
-                                         FeedbackVectorSpec* spec,
-                                         FeedbackVectorSlotCache* cache) {}
-
  private:
   // Hidden to prevent accidental usage. It would have to load the
   // current zone from the TLS.
@@ -802,7 +794,7 @@ class ForInStatement final : public ForEachStatement {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackVectorSlot ForInFeedbackSlot() {
     DCHECK(!for_in_feedback_slot_.IsInvalid());
@@ -1509,7 +1501,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
@@ -1635,7 +1627,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   };
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot LiteralFeedbackSlot() const { return literal_slot_; }
 
  protected:
@@ -1708,7 +1700,7 @@ class VariableProxy final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot VariableFeedbackSlot() { return variable_feedback_slot_; }
 
@@ -1808,7 +1800,7 @@ class Property final : public Expression {
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override {
+                                 FeedbackVectorSlotCache* cache) {
     FeedbackVectorSlotKind kind = key()->IsPropertyName()
                                       ? FeedbackVectorSlotKind::LOAD_IC
                                       : FeedbackVectorSlotKind::KEYED_LOAD_IC;
@@ -1863,7 +1855,7 @@ class Call final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CallFeedbackSlot() const { return stub_slot_; }
 
@@ -1987,7 +1979,7 @@ class CallNew final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override {
+                                 FeedbackVectorSlotCache* cache) {
     callnew_feedback_slot_ = spec->AddGeneralSlot();
     // Construct calls have two slots, one right after the other.
     // The second slot stores the call count for monomorphic calls.
@@ -2235,7 +2227,7 @@ class CountOperation final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot CountSlot() const { return slot_; }
 
  protected:
@@ -2427,7 +2419,7 @@ class Assignment final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot AssignmentSlot() const { return slot_; }
 
  protected:
@@ -2775,7 +2767,7 @@ class ClassLiteral final : public Expression {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
+                                 FeedbackVectorSlotCache* cache);
 
   bool NeedsProxySlot() const {
     return class_variable_proxy() != nullptr &&

@@ -213,7 +213,6 @@ void AstNumberingVisitor::VisitYield(Yield* node) {
   node->set_yield_id(yield_count_);
   yield_count_++;
   IncrementNodeCount();
-  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Yield::num_ids()));
   Visit(node->generator_object());
   Visit(node->expression());
@@ -259,7 +258,6 @@ void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
 
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
-  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
 }
@@ -395,7 +393,6 @@ void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   Visit(node->assign_each());
   Visit(node->body());
   node->set_yield_count(yield_count_ - node->first_yield_id());
-  ReserveFeedbackSlots(node);
 }
 
 
