@@ -8426,7 +8426,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   ZoneList<Declaration*>* decls = target_info.scope()->declarations();
   int decl_count = decls->length();
   for (int i = 0; i < decl_count; ++i) {
-    if (!decls->at(i)->IsInlineable()) {
+    if (decls->at(i)->IsFunctionDeclaration() ||
+        !decls->at(i)->proxy()->var()->IsStackAllocated()) {
       TraceInline(target, caller, "target has non-trivial declaration");
       return false;
     }

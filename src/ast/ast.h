@@ -512,7 +512,6 @@ class Declaration : public AstNode {
   VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
   virtual InitializationFlag initialization() const = 0;
-  virtual bool IsInlineable() const;
 
  protected:
   Declaration(Zone* zone, VariableProxy* proxy, VariableMode mode, Scope* scope,
@@ -554,7 +553,6 @@ class FunctionDeclaration final : public Declaration {
   InitializationFlag initialization() const override {
     return kCreatedInitialized;
   }
-  bool IsInlineable() const override;
 
  protected:
   FunctionDeclaration(Zone* zone,

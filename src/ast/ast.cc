@@ -713,18 +713,6 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 
 
 // ----------------------------------------------------------------------------
-// Inlining support
-
-bool Declaration::IsInlineable() const {
-  return proxy()->var()->IsStackAllocated();
-}
-
-bool FunctionDeclaration::IsInlineable() const {
-  return false;
-}
-
-
-// ----------------------------------------------------------------------------
 // Recording of type feedback
 
 // TODO(rossberg): all RecordTypeFeedback functions should disappear
