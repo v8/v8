@@ -97,10 +97,6 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # TODO(mstarzinger): The rewriter is not being called when top-level code is
-  # optimized and hence scripts don't "return" the correct value. Fix this.
-  'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
-
   # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
   # via deoptimization data (Crankshaft also does this, but lack proper test
   # coverage).

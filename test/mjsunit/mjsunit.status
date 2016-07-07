@@ -58,10 +58,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(verwaest): Some tests are over-restrictive about object layout.
-  'compare-known-objects-slow': [PASS, NO_VARIANTS],
-  'smi-representation': [PASS, NO_VARIANTS],
-
   # Some tests are just too slow to run for now.
   'big-object-literal': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
@@ -80,8 +76,6 @@
   'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
-  'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
-  'debug-conditional-breakpoints': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
@@ -107,11 +101,6 @@
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-with': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
-  # issues on ARM and ARM64.
-  'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
-  'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
-
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
@@ -133,7 +122,6 @@
 
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
-  'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -217,10 +205,6 @@
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
-
-  # Skip endain dependent test for mips due to different typed views of the same
-  # array buffer.
-  'nans': [PASS, ],
 
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
