@@ -839,7 +839,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
 
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::Parse);
-  TRACE_EVENT0("v8", "V8.Parse");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.Parse");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -1007,7 +1007,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
   RuntimeCallTimerScope runtime_timer(isolate, &RuntimeCallStats::ParseLazy);
   HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
-  TRACE_EVENT0("v8", "V8.ParseLazy");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseLazy");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -4894,7 +4894,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Start();
   }
-  TRACE_EVENT0("v8", "V8.PreParse");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
