@@ -854,8 +854,6 @@ class Parser : public ParserBase<ParserTraits> {
                                                       Assignment* assignment,
                                                       Scope* scope);
 
-    void set_initializer_position(int pos) { initializer_position_ = pos; }
-
    private:
     PatternRewriter() {}
 

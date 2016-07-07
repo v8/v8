@@ -3017,8 +3017,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           descriptor.declaration_pos = pattern->position();
           descriptor.initialization_pos = pattern->position();
 
+          // Initializer position for variables declared by the pattern.
+          const int initializer_position = position();
+
           DeclarationParsingResult::Declaration decl(
-              pattern, pattern->position(),
+              pattern, initializer_position,
               factory()->NewVariableProxy(catch_variable));
 
           Block* init_block =
