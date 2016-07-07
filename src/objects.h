@@ -5380,16 +5380,16 @@ class Code: public HeapObject {
   class ProfilerTicksField : public BitField<int, 4, 28> {};
 
   // Flags layout.  BitField<type, shift, size>.
-  class ICStateField : public BitField<InlineCacheState, 0, 3> {};
+  class ICStateField : public BitField<InlineCacheState, 0, 2> {};
+  class HasUnwindingInfoField : public BitField<bool, ICStateField::kNext, 1> {
+  };
   class CacheHolderField
-      : public BitField<CacheHolderFlag, ICStateField::kNext, 2> {};
+      : public BitField<CacheHolderFlag, HasUnwindingInfoField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
   STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
-  class HasUnwindingInfoField : public BitField<bool, KindField::kNext, 1> {};
-  class ExtraICStateField
-      : public BitField<ExtraICState, HasUnwindingInfoField::kNext,
-                        PlatformSmiTagging::kSmiValueSize -
-                            HasUnwindingInfoField::kNext + 1> {};
+  class ExtraICStateField : public BitField<ExtraICState, KindField::kNext,
+                                            PlatformSmiTagging::kSmiValueSize -
+                                                KindField::kNext + 1> {};
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
