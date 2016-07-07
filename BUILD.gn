@@ -515,7 +515,7 @@ action("d8_js2c") {
          rebase_path(inputs, root_build_dir)
 }
 
-if (is_android) {
+if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
       deps = [
