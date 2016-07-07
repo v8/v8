@@ -298,9 +298,11 @@ RUNTIME_FUNCTION(Runtime_SubString) {
     start = FastD2IChecked(from_number);
     end = FastD2IChecked(to_number);
   }
-  RUNTIME_ASSERT(end >= start);
-  RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= string->length());
+  // The following condition is intentionally robust because the SubStringStub
+  // delegates here and we test this in cctest/test-strings/RobustSubStringStub.
+  if (end < start || start < 0 || end > string->length()) {
+    return isolate->ThrowIllegalOperation();
+  }
   isolate->counters()->sub_string_runtime()->Increment();
 
   return *isolate->factory()->NewSubString(string, start, end);

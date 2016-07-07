@@ -102,7 +102,11 @@ RUNTIME_FUNCTION(Runtime_IsConcurrentRecompilationSupported) {
 
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
+
+  // This function is used by fuzzers, ignore calls with bogus arguments count.
+  if (args.length() != 1 && args.length() != 2) {
+    return isolate->heap()->undefined_value();
+  }
 
   // This function is used by fuzzers to get coverage for optimizations
   // in compiler. Ignore calls on non-function objects to avoid runtime errors.
@@ -113,11 +117,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
-  // The following assertion was lifted from the DCHECK inside
+  // The following condition was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
-  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 (function->code()->kind() == Code::FUNCTION &&
-                  !function->shared()->optimization_disabled()));
+  if (!(function->shared()->allows_lazy_compilation() ||
+        (function->code()->kind() == Code::FUNCTION &&
+         !function->shared()->optimization_disabled()))) {
+    return isolate->heap()->undefined_value();
+  }
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
@@ -139,9 +145,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 0 || args.length() == 1);
-  Handle<JSFunction> function = Handle<JSFunction>::null();
 
+  // This function is used by fuzzers, ignore calls with bogus arguments count.
+  if (args.length() != 0 && args.length() == 1) {
+    return isolate->heap()->undefined_value();
+  }
+
+  Handle<JSFunction> function = Handle<JSFunction>::null();
   if (args.length() == 0) {
     // Find the JavaScript function on the top of the stack.
     JavaScriptFrameIterator it(isolate);
@@ -158,10 +168,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     function = arg;
   }
 
-  // The following assertion was lifted from the DCHECK inside
+  // The following condition was lifted from the DCHECK inside
   // JSFunction::MarkForOptimization().
-  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
-                 !function->shared()->optimization_disabled());
+  if (!(function->shared()->allows_lazy_compilation() ||
+        !function->shared()->optimization_disabled())) {
+    return isolate->heap()->undefined_value();
+  }
 
   // If function is interpreted, just return. OSR is not supported.
   // TODO(4764): Remove this check when OSR is enabled in the interpreter.
@@ -196,7 +208,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
 
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
+  DCHECK(args.length() == 1 || args.length() == 2);
   if (!isolate->use_crankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
@@ -233,9 +245,10 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
 RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   DCHECK(args.length() == 0);
-  RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
-  RUNTIME_ASSERT(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->Unblock();
+  if (FLAG_block_concurrent_recompilation &&
+      isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->Unblock();
+  }
   return isolate->heap()->undefined_value();
 }
 
