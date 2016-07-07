@@ -65,7 +65,9 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
           Handle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
                                      JSProxy::GetPrototype(proxy), Object);
-          if (prototype->IsNull(isolate)) break;
+          if (prototype->IsNull(isolate)) {
+            return isolate->factory()->undefined_value();
+          }
           // We already have a stack-check in JSProxy::GetPrototype.
           return HasEnumerableProperty(
               isolate, Handle<JSReceiver>::cast(prototype), key);
