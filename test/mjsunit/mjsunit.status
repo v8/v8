@@ -230,10 +230,6 @@
   'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
-  # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
-  # prermanently enabled.
-  'call-counts': [SKIP],
-
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
