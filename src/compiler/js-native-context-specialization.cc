@@ -776,11 +776,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         this_value = this_effect = graph()->NewNode(
             simplified()->CheckNumber(), this_value, this_effect, this_control);
-        // Make sure we do not store signalling NaNs into holey double arrays.
-        if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
-          this_value =
-              graph()->NewNode(simplified()->NumberSilenceNaN(), this_value);
-        }
+        // Make sure we do not store signalling NaNs into double arrays.
+        this_value =
+            graph()->NewNode(simplified()->NumberSilenceNaN(), this_value);
       }
       this_effect = graph()->NewNode(simplified()->StoreElement(element_access),
                                      this_elements, this_index, this_value,
