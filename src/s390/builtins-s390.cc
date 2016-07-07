@@ -119,12 +119,12 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
-  //  -- r2                 : number of arguments
-  //  -- r3                 : function
-  //  -- cp                 : context
-  //  -- lr                 : return address
-  //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
-  //  -- sp[(argc + 1) * 8] : receiver
+  //  -- r2                     : number of arguments
+  //  -- r3                     : function
+  //  -- cp                     : context
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
+  //  -- sp[argc * 4]           : receiver
   // -----------------------------------
   Condition const cond_done = (kind == MathMaxMinKind::kMin) ? lt : gt;
   Heap::RootListIndex const root_index =
@@ -143,14 +143,15 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ AddP(r6, r2, Operand(1));
 
   Label done_loop, loop;
+  __ LoadRR(r6, r2);
   __ bind(&loop);
   {
     // Check if all parameters done.
-    __ SubP(r2, Operand(1));
+    __ SubP(r6, Operand(1));
     __ blt(&done_loop);
 
     // Load the next parameter tagged value into r2.
-    __ ShiftLeftP(r1, r2, Operand(kPointerSizeLog2));
+    __ ShiftLeftP(r1, r6, Operand(kPointerSizeLog2));
     __ LoadP(r4, MemOperand(sp, r1));
 
     // Load the double value of the parameter into d2, maybe converting the
@@ -219,8 +220,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ bind(&done_loop);
+  // Drop all slots, including the receiver.
+  __ AddP(r2, Operand(1));
+  __ Drop(r2);
   __ LoadRR(r2, r7);
-  __ Drop(r6);
   __ Ret();
 }
 
