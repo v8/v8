@@ -76,6 +76,7 @@
   'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
@@ -90,16 +91,6 @@
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
-
-  # Issue 4035: unexpected frame->context() in debugger
-  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-323936': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-491943': [PASS, NO_VARIANTS],
-  'regress/regress-325676': [PASS, NO_VARIANTS],
-  'debug-evaluate-closure': [PASS, NO_VARIANTS],
-  'debug-evaluate-with': [PASS, NO_VARIANTS],
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
