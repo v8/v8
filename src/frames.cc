@@ -1434,8 +1434,8 @@ uint32_t WasmFrame::function_index() const {
 }
 
 Script* WasmFrame::script() const {
-  JSObject* wasm = JSObject::cast(wasm_obj());
-  Handle<wasm::WasmDebugInfo> debug_info(wasm::GetDebugInfo(wasm), isolate());
+  Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
+  Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(wasm);
   return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
 }
 

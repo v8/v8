@@ -354,7 +354,7 @@ SeqOneByteString* GetWasmBytes(JSObject* wasm);
 
 // Get the debug info associated with the given wasm object.
 // If no debug info exists yet, it is created automatically.
-WasmDebugInfo* GetDebugInfo(JSObject* wasm);
+Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
 // Return the number of functions in the given wasm object.
 int GetNumberOfFunctions(JSObject* wasm);

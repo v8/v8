@@ -1278,12 +1278,14 @@ SeqOneByteString* GetWasmBytes(JSObject* wasm) {
   return SeqOneByteString::cast(wasm->GetInternalField(kWasmModuleBytesString));
 }
 
-WasmDebugInfo* GetDebugInfo(JSObject* wasm) {
-  Object* info = wasm->GetInternalField(kWasmDebugInfo);
-  if (!info->IsUndefined(wasm->GetIsolate())) return WasmDebugInfo::cast(info);
-  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(handle(wasm));
+Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm) {
+  Handle<Object> info(wasm->GetInternalField(kWasmDebugInfo),
+                      wasm->GetIsolate());
+  if (!info->IsUndefined(wasm->GetIsolate()))
+    return Handle<WasmDebugInfo>::cast(info);
+  Handle<WasmDebugInfo> new_info = WasmDebugInfo::New(wasm);
   wasm->SetInternalField(kWasmDebugInfo, *new_info);
-  return *new_info;
+  return new_info;
 }
 
 bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
