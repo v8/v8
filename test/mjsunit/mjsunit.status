@@ -76,31 +76,22 @@
   'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
-  'debug-evaluate-closure': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
-  'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
   'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
-  'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
-  'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
-  'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
   'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
 
   # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
