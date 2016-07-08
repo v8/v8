@@ -102,8 +102,6 @@
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
-  # Issue 4055: Scope chain length observed by debugger is off.
-  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
 
   # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
   'result-table-min': [PASS, NO_VARIANTS],
