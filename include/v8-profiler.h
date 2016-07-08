@@ -207,13 +207,24 @@ class V8_EXPORT CpuProfile {
   void Delete();
 };
 
-
 /**
  * Interface for controlling CPU profiling. Instance of the
- * profiler can be retrieved using v8::Isolate::GetCpuProfiler.
+ * profiler can be created using v8::CpuProfiler::New method.
  */
 class V8_EXPORT CpuProfiler {
  public:
+  /**
+   * Creates a new CPU profiler for the |isolate|. The isolate must be
+   * initialized. The profiler object must be disposed after use by calling
+   * |Dispose| method.
+   */
+  static CpuProfiler* New(Isolate* isolate);
+
+  /**
+   * Disposes the CPU profiler object.
+   */
+  void Dispose();
+
   /**
    * Changes default CPU profiler sampling interval to the specified number
    * of microseconds. Default interval is 1000us. This method must be called

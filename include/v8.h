@@ -5932,7 +5932,8 @@ class V8_EXPORT Isolate {
    * is initialized. It is the embedder's responsibility to stop all CPU
    * profiling activities if it has started any.
    */
-  CpuProfiler* GetCpuProfiler();
+  V8_DEPRECATE_SOON("CpuProfiler should be created with CpuProfiler::New call.",
+                    CpuProfiler* GetCpuProfiler());
 
   /** Returns true if this isolate has a current context. */
   bool InContext();

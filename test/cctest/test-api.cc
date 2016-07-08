@@ -96,11 +96,11 @@ void RunWithProfiler(void (*test)()) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::String> profile_name = v8_str("my_profile1");
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
   cpu_profiler->StartProfiling(profile_name);
   (*test)();
   reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
+  cpu_profiler->Dispose();
 }
 
 

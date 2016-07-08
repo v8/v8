@@ -345,7 +345,8 @@ class TestSetup {
 TEST(RecordTickSample) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::i_isolate());
-  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
+  CpuProfiler profiler(CcTest::i_isolate());
+  profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -416,7 +417,8 @@ static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
 TEST(SampleIds) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::i_isolate());
-  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
+  CpuProfiler profiler(CcTest::i_isolate());
+  profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", true);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -472,7 +474,8 @@ TEST(SampleIds) {
 TEST(NoSamples) {
   TestSetup test_setup;
   CpuProfilesCollection profiles(CcTest::i_isolate());
-  profiles.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
+  CpuProfiler profiler(CcTest::i_isolate());
+  profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
@@ -516,17 +519,18 @@ TEST(RecordStackTraceAtStartProfiling) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
+  std::unique_ptr<i::CpuProfiler> iprofiler(
+      new i::CpuProfiler(CcTest::i_isolate()));
+  i::ProfilerExtension::set_profiler(iprofiler.get());
 
-  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
-  CHECK_EQ(0, profiler->GetProfilesCount());
   CompileRun(
       "function c() { startProfiling(); }\n"
       "function b() { c(); }\n"
       "function a() { b(); }\n"
       "a();\n"
       "stopProfiling();");
-  CHECK_EQ(1, profiler->GetProfilesCount());
-  CpuProfile* profile = profiler->GetProfile(0);
+  CHECK_EQ(1, iprofiler->GetProfilesCount());
+  CpuProfile* profile = iprofiler->GetProfile(0);
   const ProfileTree* topDown = profile->top_down();
   const ProfileNode* current = topDown->root();
   const_cast<ProfileNode*>(current)->Print(0);
@@ -558,7 +562,8 @@ TEST(RecordStackTraceAtStartProfiling) {
 
 TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
-  collection.set_cpu_profiler(CcTest::i_isolate()->cpu_profiler());
+  CpuProfiler profiler(CcTest::i_isolate());
+  collection.set_cpu_profiler(&profiler);
   i::EmbeddedVector<char*,
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
@@ -593,10 +598,9 @@ TEST(ProfileNodeScriptId) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
+  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
+  i::ProfilerExtension::set_profiler(iprofiler.get());
 
-  v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
-  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
-  CHECK_EQ(0, iprofiler->GetProfilesCount());
   v8::Local<v8::Script> script_a =
       v8_compile(v8_str("function a() { startProfiling(); }\n"));
   script_a->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
@@ -646,16 +650,12 @@ static const char* line_number_test_source_profile_time_functions =
 "bar_at_the_second_line();\n"
 "function lazy_func_at_6th_line() {}";
 
-int GetFunctionLineNumber(LocalContext* env, const char* name) {
-  CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
-  CodeMap* code_map = profiler->generator()->code_map();
+int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
+                          const char* name) {
+  CodeMap* code_map = profiler.generator()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          (*(*env))
-              ->Global()
-              ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
-                    v8_str(name))
-              .ToLocalChecked())));
+          env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
   if (!func_entry)
     FATAL(name);
@@ -674,31 +674,31 @@ TEST(LineNumber) {
 
   CompileRun(line_number_test_source_existing_functions);
 
-  CpuProfiler* profiler = isolate->cpu_profiler();
-  profiler->StartProfiling("LineNumber");
+  CpuProfiler profiler(isolate);
+  profiler.StartProfiling("LineNumber");
 
   CompileRun(line_number_test_source_profile_time_functions);
 
-  profiler->processor()->StopSynchronously();
+  profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
-  CHECK_EQ(1, GetFunctionLineNumber(&env, "foo_at_the_first_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(&env, "bar_at_the_second_line"));
+           GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(profiler, env, "bar_at_the_second_line"));
   CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
+           GetFunctionLineNumber(profiler, env, "lazy_func_at_6th_line"));
 
-  profiler->StopProfiling("LineNumber");
+  profiler.StopProfiling("LineNumber");
 }
 
 TEST(BailoutReason) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
+  std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
+  i::ProfilerExtension::set_profiler(iprofiler.get());
 
-  v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
-  i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
   v8::Local<v8::Script> script =
       v8_compile(v8_str("function Debugger() {\n"

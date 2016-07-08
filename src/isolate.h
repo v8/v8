@@ -921,7 +921,6 @@ class Isolate {
   CodeEventDispatcher* code_event_dispatcher() const {
     return code_event_dispatcher_.get();
   }
-  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
@@ -1263,6 +1262,10 @@ class Isolate {
     }
     return "";
   }
+
+  // TODO(alph): Remove along with the deprecated GetCpuProfiler().
+  friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
+  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
