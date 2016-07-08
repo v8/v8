@@ -1803,21 +1803,10 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     __ Branch(tlabel, cc, at, Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
-    Label done;
     cc = FlagsConditionToConditionOvf(branch->condition);
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
-    __ Branch(&done, NegateCondition(cc), at, Operand(kScratchReg));
-    // If we deoptimize, check if output register is the same as input
-    // registers, if yes input values are overwritten so fix them first.
-    if (instr->InputAt(1)->IsRegister()) {
-      if (i.InputRegister(0).is(i.OutputRegister()) &&
-          i.InputRegister(1).is(i.OutputRegister())) {
-        __ dsra(i.OutputRegister(), i.OutputRegister(), 1);
-      }
-    }
-    __ Branch(tlabel);
-    __ bind(&done);
+    __ Branch(tlabel, cc, at, Operand(kScratchReg));
   } else if (instr->arch_opcode() == kMips64DaddOvf) {
     switch (branch->condition) {
       case kOverflow:
