@@ -1055,7 +1055,9 @@ class RuntimeCallTimerScope {
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
