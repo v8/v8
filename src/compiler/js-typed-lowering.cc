@@ -486,22 +486,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
-  JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Number())) {
-    // JSModulus(x:number, x:number) => NumberModulus(x, y)
-    return r.ChangeToPureOperator(simplified()->NumberModulus(),
-                                  Type::Number());
-  }
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback != BinaryOperationHints::kAny) {
-    return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberModulus(feedback), Type::Number());
-  }
-  return NoChange();
-}
-
 Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
@@ -534,7 +518,6 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
-
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback != BinaryOperationHints::kAny) {
     return r.ChangeToSpeculativeOperator(
@@ -560,10 +543,32 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberDivide(feedback), Type::Number());
   }
-  r.ConvertInputsToNumber();
-  return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
+
+  // If deoptimization is enabled we rely on type feedback.
+  if (r.BothInputsAre(Type::PlainPrimitive()) ||
+      !(flags() & kDeoptimizationEnabled)) {
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
+  }
+
+  return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Number())) {
+    // JSModulus(x:number, x:number) => NumberModulus(x, y)
+    return r.ChangeToPureOperator(simplified()->NumberModulus(),
+                                  Type::Number());
+  }
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    return r.ChangeToSpeculativeOperator(
+        simplified()->SpeculativeNumberModulus(feedback), Type::Number());
+  }
+  return NoChange();
+}
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
