@@ -1323,11 +1323,8 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   __ bind(&receiver_not_date);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(rbp);
-    __ Move(rbp, rsp);
-    __ Push(rsi);
-    __ Push(rdi);
-    __ Push(Immediate(0));
+    __ Move(rbx, Smi::FromInt(0));
+    __ EnterBuiltinFrame(rsi, rdi, rbx);
     __ CallRuntime(Runtime::kThrowNotDateError);
   }
 }
@@ -1673,7 +1670,6 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   __ TailCallStub(&stub);
 }
 
-
 // static
 void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // ----------- S t a t e -------------
@@ -1716,13 +1712,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
       FrameScope scope(masm, StackFrame::MANUAL);
-      __ Push(rbp);
-      __ Move(rbp, rsp);
-      __ Push(rsi);
-      __ Push(rdi);
       __ Integer32ToSmi(rax, rax);
       __ Integer32ToSmi(rcx, rcx);
-      __ Push(rax);
+      __ EnterBuiltinFrame(rsi, rdi, rax);
       __ Push(rcx);
       __ Push(rdx);
       __ movp(rax, rbx);
@@ -1730,9 +1722,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       __ movp(rbx, rax);
       __ Pop(rdx);
       __ Pop(rcx);
-      __ Pop(rax);
-      __ Pop(rdi);
-      __ Pop(rsi);
+      __ LeaveBuiltinFrame(rsi, rdi, rax);
+      __ SmiToInteger32(rcx, rcx);
+      __ SmiToInteger32(rax, rax);
       {
         // Restore the double accumulator value (xmm0).
         Label restore_smi, done_restore;
@@ -1743,9 +1735,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ SmiToDouble(xmm0, rdx);
         __ bind(&done_restore);
       }
-      __ SmiToInteger32(rcx, rcx);
-      __ SmiToInteger32(rax, rax);
-      __ leave();
     }
     __ jmp(&convert);
     __ bind(&convert_number);
@@ -1799,27 +1788,39 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
+  //  -- rsi                 : context
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into rax and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into rbx.
   Label no_arguments;
   {
     StackArgumentsAccessor args(rsp, rax);
     __ testp(rax, rax);
     __ j(zero, &no_arguments, Label::kNear);
     __ movp(rbx, args.GetArgumentOperand(1));
-    __ PopReturnAddressTo(rcx);
-    __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(rcx);
-    __ movp(rax, rbx);
   }
 
   // 2a. Convert the first argument to a number.
-  __ Jump(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ Integer32ToSmi(rax, rax);
+    __ EnterBuiltinFrame(rsi, rdi, rax);
+    __ movp(rax, rbx);
+    __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+    __ LeaveBuiltinFrame(rsi, rdi, rbx);  // Argc popped to rbx.
+    __ SmiToInteger32(rbx, rbx);
+  }
+
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(rcx);
+    __ leap(rsp, Operand(rsp, rbx, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(rcx);
+    __ Ret();
+  }
 
   // 2b. No arguments, return +0 (already in rax).
   __ bind(&no_arguments);
@@ -1833,6 +1834,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
   //  -- rdx                 : new target
+  //  -- rsi                 : context
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
@@ -1841,8 +1843,10 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into rbx and get rid of the rest (including the
-  // receiver).
+  // Store argc in r8.
+  __ Integer32ToSmi(r8, rax);
+
+  // 2. Load the first argument into rbx.
   {
     StackArgumentsAccessor args(rsp, rax);
     Label no_arguments, done;
@@ -1853,9 +1857,6 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&no_arguments);
     __ Move(rbx, Smi::FromInt(0));
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(rcx);
   }
 
   // 3. Make sure rbx is a number.
@@ -1866,37 +1867,48 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
                    Heap::kHeapNumberMapRootIndex);
     __ j(equal, &done_convert);
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ EnterBuiltinFrame(rsi, rdi, r8);
       __ Push(rdx);
-      __ Push(rdi);
       __ Move(rax, rbx);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ Move(rbx, rax);
-      __ Pop(rdi);
       __ Pop(rdx);
+      __ LeaveBuiltinFrame(rsi, rdi, r8);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ cmpp(rdx, rdi);
   __ j(not_equal, &new_object);
 
   // 5. Allocate a JSValue wrapper for the number.
   __ AllocateJSValue(rax, rdi, rbx, rcx, &new_object);
-  __ Ret();
+  __ jmp(&drop_frame_and_ret, Label::kNear);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterBuiltinFrame(rsi, rdi, r8);
     __ Push(rbx);  // the first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(FieldOperand(rax, JSValue::kValueOffset));
+    __ LeaveBuiltinFrame(rsi, rdi, r8);
   }
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(rcx);
+    __ SmiToInteger32(r8, r8);
+    __ leap(rsp, Operand(rsp, r8, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(rcx);
+    __ Ret();
+  }
 }
 
 
@@ -1905,35 +1917,32 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
+  //  -- rsi                 : context
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into rax and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into rax.
   Label no_arguments;
   {
     StackArgumentsAccessor args(rsp, rax);
+    __ Integer32ToSmi(r8, rax);  // Store argc in r8.
     __ testp(rax, rax);
     __ j(zero, &no_arguments, Label::kNear);
-    __ movp(rbx, args.GetArgumentOperand(1));
-    __ PopReturnAddressTo(rcx);
-    __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(rcx);
-    __ movp(rax, rbx);
+    __ movp(rax, args.GetArgumentOperand(1));
   }
 
   // 2a. At least one argument, return rax if it's a string, otherwise
   // dispatch to appropriate conversion.
-  Label to_string, symbol_descriptive_string;
+  Label drop_frame_and_ret, to_string, symbol_descriptive_string;
   {
     __ JumpIfSmi(rax, &to_string, Label::kNear);
     STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
     __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdx);
     __ j(above, &to_string, Label::kNear);
     __ j(equal, &symbol_descriptive_string, Label::kNear);
-    __ Ret();
+    __ jmp(&drop_frame_and_ret, Label::kNear);
   }
 
   // 2b. No arguments, return the empty string (and pop the receiver).
@@ -1946,17 +1955,33 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // 3a. Convert rax to a string.
   __ bind(&to_string);
   {
+    FrameScope scope(masm, StackFrame::MANUAL);
     ToStringStub stub(masm->isolate());
-    __ TailCallStub(&stub);
+    __ EnterBuiltinFrame(rsi, rdi, r8);
+    __ CallStub(&stub);
+    __ LeaveBuiltinFrame(rsi, rdi, r8);
   }
+  __ jmp(&drop_frame_and_ret, Label::kNear);
 
   // 3b. Convert symbol in rax to a string.
   __ bind(&symbol_descriptive_string);
   {
     __ PopReturnAddressTo(rcx);
+    __ SmiToInteger32(r8, r8);
+    __ leap(rsp, Operand(rsp, r8, times_pointer_size, kPointerSize));
     __ Push(rax);
     __ PushReturnAddressFrom(rcx);
     __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
+  }
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(rcx);
+    __ SmiToInteger32(r8, r8);
+    __ leap(rsp, Operand(rsp, r8, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(rcx);
+    __ Ret();
   }
 }
 
@@ -1967,6 +1992,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- rax                 : number of arguments
   //  -- rdi                 : constructor function
   //  -- rdx                 : new target
+  //  -- rsi                 : context
   //  -- rsp[0]              : return address
   //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
   //  -- rsp[(argc + 1) * 8] : receiver
@@ -1975,8 +2001,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into rbx and get rid of the rest (including the
-  // receiver).
+  // Store argc in r8.
+  __ Integer32ToSmi(r8, rax);
+
+  // 2. Load the first argument into rbx.
   {
     StackArgumentsAccessor args(rsp, rax);
     Label no_arguments, done;
@@ -1987,9 +2015,6 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&no_arguments);
     __ LoadRoot(rbx, Heap::kempty_stringRootIndex);
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leap(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(rcx);
   }
 
   // 3. Make sure rbx is a string.
@@ -2000,38 +2025,49 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ j(below, &done_convert);
     __ bind(&convert);
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
       ToStringStub stub(masm->isolate());
+      __ EnterBuiltinFrame(rsi, rdi, r8);
       __ Push(rdx);
-      __ Push(rdi);
       __ Move(rax, rbx);
       __ CallStub(&stub);
       __ Move(rbx, rax);
-      __ Pop(rdi);
       __ Pop(rdx);
+      __ LeaveBuiltinFrame(rsi, rdi, r8);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ cmpp(rdx, rdi);
   __ j(not_equal, &new_object);
 
   // 5. Allocate a JSValue wrapper for the string.
   __ AllocateJSValue(rax, rdi, rbx, rcx, &new_object);
-  __ Ret();
+  __ jmp(&drop_frame_and_ret, Label::kNear);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterBuiltinFrame(rsi, rdi, r8);
     __ Push(rbx);  // the first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(FieldOperand(rax, JSValue::kValueOffset));
+    __ LeaveBuiltinFrame(rsi, rdi, r8);
   }
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(rcx);
+    __ SmiToInteger32(r8, r8);
+    __ leap(rsp, Operand(rsp, r8, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(rcx);
+    __ Ret();
+  }
 }
 
 

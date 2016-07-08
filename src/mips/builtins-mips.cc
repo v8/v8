@@ -168,16 +168,17 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
       FrameScope scope(masm, StackFrame::MANUAL);
-      __ Push(ra, fp);
-      __ Move(fp, sp);
-      __ Push(cp, a1);
       __ SmiTag(a0);
       __ SmiTag(a3);
-      __ Push(a0, t2, a3);
+      __ EnterBuiltinFrame(cp, a1, a0);
+      __ Push(t2, a3);
       __ mov(a0, a2);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ mov(a2, v0);
-      __ Pop(a0, t2, a3);
+      __ Pop(t2, a3);
+      __ LeaveBuiltinFrame(cp, a1, a0);
+      __ SmiUntag(a3);
+      __ SmiUntag(a0);
       {
         // Restore the double accumulator value (f0).
         Label restore_smi, done_restore;
@@ -188,10 +189,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ SmiToDoubleFPURegister(t2, f0, t0);
         __ bind(&done_restore);
       }
-      __ SmiUntag(a3);
-      __ SmiUntag(a0);
-      __ Pop(cp, a1);
-      __ Pop(ra, fp);
     }
     __ jmp(&convert);
     __ bind(&convert_number);
@@ -242,24 +239,37 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
+  //  -- cp                     : context
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into a0 and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into a0.
   Label no_arguments;
   {
     __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
-    __ Subu(a0, a0, Operand(1));
-    __ Lsa(sp, sp, a0, kPointerSizeLog2);
-    __ lw(a0, MemOperand(sp));
-    __ Drop(2);
+    __ Subu(t1, a0, Operand(1));  // In delay slot.
+    __ mov(t0, a0);               // Store argc in t0.
+    __ Lsa(at, sp, t1, kPointerSizeLog2);
+    __ lw(a0, MemOperand(at));
   }
 
   // 2a. Convert first argument to number.
-  __ Jump(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(t0);
+    __ EnterBuiltinFrame(cp, a1, t0);
+    __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+    __ LeaveBuiltinFrame(cp, a1, t0);
+    __ SmiUntag(t0);
+  }
+
+  {
+    // Drop all arguments including the receiver.
+    __ Lsa(sp, sp, t0, kPointerSizeLog2);
+    __ DropAndRet(1);
+  }
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
@@ -274,6 +284,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
   //  -- a3                     : new target
+  //  -- cp                     : context
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
@@ -282,19 +293,17 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into a0 and get rid of the rest (including the
-  // receiver).
+  // 2. Load the first argument into a0.
   {
     Label no_arguments, done;
+    __ mov(t0, a0);  // Store argc in t0.
     __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
-    __ Subu(a0, a0, Operand(1));
-    __ Lsa(sp, sp, a0, kPointerSizeLog2);
-    __ lw(a0, MemOperand(sp));
-    __ Drop(2);
+    __ Subu(t1, a0, Operand(1));  // In delay slot.
+    __ Lsa(at, sp, t1, kPointerSizeLog2);
+    __ lw(a0, MemOperand(at));
     __ jmp(&done);
     __ bind(&no_arguments);
     __ Move(a0, Smi::FromInt(0));
-    __ Drop(1);
     __ bind(&done);
   }
 
@@ -305,34 +314,47 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ GetObjectType(a0, a2, a2);
     __ Branch(&done_convert, eq, a2, Operand(HEAP_NUMBER_TYPE));
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(a1, a3);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ SmiTag(t0);
+      __ EnterBuiltinFrame(cp, a1, t0);
+      __ Push(a3);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ Move(a0, v0);
-      __ Pop(a1, a3);
+      __ Pop(a3);
+      __ LeaveBuiltinFrame(cp, a1, t0);
+      __ SmiUntag(t0);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ Branch(&new_object, ne, a1, Operand(a3));
 
   // 5. Allocate a JSValue wrapper for the number.
-  __ AllocateJSValue(v0, a1, a0, a2, t0, &new_object);
-  __ Ret();
+  __ AllocateJSValue(v0, a1, a0, a2, t1, &new_object);
+  __ jmp(&drop_frame_and_ret);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a0);  // first argument
+    FrameScope scope(masm, StackFrame::MANUAL);
     FastNewObjectStub stub(masm->isolate());
+    __ SmiTag(t0);
+    __ EnterBuiltinFrame(cp, a1, t0);
+    __ Push(a0);  // first argument
     __ CallStub(&stub);
     __ Pop(a0);
+    __ LeaveBuiltinFrame(cp, a1, t0);
+    __ SmiUntag(t0);
   }
-  __ Ret(USE_DELAY_SLOT);
-  __ sw(a0, FieldMemOperand(v0, JSValue::kValueOffset));  // In delay slot
+  __ sw(a0, FieldMemOperand(v0, JSValue::kValueOffset));
+
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Lsa(sp, sp, t0, kPointerSizeLog2);
+    __ DropAndRet(1);
+  }
 }
 
 
@@ -341,34 +363,34 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
+  //  -- cp                     : context
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into a0 and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into a0.
   Label no_arguments;
   {
     __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
-    __ Subu(a0, a0, Operand(1));
-    __ Lsa(sp, sp, a0, kPointerSizeLog2);
-    __ lw(a0, MemOperand(sp));
-    __ Drop(2);
+    __ Subu(t1, a0, Operand(1));
+    __ mov(t0, a0);  // Store argc in t0.
+    __ Lsa(at, sp, t1, kPointerSizeLog2);
+    __ lw(a0, MemOperand(at));
   }
 
   // 2a. At least one argument, return a0 if it's a string, otherwise
   // dispatch to appropriate conversion.
-  Label to_string, symbol_descriptive_string;
+  Label drop_frame_and_ret, to_string, symbol_descriptive_string;
   {
     __ JumpIfSmi(a0, &to_string);
-    __ GetObjectType(a0, a1, a1);
+    __ GetObjectType(a0, t1, t1);
     STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
-    __ Subu(a1, a1, Operand(FIRST_NONSTRING_TYPE));
-    __ Branch(&symbol_descriptive_string, eq, a1, Operand(zero_reg));
-    __ Branch(&to_string, gt, a1, Operand(zero_reg));
-    __ Ret(USE_DELAY_SLOT);
+    __ Subu(t1, t1, Operand(FIRST_NONSTRING_TYPE));
+    __ Branch(&symbol_descriptive_string, eq, t1, Operand(zero_reg));
+    __ Branch(&to_string, gt, t1, Operand(zero_reg));
     __ mov(v0, a0);
+    __ jmp(&drop_frame_and_ret);
   }
 
   // 2b. No arguments, return the empty string (and pop the receiver).
@@ -381,15 +403,29 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // 3a. Convert a0 to a string.
   __ bind(&to_string);
   {
+    FrameScope scope(masm, StackFrame::MANUAL);
     ToStringStub stub(masm->isolate());
-    __ TailCallStub(&stub);
+    __ SmiTag(t0);
+    __ EnterBuiltinFrame(cp, a1, t0);
+    __ CallStub(&stub);
+    __ LeaveBuiltinFrame(cp, a1, t0);
+    __ SmiUntag(t0);
   }
+  __ jmp(&drop_frame_and_ret);
 
   // 3b. Convert symbol in a0 to a string.
   __ bind(&symbol_descriptive_string);
   {
+    __ Lsa(sp, sp, t0, kPointerSizeLog2);
+    __ Drop(1);
     __ Push(a0);
     __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
+  }
+
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Lsa(sp, sp, t0, kPointerSizeLog2);
+    __ DropAndRet(1);
   }
 }
 
@@ -400,6 +436,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- a0                     : number of arguments
   //  -- a1                     : constructor function
   //  -- a3                     : new target
+  //  -- cp                     : context
   //  -- ra                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
@@ -408,19 +445,17 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into a0 and get rid of the rest (including the
-  // receiver).
+  // 2. Load the first argument into a0.
   {
     Label no_arguments, done;
+    __ mov(t0, a0);  // Store argc in t0.
     __ Branch(USE_DELAY_SLOT, &no_arguments, eq, a0, Operand(zero_reg));
-    __ Subu(a0, a0, Operand(1));
-    __ Lsa(sp, sp, a0, kPointerSizeLog2);
-    __ lw(a0, MemOperand(sp));
-    __ Drop(2);
+    __ Subu(t1, a0, Operand(1));
+    __ Lsa(at, sp, t1, kPointerSizeLog2);
+    __ lw(a0, MemOperand(at));
     __ jmp(&done);
     __ bind(&no_arguments);
     __ LoadRoot(a0, Heap::kempty_stringRootIndex);
-    __ Drop(1);
     __ bind(&done);
   }
 
@@ -429,39 +464,52 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     Label convert, done_convert;
     __ JumpIfSmi(a0, &convert);
     __ GetObjectType(a0, a2, a2);
-    __ And(t0, a2, Operand(kIsNotStringMask));
-    __ Branch(&done_convert, eq, t0, Operand(zero_reg));
+    __ And(t1, a2, Operand(kIsNotStringMask));
+    __ Branch(&done_convert, eq, t1, Operand(zero_reg));
     __ bind(&convert);
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
       ToStringStub stub(masm->isolate());
-      __ Push(a1, a3);
+      __ SmiTag(t0);
+      __ EnterBuiltinFrame(cp, a1, t0);
+      __ Push(a3);
       __ CallStub(&stub);
       __ Move(a0, v0);
-      __ Pop(a1, a3);
+      __ Pop(a3);
+      __ LeaveBuiltinFrame(cp, a1, t0);
+      __ SmiUntag(t0);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ Branch(&new_object, ne, a1, Operand(a3));
 
   // 5. Allocate a JSValue wrapper for the string.
-  __ AllocateJSValue(v0, a1, a0, a2, t0, &new_object);
-  __ Ret();
+  __ AllocateJSValue(v0, a1, a0, a2, t1, &new_object);
+  __ jmp(&drop_frame_and_ret);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a0);  // first argument
+    FrameScope scope(masm, StackFrame::MANUAL);
     FastNewObjectStub stub(masm->isolate());
+    __ SmiTag(t0);
+    __ EnterBuiltinFrame(cp, a1, t0);
+    __ Push(a0);  // first argument
     __ CallStub(&stub);
     __ Pop(a0);
+    __ LeaveBuiltinFrame(cp, a1, t0);
+    __ SmiUntag(t0);
   }
-  __ Ret(USE_DELAY_SLOT);
-  __ sw(a0, FieldMemOperand(v0, JSValue::kValueOffset));  // In delay slot
+  __ sw(a0, FieldMemOperand(v0, JSValue::kValueOffset));
+
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Lsa(sp, sp, t0, kPointerSizeLog2);
+    __ DropAndRet(1);
+  }
 }
 
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
@@ -1801,10 +1849,9 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   __ bind(&receiver_not_date);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(a0, ra, fp);
-    __ Move(fp, sp);
-    __ Push(cp, a1);
-    __ Push(Smi::FromInt(0));
+    __ Push(a0);
+    __ Move(a0, Smi::FromInt(0));
+    __ EnterBuiltinFrame(cp, a1, a0);
     __ CallRuntime(Runtime::kThrowNotDateError);
   }
 }

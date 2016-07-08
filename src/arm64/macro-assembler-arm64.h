@@ -1642,6 +1642,9 @@ class MacroAssembler : public Assembler {
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
   // Returns map with validated enum cache in object register.
   void CheckEnumCache(Register object, Register scratch0, Register scratch1,
                       Register scratch2, Register scratch3, Register scratch4,

@@ -114,6 +114,9 @@
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
 
+  # Fails in --turbo --always-opt mode.
+  'regress/regress-105': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],

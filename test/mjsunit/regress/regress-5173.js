@@ -16,12 +16,8 @@ function testTraceNativeConversion(nativeFunc) {
   }
 }
 
-// C++ builtins.
-testTraceNativeConversion(Math.acos);
-testTraceNativeConversion(Math.asin);
-testTraceNativeConversion(Math.fround);
-testTraceNativeConversion(Math.imul);
-
+testTraceNativeConversion(Math.max);
+testTraceNativeConversion(Math.min);
 
 function testBuiltinInStackTrace(script, expectedString) {
   try {
@@ -32,12 +28,17 @@ function testBuiltinInStackTrace(script, expectedString) {
   }
 }
 
-// C++ builtins.
-testBuiltinInStackTrace("Boolean.prototype.toString.call(thrower);",
-                        "at Object.toString");
+testBuiltinInStackTrace("Date.prototype.getDate.call('')", "at String.getDate");
+testBuiltinInStackTrace("Date.prototype.getUTCDate.call('')",
+                        "at String.getUTCDate");
+testBuiltinInStackTrace("Date.prototype.getTime.call('')", "at String.getTime");
 
-// Constructor builtins.
-testBuiltinInStackTrace("new Date(thrower);", "at new Date");
+// TODO(jgruber): These use a more generic expected string until detection of
+// assembly builtin constructors is fixed.
+testBuiltinInStackTrace("Number(thrower);", "Number");
+testBuiltinInStackTrace("new Number(thrower);", "Number");
+testBuiltinInStackTrace("String(thrower);", "String");
+testBuiltinInStackTrace("new String(thrower);", "String");
 
 // Ensure we correctly pick up the receiver's string tag.
 testBuiltinInStackTrace("Math.acos(thrower);", "at Math.acos");
