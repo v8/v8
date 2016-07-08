@@ -65,7 +65,7 @@ void Assembler::emit_code_target(Handle<Code> target,
     RecordRelocInfo(rmode);
   }
   int current = code_targets_.length();
-  if (current > 0 && code_targets_.last().is_identical_to(target)) {
+  if (current > 0 && code_targets_.last().address() == target.address()) {
     // Optimization if we keep jumping to the same code target.
     emitl(current - 1);
   } else {
