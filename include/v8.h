@@ -3240,6 +3240,7 @@ class PropertyCallbackInfo {
 
 typedef void (*FunctionCallback)(const FunctionCallbackInfo<Value>& info);
 
+enum class ConstructorBehavior { kThrow, kAllow };
 
 /**
  * A JavaScript function object (ECMA-262, 15.3).
@@ -3250,10 +3251,10 @@ class V8_EXPORT Function : public Object {
    * Create a function in the current execution context
    * for a given FunctionCallback.
    */
-  static MaybeLocal<Function> New(Local<Context> context,
-                                  FunctionCallback callback,
-                                  Local<Value> data = Local<Value>(),
-                                  int length = 0);
+  static MaybeLocal<Function> New(
+      Local<Context> context, FunctionCallback callback,
+      Local<Value> data = Local<Value>(), int length = 0,
+      ConstructorBehavior behavior = ConstructorBehavior::kAllow);
   static V8_DEPRECATE_SOON(
       "Use maybe version",
       Local<Function> New(Isolate* isolate, FunctionCallback callback,
@@ -4490,7 +4491,8 @@ class V8_EXPORT FunctionTemplate : public Template {
   static Local<FunctionTemplate> New(
       Isolate* isolate, FunctionCallback callback = 0,
       Local<Value> data = Local<Value>(),
-      Local<Signature> signature = Local<Signature>(), int length = 0);
+      Local<Signature> signature = Local<Signature>(), int length = 0,
+      ConstructorBehavior behavior = ConstructorBehavior::kAllow);
 
   /**
    * Creates a function template with a fast handler. If a fast handler is set,
