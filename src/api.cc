@@ -7656,20 +7656,13 @@ bool Isolate::GetHeapCodeAndMetadataStatistics(
 
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
-#if defined(USE_SIMULATOR)
-  RegisterState regs;
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  if (!i::SimulatorHelper::FillRegisters(isolate, &regs)) {
-    sample_info->frames_count = 0;
-    sample_info->vm_state = OTHER;
-    sample_info->external_callback_entry = nullptr;
+  if (TickSample::GetStackSample(this, state, TickSample::kSkipCEntryFrame,
+                                 frames, frames_limit, sample_info)) {
     return;
   }
-#else
-  const RegisterState& regs = state;
-#endif
-  TickSample::GetStackSample(this, regs, TickSample::kSkipCEntryFrame, frames,
-                             frames_limit, sample_info);
+  sample_info->frames_count = 0;
+  sample_info->vm_state = OTHER;
+  sample_info->external_callback_entry = nullptr;
 }
 
 size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {

@@ -619,10 +619,10 @@ class Profiler: public base::Thread {
 //
 class Ticker: public sampler::Sampler {
  public:
-  Ticker(Isolate* isolate, int interval):
-      sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
-      profiler_(NULL),
-      sampling_thread_(new SamplingThread(this, interval)) {}
+  Ticker(Isolate* isolate, int interval)
+      : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
+        profiler_(nullptr),
+        sampling_thread_(new SamplingThread(this, interval)) {}
 
   ~Ticker() {
     if (IsActive()) Stop();
@@ -630,7 +630,7 @@ class Ticker: public sampler::Sampler {
   }
 
   void SetProfiler(Profiler* profiler) {
-    DCHECK(profiler_ == NULL);
+    DCHECK(profiler_ == nullptr);
     profiler_ = profiler;
     IncreaseProfilingDepth();
     if (!IsActive()) Start();
@@ -638,7 +638,7 @@ class Ticker: public sampler::Sampler {
   }
 
   void ClearProfiler() {
-    profiler_ = NULL;
+    profiler_ = nullptr;
     if (IsActive()) Stop();
     DecreaseProfilingDepth();
     sampling_thread_->Join();
@@ -646,15 +646,9 @@ class Ticker: public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
-    v8::Isolate* v8_isolate = isolate();
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(v8_isolate);
-#if defined(USE_SIMULATOR)
-    if (!SimulatorHelper::FillRegisters(i_isolate,
-                                        const_cast<v8::RegisterState*>(&state)))
-      return;
-#endif
+    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
     TickSample sample;
-    sample.Init(i_isolate, state, TickSample::kIncludeCEntryFrame, true);
+    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
   }
 
