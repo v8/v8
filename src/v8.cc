@@ -14,7 +14,7 @@
 #include "src/elements.h"
 #include "src/frames.h"
 #include "src/isolate.h"
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 #include "src/objects.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/runtime-profiler.h"

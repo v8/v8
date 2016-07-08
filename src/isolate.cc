@@ -27,7 +27,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/profiler/cpu-profiler.h"

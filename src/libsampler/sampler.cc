@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 
 #if V8_OS_POSIX && !V8_OS_CYGWIN
 

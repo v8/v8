@@ -13,7 +13,7 @@
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
 #include "src/isolate.h"
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"

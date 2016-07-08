@@ -2032,8 +2032,8 @@ v8_source_set("v8_libplatform") {
 
 v8_source_set("v8_libsampler") {
   sources = [
-    "src/libsampler/v8-sampler.cc",
-    "src/libsampler/v8-sampler.h",
+    "src/libsampler/sampler.cc",
+    "src/libsampler/sampler.h",
   ]
 
   configs = [ ":internal_config_base" ]

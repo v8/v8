@@ -1975,8 +1975,8 @@
         '../include',
       ],
       'sources': [
-        'libsampler/v8-sampler.cc',
-        'libsampler/v8-sampler.h'
+        'libsampler/sampler.cc',
+        'libsampler/sampler.h'
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
