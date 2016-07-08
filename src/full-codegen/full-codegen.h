@@ -47,7 +47,8 @@ class FullCodeGenerator: public AstVisitor {
                          info->zone()),
         back_edges_(2, info->zone()),
         handler_table_(info->zone()),
-        source_position_table_builder_(info->isolate(), info->zone()),
+        source_position_table_builder_(info->isolate(), info->zone(),
+                                       info->SourcePositionRecordingMode()),
         ic_total_count_(0) {
     DCHECK(!info->IsStub());
     Initialize();

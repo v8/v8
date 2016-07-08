@@ -54,7 +54,8 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
-      source_position_table_builder_(info->isolate(), zone()) {
+      source_position_table_builder_(info->isolate(), code->zone(),
+                                     info->SourcePositionRecordingMode()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }

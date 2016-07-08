@@ -104,19 +104,23 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 
 }  // namespace
 
-SourcePositionTableBuilder::SourcePositionTableBuilder(Isolate* isolate,
-                                                       Zone* zone)
+SourcePositionTableBuilder::SourcePositionTableBuilder(
+    Isolate* isolate, Zone* zone,
+    SourcePositionTableBuilder::RecordingMode mode)
     : isolate_(isolate),
+      mode_(mode),
       bytes_(zone),
 #ifdef ENABLE_SLOW_DCHECKS
       raw_entries_(zone),
 #endif
       previous_(),
       jit_handler_data_(nullptr) {
+  if (Omit()) return;
   LOG_CODE_EVENT(isolate_, CodeStartLinePosInfoRecordEvent(&jit_handler_data_));
 }
 
 void SourcePositionTableBuilder::EndJitLogging(AbstractCode* code) {
+  if (Omit()) return;
   LOG_CODE_EVENT(isolate_,
                  CodeEndLinePosInfoRecordEvent(code, jit_handler_data_));
 }
@@ -124,6 +128,7 @@ void SourcePositionTableBuilder::EndJitLogging(AbstractCode* code) {
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
                                              int source_position,
                                              bool is_statement) {
+  if (Omit()) return;
   int offset = static_cast<int>(code_offset);
   AddEntry({offset, source_position, is_statement});
 }
@@ -150,6 +155,7 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
   if (bytes_.empty()) return isolate_->factory()->empty_byte_array();
+  DCHECK(!Omit());
 
   Handle<ByteArray> table = isolate_->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), TENURED);
@@ -168,8 +174,9 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable() {
     DCHECK_EQ(encoded.is_statement(), raw->is_statement);
   }
   DCHECK(raw == raw_entries_.end());
+  // No additional source positions after creating the table.
+  mode_ = OMIT_SOURCE_POSITIONS;
 #endif
-
   return table;
 }
 

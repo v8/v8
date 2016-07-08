@@ -22,8 +22,10 @@ class ConstantArrayBuilder;
 // generation pipeline.
 class BytecodeArrayWriter final : public BytecodePipelineStage {
  public:
-  BytecodeArrayWriter(Isolate* isolate, Zone* zone,
-                      ConstantArrayBuilder* constant_array_builder);
+  BytecodeArrayWriter(
+      Isolate* isolate, Zone* zone,
+      ConstantArrayBuilder* constant_array_builder,
+      SourcePositionTableBuilder::RecordingMode source_position_mode);
   virtual ~BytecodeArrayWriter();
 
   // BytecodePipelineStage interface.

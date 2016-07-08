@@ -17,10 +17,10 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
-                                           int parameter_count,
-                                           int context_count, int locals_count,
-                                           FunctionLiteral* literal)
+BytecodeArrayBuilder::BytecodeArrayBuilder(
+    Isolate* isolate, Zone* zone, int parameter_count, int context_count,
+    int locals_count, FunctionLiteral* literal,
+    SourcePositionTableBuilder::RecordingMode source_position_mode)
     : isolate_(isolate),
       zone_(zone),
       bytecode_generated_(false),
@@ -31,7 +31,8 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
       local_register_count_(locals_count),
       context_register_count_(context_count),
       temporary_allocator_(zone, fixed_register_count()),
-      bytecode_array_writer_(isolate, zone, &constant_array_builder_),
+      bytecode_array_writer_(isolate, zone, &constant_array_builder_,
+                             source_position_mode),
       pipeline_(&bytecode_array_writer_) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);

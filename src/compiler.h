@@ -9,6 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
+#include "src/source-position-table.h"
 #include "src/source-position.h"
 #include "src/zone.h"
 
@@ -434,6 +435,8 @@ class CompilationInfo final {
   StackFrame::Type GetOutputStackFrameType() const;
 
   int GetDeclareGlobalsFlags() const;
+
+  SourcePositionTableBuilder::RecordingMode SourcePositionRecordingMode() const;
 
  protected:
   ParseInfo* parse_info_;

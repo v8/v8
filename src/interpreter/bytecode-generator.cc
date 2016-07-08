@@ -547,7 +547,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       builder_(new (zone()) BytecodeArrayBuilder(
           info->isolate(), info->zone(), info->num_parameters_including_this(),
           info->scope()->MaxNestedContextChainLength(),
-          info->scope()->num_stack_slots(), info->literal())),
+          info->scope()->num_stack_slots(), info->literal(),
+          info->SourcePositionRecordingMode())),
       info_(info),
       scope_(info->scope()),
       globals_(0, info->zone()),

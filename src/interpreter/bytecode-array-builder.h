@@ -27,9 +27,11 @@ class Register;
 
 class BytecodeArrayBuilder final : public ZoneObject {
  public:
-  BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
-                       int context_count, int locals_count,
-                       FunctionLiteral* literal = nullptr);
+  BytecodeArrayBuilder(
+      Isolate* isolate, Zone* zone, int parameter_count, int context_count,
+      int locals_count, FunctionLiteral* literal = nullptr,
+      SourcePositionTableBuilder::RecordingMode source_position_mode =
+          SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
   Handle<BytecodeArray> ToBytecodeArray();
 

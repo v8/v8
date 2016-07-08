@@ -224,6 +224,13 @@ int CompilationInfo::GetDeclareGlobalsFlags() const {
          DeclareGlobalsLanguageMode::encode(parse_info()->language_mode());
 }
 
+SourcePositionTableBuilder::RecordingMode
+CompilationInfo::SourcePositionRecordingMode() const {
+  return parse_info() && parse_info()->is_native()
+             ? SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS
+             : SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS;
+}
+
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
 }

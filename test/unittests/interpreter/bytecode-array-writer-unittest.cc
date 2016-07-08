@@ -23,7 +23,9 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
       : constant_array_builder_(isolate(), zone()),
-        bytecode_array_writer_(isolate(), zone(), &constant_array_builder_) {}
+        bytecode_array_writer_(
+            isolate(), zone(), &constant_array_builder_,
+            SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}
   ~BytecodeArrayWriterUnittest() override {}
 
   void Write(BytecodeNode* node, const BytecodeSourceInfo& info);
@@ -135,14 +137,14 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), bytes[i]);
   }
 
-  writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
   CHECK_EQ(bytecodes()->size(), arraysize(bytes));
 
   PositionTableEntry expected_positions[] = {
       {0, 10, false}, {1, 55, true}, {7, 70, true}};
-  Handle<ByteArray> source_positions =
-      source_position_table_builder()->ToSourcePositionTable();
-  SourcePositionTableIterator source_iterator(*source_positions);
+  SourcePositionTableIterator source_iterator(
+      bytecode_array->source_position_table());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);

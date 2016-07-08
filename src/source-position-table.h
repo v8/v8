@@ -32,7 +32,10 @@ struct PositionTableEntry {
 
 class SourcePositionTableBuilder {
  public:
-  SourcePositionTableBuilder(Isolate* isolate, Zone* zone);
+  enum RecordingMode { OMIT_SOURCE_POSITIONS, RECORD_SOURCE_POSITIONS };
+
+  SourcePositionTableBuilder(Isolate* isolate, Zone* zone,
+                             RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
   void EndJitLogging(AbstractCode* code);
 
@@ -42,7 +45,10 @@ class SourcePositionTableBuilder {
  private:
   void AddEntry(const PositionTableEntry& entry);
 
+  inline bool Omit() const { return mode_ == OMIT_SOURCE_POSITIONS; }
+
   Isolate* isolate_;
+  RecordingMode mode_;
   ZoneVector<byte> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;

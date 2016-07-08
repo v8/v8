@@ -17,12 +17,13 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
     BytecodeArrayWriter::kMaxSizeOfPackedBytecode;
 
 BytecodeArrayWriter::BytecodeArrayWriter(
-    Isolate* isolate, Zone* zone, ConstantArrayBuilder* constant_array_builder)
+    Isolate* isolate, Zone* zone, ConstantArrayBuilder* constant_array_builder,
+    SourcePositionTableBuilder::RecordingMode source_position_mode)
     : isolate_(isolate),
       bytecodes_(zone),
       max_register_count_(0),
       unbound_jumps_(0),
-      source_position_table_builder_(isolate, zone),
+      source_position_table_builder_(isolate, zone, source_position_mode),
       constant_array_builder_(constant_array_builder) {}
 
 // override
