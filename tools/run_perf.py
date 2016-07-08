@@ -128,16 +128,19 @@ def LoadAndroidBuildTools(path):  # pragma: no cover
   assert os.path.exists(path)
   sys.path.insert(0, path)
 
-  from pylib.device import adb_wrapper  # pylint: disable=F0401
-  from pylib.device import device_errors  # pylint: disable=F0401
-  from pylib.device import device_utils  # pylint: disable=F0401
-  from pylib.perf import cache_control  # pylint: disable=F0401
-  from pylib.perf import perf_control  # pylint: disable=F0401
+  import devil_chromium
+  from devil.android import device_errors  # pylint: disable=import-error
+  from devil.android import device_utils  # pylint: disable=import-error
+  from devil.android.sdk import adb_wrapper  # pylint: disable=import-error
+  from devil.android.perf import cache_control  # pylint: disable=import-error
+  from devil.android.perf import perf_control  # pylint: disable=import-error
   global adb_wrapper
   global cache_control
   global device_errors
   global device_utils
   global perf_control
+
+  devil_chromium.Initialize()
 
 
 def GeometricMean(values):
