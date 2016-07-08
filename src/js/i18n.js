@@ -41,7 +41,6 @@ var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringLastIndexOf;
-var StringSplit;
 var StringSubstr;
 var StringSubstring;
 
@@ -57,7 +56,6 @@ utils.Import(function(from) {
   InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
   StringLastIndexOf = from.StringLastIndexOf;
-  StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
 });
@@ -477,7 +475,7 @@ function bestFitMatcher(service, requestedLocales) {
  * We are not concerned with the validity of the values at this point.
  */
 function parseExtension(extension) {
-  var extensionSplit = %_Call(StringSplit, extension, '-');
+  var extensionSplit = %StringSplit(extension, '-', kMaxUint32);
 
   // Assume ['', 'u', ...] input, but don't throw.
   if (extensionSplit.length <= 2 ||
@@ -711,7 +709,7 @@ function toTitleCaseTimezoneLocation(location) {
     // The first character is a separator, '_' or '-'.
     // None of IANA zone names has both '_' and '-'.
     var separator = %_Call(StringSubstring, match[2], 0, 1);
-    var parts = %_Call(StringSplit, match[2], separator);
+    var parts = %StringSplit(match[2], separator, kMaxUint32);
     for (var i = 1; i < parts.length; i++) {
       var part = parts[i]
       var lowercasedPart = %StringToLowerCase(part);
@@ -812,14 +810,14 @@ function isValidLanguageTag(locale) {
   // Check if there are any duplicate variants or singletons (extensions).
 
   // Remove private use section.
-  locale = %_Call(StringSplit, locale, '-x-')[0];
+  locale = %StringSplit(locale, '-x-', kMaxUint32)[0];
 
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
   var variants = new InternalArray();
   var extensions = new InternalArray();
-  var parts = %_Call(StringSplit, locale, '-');
+  var parts = %StringSplit(locale, '-', kMaxUint32);
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];
     if (!IS_NULL(InternalRegExpMatch(GetLanguageVariantRE(), value)) &&
@@ -1805,7 +1803,7 @@ function canonicalizeTimeZoneID(tzID) {
                toTitleCaseTimezoneLocation(match[2]);
 
   if (!IS_UNDEFINED(match[3]) && 3 < match.length) {
-    var locations = %_Call(StringSplit, match[3], '/');
+    var locations = %StringSplit(match[3], '/', kMaxUint32);
     // The 1st element is empty. Starts with i=1.
     for (var i = 1; i < locations.length; i++) {
       result = result + '/' + toTitleCaseTimezoneLocation(locations[i]);
