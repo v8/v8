@@ -7,6 +7,7 @@
 #include <cstdarg>
 #include <sstream>
 
+#include "include/v8-profiler.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -21,16 +22,13 @@
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
-#include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
-#include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
-
 
 #define DECLARE_EVENT(ignore1, name) name,
 static const char* kLogEventsNames[CodeEventListener::NUMBER_OF_LOG_EVENTS] = {
@@ -557,7 +555,7 @@ class Profiler: public base::Thread {
   void Disengage();
 
   // Inserts collected profiling data into buffer.
-  void Insert(TickSample* sample) {
+  void Insert(v8::TickSample* sample) {
     if (paused_)
       return;
 
@@ -578,7 +576,7 @@ class Profiler: public base::Thread {
 
  private:
   // Waits for a signal and removes profiling data.
-  bool Remove(TickSample* sample) {
+  bool Remove(v8::TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
     *sample = buffer_[base::NoBarrier_Load(&tail_)];
     bool result = overflow_;
@@ -595,7 +593,7 @@ class Profiler: public base::Thread {
   // Cyclic buffer for communicating profiling samples
   // between the signal handler and the worker thread.
   static const int kBufferSize = 128;
-  TickSample buffer_[kBufferSize];  // Buffer storage.
+  v8::TickSample buffer_[kBufferSize];  // Buffer storage.
   int head_;  // Index to the buffer head.
   base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
@@ -646,9 +644,8 @@ class Ticker: public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
-    Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    TickSample sample;
-    sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
+    v8::TickSample sample;
+    sample.Init(isolate(), state, v8::TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
   }
 
@@ -708,7 +705,7 @@ void Profiler::Disengage() {
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
   base::NoBarrier_Store(&running_, 0);
-  TickSample sample;
+  v8::TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
   resume();
   Insert(&sample);
@@ -719,7 +716,7 @@ void Profiler::Disengage() {
 
 
 void Profiler::Run() {
-  TickSample sample;
+  v8::TickSample sample;
   bool overflow = Remove(&sample);
   while (base::NoBarrier_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
@@ -1361,7 +1358,7 @@ void Logger::RuntimeCallTimerEvent() {
   msg.WriteToLogFile();
 }
 
-void Logger::TickEvent(TickSample* sample, bool overflow) {
+void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
   if (FLAG_runtime_call_stats) {
     RuntimeCallTimerEvent();
