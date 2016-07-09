@@ -87,40 +87,34 @@ class SimulatorHelper {
   static bool FillRegisters(Isolate* isolate, v8::RegisterState* state);
 };
 
-bool SimulatorHelper::FillRegisters(Isolate* isolate,
-                                    v8::RegisterState* state) {
+bool SimulatorHelper::FillRegisters(Isolate* isolate, RegisterState* state) {
   Simulator* simulator = isolate->thread_local_top()->simulator_;
   // Check if there is active simulator.
-  if (simulator == NULL) return false;
+  if (simulator == nullptr) return false;
 #if V8_TARGET_ARCH_ARM
-  if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
-  }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp =
-      reinterpret_cast<Address>(simulator->get_register(Simulator::r11));
+  if (simulator->has_bad_pc()) return false;
+  state->pc = reinterpret_cast<void*>(simulator->get_pc());
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_ARM64
-  state->pc = reinterpret_cast<Address>(simulator->pc());
-  state->sp = reinterpret_cast<Address>(simulator->sp());
-  state->fp = reinterpret_cast<Address>(simulator->fp());
+  state->pc = reinterpret_cast<void*>(simulator->pc());
+  state->sp = reinterpret_cast<void*>(simulator->sp());
+  state->fp = reinterpret_cast<void*>(simulator->fp());
 #elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-  if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
-  }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  if (simulator->has_bad_pc()) return false;
+  state->pc = reinterpret_cast<void*>(simulator->get_pc());
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #elif V8_TARGET_ARCH_PPC
-  if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
-  }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  if (simulator->has_bad_pc()) return false;
+  state->pc = reinterpret_cast<void*>(simulator->get_pc());
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #elif V8_TARGET_ARCH_S390
-  if (!simulator->has_bad_pc()) {
-    state->pc = reinterpret_cast<Address>(simulator->get_pc());
-  }
-  state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(Simulator::fp));
+  if (simulator->has_bad_pc()) return false;
+  state->pc = reinterpret_cast<void*>(simulator->get_pc());
+  state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
+  state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::fp));
 #endif
   if (state->sp == 0 || state->fp == 0) {
     // It possible that the simulator is interrupted while it is updating
@@ -128,7 +122,7 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
     // first setting it to zero and then setting it to the new value.
     // Bailout if sp/fp doesn't contain the new value.
     //
-    // FIXME: The above doesn't really solve the issue.
+    // TODO(alph): The above doesn't really solve the issue.
     // If a 64-bit target is executed on a 32-bit host even the final
     // write is non-atomic, so it might obtain a half of the result.
     // Moreover as long as the register set code uses memcpy (as of now),
