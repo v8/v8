@@ -281,6 +281,59 @@ unsigned OpcodeLength(const byte* pc, const byte* end);
 // Computes the arity (number of sub-nodes) of the opcode at the given address.
 unsigned OpcodeArity(const byte* pc, const byte* end);
 
+// A simple forward iterator for bytecodes.
+class BytecodeIterator : public Decoder {
+ public:
+  // If one wants to iterate over the bytecode without looking at {pc_offset()}.
+  class iterator {
+   public:
+    inline iterator& operator++() {
+      DCHECK_LT(ptr_, end_);
+      ptr_ += OpcodeLength(ptr_, end_);
+      return *this;
+    }
+    inline WasmOpcode operator*() {
+      DCHECK_LT(ptr_, end_);
+      return static_cast<WasmOpcode>(*ptr_);
+    }
+    inline bool operator==(const iterator& that) {
+      return this->ptr_ == that.ptr_;
+    }
+    inline bool operator!=(const iterator& that) {
+      return this->ptr_ != that.ptr_;
+    }
+
+   private:
+    friend class BytecodeIterator;
+    const byte* ptr_;
+    const byte* end_;
+    iterator(const byte* ptr, const byte* end) : ptr_(ptr), end_(end) {}
+  };
+
+  // Create a new {BytecodeIterator}. If the {decls} pointer is non-null,
+  // assume the bytecode starts with local declarations and decode them.
+  // Otherwise, do not decode local decls.
+  BytecodeIterator(const byte* start, const byte* end,
+                   AstLocalDecls* decls = nullptr);
+
+  inline iterator begin() const { return iterator(pc_, end_); }
+  inline iterator end() const { return iterator(end_, end_); }
+
+  WasmOpcode current() {
+    return static_cast<WasmOpcode>(
+        checked_read_u8(pc_, 0, "expected bytecode"));
+  }
+
+  void next() {
+    if (pc_ < end_) {
+      pc_ += OpcodeLength(pc_, end_);
+      if (pc_ >= end_) pc_ = end_;
+    }
+  }
+
+  bool has_next() { return pc_ < end_; }
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

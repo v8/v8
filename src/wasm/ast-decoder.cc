@@ -1464,6 +1464,17 @@ bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
   return decoder.DecodeLocalDecls(decls);
 }
 
+BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
+                                   AstLocalDecls* decls)
+    : Decoder(start, end) {
+  if (decls != nullptr) {
+    if (DecodeLocalDecls(*decls, start, end)) {
+      pc_ += decls->decls_encoded_size;
+      if (pc_ > end_) pc_ = end_;
+    }
+  }
+}
+
 DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
                             FunctionBody& body) {
   Zone zone(allocator);
@@ -1511,9 +1522,8 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
 
   // Print the local declarations.
   AstLocalDecls decls(&zone);
-  decoder.DecodeLocalDecls(decls);
-  const byte* pc = decoder.pc();
-  if (body.start != decoder.pc()) {
+  BytecodeIterator i(body.start, body.end, &decls);
+  if (body.start != i.pc()) {
     os << "// locals: ";
     for (auto p : decls.local_types) {
       LocalType type = p.first;
@@ -1523,7 +1533,7 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
     os << std::endl;
     ++line_nr;
 
-    for (const byte* locals = body.start; locals < pc; locals++) {
+    for (const byte* locals = body.start; locals < i.pc(); locals++) {
       os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
     }
     os << std::endl;
@@ -1533,16 +1543,16 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
   os << "// body: " << std::endl;
   ++line_nr;
   unsigned control_depth = 0;
-  while (pc < body.end) {
-    unsigned length = decoder.OpcodeLength(pc);
+  for (; i.has_next(); i.next()) {
+    unsigned length = decoder.OpcodeLength(i.pc());
 
-    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    WasmOpcode opcode = i.current();
     if (opcode == kExprElse) control_depth--;
 
     int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
     if (offset_table) {
       offset_table->push_back(
-          std::make_tuple(pc - body.start, line_nr, num_whitespaces));
+          std::make_tuple(i.pc_offset(), line_nr, num_whitespaces));
     }
 
     // 64 whitespaces
@@ -1551,8 +1561,8 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
     os.write(padding, num_whitespaces);
     os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
 
-    for (size_t i = 1; i < length; ++i) {
-      os << " " << AsHex(pc[i], 2) << ",";
+    for (size_t j = 1; j < length; ++j) {
+      os << " " << AsHex(i.pc()[j], 2) << ",";
     }
 
     switch (opcode) {
@@ -1560,32 +1570,32 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
       case kExprElse:
       case kExprLoop:
       case kExprBlock:
-        os << "   // @" << static_cast<int>(pc - body.start);
+        os << "   // @" << i.pc_offset();
         control_depth++;
         break;
       case kExprEnd:
-        os << "   // @" << static_cast<int>(pc - body.start);
+        os << "   // @" << i.pc_offset();
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthOperand operand(&decoder, pc);
+        BreakDepthOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity << " depth=" << operand.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthOperand operand(&decoder, pc);
+        BreakDepthOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity << " depth" << operand.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableOperand operand(&decoder, pc);
+        BranchTableOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity
            << " entries=" << operand.table_count;
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(&decoder, pc);
-        if (decoder.Complete(pc, operand)) {
+        CallIndirectOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // sig #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " sig #" << operand.index;
@@ -1593,8 +1603,8 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallImport: {
-        CallImportOperand operand(&decoder, pc);
-        if (decoder.Complete(pc, operand)) {
+        CallImportOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // import #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " import #" << operand.index;
@@ -1602,8 +1612,8 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand operand(&decoder, pc);
-        if (decoder.Complete(pc, operand)) {
+        CallFunctionOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // function #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " function #" << operand.index;
@@ -1611,15 +1621,13 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprReturn: {
-        ReturnArityOperand operand(&decoder, pc);
+        ReturnArityOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity;
         break;
       }
       default:
         break;
       }
-
-    pc += length;
     os << std::endl;
     ++line_nr;
   }
