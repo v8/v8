@@ -638,3 +638,13 @@ function Throw(generator, ...args) {
   assertEquals({value: 42, done: false}, Next(g));
   assertEquals({value: 42, done: false}, Next(g));
 }
+
+{
+  let foo = function*() {
+    yield* (function*() { yield 42; }());
+    assertUnreachable();
+  }
+  g = foo();
+  assertEquals({value: 42, done: false}, Next(g));
+  assertEquals({value: 23, done: true}, Return(g, 23));
+}
