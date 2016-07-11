@@ -7182,7 +7182,7 @@ class V8_EXPORT Context {
    * Instead, the access check handlers need to return nothing to achieve the
    * same effect.
    *
-   * It is possible, however, the create a new context from the global object
+   * It is possible, however, to create a new context from the global object
    * returned by this method.
    */
   static MaybeLocal<Object> NewRemoteContext(
