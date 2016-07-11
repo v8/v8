@@ -101,28 +101,31 @@ inline ExitFrame::ExitFrame(StackFrameIteratorBase* iterator)
 inline BuiltinExitFrame::BuiltinExitFrame(StackFrameIteratorBase* iterator)
     : ExitFrame(iterator) {}
 
-inline Object* BuiltinExitFrame::target_slot_object() const {
-  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kTargetOffset);
-}
-
-inline Object* BuiltinExitFrame::new_target_slot_object() const {
-  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kNewTargetOffset);
-}
-
 inline Object* BuiltinExitFrame::receiver_slot_object() const {
   // The receiver is the first argument on the frame.
   // fp[1]: return address.
   // fp[2]: the last argument (new target).
   // fp[4]: argc.
   // fp[2 + argc - 1]: receiver.
-  Object* argc_slot =
-      Memory::Object_at(fp() + BuiltinExitFrameConstants::kArgcOffset);
+  Object* argc_slot = argc_slot_object();
   DCHECK(argc_slot->IsSmi());
   int argc = Smi::cast(argc_slot)->value();
 
   const int receiverOffset =
       BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;
   return Memory::Object_at(fp() + receiverOffset);
+}
+
+inline Object* BuiltinExitFrame::argc_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kArgcOffset);
+}
+
+inline Object* BuiltinExitFrame::target_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kTargetOffset);
+}
+
+inline Object* BuiltinExitFrame::new_target_slot_object() const {
+  return Memory::Object_at(fp() + BuiltinExitFrameConstants::kNewTargetOffset);
 }
 
 inline StandardFrame::StandardFrame(StackFrameIteratorBase* iterator)

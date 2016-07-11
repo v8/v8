@@ -657,6 +657,46 @@ bool BuiltinExitFrame::IsConstructor() const {
   return !new_target_slot_object()->IsUndefined(isolate());
 }
 
+Object* BuiltinExitFrame::GetParameter(int i) const {
+  DCHECK(i >= 0 && i < ComputeParametersCount());
+  int offset = BuiltinExitFrameConstants::kArgcOffset + (i + 1) * kPointerSize;
+  return Memory::Object_at(fp() + offset);
+}
+
+int BuiltinExitFrame::ComputeParametersCount() const {
+  Object* argc_slot = argc_slot_object();
+  DCHECK(argc_slot->IsSmi());
+  // Argc also counts the receiver, target, new target, and argc itself as args,
+  // therefore the real argument count is argc - 4.
+  int argc = Smi::cast(argc_slot)->value() - 4;
+  DCHECK(argc >= 0);
+  return argc;
+}
+
+void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                             int index) const {
+  DisallowHeapAllocation no_gc;
+  Object* receiver = this->receiver();
+  JSFunction* function = this->function();
+
+  accumulator->PrintSecurityTokenIfChanged(function);
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("builtin exit frame: ");
+  Code* code = NULL;
+  if (IsConstructor()) accumulator->Add("new ");
+  accumulator->PrintFunction(function, receiver, &code);
+
+  accumulator->Add("(this=%o", receiver);
+
+  // Print the parameters.
+  int parameters_count = ComputeParametersCount();
+  for (int i = 0; i < parameters_count; i++) {
+    accumulator->Add(",%o", GetParameter(i));
+  }
+
+  accumulator->Add(")\n\n");
+}
+
 Address StandardFrame::GetExpressionAddress(int n) const {
   const int offset = StandardFrameConstants::kExpressionsOffset;
   return fp() + offset - n * kPointerSize;
@@ -1377,13 +1417,12 @@ Code* ArgumentsAdaptorFrame::unchecked_code() const {
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
-void BuiltinFrame::Print(StringStream* accumulator, PrintMode mode,
-                         int index) const {
-  // TODO(bmeurer)
-}
-
 int BuiltinFrame::GetNumberOfIncomingArguments() const {
   return Smi::cast(GetExpression(0))->value();
+}
+
+void BuiltinFrame::PrintFrameKind(StringStream* accumulator) const {
+  accumulator->Add("builtin frame: ");
 }
 
 Address InternalFrame::GetCallerStackPointer() const {
@@ -1466,6 +1505,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
+  PrintFrameKind(accumulator);
   Code* code = NULL;
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);

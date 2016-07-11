@@ -670,13 +670,20 @@ class BuiltinExitFrame : public ExitFrame {
 
   bool IsConstructor() const;
 
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
  protected:
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
+  Object* GetParameter(int i) const;
+  int ComputeParametersCount() const;
+
+  inline Object* receiver_slot_object() const;
+  inline Object* argc_slot_object() const;
   inline Object* target_slot_object() const;
   inline Object* new_target_slot_object() const;
-  inline Object* receiver_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -878,6 +885,8 @@ class JavaScriptFrame : public StandardFrame {
   // receiver, and any callee-saved registers.
   void IterateArguments(ObjectVisitor* v) const;
 
+  virtual void PrintFrameKind(StringStream* accumulator) const {}
+
  private:
   inline Object* function_slot_object() const;
 
@@ -1022,13 +1031,11 @@ class BuiltinFrame final : public JavaScriptFrame {
     return static_cast<BuiltinFrame*>(frame);
   }
 
-  // Printing support.
-  void Print(StringStream* accumulator, PrintMode mode, int index) const final;
-
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
 
   int GetNumberOfIncomingArguments() const final;
+  void PrintFrameKind(StringStream* accumulator) const override;
 
  private:
   friend class StackFrameIteratorBase;
