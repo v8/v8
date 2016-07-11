@@ -675,6 +675,9 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
     }
     expected_type_ = target_type;
     Variable* var = proxy->var();
+    if (!in_function_ && var->IsParameter()) {
+      FAIL(expr, "assignment to module parameter");
+    }
     VariableInfo* info = GetVariableInfo(var);
     if (info == nullptr || info->type == nullptr) {
       if (var->mode() == TEMPORARY) {
