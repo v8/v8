@@ -1087,7 +1087,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
         effect = graph()->NewNode(
             common()->BeginRegion(RegionObservability::kNotObservable), effect);
         value = effect = graph()->NewNode(
-            simplified()->Allocate(NOT_TENURED),
+            simplified()->Allocate(pretenure),
             jsgraph()->Constant(HeapNumber::kSize), effect, control);
         effect = graph()->NewNode(
             simplified()->StoreField(AccessBuilder::ForMap()), value,

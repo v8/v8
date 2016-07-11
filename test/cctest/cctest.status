@@ -102,9 +102,6 @@
   # coverage).
   'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): The pretenuring decision is different in TurboFan.
-  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_VARIANTS],
-
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
@@ -170,6 +167,7 @@
   'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_IGNITION],
@@ -561,6 +559,7 @@
   'test-heap/OptimizedPretenuringAllocationFolding': [FAIL],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [FAIL],
   'test-heap/OptimizedPretenuringDoubleArrayProperties': [FAIL],
+  'test-heap/OptimizedPretenuringMixedInObjectProperties': [FAIL],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [FAIL],
   'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [FAIL],
   'test-heap/OptimizedPretenuringNestedObjectLiterals': [FAIL],
