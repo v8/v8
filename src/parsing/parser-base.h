@@ -2473,8 +2473,8 @@ ParserBase<Traits>::ParseYieldExpression(bool accept_IN,
   expression = Traits::BuildIteratorResult(expression, false);
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.
-  typename Traits::Type::YieldExpression yield =
-      factory()->NewYield(generator_object, expression, pos);
+  typename Traits::Type::YieldExpression yield = factory()->NewYield(
+      generator_object, expression, pos, Yield::kOnExceptionThrow);
   return yield;
 }
 

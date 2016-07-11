@@ -4779,8 +4779,9 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         // The position of the yield is important for reporting the exception
         // caused by calling the .throw method on a generator suspended at the
         // initial yield (i.e. right after generator instantiation).
-        Yield* yield = factory()->NewYield(get_proxy, assignment,
-                                           scope_->start_position());
+        Yield* yield =
+            factory()->NewYield(get_proxy, assignment, scope_->start_position(),
+                                Yield::kOnExceptionThrow);
         try_block->statements()->Add(
             factory()->NewExpressionStatement(yield, kNoSourcePosition),
             zone());
@@ -5733,7 +5734,8 @@ Expression* ParserTraits::RewriteAwaitExpression(Expression* value,
   Expression* do_expr = factory->NewDoExpression(do_block, temp_var, nopos);
 
   generator_object = factory->NewVariableProxy(generator_object_variable);
-  return factory->NewYield(generator_object, do_expr, nopos);
+  return factory->NewYield(generator_object, do_expr, nopos,
+                           Yield::kOnExceptionRethrow);
 }
 
 ZoneList<Expression*>* ParserTraits::GetNonPatternList() const {
@@ -6346,7 +6348,8 @@ Expression* ParserTraits::RewriteYieldStar(
   Statement* yield_output;
   {
     Expression* output_proxy = factory->NewVariableProxy(var_output);
-    Yield* yield = factory->NewYield(generator, output_proxy, nopos);
+    Yield* yield = factory->NewYield(generator, output_proxy, nopos,
+                                     Yield::kOnExceptionThrow);
     yield_output = factory->NewExpressionStatement(yield, nopos);
   }
 

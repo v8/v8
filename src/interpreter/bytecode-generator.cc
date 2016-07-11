@@ -2261,7 +2261,12 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
 
     builder()->Bind(&resume_with_throw);
     builder()->SetExpressionPosition(expr);
-    builder()->LoadAccumulatorWithRegister(input).Throw();
+    builder()->LoadAccumulatorWithRegister(input);
+    if (expr->rethrow_on_exception()) {
+      builder()->ReThrow();
+    } else {
+      builder()->Throw();
+    }
 
     builder()->Bind(&resume_with_next);
     builder()->LoadAccumulatorWithRegister(input);

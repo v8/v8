@@ -502,8 +502,8 @@ class PreParserFactory {
     return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
-                               PreParserExpression expression,
-                               int pos) {
+                               PreParserExpression expression, int pos,
+                               Yield::OnException on_exception) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewConditional(PreParserExpression condition,

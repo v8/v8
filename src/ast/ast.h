@@ -2503,8 +2503,13 @@ class Yield final : public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
+  enum OnException { kOnExceptionThrow, kOnExceptionRethrow };
+
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
+  bool rethrow_on_exception() const {
+    return on_exception_ == kOnExceptionRethrow;
+  }
   int yield_id() const { return yield_id_; }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
@@ -2513,15 +2518,17 @@ class Yield final : public Expression {
 
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
-        int pos)
+        int pos, OnException on_exception)
       : Expression(zone, pos),
         generator_object_(generator_object),
         expression_(expression),
+        on_exception_(on_exception),
         yield_id_(-1) {}
 
  private:
   Expression* generator_object_;
   Expression* expression_;
+  OnException on_exception_;
   int yield_id_;
 };
 
@@ -3391,12 +3398,11 @@ class AstNodeFactory final BASE_EMBEDDED {
     return assign;
   }
 
-  Yield* NewYield(Expression *generator_object,
-                  Expression* expression,
-                  int pos) {
+  Yield* NewYield(Expression* generator_object, Expression* expression, int pos,
+                  Yield::OnException on_exception) {
     if (!expression) expression = NewUndefinedLiteral(pos);
     return new (local_zone_)
-        Yield(local_zone_, generator_object, expression, pos);
+        Yield(local_zone_, generator_object, expression, pos, on_exception);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
