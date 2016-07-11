@@ -98,15 +98,6 @@ class Frame : public ZoneObject {
     return !allocated_double_registers_->IsEmpty();
   }
 
-  void AlignSavedCalleeRegisterSlots(int alignment = kDoubleSize) {
-    int alignment_slots = alignment / kPointerSize;
-    int delta = alignment_slots - (frame_slot_count_ & (alignment_slots - 1));
-    if (delta != alignment_slots) {
-      frame_slot_count_ += delta;
-    }
-    spill_slot_count_ += delta;
-  }
-
   void AllocateSavedCalleeRegisterSlots(int count) {
     frame_slot_count_ += count;
   }

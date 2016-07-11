@@ -2124,22 +2124,15 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    frame->AlignSavedCalleeRegisterSlots();
-    if (saves_fp != 0) {  // Save callee-saved XMM registers.
-      const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
-      frame->AllocateSavedCalleeRegisterSlots(saves_fp_count *
-                                              (kQuadWordSize / kPointerSize));
-    }
+  if (saves_fp != 0) {  // Save callee-saved XMM registers.
+    frame->AlignFrame();
+    uint32_t count = base::bits::CountPopulation32(saves_fp);
+    frame->AllocateSavedCalleeRegisterSlots(count *
+                                            (kQuadWordSize / kPointerSize));
   }
   const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {  // Save callee-saved registers.
-    int count = 0;
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (((1 << i) & saves)) {
-        ++count;
-      }
-    }
+    uint32_t count = base::bits::CountPopulation32(saves);
     frame->AllocateSavedCalleeRegisterSlots(count);
   }
 }
