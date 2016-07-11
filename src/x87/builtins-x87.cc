@@ -1273,11 +1273,8 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   __ bind(&receiver_not_date);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(ebp);
-    __ Move(ebp, esp);
-    __ Push(esi);
-    __ Push(edi);
-    __ Push(Immediate(0));
+    __ Move(ebx, Immediate(0));
+    __ EnterBuiltinFrame(esi, edi, ebx);
     __ CallRuntime(Runtime::kThrowNotDateError);
   }
 }
@@ -1649,13 +1646,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
       FrameScope scope(masm, StackFrame::MANUAL);
-      __ Push(ebp);
-      __ Move(ebp, esp);
-      __ Push(esi);
-      __ Push(edi);
       __ SmiTag(eax);
       __ SmiTag(ecx);
-      __ Push(eax);
+      __ EnterBuiltinFrame(esi, edi, eax);
       __ Push(ecx);
       __ Push(edx);
       __ mov(eax, ebx);
@@ -1663,9 +1656,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       __ mov(ebx, eax);
       __ Pop(edx);
       __ Pop(ecx);
-      __ Pop(eax);
-      __ Pop(edi);
-      __ Pop(esi);
+      __ LeaveBuiltinFrame(esi, edi, eax);
+      __ SmiUntag(ecx);
+      __ SmiUntag(eax);
       {
         // Restore the double accumulator value (stX_0).
         Label restore_smi, done_restore;
@@ -1680,9 +1673,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ SmiTag(edx);
         __ bind(&done_restore);
       }
-      __ SmiUntag(ecx);
-      __ SmiUntag(eax);
-      __ leave();
     }
     __ jmp(&convert);
     __ bind(&convert_number);
@@ -1754,26 +1744,38 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
+  //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into eax and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into ebx.
   Label no_arguments;
   {
     __ test(eax, eax);
     __ j(zero, &no_arguments, Label::kNear);
     __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(ecx);
-    __ mov(eax, ebx);
   }
 
   // 2a. Convert the first argument to a number.
-  __ Jump(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(eax);
+    __ EnterBuiltinFrame(esi, edi, eax);
+    __ mov(eax, ebx);
+    __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+    __ LeaveBuiltinFrame(esi, edi, ebx);  // Argc popped to ebx.
+    __ SmiUntag(ebx);
+  }
+
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, ebx, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
+    __ Ret();
+  }
 
   // 2b. No arguments, return +0 (already in eax).
   __ bind(&no_arguments);
@@ -1787,6 +1789,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
   //  -- edx                 : new target
+  //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
@@ -1795,8 +1798,11 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into ebx and get rid of the rest (including the
-  // receiver).
+  // Store argc in r8.
+  __ mov(ecx, eax);
+  __ SmiTag(ecx);
+
+  // 2. Load the first argument into ebx.
   {
     Label no_arguments, done;
     __ test(eax, eax);
@@ -1806,9 +1812,6 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&no_arguments);
     __ Move(ebx, Smi::FromInt(0));
     __ bind(&done);
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(ecx);
   }
 
   // 3. Make sure ebx is a number.
@@ -1819,37 +1822,51 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
                    Heap::kHeapNumberMapRootIndex);
     __ j(equal, &done_convert);
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(edi);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ EnterBuiltinFrame(esi, edi, ecx);
       __ Push(edx);
       __ Move(eax, ebx);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ Move(ebx, eax);
       __ Pop(edx);
-      __ Pop(edi);
+      __ LeaveBuiltinFrame(esi, edi, ecx);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, done_alloc, new_object;
   __ cmp(edx, edi);
   __ j(not_equal, &new_object);
 
   // 5. Allocate a JSValue wrapper for the number.
-  __ AllocateJSValue(eax, edi, ebx, ecx, &new_object);
-  __ Ret();
+  __ AllocateJSValue(eax, edi, ebx, esi, &done_alloc);
+  __ jmp(&drop_frame_and_ret);
+
+  __ bind(&done_alloc);
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));  // Restore esi.
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterBuiltinFrame(esi, edi, ecx);
     __ Push(ebx);  // the first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
+    __ LeaveBuiltinFrame(esi, edi, ecx);
   }
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(esi);
+    __ SmiUntag(ecx);
+    __ lea(esp, Operand(esp, ecx, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(esi);
+    __ Ret();
+  }
 }
 
 
@@ -1858,34 +1875,31 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
+  //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into eax and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into eax.
   Label no_arguments;
   {
+    __ mov(ebx, eax);  // Store argc in ebx.
     __ test(eax, eax);
     __ j(zero, &no_arguments, Label::kNear);
-    __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(ecx);
-    __ mov(eax, ebx);
+    __ mov(eax, Operand(esp, eax, times_pointer_size, 0));
   }
 
   // 2a. At least one argument, return eax if it's a string, otherwise
   // dispatch to appropriate conversion.
-  Label to_string, symbol_descriptive_string;
+  Label drop_frame_and_ret, to_string, symbol_descriptive_string;
   {
     __ JumpIfSmi(eax, &to_string, Label::kNear);
     STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
     __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edx);
     __ j(above, &to_string, Label::kNear);
     __ j(equal, &symbol_descriptive_string, Label::kNear);
-    __ Ret();
+    __ jmp(&drop_frame_and_ret, Label::kNear);
   }
 
   // 2b. No arguments, return the empty string (and pop the receiver).
@@ -1898,17 +1912,33 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // 3a. Convert eax to a string.
   __ bind(&to_string);
   {
+    FrameScope scope(masm, StackFrame::MANUAL);
     ToStringStub stub(masm->isolate());
-    __ TailCallStub(&stub);
+    __ SmiTag(ebx);
+    __ EnterBuiltinFrame(esi, edi, ebx);
+    __ CallStub(&stub);
+    __ LeaveBuiltinFrame(esi, edi, ebx);
+    __ SmiUntag(ebx);
   }
+  __ jmp(&drop_frame_and_ret, Label::kNear);
 
   // 3b. Convert symbol in eax to a string.
   __ bind(&symbol_descriptive_string);
   {
     __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, ebx, times_pointer_size, kPointerSize));
     __ Push(eax);
     __ PushReturnAddressFrom(ecx);
     __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
+  }
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, ebx, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
+    __ Ret();
   }
 }
 
@@ -1919,6 +1949,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- eax                 : number of arguments
   //  -- edi                 : constructor function
   //  -- edx                 : new target
+  //  -- esi                 : context
   //  -- esp[0]              : return address
   //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
   //  -- esp[(argc + 1) * 4] : receiver
@@ -1927,62 +1958,82 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into ebx and get rid of the rest (including the
-  // receiver).
+  __ mov(ebx, eax);
+
+  // 2. Load the first argument into eax.
   {
     Label no_arguments, done;
-    __ test(eax, eax);
+    __ test(ebx, ebx);
     __ j(zero, &no_arguments, Label::kNear);
-    __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
+    __ mov(eax, Operand(esp, ebx, times_pointer_size, 0));
     __ jmp(&done, Label::kNear);
     __ bind(&no_arguments);
-    __ LoadRoot(ebx, Heap::kempty_stringRootIndex);
+    __ LoadRoot(eax, Heap::kempty_stringRootIndex);
     __ bind(&done);
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ PushReturnAddressFrom(ecx);
   }
 
-  // 3. Make sure ebx is a string.
+  // 3. Make sure eax is a string.
   {
     Label convert, done_convert;
-    __ JumpIfSmi(ebx, &convert, Label::kNear);
-    __ CmpObjectType(ebx, FIRST_NONSTRING_TYPE, ecx);
+    __ JumpIfSmi(eax, &convert, Label::kNear);
+    __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
     __ j(below, &done_convert);
     __ bind(&convert);
     {
-      FrameScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
       ToStringStub stub(masm->isolate());
-      __ Push(edi);
+      __ SmiTag(ebx);
+      __ EnterBuiltinFrame(esi, edi, ebx);
       __ Push(edx);
-      __ Move(eax, ebx);
       __ CallStub(&stub);
-      __ Move(ebx, eax);
       __ Pop(edx);
-      __ Pop(edi);
+      __ LeaveBuiltinFrame(esi, edi, ebx);
+      __ SmiUntag(ebx);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, done_alloc, new_object;
   __ cmp(edx, edi);
   __ j(not_equal, &new_object);
 
   // 5. Allocate a JSValue wrapper for the string.
-  __ AllocateJSValue(eax, edi, ebx, ecx, &new_object);
-  __ Ret();
+  // AllocateJSValue can't handle src == dst register. Reuse esi and restore it
+  // as needed after the call.
+  __ mov(esi, eax);
+  __ AllocateJSValue(eax, edi, esi, ecx, &done_alloc);
+  __ jmp(&drop_frame_and_ret);
+
+  __ bind(&done_alloc);
+  {
+    // Restore eax to the first argument and esi to the context.
+    __ mov(eax, esi);
+    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+  }
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ebx);  // the first argument
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(ebx);
+    __ EnterBuiltinFrame(esi, edi, ebx);
+    __ Push(eax);  // the first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
+    __ LeaveBuiltinFrame(esi, edi, ebx);
+    __ SmiUntag(ebx);
   }
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    // Drop all arguments including the receiver.
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, ebx, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
+    __ Ret();
+  }
 }
 
 
