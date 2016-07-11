@@ -312,32 +312,6 @@ void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
   base::OS::Abort();
 }
 
-
-// Determines whether the given stack frame should be displayed in
-// a stack trace.  The caller is the error constructor that asked
-// for the stack trace to be collected.  The first time a construct
-// call to this function is encountered it is skipped.  The seen_caller
-// in/out parameter is used to remember if the caller has been seen
-// yet.
-static bool IsVisibleInStackTrace(JSFunction* fun,
-                                  Object* caller,
-                                  bool* seen_caller) {
-  if ((fun == caller) && !(*seen_caller)) {
-    *seen_caller = true;
-    return false;
-  }
-  // Skip all frames until we've seen the caller.
-  if (!(*seen_caller)) return false;
-  // Functions defined in native scripts are not visible unless directly
-  // exposed, in which case the native flag is set.
-  // The --builtins-in-stack-traces command line flag allows including
-  // internal call sites in the stack trace for debugging purposes.
-  if (!FLAG_builtins_in_stack_traces && fun->shared()->IsBuiltin()) {
-    return fun->shared()->native();
-  }
-  return true;
-}
-
 static Handle<FixedArray> MaybeGrow(Isolate* isolate,
                                     Handle<FixedArray> elements,
                                     int cur_position, int new_size) {
@@ -353,6 +327,79 @@ static Handle<FixedArray> MaybeGrow(Isolate* isolate,
   DCHECK(new_size <= elements->length());
   return elements;
 }
+
+class StackTraceHelper {
+ public:
+  StackTraceHelper(Isolate* isolate, Handle<Object> caller)
+      : isolate_(isolate), caller_(caller) {
+    // If the caller parameter is a function we skip frames until we're
+    // under it before starting to collect.
+    seen_caller_ = !caller->IsJSFunction();
+    encountered_strict_function_ = false;
+    sloppy_frames_ = 0;
+  }
+
+  // The stack trace API should not expose receivers and function
+  // objects on frames deeper than the top-most one with a strict mode
+  // function. The number of sloppy frames is stored as first element in
+  // the result array.
+  void CountSloppyFrames(JSFunction* fun) {
+    if (!encountered_strict_function_) {
+      if (is_strict(fun->shared()->language_mode())) {
+        encountered_strict_function_ = true;
+      } else {
+        sloppy_frames_++;
+      }
+    }
+  }
+
+  // Determines whether the given stack frame should be displayed in a stack
+  // trace.
+  bool IsVisibleInStackTrace(JSFunction* fun) {
+    return IsAfterCaller(fun) && IsNotInNativeScript(fun) &&
+           IsInSameSecurityContext(fun);
+  }
+
+  int sloppy_frames() const { return sloppy_frames_; }
+
+ private:
+  // The caller is the error constructor that asked
+  // for the stack trace to be collected.  The first time a construct
+  // call to this function is encountered it is skipped.  The seen_caller
+  // in/out parameter is used to remember if the caller has been seen
+  // yet.
+  bool IsAfterCaller(JSFunction* fun) {
+    if ((fun == *caller_) && !(seen_caller_)) {
+      seen_caller_ = true;
+      return false;
+    }
+    // Skip all frames until we've seen the caller.
+    if (!seen_caller_) return false;
+    return true;
+  }
+
+  bool IsNotInNativeScript(JSFunction* fun) {
+    // Functions defined in native scripts are not visible unless directly
+    // exposed, in which case the native flag is set.
+    // The --builtins-in-stack-traces command line flag allows including
+    // internal call sites in the stack trace for debugging purposes.
+    if (!FLAG_builtins_in_stack_traces && fun->shared()->IsBuiltin()) {
+      return fun->shared()->native();
+    }
+    return true;
+  }
+
+  bool IsInSameSecurityContext(JSFunction* fun) {
+    return isolate_->context()->HasSameSecurityTokenAs(fun->context());
+  }
+
+  Isolate* isolate_;
+  Handle<Object> caller_;
+
+  bool seen_caller_;
+  int sloppy_frames_;
+  bool encountered_strict_function_;
+};
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 Handle<Object> caller) {
@@ -371,14 +418,11 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   Handle<FixedArray> elements =
       factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
 
-  // If the caller parameter is a function we skip frames until we're
-  // under it before starting to collect.
-  bool seen_caller = !caller->IsJSFunction();
+  StackTraceHelper helper(this, caller);
+
   // First element is reserved to store the number of sloppy frames.
   int cursor = 1;
   int frames_seen = 0;
-  int sloppy_frames = 0;
-  bool encountered_strict_function = false;
   for (StackFrameIterator iter(this); !iter.done() && frames_seen < limit;
        iter.Advance()) {
     StackFrame* frame = iter.frame();
@@ -395,29 +439,16 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         js_frame->Summarize(&frames);
         for (int i = frames.length() - 1; i >= 0; i--) {
           Handle<JSFunction> fun = frames[i].function();
-          Handle<Object> recv = frames[i].receiver();
+
           // Filter out internal frames that we do not want to show.
-          if (!IsVisibleInStackTrace(*fun, *caller, &seen_caller)) continue;
-          // Filter out frames from other security contexts.
-          if (!this->context()->HasSameSecurityTokenAs(fun->context())) {
-            continue;
-          }
-          elements = MaybeGrow(this, elements, cursor, cursor + 4);
+          if (!helper.IsVisibleInStackTrace(*fun)) continue;
+          helper.CountSloppyFrames(*fun);
 
+          Handle<Object> recv = frames[i].receiver();
           Handle<AbstractCode> abstract_code = frames[i].abstract_code();
-
           Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
-          // The stack trace API should not expose receivers and function
-          // objects on frames deeper than the top-most one with a strict mode
-          // function. The number of sloppy frames is stored as first element in
-          // the result array.
-          if (!encountered_strict_function) {
-            if (is_strict(fun->shared()->language_mode())) {
-              encountered_strict_function = true;
-            } else {
-              sloppy_frames++;
-            }
-          }
+
+          elements = MaybeGrow(this, elements, cursor, cursor + 4);
           elements->set(cursor++, *recv);
           elements->set(cursor++, *fun);
           elements->set(cursor++, *abstract_code);
@@ -429,6 +460,11 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
       case StackFrame::BUILTIN_EXIT: {
         BuiltinExitFrame* exit_frame = BuiltinExitFrame::cast(frame);
         Handle<JSFunction> fun = handle(exit_frame->function(), this);
+
+        // Filter out internal frames that we do not want to show.
+        if (!helper.IsVisibleInStackTrace(*fun)) continue;
+        helper.CountSloppyFrames(*fun);
+
         Handle<Code> code = handle(exit_frame->LookupCode(), this);
         int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
@@ -469,7 +505,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         break;
     }
   }
-  elements->set(0, Smi::FromInt(sloppy_frames));
+  elements->set(0, Smi::FromInt(helper.sloppy_frames()));
   elements->Shrink(cursor);
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
