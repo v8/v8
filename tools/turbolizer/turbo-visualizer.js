@@ -157,6 +157,7 @@ document.onload = (function(d3){
             jsonObj = JSON.parse(txtRes);
 
             sourceView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
+            disassemblyView.initializeCode(jsonObj.source, jsonObj.sourcePosition);
             schedule.setNodePositionMap(jsonObj.nodePositions);
 
             var selectMenu = document.getElementById('display-selector');

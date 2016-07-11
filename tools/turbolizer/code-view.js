@@ -30,6 +30,7 @@ var CodeView = function(divID, PR, sourceText, sourcePosition, broker) {
       for (var span of items) {
         ranges.push([span.start, span.end, null]);
       }
+      broker.clear(selectionHandler);
       broker.select(selectionHandler, ranges, selected);
     },
     selectionDifference: function(span1, inclusive1, span2, inclusive2) {

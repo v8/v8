@@ -28,6 +28,7 @@ class TextView extends View {
             i.classList.remove("selected");
           }
         }
+        broker.clear(selectionHandler);
         broker.select(selectionHandler, view.getRanges(items), selected);
       },
       selectionDifference: function(span1, inclusive1, span2, inclusive2) {
@@ -68,7 +69,8 @@ class TextView extends View {
     for (let range of ranges) {
       let start = range[0];
       let end = range[1];
-      let location = { pos_start: start, pos_end: end };
+      let block_id = range[3];
+      let location = { pos_start: start, pos_end: end, block_id: block_id };
       if (range[2] !== null && range[2] != -1) {
         location.node_id = range[2];
         if (range[0] == -1 && range[1] == -1) {
@@ -185,8 +187,12 @@ class TextView extends View {
         let start = -1;
         let end = -1;
         let node_id = -1;
+        let block_id = -1;
         if (location.node_id !== undefined) {
           node_id = location.node_id;
+        }
+        if (location.block_id !== undefined) {
+          block_id = location.block_id;
         }
         if (location.pos_start !== undefined) {
           start = location.pos_start;
@@ -200,8 +206,9 @@ class TextView extends View {
         if (lastObject == null ||
             (lastObject[2] != node_id ||
              lastObject[0] != start ||
-             lastObject[1] != end)) {
-          lastObject = [start, end, node_id];
+             lastObject[1] != end ||
+             lastObject[3] != block_id)) {
+          lastObject = [start, end, node_id, block_id];
           result.push(lastObject);
         }
       }

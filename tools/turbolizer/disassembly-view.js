@@ -8,6 +8,7 @@ class DisassemblyView extends TextView {
   constructor(id, broker, sortedPositionList) {
     super(id, broker, null, false);
     this.pos_start = -1;
+    this.pos_lines = null;
     let view = this;
     let ADDRESS_STYLE = {
       css: 'tag',
@@ -45,9 +46,38 @@ class DisassemblyView extends TextView {
         };
       }
     };
+    const BLOCK_HEADER_STYLE = {
+      css: 'com',
+      block_id: -1,
+      location: function(text) {
+        let matches = /\d+/.exec(text);
+        if (!matches) return undefined;
+        BLOCK_HEADER_STYLE.block_id = Number(matches[0]);
+        return {
+          block_id: BLOCK_HEADER_STYLE.block_id
+        };
+      },
+    };
+    const SOURCE_POSITION_HEADER_STYLE = {
+      css: 'com',
+      location: function(text) {
+        let matches = /(\d+):(\d+)/.exec(text);
+        if (!matches) return undefined;
+        let li = Number(matches[1]);
+        if (view.pos_lines === null) return undefined;
+        let pos = view.pos_lines[li-1] + Number(matches[2]);
+        return {
+          pos_start: pos,
+          pos_end: pos + 1
+        };
+      },
+    };
+    view.SOURCE_POSITION_HEADER_REGEX = /^(\s*-- .+:)(\d+:\d+)( --)/;
     let patterns = [
       [
         [/^0x[0-9a-f]{8,16}/, ADDRESS_STYLE, 1],
+        [view.SOURCE_POSITION_HEADER_REGEX, SOURCE_POSITION_HEADER_STYLE, -1],
+        [/^\s+-- B\d+ start.*/, BLOCK_HEADER_STYLE, -1],
         [/^.*/, UNCLASSIFIED_STYLE, -1]
       ],
       [
@@ -90,11 +120,20 @@ class DisassemblyView extends TextView {
       let fragment = li.children[i];
       let location = fragment.location;
       if (location != null) {
+        if (location.block_id != undefined) {
+          if (result === undefined) result = {};
+          result.block_id = location.block_id;
+        }
         if (location.address != undefined) {
           if (result === undefined) result = {};
           result.address = location.address;
         }
-        if (view.pos_start != -1) {
+        if (location.pos_start != undefined && location.pos_end != undefined) {
+          if (result === undefined) result = {};
+          result.pos_start = location.pos_start;
+          result.pos_end = location.pos_end;
+        }
+        else if (view.pos_start != -1) {
           if (result === undefined) result = {};
           result.pos_start = view.pos_start;
           result.pos_end = result.pos_start + 1;
@@ -102,5 +141,39 @@ class DisassemblyView extends TextView {
       }
     }
     return result;
+  }
+
+  initializeCode(sourceText, sourcePosition) {
+    let view = this;
+    view.pos_lines = new Array();
+    // Comment lines for line 0 include sourcePosition already, only need to
+    // add sourcePosition for lines > 0.
+    view.pos_lines[0] = sourcePosition;
+    if (sourceText != "") {
+      let base = sourcePosition;
+      let current = 0;
+      let source_lines = sourceText.split("\n");
+      for (i=1; i < source_lines.length; i++) {
+        // Add 1 for newline character that is split off.
+        current += source_lines[i-1].length + 1;
+        view.pos_lines[i] = base + current;
+      }
+    }
+  }
+
+  processLine(line) {
+    let view = this;
+    let func = function(match, p1, p2, p3) {
+      let nums = p2.split(":");
+      let li = Number(nums[0]);
+      let pos = Number(nums[1]);
+      if(li === 0)
+        pos -= view.pos_lines[0];
+      li++;
+      return p1 + li + ":" + pos + p3;
+    };
+    line = line.replace(view.SOURCE_POSITION_HEADER_REGEX, func);
+    let fragments = super.processLine(line);
+    return fragments;
   }
 }
