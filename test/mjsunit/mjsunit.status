@@ -94,9 +94,6 @@
   'debug-set-variable-value': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
 
-  # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
-  'result-table-min': [PASS, NO_VARIANTS],
-  'result-table-max': [PASS, NO_VARIANTS],
   # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
