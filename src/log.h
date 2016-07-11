@@ -17,7 +17,9 @@
 
 namespace v8 {
 
-struct TickSample;
+namespace base {
+class Semaphore;
+}
 
 namespace sampler {
 class Sampler;
@@ -63,15 +65,11 @@ namespace internal {
 class CodeEventListener;
 class CpuProfiler;
 class Isolate;
-class JitLogger;
 class Log;
-class LowLevelLogger;
-class PerfBasicLogger;
-class PerfJitLogger;
 class Profiler;
-class ProfilerListener;
-class RuntimeCallTimer;
 class Ticker;
+class RuntimeCallTimer;
+struct TickSample;
 
 #undef LOG
 #define LOG(isolate, Call)                              \
@@ -85,6 +83,12 @@ class Ticker;
     v8::internal::Logger* logger = (isolate)->logger(); \
     if (logger->is_logging_code_events()) logger->Call; \
   } while (false)
+
+class JitLogger;
+class PerfBasicLogger;
+class LowLevelLogger;
+class PerfJitLogger;
+class ProfilerListener;
 
 class Logger : public CodeEventListener {
  public:
