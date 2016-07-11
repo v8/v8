@@ -614,10 +614,14 @@ const Operator* RepresentationChanger::Int32OperatorFor(
 const Operator* RepresentationChanger::Int32OverflowOperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
-    case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
+    case IrOpcode::kSpeculativeNumberAdd:
       return simplified()->CheckedInt32Add();
-    case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
+    case IrOpcode::kSpeculativeNumberSubtract:
       return simplified()->CheckedInt32Sub();
+    case IrOpcode::kSpeculativeNumberDivide:
+      return simplified()->CheckedInt32Div();
+    case IrOpcode::kSpeculativeNumberModulus:
+      return simplified()->CheckedInt32Mod();
     default:
       UNREACHABLE();
       return nullptr;

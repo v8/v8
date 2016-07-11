@@ -1432,6 +1432,9 @@ compiler::Node* ModulusStub::Generate(CodeStubAssembler* assembler,
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
 
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label return_result(assembler, &var_result);
+
   // Shared entry point for floating point modulus.
   Label do_fmod(assembler);
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
@@ -1465,9 +1468,9 @@ compiler::Node* ModulusStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&divisor_is_smi);
       {
-        var_dividend_float64.Bind(assembler->SmiToFloat64(dividend));
-        var_divisor_float64.Bind(assembler->SmiToFloat64(divisor));
-        assembler->Goto(&do_fmod);
+        // Compute the modulus of two Smis.
+        var_result.Bind(assembler->SmiMod(dividend, divisor));
+        assembler->Goto(&return_result);
       }
 
       assembler->Bind(&divisor_is_not_smi);
@@ -1571,9 +1574,12 @@ compiler::Node* ModulusStub::Generate(CodeStubAssembler* assembler,
   {
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
-    Node* result = assembler->ChangeFloat64ToTagged(value);
-    return result;
+    var_result.Bind(assembler->ChangeFloat64ToTagged(value));
+    assembler->Goto(&return_result);
   }
+
+  assembler->Bind(&return_result);
+  return var_result.value();
 }
 
 // static

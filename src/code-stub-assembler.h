@@ -44,6 +44,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* EmptyStringConstant();
   compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
+  compiler::Node* MinusZeroConstant();
+  compiler::Node* NanConstant();
   compiler::Node* NullConstant();
   compiler::Node* UndefinedConstant();
   compiler::Node* TheHoleConstant();
@@ -78,6 +80,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
+  // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
+  compiler::Node* SmiMod(compiler::Node* a, compiler::Node* b);
 
   // Allocate an object of the given size.
   compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);

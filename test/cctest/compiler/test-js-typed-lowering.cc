@@ -929,7 +929,6 @@ TEST(OrderNumberBinopEffects1) {
   const Operator* ops[] = {
       R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
       R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -956,7 +955,6 @@ TEST(OrderNumberBinopEffects2) {
       R.javascript.Add(R.binop_hints),      R.simplified.NumberAdd(),
       R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
       R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {

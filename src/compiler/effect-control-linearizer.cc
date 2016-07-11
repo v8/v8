@@ -449,6 +449,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt32Sub:
       state = LowerCheckedInt32Sub(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckedInt32Div:
+      state = LowerCheckedInt32Div(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckedInt32Mod:
+      state = LowerCheckedInt32Mod(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
@@ -917,6 +923,164 @@ EffectControlLinearizer::LowerCheckedInt32Sub(Node* node, Node* frame_state,
                                       frame_state, effect, control);
 
   value = graph()->NewNode(common()->Projection(0), value, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedInt32Div(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  Node* zero = jsgraph()->Int32Constant(0);
+  Node* minusone = jsgraph()->Int32Constant(-1);
+  Node* minint = jsgraph()->Int32Constant(std::numeric_limits<int32_t>::min());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  // Check if {rhs} is positive (and not zero).
+  Node* check0 = graph()->NewNode(machine()->Int32LessThan(), zero, rhs);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0;
+  {
+    // Fast case, no additional checking required.
+    vtrue0 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0;
+  {
+    // Check if {rhs} is zero.
+    Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                           frame_state, efalse0, if_false0);
+
+    // Check if {lhs} is zero, as that would produce minus zero.
+    check = graph()->NewNode(machine()->Word32Equal(), lhs, zero);
+    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                           frame_state, efalse0, if_false0);
+
+    // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
+    // to return -kMinInt, which is not representable.
+    Node* check1 = graph()->NewNode(machine()->Word32Equal(), lhs, minint);
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = efalse0;
+    {
+      // Check if {rhs} is -1.
+      Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, minusone);
+      if_true1 = etrue1 = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                           frame_state, etrue1, if_true1);
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = efalse0;
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+
+    // Perform the actual integer division.
+    vfalse0 = graph()->NewNode(machine()->Int32Div(), lhs, rhs, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
+                       vfalse0, control);
+
+  // Check if the remainder is non-zero.
+  Node* check =
+      graph()->NewNode(machine()->Word32Equal(), lhs,
+                       graph()->NewNode(machine()->Int32Mul(), rhs, value));
+  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, effect, control);
+
+  // Make sure the lowered node does not appear in any use lists.
+  node->TrimInputCount(0);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  Node* zero = jsgraph()->Int32Constant(0);
+  Node* minusone = jsgraph()->Int32Constant(-1);
+  Node* minint = jsgraph()->Int32Constant(std::numeric_limits<int32_t>::min());
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
+  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  // Check if {lhs} is positive or zero.
+  Node* check0 = graph()->NewNode(machine()->Int32LessThanOrEqual(), zero, lhs);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0;
+  {
+    // Fast case, no additional checking required.
+    vtrue0 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0;
+  {
+    // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
+    // to return -0.
+    Node* check1 = graph()->NewNode(machine()->Word32Equal(), lhs, minint);
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                     check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = efalse0;
+    {
+      // Check if {rhs} is -1.
+      Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, minusone);
+      if_true1 = etrue1 = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                           frame_state, etrue1, if_true1);
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = efalse0;
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+
+    // Perform the actual integer modulos.
+    vfalse0 = graph()->NewNode(machine()->Int32Mod(), lhs, rhs, if_false0);
+
+    // Check if the result is zero, because in that case we'd have to return
+    // -0 here since we always take the signe of the {lhs} which is negative.
+    Node* check = graph()->NewNode(machine()->Word32Equal(), vfalse0, zero);
+    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                           frame_state, efalse0, if_false0);
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
+                       vfalse0, control);
 
   // Make sure the lowered node does not appear in any use lists.
   node->TrimInputCount(0);

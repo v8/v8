@@ -53,6 +53,14 @@ Node* CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Smi::FromInt(0));
 }
 
+Node* CodeStubAssembler::MinusZeroConstant() {
+  return LoadRoot(Heap::kMinusZeroValueRootIndex);
+}
+
+Node* CodeStubAssembler::NanConstant() {
+  return LoadRoot(Heap::kNanValueRootIndex);
+}
+
 Node* CodeStubAssembler::NullConstant() {
   return LoadRoot(Heap::kNullValueRootIndex);
 }
@@ -328,6 +336,69 @@ Node* CodeStubAssembler::SmiMin(Node* a, Node* b) {
   Goto(&join);
   Bind(&join);
   return min.value();
+}
+
+Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label return_result(this, &var_result),
+      return_minuszero(this, Label::kDeferred),
+      return_nan(this, Label::kDeferred);
+
+  // Untag {a} and {b}.
+  a = SmiToWord32(a);
+  b = SmiToWord32(b);
+
+  // Return NaN if {b} is zero.
+  GotoIf(Word32Equal(b, Int32Constant(0)), &return_nan);
+
+  // Check if {a} is non-negative.
+  Label if_aisnotnegative(this), if_aisnegative(this, Label::kDeferred);
+  Branch(Int32LessThanOrEqual(Int32Constant(0), a), &if_aisnotnegative,
+         &if_aisnegative);
+
+  Bind(&if_aisnotnegative);
+  {
+    // Fast case, don't need to check any other edge cases.
+    Node* r = Int32Mod(a, b);
+    var_result.Bind(SmiFromWord32(r));
+    Goto(&return_result);
+  }
+
+  Bind(&if_aisnegative);
+  {
+    if (SmiValuesAre32Bits()) {
+      // Check if {a} is kMinInt and {b} is -1 (only relevant if the
+      // kMinInt is actually representable as a Smi).
+      Label join(this);
+      GotoUnless(Word32Equal(a, Int32Constant(kMinInt)), &join);
+      GotoIf(Word32Equal(b, Int32Constant(-1)), &return_minuszero);
+      Goto(&join);
+      Bind(&join);
+    }
+
+    // Perform the integer modulus operation.
+    Node* r = Int32Mod(a, b);
+
+    // Check if {r} is zero, and if so return -0, because we have to
+    // take the sign of the left hand side {a}, which is negative.
+    GotoIf(Word32Equal(r, Int32Constant(0)), &return_minuszero);
+
+    // The remainder {r} can be outside the valid Smi range on 32bit
+    // architectures, so we cannot just say SmiFromWord32(r) here.
+    var_result.Bind(ChangeInt32ToTagged(r));
+    Goto(&return_result);
+  }
+
+  Bind(&return_minuszero);
+  var_result.Bind(MinusZeroConstant());
+  Goto(&return_result);
+
+  Bind(&return_nan);
+  var_result.Bind(NanConstant());
+  Goto(&return_result);
+
+  Bind(&return_result);
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::WordIsSmi(Node* a) {

@@ -1382,8 +1382,13 @@ class RepresentationSelector {
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
-      case IrOpcode::kSpeculativeNumberDivide:
-      case IrOpcode::kNumberDivide: {
+      case IrOpcode::kSpeculativeNumberDivide: {
+        if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
+          // => unsigned Uint32Div
+          VisitWord32TruncatingBinop(node);
+          if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
+          return;
+        }
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
           // => signed Int32Div
@@ -1398,11 +1403,66 @@ class RepresentationSelector {
             return;
           }
         }
+
+        // Try to use type feedback.
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+
+        // Handle the case when no int32 checks on inputs are necessary
+        // (but an overflow check is needed on the output).
+        if (BothInputsAre(node, Type::Signed32())) {
+          // If both the inputs the feedback are int32, use the overflow op.
+          if (hint == BinaryOperationHints::kSignedSmall ||
+              hint == BinaryOperationHints::kSigned32) {
+            VisitBinop(node, UseInfo::TruncatingWord32(),
+                       MachineRepresentation::kWord32,
+                       TypeCheckKind::kSigned32);
+            if (lower()) ChangeToInt32OverflowOp(node, Int32OverflowOp(node));
+            return;
+          }
+        }
+
+        if (hint == BinaryOperationHints::kSignedSmall ||
+            hint == BinaryOperationHints::kSigned32) {
+          // If the result is truncated, we only need to check the inputs.
+          if (truncation.TruncatesToWord32()) {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32);
+            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+          } else {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32,
+                       TypeCheckKind::kSigned32);
+            if (lower()) ChangeToInt32OverflowOp(node, Int32OverflowOp(node));
+          }
+          return;
+        }
+
+        // default case => Float64Div
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
+      case IrOpcode::kNumberDivide: {
         if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
           return;
+        }
+        if (BothInputsAreSigned32(node)) {
+          if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
+            // => signed Int32Div
+            VisitInt32Binop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+            return;
+          }
+          if (truncation.TruncatesToWord32()) {
+            // => signed Int32Div
+            VisitWord32TruncatingBinop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+            return;
+          }
         }
         // Number x Number => Float64Div
         if (BothInputsAre(node, Type::NumberOrUndefined())) {
@@ -1417,8 +1477,13 @@ class RepresentationSelector {
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }
-      case IrOpcode::kSpeculativeNumberModulus:
-      case IrOpcode::kNumberModulus: {
+      case IrOpcode::kSpeculativeNumberModulus: {
+        if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
+          // => unsigned Uint32Mod
+          VisitWord32TruncatingBinop(node);
+          if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
+          return;
+        }
         if (BothInputsAreSigned32(node)) {
           if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
             // => signed Int32Mod
@@ -1433,23 +1498,69 @@ class RepresentationSelector {
             return;
           }
         }
+
+        // Try to use type feedback.
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+
+        // Handle the case when no int32 checks on inputs are necessary
+        // (but an overflow check is needed on the output).
+        if (BothInputsAre(node, Type::Signed32())) {
+          // If both the inputs the feedback are int32, use the overflow op.
+          if (hint == BinaryOperationHints::kSignedSmall ||
+              hint == BinaryOperationHints::kSigned32) {
+            VisitBinop(node, UseInfo::TruncatingWord32(),
+                       MachineRepresentation::kWord32,
+                       TypeCheckKind::kSigned32);
+            if (lower()) ChangeToInt32OverflowOp(node, Int32OverflowOp(node));
+            return;
+          }
+        }
+
+        if (hint == BinaryOperationHints::kSignedSmall ||
+            hint == BinaryOperationHints::kSigned32) {
+          // If the result is truncated, we only need to check the inputs.
+          if (truncation.TruncatesToWord32()) {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32);
+            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+          } else {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32,
+                       TypeCheckKind::kSigned32);
+            if (lower()) ChangeToInt32OverflowOp(node, Int32OverflowOp(node));
+          }
+          return;
+        }
+
+        // default case => Float64Mod
+        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
+      case IrOpcode::kNumberModulus: {
         if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Mod
           VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
           return;
         }
-        // Number x Number => Float64Mod
-        if (BothInputsAre(node, Type::NumberOrUndefined())) {
-          // => Float64Mod
-          VisitFloat64Binop(node);
-          if (lower()) ChangeToPureOp(node, Float64Op(node));
-          return;
+        if (BothInputsAreSigned32(node)) {
+          if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
+            // => signed Int32Mod
+            VisitInt32Binop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+            return;
+          }
+          if (truncation.TruncatesToWord32()) {
+            // => signed Int32Mod
+            VisitWord32TruncatingBinop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+            return;
+          }
         }
-        // Checked float64 x float64 => float64
-        DCHECK_EQ(IrOpcode::kSpeculativeNumberModulus, node->opcode());
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
-                   MachineRepresentation::kFloat64, TypeCheckKind::kNumber);
+        // => Float64Mod
+        VisitFloat64Binop(node);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }

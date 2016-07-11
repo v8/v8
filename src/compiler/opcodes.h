@@ -180,6 +180,8 @@
 #define SIMPLIFIED_CHECKED_OP_LIST(V) \
   V(CheckedInt32Add)                  \
   V(CheckedInt32Sub)                  \
+  V(CheckedInt32Div)                  \
+  V(CheckedInt32Mod)                  \
   V(CheckedUint32ToInt32)             \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedToInt32)             \

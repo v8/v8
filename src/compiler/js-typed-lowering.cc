@@ -539,33 +539,48 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+      r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSDivide(x:plain-primitive,
+    //          y:plain-primitive) => NumberDivide(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
+  }
   if (feedback != BinaryOperationHints::kAny) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberDivide(feedback), Type::Number());
   }
-
-  // If deoptimization is enabled we rely on type feedback.
-  if (r.BothInputsAre(Type::PlainPrimitive()) ||
-      !(flags() & kDeoptimizationEnabled)) {
+  if (r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSDivide(x:plain-primitive,
+    //          y:plain-primitive) => NumberDivide(ToNumber(x), ToNumber(y))
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberDivide(), Type::Number());
   }
-
   return NoChange();
 }
 
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
-  if (r.BothInputsAre(Type::Number())) {
-    // JSModulus(x:number, x:number) => NumberModulus(x, y)
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+      r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSModulus(x:plain-primitive,
+    //           y:plain-primitive) => NumberModulus(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberModulus(),
                                   Type::Number());
   }
-  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback != BinaryOperationHints::kAny) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberModulus(feedback), Type::Number());
+  }
+  if (r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSModulus(x:plain-primitive,
+    //           y:plain-primitive) => NumberModulus(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberModulus(),
+                                  Type::Number());
   }
   return NoChange();
 }
