@@ -8308,11 +8308,13 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
 
   PropertyFilter key_filter =
       static_cast<PropertyFilter>(filter & ~ONLY_ENUMERABLE);
-  KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly, key_filter);
-  MAYBE_RETURN(accumulator.CollectKeys(object, object),
-               MaybeHandle<FixedArray>());
-  Handle<FixedArray> keys =
-      accumulator.GetKeys(GetKeysConversion::kConvertToString);
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys,
+      KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly, key_filter,
+                              GetKeysConversion::kConvertToString),
+      MaybeHandle<FixedArray>());
 
   values_or_entries = isolate->factory()->NewFixedArray(keys->length());
   int length = 0;
