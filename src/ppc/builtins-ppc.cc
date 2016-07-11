@@ -172,14 +172,17 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumber builtin to convert it.
       FrameScope scope(masm, StackFrame::MANUAL);
-      __ PushStandardFrame(r4);
       __ SmiTag(r3);
       __ SmiTag(r7);
-      __ Push(r3, r7, r8);
+      __ EnterBuiltinFrame(cp, r4, r3);
+      __ Push(r7, r8);
       __ mr(r3, r5);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ mr(r5, r3);
-      __ Pop(r3, r7, r8);
+      __ Pop(r7, r8);
+      __ LeaveBuiltinFrame(cp, r4, r3);
+      __ SmiUntag(r7);
+      __ SmiUntag(r3);
       {
         // Restore the double accumulator value (d1).
         Label done_restore;
@@ -188,15 +191,6 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ lfd(d1, FieldMemOperand(r8, HeapNumber::kValueOffset));
         __ bind(&done_restore);
       }
-      __ SmiUntag(r7);
-      __ SmiUntag(r3);
-      // TODO(Jaideep): Add macro furtion for PopStandardFrame
-      if (FLAG_enable_embedded_constant_pool) {
-        __ Pop(r0, fp, kConstantPoolRegister, cp, r4);
-      } else {
-        __ Pop(r0, fp, cp, r4);
-      }
-      __ mtlr(r0);
     }
     __ b(&convert);
     __ bind(&convert_number);
@@ -245,25 +239,38 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3                     : number of arguments
   //  -- r4                     : constructor function
+  //  -- cp                     : context
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into r3 and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into r3.
   Label no_arguments;
   {
+    __ mr(r5, r3);  // Store argc in r5.
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_arguments);
     __ subi(r3, r3, Operand(1));
     __ ShiftLeftImm(r3, r3, Operand(kPointerSizeLog2));
-    __ LoadPUX(r3, MemOperand(sp, r3));
-    __ Drop(2);
+    __ LoadPX(r3, MemOperand(sp, r3));
   }
 
   // 2a. Convert the first argument to a number.
-  __ Jump(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(r5);
+    __ EnterBuiltinFrame(cp, r4, r5);
+    __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+    __ LeaveBuiltinFrame(cp, r4, r5);
+    __ SmiUntag(r5);
+  }
+
+  {
+    // Drop all arguments including the receiver.
+    __ Drop(r5);
+    __ Ret(1);
+  }
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
@@ -278,6 +285,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- r3                     : number of arguments
   //  -- r4                     : constructor function
   //  -- r6                     : new target
+  //  -- cp                     : context
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
@@ -286,20 +294,18 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into r5 and get rid of the rest (including the
-  // receiver).
+  // 2. Load the first argument into r5.
   {
     Label no_arguments, done;
+    __ mr(r9, r3);  // Store argc in r9.
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_arguments);
     __ subi(r3, r3, Operand(1));
     __ ShiftLeftImm(r5, r3, Operand(kPointerSizeLog2));
-    __ LoadPUX(r5, MemOperand(sp, r5));
-    __ Drop(2);
+    __ LoadPX(r5, MemOperand(sp, r5));
     __ b(&done);
     __ bind(&no_arguments);
     __ LoadSmiLiteral(r5, Smi::FromInt(0));
-    __ Drop(1);
     __ bind(&done);
   }
 
@@ -310,36 +316,49 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ CompareObjectType(r5, r7, r7, HEAP_NUMBER_TYPE);
     __ beq(&done_convert);
     {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ Push(r4, r6);
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ SmiTag(r9);
+      __ EnterBuiltinFrame(cp, r4, r9);
+      __ Push(r6);
       __ mr(r3, r5);
       __ Call(masm->isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
       __ mr(r5, r3);
-      __ Pop(r4, r6);
+      __ Pop(r6);
+      __ LeaveBuiltinFrame(cp, r4, r9);
+      __ SmiUntag(r9);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ cmp(r4, r6);
   __ bne(&new_object);
 
   // 5. Allocate a JSValue wrapper for the number.
   __ AllocateJSValue(r3, r4, r5, r7, r8, &new_object);
-  __ Ret();
+  __ b(&drop_frame_and_ret);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(r9);
+    __ EnterBuiltinFrame(cp, r4, r9);
     __ Push(r5);  // first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(r5);
+    __ LeaveBuiltinFrame(cp, r4, r9);
+    __ SmiUntag(r9);
   }
   __ StoreP(r5, FieldMemOperand(r3, JSValue::kValueOffset), r0);
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Drop(r9);
+    __ Ret(1);
+  }
 }
 
 
@@ -348,33 +367,33 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3                     : number of arguments
   //  -- r4                     : constructor function
+  //  -- cp                     : context
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into r3 and get rid of the rest (including the
-  // receiver).
+  // 1. Load the first argument into r3.
   Label no_arguments;
   {
+    __ mr(r5, r3);  // Store argc in r5.
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_arguments);
     __ subi(r3, r3, Operand(1));
     __ ShiftLeftImm(r3, r3, Operand(kPointerSizeLog2));
-    __ LoadPUX(r3, MemOperand(sp, r3));
-    __ Drop(2);
+    __ LoadPX(r3, MemOperand(sp, r3));
   }
 
   // 2a. At least one argument, return r3 if it's a string, otherwise
   // dispatch to appropriate conversion.
-  Label to_string, symbol_descriptive_string;
+  Label drop_frame_and_ret, to_string, symbol_descriptive_string;
   {
     __ JumpIfSmi(r3, &to_string);
     STATIC_ASSERT(FIRST_NONSTRING_TYPE == SYMBOL_TYPE);
-    __ CompareObjectType(r3, r4, r4, FIRST_NONSTRING_TYPE);
+    __ CompareObjectType(r3, r6, r6, FIRST_NONSTRING_TYPE);
     __ bgt(&to_string);
     __ beq(&symbol_descriptive_string);
-    __ Ret();
+    __ b(&drop_frame_and_ret);
   }
 
   // 2b. No arguments, return the empty string (and pop the receiver).
@@ -387,18 +406,31 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // 3a. Convert r3 to a string.
   __ bind(&to_string);
   {
+    FrameScope scope(masm, StackFrame::MANUAL);
     ToStringStub stub(masm->isolate());
-    __ TailCallStub(&stub);
+    __ SmiTag(r5);
+    __ EnterBuiltinFrame(cp, r4, r5);
+    __ CallStub(&stub);
+    __ LeaveBuiltinFrame(cp, r4, r5);
+    __ SmiUntag(r5);
   }
+  __ b(&drop_frame_and_ret);
 
   // 3b. Convert symbol in r3 to a string.
   __ bind(&symbol_descriptive_string);
   {
+    __ Drop(r5);
+    __ Drop(1);
     __ Push(r3);
     __ TailCallRuntime(Runtime::kSymbolDescriptiveString);
   }
-}
 
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Drop(r5);
+    __ Ret(1);
+  }
+}
 
 // static
 void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
@@ -406,6 +438,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- r3                     : number of arguments
   //  -- r4                     : constructor function
   //  -- r6                     : new target
+  //  -- cp                     : context
   //  -- lr                     : return address
   //  -- sp[(argc - n - 1) * 4] : arg[n] (zero based)
   //  -- sp[argc * 4]           : receiver
@@ -414,20 +447,18 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // 1. Make sure we operate in the context of the called function.
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
 
-  // 2. Load the first argument into r5 and get rid of the rest (including the
-  // receiver).
+  // 2. Load the first argument into r5.
   {
     Label no_arguments, done;
+    __ mr(r9, r3);  // Store argc in r9.
     __ cmpi(r3, Operand::Zero());
     __ beq(&no_arguments);
     __ subi(r3, r3, Operand(1));
     __ ShiftLeftImm(r5, r3, Operand(kPointerSizeLog2));
-    __ LoadPUX(r5, MemOperand(sp, r5));
-    __ Drop(2);
+    __ LoadPX(r5, MemOperand(sp, r5));
     __ b(&done);
     __ bind(&no_arguments);
     __ LoadRoot(r5, Heap::kempty_stringRootIndex);
-    __ Drop(1);
     __ bind(&done);
   }
 
@@ -439,37 +470,50 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ blt(&done_convert);
     __ bind(&convert);
     {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      FrameScope scope(masm, StackFrame::MANUAL);
       ToStringStub stub(masm->isolate());
-      __ Push(r4, r6);
+      __ SmiTag(r9);
+      __ EnterBuiltinFrame(cp, r4, r9);
+      __ Push(r6);
       __ mr(r3, r5);
       __ CallStub(&stub);
       __ mr(r5, r3);
-      __ Pop(r4, r6);
+      __ Pop(r6);
+      __ LeaveBuiltinFrame(cp, r4, r9);
+      __ SmiUntag(r9);
     }
     __ bind(&done_convert);
   }
 
   // 4. Check if new target and constructor differ.
-  Label new_object;
+  Label drop_frame_and_ret, new_object;
   __ cmp(r4, r6);
   __ bne(&new_object);
 
   // 5. Allocate a JSValue wrapper for the string.
   __ AllocateJSValue(r3, r4, r5, r7, r8, &new_object);
-  __ Ret();
+  __ b(&drop_frame_and_ret);
 
   // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ SmiTag(r9);
+    __ EnterBuiltinFrame(cp, r4, r9);
     __ Push(r5);  // first argument
     FastNewObjectStub stub(masm->isolate());
     __ CallStub(&stub);
     __ Pop(r5);
+    __ LeaveBuiltinFrame(cp, r4, r9);
+    __ SmiUntag(r9);
   }
   __ StoreP(r5, FieldMemOperand(r3, JSValue::kValueOffset), r0);
-  __ Ret();
+
+  __ bind(&drop_frame_and_ret);
+  {
+    __ Drop(r9);
+    __ Ret(1);
+  }
 }
 
 
@@ -1827,9 +1871,8 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     __ push(r3);
-    __ PushStandardFrame(r4);
-    __ LoadSmiLiteral(r7, Smi::FromInt(0));
-    __ push(r7);
+    __ LoadSmiLiteral(r3, Smi::FromInt(0));
+    __ EnterBuiltinFrame(cp, r4, r3);
     __ CallRuntime(Runtime::kThrowNotDateError);
   }
 }

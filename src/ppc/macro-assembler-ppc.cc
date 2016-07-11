@@ -1072,6 +1072,49 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   return frame_ends;
 }
 
+void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  int fp_delta = 0;
+  mflr(r0);
+  if (FLAG_enable_embedded_constant_pool) {
+    if (target.is_valid()) {
+      Push(r0, fp, kConstantPoolRegister, context, target);
+      fp_delta = 3;
+    } else {
+      Push(r0, fp, kConstantPoolRegister, context);
+      fp_delta = 2;
+    }
+  } else {
+    if (target.is_valid()) {
+      Push(r0, fp, context, target);
+      fp_delta = 2;
+    } else {
+      Push(r0, fp, context);
+      fp_delta = 1;
+    }
+  }
+  addi(fp, sp, Operand(fp_delta * kPointerSize));
+  Push(argc);
+}
+
+void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Pop(argc);
+  if (FLAG_enable_embedded_constant_pool) {
+    if (target.is_valid()) {
+      Pop(r0, fp, kConstantPoolRegister, context, target);
+    } else {
+      Pop(r0, fp, kConstantPoolRegister, context);
+    }
+  } else {
+    if (target.is_valid()) {
+      Pop(r0, fp, context, target);
+    } else {
+      Pop(r0, fp, context);
+    }
+  }
+  mtlr(r0);
+}
 
 // ExitFrame layout (probably wrongish.. needs updating)
 //
