@@ -1810,8 +1810,14 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kCheckBounds: {
-        VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
-                   UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32())) {
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+        } else {
+          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                     UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+        }
         return;
       }
       case IrOpcode::kCheckIf: {
