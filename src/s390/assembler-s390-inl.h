@@ -47,6 +47,8 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
+
 void RelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
