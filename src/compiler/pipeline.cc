@@ -939,12 +939,8 @@ struct RepresentationSelectionPhase {
   static const char* phase_name() { return "representation selection"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    SimplifiedLowering::Flags flags =
-        data->info()->is_type_feedback_enabled()
-            ? SimplifiedLowering::kTypeFeedbackEnabled
-            : SimplifiedLowering::kNoFlag;
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
-                                data->source_positions(), flags);
+                                data->source_positions());
     lowering.LowerAllNodes();
   }
 };

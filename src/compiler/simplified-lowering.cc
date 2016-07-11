@@ -2335,12 +2335,10 @@ class RepresentationSelector {
 };
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
-                                       SourcePositionTable* source_positions,
-                                       Flags flags)
+                                       SourcePositionTable* source_positions)
     : jsgraph_(jsgraph),
       zone_(zone),
       type_cache_(TypeCache::Get()),
-      flags_(flags),
       source_positions_(source_positions) {}
 
 void SimplifiedLowering::LowerAllNodes() {
