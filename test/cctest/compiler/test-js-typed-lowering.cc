@@ -997,7 +997,8 @@ TEST(OrderCompareEffects) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Symbol(), Type::String());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::String(),
+                         JSTypedLowering::kNoFlags);
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kStringToNumber, 0, false);
@@ -1012,7 +1013,8 @@ TEST(OrderCompareEffects) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol(),
+                         JSTypedLowering::kNoFlags);
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.result->InputAt(1);
@@ -1025,7 +1027,8 @@ TEST(OrderCompareEffects) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number(),
+                         JSTypedLowering::kNoFlags);
 
     Node* i0 = B.result->InputAt(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);

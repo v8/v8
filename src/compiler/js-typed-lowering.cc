@@ -52,7 +52,7 @@ class JSBinopReduction final {
     }
     DCHECK_NE(0, node_->op()->ControlOutputCount());
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
-    DCHECK_EQ(2, OperatorProperties::GetFrameStateInputCount(node_->op()));
+    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
     CompareOperationHints hints = CompareOperationHintsOf(node_->op());
     CompareOperationHints::Hint combined = hints.combined();
     if (combined == CompareOperationHints::kSignedSmall ||
@@ -644,10 +644,13 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     if (hint != CompareOperationHints::kAny) {
       less_than = simplified()->SpeculativeNumberLessThan(hint);
       less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
-    } else {
+    } else if (r.BothInputsAre(Type::PlainPrimitive()) ||
+               !(flags() & kDeoptimizationEnabled)) {
       r.ConvertInputsToNumber();
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
+    } else {
+      return NoChange();
     }
     const Operator* comparison;
     switch (node->opcode()) {
