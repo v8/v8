@@ -2358,18 +2358,34 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else {
       DCHECK(destination->IsFPStackSlot());
       Operand dst = g.ToOperand(destination);
-      __ Movsd(dst, src);
+      MachineRepresentation rep =
+          LocationOperand::cast(source)->representation();
+      if (rep != MachineRepresentation::kSimd128) {
+        __ Movsd(dst, src);
+      } else {
+        __ Movups(dst, src);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     Operand src = g.ToOperand(source);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (destination->IsFPRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);
-      __ Movsd(dst, src);
+      if (rep != MachineRepresentation::kSimd128) {
+        __ Movsd(dst, src);
+      } else {
+        __ Movups(dst, src);
+      }
     } else {
       Operand dst = g.ToOperand(destination);
-      __ Movsd(kScratchDoubleReg, src);
-      __ Movsd(dst, kScratchDoubleReg);
+      if (rep != MachineRepresentation::kSimd128) {
+        __ Movsd(kScratchDoubleReg, src);
+        __ Movsd(dst, kScratchDoubleReg);
+      } else {
+        __ Movups(kScratchDoubleReg, src);
+        __ Movups(dst, kScratchDoubleReg);
+      }
     }
   } else {
     UNREACHABLE();
@@ -2401,31 +2417,57 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
              (source->IsFPStackSlot() && destination->IsFPStackSlot())) {
     // Memory-memory.
-    Register tmp = kScratchRegister;
     Operand src = g.ToOperand(source);
     Operand dst = g.ToOperand(destination);
-    __ movq(tmp, dst);
-    __ pushq(src);
-    frame_access_state()->IncreaseSPDelta(1);
-    src = g.ToOperand(source);
-    __ movq(src, tmp);
-    frame_access_state()->IncreaseSPDelta(-1);
-    dst = g.ToOperand(destination);
-    __ popq(dst);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep != MachineRepresentation::kSimd128) {
+      Register tmp = kScratchRegister;
+      __ movq(tmp, dst);
+      __ pushq(src);
+      frame_access_state()->IncreaseSPDelta(1);
+      src = g.ToOperand(source);
+      __ movq(src, tmp);
+      frame_access_state()->IncreaseSPDelta(-1);
+      dst = g.ToOperand(destination);
+      __ popq(dst);
+    } else {
+      // Use the XOR trick to swap without a temporary.
+      __ Movups(kScratchDoubleReg, src);
+      __ Xorps(kScratchDoubleReg, dst);  // scratch contains src ^ dst.
+      __ Movups(src, kScratchDoubleReg);
+      __ Xorps(kScratchDoubleReg, dst);  // scratch contains src.
+      __ Movups(dst, kScratchDoubleReg);
+      __ Xorps(kScratchDoubleReg, src);  // scratch contains dst.
+      __ Movups(src, kScratchDoubleReg);
+    }
   } else if (source->IsFPRegister() && destination->IsFPRegister()) {
     // XMM register-register swap.
     XMMRegister src = g.ToDoubleRegister(source);
     XMMRegister dst = g.ToDoubleRegister(destination);
-    __ Movapd(kScratchDoubleReg, src);
-    __ Movapd(src, dst);
-    __ Movapd(dst, kScratchDoubleReg);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep != MachineRepresentation::kSimd128) {
+      __ Movapd(kScratchDoubleReg, src);
+      __ Movapd(src, dst);
+      __ Movapd(dst, kScratchDoubleReg);
+    } else {
+      __ Movups(kScratchDoubleReg, src);
+      __ Movups(src, dst);
+      __ Movups(dst, kScratchDoubleReg);
+    }
   } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
     // XMM register-memory swap.
     XMMRegister src = g.ToDoubleRegister(source);
     Operand dst = g.ToOperand(destination);
-    __ Movsd(kScratchDoubleReg, src);
-    __ Movsd(src, dst);
-    __ Movsd(dst, kScratchDoubleReg);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep != MachineRepresentation::kSimd128) {
+      __ Movsd(kScratchDoubleReg, src);
+      __ Movsd(src, dst);
+      __ Movsd(dst, kScratchDoubleReg);
+    } else {
+      __ Movups(kScratchDoubleReg, src);
+      __ Movups(src, dst);
+      __ Movups(dst, kScratchDoubleReg);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();

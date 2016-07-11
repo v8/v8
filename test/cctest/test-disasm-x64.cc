@@ -599,6 +599,10 @@ TEST(DisasmX64) {
       __ vmovapd(xmm7, xmm0);
       __ vmovmskpd(r9, xmm4);
 
+      __ vmovups(xmm5, xmm1);
+      __ vmovups(xmm5, Operand(rdx, 4));
+      __ vmovups(Operand(rdx, 4), xmm5);
+
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm9);

@@ -983,8 +983,14 @@ class MacroAssembler: public Assembler {
   void Movq(Register dst, XMMRegister src);
 
   void Movaps(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, const Operand& src);
+  void Movups(const Operand& dst, XMMRegister src);
   void Movapd(XMMRegister dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
+
+  void Xorps(XMMRegister dst, XMMRegister src);
+  void Xorps(XMMRegister dst, const Operand& src);
 
   void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);

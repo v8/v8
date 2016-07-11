@@ -2718,6 +2718,32 @@ void MacroAssembler::Movaps(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::Movups(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovups(dst, src);
+  } else {
+    movups(dst, src);
+  }
+}
+
+void MacroAssembler::Movups(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovups(dst, src);
+  } else {
+    movups(dst, src);
+  }
+}
+
+void MacroAssembler::Movups(const Operand& dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmovups(dst, src);
+  } else {
+    movups(dst, src);
+  }
+}
 
 void MacroAssembler::Movapd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2848,6 +2874,23 @@ void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::Xorps(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorps(dst, kScratchDoubleReg, src);
+  } else {
+    xorps(dst, src);
+  }
+}
+
+void MacroAssembler::Xorps(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorps(dst, kScratchDoubleReg, src);
+  } else {
+    xorps(dst, src);
+  }
+}
 
 void MacroAssembler::Roundss(XMMRegister dst, XMMRegister src,
                              RoundingMode mode) {
