@@ -120,7 +120,7 @@ void FastAccessorAssembler::CheckFlagSetOrReturnNull(ValueId value, int mask) {
       assembler_->Word32Equal(
           assembler_->Word32And(FromId(value), assembler_->Int32Constant(mask)),
           assembler_->Int32Constant(0)),
-      &pass, &fail);
+      &fail, &pass);
   assembler_->Bind(&fail);
   assembler_->Return(assembler_->NullConstant());
   assembler_->Bind(&pass);
@@ -154,7 +154,7 @@ void FastAccessorAssembler::CheckNotZeroOrJump(ValueId value_id,
   CodeStubAssembler::Label pass(assembler_.get());
   assembler_->Branch(
       assembler_->WordEqual(FromId(value_id), assembler_->IntPtrConstant(0)),
-      &pass, FromId(label_id));
+      FromId(label_id), &pass);
   assembler_->Bind(&pass);
 }
 
