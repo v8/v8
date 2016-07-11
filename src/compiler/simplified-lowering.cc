@@ -1270,16 +1270,16 @@ class RepresentationSelector {
       case IrOpcode::kNumberLessThan:
       case IrOpcode::kNumberLessThanOrEqual: {
         // Number comparisons reduce to integer comparisons for integer inputs.
-        if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
-            TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
-          // => signed Int32Cmp
-          VisitInt32Cmp(node);
-          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
-                   TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
+        if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
+            TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
           // => unsigned Int32Cmp
           VisitUint32Cmp(node);
           if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
+        } else if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
+                   TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
+          // => signed Int32Cmp
+          VisitInt32Cmp(node);
+          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
         } else {
           // => Float64Cmp
           VisitFloat64Cmp(node);
@@ -1296,17 +1296,17 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       case IrOpcode::kSpeculativeNumberEqual: {
         // Number comparisons reduce to integer comparisons for integer inputs.
-        if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
-            TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
-          // => signed Int32Cmp
-          VisitInt32Cmp(node);
-          if (lower()) ChangeToPureOp(node, Int32Op(node));
-          return;
-        } else if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
-                   TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
+        if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
+            TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
           // => unsigned Int32Cmp
           VisitUint32Cmp(node);
           if (lower()) ChangeToPureOp(node, Uint32Op(node));
+          return;
+        } else if (TypeOf(node->InputAt(0))->Is(Type::Signed32()) &&
+                   TypeOf(node->InputAt(1))->Is(Type::Signed32())) {
+          // => signed Int32Cmp
+          VisitInt32Cmp(node);
+          if (lower()) ChangeToPureOp(node, Int32Op(node));
           return;
         }
         // Try to use type feedback.

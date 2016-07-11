@@ -919,22 +919,6 @@ struct TypedLoweringPhase {
 };
 
 
-struct BranchEliminationPhase {
-  static const char* phase_name() { return "branch condition elimination"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    BranchElimination branch_condition_elimination(&graph_reducer,
-                                                   data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common());
-    AddReducer(data, &graph_reducer, &branch_condition_elimination);
-    AddReducer(data, &graph_reducer, &dead_code_elimination);
-    graph_reducer.ReduceGraph();
-  }
-};
-
-
 struct EscapeAnalysisPhase {
   static const char* phase_name() { return "escape analysis"; }
 
@@ -1077,6 +1061,8 @@ struct LateOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(temp_zone);
@@ -1086,6 +1072,7 @@ struct LateOptimizationPhase {
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
     TailCallOptimization tco(data->common(), data->graph());
+    AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -1510,9 +1497,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<StoreStoreEliminationPhase>();
     RunPrintAndVerify("Store-store elimination", true);
   }
-
-  Run<BranchEliminationPhase>();
-  RunPrintAndVerify("Branch conditions eliminated", true);
 
   // Optimize control flow.
   if (FLAG_turbo_cf_optimization) {
