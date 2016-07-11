@@ -147,7 +147,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope scope(isolate);
 
   // This function is used by fuzzers, ignore calls with bogus arguments count.
-  if (args.length() != 0 && args.length() == 1) {
+  if (args.length() != 0 && args.length() != 1) {
     return isolate->heap()->undefined_value();
   }
 
