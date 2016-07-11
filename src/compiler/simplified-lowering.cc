@@ -569,10 +569,9 @@ class RepresentationSelector {
   void Run(SimplifiedLowering* lowering) {
     RunTruncationPropagationPhase();
 
-    if (lowering->flags() & SimplifiedLowering::kTypeFeedbackEnabled) {
-      ResetNodeInfoState();
-      RunTypePropagationPhase();
-    }
+    // Run type propagation.
+    ResetNodeInfoState();
+    RunTypePropagationPhase();
 
     // Run lowering and change insertion phase.
     TRACE("--{Simplified lowering phase}--\n");
