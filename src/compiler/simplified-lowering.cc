@@ -917,8 +917,7 @@ class RepresentationSelector {
 
   void VisitCall(Node* node, SimplifiedLowering* lowering) {
     const CallDescriptor* desc = CallDescriptorOf(node->op());
-    const MachineSignature* sig = desc->GetMachineSignature();
-    int params = static_cast<int>(sig->parameter_count());
+    int params = static_cast<int>(desc->ParameterCount());
     // Propagate representation information from call descriptor.
     for (int i = 0; i < node->InputCount(); i++) {
       if (i == 0) {
@@ -926,15 +925,14 @@ class RepresentationSelector {
         ProcessInput(node, i, UseInfo::None());
       } else if ((i - 1) < params) {
         ProcessInput(node, i, TruncatingUseInfoFromRepresentation(
-                                  sig->GetParam(i - 1).representation()));
+                                  desc->GetInputType(i).representation()));
       } else {
         ProcessInput(node, i, UseInfo::None());
       }
     }
 
-    if (sig->return_count() > 0) {
-      SetOutput(node,
-                desc->GetMachineSignature()->GetReturn().representation());
+    if (desc->ReturnCount() > 0) {
+      SetOutput(node, desc->GetReturnType(0).representation());
     } else {
       SetOutput(node, MachineRepresentation::kTagged);
     }

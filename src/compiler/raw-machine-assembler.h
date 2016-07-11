@@ -762,10 +762,7 @@ class RawMachineAssembler {
   BasicBlock* CurrentBlock();
 
   Schedule* schedule() { return schedule_; }
-  size_t parameter_count() const { return machine_sig()->parameter_count(); }
-  const MachineSignature* machine_sig() const {
-    return call_descriptor_->GetMachineSignature();
-  }
+  size_t parameter_count() const { return call_descriptor_->ParameterCount(); }
 
   Isolate* isolate_;
   Graph* graph_;

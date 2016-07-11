@@ -26,14 +26,12 @@ class TailCallOptimizationTest : public GraphTest {
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject0) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kNoFlags);
   Node* p0 = Parameter(0);
@@ -48,14 +46,12 @@ TEST_F(TailCallOptimizationTest, CallCodeObject0) {
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject1) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -74,14 +70,12 @@ TEST_F(TailCallOptimizationTest, CallCodeObject1) {
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject2) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -98,14 +92,12 @@ TEST_F(TailCallOptimizationTest, CallCodeObject2) {
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction0) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kNoFlags);
   Node* p0 = Parameter(0);
@@ -120,14 +112,12 @@ TEST_F(TailCallOptimizationTest, CallJSFunction0) {
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction1) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
       LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -146,14 +136,11 @@ TEST_F(TailCallOptimizationTest, CallJSFunction1) {
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction2) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
   LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
                                           LinkageLocation::ForRegister(1)};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
       LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);

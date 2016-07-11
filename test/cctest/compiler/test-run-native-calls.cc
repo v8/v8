@@ -139,20 +139,20 @@ struct Allocator {
         // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
         if (type.representation() == MachineRepresentation::kFloat32) code *= 2;
 #endif
-        return LinkageLocation::ForRegister(code);
+        return LinkageLocation::ForRegister(code, type);
       } else {
         int offset = -1 - stack_offset;
         stack_offset += StackWords(type);
-        return LinkageLocation::ForCallerFrameSlot(offset);
+        return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     } else {
       // Allocate a general purpose register/stack location.
       if (gp_offset < gp_count) {
-        return LinkageLocation::ForRegister(gp_regs[gp_offset++]);
+        return LinkageLocation::ForRegister(gp_regs[gp_offset++], type);
       } else {
         int offset = -1 - stack_offset;
         stack_offset += StackWords(type);
-        return LinkageLocation::ForCallerFrameSlot(offset);
+        return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     }
   }
@@ -200,7 +200,6 @@ class RegisterConfig {
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
         target_loc,                         // target location
-        msig,                               // machine_sig
         locations.Build(),                  // location_sig
         stack_param_count,                  // stack_parameter_count
         compiler::Operator::kNoProperties,  // properties
@@ -271,9 +270,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
 
 Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
   Zone zone(inner->GetIsolate()->allocator());
-  MachineSignature* msig =
-      const_cast<MachineSignature*>(desc->GetMachineSignature());
-  int param_count = static_cast<int>(msig->parameter_count());
+  int param_count = static_cast<int>(desc->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
     GraphAndBuilders& b = caller;
@@ -299,6 +296,7 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
     b.graph()->SetEnd(ret);
   }
 
+  MachineSignature* msig = desc->GetMachineSignature(&zone);
   CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, msig);
 
   return CompileGraph("wrapper", cdesc, caller.graph());
@@ -419,7 +417,7 @@ void ArgsBuffer<float64>::Mutate() {
 
 
 int ParamCount(CallDescriptor* desc) {
-  return static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  return static_cast<int>(desc->ParameterCount());
 }
 
 
@@ -538,8 +536,7 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
   Handle<Code> inner_code = CompileGraph("Int32Sub", desc, inner.graph());
   Handle<Code> wrapper = WrapWithCFunction(inner_code, desc);
-  MachineSignature* msig =
-      const_cast<MachineSignature*>(desc->GetMachineSignature());
+  MachineSignature* msig = desc->GetMachineSignature(&zone);
   CodeRunner<int32_t> runnable(isolate, wrapper,
                                CSignature::FromMachine(&zone, msig));
 

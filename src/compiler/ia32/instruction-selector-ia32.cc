@@ -1097,7 +1097,7 @@ void InstructionSelector::EmitPrepareArguments(
     InstructionOperand temps[] = {g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
          0, nullptr, 0, nullptr, temp_count, temps);
 
     // Poke any stack arguments.

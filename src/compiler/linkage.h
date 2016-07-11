@@ -37,56 +37,63 @@ class LinkageLocation {
     return !(*this == other);
   }
 
-  static LinkageLocation ForAnyRegister() {
-    return LinkageLocation(REGISTER, ANY_REGISTER);
+  static LinkageLocation ForAnyRegister(
+      MachineType type = MachineType::None()) {
+    return LinkageLocation(REGISTER, ANY_REGISTER, type);
   }
 
-  static LinkageLocation ForRegister(int32_t reg) {
+  static LinkageLocation ForRegister(int32_t reg,
+                                     MachineType type = MachineType::None()) {
     DCHECK(reg >= 0);
-    return LinkageLocation(REGISTER, reg);
+    return LinkageLocation(REGISTER, reg, type);
   }
 
-  static LinkageLocation ForCallerFrameSlot(int32_t slot) {
+  static LinkageLocation ForCallerFrameSlot(int32_t slot, MachineType type) {
     DCHECK(slot < 0);
-    return LinkageLocation(STACK_SLOT, slot);
+    return LinkageLocation(STACK_SLOT, slot, type);
   }
 
-  static LinkageLocation ForCalleeFrameSlot(int32_t slot) {
+  static LinkageLocation ForCalleeFrameSlot(int32_t slot, MachineType type) {
     // TODO(titzer): bailout instead of crashing here.
     DCHECK(slot >= 0 && slot < LinkageLocation::MAX_STACK_SLOT);
-    return LinkageLocation(STACK_SLOT, slot);
+    return LinkageLocation(STACK_SLOT, slot, type);
   }
 
   static LinkageLocation ForSavedCallerReturnAddress() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kCallerPCOffset) /
-                              kPointerSize);
+                                  kPointerSize,
+                              MachineType::Pointer());
   }
 
   static LinkageLocation ForSavedCallerFramePtr() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kCallerFPOffset) /
-                              kPointerSize);
+                                  kPointerSize,
+                              MachineType::Pointer());
   }
 
   static LinkageLocation ForSavedCallerConstantPool() {
     DCHECK(V8_EMBEDDED_CONSTANT_POOL);
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kConstantPoolOffset) /
-                              kPointerSize);
+                                  kPointerSize,
+                              MachineType::AnyTagged());
   }
 
   static LinkageLocation ForSavedCallerFunction() {
     return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
                                StandardFrameConstants::kFunctionOffset) /
-                              kPointerSize);
+                                  kPointerSize,
+                              MachineType::AnyTagged());
   }
 
   static LinkageLocation ConvertToTailCallerLocation(
       LinkageLocation caller_location, int stack_param_delta) {
     if (!caller_location.IsRegister()) {
       return LinkageLocation(STACK_SLOT,
-                             caller_location.GetLocation() + stack_param_delta);
+                             caller_location.GetLocation() + stack_param_delta,
+                             caller_location.GetType());
     }
     return caller_location;
   }
@@ -103,9 +110,22 @@ class LinkageLocation {
   static const int32_t ANY_REGISTER = -1;
   static const int32_t MAX_STACK_SLOT = 32767;
 
-  LinkageLocation(LocationType type, int32_t location) {
+  LinkageLocation(LocationType type, int32_t location,
+                  MachineType machine_type) {
     bit_field_ = TypeField::encode(type) |
                  ((location << LocationField::kShift) & LocationField::kMask);
+    machine_type_ = machine_type;
+  }
+
+  MachineType GetType() const { return machine_type_; }
+
+  int GetSize() const {
+    return 1 << ElementSizeLog2Of(GetType().representation());
+  }
+
+  int GetSizeInPointers() const {
+    // Round up
+    return (GetSize() + kPointerSize - 1) / kPointerSize;
   }
 
   int32_t GetLocation() const {
@@ -134,6 +154,7 @@ class LinkageLocation {
   }
 
   int32_t bit_field_;
+  MachineType machine_type_;
 };
 
 typedef Signature<LinkageLocation> LocationSignature;
@@ -169,7 +190,6 @@ class CallDescriptor final : public ZoneObject {
   typedef base::Flags<Flag> Flags;
 
   CallDescriptor(Kind kind, MachineType target_type, LinkageLocation target_loc,
-                 const MachineSignature* machine_sig,
                  LocationSignature* location_sig, size_t stack_param_count,
                  Operator::Properties properties,
                  RegList callee_saved_registers,
@@ -178,7 +198,6 @@ class CallDescriptor final : public ZoneObject {
       : kind_(kind),
         target_type_(target_type),
         target_loc_(target_loc),
-        machine_sig_(machine_sig),
         location_sig_(location_sig),
         stack_param_count_(stack_param_count),
         properties_(properties),
@@ -186,8 +205,6 @@ class CallDescriptor final : public ZoneObject {
         callee_saved_fp_registers_(callee_saved_fp_registers),
         flags_(flags),
         debug_name_(debug_name) {
-    DCHECK(machine_sig->return_count() == location_sig->return_count());
-    DCHECK(machine_sig->parameter_count() == location_sig->parameter_count());
   }
 
   // Returns the kind of this call.
@@ -204,10 +221,10 @@ class CallDescriptor final : public ZoneObject {
   }
 
   // The number of return values from this call.
-  size_t ReturnCount() const { return machine_sig_->return_count(); }
+  size_t ReturnCount() const { return location_sig_->return_count(); }
 
   // The number of C parameters to this call.
-  size_t CParameterCount() const { return machine_sig_->parameter_count(); }
+  size_t ParameterCount() const { return location_sig_->parameter_count(); }
 
   // The number of stack parameters to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
@@ -221,7 +238,7 @@ class CallDescriptor final : public ZoneObject {
   // The total number of inputs to this call, which includes the target,
   // receiver, context, etc.
   // TODO(titzer): this should input the framestate input too.
-  size_t InputCount() const { return 1 + machine_sig_->parameter_count(); }
+  size_t InputCount() const { return 1 + location_sig_->parameter_count(); }
 
   size_t FrameStateCount() const { return NeedsFrameState() ? 1 : 0; }
 
@@ -243,15 +260,19 @@ class CallDescriptor final : public ZoneObject {
     return location_sig_->GetParam(index - 1);
   }
 
-  const MachineSignature* GetMachineSignature() const { return machine_sig_; }
+  MachineSignature* GetMachineSignature(Zone* zone) const;
 
   MachineType GetReturnType(size_t index) const {
-    return machine_sig_->GetReturn(index);
+    return location_sig_->GetReturn(index).GetType();
   }
 
   MachineType GetInputType(size_t index) const {
     if (index == 0) return target_type_;
-    return machine_sig_->GetParam(index - 1);
+    return location_sig_->GetParam(index - 1).GetType();
+  }
+
+  MachineType GetParameterType(size_t index) const {
+    return location_sig_->GetParam(index).GetType();
   }
 
   // Operator properties describe how this call can be optimized, if at all.
@@ -277,7 +298,6 @@ class CallDescriptor final : public ZoneObject {
   const Kind kind_;
   const MachineType target_type_;
   const LinkageLocation target_loc_;
-  const MachineSignature* const machine_sig_;
   const LocationSignature* const location_sig_;
   const size_t stack_param_count_;
   const Operator::Properties properties_;

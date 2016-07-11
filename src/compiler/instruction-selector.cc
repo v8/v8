@@ -574,17 +574,17 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       bool output_is_live = buffer->output_nodes[i] != nullptr ||
                             i < outputs_needed_by_framestate;
       if (output_is_live) {
-        MachineType type =
-            buffer->descriptor->GetReturnType(static_cast<int>(i));
+        MachineRepresentation rep =
+            buffer->descriptor->GetReturnType(static_cast<int>(i))
+                .representation();
         LinkageLocation location =
             buffer->descriptor->GetReturnLocation(static_cast<int>(i));
 
         Node* output = buffer->output_nodes[i];
-        InstructionOperand op =
-            output == nullptr
-                ? g.TempLocation(location, type.representation())
-                : g.DefineAsLocation(output, location, type.representation());
-        MarkAsRepresentation(type.representation(), op);
+        InstructionOperand op = output == nullptr
+                                    ? g.TempLocation(location)
+                                    : g.DefineAsLocation(output, location);
+        MarkAsRepresentation(rep, op);
 
         buffer->outputs.push_back(op);
       }
@@ -611,8 +611,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       break;
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
-          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
-                        buffer->descriptor->GetInputType(0).representation()));
+          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
       break;
   }
   DCHECK_EQ(1u, buffer->instruction_args.size());
@@ -679,9 +678,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       location = LinkageLocation::ConvertToTailCallerLocation(
           location, stack_param_delta);
     }
-    InstructionOperand op =
-        g.UseLocation(*iter, location,
-                      buffer->descriptor->GetInputType(index).representation());
+    InstructionOperand op = g.UseLocation(*iter, location);
     if (UnallocatedOperand::cast(op).HasFixedSlotPolicy() && !call_tail) {
       int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
@@ -1606,9 +1603,7 @@ void InstructionSelector::VisitParameter(Node* node) {
           ? g.DefineAsDualLocation(
                 node, linkage()->GetParameterLocation(index),
                 linkage()->GetParameterSecondaryLocation(index))
-          : g.DefineAsLocation(
-                node, linkage()->GetParameterLocation(index),
-                linkage()->GetParameterType(index).representation());
+          : g.DefineAsLocation(node, linkage()->GetParameterLocation(index));
 
   Emit(kArchNop, op);
 }
@@ -1619,17 +1614,15 @@ void InstructionSelector::VisitIfException(Node* node) {
   Node* call = node->InputAt(1);
   DCHECK_EQ(IrOpcode::kCall, call->opcode());
   const CallDescriptor* descriptor = CallDescriptorOf(call->op());
-  Emit(kArchNop,
-       g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
-                          descriptor->GetReturnType(0).representation()));
+  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0)));
 }
 
 
 void InstructionSelector::VisitOsrValue(Node* node) {
   OperandGenerator g(this);
   int index = OpParameter<int>(node);
-  Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index),
-                                    MachineRepresentation::kTagged));
+  Emit(kArchNop,
+       g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index)));
 }
 
 
@@ -1737,7 +1730,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallAddress:
       opcode =
           kArchCallCFunction |
-          MiscField::encode(static_cast<int>(descriptor->CParameterCount()));
+          MiscField::encode(static_cast<int>(descriptor->ParameterCount()));
       break;
     case CallDescriptor::kCallCodeObject:
       opcode = kArchCallCodeObject | MiscField::encode(flags);
@@ -1883,8 +1876,7 @@ void InstructionSelector::VisitReturn(Node* ret) {
     auto value_locations = zone()->NewArray<InstructionOperand>(ret_count);
     for (int i = 0; i < ret_count; ++i) {
       value_locations[i] =
-          g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i),
-                        linkage()->GetReturnType(i).representation());
+          g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i));
     }
     Emit(kArchRet, 0, nullptr, ret_count, value_locations);
   }

@@ -142,8 +142,7 @@ void RawMachineAssembler::Comment(const char* msg) {
 
 Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  int param_count = static_cast<int>(desc->ParameterCount());
   int input_count = param_count + 1;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
@@ -159,8 +158,7 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
                                                Node* function, Node** args,
                                                Node* frame_state) {
   DCHECK(desc->NeedsFrameState());
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  int param_count = static_cast<int>(desc->ParameterCount());
   int input_count = param_count + 2;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
@@ -251,8 +249,7 @@ Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
 
 Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
                                      Node** args) {
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
+  int param_count = static_cast<int>(desc->ParameterCount());
   int input_count = param_count + 1;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;

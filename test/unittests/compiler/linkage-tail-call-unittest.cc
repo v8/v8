@@ -26,27 +26,24 @@ class LinkageTailCall : public TestWithZone {
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=
            locations->return_count() + locations->parameter_count());
-    MachineSignature* types = new (zone()) MachineSignature(
-        locations->return_count(), locations->parameter_count(), kMachineTypes);
-    return new (zone()) CallDescriptor(CallDescriptor::kCallCodeObject,
-                                       MachineType::AnyTagged(),
-                                       LinkageLocation::ForAnyRegister(),
-                                       types,      // machine_sig
-                                       locations,  // location_sig
-                                       0,          // js_parameter_count
-                                       Operator::kNoProperties,  // properties
-                                       0,                        // callee-saved
-                                       0,  // callee-saved fp
-                                       CallDescriptor::kNoFlags,  // flags,
-                                       "");
+    return new (zone()) CallDescriptor(
+        CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
+        LinkageLocation::ForAnyRegister(MachineType::Pointer()),
+        locations,                 // location_sig
+        0,                         // js_parameter_count
+        Operator::kNoProperties,   // properties
+        0,                         // callee-saved
+        0,                         // callee-saved fp
+        CallDescriptor::kNoFlags,  // flags,
+        "");
   }
 
   LinkageLocation StackLocation(int loc) {
-    return LinkageLocation::ForCallerFrameSlot(-loc);
+    return LinkageLocation::ForCallerFrameSlot(-loc, MachineType::Pointer());
   }
 
   LinkageLocation RegisterLocation(int loc) {
-    return LinkageLocation::ForRegister(loc);
+    return LinkageLocation::ForRegister(loc, MachineType::Pointer());
   }
 };
 

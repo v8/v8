@@ -68,9 +68,8 @@ class OperandGenerator {
     return ConstantOperand(virtual_register);
   }
 
-  InstructionOperand DefineAsLocation(Node* node, LinkageLocation location,
-                                      MachineRepresentation rep) {
-    return Define(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  InstructionOperand DefineAsLocation(Node* node, LinkageLocation location) {
+    return Define(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
   InstructionOperand DefineAsDualLocation(Node* node,
@@ -144,20 +143,18 @@ class OperandGenerator {
     return sequence()->AddImmediate(ToConstant(node));
   }
 
-  InstructionOperand UseLocation(Node* node, LinkageLocation location,
-                                 MachineRepresentation rep) {
-    return Use(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  InstructionOperand UseLocation(Node* node, LinkageLocation location) {
+    return Use(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
   // Used to force gap moves from the from_location to the to_location
   // immediately before an instruction.
   InstructionOperand UsePointerLocation(LinkageLocation to_location,
                                         LinkageLocation from_location) {
-    MachineRepresentation rep = MachineType::PointerRepresentation();
     UnallocatedOperand casted_from_operand =
-        UnallocatedOperand::cast(TempLocation(from_location, rep));
+        UnallocatedOperand::cast(TempLocation(from_location));
     selector_->Emit(kArchNop, casted_from_operand);
-    return ToUnallocatedOperand(to_location, rep,
+    return ToUnallocatedOperand(to_location,
                                 casted_from_operand.virtual_register());
   }
 
@@ -185,10 +182,8 @@ class OperandGenerator {
     return sequence()->AddImmediate(Constant(imm));
   }
 
-  InstructionOperand TempLocation(LinkageLocation location,
-                                  MachineRepresentation rep) {
-    return ToUnallocatedOperand(location, rep,
-                                sequence()->NextVirtualRegister());
+  InstructionOperand TempLocation(LinkageLocation location) {
+    return ToUnallocatedOperand(location, sequence()->NextVirtualRegister());
   }
 
   InstructionOperand Label(BasicBlock* block) {
@@ -257,7 +252,6 @@ class OperandGenerator {
   }
 
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
-                                          MachineRepresentation rep,
                                           int virtual_register) {
     if (location.IsAnyRegister()) {
       // any machine register.
@@ -275,7 +269,7 @@ class OperandGenerator {
                                 location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    if (IsFloatingPoint(rep)) {
+    if (IsFloatingPoint(location.GetType().representation())) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                 location.AsRegister(), virtual_register);
     }

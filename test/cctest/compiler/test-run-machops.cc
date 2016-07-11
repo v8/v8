@@ -6428,7 +6428,6 @@ TEST(RunComputedCodeObject) {
       CallDescriptor::kCallCodeObject,                   // kind
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
-      &sig,                                              // machine_sig
       &loc,                                              // location_sig
       0,                                                 // stack count
       Operator::kNoProperties,                           // properties

@@ -174,14 +174,12 @@ TEST_F(EffectControlLinearizerTest, FloatingDiamondsControlWiring) {
   //            BLOCK 6:
   //             m2: Merge(t2, f2)
   //             r1: Return(c1, c2)
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kNoFlags);
   Node* p0 = Parameter(0);
