@@ -1098,8 +1098,14 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       bool is_async = allow_harmony_async_await() && shared_info->is_async();
       if (is_async) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
-        Consume(Token::ASYNC);
-        DCHECK(peek_any_identifier() || peek() == Token::LPAREN);
+        if (!Check(Token::ASYNC)) {
+          CHECK(stack_overflow());
+          return nullptr;
+        }
+        if (!(peek_any_identifier() || peek() == Token::LPAREN)) {
+          CHECK(stack_overflow());
+          return nullptr;
+        }
       }
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
