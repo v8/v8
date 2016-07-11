@@ -564,7 +564,7 @@ void Scanner::Scan() {
         Advance();
         if (c0_ == '-') {
           Advance();
-          if (c0_ == '>' && has_line_terminator_before_next_) {
+          if (c0_ == '>' && HasAnyLineTerminatorBeforeNext()) {
             // For compatibility with SpiderMonkey, we skip lines that
             // start with an HTML comment end '-->'.
             token = SkipSingleLineComment();

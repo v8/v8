@@ -120,15 +120,32 @@ TEST(ScanHTMLEndComments) {
   // whitespace, even a multiline-comment containing a newline).
   // This was not the case if it occurred before the first real token
   // in the input.
+  // clang-format off
   const char* tests[] = {
       // Before first real token.
+      "-->",
+      "--> is eol-comment",
       "--> is eol-comment\nvar y = 37;\n",
       "\n --> is eol-comment\nvar y = 37;\n",
+      "\n-->is eol-comment\nvar y = 37;\n",
+      "\n-->\nvar y = 37;\n",
       "/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "/* precomment */-->eol-comment\nvar y = 37;\n",
       "\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "\n/*precomment*/-->eol-comment\nvar y = 37;\n",
       // After first real token.
       "var x = 42;\n--> is eol-comment\nvar y = 37;\n",
       "var x = 42;\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "x/* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      "var x = 42; /* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      "var x = 42;/*\n*/-->is eol-comment\nvar y = 37;\n",
+      // With multiple comments preceding HTMLEndComment
+      "/* MLC \n */ /* SLDC */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC \n */ /* SLDC1 */ /* SLDC2 */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC1 \n */ /* MLC2 \n */ --> is eol-comment\nvar y = 37;\n",
+      "/* SLDC */ /* MLC \n */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC1 \n */ /* SLDC1 */ /* MLC2 \n */ /* SLDC2 */ --> is eol-comment\n"
+          "var y = 37;\n",
       NULL
   };
 
@@ -136,11 +153,10 @@ TEST(ScanHTMLEndComments) {
       "x --> is eol-comment\nvar y = 37;\n",
       "\"\\n\" --> is eol-comment\nvar y = 37;\n",
       "x/* precomment */ --> is eol-comment\nvar y = 37;\n",
-      "x/* precomment\n */ --> is eol-comment\nvar y = 37;\n",
       "var x = 42; --> is eol-comment\nvar y = 37;\n",
-      "var x = 42; /* precomment\n */ --> is eol-comment\nvar y = 37;\n",
       NULL
   };
+  // clang-format on
 
   // Parser/Scanner needs a stack limit.
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
