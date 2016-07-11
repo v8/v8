@@ -159,6 +159,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
   // Load the inobject properties count of a Map (valid only for JSObjects).
   compiler::Node* LoadMapInobjectProperties(compiler::Node* map);
+  // Load the constructor of a Map (equivalent to Map::GetConstructor()).
+  compiler::Node* LoadMapConstructor(compiler::Node* map);
 
   // Load the hash field of a name.
   compiler::Node* LoadNameHashField(compiler::Node* name);

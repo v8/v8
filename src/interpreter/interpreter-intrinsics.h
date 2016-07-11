@@ -26,6 +26,7 @@ namespace interpreter {
 // expected number of arguments (-1 denoting argument count is variable).
 #define INTRINSICS_LIST(V)                              \
   V(Call, call, -1)                                     \
+  V(ClassOf, class_of, 1)                               \
   V(HasProperty, has_property, 2)                       \
   V(IsArray, is_array, 1)                               \
   V(IsJSProxy, is_js_proxy, 1)                          \

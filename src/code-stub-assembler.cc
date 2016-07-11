@@ -638,6 +638,26 @@ Node* CodeStubAssembler::LoadMapInobjectProperties(Node* map) {
       MachineType::Uint8());
 }
 
+Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
+  Variable result(this, MachineRepresentation::kTagged);
+  result.Bind(LoadObjectField(map, Map::kConstructorOrBackPointerOffset));
+
+  Label done(this), loop(this, &result);
+  Goto(&loop);
+  Bind(&loop);
+  {
+    GotoIf(WordIsSmi(result.value()), &done);
+    Node* is_map_type =
+        Word32Equal(LoadInstanceType(result.value()), Int32Constant(MAP_TYPE));
+    GotoUnless(is_map_type, &done);
+    result.Bind(
+        LoadObjectField(result.value(), Map::kConstructorOrBackPointerOffset));
+    Goto(&loop);
+  }
+  Bind(&done);
+  return result.value();
+}
+
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
   return LoadObjectField(name, Name::kHashFieldOffset, MachineType::Uint32());
 }
