@@ -4703,18 +4703,31 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     CompileRun("%OptimizeFunctionOnNextCall(bar); bar();");
 
-    CHECK_EQ(DependentCode::kAllocationSiteTransitionChangedGroup,
-             site->dependent_code()->group());
-    CHECK_EQ(1, site->dependent_code()->count());
-    CHECK(site->dependent_code()->object_at(0)->IsWeakCell());
-    Code* function_bar = Code::cast(
-        WeakCell::cast(site->dependent_code()->object_at(0))->value());
     Handle<JSFunction> bar_handle = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             CcTest::global()
                 ->Get(context.local(), v8_str("bar"))
                 .ToLocalChecked())));
-    CHECK_EQ(bar_handle->code(), function_bar);
+
+    int dependency_group_count = 0;
+    DependentCode* dependency = site->dependent_code();
+    while (dependency != heap->empty_fixed_array()) {
+      CHECK(dependency->group() ==
+                DependentCode::kAllocationSiteTransitionChangedGroup ||
+            dependency->group() ==
+                DependentCode::kAllocationSiteTenuringChangedGroup);
+      CHECK_EQ(1, dependency->count());
+      CHECK(dependency->object_at(0)->IsWeakCell());
+      Code* function_bar =
+          Code::cast(WeakCell::cast(dependency->object_at(0))->value());
+      CHECK_EQ(bar_handle->code(), function_bar);
+      dependency = dependency->next_link();
+      dependency_group_count++;
+    }
+
+    // TurboFan respects pretenuring feedback from allocation sites, Crankshaft
+    // does not. Either is fine for the purposes of this test.
+    CHECK(dependency_group_count == 1 || dependency_group_count == 2);
   }
 
   // Now make sure that a gc should get rid of the function, even though we

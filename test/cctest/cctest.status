@@ -102,16 +102,8 @@
   # coverage).
   'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
 
-  # TurboFan doesn't support allocation sites currently.
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_VARIANTS],
+  # TODO(mstarzinger): The pretenuring decision is different in TurboFan.
   'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_VARIANTS],
 
   # TurboFan cpu profiler result is different.
   'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
@@ -172,6 +164,16 @@
   # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
   'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
+
+  # BUG(4680): Ignition doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_IGNITION],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_IGNITION],
 
   # BUG(4751). Flaky with ignition.
   'test-cpu-profiler/JsNativeJsSample': [PASS, NO_IGNITION],
@@ -553,6 +555,16 @@
 
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
+
+  # BUG(4680): Ignition doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
+  'test-heap/OptimizedPretenuringAllocationFolding': [FAIL],
+  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringDoubleArrayProperties': [FAIL],
+  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringNestedObjectLiterals': [FAIL],
+  'test-heap/OptimizedPretenuringObjectArrayLiterals': [FAIL],
 
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
