@@ -6009,7 +6009,10 @@ void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
 //       }
 //     }
 //
-//     output.value;
+//     if (mode === kReturn) {
+//       return {value: output.value, done: true};
+//     }
+//     output.value
 //   }
 //
 // IteratorClose(iterator) expands to the following:
@@ -6305,7 +6308,30 @@ Expression* ParserTraits::RewriteYieldStar(
   }
 
 
-  // output.value;
+  // if (mode === kReturn) {
+  //   return {value: output.value, done: true};
+  // }
+  Statement* maybe_return_value;
+  {
+    Expression* mode_proxy = factory->NewVariableProxy(var_mode);
+    Expression* kreturn =
+        factory->NewSmiLiteral(JSGeneratorObject::kReturn, nopos);
+    Expression* condition = factory->NewCompareOperation(
+        Token::EQ_STRICT, mode_proxy, kreturn, nopos);
+
+    Expression* output_proxy = factory->NewVariableProxy(var_output);
+    Expression* literal =
+        factory->NewStringLiteral(avfactory->value_string(), nopos);
+    Expression* property = factory->NewProperty(output_proxy, literal, nopos);
+    Statement* return_value =
+        factory->NewReturnStatement(BuildIteratorResult(property, true), nopos);
+
+    maybe_return_value = factory->NewIfStatement(
+        condition, return_value, factory->NewEmptyStatement(nopos), nopos);
+  }
+
+
+  // output.value
   Statement* get_value;
   {
     Expression* output_proxy = factory->NewVariableProxy(var_output);
@@ -6408,13 +6434,14 @@ Expression* ParserTraits::RewriteYieldStar(
     // The rewriter needs to process the get_value statement only, hence we
     // put the preceding statements into an init block.
 
-    Block* do_block_ = factory->NewBlock(nullptr, 6, true, nopos);
+    Block* do_block_ = factory->NewBlock(nullptr, 7, true, nopos);
     do_block_->statements()->Add(initialize_input, zone);
     do_block_->statements()->Add(initialize_mode, zone);
     do_block_->statements()->Add(initialize_output, zone);
     do_block_->statements()->Add(get_iterator, zone);
     do_block_->statements()->Add(validate_iterator, zone);
     do_block_->statements()->Add(loop, zone);
+    do_block_->statements()->Add(maybe_return_value, zone);
 
     Block* do_block = factory->NewBlock(nullptr, 2, false, nopos);
     do_block->statements()->Add(do_block_, zone);
