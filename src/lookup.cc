@@ -356,7 +356,11 @@ void LookupIterator::PrepareTransitionToDataProperty(
   state_ = TRANSITION;
   transition_ = transition;
 
-  if (!transition->is_dictionary_map()) {
+  if (transition->is_dictionary_map()) {
+    // Don't set enumeration index (it will be set during value store).
+    property_details_ =
+        PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
+  } else {
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
   }
