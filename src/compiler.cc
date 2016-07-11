@@ -1744,7 +1744,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
-  shared->set_construct_stub(*construct_stub);
+  shared->SetConstructStub(*construct_stub);
   shared->set_feedback_metadata(fun->shared()->feedback_metadata());
 
   // Copy the function data to the shared function info.

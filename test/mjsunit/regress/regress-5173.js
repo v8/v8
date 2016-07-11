@@ -33,12 +33,10 @@ testBuiltinInStackTrace("Date.prototype.getUTCDate.call('')",
                         "at String.getUTCDate");
 testBuiltinInStackTrace("Date.prototype.getTime.call('')", "at String.getTime");
 
-// TODO(jgruber): These use a more generic expected string until detection of
-// assembly builtin constructors is fixed.
-testBuiltinInStackTrace("Number(thrower);", "Number");
-testBuiltinInStackTrace("new Number(thrower);", "Number");
-testBuiltinInStackTrace("String(thrower);", "String");
-testBuiltinInStackTrace("new String(thrower);", "String");
+testBuiltinInStackTrace("Number(thrower);", "at Number");
+testBuiltinInStackTrace("new Number(thrower);", "at new Number");
+testBuiltinInStackTrace("String(thrower);", "at String");
+testBuiltinInStackTrace("new String(thrower);", "at new String");
 
 // Ensure we correctly pick up the receiver's string tag.
 testBuiltinInStackTrace("Math.acos(thrower);", "at Math.acos");

@@ -130,7 +130,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
     // constructor. Hence we can reuse the builtins construct stub for derived
     // classes.
     Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
-    constructor->shared()->set_construct_stub(*stub);
+    constructor->shared()->SetConstructStub(*stub);
   }
 
   JSFunction::SetPrototype(constructor, prototype);

@@ -49,7 +49,7 @@ RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   CHECK(f->RemovePrototype());
-  f->shared()->set_construct_stub(
+  f->shared()->SetConstructStub(
       *isolate->builtins()->ConstructedNonConstructable());
 
   return isolate->heap()->undefined_value();

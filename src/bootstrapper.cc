@@ -1226,7 +1226,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     function_fun->set_prototype_or_initial_map(
         *sloppy_function_map_writable_prototype_);
     function_fun->shared()->DontAdaptArguments();
-    function_fun->shared()->set_construct_stub(
+    function_fun->shared()->SetConstructStub(
         *isolate->builtins()->FunctionConstructor());
     function_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, function_fun,
@@ -1308,7 +1308,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     CacheInitialJSArrayMaps(native_context(), initial_map);
     ArrayConstructorStub array_constructor_stub(isolate);
     Handle<Code> code = array_constructor_stub.GetCode();
-    array_function->shared()->set_construct_stub(*code);
+    array_function->shared()->SetConstructStub(*code);
 
     Handle<JSFunction> is_arraylike = SimpleInstallFunction(
         array_function, isolate->factory()->InternalizeUtf8String("isArray"),
@@ -1321,7 +1321,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         global, "Number", JS_VALUE_TYPE, JSValue::kSize,
         isolate->initial_object_prototype(), Builtins::kNumberConstructor);
     number_fun->shared()->DontAdaptArguments();
-    number_fun->shared()->set_construct_stub(
+    number_fun->shared()->SetConstructStub(
         *isolate->builtins()->NumberConstructor_ConstructStub());
     number_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
@@ -1360,7 +1360,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         isolate->initial_object_prototype(),
                         Builtins::kBooleanConstructor);
     boolean_fun->shared()->DontAdaptArguments();
-    boolean_fun->shared()->set_construct_stub(
+    boolean_fun->shared()->SetConstructStub(
         *isolate->builtins()->BooleanConstructor_ConstructStub());
     boolean_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, boolean_fun,
@@ -1387,7 +1387,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> string_fun = InstallFunction(
         global, "String", JS_VALUE_TYPE, JSValue::kSize,
         isolate->initial_object_prototype(), Builtins::kStringConstructor);
-    string_fun->shared()->set_construct_stub(
+    string_fun->shared()->SetConstructStub(
         *isolate->builtins()->StringConstructor_ConstructStub());
     string_fun->shared()->DontAdaptArguments();
     string_fun->shared()->set_length(1);
@@ -1452,7 +1452,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> symbol_fun =
         InstallFunction(global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
                         prototype, Builtins::kSymbolConstructor);
-    symbol_fun->shared()->set_construct_stub(
+    symbol_fun->shared()->SetConstructStub(
         *isolate->builtins()->SymbolConstructor_ConstructStub());
     symbol_fun->shared()->set_length(0);
     symbol_fun->shared()->DontAdaptArguments();
@@ -1497,7 +1497,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Builtins::kDateConstructor);
     InstallWithIntrinsicDefaultProto(isolate, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
-    date_fun->shared()->set_construct_stub(
+    date_fun->shared()->SetConstructStub(
         *isolate->builtins()->DateConstructor_ConstructStub());
     date_fun->shared()->set_length(7);
     date_fun->shared()->DontAdaptArguments();
@@ -1630,7 +1630,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
-    regexp_fun->shared()->set_construct_stub(
+    regexp_fun->shared()->SetConstructStub(
         *isolate->builtins()->JSBuiltinsConstructStub());
 
     DCHECK(regexp_fun->has_initial_map());
@@ -1874,7 +1874,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Builtins::kDataViewConstructor);
     InstallWithIntrinsicDefaultProto(isolate, data_view_fun,
                                      Context::DATA_VIEW_FUN_INDEX);
-    data_view_fun->shared()->set_construct_stub(
+    data_view_fun->shared()->SetConstructStub(
         *isolate->builtins()->DataViewConstructor_ConstructStub());
     data_view_fun->shared()->set_length(3);
     data_view_fun->shared()->DontAdaptArguments();
@@ -1971,7 +1971,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         proxy_function, Handle<Map>(native_context()->proxy_map(), isolate),
         factory->null_value());
 
-    proxy_function->shared()->set_construct_stub(
+    proxy_function->shared()->SetConstructStub(
         *isolate->builtins()->ProxyConstructor_ConstructStub());
     proxy_function->shared()->set_internal_formal_parameter_count(2);
     proxy_function->shared()->set_length(2);
@@ -2512,7 +2512,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     generator_function_function->set_prototype_or_initial_map(
         native_context->sloppy_generator_function_map());
     generator_function_function->shared()->DontAdaptArguments();
-    generator_function_function->shared()->set_construct_stub(
+    generator_function_function->shared()->SetConstructStub(
         *isolate->builtins()->GeneratorFunctionConstructor());
     generator_function_function->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(
@@ -2709,7 +2709,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           async_function_prototype, Builtins::kAsyncFunctionConstructor,
           kUseStrictFunctionMap);
       async_function_constructor->shared()->DontAdaptArguments();
-      async_function_constructor->shared()->set_construct_stub(
+      async_function_constructor->shared()->SetConstructStub(
           *isolate->builtins()->AsyncFunctionConstructor());
       async_function_constructor->shared()->set_length(1);
       InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
@@ -2920,7 +2920,7 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
       InstallFunction(target, name, JS_ARRAY_BUFFER_TYPE,
                       JSArrayBuffer::kSizeWithInternalFields, prototype,
                       Builtins::kArrayBufferConstructor);
-  array_buffer_fun->shared()->set_construct_stub(
+  array_buffer_fun->shared()->SetConstructStub(
       *isolate()->builtins()->ArrayBufferConstructor_ConstructStub());
   array_buffer_fun->shared()->DontAdaptArguments();
   array_buffer_fun->shared()->set_length(1);
@@ -2957,7 +2957,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
 
   InternalArrayConstructorStub internal_array_constructor_stub(isolate());
   Handle<Code> code = internal_array_constructor_stub.GetCode();
-  array_function->shared()->set_construct_stub(*code);
+  array_function->shared()->SetConstructStub(*code);
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());
@@ -3147,7 +3147,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
         JSReceiver::GetProperty(global_object, key).ToHandleChecked());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_PROMISE_TYPE);
-    function->shared()->set_construct_stub(
+    function->shared()->SetConstructStub(
         *isolate()->builtins()->JSBuiltinsConstructStub());
     InstallWithIntrinsicDefaultProto(isolate(), function,
                                      Context::PROMISE_FUNCTION_INDEX);

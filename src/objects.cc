@@ -995,7 +995,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfo(name, code, is_constructor);
   if (is_constructor) {
-    result->set_construct_stub(*isolate->builtins()->JSConstructStubApi());
+    result->SetConstructStub(*isolate->builtins()->JSConstructStubApi());
   }
 
   result->set_length(info->length());
@@ -13244,7 +13244,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_never_compiled(true);
   shared_info->set_kind(lit->kind());
   if (!IsConstructable(lit->kind(), lit->language_mode())) {
-    shared_info->set_construct_stub(
+    shared_info->SetConstructStub(
         *shared_info->GetIsolate()->builtins()->ConstructedNonConstructable());
   }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
@@ -13263,6 +13263,10 @@ bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
   return true;  // Return true if there was no DCHECK.
 }
 
+void SharedFunctionInfo::SetConstructStub(Code* code) {
+  if (code->kind() == Code::BUILTIN) code->set_is_construct_stub(true);
+  set_construct_stub(code);
+}
 
 void Map::StartInobjectSlackTracking() {
   DCHECK(!IsInobjectSlackTrackingInProgress());

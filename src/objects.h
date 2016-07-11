@@ -5063,6 +5063,12 @@ class Code: public HeapObject {
   inline bool can_have_weak_objects();
   inline void set_can_have_weak_objects(bool value);
 
+  // [is_construct_stub]: For kind BUILTIN, tells whether the code object
+  // represents a hand-written construct stub
+  // (e.g., NumberConstructor_ConstructStub).
+  inline bool is_construct_stub();
+  inline void set_is_construct_stub(bool value);
+
   // [has_deoptimization_support]: For FUNCTION kind, tells if it has
   // deoptimization support.
   inline bool has_deoptimization_support();
@@ -5398,9 +5404,11 @@ class Code: public HeapObject {
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kIsTurbofannedBit = kMarkedForDeoptimizationBit + 1;
   static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
+  // Could be moved to overlap previous bits when we need more space.
+  static const int kIsConstructStub = kCanHaveWeakObjects + 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kCanHaveWeakObjects + 1 <= 32);
+  STATIC_ASSERT(kIsConstructStub + 1 <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -5410,6 +5418,8 @@ class Code: public HeapObject {
   };  // NOLINT
   class CanHaveWeakObjectsField
       : public BitField<bool, kCanHaveWeakObjects, 1> {};  // NOLINT
+  class IsConstructStubField : public BitField<bool, kIsConstructStub, 1> {
+  };  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;
@@ -6877,6 +6887,10 @@ class SharedFunctionInfo: public HeapObject {
 
   // [construct stub]: Code stub for constructing instances of this function.
   DECL_ACCESSORS(construct_stub, Code)
+
+  // Sets the given code as the construct stub, and marks builtin code objects
+  // as a construct stub.
+  void SetConstructStub(Code* code);
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();

@@ -446,6 +446,14 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
           Handle<Object> recv = frames[i].receiver();
           Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          if (frame->type() == StackFrame::BUILTIN) {
+            // Help CallSite::IsConstructor correctly detect hand-written
+            // construct stubs.
+            Code* code = Code::cast(*abstract_code);
+            if (code->is_construct_stub()) {
+              recv = handle(heap()->call_site_constructor_symbol(), this);
+            }
+          }
           Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
 
           elements = MaybeGrow(this, elements, cursor, cursor + 4);

@@ -2119,7 +2119,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<Code> construct_stub =
       is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
                      : isolate()->builtins()->ConstructedNonConstructable();
-  share->set_construct_stub(*construct_stub);
+  share->SetConstructStub(*construct_stub);
   share->set_instance_class_name(*Object_string());
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);

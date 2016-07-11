@@ -4987,6 +4987,18 @@ inline void Code::set_can_have_weak_objects(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline bool Code::is_construct_stub() {
+  DCHECK(kind() == BUILTIN);
+  return IsConstructStubField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+inline void Code::set_is_construct_stub(bool value) {
+  DCHECK(kind() == BUILTIN);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsConstructStubField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
 
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
