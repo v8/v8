@@ -1601,7 +1601,7 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if (InputIs(node, type_cache_.kSafeSigned32)) {
+        } else if (InputIs(node, Type::Signed32())) {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32);
           if (lower()) DeferReplacement(node, lowering->Int32Abs(node));

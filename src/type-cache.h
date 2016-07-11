@@ -73,7 +73,6 @@ class TypeCache final {
   Type* const kSafeIntegerOrMinusZero =
       Type::Union(kSafeInteger, Type::MinusZero(), zone());
   Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
-  Type* const kSafeSigned32 = CreateRange(-kMaxInt, kMaxInt);
 
   Type* const kUntaggedUndefined =
       Type::Intersect(Type::Undefined(), Type::Untagged(), zone());
