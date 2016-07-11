@@ -588,6 +588,10 @@ DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
 DEFINE_BOOL(disable_native_files, false, "disable builtin natives files")
 
+// builtins.cc
+DEFINE_BOOL(allow_unsafe_function_constructor, false,
+            "allow invoking the function constructor without security checks")
+
 // builtins-ia32.cc
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 
