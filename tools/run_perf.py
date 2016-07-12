@@ -113,8 +113,6 @@ SUPPORTED_ARCHS = ["arm",
                    "ia32",
                    "mips",
                    "mipsel",
-                   "nacl_ia32",
-                   "nacl_x64",
                    "x64",
                    "arm64"]
 
