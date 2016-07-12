@@ -553,18 +553,7 @@ Handle<JSArray> Isolate::GetDetailedStackTrace(Handle<JSObject> error_object) {
   Handle<Object> stack_trace =
       JSReceiver::GetDataProperty(error_object, key_detailed);
   if (stack_trace->IsJSArray()) return Handle<JSArray>::cast(stack_trace);
-
-  if (!capture_stack_trace_for_uncaught_exceptions_) return Handle<JSArray>();
-
-  // Try to get details from simple stack trace.
-  Handle<JSArray> detailed_stack_trace =
-      GetDetailedFromSimpleStackTrace(error_object);
-  if (!detailed_stack_trace.is_null()) {
-    // Save the detailed stack since the simple one might be withdrawn later.
-    JSObject::SetProperty(error_object, key_detailed, detailed_stack_trace,
-                          STRICT).Assert();
-  }
-  return detailed_stack_trace;
+  return Handle<JSArray>();
 }
 
 
@@ -746,46 +735,6 @@ int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
     return abstract_code->SourcePosition(code_offset);
   }
 }
-
-
-Handle<JSArray> Isolate::GetDetailedFromSimpleStackTrace(
-    Handle<JSObject> error_object) {
-  Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> property = JSReceiver::GetDataProperty(error_object, key);
-  if (!property->IsJSArray()) return Handle<JSArray>();
-  Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
-
-  CaptureStackTraceHelper helper(this,
-                                 stack_trace_for_uncaught_exceptions_options_);
-
-  int frames_seen = 0;
-  Handle<FixedArray> elements(FixedArray::cast(simple_stack_trace->elements()));
-  int elements_limit = Smi::cast(simple_stack_trace->length())->value();
-
-  int frame_limit = stack_trace_for_uncaught_exceptions_frame_limit_;
-  if (frame_limit < 0) frame_limit = (elements_limit - 1) / 4;
-
-  Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
-  for (int i = 1; i < elements_limit && frames_seen < frame_limit; i += 4) {
-    Handle<Object> recv = handle(elements->get(i), this);
-    Handle<JSFunction> fun =
-        handle(JSFunction::cast(elements->get(i + 1)), this);
-    bool is_constructor =
-        recv->IsJSObject() &&
-        Handle<JSObject>::cast(recv)->map()->GetConstructor() == *fun;
-    int position = PositionFromStackTrace(elements, i);
-
-    Handle<JSObject> stack_frame =
-        helper.NewStackFrameObject(fun, position, is_constructor);
-
-    FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
-    frames_seen++;
-  }
-
-  stack_trace->set_length(Smi::FromInt(frames_seen));
-  return stack_trace;
-}
-
 
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {

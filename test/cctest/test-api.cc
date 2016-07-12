@@ -17001,40 +17001,6 @@ TEST(CaptureStackTraceForUncaughtException) {
   CHECK_EQ(1, report_count);
 }
 
-
-TEST(GetStackTraceForUncaughtExceptionFromSimpleStackTrace) {
-  report_count = 0;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  // Create an Error object first.
-  CompileRunWithOrigin(
-      "function foo() {\n"
-      "e=new Error('err');\n"
-      "};\n"
-      "function bar() {\n"
-      "  foo();\n"
-      "};\n"
-      "var e;",
-      "origin");
-  v8::Local<v8::Object> global = env->Global();
-  Local<Value> trouble =
-      global->Get(env.local(), v8_str("bar")).ToLocalChecked();
-  CHECK(trouble->IsFunction());
-  Function::Cast(*trouble)->Call(env.local(), global, 0, NULL).ToLocalChecked();
-
-  // Enable capturing detailed stack trace late, and throw the exception.
-  // The detailed stack trace should be extracted from the simple stack.
-  isolate->AddMessageListener(StackTraceForUncaughtExceptionListener);
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
-  CompileRunWithOrigin("throw e", "origin");
-  isolate->SetCaptureStackTraceForUncaughtExceptions(false);
-  isolate->RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
-  CHECK_EQ(1, report_count);
-}
-
-
 TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
