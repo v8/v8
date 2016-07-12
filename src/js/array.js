@@ -151,8 +151,7 @@ function DoJoin(array, length, is_array, separator, convert) {
 
   // Fast case for one-element arrays.
   if (length === 1) {
-    var e = array[0];
-    return IS_STRING(e) ? e : convert(e);
+    return convert(array[0]);
   }
 
   // Construct an array for the elements.
@@ -161,31 +160,14 @@ function DoJoin(array, length, is_array, separator, convert) {
   // We pull the empty separator check outside the loop for speed!
   if (separator === '') {
     for (var i = 0; i < length; i++) {
-      var e = array[i];
-      elements[i] = IS_STRING(e) ? e : convert(e);
+      elements[i] = convert(array[i]);
     }
     return %StringBuilderConcat(elements, length, '');
   }
   // Non-empty separator case.
-  // If the first element is a number then use the heuristic that the
-  // remaining elements are also likely to be numbers.
-  var e = array[0];
-  if (IS_NUMBER(e)) {
-    elements[0] = %_NumberToString(e);
-    for (var i = 1; i < length; i++) {
-      e = array[i];
-      if (IS_NUMBER(e)) {
-        elements[i] = %_NumberToString(e);
-      } else {
-        elements[i] = IS_STRING(e) ? e : convert(e);
-      }
-    }
-  } else {
-    elements[0] = IS_STRING(e) ? e : convert(e);
-    for (var i = 1; i < length; i++) {
-      e = array[i];
-      elements[i] = IS_STRING(e) ? e : convert(e);
-    }
+  elements[0] = convert(array[0]);
+  for (var i = 1; i < length; i++) {
+    elements[i] = convert(array[i]);
   }
   return %StringBuilderJoin(elements, length, separator);
 }
