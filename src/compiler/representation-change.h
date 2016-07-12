@@ -80,6 +80,21 @@ enum class TypeCheckKind : uint8_t {
   kNumber
 };
 
+inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
+  switch (type_check) {
+    case TypeCheckKind::kNone:
+      return os << "None";
+    case TypeCheckKind::kSigned32:
+      return os << "Signed32";
+    case TypeCheckKind::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
+    case TypeCheckKind::kNumber:
+      return os << "Number";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 // The {UseInfo} class is used to describe a use of an input of a node.
 //
 // This information is used in two different ways, based on the phase:

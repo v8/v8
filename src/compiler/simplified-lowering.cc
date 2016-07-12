@@ -51,7 +51,10 @@ enum Phase {
   //     the next phase can begin.
   PROPAGATE,
 
-  // 2.) LOWER: perform lowering for all {Simplified} nodes by replacing some
+  // 2.) RETYPE: Propagate types from type feedback forwards.
+  RETYPE,
+
+  // 3.) LOWER: perform lowering for all {Simplified} nodes by replacing some
   //     operators for some nodes, expanding some nodes to multiple nodes, or
   //     removing some (redundant) nodes.
   //     During this phase, use the {RepresentationChanger} to insert
@@ -59,7 +62,6 @@ enum Phase {
   //     representation and nodes that produce a different representation.
   LOWER
 };
-
 
 namespace {
 
@@ -246,8 +248,12 @@ class RepresentationSelector {
 
   // Forward propagation of types from type feedback.
   void RunTypePropagationPhase() {
-    DCHECK(typing_stack_.empty());
+    // Run type propagation.
+    TRACE("--{Type propagation phase}--\n");
+    phase_ = RETYPE;
+    ResetNodeInfoState();
 
+    DCHECK(typing_stack_.empty());
     typing_stack_.push({graph()->end(), 0});
     GetInfo(graph()->end())->set_pushed();
     while (!typing_stack_.empty()) {
@@ -274,6 +280,8 @@ class RepresentationSelector {
       NodeInfo* info = GetInfo(node);
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
+      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+      VisitNode(node, info->truncation(), nullptr);
       if (updated) {
         for (Node* const user : node->uses()) {
           if (GetInfo(user)->visited()) {
@@ -291,6 +299,8 @@ class RepresentationSelector {
       NodeInfo* info = GetInfo(node);
       info->set_visited();
       bool updated = UpdateFeedbackType(node);
+      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+      VisitNode(node, info->truncation(), nullptr);
       if (updated) {
         for (Node* const user : node->uses()) {
           if (GetInfo(user)->visited()) {
@@ -376,7 +386,7 @@ class RepresentationSelector {
         // computes a more precise type.
         Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* static_type = op_typer_.NumericAdd(lhs, rhs);
+        Type* static_type = op_typer_.NumberAdd(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
         } else {
@@ -393,7 +403,7 @@ class RepresentationSelector {
         // computes a more precise type.
         Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* static_type = op_typer_.NumericSubtract(lhs, rhs);
+        Type* static_type = op_typer_.NumberSubtract(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
         } else {
@@ -410,7 +420,7 @@ class RepresentationSelector {
         // computes a more precise type.
         Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* static_type = op_typer_.NumericMultiply(lhs, rhs);
+        Type* static_type = op_typer_.NumberMultiply(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
         } else {
@@ -427,7 +437,7 @@ class RepresentationSelector {
         // computes a more precise type.
         Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* static_type = op_typer_.NumericDivide(lhs, rhs);
+        Type* static_type = op_typer_.NumberDivide(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
         } else {
@@ -444,7 +454,7 @@ class RepresentationSelector {
         // computes a more precise type.
         Type* lhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         Type* rhs = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(1)));
-        Type* static_type = op_typer_.NumericModulus(lhs, rhs);
+        Type* static_type = op_typer_.NumberModulus(lhs, rhs);
         if (info->type_check() == TypeCheckKind::kNone) {
           new_type = static_type;
         } else {
@@ -454,24 +464,21 @@ class RepresentationSelector {
         break;
       }
 
+      case IrOpcode::kNumberAbs: {
+        new_type = op_typer_.NumberAbs(FeedbackTypeOf(node->InputAt(0)));
+        break;
+      }
+
       case IrOpcode::kPhi: {
         new_type = TypePhi(node);
         if (type != nullptr) {
           new_type = Weaken(node, type, new_type);
         }
-        // Recompute the phi representation based on the new type.
-        MachineRepresentation output =
-            GetOutputInfoForPhi(node, GetInfo(node)->truncation(), new_type);
-        ResetOutput(node, output);
         break;
       }
 
       case IrOpcode::kSelect: {
         new_type = TypeSelect(node);
-        // Recompute representation based on the new type.
-        MachineRepresentation output =
-            GetOutputInfoForPhi(node, GetInfo(node)->truncation(), new_type);
-        ResetOutput(node, output);
         break;
       }
 
@@ -569,8 +576,6 @@ class RepresentationSelector {
   void Run(SimplifiedLowering* lowering) {
     RunTruncationPropagationPhase();
 
-    // Run type propagation.
-    ResetNodeInfoState();
     RunTypePropagationPhase();
 
     // Run lowering and change insertion phase.
@@ -647,14 +652,26 @@ class RepresentationSelector {
     }
   }
 
-  bool lower() { return phase_ == LOWER; }
-  bool propagate() { return phase_ == PROPAGATE; }
+  bool lower() const { return phase_ == LOWER; }
+  bool retype() const { return phase_ == RETYPE; }
+  bool propagate() const { return phase_ == PROPAGATE; }
 
   void SetOutput(Node* node, MachineRepresentation representation,
                  TypeCheckKind type_check = TypeCheckKind::kNone) {
-    DCHECK(MachineRepresentationIsSubtype(GetInfo(node)->representation(),
-                                          representation));
-    ResetOutput(node, representation, type_check);
+    NodeInfo* const info = GetInfo(node);
+    switch (phase_) {
+      case PROPAGATE:
+        info->set_type_check(type_check);
+        break;
+      case RETYPE:
+        DCHECK_EQ(info->type_check(), type_check);
+        info->set_output(representation);
+        break;
+      case LOWER:
+        DCHECK_EQ(info->type_check(), type_check);
+        DCHECK_EQ(info->representation(), representation);
+        break;
+    }
   }
 
   void ResetOutput(Node* node, MachineRepresentation representation,
@@ -715,10 +732,15 @@ class RepresentationSelector {
   }
 
   void ProcessInput(Node* node, int index, UseInfo use) {
-    if (phase_ == PROPAGATE) {
-      EnqueueInput(node, index, use);
-    } else {
-      ConvertInput(node, index, use);
+    switch (phase_) {
+      case PROPAGATE:
+        EnqueueInput(node, index, use);
+        break;
+      case RETYPE:
+        break;
+      case LOWER:
+        ConvertInput(node, index, use);
+        break;
     }
   }
 
@@ -827,12 +849,9 @@ class RepresentationSelector {
   }
 
   // Infer representation for phi-like nodes.
-  MachineRepresentation GetOutputInfoForPhi(Node* node, Truncation use,
-                                            Type* type = nullptr) {
+  MachineRepresentation GetOutputInfoForPhi(Node* node, Truncation use) {
     // Compute the representation.
-    if (type == nullptr) {
-      type = TypeOf(node);
-    }
+    Type* type = TypeOf(node);
     if (type->Is(Type::None())) {
       return MachineRepresentation::kNone;
     } else if (type->Is(Type::Signed32()) || type->Is(Type::Unsigned32())) {
@@ -949,11 +968,11 @@ class RepresentationSelector {
   }
 
   void VisitStateValues(Node* node) {
-    if (phase_ == PROPAGATE) {
+    if (propagate()) {
       for (int i = 0; i < node->InputCount(); i++) {
         EnqueueInput(node, i, UseInfo::Any());
       }
-    } else {
+    } else if (lower()) {
       Zone* zone = jsgraph_->zone();
       ZoneVector<MachineType>* types =
           new (zone->New(sizeof(ZoneVector<MachineType>)))
@@ -1578,16 +1597,16 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberAbs: {
-        if (InputIs(node, Type::Unsigned32())) {
+        if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32())) {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
-        } else if (InputIs(node, Type::Signed32())) {
+        } else if (TypeOf(node->InputAt(0))->Is(Type::Signed32())) {
           VisitUnop(node, UseInfo::TruncatingWord32(),
                     MachineRepresentation::kWord32);
           if (lower()) DeferReplacement(node, lowering->Int32Abs(node));
-        } else if (InputIs(node,
-                           type_cache_.kPositiveIntegerOrMinusZeroOrNaN)) {
+        } else if (TypeOf(node->InputAt(0))
+                       ->Is(type_cache_.kPositiveIntegerOrMinusZeroOrNaN)) {
           VisitUnop(node, UseInfo::TruncatingFloat64(),
                     MachineRepresentation::kFloat64);
           if (lower()) DeferReplacement(node, node->InputAt(0));

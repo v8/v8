@@ -254,7 +254,6 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
-  static Type* NumberAbs(Type*, Typer*);
   static Type* NumberCeil(Type*, Typer*);
   static Type* NumberFloor(Type*, Typer*);
   static Type* NumberRound(Type*, Typer*);
@@ -489,34 +488,6 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
   type = ToPrimitive(type, t);
   if (type->Is(Type::String())) return type;
   return Type::String();
-}
-
-// static
-Type* Typer::Visitor::NumberAbs(Type* type, Typer* t) {
-  DCHECK(type->Is(Type::Number()));
-  Factory* const f = t->isolate()->factory();
-  bool const maybe_nan = type->Maybe(Type::NaN());
-  bool const maybe_minuszero = type->Maybe(Type::MinusZero());
-  type = Type::Intersect(type, Type::PlainNumber(), t->zone());
-  double const max = type->Max();
-  double const min = type->Min();
-  if (min < 0) {
-    if (type->Is(t->cache_.kInteger)) {
-      type =
-          Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), t->zone());
-    } else if (min == max) {
-      type = Type::Constant(f->NewNumber(std::fabs(min)), t->zone());
-    } else {
-      type = Type::PlainNumber();
-    }
-  }
-  if (maybe_minuszero) {
-    type = Type::Union(type, t->cache_.kSingletonZero, t->zone());
-  }
-  if (maybe_nan) {
-    type = Type::Union(type, Type::NaN(), t->zone());
-  }
-  return type;
 }
 
 // static
@@ -1055,36 +1026,26 @@ Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
     }
   }
   // The addition must be numeric.
-  return t->operation_typer()->NumericAdd(ToNumber(lhs, t), ToNumber(rhs, t));
+  return t->operation_typer()->NumberAdd(ToNumber(lhs, t), ToNumber(rhs, t));
 }
 
 Type* Typer::Visitor::JSSubtractTyper(Type* lhs, Type* rhs, Typer* t) {
-  return t->operation_typer()->NumericSubtract(ToNumber(lhs, t),
-                                               ToNumber(rhs, t));
+  return t->operation_typer()->NumberSubtract(ToNumber(lhs, t),
+                                              ToNumber(rhs, t));
 }
 
 Type* Typer::Visitor::JSMultiplyTyper(Type* lhs, Type* rhs, Typer* t) {
-  return t->operation_typer()->NumericMultiply(ToNumber(lhs, t),
-                                               ToNumber(rhs, t));
+  return t->operation_typer()->NumberMultiply(ToNumber(lhs, t),
+                                              ToNumber(rhs, t));
 }
 
 Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
-  return t->operation_typer()->NumericDivide(ToNumber(lhs, t),
-                                             ToNumber(rhs, t));
-  lhs = ToNumber(lhs, t);
-  rhs = ToNumber(rhs, t);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  // Division is tricky, so all we do is try ruling out nan.
-  bool maybe_nan =
-      lhs->Maybe(Type::NaN()) || rhs->Maybe(t->cache_.kZeroish) ||
-      ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
-       (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
-  return maybe_nan ? Type::Number() : Type::OrderedNumber();
+  return t->operation_typer()->NumberDivide(ToNumber(lhs, t), ToNumber(rhs, t));
 }
 
 Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
-  return t->operation_typer()->NumericModulus(ToNumber(lhs, t),
-                                              ToNumber(rhs, t));
+  return t->operation_typer()->NumberModulus(ToNumber(lhs, t),
+                                             ToNumber(rhs, t));
 }
 
 
@@ -1645,7 +1606,7 @@ Type* Typer::Visitor::TypePlainPrimitiveToFloat64(Node* node) {
 Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
 
 Type* Typer::Visitor::TypeNumberAbs(Node* node) {
-  return TypeUnaryOp(node, NumberAbs);
+  return typer_->operation_typer()->NumberAbs(Operand(node, 0));
 }
 
 Type* Typer::Visitor::TypeNumberClz32(Node* node) {

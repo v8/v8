@@ -32,11 +32,13 @@ class OperationTyper {
   Type* ToNumber(Type* type);
   Type* WeakenRange(Type* current_range, Type* previous_range);
 
-  Type* NumericAdd(Type* lhs, Type* rhs);
-  Type* NumericSubtract(Type* lhs, Type* rhs);
-  Type* NumericMultiply(Type* lhs, Type* rhs);
-  Type* NumericDivide(Type* lhs, Type* rhs);
-  Type* NumericModulus(Type* lhs, Type* rhs);
+  Type* NumberAdd(Type* lhs, Type* rhs);
+  Type* NumberSubtract(Type* lhs, Type* rhs);
+  Type* NumberMultiply(Type* lhs, Type* rhs);
+  Type* NumberDivide(Type* lhs, Type* rhs);
+  Type* NumberModulus(Type* lhs, Type* rhs);
+
+  Type* NumberAbs(Type* type);
 
   enum ComparisonOutcomeFlags {
     kComparisonTrue = 1,
