@@ -612,9 +612,6 @@ TEST(StringComparison) {
 static void CheckIsConvertedToNumber(Node* val, Node* converted) {
   if (NodeProperties::GetType(val)->Is(Type::Number())) {
     CHECK_EQ(val, converted);
-  } else if (NodeProperties::GetType(val)->Is(Type::Boolean())) {
-    CHECK_EQ(IrOpcode::kBooleanToNumber, converted->opcode());
-    CHECK_EQ(val, converted->InputAt(0));
   } else {
     if (converted->opcode() == IrOpcode::kNumberConstant) return;
     CHECK_EQ(IrOpcode::kJSToNumber, converted->opcode());
@@ -1001,7 +998,8 @@ TEST(OrderCompareEffects) {
                          JSTypedLowering::kNoFlags);
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
-    Node* i0 = B.CheckConvertedInput(IrOpcode::kStringToNumber, 0, false);
+    Node* i0 =
+        B.CheckConvertedInput(IrOpcode::kPlainPrimitiveToNumber, 0, false);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
 
     // Inputs should be commuted.

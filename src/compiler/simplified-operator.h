@@ -158,7 +158,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
   const Operator* BooleanNot();
-  const Operator* BooleanToNumber();
 
   const Operator* NumberEqual();
   const Operator* NumberLessThan();
@@ -227,7 +226,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
   const Operator* StringFromCharCode();
-  const Operator* StringToNumber();
 
   const Operator* PlainPrimitiveToNumber();
   const Operator* PlainPrimitiveToWord32();

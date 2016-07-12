@@ -1551,10 +1551,6 @@ Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeBooleanToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
-}
-
 Type* Typer::Visitor::TypeNumberEqual(Node* node) { return Type::Boolean(); }
 
 Type* Typer::Visitor::TypeNumberLessThan(Node* node) { return Type::Boolean(); }
@@ -1771,10 +1767,6 @@ Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
 
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
   return TypeUnaryOp(node, StringFromCharCodeTyper);
-}
-
-Type* Typer::Visitor::TypeStringToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
 }
 
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {

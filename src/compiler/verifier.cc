@@ -664,11 +664,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Boolean());
       CheckUpperIs(node, Type::Boolean());
       break;
-    case IrOpcode::kBooleanToNumber:
-      // Boolean -> Number
-      CheckValueInputIs(node, 0, Type::Boolean());
-      CheckUpperIs(node, Type::Number());
-      break;
     case IrOpcode::kNumberEqual:
       // (Number, Number) -> Boolean
       CheckValueInputIs(node, 0, Type::Number());
@@ -790,13 +785,18 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Unsigned32());
       break;
     case IrOpcode::kPlainPrimitiveToNumber:
-      // Type is Number.
+      // PlainPrimitive -> Number
+      CheckValueInputIs(node, 0, Type::PlainPrimitive());
       CheckUpperIs(node, Type::Number());
       break;
     case IrOpcode::kPlainPrimitiveToWord32:
-      CheckUpperIs(node, Type::Number());
+      // PlainPrimitive -> Integral32
+      CheckValueInputIs(node, 0, Type::PlainPrimitive());
+      CheckUpperIs(node, Type::Integral32());
       break;
     case IrOpcode::kPlainPrimitiveToFloat64:
+      // PlainPrimitive -> Number
+      CheckValueInputIs(node, 0, Type::PlainPrimitive());
       CheckUpperIs(node, Type::Number());
       break;
     case IrOpcode::kStringEqual:
@@ -811,11 +811,6 @@ void Verifier::Visitor::Check(Node* node) {
       // Number -> String
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::String());
-      break;
-    case IrOpcode::kStringToNumber:
-      // String -> Number
-      CheckValueInputIs(node, 0, Type::String());
-      CheckUpperIs(node, Type::Number());
       break;
     case IrOpcode::kReferenceEqual: {
       // (Unique, Any) -> Boolean  and

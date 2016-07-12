@@ -928,14 +928,6 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(null) => #0
     return Replace(jsgraph()->ZeroConstant());
   }
-  if (input_type->Is(Type::Boolean())) {
-    // JSToNumber(x:boolean) => BooleanToNumber(x)
-    return Replace(graph()->NewNode(simplified()->BooleanToNumber(), input));
-  }
-  if (input_type->Is(Type::String())) {
-    // JSToNumber(x:string) => StringToNumber(x)
-    return Replace(graph()->NewNode(simplified()->StringToNumber(), input));
-  }
   return NoChange();
 }
 

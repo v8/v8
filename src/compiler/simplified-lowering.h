@@ -42,6 +42,7 @@ class SimplifiedLowering final {
                     RepresentationChanger* changer);
   void DoStoreBuffer(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
+  void DoStringToNumber(Node* node);
 
  private:
   JSGraph* const jsgraph_;

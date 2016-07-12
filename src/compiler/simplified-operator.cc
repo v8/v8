@@ -230,7 +230,6 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
 
 #define PURE_OP_LIST(V)                                    \
   V(BooleanNot, Operator::kNoProperties, 1)                \
-  V(BooleanToNumber, Operator::kNoProperties, 1)           \
   V(NumberEqual, Operator::kCommutative, 2)                \
   V(NumberLessThan, Operator::kNoProperties, 2)            \
   V(NumberLessThanOrEqual, Operator::kNoProperties, 2)     \
@@ -280,7 +279,6 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(NumberToUint32, Operator::kNoProperties, 1)            \
   V(NumberSilenceNaN, Operator::kNoProperties, 1)          \
   V(StringFromCharCode, Operator::kNoProperties, 1)        \
-  V(StringToNumber, Operator::kNoProperties, 1)            \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)    \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1)    \
   V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1)   \

@@ -1245,24 +1245,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kBooleanToNumber: {
-        if (lower()) {
-          NodeInfo* input_info = GetInfo(node->InputAt(0));
-          if (input_info->representation() == MachineRepresentation::kBit) {
-            // BooleanToNumber(x: kRepBit) => x
-            DeferReplacement(node, node->InputAt(0));
-          } else {
-            // BooleanToNumber(x: kRepTagged) => WordEqual(x, #true)
-            node->AppendInput(jsgraph_->zone(), jsgraph_->TrueConstant());
-            NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
-          }
-        } else {
-          // No input representation requirement; adapt during lowering.
-          ProcessInput(node, 0, UseInfo::AnyTruncatingToBool());
-          SetOutput(node, MachineRepresentation::kWord32);
-        }
-        return;
-      }
       case IrOpcode::kNumberEqual:
       case IrOpcode::kNumberLessThan:
       case IrOpcode::kNumberLessThanOrEqual: {
@@ -1790,24 +1772,6 @@ class RepresentationSelector {
                   MachineRepresentation::kTagged);
         return;
       }
-      case IrOpcode::kStringToNumber: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-        if (lower()) {
-          // StringToNumber(x) => Call(StringToNumber, x, no-context)
-          Operator::Properties properties = Operator::kEliminatable;
-          Callable callable = CodeFactory::StringToNumber(jsgraph_->isolate());
-          CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-          CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-              jsgraph_->isolate(), jsgraph_->zone(), callable.descriptor(), 0,
-              flags, properties);
-          node->InsertInput(jsgraph_->zone(), 0,
-                            jsgraph_->HeapConstant(callable.code()));
-          node->AppendInput(jsgraph_->zone(), jsgraph_->NoContextConstant());
-          node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
-          NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
-        }
-        return;
-      }
 
       case IrOpcode::kCheckBounds: {
         if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32())) {
@@ -1995,8 +1959,14 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kPlainPrimitiveToNumber:
-        if (truncation.TruncatesToWord32()) {
+      case IrOpcode::kPlainPrimitiveToNumber: {
+        if (InputIs(node, Type::Boolean())) {
+          VisitUnop(node, UseInfo::Bool(), MachineRepresentation::kWord32);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if (InputIs(node, Type::String())) {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          if (lower()) lowering->DoStringToNumber(node);
+        } else if (truncation.TruncatesToWord32()) {
           // TODO(jarin): Extend this to Number \/ Oddball
           if (InputIs(node, Type::NumberOrUndefined())) {
             VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -2028,6 +1998,7 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         }
         return;
+      }
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
@@ -3268,6 +3239,19 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
                                            jsgraph()->Int32Constant(0x1f)));
   }
   NodeProperties::ChangeOp(node, op);
+}
+
+void SimplifiedLowering::DoStringToNumber(Node* node) {
+  Operator::Properties properties = Operator::kEliminatable;
+  Callable callable = CodeFactory::StringToNumber(isolate());
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  node->AppendInput(graph()->zone(), jsgraph()->NoContextConstant());
+  node->AppendInput(graph()->zone(), graph()->start());
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 Node* SimplifiedLowering::ToNumberCode() {

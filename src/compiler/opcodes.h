@@ -201,7 +201,6 @@
   V(PlainPrimitiveToWord32)           \
   V(PlainPrimitiveToFloat64)          \
   V(BooleanNot)                       \
-  V(BooleanToNumber)                  \
   V(SpeculativeNumberAdd)             \
   V(SpeculativeNumberSubtract)        \
   V(SpeculativeNumberMultiply)        \
@@ -256,7 +255,6 @@
   V(NumberToUint32)                   \
   V(NumberSilenceNaN)                 \
   V(StringFromCharCode)               \
-  V(StringToNumber)                   \
   V(CheckBounds)                      \
   V(CheckIf)                          \
   V(CheckNumber)                      \

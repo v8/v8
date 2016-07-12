@@ -38,7 +38,6 @@ const PureOperator kPureOperators[] = {
         Operator::kPure | properties, input_count        \
   }
     PURE(BooleanNot, Operator::kNoProperties, 1),
-    PURE(BooleanToNumber, Operator::kNoProperties, 1),
     PURE(NumberEqual, Operator::kCommutative, 2),
     PURE(NumberLessThan, Operator::kNoProperties, 2),
     PURE(NumberLessThanOrEqual, Operator::kNoProperties, 2),

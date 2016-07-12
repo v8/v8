@@ -899,63 +899,6 @@ TEST(LowerBooleanNot_tagged_tagged) {
   CHECK(f == cmp->InputAt(0) || f == cmp->InputAt(1));
 }
 
-
-TEST(LowerBooleanToNumber_bit_int32) {
-  // BooleanToNumber(x: kRepBit) used as MachineType::Int32()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(MachineType::Bool());
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::Int32());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0));
-}
-
-
-TEST(LowerBooleanToNumber_tagged_int32) {
-  // BooleanToNumber(x: kRepTagged) used as MachineType::Int32()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::Int32());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
-}
-
-
-TEST(LowerBooleanToNumber_bit_tagged) {
-  // BooleanToNumber(x: kRepBit) used as MachineType::AnyTagged()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(MachineType::Bool());
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::AnyTagged());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
-}
-
-
-TEST(LowerBooleanToNumber_tagged_tagged) {
-  // BooleanToNumber(x: kRepTagged) used as MachineType::AnyTagged()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::AnyTagged());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(cnv, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
-}
-
 static Type* test_types[] = {Type::Signed32(), Type::Unsigned32(),
                              Type::Number()};
 
