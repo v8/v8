@@ -73,8 +73,6 @@
   'debug-step-turbofan': [PASS, FAIL],
 
   # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
-  'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
-  'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
   'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
   'debug-step': [PASS, NO_VARIANTS],  # windows only.
   'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
