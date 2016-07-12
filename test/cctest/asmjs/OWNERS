@@ -1,4 +1,4 @@
-# Keep in sync with test/cctest/asmjs/OWNERS.
+# Keep in sync with src/asmjs/OWNERS.
 
 set noparent
 

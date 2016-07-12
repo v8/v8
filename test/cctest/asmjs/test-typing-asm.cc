@@ -81,7 +81,6 @@ std::string Validate(Zone* zone, const char* source,
 
 }  // namespace
 
-
 TEST(ValidateMinimum) {
   const char test_function[] =
       "function GeometricMean(stdlib, foreign, buffer) {\n"
@@ -307,7 +306,6 @@ TEST(ValidateMinimum) {
   CHECK_TYPES_END
 }
 
-
 TEST(MissingUseAsm) {
   const char test_function[] =
       "function foo() {\n"
@@ -321,7 +319,6 @@ TEST(MissingUseAsm) {
   CHECK_EQ("asm: line 1: missing \"use asm\"\n",
            Validate(zone, test_function, &types));
 }
-
 
 TEST(WrongUseAsm) {
   const char test_function[] =
@@ -337,7 +334,6 @@ TEST(WrongUseAsm) {
   CHECK_EQ("asm: line 1: missing \"use asm\"\n",
            Validate(zone, test_function, &types));
 }
-
 
 TEST(MissingReturnExports) {
   const char test_function[] =
@@ -414,7 +410,6 @@ TEST(MissingReturnExports) {
     }                                             \
   }
 
-
 #define CHECK_VAR_SHORTCUT(name, type)          \
   CHECK_EXPR(Assignment, type) {                \
     CHECK_VAR(name, type);                      \
@@ -423,7 +418,6 @@ TEST(MissingReturnExports) {
       CHECK_EXPR(Literal, Bounds::Unbounded()); \
     }                                           \
   }
-
 
 #define CHECK_VAR_NEW_SHORTCUT(name, type)        \
   CHECK_EXPR(Assignment, type) {                  \
@@ -436,7 +430,6 @@ TEST(MissingReturnExports) {
       CHECK_VAR(buffer, Bounds::Unbounded());     \
     }                                             \
   }
-
 
 namespace {
 
@@ -470,7 +463,6 @@ void CheckStdlibShortcuts1(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   CHECK_VAR_MATH_SHORTCUT(fround, FUNC_N2F_TYPE);
 }
 
-
 void CheckStdlibShortcuts2(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
                            size_t& index, int& depth, TypeCache& cache) {
   // var exp = stdlib.Math.*; (D * 12)
@@ -494,7 +486,6 @@ void CheckStdlibShortcuts2(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
 }
 
 }  // namespace
-
 
 #define CHECK_FUNC_TYPES_BEGIN(func)                   \
   HARNESS_PREAMBLE()                                   \
@@ -526,11 +517,9 @@ void CheckStdlibShortcuts2(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   }                                                \
   CHECK_TYPES_END
 
-
 #define CHECK_FUNC_TYPES_END \
   CHECK_FUNC_TYPES_END_1();  \
   CHECK_FUNC_TYPES_END_2();
-
 
 #define CHECK_FUNC_ERROR(func, message)        \
   HARNESS_PREAMBLE()                           \
@@ -542,14 +531,12 @@ void CheckStdlibShortcuts2(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   ZoneVector<ExpressionTypeEntry> types(zone); \
   CHECK_EQ(message, Validate(zone, test_function, &types));
 
-
 TEST(BareHarness) {
   CHECK_FUNC_TYPES_BEGIN("function foo() {}") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {}
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(ReturnVoid) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -568,7 +555,6 @@ TEST(ReturnVoid) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(EmptyBody) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { }\n"
@@ -582,7 +568,6 @@ TEST(EmptyBody) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(DoesNothing) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -603,7 +588,6 @@ TEST(DoesNothing) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(ReturnInt32Literal) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { return 1; }\n"
@@ -620,7 +604,6 @@ TEST(ReturnInt32Literal) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(ReturnFloat64Literal) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -639,7 +622,6 @@ TEST(ReturnFloat64Literal) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(ReturnFloat32Literal) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { return fround(1.0); }\n"
@@ -657,7 +639,6 @@ TEST(ReturnFloat32Literal) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(ReturnFloat64Var) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -683,7 +664,6 @@ TEST(ReturnFloat64Var) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(Addition2) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -711,7 +691,6 @@ TEST(Addition2) {
   CHECK_FUNC_TYPES_END
 }
 
-
 #define TEST_COMPARE_OP(name, op)                                  \
   TEST(name) {                                                     \
     CHECK_FUNC_TYPES_BEGIN("function bar() { return (0 " op        \
@@ -731,13 +710,11 @@ TEST(Addition2) {
     CHECK_FUNC_TYPES_END                                           \
   }
 
-
 TEST_COMPARE_OP(EqOperator, "==")
 TEST_COMPARE_OP(LtOperator, "<")
 TEST_COMPARE_OP(LteOperator, "<=")
 TEST_COMPARE_OP(GtOperator, ">")
 TEST_COMPARE_OP(GteOperator, ">=")
-
 
 TEST(NeqOperator) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -758,7 +735,6 @@ TEST(NeqOperator) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(NotOperator) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -781,7 +757,6 @@ TEST(NotOperator) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(InvertOperator) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 0; return (~x)|0; }\n"
@@ -803,7 +778,6 @@ TEST(InvertOperator) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(InvertConversion) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -829,7 +803,6 @@ TEST(InvertConversion) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(Ternary) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -858,7 +831,6 @@ TEST(Ternary) {
   CHECK_FUNC_TYPES_END
 }
 
-
 #define TEST_INT_BIN_OP(name, op)                                      \
   TEST(name) {                                                         \
     CHECK_FUNC_TYPES_BEGIN("function bar() { var x = 0; return (x " op \
@@ -882,11 +854,9 @@ TEST(Ternary) {
     CHECK_FUNC_TYPES_END                                               \
   }
 
-
 TEST_INT_BIN_OP(AndOperator, "&")
 TEST_INT_BIN_OP(OrOperator, "|")
 TEST_INT_BIN_OP(XorOperator, "^")
-
 
 TEST(SignedCompare) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -920,7 +890,6 @@ TEST(SignedCompare) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(SignedCompareConst) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 1; return ((x|0) < (1<<31))|0; }\n"
@@ -949,7 +918,6 @@ TEST(SignedCompareConst) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(UnsignedCompare) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -983,7 +951,6 @@ TEST(UnsignedCompare) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(UnsignedCompareConst0) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 1; return ((x>>>0) < (0>>>0))|0; }\n"
@@ -1012,7 +979,6 @@ TEST(UnsignedCompareConst0) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(UnsignedCompareConst1) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1043,7 +1009,6 @@ TEST(UnsignedCompareConst1) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(UnsignedDivide) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1077,14 +1042,12 @@ TEST(UnsignedDivide) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(UnsignedFromFloat64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; return (x>>>0)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: left bitwise operand expected to be an integer\n");
 }
-
 
 TEST(AndFloat64) {
   CHECK_FUNC_ERROR(
@@ -1093,14 +1056,12 @@ TEST(AndFloat64) {
       "asm: line 1: left bitwise operand expected to be an integer\n");
 }
 
-
 TEST(TypeMismatchAddInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x + y)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: ill-typed arithmetic operation\n");
 }
-
 
 TEST(TypeMismatchSubInt32Float64) {
   CHECK_FUNC_ERROR(
@@ -1109,14 +1070,12 @@ TEST(TypeMismatchSubInt32Float64) {
       "asm: line 1: ill-typed arithmetic operation\n");
 }
 
-
 TEST(TypeMismatchDivInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x / y)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: ill-typed arithmetic operation\n");
 }
-
 
 TEST(TypeMismatchModInt32Float64) {
   CHECK_FUNC_ERROR(
@@ -1125,14 +1084,12 @@ TEST(TypeMismatchModInt32Float64) {
       "asm: line 1: ill-typed arithmetic operation\n");
 }
 
-
 TEST(ModFloat32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = fround(1.0); return (x % x)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: ill-typed arithmetic operation\n");
 }
-
 
 TEST(TernaryMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
@@ -1142,7 +1099,6 @@ TEST(TernaryMismatchInt32Float64) {
       "and be int, float, or double\n");
 }
 
-
 TEST(TernaryMismatchIntish) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0; return (1 ? x + x : y)|0; }\n"
@@ -1151,7 +1107,6 @@ TEST(TernaryMismatchIntish) {
       "and be int, float, or double\n");
 }
 
-
 TEST(TernaryMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x?fround(y):x)|0; }\n"
@@ -1159,7 +1114,6 @@ TEST(TernaryMismatchInt32Float32) {
       "asm: line 1: then and else expressions in ? must have the same type "
       "and be int, float, or double\n");
 }
-
 
 TEST(TernaryBadCondition) {
   CHECK_FUNC_ERROR(
@@ -1308,14 +1262,12 @@ TEST(Addition4) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(Multiplication2) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return (x*y)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: multiply must be by an integer literal\n");
 }
-
 
 TEST(Division4) {
   CHECK_FUNC_ERROR(
@@ -1357,7 +1309,6 @@ TEST(DivIntMismatch) {
       "must match and be signed or unsigned\n");
 }
 
-
 TEST(CompareToStringLeft) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return ('hi' > x)|0; }\n"
@@ -1365,7 +1316,6 @@ TEST(CompareToStringLeft) {
       "asm: line 1: left and right side of comparison must match type "
       "and be signed, unsigned, float, or double\n");
 }
-
 
 TEST(CompareToStringRight) {
   CHECK_FUNC_ERROR(
@@ -1375,7 +1325,6 @@ TEST(CompareToStringRight) {
       "and be signed, unsigned, float, or double\n");
 }
 
-
 TEST(CompareMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
@@ -1384,7 +1333,6 @@ TEST(CompareMismatchInt32Float64) {
       "and be signed, unsigned, float, or double\n");
 }
 
-
 TEST(CompareMismatchInt32Uint32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return ((x|0) < (y>>>0))|0; }\n"
@@ -1392,7 +1340,6 @@ TEST(CompareMismatchInt32Uint32) {
       "asm: line 1: left and right side of comparison must match type "
       "and be signed, unsigned, float, or double\n");
 }
-
 
 TEST(CompareMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
@@ -1438,7 +1385,6 @@ TEST(Float64ToInt32) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(Load1) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = i8[x>>0]|0; }\n"
@@ -1466,7 +1412,6 @@ TEST(Load1) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(LoadDouble) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1500,7 +1445,6 @@ TEST(LoadDouble) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(Store1) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; i8[x>>0] = 0; }\n"
@@ -1525,7 +1469,6 @@ TEST(Store1) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(StoreFloat) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1653,7 +1596,6 @@ TEST(Load1Constant) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(FunctionTables) {
   CHECK_FUNC_TYPES_BEGIN(
       "function func1(x) { x = x | 0; return (x * 5) | 0; }\n"
@@ -1738,7 +1680,6 @@ TEST(FunctionTables) {
   CHECK_FUNC_TYPES_END_2();
 }
 
-
 TEST(BadFunctionTable) {
   CHECK_FUNC_ERROR(
       "function func1(x) { x = x | 0; return (x * 5) | 0; }\n"
@@ -1749,14 +1690,12 @@ TEST(BadFunctionTable) {
       "asm: line 2: array component expected to be a function\n");
 }
 
-
 TEST(MissingParameterTypes) {
   CHECK_FUNC_ERROR(
       "function bar(x) { var y = 1; }\n"
       "function foo() { bar(2); }",
       "asm: line 1: missing parameter type annotations\n");
 }
-
 
 TEST(InvalidTypeAnnotationBinaryOpDiv) {
   CHECK_FUNC_ERROR(
@@ -1765,14 +1704,12 @@ TEST(InvalidTypeAnnotationBinaryOpDiv) {
       "asm: line 1: invalid type annotation on binary op\n");
 }
 
-
 TEST(InvalidTypeAnnotationBinaryOpMul) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = x * 4.0; }\n"
       "function foo() { bar(2); }",
       "asm: line 1: invalid type annotation on binary op\n");
 }
-
 
 TEST(InvalidArgumentCount) {
   CHECK_FUNC_ERROR(
@@ -1781,14 +1718,12 @@ TEST(InvalidArgumentCount) {
       "asm: line 1: invalid argument count calling function\n");
 }
 
-
 TEST(InvalidTypeAnnotationArity) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = max(x); }\n"
       "function foo() { bar(3); }",
       "asm: line 1: only fround allowed on expression annotations\n");
 }
-
 
 TEST(InvalidTypeAnnotationOnlyFround) {
   CHECK_FUNC_ERROR(
@@ -1797,14 +1732,12 @@ TEST(InvalidTypeAnnotationOnlyFround) {
       "asm: line 1: only fround allowed on expression annotations\n");
 }
 
-
 TEST(InvalidTypeAnnotation) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = (x+x)(x); }\n"
       "function foo() { bar(3); }",
       "asm: line 1: invalid type annotation\n");
 }
-
 
 TEST(WithStatement) {
   CHECK_FUNC_ERROR(
@@ -1813,14 +1746,12 @@ TEST(WithStatement) {
       "asm: line 1: bad with statement\n");
 }
 
-
 TEST(NestedFunction) {
   CHECK_FUNC_ERROR(
       "function bar() { function x() { return 1; } }\n"
       "function foo() { bar(); }",
       "asm: line 1: function declared inside another\n");
 }
-
 
 TEST(UnboundVariable) {
   CHECK_FUNC_ERROR(
@@ -1829,14 +1760,12 @@ TEST(UnboundVariable) {
       "asm: line 1: unbound variable\n");
 }
 
-
 TEST(EqStrict) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 === 0)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: illegal comparison operator\n");
 }
-
 
 TEST(NeStrict) {
   CHECK_FUNC_ERROR(
@@ -1845,14 +1774,12 @@ TEST(NeStrict) {
       "asm: line 1: illegal comparison operator\n");
 }
 
-
 TEST(InstanceOf) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 instanceof 0)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: illegal comparison operator\n");
 }
-
 
 TEST(InOperator) {
   CHECK_FUNC_ERROR(
@@ -1861,14 +1788,12 @@ TEST(InOperator) {
       "asm: line 1: illegal comparison operator\n");
 }
 
-
 TEST(LogicalAndOperator) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 && 0)|0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: illegal logical operator\n");
 }
-
 
 TEST(LogicalOrOperator) {
   CHECK_FUNC_ERROR(
@@ -1891,14 +1816,12 @@ TEST(BadLiteral) {
       "asm: line 1: illegal literal\n");
 }
 
-
 TEST(MismatchedReturnTypeLiteral) {
   CHECK_FUNC_ERROR(
       "function bar() { if(1) { return 1; } return 1.0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: return type does not match function signature\n");
 }
-
 
 TEST(MismatchedReturnTypeExpression) {
   CHECK_FUNC_ERROR(
@@ -1908,14 +1831,12 @@ TEST(MismatchedReturnTypeExpression) {
       "asm: line 2: return type does not match function signature\n");
 }
 
-
 TEST(AssignToFloatishToF64) {
   CHECK_FUNC_ERROR(
       "function bar() { var v = fround(1.0); f64[0] = v + fround(1.0); }\n"
       "function foo() { bar(); }",
       "asm: line 1: floatish assignment to double array\n");
 }
-
 
 TEST(ForeignFunction) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1986,7 +1907,6 @@ TEST(BadExports) {
            Validate(zone, test_function, &types));
 }
 
-
 TEST(NestedHeapAssignment) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 0; i16[x = 1] = 2; }\n"
@@ -2001,14 +1921,12 @@ TEST(BadOperatorHeapAssignment) {
       "asm: line 1: expected >> in heap access\n");
 }
 
-
 TEST(BadArrayAssignment) {
   CHECK_FUNC_ERROR(
       "function bar() { i8[0] = 0.0; }\n"
       "function foo() { bar(); }",
       "asm: line 1: illegal type in assignment\n");
 }
-
 
 TEST(BadStandardFunctionCallOutside) {
   CHECK_FUNC_ERROR(
@@ -2017,7 +1935,6 @@ TEST(BadStandardFunctionCallOutside) {
       "function foo() { bar(); }",
       "asm: line 1: illegal variable reference in module body\n");
 }
-
 
 TEST(BadFunctionCallOutside) {
   CHECK_FUNC_ERROR(
@@ -2064,7 +1981,6 @@ TEST(NestedVariableAssignment) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(NestedAssignmentInHeap) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 0; i8[(x = 1) >> 0] = 2; }\n"
@@ -2093,7 +2009,6 @@ TEST(NestedAssignmentInHeap) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(NegativeDouble) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = -123.2; }\n"
@@ -2109,7 +2024,6 @@ TEST(NegativeDouble) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(NegativeInteger) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = -123; }\n"
@@ -2124,7 +2038,6 @@ TEST(NegativeInteger) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(AbsFunction) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -2147,7 +2060,6 @@ TEST(AbsFunction) {
   }
   CHECK_FUNC_TYPES_END
 }
-
 
 TEST(CeilFloat) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -2246,7 +2158,6 @@ TEST(TypeConsistency) {
   CHECK(!cache.kAsmDouble->Is(cache.kAsmFloat));
 }
 
-
 TEST(SwitchTest) {
   CHECK_FUNC_TYPES_BEGIN(
       "function switcher(x) {\n"
@@ -2292,7 +2203,6 @@ TEST(SwitchTest) {
   CHECK_FUNC_TYPES_END
 }
 
-
 TEST(BadSwitchRange) {
   CHECK_FUNC_ERROR(
       "function bar() { switch (1) { case -1: case 0x7fffffff: } }\n"
@@ -2300,14 +2210,12 @@ TEST(BadSwitchRange) {
       "asm: line 1: case range too large\n");
 }
 
-
 TEST(DuplicateSwitchCase) {
   CHECK_FUNC_ERROR(
       "function bar() { switch (1) { case 0: case 0: } }\n"
       "function foo() { bar(); }",
       "asm: line 1: duplicate case value\n");
 }
-
 
 TEST(BadSwitchOrder) {
   CHECK_FUNC_ERROR(

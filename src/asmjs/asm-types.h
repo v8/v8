@@ -49,7 +49,9 @@ class AsmFunctionTableType;
   V(Float32Array, "Float32Array", 20, kAsmHeap)                               \
   V(Float64Array, "Float64Array", 21, kAsmHeap)                               \
   /* Pseudo-types used in representing heap access for fp types.*/            \
+  /* TODO(jpp): FloatishDoubleQ should be a base type.*/                      \
   V(FloatishDoubleQ, "floatish|double?", 22, kAsmFloatish | kAsmDoubleQ)      \
+  /* TODO(jpp): FloatQDoubleQ should be a base type.*/                        \
   V(FloatQDoubleQ, "float?|double?", 23, kAsmFloatQ | kAsmDoubleQ)            \
   /* None is used to represent errors in the type checker. */                 \
   V(None, "<none>", 31, 0)
@@ -132,6 +134,9 @@ class AsmFunctionType : public AsmCallableType {
   virtual bool IsMinMaxType() const { return false; }
   virtual bool IsFroundType() const { return false; }
 
+  AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+
  protected:
   AsmFunctionType(Zone* zone, AsmType* return_type)
       : return_type_(return_type), args_(zone) {}
@@ -140,8 +145,6 @@ class AsmFunctionType : public AsmCallableType {
   friend AsmType;
 
   std::string Name() override;
-  AsmType* ValidateCall(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
 
   AsmType* return_type_;
   ZoneVector<AsmType*> args_;
@@ -197,6 +200,7 @@ class AsmFunctionTableType : public AsmCallableType {
                         const ZoneVector<AsmType*>& args) override;
 
   size_t length() const { return length_; }
+  AsmType* signature() { return signature_; }
 
  private:
   friend class AsmType;
@@ -341,4 +345,4 @@ class AsmType {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // SRC_WASM_ASM_TYPES_H_
+#endif  // SRC_ASMJS_ASM_TYPES_H_

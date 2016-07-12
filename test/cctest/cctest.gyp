@@ -32,6 +32,8 @@
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
     'cctest_sources': [  ### gcmole(all) ###
+      'asmjs/test-asm-typer.cc',
+      'asmjs/test-typing-asm.cc',
       'compiler/c-signature.h',
       'compiler/codegen-tester.cc',
       'compiler/codegen-tester.h',
@@ -115,7 +117,6 @@
       'test-array-list.cc',
       'test-ast.cc',
       'test-ast-expression-visitor.cc',
-      'test-asm-validator.cc',
       'test-atomicops.cc',
       'test-bignum.cc',
       'test-bignum-dtoa.cc',

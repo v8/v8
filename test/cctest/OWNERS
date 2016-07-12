@@ -18,5 +18,3 @@ per-file *-x87*=chunyang.dai@intel.com
 per-file *-x87*=weiliang.lin@intel.com
 per-file expression-type-collector*=aseemgarg@chromium.org
 per-file expression-type-collector*=bradnelson@chromium.org
-per-file test-asm-validator.cc=aseemgarg@chromium.org
-per-file test-asm-validator.cc=bradnelson@chromium.org

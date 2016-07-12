@@ -420,6 +420,8 @@
         'arguments.h',
         'asmjs/asm-js.cc',
         'asmjs/asm-js.h',
+        'asmjs/asm-typer.cc',
+        'asmjs/asm-typer.h',
         'asmjs/asm-types.cc',
         'asmjs/asm-types.h',
         'asmjs/asm-wasm-builder.cc',
