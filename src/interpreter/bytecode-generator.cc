@@ -634,14 +634,13 @@ void BytecodeGenerator::BuildIndexedJump(Register index, size_t start_index,
                                          size_t size,
                                          ZoneVector<BytecodeLabel>& targets) {
   // TODO(neis): Optimize this by using a proper jump table.
+  DCHECK_LE(start_index + size, targets.size());
   for (size_t i = start_index; i < start_index + size; i++) {
-    DCHECK(0 <= i && i < targets.size());
     builder()
         ->LoadLiteral(Smi::FromInt(static_cast<int>(i)))
         .CompareOperation(Token::Value::EQ_STRICT, index)
         .JumpIfTrue(&(targets[i]));
   }
-
   BuildAbort(BailoutReason::kInvalidJumpTableIndex);
 }
 
@@ -655,8 +654,8 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
   // for these resume points, to be used inside the loop.
   ZoneVector<BytecodeLabel> resume_points_in_loop(zone());
   size_t first_yield = stmt->first_yield_id();
+  DCHECK_LE(first_yield + stmt->yield_count(), generator_resume_points_.size());
   for (size_t id = first_yield; id < first_yield + stmt->yield_count(); id++) {
-    DCHECK(0 <= id && id < generator_resume_points_.size());
     auto& label = generator_resume_points_[id];
     resume_points_in_loop.push_back(label);
     generator_resume_points_[id] = BytecodeLabel();

@@ -58,11 +58,9 @@ struct TestCaseData {
         declaration_parameters_(declaration_parameters),
         arguments_(arguments) {}
 
-  const char* const script() const { return script_; }
-  const char* const declaration_parameters() const {
-    return declaration_parameters_;
-  }
-  const char* const arguments() const { return arguments_; }
+  const char* script() const { return script_; }
+  const char* declaration_parameters() const { return declaration_parameters_; }
+  const char* arguments() const { return arguments_; }
 
  private:
   TestCaseData();
