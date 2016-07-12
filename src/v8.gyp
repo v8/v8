@@ -1229,7 +1229,6 @@
             'arm/macro-assembler-arm.h',
             'arm/simulator-arm.cc',
             'arm/simulator-arm.h',
-            'arm/eh-frame-arm.cc',
             'compiler/arm/code-generator-arm.cc',
             'compiler/arm/instruction-codes-arm.h',
             'compiler/arm/instruction-scheduler-arm.cc',
@@ -1284,7 +1283,6 @@
             'arm64/simulator-arm64.h',
             'arm64/utils-arm64.cc',
             'arm64/utils-arm64.h',
-            'arm64/eh-frame-arm64.cc',
             'compiler/arm64/code-generator-arm64.cc',
             'compiler/arm64/instruction-codes-arm64.h',
             'compiler/arm64/instruction-scheduler-arm64.cc',
@@ -1514,7 +1512,6 @@
             'compiler/x64/instruction-codes-x64.h',
             'compiler/x64/instruction-scheduler-x64.cc',
             'compiler/x64/instruction-selector-x64.cc',
-            'x64/eh-frame-x64.cc',
           ],
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
