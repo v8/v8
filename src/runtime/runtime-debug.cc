@@ -615,16 +615,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     }
   }
 
-  Handle<FixedArray> locals =
-      isolate->factory()->NewFixedArray(local_count * 2);
-
+  List<Handle<Object>> locals;
   // Fill in the values of the locals.
-  int local = 0;
   int i = 0;
   for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(i))) continue;
-    locals->set(local * 2, scope_info->LocalName(i));
+    locals.Add(Handle<String>(scope_info->LocalName(i), isolate));
     Handle<Object> value =
         frame_inspector.GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
@@ -632,10 +629,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     if (value->IsOptimizedOut(isolate)) {
       value = isolate->factory()->undefined_value();
     }
-    locals->set(local * 2 + 1, *value);
-    local++;
+    locals.Add(value);
   }
-  if (local < local_count) {
+  if (locals.length() < local_count * 2) {
     // Get the context containing declarations.
     Handle<Context> context(
         Handle<Context>::cast(frame_inspector.GetContext())->closure_context());
@@ -645,12 +641,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       VariableMode mode;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      locals->set(local * 2, *name);
+      locals.Add(name);
       int context_slot_index = ScopeInfo::ContextSlotIndex(
           scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       Object* value = context->get(context_slot_index);
-      locals->set(local * 2 + 1, value);
-      local++;
+      locals.Add(Handle<Object>(value, isolate));
     }
   }
 
@@ -756,9 +751,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add locals name and value from the temporary copy from the function frame.
-  for (int i = 0; i < local_count * 2; i++) {
-    details->set(details_index++, locals->get(i));
-  }
+  for (const auto& local : locals) details->set(details_index++, *local);
 
   // Add the value being returned.
   if (at_return) {
