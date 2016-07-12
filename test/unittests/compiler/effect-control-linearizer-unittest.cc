@@ -12,11 +12,14 @@
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+using testing::Capture;
 
 class EffectControlLinearizerTest : public TypedGraphTest {
  public:
@@ -321,6 +324,74 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
   EXPECT_THAT(load, IsLoadField(AccessBuilder::ForHeapNumberValue(),
                                 heap_number, effect_phi, loop));
+}
+
+TEST_F(EffectControlLinearizerTest, CloneBranch) {
+  Schedule schedule(zone());
+
+  Node* cond0 = Parameter(0);
+  Node* cond1 = Parameter(1);
+  Node* cond2 = Parameter(2);
+  Node* branch0 = graph()->NewNode(common()->Branch(), cond0, start());
+  Node* control1 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* control2 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* merge0 = graph()->NewNode(common()->Merge(2), control1, control2);
+  Node* phi0 = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2),
+                                cond1, cond2, merge0);
+  Node* branch = graph()->NewNode(common()->Branch(), phi0, merge0);
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
+
+  BasicBlock* start = schedule.start();
+  schedule.rpo_order()->push_back(start);
+  start->set_rpo_number(0);
+
+  BasicBlock* f1block = AddBlockToSchedule(&schedule);
+  BasicBlock* t1block = AddBlockToSchedule(&schedule);
+  BasicBlock* bblock = AddBlockToSchedule(&schedule);
+
+  BasicBlock* f2block = AddBlockToSchedule(&schedule);
+  BasicBlock* t2block = AddBlockToSchedule(&schedule);
+  BasicBlock* mblock = AddBlockToSchedule(&schedule);
+
+  // Populate the basic blocks with nodes.
+  schedule.AddNode(start, graph()->start());
+
+  schedule.AddBranch(start, branch0, t1block, f1block);
+
+  schedule.AddNode(t1block, control1);
+  schedule.AddGoto(t1block, bblock);
+
+  schedule.AddNode(f1block, control2);
+  schedule.AddGoto(f1block, bblock);
+
+  schedule.AddNode(bblock, merge0);
+  schedule.AddNode(bblock, phi0);
+  schedule.AddBranch(bblock, branch, t2block, f2block);
+
+  schedule.AddNode(t2block, if_true);
+  schedule.AddGoto(t2block, mblock);
+
+  schedule.AddNode(f2block, if_false);
+  schedule.AddGoto(f2block, mblock);
+
+  schedule.AddNode(mblock, merge);
+  schedule.AddNode(mblock, graph()->end());
+
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  introducer.Run();
+
+  Capture<Node *> branch1_capture, branch2_capture;
+  EXPECT_THAT(
+      end(),
+      IsEnd(IsMerge(IsMerge(IsIfTrue(CaptureEq(&branch1_capture)),
+                            IsIfTrue(CaptureEq(&branch2_capture))),
+                    IsMerge(IsIfFalse(AllOf(CaptureEq(&branch1_capture),
+                                            IsBranch(cond1, control1))),
+                            IsIfFalse(AllOf(CaptureEq(&branch2_capture),
+                                            IsBranch(cond2, control2)))))));
 }
 
 }  // namespace compiler

@@ -8,6 +8,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
@@ -35,9 +36,28 @@ MachineOperatorBuilder* EffectControlLinearizer::machine() const {
 namespace {
 
 struct BlockEffectControlData {
-  Node* current_effect = nullptr;  // New effect.
-  Node* current_control = nullptr;  // New control.
+  Node* current_effect = nullptr;       // New effect.
+  Node* current_control = nullptr;      // New control.
   Node* current_frame_state = nullptr;  // New frame state.
+};
+
+class BlockEffectControlMap {
+ public:
+  explicit BlockEffectControlMap(Zone* temp_zone) : map_(temp_zone) {}
+
+  BlockEffectControlData& For(BasicBlock* from, BasicBlock* to) {
+    return map_[std::make_pair(from->rpo_number(), to->rpo_number())];
+  }
+
+  const BlockEffectControlData& For(BasicBlock* from, BasicBlock* to) const {
+    return map_.at(std::make_pair(from->rpo_number(), to->rpo_number()));
+  }
+
+ private:
+  typedef std::pair<int32_t, int32_t> Key;
+  typedef ZoneMap<Key, BlockEffectControlData> Map;
+
+  Map map_;
 };
 
 // Effect phis that need to be updated after the first pass.
@@ -50,7 +70,7 @@ struct PendingEffectPhi {
 };
 
 void UpdateEffectPhi(Node* node, BasicBlock* block,
-                     ZoneVector<BlockEffectControlData>* block_effects) {
+                     BlockEffectControlMap* block_effects) {
   // Update all inputs to an effect phi with the effects from the given
   // block->effect map.
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
@@ -58,16 +78,16 @@ void UpdateEffectPhi(Node* node, BasicBlock* block,
   for (int i = 0; i < node->op()->EffectInputCount(); i++) {
     Node* input = node->InputAt(i);
     BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
-    Node* input_effect =
-        (*block_effects)[predecessor->rpo_number()].current_effect;
-    if (input != input_effect) {
-      node->ReplaceInput(i, input_effect);
+    const BlockEffectControlData& block_effect =
+        block_effects->For(predecessor, block);
+    if (input != block_effect.current_effect) {
+      node->ReplaceInput(i, block_effect.current_effect);
     }
   }
 }
 
 void UpdateBlockControl(BasicBlock* block,
-                        ZoneVector<BlockEffectControlData>* block_effects) {
+                        BlockEffectControlMap* block_effects) {
   Node* control = block->NodeAt(0);
   DCHECK(NodeProperties::IsControl(control));
 
@@ -75,14 +95,19 @@ void UpdateBlockControl(BasicBlock* block,
   if (control->opcode() == IrOpcode::kEnd) return;
 
   // Update all inputs to the given control node with the correct control.
-  DCHECK_EQ(control->op()->ControlInputCount(), block->PredecessorCount());
+  DCHECK(control->opcode() == IrOpcode::kMerge ||
+         control->op()->ControlInputCount() == block->PredecessorCount());
+  if (control->op()->ControlInputCount() != block->PredecessorCount()) {
+    return;  // We already re-wired the control inputs of this node.
+  }
   for (int i = 0; i < control->op()->ControlInputCount(); i++) {
     Node* input = NodeProperties::GetControlInput(control, i);
     BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
-    Node* input_control =
-        (*block_effects)[predecessor->rpo_number()].current_control;
-    if (input != input_control) {
-      NodeProperties::ReplaceControlInput(control, input_control, i);
+    const BlockEffectControlData& block_effect =
+        block_effects->For(predecessor, block);
+    if (input != block_effect.current_control) {
+      NodeProperties::ReplaceControlInput(control, block_effect.current_control,
+                                          i);
     }
   }
 }
@@ -114,13 +139,162 @@ void RemoveRegionNode(Node* node) {
   node->Kill();
 }
 
+void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
+                    CommonOperatorBuilder* common,
+                    BlockEffectControlMap* block_effects) {
+  DCHECK_EQ(IrOpcode::kBranch, node->opcode());
+
+  // This optimization is a special case of (super)block cloning. It takes an
+  // input graph as shown below and clones the Branch node for every predecessor
+  // to the Merge, essentially removing the Merge completely. This avoids
+  // materializing the bit for the Phi and may offer potential for further
+  // branch folding optimizations (i.e. because one or more inputs to the Phi is
+  // a constant). Note that there may be more Phi nodes hanging off the Merge,
+  // but we can only a certain subset of them currently (actually only Phi and
+  // EffectPhi nodes whose uses have either the IfTrue or IfFalse as control
+  // input).
+
+  //   Control1 ... ControlN
+  //      ^            ^
+  //      |            |   Cond1 ... CondN
+  //      +----+  +----+     ^         ^
+  //           |  |          |         |
+  //           |  |     +----+         |
+  //          Merge<--+ | +------------+
+  //            ^      \|/
+  //            |      Phi
+  //            |       |
+  //          Branch----+
+  //            ^
+  //            |
+  //      +-----+-----+
+  //      |           |
+  //    IfTrue     IfFalse
+  //      ^           ^
+  //      |           |
+
+  // The resulting graph (modulo the Phi and EffectPhi nodes) looks like this:
+
+  // Control1 Cond1 ... ControlN CondN
+  //    ^      ^           ^      ^
+  //    \      /           \      /
+  //     Branch     ...     Branch
+  //       ^                  ^
+  //       |                  |
+  //   +---+---+          +---+----+
+  //   |       |          |        |
+  // IfTrue IfFalse ... IfTrue  IfFalse
+  //   ^       ^          ^        ^
+  //   |       |          |        |
+  //   +--+ +-------------+        |
+  //      | |  +--------------+ +--+
+  //      | |                 | |
+  //     Merge               Merge
+  //       ^                   ^
+  //       |                   |
+
+  Node* branch = node;
+  Node* cond = NodeProperties::GetValueInput(branch, 0);
+  if (!cond->OwnedBy(branch) || cond->opcode() != IrOpcode::kPhi) return;
+  Node* merge = NodeProperties::GetControlInput(branch);
+  if (merge->opcode() != IrOpcode::kMerge ||
+      NodeProperties::GetControlInput(cond) != merge) {
+    return;
+  }
+  // Grab the IfTrue/IfFalse projections of the Branch.
+  BranchMatcher matcher(branch);
+  // Check/collect other Phi/EffectPhi nodes hanging off the Merge.
+  NodeVector phis(graph->zone());
+  for (Node* const use : merge->uses()) {
+    if (use == branch || use == cond) continue;
+    // We cannot currently deal with non-Phi/EffectPhi nodes hanging off the
+    // Merge. Ideally, we would just clone the nodes (and everything that
+    // depends on it to some distant join point), but that requires knowledge
+    // about dominance/post-dominance.
+    if (!NodeProperties::IsPhi(use)) return;
+    for (Edge edge : use->use_edges()) {
+      // Right now we can only handle Phi/EffectPhi nodes whose uses are
+      // directly control-dependend on either the IfTrue or the IfFalse
+      // successor, because we know exactly how to update those uses.
+      if (edge.from()->op()->ControlInputCount() != 1) return;
+      Node* control = NodeProperties::GetControlInput(edge.from());
+      if (NodeProperties::IsPhi(edge.from())) {
+        control = NodeProperties::GetControlInput(control, edge.index());
+      }
+      if (control != matcher.IfTrue() && control != matcher.IfFalse()) return;
+    }
+    phis.push_back(use);
+  }
+  BranchHint const hint = BranchHintOf(branch->op());
+  int const input_count = merge->op()->ControlInputCount();
+  DCHECK_LE(1, input_count);
+  Node** const inputs = graph->zone()->NewArray<Node*>(2 * input_count);
+  Node** const merge_true_inputs = &inputs[0];
+  Node** const merge_false_inputs = &inputs[input_count];
+  for (int index = 0; index < input_count; ++index) {
+    Node* cond1 = NodeProperties::GetValueInput(cond, index);
+    Node* control1 = NodeProperties::GetControlInput(merge, index);
+    Node* branch1 = graph->NewNode(common->Branch(hint), cond1, control1);
+    merge_true_inputs[index] = graph->NewNode(common->IfTrue(), branch1);
+    merge_false_inputs[index] = graph->NewNode(common->IfFalse(), branch1);
+  }
+  Node* const merge_true = matcher.IfTrue();
+  Node* const merge_false = matcher.IfFalse();
+  merge_true->TrimInputCount(0);
+  merge_false->TrimInputCount(0);
+  for (int i = 0; i < input_count; ++i) {
+    merge_true->AppendInput(graph->zone(), merge_true_inputs[i]);
+    merge_false->AppendInput(graph->zone(), merge_false_inputs[i]);
+  }
+  DCHECK_EQ(2, block->SuccessorCount());
+  NodeProperties::ChangeOp(matcher.IfTrue(), common->Merge(input_count));
+  NodeProperties::ChangeOp(matcher.IfFalse(), common->Merge(input_count));
+  int const true_index =
+      block->SuccessorAt(0)->NodeAt(0) == matcher.IfTrue() ? 0 : 1;
+  BlockEffectControlData* true_block_data =
+      &block_effects->For(block, block->SuccessorAt(true_index));
+  BlockEffectControlData* false_block_data =
+      &block_effects->For(block, block->SuccessorAt(true_index ^ 1));
+  for (Node* const phi : phis) {
+    for (int index = 0; index < input_count; ++index) {
+      inputs[index] = phi->InputAt(index);
+    }
+    inputs[input_count] = merge_true;
+    Node* phi_true = graph->NewNode(phi->op(), input_count + 1, inputs);
+    inputs[input_count] = merge_false;
+    Node* phi_false = graph->NewNode(phi->op(), input_count + 1, inputs);
+    if (phi->UseCount() == 0) {
+      DCHECK_EQ(phi->opcode(), IrOpcode::kEffectPhi);
+      DCHECK_EQ(input_count, block->SuccessorCount());
+    } else {
+      for (Edge edge : phi->use_edges()) {
+        Node* control = NodeProperties::GetControlInput(edge.from());
+        if (NodeProperties::IsPhi(edge.from())) {
+          control = NodeProperties::GetControlInput(control, edge.index());
+        }
+        DCHECK(control == matcher.IfTrue() || control == matcher.IfFalse());
+        edge.UpdateTo((control == matcher.IfTrue()) ? phi_true : phi_false);
+      }
+    }
+    true_block_data->current_effect = phi_true;
+    false_block_data->current_effect = phi_false;
+    phi->Kill();
+  }
+  // Fix up IfTrue and IfFalse and kill all dead nodes.
+  if (branch == block->control_input()) {
+    true_block_data->current_control = merge_true;
+    false_block_data->current_control = merge_false;
+  }
+  branch->Kill();
+  cond->Kill();
+  merge->Kill();
+}
 }  // namespace
 
 void EffectControlLinearizer::Run() {
-  ZoneVector<BlockEffectControlData> block_effects(temp_zone());
+  BlockEffectControlMap block_effects(temp_zone());
   ZoneVector<PendingEffectPhi> pending_effect_phis(temp_zone());
   ZoneVector<BasicBlock*> pending_block_controls(temp_zone());
-  block_effects.resize(schedule()->RpoBlockCount());
   NodeVector inputs_buffer(temp_zone());
 
   for (BasicBlock* block : *(schedule()->rpo_order())) {
@@ -186,13 +360,13 @@ void EffectControlLinearizer::Run() {
         DCHECK_EQ(1u, block->size());
         effect = nullptr;
       } else {
-        // If all the predecessors have the same effect, we can use it
-        // as our current effect.
-        int rpo_number = block->PredecessorAt(0)->rpo_number();
-        effect = block_effects[rpo_number].current_effect;
-        for (size_t i = 1; i < block->PredecessorCount(); i++) {
-          int rpo_number = block->PredecessorAt(i)->rpo_number();
-          if (block_effects[rpo_number].current_effect != effect) {
+        // If all the predecessors have the same effect, we can use it as our
+        // current effect.
+        effect =
+            block_effects.For(block->PredecessorAt(0), block).current_effect;
+        for (size_t i = 1; i < block->PredecessorCount(); ++i) {
+          if (block_effects.For(block->PredecessorAt(i), block)
+                  .current_effect != effect) {
             effect = nullptr;
             break;
           }
@@ -232,11 +406,11 @@ void EffectControlLinearizer::Run() {
     if (block != schedule()->start()) {
       // If all the predecessors have the same effect, we can use it
       // as our current effect.
-      int rpo_number = block->PredecessorAt(0)->rpo_number();
-      frame_state = block_effects[rpo_number].current_frame_state;
+      frame_state =
+          block_effects.For(block->PredecessorAt(0), block).current_frame_state;
       for (size_t i = 1; i < block->PredecessorCount(); i++) {
-        int rpo_number = block->PredecessorAt(i)->rpo_number();
-        if (block_effects[rpo_number].current_frame_state != frame_state) {
+        if (block_effects.For(block->PredecessorAt(i), block)
+                .current_frame_state != frame_state) {
           frame_state = nullptr;
           break;
         }
@@ -256,19 +430,31 @@ void EffectControlLinearizer::Run() {
 
       case BasicBlock::kCall:
       case BasicBlock::kTailCall:
-      case BasicBlock::kBranch:
       case BasicBlock::kSwitch:
       case BasicBlock::kReturn:
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
         ProcessNode(block->control_input(), &frame_state, &effect, &control);
         break;
+
+      case BasicBlock::kBranch:
+        ProcessNode(block->control_input(), &frame_state, &effect, &control);
+        TryCloneBranch(block->control_input(), block, graph(), common(),
+                       &block_effects);
+        break;
     }
 
-    // Store the effect for later use.
-    block_effects[block->rpo_number()].current_effect = effect;
-    block_effects[block->rpo_number()].current_control = control;
-    block_effects[block->rpo_number()].current_frame_state = frame_state;
+    // Store the effect, control and frame state for later use.
+    for (BasicBlock* successor : block->successors()) {
+      BlockEffectControlData* data = &block_effects.For(block, successor);
+      if (data->current_effect == nullptr) {
+        data->current_effect = effect;
+      }
+      if (data->current_control == nullptr) {
+        data->current_control = control;
+      }
+      data->current_frame_state = frame_state;
+    }
   }
 
   // Update the incoming edges of the effect phis that could not be processed
