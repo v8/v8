@@ -12,10 +12,9 @@
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {
+namespace internal {
 
 struct TickSample;
-
-namespace internal {
 
 // Provides a mapping from the offsets within generated code to
 // the source line.
