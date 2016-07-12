@@ -187,7 +187,14 @@ def CompareLists(gyp, gn, name, dont_care_gyp=None, dont_care_gn=None):
 
 def Run(command_line):
   """Run |command_line| as a subprocess and return stdout. Raises on error."""
-  return subprocess.check_output(command_line, shell=True)
+  try:
+    return subprocess.check_output(command_line, shell=True)
+  except subprocess.CalledProcessError as e:
+    # Rescue the output we got until the exception happened.
+    print '#### Stdout: ####################################################'
+    print e.output
+    print '#################################################################'
+    raise
 
 
 def main():
