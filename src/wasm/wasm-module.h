@@ -165,6 +165,9 @@ struct WasmModule {
   uint32_t max_mem_pages;     // maximum size of the memory in 64k pages.
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
+  // TODO(wasm): reconcile start function index being an int with
+  // the fact that we index on uint32_t, so we may technically not be
+  // able to represent some start_function_index -es.
   int start_function_index;   // start function, if any.
   ModuleOrigin origin;        // origin of the module
 
@@ -358,6 +361,12 @@ Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
 // Return the number of functions in the given wasm object.
 int GetNumberOfFunctions(JSObject* wasm);
+
+// Create and export JSFunction
+Handle<JSFunction> WrapExportCodeAsJSFunction(Isolate* isolate,
+                                              Handle<Code> export_code,
+                                              Handle<String> name, int arity,
+                                              Handle<JSObject> module_instance);
 
 // Check whether the given object is a wasm object.
 // This checks the number and type of internal fields, so it's not 100 percent

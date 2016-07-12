@@ -3113,24 +3113,9 @@ static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                    *script_str, 0, 0));
 }
 
-Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
-                                          wasm::ModuleEnv* module,
-                                          Handle<String> name,
-                                          Handle<Code> wasm_code,
-                                          uint32_t index) {
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+                                    Handle<Code> wasm_code, uint32_t index) {
   const wasm::WasmFunction* func = &module->module->functions[index];
-
-  //----------------------------------------------------------------------------
-  // Create the JSFunction object.
-  //----------------------------------------------------------------------------
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name, wasm_code, false);
-  int params = static_cast<int>(func->sig->parameter_count());
-  shared->set_length(params);
-  shared->set_internal_formal_parameter_count(params);
-  Handle<JSFunction> function = isolate->factory()->NewFunction(
-      isolate->wasm_function_map(), name, MaybeHandle<Code>());
-  function->set_shared(*shared);
 
   //----------------------------------------------------------------------------
   // Create the Graph
@@ -3153,59 +3138,53 @@ Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
   //----------------------------------------------------------------------------
-  {
-    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
-      OFStream os(stdout);
-      os << "-- Graph after change lowering -- " << std::endl;
-      os << AsRPO(graph);
-    }
-
-    // Schedule and compile to machine code.
-    int params = static_cast<int>(
-        module->GetFunctionSignature(index)->parameter_count());
-    CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
-        &zone, false, params + 1, CallDescriptor::kNoFlags);
-    Code::Flags flags = Code::ComputeFlags(Code::JS_TO_WASM_FUNCTION);
-    bool debugging =
-#if DEBUG
-        true;
-#else
-        FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
-#endif
-    Vector<const char> func_name = ArrayVector("js-to-wasm");
-
-    static unsigned id = 0;
-    Vector<char> buffer;
-    if (debugging) {
-      buffer = Vector<char>::New(128);
-      int chars = SNPrintF(buffer, "js-to-wasm#%d", id);
-      func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
-    }
-
-    CompilationInfo info(func_name, isolate, &zone, flags);
-    Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
-#ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_opt_code && !code.is_null()) {
-      OFStream os(stdout);
-      code->Disassemble(buffer.start(), os);
-    }
-#endif
-    if (debugging) {
-      buffer.Dispose();
-    }
-
-    if (isolate->logger()->is_logging_code_events() ||
-        isolate->is_profiling()) {
-      RecordFunctionCompilation(
-          CodeEventListener::FUNCTION_TAG, isolate, code, "js-to-wasm", index,
-          wasm::WasmName("export"),
-          module->module->GetName(func->name_offset, func->name_length));
-    }
-    // Set the JSFunction's machine code.
-    function->set_code(*code);
+  if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+    OFStream os(stdout);
+    os << "-- Graph after change lowering -- " << std::endl;
+    os << AsRPO(graph);
   }
-  return function;
+
+  // Schedule and compile to machine code.
+  int params =
+      static_cast<int>(module->GetFunctionSignature(index)->parameter_count());
+  CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
+      &zone, false, params + 1, CallDescriptor::kNoFlags);
+  Code::Flags flags = Code::ComputeFlags(Code::JS_TO_WASM_FUNCTION);
+  bool debugging =
+#if DEBUG
+      true;
+#else
+      FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
+#endif
+  Vector<const char> func_name = ArrayVector("js-to-wasm");
+
+  static unsigned id = 0;
+  Vector<char> buffer;
+  if (debugging) {
+    buffer = Vector<char>::New(128);
+    int chars = SNPrintF(buffer, "js-to-wasm#%d", id);
+    func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
+  }
+
+  CompilationInfo info(func_name, isolate, &zone, flags);
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_opt_code && !code.is_null()) {
+    OFStream os(stdout);
+    code->Disassemble(buffer.start(), os);
+  }
+#endif
+  if (debugging) {
+    buffer.Dispose();
+  }
+
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+    RecordFunctionCompilation(
+        CodeEventListener::FUNCTION_TAG, isolate, code, "js-to-wasm", index,
+        wasm::WasmName("export"),
+        module->module->GetName(func->name_offset, func->name_length));
+  }
+  return code;
 }
 
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,

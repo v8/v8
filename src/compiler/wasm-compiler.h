@@ -83,13 +83,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                     Handle<String> import_module,
                                     MaybeHandle<String> import_function);
 
-// Wraps a given wasm code object, producing a JSFunction that can be called
-// from JavaScript.
-Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
-                                          wasm::ModuleEnv* module,
-                                          Handle<String> name,
-                                          Handle<Code> wasm_code,
-                                          uint32_t index);
+// Wraps a given wasm code object, producing a code object.
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+                                    Handle<Code> wasm_code, uint32_t index);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.

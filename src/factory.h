@@ -552,8 +552,6 @@ class Factory final {
 
   Handle<Code> CopyCode(Handle<Code> code);
 
-  Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
-
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 
   // Interface for creating error objects.

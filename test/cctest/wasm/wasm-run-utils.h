@@ -207,9 +207,12 @@ class TestingModule : public ModuleEnv {
     Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
-    Handle<JSFunction> ret =
-        compiler::CompileJSToWasmWrapper(isolate_, this, name, code, index);
-    ret->SetInternalField(0, *module_object);
+    Handle<Code> ret_code =
+        compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+    Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
+        isolate_, ret_code, name,
+        static_cast<int>(this->module->functions[index].sig->parameter_count()),
+        module_object);
     return ret;
   }
 
@@ -238,6 +241,7 @@ class TestingModule : public ModuleEnv {
                                     *instance->function_code[function_index]);
     }
   }
+
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
   WasmInterpreter* interpreter() { return interpreter_; }
