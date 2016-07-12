@@ -40,7 +40,6 @@ namespace interpreter {
   V(RegExpExec, reg_exp_exec, 4)                        \
   V(SubString, sub_string, 3)                           \
   V(ToString, to_string, 1)                             \
-  V(ToName, to_name, 1)                                 \
   V(ToLength, to_length, 1)                             \
   V(ToInteger, to_integer, 1)                           \
   V(ToNumber, to_number, 1)                             \

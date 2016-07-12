@@ -2217,7 +2217,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(NewObject)                         \
   F(StringCharFromCode)                \
   F(ToInteger)                         \
-  F(ToName)                            \
   F(ToObject)                          \
   F(ToString)                          \
   F(ToLength)                          \

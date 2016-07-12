@@ -4994,7 +4994,26 @@ BUILTIN(AsyncFunctionConstructor) {
   return *func;
 }
 
-// ES6 19.1.3.6 Object.prototype.toString
+// -----------------------------------------------------------------------------
+// ES6 section 19.1 Object Objects
+
+// ES6 section 19.1.3.4 Object.prototype.propertyIsEnumerable ( V )
+BUILTIN(ObjectPrototypePropertyIsEnumerable) {
+  HandleScope scope(isolate);
+  Handle<JSReceiver> object;
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, name, Object::ToName(isolate, args.atOrUndefined(isolate, 1)));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, object, JSReceiver::ToObject(isolate, args.receiver()));
+  Maybe<PropertyAttributes> maybe =
+      JSReceiver::GetOwnPropertyAttributes(object, name);
+  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
+}
+
+// ES6 section 19.1.3.6 Object.prototype.toString
 BUILTIN(ObjectProtoToString) {
   HandleScope scope(isolate);
   Handle<Object> object = args.at<Object>(0);

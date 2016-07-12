@@ -1481,16 +1481,10 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToInteger);
     case Runtime::kInlineToLength:
       return TypeUnaryOp(node, ToLength);
-    case Runtime::kInlineToName:
-      return TypeUnaryOp(node, ToName);
     case Runtime::kInlineToNumber:
       return TypeUnaryOp(node, ToNumber);
     case Runtime::kInlineToObject:
       return TypeUnaryOp(node, ToObject);
-    case Runtime::kInlineToPrimitive:
-    case Runtime::kInlineToPrimitive_Number:
-    case Runtime::kInlineToPrimitive_String:
-      return TypeUnaryOp(node, ToPrimitive);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
     case Runtime::kHasInPrototypeChain:

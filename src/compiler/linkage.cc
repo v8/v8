@@ -188,12 +188,8 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineThrowNotDateError:
     case Runtime::kInlineToInteger:
     case Runtime::kInlineToLength:
-    case Runtime::kInlineToName:
     case Runtime::kInlineToNumber:
     case Runtime::kInlineToObject:
-    case Runtime::kInlineToPrimitive:
-    case Runtime::kInlineToPrimitive_Number:
-    case Runtime::kInlineToPrimitive_String:
     case Runtime::kInlineToString:
       return true;
     default:

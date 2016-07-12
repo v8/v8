@@ -388,7 +388,6 @@ namespace internal {
   F(DeleteProperty_Sloppy, 2, 1)                     \
   F(DeleteProperty_Strict, 2, 1)                     \
   F(HasProperty, 2, 1)                               \
-  F(PropertyIsEnumerable, 2, 1)                      \
   F(GetOwnPropertyKeys, 2, 1)                        \
   F(GetInterceptorInfo, 1, 1)                        \
   F(ToFastProperties, 1, 1)                          \
@@ -411,7 +410,6 @@ namespace internal {
   F(ToObject, 1, 1)                                  \
   F(ToPrimitive, 1, 1)                               \
   F(ToPrimitive_Number, 1, 1)                        \
-  F(ToPrimitive_String, 1, 1)                        \
   F(ToNumber, 1, 1)                                  \
   F(ToInteger, 1, 1)                                 \
   F(ToLength, 1, 1)                                  \

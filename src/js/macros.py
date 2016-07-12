@@ -32,22 +32,12 @@ define NONE        = 0;
 define READ_ONLY   = 1;
 define DONT_ENUM   = 2;
 define DONT_DELETE = 4;
-define NEW_ONE_BYTE_STRING = true;
-define NEW_TWO_BYTE_STRING = false;
-
-# Constants used for getter and setter operations.
-define GETTER = 0;
-define SETTER = 1;
 
 # 2^53 - 1
 define kMaxSafeInteger = 9007199254740991;
 
 # 2^32 - 1
 define kMaxUint32 = 4294967295;
-
-# Strict mode flags for passing to %SetProperty
-define kSloppyMode = 0;
-define kStrictMode = 1;
 
 # Native cache ids.
 define STRING_TO_REGEXP_CACHE_ID = 0;
@@ -108,11 +98,6 @@ macro TO_LENGTH(arg) = (%_ToLength(arg));
 macro TO_STRING(arg) = (%_ToString(arg));
 macro TO_NUMBER(arg) = (%_ToNumber(arg));
 macro TO_OBJECT(arg) = (%_ToObject(arg));
-macro TO_PRIMITIVE(arg) = (%_ToPrimitive(arg));
-macro TO_PRIMITIVE_NUMBER(arg) = (%_ToPrimitive_Number(arg));
-macro TO_PRIMITIVE_STRING(arg) = (%_ToPrimitive_String(arg));
-macro TO_NAME(arg) = (%_ToName(arg));
-macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
 
 # Private names.
@@ -221,10 +206,6 @@ define NOT_FOUND = -1;
 
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
-
-# SharedFlag equivalents
-define kNotShared = false;
-define kShared = true;
 
 # UseCounters from include/v8.h
 define kUseAsm = 0;

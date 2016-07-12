@@ -330,11 +330,14 @@ RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
 // Items 2-4 are only filled if the property has either a getter or a setter.
 RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   HandleScope scope(isolate);
-
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name_obj, 1);
+
+  // Convert the {name_obj} to a Name.
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Object::ToName(isolate, name_obj));
 
   // Make sure to set the current context to the context before the debugger was
   // entered (if the debugger is entered). The reason for switching context here

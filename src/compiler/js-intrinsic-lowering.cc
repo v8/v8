@@ -68,14 +68,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
       return ReduceToLength(node);
-    case Runtime::kInlineToName:
-      return ReduceToName(node);
     case Runtime::kInlineToNumber:
       return ReduceToNumber(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
-    case Runtime::kInlineToPrimitive:
-      return ReduceToPrimitive(node);
     case Runtime::kInlineToString:
       return ReduceToString(node);
     case Runtime::kInlineCall:
@@ -280,12 +276,6 @@ Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceToName(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToName());
-  return Changed(node);
-}
-
-
 Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToNumber());
   return Changed(node);
@@ -301,17 +291,6 @@ Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
 Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToObject());
   return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceToPrimitive(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
-  if (value_type->Is(Type::Primitive())) {
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  return NoChange();
 }
 
 

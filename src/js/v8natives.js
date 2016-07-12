@@ -131,12 +131,6 @@ function ObjectIsPrototypeOf(V) {
 }
 
 
-// ES6 19.1.3.4
-function ObjectPropertyIsEnumerable(V) {
-  var P = TO_NAME(V);
-  return %PropertyIsEnumerable(TO_OBJECT(this), P);
-}
-
 // ES6 7.3.9
 function GetMethod(obj, p) {
   var func = obj[p];
@@ -201,7 +195,7 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "toLocaleString", ObjectToLocaleString,
   "valueOf", ObjectValueOf,
   "isPrototypeOf", ObjectIsPrototypeOf,
-  "propertyIsEnumerable", ObjectPropertyIsEnumerable,
+  // propertyIsEnumerable is added in bootstrapper.cc.
   // __defineGetter__ is added in bootstrapper.cc.
   // __lookupGetter__ is added in bootstrapper.cc.
   // __defineSetter__ is added in bootstrapper.cc.

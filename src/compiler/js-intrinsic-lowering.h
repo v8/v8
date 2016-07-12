@@ -54,10 +54,8 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceSubString(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);
-  Reduction ReduceToName(Node* node);
   Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
-  Reduction ReduceToPrimitive(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
   Reduction ReduceNewObject(Node* node);

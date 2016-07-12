@@ -145,6 +145,7 @@ class CodeStubAssembler;
   V(ObjectLookupGetter, BUILTIN_EXIT)                      \
   V(ObjectLookupSetter, BUILTIN_EXIT)                      \
   V(ObjectPreventExtensions, BUILTIN_EXIT)                 \
+  V(ObjectPrototypePropertyIsEnumerable, BUILTIN_EXIT)     \
   V(ObjectProtoToString, BUILTIN_EXIT)                     \
   V(ObjectSeal, BUILTIN_EXIT)                              \
   V(ObjectValues, BUILTIN_EXIT)                            \

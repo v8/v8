@@ -564,21 +564,6 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_PropertyIsEnumerable) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-
-  Maybe<PropertyAttributes> maybe =
-      JSReceiver::GetOwnPropertyAttributes(object, key);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
-  if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
-  return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -865,15 +850,6 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kString));
 }
 
 

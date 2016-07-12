@@ -269,10 +269,6 @@ Node* IntrinsicsHelper::ToString(Node* input, Node* arg_count, Node* context) {
   return IntrinsicAsStubCall(input, context, CodeFactory::ToString(isolate()));
 }
 
-Node* IntrinsicsHelper::ToName(Node* input, Node* arg_count, Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::ToName(isolate()));
-}
-
 Node* IntrinsicsHelper::ToLength(Node* input, Node* arg_count, Node* context) {
   return IntrinsicAsStubCall(input, context, CodeFactory::ToLength(isolate()));
 }
