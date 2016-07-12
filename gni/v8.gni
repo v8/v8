@@ -57,7 +57,7 @@ if (is_debug && !v8_optimized_debug) {
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
   if (is_posix && !is_android && !is_nacl && !using_sanitizer) {
-    add_configs += [ "//build/config/compiler:optimize_max" ]
+    add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     add_configs += [ "//build/config/compiler:optimize_max" ]
   }
