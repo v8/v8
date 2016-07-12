@@ -28,18 +28,6 @@ namespace internal {
 namespace compiler {
 
 
-static bool IsDefUseChainLinkPresent(Node* def, Node* use) {
-  const Node::Uses uses = def->uses();
-  return std::find(uses.begin(), uses.end(), use) != uses.end();
-}
-
-
-static bool IsUseDefChainLinkPresent(Node* def, Node* use) {
-  const Node::Inputs inputs = use->inputs();
-  return std::find(inputs.begin(), inputs.end(), def) != inputs.end();
-}
-
-
 class Verifier::Visitor {
  public:
   Visitor(Zone* z, Typing typed, CheckInputs check_inputs)
@@ -129,16 +117,12 @@ void Verifier::Visitor::Check(Node* node) {
           // kFrameState uses Start as a sentinel.
           (node->opcode() == IrOpcode::kFrameState &&
            frame_state->opcode() == IrOpcode::kStart));
-    CHECK(IsDefUseChainLinkPresent(frame_state, node));
-    CHECK(IsUseDefChainLinkPresent(frame_state, node));
   }
 
   // Verify all value inputs actually produce a value.
   for (int i = 0; i < value_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, i);
     CheckOutput(value, node, value->op()->ValueOutputCount(), "value");
-    CHECK(IsDefUseChainLinkPresent(value, node));
-    CHECK(IsUseDefChainLinkPresent(value, node));
     // Verify that only parameters and projections can have input nodes with
     // multiple outputs.
     CHECK(node->opcode() == IrOpcode::kParameter ||
@@ -150,8 +134,6 @@ void Verifier::Visitor::Check(Node* node) {
   for (int i = 0; i < context_count; ++i) {
     Node* context = NodeProperties::GetContextInput(node);
     CheckOutput(context, node, context->op()->ValueOutputCount(), "context");
-    CHECK(IsDefUseChainLinkPresent(context, node));
-    CHECK(IsUseDefChainLinkPresent(context, node));
   }
 
   if (check_inputs == kAll) {
@@ -159,8 +141,6 @@ void Verifier::Visitor::Check(Node* node) {
     for (int i = 0; i < effect_count; ++i) {
       Node* effect = NodeProperties::GetEffectInput(node);
       CheckOutput(effect, node, effect->op()->EffectOutputCount(), "effect");
-      CHECK(IsDefUseChainLinkPresent(effect, node));
-      CHECK(IsUseDefChainLinkPresent(effect, node));
     }
 
     // Verify all control inputs are control nodes.
@@ -168,8 +148,6 @@ void Verifier::Visitor::Check(Node* node) {
       Node* control = NodeProperties::GetControlInput(node, i);
       CheckOutput(control, node, control->op()->ControlOutputCount(),
                   "control");
-      CHECK(IsDefUseChainLinkPresent(control, node));
-      CHECK(IsUseDefChainLinkPresent(control, node));
     }
   }
 
