@@ -254,7 +254,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
   if (!old_gen_exhausted_ && incremental_marking()->black_allocation() &&
       space != OLD_SPACE) {
-    Marking::MarkBlack(Marking::MarkBitFrom(object));
+    Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
     MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
   }
   return allocation;
@@ -399,7 +399,7 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Address age_mark = new_space_.age_mark();
 
   if (promotion_mode == PROMOTE_MARKED) {
-    MarkBit mark_bit = Marking::MarkBitFrom(old_address);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
     if (!Marking::IsWhite(mark_bit)) {
       return true;
     }

@@ -3112,7 +3112,7 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
+             Marking::IsBlack(ObjectMarking::MarkBitFrom(object->address()))) {
     if (mode == SEQUENTIAL_TO_SWEEPER) {
       MemoryChunk::IncrementLiveBytesFromGC(object, by);
     } else {
@@ -3169,7 +3169,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                     new_object, FixedArrayBase::kLengthOffset));
 
   // Maintain consistency of live bytes during incremental marking
-  Marking::TransferMark(this, object->address(), new_start);
+  IncrementalMarking::TransferMark(this, object->address(), new_start);
   AdjustLiveBytes(new_object, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
 
   // Notify the heap profiler of change in object layout.
@@ -4191,7 +4191,7 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
         Address addr = chunk.start;
         while (addr < chunk.end) {
           HeapObject* obj = HeapObject::FromAddress(addr);
-          Marking::MarkBlack(Marking::MarkBitFrom(obj));
+          Marking::MarkBlack(ObjectMarking::MarkBitFrom(obj));
           MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
           addr += obj->Size();
         }
@@ -4711,7 +4711,7 @@ void Heap::IteratePromotedObject(HeapObject* target, int size,
   // it would be a violation of the invariant to record it's slots.
   bool record_slots = false;
   if (incremental_marking()->IsCompacting()) {
-    MarkBit mark_bit = Marking::MarkBitFrom(target);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(target);
     record_slots = Marking::IsBlack(mark_bit);
   }
 
@@ -5889,7 +5889,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject* object) {
     if (object->IsFiller()) return true;
-    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
     return Marking::IsWhite(mark_bit);
   }
 
@@ -5902,7 +5902,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       for (Object** p = start; p < end; p++) {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
-        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
         if (Marking::IsWhite(mark_bit)) {
           Marking::WhiteToBlack(mark_bit);
           marking_stack_.Add(obj);

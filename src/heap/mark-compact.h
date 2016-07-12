@@ -8,6 +8,7 @@
 #include <deque>
 
 #include "src/base/bits.h"
+#include "src/heap/marking.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
 
@@ -28,7 +29,7 @@ class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
 
-class Marking : public AllStatic {
+class ObjectMarking : public AllStatic {
  public:
   INLINE(static MarkBit MarkBitFrom(Address addr)) {
     MemoryChunk* p = MemoryChunk::FromAddress(addr);
@@ -39,143 +40,14 @@ class Marking : public AllStatic {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
-  // Impossible markbits: 01
-  static const char* kImpossibleBitPattern;
-  INLINE(static bool IsImpossible(MarkBit mark_bit)) {
-    return !mark_bit.Get() && mark_bit.Next().Get();
-  }
-
-  // Black markbits: 11
-  static const char* kBlackBitPattern;
-  INLINE(static bool IsBlack(MarkBit mark_bit)) {
-    return mark_bit.Get() && mark_bit.Next().Get();
-  }
-
-  // White markbits: 00 - this is required by the mark bit clearer.
-  static const char* kWhiteBitPattern;
-  INLINE(static bool IsWhite(MarkBit mark_bit)) {
-    DCHECK(!IsImpossible(mark_bit));
-    return !mark_bit.Get();
-  }
-
-  // Grey markbits: 10
-  static const char* kGreyBitPattern;
-  INLINE(static bool IsGrey(MarkBit mark_bit)) {
-    return mark_bit.Get() && !mark_bit.Next().Get();
-  }
-
-  // IsBlackOrGrey assumes that the first bit is set for black or grey
-  // objects.
-  INLINE(static bool IsBlackOrGrey(MarkBit mark_bit)) { return mark_bit.Get(); }
-
-  INLINE(static void MarkBlack(MarkBit mark_bit)) {
-    mark_bit.Set();
-    mark_bit.Next().Set();
-  }
-
-  INLINE(static void MarkWhite(MarkBit mark_bit)) {
-    mark_bit.Clear();
-    mark_bit.Next().Clear();
-  }
-
-  INLINE(static void BlackToWhite(MarkBit markbit)) {
-    DCHECK(IsBlack(markbit));
-    markbit.Clear();
-    markbit.Next().Clear();
-  }
-
-  INLINE(static void GreyToWhite(MarkBit markbit)) {
-    DCHECK(IsGrey(markbit));
-    markbit.Clear();
-    markbit.Next().Clear();
-  }
-
-  INLINE(static void BlackToGrey(MarkBit markbit)) {
-    DCHECK(IsBlack(markbit));
-    markbit.Next().Clear();
-  }
-
-  INLINE(static void WhiteToGrey(MarkBit markbit)) {
-    DCHECK(IsWhite(markbit));
-    markbit.Set();
-  }
-
-  INLINE(static void WhiteToBlack(MarkBit markbit)) {
-    DCHECK(IsWhite(markbit));
-    markbit.Set();
-    markbit.Next().Set();
-  }
-
-  INLINE(static void GreyToBlack(MarkBit markbit)) {
-    DCHECK(IsGrey(markbit));
-    markbit.Next().Set();
-  }
-
-  INLINE(static void BlackToGrey(HeapObject* obj)) {
-    BlackToGrey(MarkBitFrom(obj));
-  }
-
-  INLINE(static void AnyToGrey(MarkBit markbit)) {
-    markbit.Set();
-    markbit.Next().Clear();
-  }
-
-  static void TransferMark(Heap* heap, Address old_start, Address new_start);
-
 #ifdef DEBUG
-  enum ObjectColor {
-    BLACK_OBJECT,
-    WHITE_OBJECT,
-    GREY_OBJECT,
-    IMPOSSIBLE_COLOR
-  };
-
-  static const char* ColorName(ObjectColor color) {
-    switch (color) {
-      case BLACK_OBJECT:
-        return "black";
-      case WHITE_OBJECT:
-        return "white";
-      case GREY_OBJECT:
-        return "grey";
-      case IMPOSSIBLE_COLOR:
-        return "impossible";
-    }
-    return "error";
-  }
-
-  static ObjectColor Color(HeapObject* obj) {
-    return Color(Marking::MarkBitFrom(obj));
-  }
-
-  static ObjectColor Color(MarkBit mark_bit) {
-    if (IsBlack(mark_bit)) return BLACK_OBJECT;
-    if (IsWhite(mark_bit)) return WHITE_OBJECT;
-    if (IsGrey(mark_bit)) return GREY_OBJECT;
-    UNREACHABLE();
-    return IMPOSSIBLE_COLOR;
+  static Marking::ObjectColor Color(HeapObject* obj) {
+    return Marking::Color(ObjectMarking::MarkBitFrom(obj));
   }
 #endif
 
-  // Returns true if the transferred color is black.
-  INLINE(static bool TransferColor(HeapObject* from, HeapObject* to)) {
-    if (Page::FromAddress(to->address())->IsFlagSet(Page::BLACK_PAGE))
-      return true;
-    MarkBit from_mark_bit = MarkBitFrom(from);
-    MarkBit to_mark_bit = MarkBitFrom(to);
-    DCHECK(Marking::IsWhite(to_mark_bit));
-    if (from_mark_bit.Get()) {
-      to_mark_bit.Set();
-      if (from_mark_bit.Next().Get()) {
-        to_mark_bit.Next().Set();
-        return true;
-      }
-    }
-    return false;
-  }
-
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Marking);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
 };
 
 // ----------------------------------------------------------------------------

@@ -31,7 +31,7 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
     if (slots != nullptr) {
       slots->Iterate(
           [heap, chunk](SlotType type, Address host_addr, Address addr) {
-            if (Marking::IsBlack(Marking::MarkBitFrom(host_addr))) {
+            if (Marking::IsBlack(ObjectMarking::MarkBitFrom(host_addr))) {
               return KEEP_SLOT;
             } else {
               return REMOVE_SLOT;
@@ -88,7 +88,7 @@ bool RememberedSet<direction>::IsValidSlot(Heap* heap, MemoryChunk* chunk,
   HeapObject* heap_object = HeapObject::cast(object);
   // If the target object is not black, the source slot must be part
   // of a non-black (dead) object.
-  return Marking::IsBlack(Marking::MarkBitFrom(heap_object)) &&
+  return Marking::IsBlack(ObjectMarking::MarkBitFrom(heap_object)) &&
          heap->mark_compact_collector()->IsSlotInBlackObject(
              chunk, reinterpret_cast<Address>(slot));
 }

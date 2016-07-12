@@ -14,6 +14,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
+#include "src/heap/marking.h"
 #include "src/list.h"
 #include "src/objects.h"
 #include "src/utils.h"
@@ -109,187 +110,6 @@ class Space;
 
 #define DCHECK_PAGE_OFFSET(offset) \
   DCHECK((Page::kObjectStartOffset <= offset) && (offset <= Page::kPageSize))
-
-class MarkBit {
- public:
-  typedef uint32_t CellType;
-
-  inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
-
-#ifdef DEBUG
-  bool operator==(const MarkBit& other) {
-    return cell_ == other.cell_ && mask_ == other.mask_;
-  }
-#endif
-
- private:
-  inline CellType* cell() { return cell_; }
-  inline CellType mask() { return mask_; }
-
-  inline MarkBit Next() {
-    CellType new_mask = mask_ << 1;
-    if (new_mask == 0) {
-      return MarkBit(cell_ + 1, 1);
-    } else {
-      return MarkBit(cell_, new_mask);
-    }
-  }
-
-  inline void Set() { *cell_ |= mask_; }
-  inline bool Get() { return (*cell_ & mask_) != 0; }
-  inline void Clear() { *cell_ &= ~mask_; }
-
-  CellType* cell_;
-  CellType mask_;
-
-  friend class Marking;
-};
-
-
-// Bitmap is a sequence of cells each containing fixed number of bits.
-class Bitmap {
- public:
-  static const uint32_t kBitsPerCell = 32;
-  static const uint32_t kBitsPerCellLog2 = 5;
-  static const uint32_t kBitIndexMask = kBitsPerCell - 1;
-  static const uint32_t kBytesPerCell = kBitsPerCell / kBitsPerByte;
-  static const uint32_t kBytesPerCellLog2 = kBitsPerCellLog2 - kBitsPerByteLog2;
-
-  static const size_t kLength = (1 << kPageSizeBits) >> (kPointerSizeLog2);
-
-  static const size_t kSize =
-      (1 << kPageSizeBits) >> (kPointerSizeLog2 + kBitsPerByteLog2);
-
-
-  static int CellsForLength(int length) {
-    return (length + kBitsPerCell - 1) >> kBitsPerCellLog2;
-  }
-
-  int CellsCount() { return CellsForLength(kLength); }
-
-  static int SizeFor(int cells_count) {
-    return sizeof(MarkBit::CellType) * cells_count;
-  }
-
-  INLINE(static uint32_t IndexToCell(uint32_t index)) {
-    return index >> kBitsPerCellLog2;
-  }
-
-  V8_INLINE static uint32_t IndexInCell(uint32_t index) {
-    return index & kBitIndexMask;
-  }
-
-  INLINE(static uint32_t CellToIndex(uint32_t index)) {
-    return index << kBitsPerCellLog2;
-  }
-
-  INLINE(static uint32_t CellAlignIndex(uint32_t index)) {
-    return (index + kBitIndexMask) & ~kBitIndexMask;
-  }
-
-  INLINE(MarkBit::CellType* cells()) {
-    return reinterpret_cast<MarkBit::CellType*>(this);
-  }
-
-  INLINE(Address address()) { return reinterpret_cast<Address>(this); }
-
-  INLINE(static Bitmap* FromAddress(Address addr)) {
-    return reinterpret_cast<Bitmap*>(addr);
-  }
-
-  inline MarkBit MarkBitFromIndex(uint32_t index) {
-    MarkBit::CellType mask = 1u << IndexInCell(index);
-    MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(cell, mask);
-  }
-
-  static inline void Clear(MemoryChunk* chunk);
-
-  static inline void SetAllBits(MemoryChunk* chunk);
-
-  static void PrintWord(uint32_t word, uint32_t himask = 0) {
-    for (uint32_t mask = 1; mask != 0; mask <<= 1) {
-      if ((mask & himask) != 0) PrintF("[");
-      PrintF((mask & word) ? "1" : "0");
-      if ((mask & himask) != 0) PrintF("]");
-    }
-  }
-
-  class CellPrinter {
-   public:
-    CellPrinter() : seq_start(0), seq_type(0), seq_length(0) {}
-
-    void Print(uint32_t pos, uint32_t cell) {
-      if (cell == seq_type) {
-        seq_length++;
-        return;
-      }
-
-      Flush();
-
-      if (IsSeq(cell)) {
-        seq_start = pos;
-        seq_length = 0;
-        seq_type = cell;
-        return;
-      }
-
-      PrintF("%d: ", pos);
-      PrintWord(cell);
-      PrintF("\n");
-    }
-
-    void Flush() {
-      if (seq_length > 0) {
-        PrintF("%d: %dx%d\n", seq_start, seq_type == 0 ? 0 : 1,
-               seq_length * kBitsPerCell);
-        seq_length = 0;
-      }
-    }
-
-    static bool IsSeq(uint32_t cell) { return cell == 0 || cell == 0xFFFFFFFF; }
-
-   private:
-    uint32_t seq_start;
-    uint32_t seq_type;
-    uint32_t seq_length;
-  };
-
-  void Print() {
-    CellPrinter printer;
-    for (int i = 0; i < CellsCount(); i++) {
-      printer.Print(i, cells()[i]);
-    }
-    printer.Flush();
-    PrintF("\n");
-  }
-
-  bool IsClean() {
-    for (int i = 0; i < CellsCount(); i++) {
-      if (cells()[i] != 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // Clears all bits starting from {cell_base_index} up to and excluding
-  // {index}. Note that {cell_base_index} is required to be cell aligned.
-  void ClearRange(uint32_t cell_base_index, uint32_t index) {
-    DCHECK_EQ(IndexInCell(cell_base_index), 0u);
-    DCHECK_GE(index, cell_base_index);
-    uint32_t start_cell_index = IndexToCell(cell_base_index);
-    uint32_t end_cell_index = IndexToCell(index);
-    DCHECK_GE(end_cell_index, start_cell_index);
-    // Clear all cells till the cell containing the last index.
-    for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
-      cells()[i] = 0;
-    }
-    // Clear all bits in the last cell till the last bit before index.
-    uint32_t clear_mask = ~((1u << IndexInCell(index)) - 1);
-    cells()[end_cell_index] &= clear_mask;
-  }
-};
 
 enum FreeListCategoryType {
   kTiniest,
@@ -696,6 +516,8 @@ class MemoryChunk {
   inline Address MarkbitIndexToAddress(uint32_t index) {
     return this->address() + (index << kPointerSizeLog2);
   }
+
+  void ClearLiveness();
 
   void PrintMarkbits() { markbits()->Print(); }
 

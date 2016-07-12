@@ -1151,7 +1151,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
@@ -1467,8 +1467,8 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj_value)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj_value)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger incremental write barrier, which should add a slot to remembered

@@ -138,7 +138,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     if (marks_handling == TRANSFER_MARKS) {
-      if (Marking::TransferColor(source, target)) {
+      if (IncrementalMarking::TransferColor(source, target)) {
         MemoryChunk::IncrementLiveBytesFromGC(target, size);
       }
     }
@@ -191,7 +191,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       if (object_contents == POINTER_OBJECT) {
         heap->promotion_queue()->insert(
             target, object_size,
-            Marking::IsBlack(Marking::MarkBitFrom(object)));
+            Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
       }
       heap->IncrementPromotedObjectsSize(object_size);
       return true;
@@ -238,7 +238,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     HeapObject* target = map_word.ToForwardingAddress();
 
-    MarkBit mark_bit = Marking::MarkBitFrom(target);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(target);
     if (Marking::IsBlack(mark_bit)) {
       // This object is black and it might not be rescanned by marker.
       // We should explicitly record code entry slot for compaction because

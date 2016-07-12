@@ -866,6 +866,7 @@
         'heap/mark-compact-inl.h',
         'heap/mark-compact.cc',
         'heap/mark-compact.h',
+        'heap/marking.h',
         'heap/object-stats.cc',
         'heap/object-stats.h',
         'heap/objects-visiting-inl.h',

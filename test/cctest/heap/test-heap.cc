@@ -720,7 +720,7 @@ TEST(DoNotPromoteWhiteObjectsOnScavenge) {
   HandleScope scope(isolate);
   Handle<Object> white = factory->NewStringFromStaticChars("white");
 
-  CHECK(Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(*white))));
+  CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*white))));
 
   heap->CollectGarbage(NEW_SPACE);
 
@@ -739,7 +739,8 @@ TEST(PromoteGreyOrBlackObjectsOnScavenge) {
   IncrementalMarking* marking = heap->incremental_marking();
   marking->Stop();
   heap->StartIncrementalMarking();
-  while (Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(*marked)))) {
+  while (
+      Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(*marked)))) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   IncrementalMarking::FORCE_MARKING,
                   IncrementalMarking::DO_NOT_FORCE_COMPLETION);
@@ -2632,7 +2633,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   CHECK(f->IsOptimized());
 
-  while (!Marking::IsBlack(Marking::MarkBitFrom(f->code())) &&
+  while (!Marking::IsBlack(ObjectMarking::MarkBitFrom(f->code())) &&
          !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
@@ -5765,7 +5766,7 @@ TEST(Regress3631) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(reinterpret_cast<JSWeakCollection*>(*obj));
   while (!Marking::IsBlack(
-             Marking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
+             ObjectMarking::MarkBitFrom(HeapObject::cast(weak_map->table()))) &&
          !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   }
@@ -6680,10 +6681,10 @@ TEST(Regress598319) {
   }
 
   CHECK(heap->lo_space()->Contains(arr.get()));
-  CHECK(Marking::IsWhite(Marking::MarkBitFrom(arr.get())));
+  CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(arr.get())));
   for (int i = 0; i < arr.get()->length(); i++) {
     CHECK(Marking::IsWhite(
-        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
   }
 
   // Start incremental marking.
@@ -6697,7 +6698,7 @@ TEST(Regress598319) {
   // Check that we have not marked the interesting array during root scanning.
   for (int i = 0; i < arr.get()->length(); i++) {
     CHECK(Marking::IsWhite(
-        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
   }
 
   // Now we search for a state where we are in incremental marking and have
@@ -6731,7 +6732,7 @@ TEST(Regress598319) {
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
     CHECK(Marking::IsBlack(
-        Marking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
+        ObjectMarking::MarkBitFrom(HeapObject::cast(arr.get()->get(i)))));
   }
 }
 

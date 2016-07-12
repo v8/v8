@@ -34,21 +34,6 @@ NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
   SemiSpace::AssertValidRange(start, limit);
 }
 
-// -----------------------------------------------------------------------------
-// Bitmap
-
-void Bitmap::Clear(MemoryChunk* chunk) {
-  Bitmap* bitmap = chunk->markbits();
-  for (int i = 0; i < bitmap->CellsCount(); i++) bitmap->cells()[i] = 0;
-  chunk->ResetLiveBytes();
-}
-
-void Bitmap::SetAllBits(MemoryChunk* chunk) {
-  Bitmap* bitmap = chunk->markbits();
-  for (int i = 0; i < bitmap->CellsCount(); i++)
-    bitmap->cells()[i] = 0xffffffff;
-}
-
 
 // -----------------------------------------------------------------------------
 // SemiSpaceIterator

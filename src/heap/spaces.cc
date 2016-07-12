@@ -500,7 +500,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->available_in_free_list_ = 0;
   chunk->wasted_memory_ = 0;
   chunk->ResetLiveBytes();
-  Bitmap::Clear(chunk);
+  chunk->ClearLiveness();
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
@@ -1060,6 +1060,11 @@ void MemoryChunk::ReleaseLocalTracker() {
   local_tracker_ = nullptr;
 }
 
+void MemoryChunk::ClearLiveness() {
+  markbits()->Clear();
+  ResetLiveBytes();
+}
+
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
@@ -1228,7 +1233,7 @@ bool PagedSpace::Expand() {
   // black.
   if (heap()->incremental_marking()->black_allocation() &&
       identity() == OLD_SPACE) {
-    Bitmap::SetAllBits(p);
+    p->markbits()->SetAllBits();
     p->SetFlag(Page::BLACK_PAGE);
     if (FLAG_trace_incremental_marking) {
       PrintIsolate(heap()->isolate(), "Added black page %p\n",
@@ -1327,7 +1332,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
       if (!page->IsFlagSet(Page::BLACK_PAGE) &&
-          Marking::IsBlack(Marking::MarkBitFrom(object))) {
+          Marking::IsBlack(ObjectMarking::MarkBitFrom(object))) {
         black_size += size;
       }
 
@@ -1462,7 +1467,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       current_page->InsertAfter(anchor());
-      Bitmap::Clear(current_page);
+      current_page->ClearLiveness();
       current_page->SetFlags(anchor()->prev_page()->GetFlags(),
                              Page::kCopyAllFlags);
       heap()->CreateFillerObjectAt(current_page->area_start(),
@@ -1530,7 +1535,7 @@ void NewSpace::ResetAllocationInfo() {
   UpdateAllocationInfo();
   // Clear all mark-bits in the to-space.
   for (Page* p : to_space_) {
-    Bitmap::Clear(p);
+    p->ClearLiveness();
   }
   InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }
@@ -1828,7 +1833,7 @@ bool SemiSpace::GrowTo(int new_capacity) {
       return false;
     }
     new_page->InsertAfter(last_page);
-    Bitmap::Clear(new_page);
+    new_page->ClearLiveness();
     // Duplicate the flags that was set on the old page.
     new_page->SetFlags(last_page->GetFlags(), Page::kCopyOnFlipFlagsMask);
     last_page = new_page;
@@ -2909,7 +2914,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
     DCHECK(Marking::IsBlack(mark_bit));
     Marking::BlackToWhite(mark_bit);
     Page::FromAddress(object->address())->ResetProgressBar();
@@ -2953,7 +2958,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
     DCHECK(!Marking::IsGrey(mark_bit));
     if (Marking::IsBlack(mark_bit)) {
       Address free_start;
@@ -3085,7 +3090,7 @@ void Page::Print() {
   unsigned mark_size = 0;
   for (HeapObject* object = objects.Next(); object != NULL;
        object = objects.Next()) {
-    bool is_marked = Marking::IsBlackOrGrey(Marking::MarkBitFrom(object));
+    bool is_marked = Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object));
     PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
     if (is_marked) {
       mark_size += object->Size();
