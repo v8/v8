@@ -962,6 +962,7 @@ template <class C> inline bool Is(Object* obj);
   V(StringWrapper)               \
   V(Foreign)                     \
   V(Boolean)                     \
+  V(JSArgumentsObject)           \
   V(JSArray)                     \
   V(JSArrayBuffer)               \
   V(JSArrayBufferView)           \
@@ -2578,6 +2579,9 @@ class JSArgumentsObject: public JSObject {
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
 
+  DECLARE_VERIFIER(JSArgumentsObject)
+  DECLARE_CAST(JSArgumentsObject)
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArgumentsObject);
 };
@@ -2593,6 +2597,8 @@ class JSSloppyArgumentsObject: public JSArgumentsObject {
   // Indices of in-object properties.
   static const int kCalleeIndex = 1;
 
+  DECLARE_CAST(JSSloppyArgumentsObject)
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
 };
@@ -2604,6 +2610,8 @@ class JSStrictArgumentsObject: public JSArgumentsObject {
  public:
   // Offsets of object fields.
   static const int kSize = JSArgumentsObject::kHeaderSize;
+
+  DECLARE_CAST(JSStrictArgumentsObject)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);

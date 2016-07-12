@@ -441,10 +441,10 @@ class PromotionQueue {
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
 
-
 enum ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
-  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_UNDEFINED
 };
 
 enum class ClearRecordedSlots { kYes, kNo };

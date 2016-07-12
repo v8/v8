@@ -1647,19 +1647,29 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
   Handle<FixedArrayBase> elms;
   ElementsKind elements_kind = array->GetElementsKind();
   if (IsFastDoubleElementsKind(elements_kind)) {
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      elms = NewFixedDoubleArray(capacity);
-    } else {
-      DCHECK(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      elms = NewFixedDoubleArrayWithHoles(capacity);
+    switch (mode) {
+      case DONT_INITIALIZE_ARRAY_ELEMENTS:
+        elms = NewFixedDoubleArray(capacity);
+        break;
+      case INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE:
+        elms = NewFixedDoubleArrayWithHoles(capacity);
+        break;
+      case INITIALIZE_ARRAY_ELEMENTS_WITH_UNDEFINED:
+        UNREACHABLE();
+        break;
     }
   } else {
     DCHECK(IsFastSmiOrObjectElementsKind(elements_kind));
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      elms = NewUninitializedFixedArray(capacity);
-    } else {
-      DCHECK(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      elms = NewFixedArrayWithHoles(capacity);
+    switch (mode) {
+      case DONT_INITIALIZE_ARRAY_ELEMENTS:
+        elms = NewUninitializedFixedArray(capacity);
+        break;
+      case INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE:
+        elms = NewFixedArrayWithHoles(capacity);
+        break;
+      case INITIALIZE_ARRAY_ELEMENTS_WITH_UNDEFINED:
+        elms = NewFixedArray(capacity);
+        break;
     }
   }
 

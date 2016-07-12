@@ -3,11 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-
-function loader(dst, src, i) {
-  dst[i] = src[i];
-}
-
 var ab = new ArrayBuffer(8);
 var i_view = new Int32Array(ab);
 i_view[0] = %GetHoleNaNUpper()
@@ -26,10 +21,20 @@ opt_store();
 var i32 = new Int32Array(fixed_double_elements.buffer);
 assertEquals(i_view[0], i32[0]);
 assertEquals(i_view[1], i32[1]);
+assertTrue(isNaN(f_view [0]));
+
+
+function loader(dst, src, i) {
+  dst[i] = src[i];
+}
 
 var doubles = [0.5];
 loader(doubles, fixed_double_elements, 0);
 loader(doubles, fixed_double_elements, 0);
+assertTrue(doubles[0] !== undefined);
+assertTrue(isNaN(doubles[0]));
+
 %OptimizeFunctionOnNextCall(loader);
 loader(doubles, fixed_double_elements, 0);
 assertTrue(doubles[0] !== undefined);
+assertTrue(isNaN(doubles[0]));
