@@ -100,14 +100,12 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_ARGUMENTS_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
-      break;
-    case JS_ARGUMENTS_TYPE:
-      JSArgumentsObject::cast(this)->JSArgumentsObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectVerify();
@@ -248,9 +246,9 @@ void FreeSpace::FreeSpaceVerify() {
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
-  CHECK(IsHeapObject());
-  CHECK(HeapObject::cast(this)->map()->instance_type() ==
-        Traits::kInstanceType);
+  CHECK(IsHeapObject() &&
+        HeapObject::cast(this)->map()->instance_type() ==
+            Traits::kInstanceType);
   if (base_pointer() == this) {
     CHECK(external_pointer() ==
           ExternalReference::fixed_typed_array_base_data_offset().address());
@@ -267,166 +265,76 @@ bool JSObject::ElementsAreSafeToExamine() {
       GetHeap()->one_pointer_filler_map();
 }
 
-namespace {
-
-void VerifyFastProperties(JSReceiver* receiver) {
-  // TODO(cbruni): JSProxy support for slow properties
-  if (!receiver->IsJSObject()) return;
-  Isolate* isolate = receiver->GetIsolate();
-  Map* map = receiver->map();
-  CHECK(!map->is_dictionary_map());
-  JSObject* obj = JSObject::cast(receiver);
-  int actual_unused_property_fields = map->GetInObjectProperties() +
-                                      obj->properties()->length() -
-                                      map->NextFreePropertyIndex();
-  if (map->unused_property_fields() != actual_unused_property_fields) {
-    // This could actually happen in the middle of StoreTransitionStub
-    // when the new extended backing store is already set into the object and
-    // the allocation of the MutableHeapNumber triggers GC (in this case map
-    // is not updated yet).
-    CHECK_EQ(map->unused_property_fields(),
-             actual_unused_property_fields - JSObject::kFieldsAdded);
-  }
-  DescriptorArray* descriptors = map->instance_descriptors();
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-    if (descriptors->GetDetails(i).type() != DATA) continue;
-    Representation r = descriptors->GetDetails(i).representation();
-    FieldIndex index = FieldIndex::ForDescriptor(map, i);
-    if (obj->IsUnboxedDoubleField(index)) {
-      DCHECK(r.IsDouble());
-      continue;
-    }
-    Object* value = obj->RawFastPropertyAt(index);
-    if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
-    if (value->IsUninitialized(isolate)) continue;
-    if (r.IsSmi()) DCHECK(value->IsSmi());
-    if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
-    FieldType* field_type = descriptors->GetFieldType(i);
-    bool type_is_none = field_type->IsNone();
-    bool type_is_any = field_type->IsAny();
-    if (r.IsNone()) {
-      CHECK(type_is_none);
-    } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-      // If allocation folding is off then GC could happen during inner
-      // object literal creation and we will end up having and undefined
-      // value that does not match the field type.
-      CHECK(!field_type->NowStable() || field_type->NowContains(value) ||
-            (!FLAG_use_allocation_folding && value->IsUndefined(isolate)));
-    }
-  }
-}
-
-template <typename T>
-void VerifyDictionary(T* dict) {
-  CHECK(dict->IsFixedArray());
-  CHECK(dict->IsDictionary());
-  int capacity = dict->Capacity();
-  int nof = dict->NumberOfElements();
-  int nod = dict->NumberOfDeletedElements();
-  CHECK_LE(capacity, dict->length());
-  CHECK_LE(nof, capacity);
-  CHECK_LE(0, nof + nod);
-  CHECK_LE(nof + nod, capacity);
-}
-
-void VerifySlowProperties(JSReceiver* obj) {
-  Map* map = obj->map();
-  CHECK(map->is_dictionary_map());
-  CHECK_EQ(0, map->NumberOfOwnDescriptors());
-  CHECK_EQ(0, map->unused_property_fields());
-  CHECK_EQ(kInvalidEnumCacheSentinel, map->EnumLength());
-  CHECK(obj->properties()->IsDictionary());
-  // Kept in-object properties for sow-mode object need to be zapped:
-  int nof_in_object_properties = map->GetInObjectProperties();
-  if (nof_in_object_properties > 0) {
-    JSObject* js_object = JSObject::cast(obj);
-    Smi* zap_value = Smi::FromInt(0);
-    for (int i = 0; i < nof_in_object_properties; i++) {
-      FieldIndex index = FieldIndex::ForLoadByFieldIndex(map, i);
-      Object* field = js_object->RawFastPropertyAt(index);
-      CHECK_EQ(field, zap_value);
-    }
-  }
-  if (obj->IsJSGlobalObject()) {
-    VerifyDictionary(JSObject::cast(obj)->global_dictionary());
-  } else {
-    VerifyDictionary(obj->property_dictionary());
-  }
-}
-
-void VerifyProperties(JSReceiver* obj) {
-  obj->VerifyHeapPointer(obj->properties());
-  if (obj->HasFastProperties()) {
-    VerifyFastProperties(obj);
-  } else {
-    VerifySlowProperties(obj);
-  }
-}
-
-void VerifyElements(JSObject* obj) {
-  obj->VerifyHeapPointer(obj->elements());
-  // If a GC was caused while constructing this object, the elements
-  // pointer may point to a one pointer filler map.
-  if (!obj->ElementsAreSafeToExamine()) return;
-  Map* map = obj->map();
-  Heap* heap = obj->GetHeap();
-  FixedArrayBase* elements = obj->elements();
-  CHECK_EQ((map->has_fast_smi_or_object_elements() ||
-            (elements == heap->empty_fixed_array()) ||
-            obj->HasFastStringWrapperElements()),
-           (elements->map() == heap->fixed_array_map() ||
-            elements->map() == heap->fixed_cow_array_map()));
-  CHECK_EQ(map->has_fast_object_elements(), obj->HasFastObjectElements());
-
-  ElementsKind kind = obj->GetElementsKind();
-  if (IsFastSmiOrObjectElementsKind(kind)) {
-    CHECK(elements->map() == heap->fixed_array_map() ||
-          elements->map() == heap->fixed_cow_array_map());
-  } else if (IsFastDoubleElementsKind(kind)) {
-    CHECK(elements->IsFixedDoubleArray() ||
-          elements == heap->empty_fixed_array());
-  } else if (kind == DICTIONARY_ELEMENTS) {
-    CHECK(elements->IsSeededNumberDictionary());
-    VerifyDictionary(SeededNumberDictionary::cast(elements));
-    return;
-  } else {
-    CHECK(kind > DICTIONARY_ELEMENTS);
-  }
-  CHECK(!IsSloppyArgumentsElements(kind) ||
-        (elements->IsFixedArray() && elements->length() >= 2));
-
-  if (IsFastPackedElementsKind(kind)) {
-    uint32_t length = elements->length();
-    if (obj->IsJSArray()) {
-      Object* number = JSArray::cast(obj)->length();
-      if (number->IsSmi()) {
-        length = Min(length, static_cast<uint32_t>(Smi::cast(number)->value()));
-      }
-    }
-    if (kind == FAST_DOUBLE_ELEMENTS) {
-      for (uint32_t i = 0; i < length; i++) {
-        CHECK(!FixedDoubleArray::cast(elements)->is_the_hole(i));
-      }
-    } else {
-      for (uint32_t i = 0; i < length; i++) {
-        CHECK_NE(FixedArray::cast(elements)->get(i), heap->the_hole_value());
-      }
-    }
-  }
-}
-
-}  // namespace
 
 void JSObject::JSObjectVerify() {
-  VerifyProperties(this);
-  VerifyElements(this);
+  VerifyHeapPointer(properties());
+  VerifyHeapPointer(elements());
+
+  if (HasSloppyArgumentsElements()) {
+    CHECK(this->elements()->IsFixedArray());
+    CHECK_GE(this->elements()->length(), 2);
+  }
+
+  if (HasFastProperties()) {
+    int actual_unused_property_fields = map()->GetInObjectProperties() +
+                                        properties()->length() -
+                                        map()->NextFreePropertyIndex();
+    if (map()->unused_property_fields() != actual_unused_property_fields) {
+      // This could actually happen in the middle of StoreTransitionStub
+      // when the new extended backing store is already set into the object and
+      // the allocation of the MutableHeapNumber triggers GC (in this case map
+      // is not updated yet).
+      CHECK_EQ(map()->unused_property_fields(),
+               actual_unused_property_fields - JSObject::kFieldsAdded);
+    }
+    DescriptorArray* descriptors = map()->instance_descriptors();
+    Isolate* isolate = GetIsolate();
+    for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
+      if (descriptors->GetDetails(i).type() == DATA) {
+        Representation r = descriptors->GetDetails(i).representation();
+        FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        if (IsUnboxedDoubleField(index)) {
+          DCHECK(r.IsDouble());
+          continue;
+        }
+        Object* value = RawFastPropertyAt(index);
+        if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
+        if (value->IsUninitialized(isolate)) continue;
+        if (r.IsSmi()) DCHECK(value->IsSmi());
+        if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
+        FieldType* field_type = descriptors->GetFieldType(i);
+        bool type_is_none = field_type->IsNone();
+        bool type_is_any = field_type->IsAny();
+        if (r.IsNone()) {
+          CHECK(type_is_none);
+        } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
+          // If allocation folding is off then GC could happen during inner
+          // object literal creation and we will end up having and undefined
+          // value that does not match the field type.
+          CHECK(!field_type->NowStable() || field_type->NowContains(value) ||
+                (!FLAG_use_allocation_folding && value->IsUndefined(isolate)));
+        }
+      }
+    }
+  }
+
+  // If a GC was caused while constructing this object, the elements
+  // pointer may point to a one pointer filler map.
+  if (ElementsAreSafeToExamine()) {
+    CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
+              (elements() == GetHeap()->empty_fixed_array()) ||
+              HasFastStringWrapperElements()),
+             (elements()->map() == GetHeap()->fixed_array_map() ||
+              elements()->map() == GetHeap()->fixed_cow_array_map()));
+    CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
+  }
 }
+
 
 void Map::MapVerify() {
   Heap* heap = GetHeap();
   CHECK(!heap->InNewSpace(this));
-  CHECK_LE(FIRST_TYPE, instance_type());
-  CHECK_LE(instance_type(), LAST_TYPE);
+  CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
           instance_size() < heap->Capacity()));
@@ -449,7 +357,6 @@ void Map::DictionaryMapVerify() {
   CHECK(instance_descriptors()->IsEmpty());
   CHECK_EQ(0, unused_property_fields());
   CHECK_EQ(Heap::GetStaticVisitorIdForMap(this), visitor_id());
-  CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
 }
 
 
@@ -519,59 +426,6 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kReceiverOffset);
   VerifyObjectField(kOperandStackOffset);
   VerifyObjectField(kContinuationOffset);
-  JSObjectVerify();
-}
-
-namespace {
-
-void VerifyArgumentsParameterMap(FixedArray* elements) {
-  Isolate* isolate = elements->GetIsolate();
-  CHECK(elements->IsFixedArray());
-  CHECK_GE(elements->length(), 2);
-  HeapObject* context = HeapObject::cast(elements->get(0));
-  HeapObject* arguments = HeapObject::cast(elements->get(1));
-  // TODO(cbruni): fix arguments creation to be atomic.
-  CHECK_IMPLIES(context->IsUndefined(isolate), arguments->IsUndefined(isolate));
-  CHECK(context->IsUndefined(isolate) || context->IsContext());
-  CHECK(arguments->IsUndefined(isolate) || arguments->IsFixedArray());
-}
-
-}  // namespace
-
-void JSArgumentsObject::JSArgumentsObjectVerify() {
-  VerifyObjectField(kLengthOffset);
-  JSObjectVerify();
-  Isolate* isolate = GetIsolate();
-
-  if (isolate->bootstrapper()->IsActive()) return;
-  Context* context = isolate->context();
-  Object* constructor = map()->GetConstructor();
-  if (constructor->IsJSFunction()) {
-    context = JSFunction::cast(constructor)->context();
-  }
-  // TODO(cbruni): replace with NULL check once all hydrogren stubs manage to
-  // set up the contexts properly.
-  if (isolate->context()->IsSmi()) return;
-  Context* native_context = context->native_context();
-  if (map() == native_context->sloppy_arguments_map()) {
-    // Sloppy arguments without aliased arguments has a normal elements backing
-    // store which is already verified by JSObjectVerify() above.
-  } else if (map() == native_context->fast_aliased_arguments_map()) {
-    CHECK(HasFastArgumentsElements());
-    FixedArray* elements = FixedArray::cast(this->elements());
-    VerifyArgumentsParameterMap(FixedArray::cast(elements));
-    CHECK_EQ(elements->map(), isolate->heap()->sloppy_arguments_elements_map());
-  } else if (map() == native_context->slow_aliased_arguments_map()) {
-    CHECK(HasSlowArgumentsElements());
-    FixedArray* elements = FixedArray::cast(this->elements());
-    VerifyArgumentsParameterMap(elements);
-    VerifyDictionary(SeededNumberDictionary::cast(elements->get(1)));
-    CHECK_EQ(elements->map(), isolate->heap()->sloppy_arguments_elements_map());
-  } else if (map() == native_context->strict_arguments_map()) {
-    CHECK(HasFastElements());
-  } else {
-    // TODO(cbruni): follow up on normalized argument maps.
-  }
 }
 
 
@@ -580,12 +434,10 @@ void JSValue::JSValueVerify() {
   if (v->IsHeapObject()) {
     VerifyHeapPointer(v);
   }
-  JSObjectVerify();
 }
 
 
 void JSDate::JSDateVerify() {
-  JSObjectVerify();
   if (value()->IsHeapObject()) {
     VerifyHeapPointer(value());
   }
@@ -635,7 +487,6 @@ void JSDate::JSDateVerify() {
 
 
 void JSMessageObject::JSMessageObjectVerify() {
-  JSObjectVerify();
   CHECK(IsJSMessageObject());
   VerifyObjectField(kStartPositionOffset);
   VerifyObjectField(kEndPositionOffset);
@@ -694,7 +545,6 @@ void JSBoundFunction::JSBoundFunctionVerify() {
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
-  JSObjectVerify();
   VerifyObjectField(kPrototypeOrInitialMapOffset);
   VerifyObjectField(kNextFunctionLinkOffset);
   CHECK(code()->IsCode());
@@ -741,7 +591,6 @@ void JSGlobalObject::JSGlobalObjectVerify() {
       elements()->length() == 0) {
     return;
   }
-  CHECK(!HasFastProperties());
   JSObjectVerify();
 }
 
@@ -845,7 +694,7 @@ void Code::VerifyEmbeddedObjectsDependency() {
       } else if (obj->IsJSObject()) {
         if (isolate->heap()->InNewSpace(obj)) {
           ArrayList* list =
-              isolate->heap()->weak_new_space_object_to_code_list();
+              GetIsolate()->heap()->weak_new_space_object_to_code_list();
           bool found = false;
           for (int i = 0; i < list->Length(); i += 2) {
             WeakCell* obj_cell = WeakCell::cast(list->Get(i));
@@ -859,7 +708,7 @@ void Code::VerifyEmbeddedObjectsDependency() {
         } else {
           Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
           DependentCode* dep =
-              isolate->heap()->LookupWeakObjectToCodeDependency(key_obj);
+              GetIsolate()->heap()->LookupWeakObjectToCodeDependency(key_obj);
           dep->Contains(DependentCode::kWeakCodeGroup, cell);
         }
       }
@@ -869,22 +718,17 @@ void Code::VerifyEmbeddedObjectsDependency() {
 
 
 void JSArray::JSArrayVerify() {
-  CHECK(IsJSArray());
   JSObjectVerify();
   Isolate* isolate = GetIsolate();
-  // Allow undefined for not fully initialized JSArrays
-  if (length()->IsUndefined(isolate)) {
-    CHECK_EQ(FixedArray::cast(elements()),
-             isolate->heap()->empty_fixed_array());
-    return;
-  }
-  CHECK(length()->IsNumber());
+  CHECK(length()->IsNumber() || length()->IsUndefined(isolate));
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
-    CHECK(elements()->IsFixedArray() || elements()->IsFixedDoubleArray());
+    CHECK(elements()->IsUndefined(isolate) || elements()->IsFixedArray() ||
+          elements()->IsFixedDoubleArray());
   }
 }
+
 
 void JSSet::JSSetVerify() {
   CHECK(IsJSSet());
@@ -1452,8 +1296,7 @@ void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
   while (!old_it.done()) {
     RelocInfo* rinfo = old_it.rinfo();
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    CHECK(!target->is_handler());
-    CHECK(!target->is_inline_cache_stub());
+    CHECK(!target->is_handler() && !target->is_inline_cache_stub());
     if (target == stack_check) break;
     old_it.next();
   }
@@ -1461,8 +1304,7 @@ void Code::VerifyRecompiledCode(Code* old_code, Code* new_code) {
   while (!new_it.done()) {
     RelocInfo* rinfo = new_it.rinfo();
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    CHECK(!target->is_handler());
-    CHECK(!target->is_inline_cache_stub());
+    CHECK(!target->is_handler() && !target->is_inline_cache_stub());
     if (target == stack_check) break;
     new_it.next();
   }

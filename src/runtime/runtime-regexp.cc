@@ -734,7 +734,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   Handle<JSArray> result =
       isolate->factory()->NewJSArray(FAST_ELEMENTS, part_count, part_count,
-                                     INITIALIZE_ARRAY_ELEMENTS_WITH_UNDEFINED);
+                                     INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   DCHECK(result->HasFastObjectElements());
 

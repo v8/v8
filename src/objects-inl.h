@@ -796,7 +796,6 @@ TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
@@ -2356,8 +2355,8 @@ void FixedArray::set(int index, Object* value) {
 
 
 double FixedDoubleArray::get_scalar(int index) {
-  DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK_NE(GetHeap()->fixed_array_map(), map());
+  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   DCHECK(!is_the_hole(index));
   return READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
@@ -2365,8 +2364,8 @@ double FixedDoubleArray::get_scalar(int index) {
 
 
 uint64_t FixedDoubleArray::get_representation(int index) {
-  DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK_NE(GetHeap()->fixed_array_map(), map());
+  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
+         map() != GetHeap()->fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kDoubleSize;
   return READ_UINT64_FIELD(this, offset);
@@ -3208,7 +3207,6 @@ CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(Int16x8)
 CAST_ACCESSOR(Int32x4)
 CAST_ACCESSOR(Int8x16)
-CAST_ACCESSOR(JSArgumentsObject)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -6882,6 +6880,30 @@ void JSRegExp::SetDataAt(int index, Object* value) {
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
+#if VERIFY_HEAP && DEBUG
+  FixedArrayBase* fixed_array =
+      reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
+
+  // If a GC was caused while constructing this object, the elements
+  // pointer may point to a one pointer filler map.
+  if (ElementsAreSafeToExamine()) {
+    Map* map = fixed_array->map();
+    if (IsFastSmiOrObjectElementsKind(kind)) {
+      DCHECK(map == GetHeap()->fixed_array_map() ||
+             map == GetHeap()->fixed_cow_array_map());
+    } else if (IsFastDoubleElementsKind(kind)) {
+      DCHECK(fixed_array->IsFixedDoubleArray() ||
+             fixed_array == GetHeap()->empty_fixed_array());
+    } else if (kind == DICTIONARY_ELEMENTS) {
+      DCHECK(fixed_array->IsFixedArray());
+      DCHECK(fixed_array->IsDictionary());
+    } else {
+      DCHECK(kind > DICTIONARY_ELEMENTS);
+    }
+    DCHECK(!IsSloppyArgumentsElements(kind) ||
+           (elements()->IsFixedArray() && elements()->length() >= 2));
+  }
+#endif
   return kind;
 }
 

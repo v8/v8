@@ -114,13 +114,30 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
 static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> elements) {
+  // Create the JSArray.
+  Handle<JSFunction> constructor = isolate->array_function();
+
+  PretenureFlag pretenure_flag =
+      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
+
+  Handle<JSArray> object = Handle<JSArray>::cast(
+      isolate->factory()->NewJSObject(constructor, pretenure_flag));
+
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
-  DCHECK(IsFastElementsKind(constant_elements_kind));
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(elements->get(1)));
-  Handle<FixedArrayBase> copied_elements_values;
 
+  {
+    DisallowHeapAllocation no_gc;
+    DCHECK(IsFastElementsKind(constant_elements_kind));
+    Context* native_context = isolate->context()->native_context();
+    Object* map =
+        native_context->get(Context::ArrayMapIndex(constant_elements_kind));
+    object->set_map(Map::cast(map));
+  }
+
+  Handle<FixedArrayBase> copied_elements_values;
   if (IsFastDoubleElementsKind(constant_elements_kind)) {
     copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
         Handle<FixedDoubleArray>::cast(constant_elements_values));
@@ -159,12 +176,9 @@ static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
           });
     }
   }
-  // Create the JSArray.
-  PretenureFlag pretenure_flag =
-      isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
-  Handle<JSArray> object = isolate->factory()->NewJSArrayWithElements(
-      copied_elements_values, constant_elements_kind,
-      copied_elements_values->length(), pretenure_flag);
+  object->set_elements(*copied_elements_values);
+  object->set_length(Smi::FromInt(copied_elements_values->length()));
+
   JSObject::ValidateElements(object);
   return object;
 }
