@@ -763,14 +763,14 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
     //   FAIL(right, "call mask must match function table");
     // }
     // bin->set_bounds(Bounds(cache_.kAsmSigned));
-    RECURSE(VisitWithExpectation(expr->key(), cache_.kAsmSigned,
-                                 "must be integer"));
+    RECURSE(
+        VisitWithExpectation(expr->key(), cache_.kAsmSigned, "must be int"));
     RECURSE(IntersectResult(expr, type));
   } else {
     Literal* literal = expr->key()->AsLiteral();
     if (literal) {
-      RECURSE(VisitWithExpectation(literal, cache_.kAsmSigned,
-                                   "array index expected to be integer"));
+      RECURSE(VisitWithExpectation(literal, cache_.kAsmUnsigned,
+                                   "array index expected to be unsigned"));
     } else {
       int expected_shift = ElementShiftSize(type);
       if (expected_shift == 0) {
@@ -780,20 +780,20 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
         if (bin == nullptr || bin->op() != Token::SAR) {
           FAIL(expr->key(), "expected >> in heap access");
         }
-        RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
+        RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmInt,
                                      "array index expected to be integer"));
         Literal* right = bin->right()->AsLiteral();
         if (right == nullptr || right->raw_value()->ContainsDot()) {
           FAIL(bin->right(), "heap access shift must be integer");
         }
-        RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
-                                     "array shift expected to be integer"));
+        RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmFixnum,
+                                     "array shift expected to be Fixnum"));
         int n = static_cast<int>(right->raw_value()->AsNumber());
         if (expected_shift < 0 || n != expected_shift) {
           FAIL(right, "heap access shift must match element size");
         }
       }
-      bounds_.set(expr->key(), Bounds(cache_.kAsmSigned));
+      bounds_.set(expr->key(), Bounds(cache_.kAsmUnsigned));
     }
     Type* result_type;
     if (type->Is(cache_.kAsmIntArrayElement)) {

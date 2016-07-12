@@ -203,8 +203,8 @@ TEST(ValidateMinimum) {
                 CHECK_VAR(log, FUNC_D2D_TYPE);
                 CHECK_EXPR(Property, Bounds(cache.kAsmDouble)) {
                   CHECK_VAR(values, FLOAT64_ARRAY_TYPE);
-                  CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-                    CHECK_VAR(p, Bounds(cache.kAsmSigned));
+                  CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+                    CHECK_VAR(p, Bounds(cache.kAsmInt));
                     CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
                   }
                 }
@@ -1453,7 +1453,7 @@ TEST(Load1) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Property, Bounds(cache.kAsmInt)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
               CHECK_VAR(x, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
@@ -1486,8 +1486,8 @@ TEST(LoadDouble) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
           CHECK_EXPR(Property, Bounds(cache.kAsmDouble)) {
             CHECK_VAR(f64, Bounds(cache.kFloat64Array));
-            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-              CHECK_VAR(x, Bounds(cache.kAsmSigned));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+              CHECK_VAR(x, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
@@ -1513,7 +1513,7 @@ TEST(Store1) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_EXPR(Property, Bounds::Unbounded()) {
           CHECK_VAR(i8, Bounds(cache.kInt8Array));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
             CHECK_VAR(x, Bounds(cache.kAsmInt));
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
@@ -1962,7 +1962,7 @@ TEST(ByteArray) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_EXPR(Property, Bounds::Unbounded()) {
           CHECK_VAR(i8, Bounds(cache.kInt8Array));
-          CHECK_VAR(x, Bounds(cache.kAsmSigned));
+          CHECK_VAR(x, Bounds(cache.kAsmUnsigned));
         }
         CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
@@ -2077,7 +2077,7 @@ TEST(NestedAssignmentInHeap) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_EXPR(Property, Bounds::Unbounded()) {
           CHECK_VAR(i8, Bounds(cache.kInt8Array));
-          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
             CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
               CHECK_VAR(x, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
