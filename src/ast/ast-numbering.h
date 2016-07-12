@@ -15,7 +15,7 @@ class Zone;
 
 namespace AstNumbering {
 // Assign type feedback IDs, bailout IDs, and generator yield IDs to an AST node
-// tree.
+// tree; perform catch prediction for TryStatements.
 bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
 }
 

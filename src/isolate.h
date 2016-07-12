@@ -734,8 +734,7 @@ class Isolate {
 
   // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
-  // clause will consume or re-throw an exception. We conservatively assume any
-  // finally clause will behave as if the exception were consumed.
+  // clause will consume or re-throw an exception.
   enum CatchType { NOT_CAUGHT, CAUGHT_BY_JAVASCRIPT, CAUGHT_BY_EXTERNAL };
   CatchType PredictExceptionCatcher();
 

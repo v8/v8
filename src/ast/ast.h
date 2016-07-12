@@ -1140,12 +1140,26 @@ class TryStatement : public Statement {
   Block* try_block() const { return try_block_; }
   void set_try_block(Block* b) { try_block_ = b; }
 
+  // Prediction of whether exceptions thrown into the handler for this try block
+  // will be caught.
+  //
+  // This is set in ast-numbering and later compiled into the code's handler
+  // table.  The runtime uses this information to implement a feature that
+  // notifies the debugger when an uncaught exception is thrown, _before_ the
+  // exception propagates to the top.
+  //
+  // Since it's generally undecidable whether an exception will be caught, our
+  // prediction is only an approximation.
+  bool catch_predicted() const { return catch_predicted_; }
+  void set_catch_predicted(bool b) { catch_predicted_ = b; }
+
  protected:
   TryStatement(Zone* zone, Block* try_block, int pos)
-      : Statement(zone, pos), try_block_(try_block) {}
+      : Statement(zone, pos), try_block_(try_block), catch_predicted_(false) {}
 
  private:
   Block* try_block_;
+  bool catch_predicted_;
 };
 
 

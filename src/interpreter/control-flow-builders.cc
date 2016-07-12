@@ -142,7 +142,7 @@ void TryCatchBuilder::EndTry() {
   builder()->MarkTryEnd(handler_id_);
   builder()->Jump(&exit_);
   builder()->Bind(&handler_);
-  builder()->MarkHandler(handler_id_, true);
+  builder()->MarkHandler(handler_id_, catch_predicted_);
 }
 
 
@@ -167,7 +167,7 @@ void TryFinallyBuilder::EndTry() {
 
 void TryFinallyBuilder::BeginHandler() {
   builder()->Bind(&handler_);
-  builder()->MarkHandler(handler_id_, will_catch_);
+  builder()->MarkHandler(handler_id_, catch_predicted_);
 }
 
 

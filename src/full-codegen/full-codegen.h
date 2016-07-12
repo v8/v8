@@ -37,7 +37,6 @@ class FullCodeGenerator: public AstVisitor {
         scope_(info->scope()),
         nesting_stack_(NULL),
         loop_depth_(0),
-        try_catch_depth_(0),
         operand_stack_depth_(0),
         globals_(NULL),
         context_(NULL),
@@ -687,7 +686,7 @@ class FullCodeGenerator: public AstVisitor {
   void RecordPosition(int pos);
 
   // Non-local control flow support.
-  void EnterTryBlock(int handler_index, Label* handler);
+  void EnterTryBlock(int handler_index, Label* handler, bool catch_predicted);
   void ExitTryBlock(int handler_index);
   void EnterFinallyBlock();
   void ExitFinallyBlock();
@@ -774,7 +773,7 @@ class FullCodeGenerator: public AstVisitor {
     unsigned range_end;
     unsigned handler_offset;
     int stack_depth;
-    int try_catch_depth;
+    bool catch_predicted;
   };
 
   class ExpressionContext BASE_EMBEDDED {
@@ -969,7 +968,6 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
-  int try_catch_depth_;
   int operand_stack_depth_;
   ZoneList<Handle<Object> >* globals_;
   const ExpressionContext* context_;

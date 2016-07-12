@@ -144,8 +144,10 @@ class SwitchBuilder final : public BreakableControlFlowBuilder {
 // A class to help with co-ordinating control flow in try-catch statements.
 class TryCatchBuilder final : public ControlFlowBuilder {
  public:
-  explicit TryCatchBuilder(BytecodeArrayBuilder* builder)
-      : ControlFlowBuilder(builder), handler_id_(builder->NewHandlerEntry()) {}
+  explicit TryCatchBuilder(BytecodeArrayBuilder* builder, bool catch_predicted)
+      : ControlFlowBuilder(builder),
+        handler_id_(builder->NewHandlerEntry()),
+        catch_predicted_(catch_predicted) {}
 
   void BeginTry(Register context);
   void EndTry();
@@ -153,6 +155,7 @@ class TryCatchBuilder final : public ControlFlowBuilder {
 
  private:
   int handler_id_;
+  bool catch_predicted_;
   BytecodeLabel handler_;
   BytecodeLabel exit_;
 };
@@ -161,11 +164,12 @@ class TryCatchBuilder final : public ControlFlowBuilder {
 // A class to help with co-ordinating control flow in try-finally statements.
 class TryFinallyBuilder final : public ControlFlowBuilder {
  public:
-  explicit TryFinallyBuilder(BytecodeArrayBuilder* builder, bool will_catch)
+  explicit TryFinallyBuilder(BytecodeArrayBuilder* builder,
+                             bool catch_predicted)
       : ControlFlowBuilder(builder),
         handler_id_(builder->NewHandlerEntry()),
-        finalization_sites_(builder->zone()),
-        will_catch_(will_catch) {}
+        catch_predicted_(catch_predicted),
+        finalization_sites_(builder->zone()) {}
 
   void BeginTry(Register context);
   void LeaveTry();
@@ -176,15 +180,11 @@ class TryFinallyBuilder final : public ControlFlowBuilder {
 
  private:
   int handler_id_;
+  bool catch_predicted_;
   BytecodeLabel handler_;
 
   // Unbound labels that identify jumps to the finally block in the code.
   ZoneVector<BytecodeLabel> finalization_sites_;
-
-  // Conservative prediction of whether exceptions thrown into the handler for
-  // this finally block will be caught. Note that such a prediction depends on
-  // whether this try-finally is nested inside a surrounding try-catch.
-  bool will_catch_;
 };
 
 }  // namespace interpreter

@@ -1431,7 +1431,7 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
 
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH", node->position());
-  PrintIndentedVisit("TRY", node->try_block());
+  PrintTryStatement(node);
   PrintLiteralWithModeIndented("CATCHVAR",
                                node->variable(),
                                node->variable()->name());
@@ -1441,10 +1441,15 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
 
 void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IndentedScope indent(this, "TRY FINALLY", node->position());
-  PrintIndentedVisit("TRY", node->try_block());
+  PrintTryStatement(node);
   PrintIndentedVisit("FINALLY", node->finally_block());
 }
 
+void AstPrinter::PrintTryStatement(TryStatement* node) {
+  PrintIndentedVisit("TRY", node->try_block());
+  PrintIndented("CATCH PREDICTED");
+  Print(" %d\n", node->catch_predicted());
+}
 
 void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {
   IndentedScope indent(this, "DEBUGGER", node->position());

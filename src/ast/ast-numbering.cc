@@ -20,7 +20,8 @@ class AstNumberingVisitor final : public AstVisitor {
         yield_count_(0),
         properties_(zone),
         slot_cache_(zone),
-        dont_optimize_reason_(kNoReason) {
+        dont_optimize_reason_(kNoReason),
+        catch_predicted_(false) {
     InitializeAstVisitor(isolate);
   }
 
@@ -80,6 +81,7 @@ class AstNumberingVisitor final : public AstVisitor {
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
   BailoutReason dont_optimize_reason_;
+  bool catch_predicted_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -297,7 +299,17 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
   DisableCrankshaft(kTryCatchStatement);
-  Visit(node->try_block());
+  {
+    const bool old_catch_predicted = catch_predicted_;
+    // If the node's clear_pending_message flag is unset, we assume that the
+    // catch block is a ReThrow and hence predict uncaught (unless caught by
+    // outer handlers).  Otherwise, we predict caught.
+    const bool not_rethrow = node->clear_pending_message();
+    catch_predicted_ = catch_predicted_ || not_rethrow;
+    node->set_catch_predicted(catch_predicted_);
+    Visit(node->try_block());
+    catch_predicted_ = old_catch_predicted;
+  }
   Visit(node->catch_block());
 }
 
@@ -305,6 +317,9 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
   DisableCrankshaft(kTryFinallyStatement);
+  // We can't know whether the finally block will override ("catch") an
+  // exception thrown in the try block, so we just adopt the outer prediction.
+  node->set_catch_predicted(catch_predicted_);
   Visit(node->try_block());
   Visit(node->finally_block());
 }

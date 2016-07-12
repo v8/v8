@@ -295,12 +295,7 @@ class BytecodeGenerator::ControlScopeForTryCatch final
  public:
   ControlScopeForTryCatch(BytecodeGenerator* generator,
                           TryCatchBuilder* try_catch_builder)
-      : ControlScope(generator) {
-    generator->try_catch_nesting_level_++;
-  }
-  virtual ~ControlScopeForTryCatch() {
-    generator()->try_catch_nesting_level_--;
-  }
+      : ControlScope(generator) {}
 
  protected:
   bool Execute(Command command, Statement* statement) override {
@@ -326,12 +321,7 @@ class BytecodeGenerator::ControlScopeForTryFinally final
                             DeferredCommands* commands)
       : ControlScope(generator),
         try_finally_builder_(try_finally_builder),
-        commands_(commands) {
-    generator->try_finally_nesting_level_++;
-  }
-  virtual ~ControlScopeForTryFinally() {
-    generator()->try_finally_nesting_level_--;
-  }
+        commands_(commands) {}
 
  protected:
   bool Execute(Command command, Statement* statement) override {
@@ -557,9 +547,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_result_(nullptr),
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
-      generator_state_(),
-      try_catch_nesting_level_(0),
-      try_finally_nesting_level_(0) {
+      generator_state_() {
   InitializeAstVisitor(isolate());
 }
 
@@ -1189,7 +1177,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  TryCatchBuilder try_control_builder(builder());
+  TryCatchBuilder try_control_builder(builder(), stmt->catch_predicted());
   Register no_reg;
 
   // Preserve the context in a dedicated register, so that it can be restored
@@ -1225,7 +1213,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  TryFinallyBuilder try_control_builder(builder(), IsInsideTryCatch());
+  TryFinallyBuilder try_control_builder(builder(), stmt->catch_predicted());
   Register no_reg;
 
   // We keep a record of all paths that enter the finally-block to be able to

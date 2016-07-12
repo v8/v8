@@ -124,9 +124,9 @@ void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
       Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
           HandlerTable::LengthForRange(handler_table_size), TENURED));
   for (int i = 0; i < handler_table_size; ++i) {
-    HandlerTable::CatchPrediction prediction =
-        handler_table_[i].try_catch_depth > 0 ? HandlerTable::CAUGHT
-                                              : HandlerTable::UNCAUGHT;
+    HandlerTable::CatchPrediction prediction = handler_table_[i].catch_predicted
+                                                   ? HandlerTable::CAUGHT
+                                                   : HandlerTable::UNCAUGHT;
     table->SetRangeStart(i, handler_table_[i].range_start);
     table->SetRangeEnd(i, handler_table_[i].range_end);
     table->SetRangeHandler(i, handler_table_[i].handler_offset, prediction);
@@ -1316,15 +1316,13 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
 
-  try_catch_depth_++;
   int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry);
+  EnterTryBlock(handler_index, &handler_entry, stmt->catch_predicted());
   {
     Comment cmnt_try(masm(), "[ Try block");
     Visit(stmt->try_block());
   }
   ExitTryBlock(handler_index);
-  try_catch_depth_--;
   __ bind(&exit);
 }
 
@@ -1368,7 +1366,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Set up try handler.
   __ bind(&try_entry);
   int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry);
+  EnterTryBlock(handler_index, &handler_entry, stmt->catch_predicted());
   {
     Comment cmnt_try(masm(), "[ Try block");
     TryFinally try_body(this, &deferred);
@@ -1551,13 +1549,13 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
-
-void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler) {
+void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler,
+                                      bool catch_predicted) {
   HandlerTableEntry* entry = &handler_table_[handler_index];
   entry->range_start = masm()->pc_offset();
   entry->handler_offset = handler->pos();
-  entry->try_catch_depth = try_catch_depth_;
   entry->stack_depth = operand_stack_depth_;
+  entry->catch_predicted = catch_predicted;
 
   // We are using the operand stack depth, check for accuracy.
   EmitOperandStackDepthCheck();

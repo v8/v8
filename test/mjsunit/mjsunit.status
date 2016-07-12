@@ -92,6 +92,9 @@
   'debug-set-variable-value': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): Use frontend's catch prediction in Turbofan.
+  'debug-exceptions': [PASS, NO_VARIANTS],
+
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
 
