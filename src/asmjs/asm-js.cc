@@ -74,14 +74,14 @@ MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
                                              info->literal(), &typer);
   i::Handle<i::FixedArray> foreign_globals;
   auto module = builder.Run(&foreign_globals);
-  size_t byte_length = module->end() - module->begin();
-  Handle<JSArrayBuffer> buffer = info->isolate()->factory()->NewJSArrayBuffer();
-  JSArrayBuffer::SetupAllocatingData(buffer, info->isolate(), byte_length,
-                                     false, SharedFlag::kNotShared);
-  uint8_t* module_bytes = reinterpret_cast<uint8_t*>(buffer->backing_store());
-  memcpy(module_bytes, module->begin(), byte_length);
+
+  i::MaybeHandle<i::FixedArray> compiled =
+      CompileModule(info->isolate(), module->begin(), module->end(), &thrower,
+                    internal::wasm::kAsmJsOrigin);
+  DCHECK(!compiled.is_null());
+
   Handle<FixedArray> result = info->isolate()->factory()->NewFixedArray(2);
-  result->set(0, *buffer);
+  result->set(0, *compiled.ToHandleChecked());
   result->set(1, *foreign_globals);
   return result;
 }
@@ -90,27 +90,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<FixedArray> wasm_data,
                                               Handle<JSArrayBuffer> memory,
                                               Handle<JSObject> foreign) {
-  i::Handle<i::JSArrayBuffer> module_bytes(
-      i::JSArrayBuffer::cast(wasm_data->get(0)));
+  i::Handle<i::FixedArray> compiled(i::FixedArray::cast(wasm_data->get(0)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(1)));
 
   ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
 
-  const byte* module_start =
-      reinterpret_cast<const byte*>(module_bytes->backing_store());
-  size_t module_length =
-      static_cast<size_t>(module_bytes->byte_length()->Number());
-  const byte* module_end = module_start + module_length;
-  i::MaybeHandle<i::FixedArray> compiled =
-      CompileModule(isolate, module_start, module_end, &thrower,
-                    internal::wasm::kAsmJsOrigin);
-  if (compiled.is_null()) {
-    return MaybeHandle<Object>();
-  }
   i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, compiled.ToHandleChecked(),
-                                       foreign, memory);
+      i::wasm::WasmModule::Instantiate(isolate, compiled, foreign, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }
