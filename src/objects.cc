@@ -15878,7 +15878,13 @@ inline int CountRequiredEscapes(Handle<String> source) {
   int escapes = 0;
   Vector<const Char> src = source->GetCharVector<Char>();
   for (int i = 0; i < src.length(); i++) {
-    if (src[i] == '/' && (i == 0 || src[i - 1] != '\\')) escapes++;
+    if (src[i] == '\\') {
+      // Escape. Skip next character;
+      i++;
+    } else if (src[i] == '/') {
+      // Not escaped forward-slash needs escape.
+      escapes++;
+    }
   }
   return escapes;
 }
@@ -15893,7 +15899,14 @@ inline Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   int s = 0;
   int d = 0;
   while (s < src.length()) {
-    if (src[s] == '/' && (s == 0 || src[s - 1] != '\\')) dst[d++] = '\\';
+    if (src[s] == '\\') {
+      // Escape. Copy this and next character.
+      dst[d++] = src[s++];
+      if (s == src.length()) break;
+    } else if (src[s] == '/') {
+      // Not escaped forward-slash needs escape.
+      dst[d++] = '\\';
+    }
     dst[d++] = src[s++];
   }
   DCHECK_EQ(result->length(), d);
