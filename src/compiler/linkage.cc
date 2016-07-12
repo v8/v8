@@ -100,33 +100,36 @@ bool CallDescriptor::HasSameReturnLocationsAs(
   return true;
 }
 
-
-bool CallDescriptor::CanTailCall(const Node* node,
-                                 int* stack_param_delta) const {
-  CallDescriptor const* other = CallDescriptorOf(node->op());
-  size_t current_input = 0;
-  size_t other_input = 0;
-  *stack_param_delta = 0;
-  bool more_other = true;
-  bool more_this = true;
-  while (more_other || more_this) {
-    if (other_input < other->InputCount()) {
-      if (!other->GetInputLocation(other_input).IsRegister()) {
-        (*stack_param_delta)++;
+int CallDescriptor::GetStackParameterDelta(
+    CallDescriptor const* tail_caller) const {
+  int callee_slots_above_sp = 0;
+  for (size_t i = 0; i < InputCount(); ++i) {
+    LinkageLocation operand = GetInputLocation(i);
+    if (!operand.IsRegister()) {
+      int new_candidate =
+          -operand.GetLocation() + operand.GetSizeInPointers() - 1;
+      if (new_candidate > callee_slots_above_sp) {
+        callee_slots_above_sp = new_candidate;
       }
-    } else {
-      more_other = false;
     }
-    if (current_input < InputCount()) {
-      if (!GetInputLocation(current_input).IsRegister()) {
-        (*stack_param_delta)--;
-      }
-    } else {
-      more_this = false;
-    }
-    ++current_input;
-    ++other_input;
   }
+  int tail_caller_slots_above_sp = 0;
+  if (tail_caller != nullptr) {
+    for (size_t i = 0; i < tail_caller->InputCount(); ++i) {
+      LinkageLocation operand = tail_caller->GetInputLocation(i);
+      if (!operand.IsRegister()) {
+        int new_candidate =
+            -operand.GetLocation() + operand.GetSizeInPointers() - 1;
+        if (new_candidate > tail_caller_slots_above_sp) {
+          tail_caller_slots_above_sp = new_candidate;
+        }
+      }
+    }
+  }
+  return callee_slots_above_sp - tail_caller_slots_above_sp;
+}
+
+bool CallDescriptor::CanTailCall(const Node* node) const {
   return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
 }
 

@@ -1754,11 +1754,10 @@ void InstructionSelector::VisitTailCall(Node* node) {
   CallDescriptor const* descriptor = CallDescriptorOf(node->op());
   DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
 
-  // TODO(turbofan): Relax restriction for stack parameters.
-
-  int stack_param_delta = 0;
-  if (linkage()->GetIncomingDescriptor()->CanTailCall(node,
-                                                      &stack_param_delta)) {
+  CallDescriptor* caller = linkage()->GetIncomingDescriptor();
+  if (caller->CanTailCall(node)) {
+    const CallDescriptor* callee = CallDescriptorOf(node->op());
+    int stack_param_delta = callee->GetStackParameterDelta(caller);
     CallBuffer buffer(zone(), descriptor, nullptr);
 
     // Compute InstructionOperands for inputs and outputs.

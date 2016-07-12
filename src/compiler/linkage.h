@@ -290,7 +290,9 @@ class CallDescriptor final : public ZoneObject {
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
-  bool CanTailCall(const Node* call, int* stack_param_delta) const;
+  int GetStackParameterDelta(const CallDescriptor* tail_caller = nullptr) const;
+
+  bool CanTailCall(const Node* call) const;
 
  private:
   friend class Linkage;
