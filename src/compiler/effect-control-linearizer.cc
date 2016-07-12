@@ -340,7 +340,6 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     // effect that is passed. The frame state is preserved for lowering.
     DCHECK_EQ(RegionObservability::kObservable, region_observability_);
     *frame_state = NodeProperties::GetFrameStateInput(node, 0);
-    node->TrimInputCount(0);
     return;
   }
 
@@ -805,9 +804,6 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                       frame_state, effect, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(index, effect, control);
 }
 
@@ -838,9 +834,6 @@ EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state,
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -851,9 +844,6 @@ EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
 
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), value,
                                       frame_state, effect, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -867,9 +857,6 @@ EffectControlLinearizer::LowerCheckTaggedPointer(Node* node, Node* frame_state,
   control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
                                       frame_state, effect, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -881,9 +868,6 @@ EffectControlLinearizer::LowerCheckTaggedSigned(Node* node, Node* frame_state,
   Node* check = ObjectIsSmi(value);
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                       frame_state, effect, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -903,9 +887,6 @@ EffectControlLinearizer::LowerCheckedInt32Add(Node* node, Node* frame_state,
 
   value = graph()->NewNode(common()->Projection(0), value, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -923,9 +904,6 @@ EffectControlLinearizer::LowerCheckedInt32Sub(Node* node, Node* frame_state,
                                       frame_state, effect, control);
 
   value = graph()->NewNode(common()->Projection(0), value, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1006,9 +984,6 @@ EffectControlLinearizer::LowerCheckedInt32Div(Node* node, Node* frame_state,
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
                                       frame_state, effect, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -1082,9 +1057,6 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
                        vfalse0, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -1099,9 +1071,6 @@ EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
       graph()->NewNode(machine()->Uint32LessThanOrEqual(), value, max_int);
   control = effect = graph()->NewNode(common()->DeoptimizeUnless(), is_safe,
                                       frame_state, effect, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1152,9 +1121,6 @@ EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
                                                     Node* control) {
   Node* value = node->InputAt(0);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return BuildCheckedFloat64ToInt32(value, frame_state, effect, control);
 }
 
@@ -1201,9 +1167,6 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
                            vtrue, vfalse, control);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1275,9 +1238,6 @@ EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
   Node* result =
       graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2), vtrue,
                        number_state.value, merge);
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(result, effect_phi, merge);
 }
@@ -1639,9 +1599,6 @@ EffectControlLinearizer::LowerCheckFloat64Hole(Node* node, Node* frame_state,
   control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
                                       frame_state, effect, control);
 
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
-
   return ValueEffectControl(value, effect, control);
 }
 
@@ -1663,9 +1620,6 @@ EffectControlLinearizer::LowerCheckTaggedHole(Node* node, Node* frame_state,
                                           frame_state, effect, control);
       break;
   }
-
-  // Make sure the lowered node does not appear in any use lists.
-  node->TrimInputCount(0);
 
   return ValueEffectControl(value, effect, control);
 }
