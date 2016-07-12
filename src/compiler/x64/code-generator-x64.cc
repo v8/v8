@@ -2444,16 +2444,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // XMM register-register swap.
     XMMRegister src = g.ToDoubleRegister(source);
     XMMRegister dst = g.ToDoubleRegister(destination);
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    if (rep != MachineRepresentation::kSimd128) {
-      __ Movapd(kScratchDoubleReg, src);
-      __ Movapd(src, dst);
-      __ Movapd(dst, kScratchDoubleReg);
-    } else {
-      __ Movups(kScratchDoubleReg, src);
-      __ Movups(src, dst);
-      __ Movups(dst, kScratchDoubleReg);
-    }
+    __ Movapd(kScratchDoubleReg, src);
+    __ Movapd(src, dst);
+    __ Movapd(dst, kScratchDoubleReg);
   } else if (source->IsFPRegister() && destination->IsFPStackSlot()) {
     // XMM register-memory swap.
     XMMRegister src = g.ToDoubleRegister(source);
