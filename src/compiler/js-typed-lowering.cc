@@ -433,10 +433,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
 
 
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
-
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback == BinaryOperationHints::kNumberOrUndefined &&
       r.BothInputsAre(Type::PlainPrimitive()) &&
@@ -487,7 +484,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 
 Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback == BinaryOperationHints::kNumberOrUndefined &&
@@ -516,7 +512,6 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback != BinaryOperationHints::kAny) {
@@ -536,7 +531,6 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback == BinaryOperationHints::kNumberOrUndefined &&
@@ -560,7 +554,6 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback == BinaryOperationHints::kNumberOrUndefined &&
@@ -586,7 +579,7 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
+  if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
   r.ConvertInputsToNumber();
@@ -598,7 +591,7 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
                                            Signedness left_signedness,
                                            const Operator* shift_op) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
+  if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
   r.ConvertInputsToNumber();
@@ -608,8 +601,6 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
 
 
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
     // If both inputs are definitely strings, perform a string comparison.
@@ -721,8 +712,6 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
 }
 
 Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
   if (reduction.Changed()) {
     ReplaceWithValue(node, reduction.replacement());
@@ -765,8 +754,6 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
 
 
 Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
-  if (flags() & kDisableBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN

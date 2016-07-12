@@ -884,8 +884,8 @@ struct TypedLoweringPhase {
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
     }
-    if (data->info()->shared_info()->HasBytecodeArray()) {
-      typed_lowering_flags |= JSTypedLowering::kDisableBinaryOpReduction;
+    if (data->info()->is_optimizing_from_bytecode()) {
+      typed_lowering_flags |= JSTypedLowering::kDisableIntegerBinaryOpReduction;
     }
     if (data->info()->is_type_feedback_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kTypeFeedbackEnabled;
