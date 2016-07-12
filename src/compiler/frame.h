@@ -123,12 +123,20 @@ class Frame : public ZoneObject {
 
  private:
   int AllocateAlignedFrameSlot(int width) {
-    DCHECK(width == 4 || width == 8);
-    // Skip one slot if necessary.
-    if (width > kPointerSize) {
-      DCHECK(width == kPointerSize * 2);
-      frame_slot_count_++;
-      frame_slot_count_ |= 1;
+    DCHECK(width == 4 || width == 8 || width == 16);
+    if (kPointerSize == 4) {
+      // Skip one slot if necessary.
+      if (width > kPointerSize) {
+        frame_slot_count_++;
+        frame_slot_count_ |= 1;
+        // 2 extra slots if width == 16.
+        frame_slot_count_ += (width & 16) / 8;
+      }
+    } else {
+      // No alignment when slots are 8 bytes.
+      DCHECK_EQ(8, kPointerSize);
+      // 1 extra slot if width == 16.
+      frame_slot_count_ += (width & 16) / 16;
     }
     return frame_slot_count_++;
   }

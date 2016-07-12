@@ -695,8 +695,7 @@ class SpillRange final : public ZoneObject {
     return live_ranges_;
   }
   ZoneVector<TopLevelLiveRange*>& live_ranges() { return live_ranges_; }
-  // Currently, only 4 or 8 byte slots are supported in stack frames.
-  // TODO(bbudge) Add 16 byte slots for SIMD.
+  // Spill slots can be 4, 8, or 16 bytes wide.
   int byte_width() const { return byte_width_; }
   void Print() const;
 
