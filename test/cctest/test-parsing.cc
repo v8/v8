@@ -7726,6 +7726,14 @@ TEST(AsyncAwaitErrors) {
     "var f = async(await) => 1;",
     "var f = async(await = 1) => 1;",
     "var f = async(...[await]) => 1;",
+
+    // v8:5190
+    "var f = async(1) => 1",
+    "var f = async('str') => 1",
+    "var f = async(/foo/) => 1",
+    "var f = async({ foo = async(1) => 1 }) => 1",
+    "var f = async({ foo = async(a) => 1 })",
+
     NULL
   };
   // clang-format on

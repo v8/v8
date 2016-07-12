@@ -2827,16 +2827,30 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
           }
         }
         Scanner::Location spread_pos;
-        typename Traits::Type::ExpressionList args =
-            ParseArguments(&spread_pos, is_async, classifier, CHECK_OK);
-
-        if (V8_UNLIKELY(is_async && peek() == Token::ARROW)) {
-          if (args->length()) {
-            // async ( Arguments ) => ...
-            return Traits::ExpressionListToExpression(args);
+        typename Traits::Type::ExpressionList args;
+        if (V8_UNLIKELY(is_async)) {
+          ExpressionClassifier async_classifier(this);
+          args = ParseArguments(&spread_pos, true, &async_classifier, CHECK_OK);
+          if (peek() == Token::ARROW) {
+            ValidateBindingPattern(&async_classifier, CHECK_OK);
+            if (!async_classifier.is_valid_async_arrow_formal_parameters()) {
+              ReportClassifierError(
+                  async_classifier.async_arrow_formal_parameters_error());
+              *ok = false;
+              return this->EmptyExpression();
+            }
+            if (args->length()) {
+              // async ( Arguments ) => ...
+              return Traits::ExpressionListToExpression(args);
+            }
+            // async () => ...
+            return factory()->NewEmptyParentheses(pos);
+          } else {
+            classifier->Accumulate(&async_classifier,
+                                   ExpressionClassifier::AllProductions);
           }
-          // async () => ...
-          return factory()->NewEmptyParentheses(pos);
+        } else {
+          args = ParseArguments(&spread_pos, false, classifier, CHECK_OK);
         }
 
         ArrowFormalParametersUnexpectedToken(classifier);
