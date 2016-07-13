@@ -3734,7 +3734,7 @@ Node* AstGraphBuilder::BuildToBoolean(Node* input, TypeFeedbackId feedback_id) {
 Node* AstGraphBuilder::BuildToName(Node* input, BailoutId bailout_id) {
   if (Node* node = TryFastToName(input)) return node;
   Node* name = NewNode(javascript()->ToName(), input);
-  PrepareFrameState(name, bailout_id);
+  PrepareFrameState(name, bailout_id, OutputFrameStateCombine::Push());
   return name;
 }
 

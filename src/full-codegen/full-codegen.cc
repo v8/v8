@@ -1066,7 +1066,7 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
   CallRuntimeWithOperands(Runtime::kToName);
-  PrepareForBailoutForId(bailout_id, BailoutState::NO_REGISTERS);
+  PrepareForBailoutForId(bailout_id, BailoutState::TOS_REGISTER);
   PushOperand(result_register());
 }
 
