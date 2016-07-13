@@ -120,7 +120,8 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
                                              EhFrameWriter* eh_frame_writer,
-                                             CompilationInfo* info) {
+                                             CompilationInfo* info,
+                                             Handle<Object> self_reference) {
   Isolate* isolate = info->isolate();
 
   // Allocate and install the code.
@@ -131,11 +132,9 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       info->IsStub();
   masm->GetCode(&desc);
   if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
-                                  false, is_crankshafted,
-                                  info->prologue_offset(),
-                                  info->is_debug() && !is_crankshafted);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, flags, self_reference, false, is_crankshafted,
+      info->prologue_offset(), info->is_debug() && !is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
