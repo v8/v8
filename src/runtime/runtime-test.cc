@@ -30,7 +30,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   // This function is used by fuzzers to get coverage in compiler.
   // Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  // If it is not a JSFunction, just return.
   if (!function_object->IsJSFunction()) {
     return isolate->heap()->undefined_value();
   }
@@ -111,7 +110,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // This function is used by fuzzers to get coverage for optimizations
   // in compiler. Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  // If it is not a JSFunction, just return.
   if (!function_object->IsJSFunction()) {
     return isolate->heap()->undefined_value();
   }
@@ -212,14 +210,25 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_crankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
+
+  // This function is used by fuzzers to get coverage for optimizations
+  // in compiler. Ignore calls on non-function objects to avoid runtime errors.
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  if (!function_object->IsJSFunction()) {
+    return isolate->heap()->undefined_value();
+  }
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+
   bool sync_with_compiler_thread = true;
   if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(String, sync, 1);
+    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
+    if (!sync_object->IsString()) return isolate->heap()->undefined_value();
+    Handle<String> sync = Handle<String>::cast(sync_object);
     if (sync->IsOneByteEqualTo(STATIC_CHAR_VECTOR("no sync"))) {
       sync_with_compiler_thread = false;
     }
   }
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
   if (isolate->concurrent_recompilation_enabled() &&
       sync_with_compiler_thread) {
     while (function->IsInOptimizationQueue()) {
