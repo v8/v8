@@ -4515,7 +4515,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
-  Push(kScratchRegister);  // Accessed from EditFrame::code_slot.
+  Push(kScratchRegister);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   if (save_rax) {
