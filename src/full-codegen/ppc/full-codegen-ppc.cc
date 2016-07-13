@@ -836,8 +836,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ mov(r4, Operand(pairs));
   __ LoadSmiLiteral(r3, Smi::FromInt(DeclareGlobalsFlags()));
-  __ EmitLoadTypeFeedbackVector(r0);
-  __ Push(r4, r3, r0);
+  __ EmitLoadTypeFeedbackVector(r5);
+  __ Push(r4, r3, r5);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
 }
