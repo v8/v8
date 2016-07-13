@@ -1158,26 +1158,30 @@ void Interpreter::DoJSCall(InterpreterAssembler* assembler,
   Node* receiver_args_count = __ BytecodeOperandCount(2);
   Node* receiver_count = __ Int32Constant(1);
   Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
+  Node* slot_id = __ BytecodeOperandIdx(3);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  // TODO(rmcilroy): Use the call type feedback slot to call via CallStub.
   Node* result =
-      __ CallJS(function, context, receiver_arg, args_count, tail_call_mode);
+      __ CallJSWithFeedback(function, context, receiver_arg, args_count,
+                            slot_id, type_feedback_vector, tail_call_mode);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// Call <callable> <receiver> <arg_count>
+// Call <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
+// |arg_count| arguments in subsequent registers. Collect type feedback
+// into |feedback_slot_id|
 void Interpreter::DoCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kDisallow);
 }
 
-// TailCall <callable> <receiver> <arg_count>
+// TailCall <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Tail call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
+// |arg_count| arguments in subsequent registers. Collect type feedback
+// into |feedback_slot_id|
 void Interpreter::DoTailCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kAllow);
 }

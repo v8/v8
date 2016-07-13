@@ -798,10 +798,13 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
 
   i::FeedbackVectorSpec feedback_spec(&zone);
   i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+  i::FeedbackVectorSlot call_slot = feedback_spec.AddCallICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
       i::NewTypeFeedbackVector(isolate, &feedback_spec);
   int slot_index = vector->GetIndex(slot);
+  int call_slot_index = -1;
+  call_slot_index = vector->GetIndex(call_slot);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("func");
   name = factory->string_table()->LookupString(isolate, name);
@@ -812,9 +815,12 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
                                  0, 1);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 1, 0, tail_call_mode)
-        .Return();
+        .StoreAccumulatorInRegister(Register(0));
+
+    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
+                 tail_call_mode);
+
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
@@ -832,9 +838,10 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
                                  0, 1);
 
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
-        .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 1, 0, tail_call_mode)
-        .Return();
+        .StoreAccumulatorInRegister(Register(0));
+    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
+                 tail_call_mode);
+    builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
@@ -861,9 +868,12 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(Smi::FromInt(51))
         .StoreAccumulatorInRegister(Register(2))
         .LoadLiteral(Smi::FromInt(11))
-        .StoreAccumulatorInRegister(Register(3))
-        .Call(Register(0), Register(1), 3, 0, tail_call_mode)
-        .Return();
+        .StoreAccumulatorInRegister(Register(3));
+
+    builder.Call(Register(0), Register(1), 3, call_slot_index, tail_call_mode);
+
+    builder.Return();
+
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
@@ -905,9 +915,12 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
         .LoadLiteral(factory->NewStringFromAsciiChecked("i"))
         .StoreAccumulatorInRegister(Register(10))
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
-        .StoreAccumulatorInRegister(Register(11))
-        .Call(Register(0), Register(1), 11, 0, tail_call_mode)
-        .Return();
+        .StoreAccumulatorInRegister(Register(11));
+
+    builder.Call(Register(0), Register(1), 11, call_slot_index, tail_call_mode);
+
+    builder.Return();
+
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
     InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);

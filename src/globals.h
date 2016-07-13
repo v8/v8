@@ -1098,6 +1098,20 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   return true;
 }
 
+enum class CallableType : unsigned { kJSFunction, kAny };
+
+inline size_t hash_value(CallableType type) { return bit_cast<unsigned>(type); }
+
+inline std::ostream& operator<<(std::ostream& os, CallableType function_type) {
+  switch (function_type) {
+    case CallableType::kJSFunction:
+      return os << "JSFunction";
+    case CallableType::kAny:
+      return os << "Any";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing

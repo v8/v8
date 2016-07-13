@@ -221,15 +221,33 @@ TEST(VectorCallICStates) {
   // After a collection, state should remain GENERIC.
   heap->CollectAllGarbage();
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
+}
+
+TEST(VectorCallFeedbackForArray) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun(
+      "function foo() { return 17; }"
+      "function f(a) { a(); } f(Array);");
+  Handle<JSFunction> f = GetFunction("f");
+  // There should be one IC.
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  FeedbackVectorSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
 
   // A call to Array is special, it contains an AllocationSite as feedback.
-  // Clear the IC manually in order to test this case.
-  nexus.Clear(f->shared()->code());
-  CompileRun("f(Array)");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK(nexus.GetFeedback()->IsAllocationSite());
 
   heap->CollectAllGarbage();
+  // It should stay monomorphic even after a GC.
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 
@@ -255,16 +273,27 @@ TEST(VectorCallCounts) {
   CompileRun("f(foo); f(foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK_EQ(3, nexus.ExtractCallCount());
+}
 
+TEST(VectorConstructCounts) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function Foo() {}"
       "function f(a) { new a(); } f(Foo);");
-  f = GetFunction("f");
-  // There should be one IC.
-  feedback_vector = Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
-  FeedbackVectorSlot cslot(1);
+  Handle<JSFunction> f = GetFunction("f");
+  Handle<TypeFeedbackVector> feedback_vector =
+      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  FeedbackVectorSlot slot(0);
+  CHECK(feedback_vector->Get(slot)->IsWeakCell());
 
   CompileRun("f(Foo); f(Foo);");
+  FeedbackVectorSlot cslot(1);
   CHECK(feedback_vector->Get(cslot)->IsSmi());
   CHECK_EQ(3, Smi::cast(feedback_vector->Get(cslot))->value());
 }

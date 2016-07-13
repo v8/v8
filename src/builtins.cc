@@ -5932,12 +5932,21 @@ Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
   return Handle<Code>::null();
 }
 
-Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode) {
+Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode,
+                                                  CallableType function_type) {
   switch (tail_call_mode) {
     case TailCallMode::kDisallow:
-      return InterpreterPushArgsAndCall();
+      if (function_type == CallableType::kJSFunction) {
+        return InterpreterPushArgsAndCallFunction();
+      } else {
+        return InterpreterPushArgsAndCall();
+      }
     case TailCallMode::kAllow:
-      return InterpreterPushArgsAndTailCall();
+      if (function_type == CallableType::kJSFunction) {
+        return InterpreterPushArgsAndTailCallFunction();
+      } else {
+        return InterpreterPushArgsAndTailCall();
+      }
   }
   UNREACHABLE();
   return Handle<Code>::null();

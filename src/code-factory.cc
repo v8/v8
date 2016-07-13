@@ -554,10 +554,11 @@ Callable CodeFactory::HasProperty(Isolate* isolate) {
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
-                                                 TailCallMode tail_call_mode) {
-  return Callable(
-      isolate->builtins()->InterpreterPushArgsAndCall(tail_call_mode),
-      InterpreterPushArgsAndCallDescriptor(isolate));
+                                                 TailCallMode tail_call_mode,
+                                                 CallableType function_type) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndCall(
+                      tail_call_mode, function_type),
+                  InterpreterPushArgsAndCallDescriptor(isolate));
 }
 
 

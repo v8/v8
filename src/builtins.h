@@ -243,6 +243,8 @@ class CodeStubAssembler;
                                                                              \
   V(InterpreterEntryTrampoline, BUILTIN, kNoExtraICState)                    \
   V(InterpreterMarkBaselineOnReturn, BUILTIN, kNoExtraICState)               \
+  V(InterpreterPushArgsAndCallFunction, BUILTIN, kNoExtraICState)            \
+  V(InterpreterPushArgsAndTailCallFunction, BUILTIN, kNoExtraICState)        \
   V(InterpreterPushArgsAndCall, BUILTIN, kNoExtraICState)                    \
   V(InterpreterPushArgsAndTailCall, BUILTIN, kNoExtraICState)                \
   V(InterpreterPushArgsAndConstruct, BUILTIN, kNoExtraICState)               \
@@ -454,7 +456,9 @@ class Builtins {
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny,
                     TailCallMode tail_call_mode = TailCallMode::kDisallow);
   Handle<Code> CallBoundFunction(TailCallMode tail_call_mode);
-  Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode);
+  Handle<Code> InterpreterPushArgsAndCall(
+      TailCallMode tail_call_mode,
+      CallableType function_type = CallableType::kAny);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -794,14 +798,26 @@ class Builtins {
   static void Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm);
   static void Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm);
   static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
-    return Generate_InterpreterPushArgsAndCallImpl(masm,
-                                                   TailCallMode::kDisallow);
+    return Generate_InterpreterPushArgsAndCallImpl(
+        masm, TailCallMode::kDisallow, CallableType::kAny);
   }
   static void Generate_InterpreterPushArgsAndTailCall(MacroAssembler* masm) {
-    return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow);
+    return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow,
+                                                   CallableType::kAny);
+  }
+  static void Generate_InterpreterPushArgsAndCallFunction(
+      MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallImpl(
+        masm, TailCallMode::kDisallow, CallableType::kJSFunction);
+  }
+  static void Generate_InterpreterPushArgsAndTailCallFunction(
+      MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow,
+                                                   CallableType::kJSFunction);
   }
   static void Generate_InterpreterPushArgsAndCallImpl(
-      MacroAssembler* masm, TailCallMode tail_call_mode);
+      MacroAssembler* masm, TailCallMode tail_call_mode,
+      CallableType function_type);
   static void Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \

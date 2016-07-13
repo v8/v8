@@ -99,7 +99,7 @@ class Interpreter {
   // Generates code to perform a keyed property store via |ic|.
   void DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler);
 
-  // Generates code to perform a JS call.
+  // Generates code to perform a JS call that collects type feedback.
   void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
 
   // Generates code to perform a runtime call.

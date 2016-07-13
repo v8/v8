@@ -947,14 +947,15 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
 
 void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
   FrameStateBeforeAndAfter states(this);
-  // TODO(rmcilroy): Set receiver_hint correctly based on whether the receiver
-  // register has been loaded with null / undefined explicitly or we are sure it
-  // is not null / undefined.
   ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
+
+  // Slot index of 0 is used indicate no feedback slot is available. Assert
+  // the assumption that slot index 0 is never a valid feedback slot.
+  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 

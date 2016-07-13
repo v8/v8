@@ -91,6 +91,18 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument
+  // located at |first_arg|. Type feedback is collected in the
+  // slot at index |slot_id|.
+  compiler::Node* CallJSWithFeedback(compiler::Node* function,
+                                     compiler::Node* context,
+                                     compiler::Node* first_arg,
+                                     compiler::Node* arg_count,
+                                     compiler::Node* slot_id,
+                                     compiler::Node* type_feedback_vector,
+                                     TailCallMode tail_call_mode);
+
+  // Call JSFunction or Callable |function| with |arg_count|
+  // arguments (not including receiver) and the first argument
   // located at |first_arg|.
   compiler::Node* CallJS(compiler::Node* function, compiler::Node* context,
                          compiler::Node* first_arg, compiler::Node* arg_count,

@@ -1195,7 +1195,8 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
-    MacroAssembler* masm, TailCallMode tail_call_mode) {
+    MacroAssembler* masm, TailCallMode tail_call_mode,
+    CallableType function_type) {
   // ----------- S t a t e -------------
   //  -- r0 : the number of arguments (not including the receiver)
   //  -- r2 : the address of the first argument to be pushed. Subsequent
@@ -1213,9 +1214,16 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   Generate_InterpreterPushArgs(masm, r2, r3, r4);
 
   // Call the target.
-  __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
-                                            tail_call_mode),
-          RelocInfo::CODE_TARGET);
+  if (function_type == CallableType::kJSFunction) {
+    __ Jump(masm->isolate()->builtins()->CallFunction(ConvertReceiverMode::kAny,
+                                                      tail_call_mode),
+            RelocInfo::CODE_TARGET);
+  } else {
+    DCHECK_EQ(function_type, CallableType::kAny);
+    __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
+                                              tail_call_mode),
+            RelocInfo::CODE_TARGET);
+  }
 }
 
 // static

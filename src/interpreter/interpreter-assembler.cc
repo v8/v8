@@ -438,11 +438,164 @@ void InterpreterAssembler::CallEpilogue() {
   }
 }
 
+Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
+                                               Node* first_arg, Node* arg_count,
+                                               Node* slot_id,
+                                               Node* type_feedback_vector,
+                                               TailCallMode tail_call_mode) {
+  // Static checks to assert it is safe to examine the type feedback element.
+  // We don't know that we have a weak cell. We might have a private symbol
+  // or an AllocationSite, but the memory is safe to examine.
+  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
+  // FixedArray.
+  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
+  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // computed, meaning that it can't appear to be a pointer. If the low bit is
+  // 0, then hash is computed, but the 0 bit prevents the field from appearing
+  // to be a pointer.
+  STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+                    WeakCell::kValueOffset &&
+                WeakCell::kValueOffset == Symbol::kHashFieldSlot);
+
+  Variable return_value(this, MachineRepresentation::kTagged);
+  Label handle_monomorphic(this), extra_checks(this), end(this), call(this);
+
+  // Slot id of 0 is used to indicate no typefeedback is available. Call using
+  // call builtin.
+  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
+  Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
+  GotoIf(is_feedback_unavailable, &call);
+
+  // The checks. First, does rdi match the recorded monomorphic target?
+  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
+  Node* feedback_value = LoadWeakCellValue(feedback_element);
+  Node* is_monomorphic = WordEqual(function, feedback_value);
+  BranchIf(is_monomorphic, &handle_monomorphic, &extra_checks);
+
+  Bind(&handle_monomorphic);
+  {
+    // The compare above could have been a SMI/SMI comparison. Guard against
+    // this convincing us that we have a monomorphic JSFunction.
+    Node* is_smi = WordIsSmi(function);
+    GotoIf(is_smi, &extra_checks);
+
+    // Increment the call count.
+    Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
+    Node* call_count =
+        LoadFixedArrayElement(type_feedback_vector, call_count_slot);
+    Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
+    // Count is Smi, so we don't need a write barrier.
+    StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
+                           SKIP_WRITE_BARRIER);
+
+    // Call using call function builtin.
+    Callable callable = CodeFactory::InterpreterPushArgsAndCall(
+        isolate(), tail_call_mode, CallableType::kJSFunction);
+    Node* code_target = HeapConstant(callable.code());
+    Node* ret_value = CallStub(callable.descriptor(), code_target, context,
+                               arg_count, first_arg, function);
+    return_value.Bind(ret_value);
+    Goto(&end);
+  }
+
+  Bind(&extra_checks);
+  {
+    Label check_initialized(this, Label::kDeferred), mark_megamorphic(this);
+    // Check if it is a megamorphic target
+    Node* is_megamorphic = WordEqual(
+        feedback_element,
+        HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+    BranchIf(is_megamorphic, &call, &check_initialized);
+
+    Bind(&check_initialized);
+    {
+      Label possibly_monomorphic(this);
+      // Check if it is uninitialized.
+      Node* is_uninitialized = WordEqual(
+          feedback_element,
+          HeapConstant(TypeFeedbackVector::UninitializedSentinel(isolate())));
+      GotoUnless(is_uninitialized, &mark_megamorphic);
+
+      Node* is_smi = WordIsSmi(function);
+      GotoIf(is_smi, &mark_megamorphic);
+
+      // Check if function is an object of JSFunction type
+      Node* instance_type = LoadInstanceType(function);
+      Node* is_js_function =
+          WordEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE));
+      GotoUnless(is_js_function, &mark_megamorphic);
+
+      // Check that it is not the Array() function.
+      Node* context_slot =
+          LoadFixedArrayElement(LoadNativeContext(context),
+                                Int32Constant(Context::ARRAY_FUNCTION_INDEX));
+      Node* is_array_function = WordEqual(context_slot, function);
+      GotoIf(is_array_function, &mark_megamorphic);
+
+      // Check if the function belongs to the same native context
+      Node* native_context = LoadNativeContext(
+          LoadObjectField(function, JSFunction::kContextOffset));
+      Node* is_same_native_context =
+          WordEqual(native_context, LoadNativeContext(context));
+      GotoUnless(is_same_native_context, &mark_megamorphic);
+
+      // Initialize it to a monomorphic target.
+      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
+      // Count is Smi, so we don't need a write barrier.
+      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
+                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
+
+      CreateWeakCellStub weak_cell_stub(isolate());
+      CallStub(weak_cell_stub.GetCallInterfaceDescriptor(),
+               HeapConstant(weak_cell_stub.GetCode()), context,
+               type_feedback_vector, SmiTag(slot_id), function);
+
+      // Call using call function builtin.
+      Callable callable = CodeFactory::InterpreterPushArgsAndCall(
+          isolate(), tail_call_mode, CallableType::kJSFunction);
+      Node* code_target = HeapConstant(callable.code());
+      Node* ret_value = CallStub(callable.descriptor(), code_target, context,
+                                 arg_count, first_arg, function);
+      return_value.Bind(ret_value);
+      Goto(&end);
+    }
+
+    Bind(&mark_megamorphic);
+    {
+      // Mark it as a megamorphic.
+      // MegamorphicSentinel is created as a part of Heap::InitialObjects
+      // and will not move during a GC. So it is safe to skip write barrier.
+      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      StoreFixedArrayElement(
+          type_feedback_vector, slot_id,
+          HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())),
+          SKIP_WRITE_BARRIER);
+      Goto(&call);
+    }
+  }
+
+  Bind(&call);
+  {
+    // Call using call builtin.
+    Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
+        isolate(), tail_call_mode, CallableType::kAny);
+    Node* code_target_call = HeapConstant(callable_call.code());
+    Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
+                               context, arg_count, first_arg, function);
+    return_value.Bind(ret_value);
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return return_value.value();
+}
+
 Node* InterpreterAssembler::CallJS(Node* function, Node* context,
                                    Node* first_arg, Node* arg_count,
                                    TailCallMode tail_call_mode) {
-  Callable callable =
-      CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
+  Callable callable = CodeFactory::InterpreterPushArgsAndCall(
+      isolate(), tail_call_mode, CallableType::kAny);
   Node* code_target = HeapConstant(callable.code());
   return CallStub(callable.descriptor(), code_target, context, arg_count,
                   first_arg, function);
