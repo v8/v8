@@ -266,8 +266,8 @@ TEST_F(AsmTypeTest, IsExactly) {
 }
 
 bool FunctionsWithSameSignature(AsmType* a, AsmType* b) {
-  if (auto* func_a = a->AsFunctionType()) {
-    if (auto* func_b = b->AsFunctionType()) {
+  if (a->AsFunctionType()) {
+    if (b->AsFunctionType()) {
       return a->IsA(b);
     }
   }
