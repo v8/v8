@@ -221,30 +221,26 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, Handle<AccessorInfo> callback) {
-  Register reg = Frontend(name);
+    Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
   if (FLAG_runtime_call_stats) {
-    TailCallBuiltin(masm(), Builtins::kLoadIC_Slow);
-  } else {
-    GenerateLoadCallback(reg, callback);
+    GenerateTailCall(masm(), slow_stub);
   }
+  Register reg = Frontend(name);
+  GenerateLoadCallback(reg, callback);
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
-    int accessor_index) {
+    int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
-  Register holder = Frontend(name);
   if (FLAG_runtime_call_stats) {
-    TailCallBuiltin(masm(), Builtins::kLoadIC_Slow);
-  } else {
-    GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
-                            scratch2(), false, no_reg, holder, accessor_index);
+    GenerateTailCall(masm(), slow_stub);
   }
+  Register holder = Frontend(name);
+  GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
+                          scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(kind(), name);
 }
 
@@ -563,19 +559,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization, int accessor_index) {
-  Register holder = Frontend(name);
+    const CallOptimization& call_optimization, int accessor_index,
+    Handle<Code> slow_stub) {
   if (FLAG_runtime_call_stats) {
-    GenerateRestoreName(name);
-    TailCallBuiltin(masm(), Builtins::kStoreIC_Slow);
-  } else {
-    GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
-                            receiver(), scratch2(), true, value(), holder,
-                            accessor_index);
+    GenerateTailCall(masm(), slow_stub);
   }
+  Register holder = Frontend(name);
+  GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
+                          receiver(), scratch2(), true, value(), holder,
+                          accessor_index);
   return GetCode(kind(), name);
 }
 

@@ -394,6 +394,13 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                           context);
 }
 
+Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
+                                     Node* context, Node* arg1, Node* arg2,
+                                     Node* arg3, Node* arg4, Node* arg5) {
+  return raw_assembler_->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
+                                          arg5, context);
+}
+
 Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
                               Node* arg1, size_t result_size) {
   Node* target = HeapConstant(callable.code());

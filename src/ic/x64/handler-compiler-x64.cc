@@ -340,15 +340,6 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
 }
 
 
-void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow);
-}
-
-
 void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   // Return address is on the stack.
   StoreIC_PushArgs(masm);

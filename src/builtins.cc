@@ -6145,26 +6145,24 @@ void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
   assembler->TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
-void Generate_LoadGlobalIC_SlowInsideTypeof(CodeStubAssembler* assembler) {
+void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler, TypeofMode mode) {
   typedef compiler::Node Node;
 
   Node* slot = assembler->Parameter(0);
   Node* vector = assembler->Parameter(1);
   Node* context = assembler->Parameter(2);
+  Node* typeof_mode = assembler->SmiConstant(Smi::FromInt(mode));
 
-  assembler->TailCallRuntime(Runtime::kGetGlobalInsideTypeof, context, slot,
-                             vector);
+  assembler->TailCallRuntime(Runtime::kGetGlobal, context, slot, vector,
+                             typeof_mode);
+}
+
+void Generate_LoadGlobalIC_SlowInsideTypeof(CodeStubAssembler* assembler) {
+  Generate_LoadGlobalIC_Slow(assembler, INSIDE_TYPEOF);
 }
 
 void Generate_LoadGlobalIC_SlowNotInsideTypeof(CodeStubAssembler* assembler) {
-  typedef compiler::Node Node;
-
-  Node* slot = assembler->Parameter(0);
-  Node* vector = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-
-  assembler->TailCallRuntime(Runtime::kGetGlobalNotInsideTypeof, context, slot,
-                             vector);
+  Generate_LoadGlobalIC_Slow(assembler, NOT_INSIDE_TYPEOF);
 }
 
 void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
@@ -6179,16 +6177,48 @@ void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
-void Generate_StoreIC_Miss(MacroAssembler* masm) {
-  StoreIC::GenerateMiss(masm);
+void Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* value = assembler->Parameter(2);
+  Node* slot = assembler->Parameter(3);
+  Node* vector = assembler->Parameter(4);
+  Node* context = assembler->Parameter(5);
+
+  assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver, name,
+                             value, slot, vector);
 }
 
 void Generate_StoreIC_Normal(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
 }
 
-void Generate_StoreIC_Slow(MacroAssembler* masm) {
-  NamedStoreHandlerCompiler::GenerateSlow(masm);
+void Generate_StoreIC_Slow(CodeStubAssembler* assembler,
+                           LanguageMode language_mode) {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* name = assembler->Parameter(1);
+  Node* value = assembler->Parameter(2);
+  // Node* slot = assembler->Parameter(3);
+  // Node* vector = assembler->Parameter(4);
+  Node* context = assembler->Parameter(5);
+  Node* lang_mode = assembler->SmiConstant(Smi::FromInt(language_mode));
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  assembler->TailCallRuntime(Runtime::kSetProperty, context, receiver, name,
+                             value, lang_mode);
+}
+
+void Generate_StoreIC_SlowSloppy(CodeStubAssembler* assembler) {
+  Generate_StoreIC_Slow(assembler, SLOPPY);
+}
+
+void Generate_StoreIC_SlowStrict(CodeStubAssembler* assembler) {
+  Generate_StoreIC_Slow(assembler, STRICT);
 }
 
 void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {

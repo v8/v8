@@ -403,7 +403,15 @@ class StoreIC : public IC {
  protected:
   // Stub accessors.
   Handle<Code> slow_stub() const {
-    return isolate()->builtins()->StoreIC_Slow();
+    switch (language_mode()) {
+      case SLOPPY:
+        return isolate()->builtins()->StoreIC_SlowSloppy();
+      case STRICT:
+        return isolate()->builtins()->StoreIC_SlowStrict();
+      default:
+        UNREACHABLE();
+        return Handle<Code>();
+    }
   }
 
   // Update the inline cache and the global stub cache based on the

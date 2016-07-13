@@ -706,6 +706,9 @@ class RawMachineAssembler {
   // Tail call to a runtime function with four arguments.
   Node* TailCallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
                          Node* arg3, Node* arg4, Node* context);
+  // Tail call to a runtime function with five arguments.
+  Node* TailCallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* arg3, Node* arg4, Node* arg5, Node* context);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch

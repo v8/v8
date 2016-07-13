@@ -251,7 +251,6 @@ class CodeStubAssembler;
   V(InterpreterEnterBytecodeDispatch, BUILTIN, kNoExtraICState)              \
                                                                              \
   V(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState)                              \
-  V(StoreIC_Miss, BUILTIN, kNoExtraICState)                                  \
   V(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState)                             \
   V(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
   V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                 \
@@ -372,12 +371,14 @@ class CodeStubAssembler;
   V(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,      \
     LoadGlobalWithVector)                                              \
   V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)             \
-  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)
+  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)               \
+  V(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)             \
+  V(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)        \
+  V(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
   V(KeyedLoadIC_Slow,        KEYED_LOAD_IC)  \
-  V(StoreIC_Slow,            STORE_IC)       \
   V(KeyedStoreIC_Slow,       KEYED_STORE_IC) \
   V(LoadIC_Normal,           LOAD_IC)        \
   V(StoreIC_Normal,          STORE_IC)

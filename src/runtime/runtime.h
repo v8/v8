@@ -376,8 +376,7 @@ namespace internal {
   F(SetPrototype, 2, 1)                              \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
-  F(GetGlobalInsideTypeof, 2, 1)                     \
-  F(GetGlobalNotInsideTypeof, 2, 1)                  \
+  F(GetGlobal, 3, 1)                                 \
   F(KeyedGetProperty, 2, 1)                          \
   F(StoreGlobalViaContext_Sloppy, 2, 1)              \
   F(StoreGlobalViaContext_Strict, 2, 1)              \
@@ -951,7 +950,6 @@ namespace internal {
   F(StoreCallbackProperty, 6, 1)             \
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreIC_MissFromStubFailure, 5, 1)       \
-  F(StoreIC_Slow, 5, 1)                      \
   F(StorePropertyWithInterceptor, 3, 1)      \
   F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)

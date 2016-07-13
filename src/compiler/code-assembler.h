@@ -319,6 +319,9 @@ class CodeAssembler {
                         Node* arg1, Node* arg2, Node* arg3);
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4);
+  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
+                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                        Node* arg5);
 
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  size_t result_size = 1);

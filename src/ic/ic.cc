@@ -1240,7 +1240,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
           int index = lookup->GetAccessorIndex();
           Handle<Code> code = compiler.CompileLoadCallback(
-              lookup->name(), call_optimization, index);
+              lookup->name(), call_optimization, index, slow_stub());
           return code;
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadViaGetter);
@@ -1259,7 +1259,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
         NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        Handle<Code> code = compiler.CompileLoadCallback(lookup->name(), info);
+        Handle<Code> code =
+            compiler.CompileLoadCallback(lookup->name(), info, slow_stub());
         return code;
       }
       UNREACHABLE();
@@ -1821,7 +1822,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
           Handle<Code> code = compiler.CompileStoreCallback(
               receiver, lookup->name(), call_optimization,
-              lookup->GetAccessorIndex());
+              lookup->GetAccessorIndex(), slow_stub());
           return code;
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
@@ -2485,22 +2486,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-}
-
-
-RUNTIME_FUNCTION(Runtime_StoreIC_Slow) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
-  LanguageMode language_mode;
-  StoreICNexus nexus(isolate);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  language_mode = ic.language_mode();
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
 }
 
 

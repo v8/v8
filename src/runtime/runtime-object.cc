@@ -348,10 +348,15 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
                            Runtime::GetObjectProperty(isolate, object, key));
 }
 
-namespace {
+RUNTIME_FUNCTION(Runtime_GetGlobal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_SMI_ARG_CHECKED(slot, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(typeof_mode_value, 2);
+  TypeofMode typeof_mode = static_cast<TypeofMode>(typeof_mode_value);
+  bool should_throw_reference_error = typeof_mode == NOT_INSIDE_TYPEOF;
 
-Object* GetGlobal(Isolate* isolate, int slot, Handle<TypeFeedbackVector> vector,
-                  bool should_throw_reference_error) {
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot);
   DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
             vector->GetKind(vector_slot));
@@ -384,24 +389,6 @@ Object* GetGlobal(Isolate* isolate, int slot, Handle<TypeFeedbackVector> vector,
   return *result;
 }
 
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_GetGlobalInsideTypeof) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  return GetGlobal(isolate, slot, vector, false);
-}
-
-RUNTIME_FUNCTION(Runtime_GetGlobalNotInsideTypeof) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  return GetGlobal(isolate, slot, vector, true);
-}
-
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   HandleScope scope(isolate);
@@ -413,7 +400,6 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   RETURN_RESULT_OR_FAILURE(
       isolate, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
 }
-
 
 RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
@@ -493,8 +479,7 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 3);
-  LanguageMode language_mode = language_mode_arg;
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
       isolate,
