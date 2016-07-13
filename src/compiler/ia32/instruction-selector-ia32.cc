@@ -82,12 +82,16 @@ class IA32OperandGenerator final : public OperandGenerator {
 
   AddressingMode GenerateMemoryOperandInputs(Node* index, int scale, Node* base,
                                              Node* displacement_node,
+                                             DisplacementMode displacement_mode,
                                              InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
     int32_t displacement = (displacement_node == nullptr)
                                ? 0
                                : OpParameter<int32_t>(displacement_node);
+    if (displacement_mode == kNegativeDisplacement) {
+      displacement = -displacement;
+    }
     if (base != nullptr) {
       if (base->opcode() == IrOpcode::kInt32Constant) {
         displacement += OpParameter<int32_t>(base);
@@ -145,8 +149,9 @@ class IA32OperandGenerator final : public OperandGenerator {
     BaseWithIndexAndDisplacement32Matcher m(node, true);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
-      return GenerateMemoryOperandInputs(m.index(), m.scale(), m.base(),
-                                         m.displacement(), inputs, input_count);
+      return GenerateMemoryOperandInputs(
+          m.index(), m.scale(), m.base(), m.displacement(),
+          m.displacement_mode(), inputs, input_count);
     } else {
       inputs[(*input_count)++] = UseRegister(node->InputAt(0));
       inputs[(*input_count)++] = UseRegister(node->InputAt(1));
@@ -577,12 +582,14 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
 }
 
 void EmitLea(InstructionSelector* selector, Node* result, Node* index,
-             int scale, Node* base, Node* displacement) {
+             int scale, Node* base, Node* displacement,
+             DisplacementMode displacement_mode) {
   IA32OperandGenerator g(selector);
   InstructionOperand inputs[4];
   size_t input_count = 0;
-  AddressingMode mode = g.GenerateMemoryOperandInputs(
-      index, scale, base, displacement, inputs, &input_count);
+  AddressingMode mode =
+      g.GenerateMemoryOperandInputs(index, scale, base, displacement,
+                                    displacement_mode, inputs, &input_count);
 
   DCHECK_NE(0u, input_count);
   DCHECK_GE(arraysize(inputs), input_count);
@@ -603,7 +610,7 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
   if (m.matches()) {
     Node* index = node->InputAt(0);
     Node* base = m.power_of_two_plus_one() ? index : nullptr;
-    EmitLea(this, node, index, m.scale(), base, nullptr);
+    EmitLea(this, node, index, m.scale(), base, nullptr, kPositiveDisplacement);
     return;
   }
   VisitShift(this, node, kIA32Shl);
@@ -743,7 +750,8 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     InstructionOperand inputs[4];
     size_t input_count = 0;
     AddressingMode mode = g.GenerateMemoryOperandInputs(
-        m.index(), m.scale(), m.base(), m.displacement(), inputs, &input_count);
+        m.index(), m.scale(), m.base(), m.displacement(), m.displacement_mode(),
+        inputs, &input_count);
 
     DCHECK_NE(0u, input_count);
     DCHECK_GE(arraysize(inputs), input_count);
@@ -777,7 +785,7 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   if (m.matches()) {
     Node* index = node->InputAt(0);
     Node* base = m.power_of_two_plus_one() ? index : nullptr;
-    EmitLea(this, node, index, m.scale(), base, nullptr);
+    EmitLea(this, node, index, m.scale(), base, nullptr, kPositiveDisplacement);
     return;
   }
   IA32OperandGenerator g(this);

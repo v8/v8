@@ -143,6 +143,10 @@ class OperandGenerator {
     return sequence()->AddImmediate(ToConstant(node));
   }
 
+  InstructionOperand UseNegatedImmediate(Node* node) {
+    return sequence()->AddImmediate(ToNegatedConstant(node));
+  }
+
   InstructionOperand UseLocation(Node* node, LinkageLocation location) {
     return Use(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
@@ -218,6 +222,19 @@ class OperandGenerator {
         return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
         return Constant(OpParameter<Handle<HeapObject>>(node));
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return Constant(static_cast<int32_t>(0));
+  }
+
+  static Constant ToNegatedConstant(const Node* node) {
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return Constant(-OpParameter<int32_t>(node));
+      case IrOpcode::kInt64Constant:
+        return Constant(-OpParameter<int64_t>(node));
       default:
         break;
     }
