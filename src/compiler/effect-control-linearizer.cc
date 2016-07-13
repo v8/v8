@@ -276,8 +276,10 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
         edge.UpdateTo((control == matcher.IfTrue()) ? phi_true : phi_false);
       }
     }
-    true_block_data->current_effect = phi_true;
-    false_block_data->current_effect = phi_false;
+    if (phi->opcode() == IrOpcode::kEffectPhi) {
+      true_block_data->current_effect = phi_true;
+      false_block_data->current_effect = phi_false;
+    }
     phi->Kill();
   }
   // Fix up IfTrue and IfFalse and kill all dead nodes.
