@@ -3313,6 +3313,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ li(scratch0(), instr->hydrogen()->pairs());
   __ li(scratch1(), Operand(Smi::FromInt(instr->hydrogen()->flags())));
   __ Push(scratch0(), scratch1());
+  __ li(scratch0(), instr->hydrogen()->feedback_vector());
+  __ Push(scratch0());
   CallRuntime(Runtime::kDeclareGlobals, instr);
 }
 

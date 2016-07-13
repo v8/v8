@@ -1124,11 +1124,14 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
   bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED:
+    case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
-      globals()->push_back(variable->name());
+      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(isolate()->factory()->undefined_value());
       break;
+    }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       if (hole_init) {
@@ -1164,7 +1167,9 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
           decl->fun(), info()->script(), info());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
-      globals()->push_back(variable->name());
+      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(function);
       break;
     }
@@ -2950,14 +2955,17 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   AstVisitor::VisitDeclarations(declarations);
   if (globals()->empty()) return;
   int array_index = 0;
+  Handle<TypeFeedbackVector> feedback_vector(
+      info()->closure()->feedback_vector());
   Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
       static_cast<int>(globals()->size()), TENURED);
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
   int encoded_flags = info()->GetDeclareGlobalsFlags();
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
+  Node* vector = jsgraph()->Constant(feedback_vector);
   const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals);
-  Node* call = NewNode(op, pairs, flags);
+  Node* call = NewNode(op, pairs, flags, vector);
   PrepareFrameState(call, BailoutId::Declarations());
   globals()->clear();
 }

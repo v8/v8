@@ -2062,13 +2062,16 @@ class HThisFunction final : public HTemplateInstruction<0> {
 
 class HDeclareGlobals final : public HUnaryOperation {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HDeclareGlobals,
-                                              Handle<FixedArray>,
-                                              int);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HDeclareGlobals,
+                                              Handle<FixedArray>, int,
+                                              Handle<TypeFeedbackVector>);
 
   HValue* context() { return OperandAt(0); }
   Handle<FixedArray> pairs() const { return pairs_; }
   int flags() const { return flags_; }
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals)
 
@@ -2077,17 +2080,18 @@ class HDeclareGlobals final : public HUnaryOperation {
   }
 
  private:
-  HDeclareGlobals(HValue* context,
-                  Handle<FixedArray> pairs,
-                  int flags)
+  HDeclareGlobals(HValue* context, Handle<FixedArray> pairs, int flags,
+                  Handle<TypeFeedbackVector> feedback_vector)
       : HUnaryOperation(context),
         pairs_(pairs),
+        feedback_vector_(feedback_vector),
         flags_(flags) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
   Handle<FixedArray> pairs_;
+  Handle<TypeFeedbackVector> feedback_vector_;
   int flags_;
 };
 

@@ -4687,6 +4687,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());
   __ Mov(scratch2, Smi::FromInt(instr->hydrogen()->flags()));
   __ Push(scratch1, scratch2);
+  __ LoadHeapObject(scratch1, instr->hydrogen()->feedback_vector());
+  __ Push(scratch1);
   CallRuntime(Runtime::kDeclareGlobals, instr);
 }
 

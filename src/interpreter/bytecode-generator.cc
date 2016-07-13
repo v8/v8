@@ -719,11 +719,14 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   bool hole_init = mode == CONST || mode == LET;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED:
+    case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
-      globals()->push_back(variable->name());
+      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(isolate()->factory()->undefined_value());
       break;
+    }
     case VariableLocation::LOCAL:
       if (hole_init) {
         Register destination(variable->index());
@@ -768,7 +771,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
           decl->fun(), info()->script(), info());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
-      globals()->push_back(variable->name());
+      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(function);
       break;
     }
@@ -820,16 +825,21 @@ void BytecodeGenerator::VisitDeclarations(
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
   int encoded_flags = info()->GetDeclareGlobalsFlags();
 
-  Register pairs = register_allocator()->NewRegister();
+  register_allocator()->PrepareForConsecutiveAllocations(3);
+
+  Register pairs = register_allocator()->NextConsecutiveRegister();
   builder()->LoadLiteral(data);
   builder()->StoreAccumulatorInRegister(pairs);
 
-  Register flags = register_allocator()->NewRegister();
+  Register flags = register_allocator()->NextConsecutiveRegister();
   builder()->LoadLiteral(Smi::FromInt(encoded_flags));
   builder()->StoreAccumulatorInRegister(flags);
   DCHECK(flags.index() == pairs.index() + 1);
 
-  builder()->CallRuntime(Runtime::kDeclareGlobals, pairs, 2);
+  Register function = register_allocator()->NextConsecutiveRegister();
+  builder()->MoveRegister(Register::function_closure(), function);
+
+  builder()->CallRuntime(Runtime::kDeclareGlobalsForInterpreter, pairs, 3);
   globals()->clear();
 }
 
