@@ -5,6 +5,7 @@
 #include "src/interpreter/handler-table-builder.h"
 
 #include "src/factory.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 

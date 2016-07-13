@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/interpreter/bytecode-label.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/log.h"
 

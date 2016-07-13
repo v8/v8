@@ -38,6 +38,7 @@
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -14405,7 +14406,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     const uint8_t* current_address = base_address + iterator.current_offset();
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::Bytecodes::Decode(os, current_address, parameter_count());
+    interpreter::BytecodeDecoder::Decode(os, current_address,
+                                         parameter_count());
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       const void* jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << jump_target << " @ " << iterator.GetJumpTargetOffset()

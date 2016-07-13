@@ -9,6 +9,7 @@
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/js-graph.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {

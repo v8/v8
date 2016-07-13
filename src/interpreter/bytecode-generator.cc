@@ -7,6 +7,7 @@
 #include "src/ast/scopes.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
