@@ -26,33 +26,30 @@ class AsmFunctionTableType;
   /* These tags are not types that are expressable in the asm source. They */ \
   /* are used to express semantic information about the types they tag.    */ \
   V(Heap, "[]", 1, 0)                                                         \
-  /*The following are actual types that appear in the asm source. */          \
-  V(Void, "void", 2, 0)                                                       \
-  V(Extern, "extern", 3, 0)                                                   \
-  V(DoubleQ, "double?", 4, 0)                                                 \
-  V(Double, "double", 5, kAsmDoubleQ | kAsmExtern)                            \
-  V(Intish, "intish", 6, 0)                                                   \
-  V(Int, "int", 7, kAsmIntish)                                                \
-  V(Signed, "signed", 8, kAsmInt | kAsmExtern)                                \
-  V(Unsigned, "unsigned", 9, kAsmInt)                                         \
-  V(FixNum, "fixnum", 10, kAsmSigned | kAsmUnsigned)                          \
-  V(Floatish, "floatish", 11, 0)                                              \
-  V(FloatQ, "float?", 12, kAsmFloatish)                                       \
-  V(Float, "float", 13, kAsmFloatQ)                                           \
+  V(FloatishDoubleQ, "floatish|double?", 2, 0)                                \
+  V(FloatQDoubleQ, "float?|double?", 3, 0)                                    \
+  /* The following are actual types that appear in the asm source. */         \
+  V(Void, "void", 4, 0)                                                       \
+  V(Extern, "extern", 5, 0)                                                   \
+  V(DoubleQ, "double?", 6, kAsmFloatishDoubleQ | kAsmFloatQDoubleQ)           \
+  V(Double, "double", 7, kAsmDoubleQ | kAsmExtern)                            \
+  V(Intish, "intish", 8, 0)                                                   \
+  V(Int, "int", 9, kAsmIntish)                                                \
+  V(Signed, "signed", 10, kAsmInt | kAsmExtern)                               \
+  V(Unsigned, "unsigned", 11, kAsmInt)                                        \
+  V(FixNum, "fixnum", 12, kAsmSigned | kAsmUnsigned)                          \
+  V(Floatish, "floatish", 13, kAsmFloatishDoubleQ)                            \
+  V(FloatQ, "float?", 14, kAsmFloatQDoubleQ | kAsmFloatish)                   \
+  V(Float, "float", 15, kAsmFloatQ)                                           \
   /* Types used for expressing the Heap accesses. */                          \
-  V(Uint8Array, "Uint8Array", 14, kAsmHeap)                                   \
-  V(Int8Array, "Int8Array", 15, kAsmHeap)                                     \
-  V(Uint16Array, "Uint16Array", 16, kAsmHeap)                                 \
-  V(Int16Array, "Int16Array", 17, kAsmHeap)                                   \
-  V(Uint32Array, "Uint32Array", 18, kAsmHeap)                                 \
-  V(Int32Array, "Int32Array", 19, kAsmHeap)                                   \
-  V(Float32Array, "Float32Array", 20, kAsmHeap)                               \
-  V(Float64Array, "Float64Array", 21, kAsmHeap)                               \
-  /* Pseudo-types used in representing heap access for fp types.*/            \
-  /* TODO(jpp): FloatishDoubleQ should be a base type.*/                      \
-  V(FloatishDoubleQ, "floatish|double?", 22, kAsmFloatish | kAsmDoubleQ)      \
-  /* TODO(jpp): FloatQDoubleQ should be a base type.*/                        \
-  V(FloatQDoubleQ, "float?|double?", 23, kAsmFloatQ | kAsmDoubleQ)            \
+  V(Uint8Array, "Uint8Array", 16, kAsmHeap)                                   \
+  V(Int8Array, "Int8Array", 17, kAsmHeap)                                     \
+  V(Uint16Array, "Uint16Array", 18, kAsmHeap)                                 \
+  V(Int16Array, "Int16Array", 19, kAsmHeap)                                   \
+  V(Uint32Array, "Uint32Array", 20, kAsmHeap)                                 \
+  V(Int32Array, "Int32Array", 21, kAsmHeap)                                   \
+  V(Float32Array, "Float32Array", 22, kAsmHeap)                               \
+  V(Float64Array, "Float64Array", 23, kAsmHeap)                               \
   /* None is used to represent errors in the type checker. */                 \
   V(None, "<none>", 31, 0)
 
@@ -107,8 +104,6 @@ class AsmValueType {
 class AsmCallableType : public ZoneObject {
  public:
   virtual std::string Name() = 0;
-  virtual AsmType* ValidateCall(AsmType* return_type,
-                                const ZoneVector<AsmType*>& args) = 0;
 
   virtual bool CanBeInvokedWith(AsmType* return_type,
                                 const ZoneVector<AsmType*>& args) = 0;
@@ -121,12 +116,15 @@ class AsmCallableType : public ZoneObject {
  protected:
   AsmCallableType() = default;
   virtual ~AsmCallableType() = default;
+  virtual bool IsA(AsmType* other);
 
  private:
+  friend class AsmType;
+
   DISALLOW_COPY_AND_ASSIGN(AsmCallableType);
 };
 
-class AsmFunctionType : public AsmCallableType {
+class AsmFunctionType final : public AsmCallableType {
  public:
   AsmFunctionType* AsFunctionType() final { return this; }
 
@@ -134,11 +132,6 @@ class AsmFunctionType : public AsmCallableType {
   const ZoneVector<AsmType*> Arguments() const { return args_; }
   AsmType* ReturnType() const { return return_type_; }
 
-  virtual bool IsMinMaxType() const { return false; }
-  virtual bool IsFroundType() const { return false; }
-
-  AsmType* ValidateCall(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
@@ -150,6 +143,7 @@ class AsmFunctionType : public AsmCallableType {
   friend AsmType;
 
   std::string Name() override;
+  bool IsA(AsmType* other) override;
 
   AsmType* return_type_;
   ZoneVector<AsmType*> args_;
@@ -171,8 +165,6 @@ class AsmOverloadedFunctionType final : public AsmCallableType {
   explicit AsmOverloadedFunctionType(Zone* zone) : overloads_(zone) {}
 
   std::string Name() override;
-  AsmType* ValidateCall(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
@@ -186,8 +178,6 @@ class AsmFFIType final : public AsmCallableType {
   AsmFFIType* AsFFIType() override { return this; }
 
   std::string Name() override { return "Function"; }
-  AsmType* ValidateCall(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
@@ -205,8 +195,6 @@ class AsmFunctionTableType : public AsmCallableType {
 
   std::string Name() override;
 
-  AsmType* ValidateCall(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
   bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 

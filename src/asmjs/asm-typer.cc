@@ -811,7 +811,6 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
   }
 
   AsmType* table_element_type = nullptr;
-  AsmCallableType* callable_type = nullptr;
   for (auto* initializer : *pointers) {
     auto* var_proxy = initializer->AsVariableProxy();
     if (var_proxy == nullptr) {
@@ -831,8 +830,8 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
            "library.");
     }
 
-    auto* initializer_callable = var_info->type()->AsFunctionType();
-    if (initializer_callable == nullptr) {
+    auto* initializer_type = var_info->type();
+    if (initializer_type->AsFunctionType() == nullptr) {
       FAIL(initializer,
            "Function pointer table initializer must be an asm.js function.");
     }
@@ -840,12 +839,9 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
     DCHECK(var_info->type()->AsFFIType() == nullptr);
     DCHECK(var_info->type()->AsFunctionTableType() == nullptr);
 
-    if (callable_type == nullptr) {
-      table_element_type = var_info->type();
-      callable_type = initializer_callable;
-    } else if (callable_type->ValidateCall(initializer_callable->ReturnType(),
-                                           initializer_callable->Arguments()) ==
-               AsmType::None()) {
+    if (table_element_type == nullptr) {
+      table_element_type = initializer_type;
+    } else if (!initializer_type->IsA(table_element_type)) {
       FAIL(initializer, "Type mismatch in function pointer table initializer.");
     }
   }
@@ -882,10 +878,8 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
     FAIL(assign, "Function table size mismatch.");
   }
 
-  auto* function_type = callable_type->AsFunctionType();
-  if (target_info_table->ValidateCall(function_type->ReturnType(),
-                                      function_type->Arguments()) ==
-      AsmType::None()) {
+  DCHECK(target_info_table->signature()->AsFunctionType());
+  if (!table_element_type->IsA(target_info_table->signature())) {
     FAIL(assign, "Function table initializer does not match previous type.");
   }
 
@@ -1050,8 +1044,8 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
   auto* fun_var = fun_decl_proxy->var();
   auto* fun_info = new (zone_) VariableInfo(fun_type);
   fun_info->set_mutability(VariableInfo::kImmutableGlobal);
-  auto* old_fun_type = Lookup(fun_var);
-  if (old_fun_type == nullptr) {
+  auto* old_fun_info = Lookup(fun_var);
+  if (old_fun_info == nullptr) {
     if (!ValidAsmIdentifier(fun_var->name())) {
       FAIL(fun_decl_proxy, "Invalid asm.js identifier in function name.");
     }
@@ -1067,22 +1061,20 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
   // Not necessarily an error -- fun_decl might have been used before being
   // defined. If that's the case, then the type in the global environment must
   // be the same as the type inferred by the parameter/return type annotations.
-  auto* old_fun_callable = old_fun_type->type()->AsCallableType();
-  if (old_fun_callable == nullptr) {
+  auto* old_fun_type = old_fun_info->type();
+  if (old_fun_type->AsFunctionType() == nullptr) {
     FAIL(fun_decl, "Identifier redefined as function.");
   }
 
-  if (!old_fun_type->missing_definition()) {
+  if (!old_fun_info->missing_definition()) {
     FAIL(fun_decl, "Identifier redefined (function name).");
   }
 
-  if (old_fun_callable->ValidateCall(fun_type_as_function->ReturnType(),
-                                     fun_type_as_function->Arguments()) ==
-      AsmType::None()) {
+  if (!fun_type->IsA(old_fun_type)) {
     FAIL(fun_decl, "Signature mismatch when defining function.");
   }
 
-  old_fun_type->MarkDefined();
+  old_fun_info->MarkDefined();
   SetTypeOf(fun, fun_type);
 
   return fun_type;
