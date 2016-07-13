@@ -79,8 +79,6 @@
       'compiler/value-numbering-reducer-unittest.cc',
       'compiler/zone-pool-unittest.cc',
       'counters-unittest.cc',
-      'eh-frame-iterator-unittest.cc',
-      'eh-frame-writer-unittest.cc',
       'interpreter/bytecodes-unittest.cc',
       'interpreter/bytecode-array-builder-unittest.cc',
       'interpreter/bytecode-array-iterator-unittest.cc',

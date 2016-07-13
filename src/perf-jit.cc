@@ -324,16 +324,18 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 }
 
 void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
+  EhFrameHdr eh_frame_hdr(code);
+
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();
-  unwinding_info_header.eh_frame_hdr_size_ = EhFrameConstants::kEhFrameHdrSize;
+  unwinding_info_header.eh_frame_hdr_size_ = EhFrameHdr::kRecordSize;
 
   if (code->has_unwinding_info()) {
     unwinding_info_header.unwinding_size_ = code->unwinding_info_size();
     unwinding_info_header.mapped_size_ = unwinding_info_header.unwinding_size_;
   } else {
-    unwinding_info_header.unwinding_size_ = EhFrameConstants::kEhFrameHdrSize;
+    unwinding_info_header.unwinding_size_ = EhFrameHdr::kRecordSize;
     unwinding_info_header.mapped_size_ = 0;
   }
 
@@ -346,12 +348,15 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
                 sizeof(unwinding_info_header));
 
   if (code->has_unwinding_info()) {
+    // The last EhFrameHdr::kRecordSize bytes were a placeholder for the header.
+    // Discard them and write the actual eh_frame_hdr (below).
+    DCHECK_GE(code->unwinding_info_size(), EhFrameHdr::kRecordSize);
     LogWriteBytes(reinterpret_cast<const char*>(code->unwinding_info_start()),
-                  code->unwinding_info_size());
-  } else {
-    OFStream perf_output_stream(perf_output_handle_);
-    EhFrameWriter::WriteEmptyEhFrame(perf_output_stream);
+                  code->unwinding_info_size() - EhFrameHdr::kRecordSize);
   }
+
+  LogWriteBytes(reinterpret_cast<const char*>(&eh_frame_hdr),
+                EhFrameHdr::kRecordSize);
 
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
   DCHECK_LT(padding_size, sizeof(padding_bytes));

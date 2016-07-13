@@ -138,6 +138,7 @@
       'test-double.cc',
       'test-dtoa.cc',
       'test-elements-kind.cc',
+      'test-eh-frame-hdr.cc',
       'test-fast-dtoa.cc',
       'test-feedback-vector.cc',
       'test-field-type-tracking.cc',
