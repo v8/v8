@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_H_
 
+#include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {
@@ -86,8 +87,9 @@ class Register final {
   }
 
  private:
-  static const int kInvalidIndex;
-  static const int kRegisterFileStartOffset;
+  static const int kInvalidIndex = kMaxInt;
+  static const int kRegisterFileStartOffset =
+      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
 
   void* operator new(size_t size) = delete;
   void operator delete(void* p) = delete;

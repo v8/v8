@@ -4,8 +4,6 @@
 
 #include "src/interpreter/bytecode-register.h"
 
-#include "src/frames.h"
-
 namespace v8 {
 namespace internal {
 namespace interpreter {
@@ -38,10 +36,6 @@ static const int kCallerPCOffsetRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kCallerPCOffsetFromFp) /
     kPointerSize;
-
-STATIC_CONST_MEMBER_DEFINITION const int Register::kInvalidIndex = kMaxInt;
-STATIC_CONST_MEMBER_DEFINITION const int Register::kRegisterFileStartOffset =
-    InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
