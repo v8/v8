@@ -284,6 +284,15 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
               IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
 }
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithNumber) {
+  Node* input = Parameter(Type::Number(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsNumberLessThan(IsNumberConstant(0.0), IsNumberAbs(input)));
+}
 
 TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   Node* input = Parameter(Type::String(), 0);
