@@ -6,8 +6,8 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
-#include "src/asmjs/typing-asm.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -59,12 +59,8 @@ i::MaybeHandle<i::FixedArray> CompileModule(
 
 MaybeHandle<FixedArray> AsmJs::ConvertAsmToWasm(ParseInfo* info) {
   ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
-  AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
-                 info->literal());
-  typer.set_fixed_signature(true);
-  if (i::FLAG_enable_simd_asmjs) {
-    typer.set_allow_simd(true);
-  }
+  wasm::AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
+                       info->literal());
   if (!typer.Validate()) {
     DCHECK(!info->isolate()->has_pending_exception());
     PrintF("Validation of asm.js module failed: %s", typer.error_message());

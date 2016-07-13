@@ -110,6 +110,9 @@ class AsmCallableType : public ZoneObject {
   virtual AsmType* ValidateCall(AsmType* return_type,
                                 const ZoneVector<AsmType*>& args) = 0;
 
+  virtual bool CanBeInvokedWith(AsmType* return_type,
+                                const ZoneVector<AsmType*>& args) = 0;
+
 #define DECLARE_CAST(CamelName) \
   virtual Asm##CamelName* As##CamelName() { return nullptr; }
   FOR_EACH_ASM_CALLABLE_TYPE_LIST(DECLARE_CAST)
@@ -135,6 +138,8 @@ class AsmFunctionType : public AsmCallableType {
   virtual bool IsFroundType() const { return false; }
 
   AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+  bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
  protected:
@@ -168,6 +173,8 @@ class AsmOverloadedFunctionType final : public AsmCallableType {
   std::string Name() override;
   AsmType* ValidateCall(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
+  bool CanBeInvokedWith(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
 
   ZoneVector<AsmType*> overloads_;
 
@@ -180,6 +187,8 @@ class AsmFFIType final : public AsmCallableType {
 
   std::string Name() override { return "Function"; }
   AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+  bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
  private:
@@ -197,6 +206,8 @@ class AsmFunctionTableType : public AsmCallableType {
   std::string Name() override;
 
   AsmType* ValidateCall(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
+  bool CanBeInvokedWith(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
 
   size_t length() const { return length_; }

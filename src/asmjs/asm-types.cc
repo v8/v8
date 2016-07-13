@@ -173,6 +173,8 @@ class AsmFroundType final : public AsmFunctionType {
 
   AsmType* ValidateCall(AsmType* return_type,
                         const ZoneVector<AsmType*>& args) override;
+  bool CanBeInvokedWith(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override;
 };
 }  // namespace
 
@@ -181,6 +183,7 @@ AsmType* AsmType::FroundType(Zone* zone) {
   return reinterpret_cast<AsmType*>(Fround);
 }
 
+// TODO(jpp): Remove this method.
 AsmType* AsmFroundType::ValidateCall(AsmType* return_type,
                                      const ZoneVector<AsmType*>& args) {
   if (args.size() != 1) {
@@ -194,6 +197,21 @@ AsmType* AsmFroundType::ValidateCall(AsmType* return_type,
   }
 
   return AsmType::Float();
+}
+
+bool AsmFroundType::CanBeInvokedWith(AsmType* return_type,
+                                     const ZoneVector<AsmType*>& args) {
+  if (args.size() != 1) {
+    return false;
+  }
+
+  auto* arg = args[0];
+  if (!arg->IsA(AsmType::Floatish()) && !arg->IsA(AsmType::DoubleQ()) &&
+      !arg->IsA(AsmType::Signed()) && !arg->IsA(AsmType::Unsigned())) {
+    return false;
+  }
+
+  return true;
 }
 
 namespace {
@@ -228,6 +246,26 @@ class AsmMinMaxType final : public AsmFunctionType {
 
     return ReturnType();
   }
+
+  bool CanBeInvokedWith(AsmType* return_type,
+                        const ZoneVector<AsmType*>& args) override {
+    if (!ReturnType()->IsExactly(return_type)) {
+      return false;
+    }
+
+    if (args.size() < 2) {
+      return false;
+    }
+
+    auto* arg_type = Arguments()[0];
+    for (size_t ii = 0; ii < Arguments().size(); ++ii) {
+      if (!args[ii]->IsA(arg_type)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 };
 }  // namespace
 
@@ -249,6 +287,21 @@ AsmType* AsmFFIType::ValidateCall(AsmType* return_type,
   return return_type;
 }
 
+bool AsmFFIType::CanBeInvokedWith(AsmType* return_type,
+                                  const ZoneVector<AsmType*>& args) {
+  if (return_type->IsExactly(AsmType::Float())) {
+    return false;
+  }
+
+  for (size_t ii = 0; ii < args.size(); ++ii) {
+    if (!args[ii]->IsA(AsmType::Extern())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 AsmType* AsmFunctionType::ValidateCall(AsmType* return_type,
                                        const ZoneVector<AsmType*>& args) {
   if (!return_type_->IsExactly(return_type)) {
@@ -266,6 +319,25 @@ AsmType* AsmFunctionType::ValidateCall(AsmType* return_type,
   }
 
   return return_type_;
+}
+
+bool AsmFunctionType::CanBeInvokedWith(AsmType* return_type,
+                                       const ZoneVector<AsmType*>& args) {
+  if (!return_type_->IsExactly(return_type)) {
+    return false;
+  }
+
+  if (args_.size() != args.size()) {
+    return false;
+  }
+
+  for (size_t ii = 0; ii < args_.size(); ++ii) {
+    if (!args[ii]->IsA(args_[ii])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 std::string AsmOverloadedFunctionType::Name() {
@@ -294,6 +366,17 @@ AsmType* AsmOverloadedFunctionType::ValidateCall(
   return AsmType::None();
 }
 
+bool AsmOverloadedFunctionType::CanBeInvokedWith(
+    AsmType* return_type, const ZoneVector<AsmType*>& args) {
+  for (size_t ii = 0; ii < overloads_.size(); ++ii) {
+    if (overloads_[ii]->AsCallableType()->CanBeInvokedWith(return_type, args)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void AsmOverloadedFunctionType::AddOverload(AsmType* overload) {
   DCHECK(overload->AsFunctionType() != nullptr);
   overloads_.push_back(overload);
@@ -312,6 +395,11 @@ std::string AsmFunctionTableType::Name() {
 AsmType* AsmFunctionTableType::ValidateCall(AsmType* return_type,
                                             const ZoneVector<AsmType*>& args) {
   return signature_->AsCallableType()->ValidateCall(return_type, args);
+}
+
+bool AsmFunctionTableType::CanBeInvokedWith(AsmType* return_type,
+                                            const ZoneVector<AsmType*>& args) {
+  return signature_->AsCallableType()->CanBeInvokedWith(return_type, args);
 }
 
 }  // namespace wasm

@@ -43,9 +43,11 @@ function IntTest() {
   function sum(a, b) {
     a = a|0;
     b = b|0;
-    var c = (b + 1)|0
+    var c = 0;
     var d = 3.0;
-    var e = ~~d;  // double conversion
+    var e = 0;
+    e = ~~d;  // double conversion
+    c = (b + 1)|0
     return (a + c + 1)|0;
   }
 
@@ -68,8 +70,9 @@ function Float64Test() {
   }
 
   function caller() {
-    var a = +sum(70.1,10.2);
+    var a = 0.0;
     var ret = 0|0;
+    a = +sum(70.1,10.2);
     if (a == 80.3) {
       ret = 1|0;
     } else {
@@ -89,7 +92,8 @@ function BadModule() {
   function caller(a, b) {
     a = a|0;
     b = b+0;
-    var c = (b + 1)|0
+    var c = 0;
+    c = (b + 1)|0
     return (a + c + 1)|0;
   }
 
@@ -293,12 +297,12 @@ function TestBreakInNestedWhile() {
 
   function caller() {
     var x = 1.0;
+    var ret = 0;
     while(x < 1.5) {
       while(1)
         break;
       x = +(x + 0.25);
     }
-    var ret = 0;
     if (x == 1.5) {
       ret = 9;
     }
@@ -405,7 +409,8 @@ function TestNot() {
   "use asm";
 
   function caller() {
-    var a = !(2 > 3);
+    var a = 0;
+    a = !(2 > 3);
     return a | 0;
   }
 
@@ -886,7 +891,9 @@ function TestFunctionTableSingleFunction() {
   }
 
   function caller() {
-    return function_table[0&0]() | 0;
+    // TODO(jpp): the parser optimizes function_table[0&0] to function table[0].
+    var v = 0;
+    return function_table[v&0]() | 0;
   }
 
   var function_table = [dummy]
@@ -911,8 +918,9 @@ function TestFunctionTableMultipleFunctions() {
   }
 
   function caller() {
-    if ((function_table[0&1](50)|0) == 51) {
-      if ((function_table[1&1](60)|0) == 62) {
+    var i = 0, j = 1;
+    if ((function_table[i&1](50)|0) == 51) {
+      if ((function_table[j&1](60)|0) == 62) {
         return 73;
       }
     }
@@ -1350,7 +1358,7 @@ assertWasm(1, TestXor);
     "use asm";
     function func() {
       var a = 1;
-      return ((a * 3) + (4 * a)) | 0;
+      return (((a * 3)|0) + ((4 * a)|0)) | 0;
     }
     return {func: func};
   }

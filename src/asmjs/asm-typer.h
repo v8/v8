@@ -22,6 +22,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+class AsmType;
 class AsmTyperHarnessBuilder;
 
 class AsmTyper final {
@@ -313,6 +314,7 @@ class AsmTyper final {
   bool stack_overflow_ = false;
   ZoneMap<AstNode*, AsmType*> node_types_;
   static const int kErrorMessageLimit = 100;
+  AsmType* fround_type_;
   char error_message_[kErrorMessageLimit];
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmTyper);

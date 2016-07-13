@@ -4,7 +4,7 @@
 
 // Flags: --expose-wasm
 
-function __f_61(stdlib, buffer) {
+function __f_61(stdlib, foreign, buffer) {
   "use asm";
   var __v_14 = new stdlib.Float64Array(buffer);
   function __f_74() {

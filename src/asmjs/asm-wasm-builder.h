@@ -6,7 +6,7 @@
 #define V8_ASMJS_ASM_WASM_BUILDER_H_
 
 #include "src/allocation.h"
-#include "src/asmjs/typing-asm.h"
+#include "src/asmjs/asm-typer.h"
 #include "src/objects.h"
 #include "src/wasm/encoder.h"
 #include "src/zone.h"

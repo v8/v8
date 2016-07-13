@@ -10,6 +10,7 @@
 #endif
 #include <math.h>
 
+#include "src/asmjs/asm-types.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/wasm/switch-logic.h"
 #include "src/wasm/wasm-macro-gen.h"
@@ -18,7 +19,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -59,7 +59,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
         isolate_(isolate),
         zone_(zone),
         typer_(typer),
-        cache_(TypeCache::Get()),
         breakable_blocks_(zone),
         foreign_variables_(zone),
         init_function_index_(0),
@@ -68,8 +67,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         function_tables_(base::HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
-        imported_function_table_(this),
-        bounds_(typer->bounds()) {
+        imported_function_table_(this) {
     InitializeAstVisitor(isolate);
   }
 
@@ -359,12 +357,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
       if (!clause->is_default()) {
         Literal* label = clause->label()->AsLiteral();
         Handle<Object> value = label->value();
-        DCHECK(value->IsNumber() &&
-               bounds_->get(label).upper->Is(cache_.kAsmSigned));
         int32_t label_value;
-        if (!value->ToInt32(&label_value)) {
-          UNREACHABLE();
-        }
+        bool label_is_i32 = value->ToInt32(&label_value);
+        DCHECK(value->IsNumber() && label_is_i32);
+        (void)label_is_i32;
         case_to_block[label_value] = i;
         cases.push_back(label_value);
       } else {
@@ -459,15 +455,15 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitFunctionLiteral(FunctionLiteral* expr) override {
     Scope* scope = expr->scope();
     if (scope_ == kFuncScope) {
-      if (bounds_->get(expr).lower->IsFunction()) {
+      if (auto* func_type = typer_->TypeOf(expr)->AsFunctionType()) {
         // Build the signature for the function.
-        FunctionType* func_type = bounds_->get(expr).lower->AsFunction();
-        LocalType return_type = TypeFrom(func_type->Result());
+        LocalType return_type = TypeFrom(func_type->ReturnType());
+        const auto& arguments = func_type->Arguments();
         FunctionSig::Builder b(zone(), return_type == kAstStmt ? 0 : 1,
-                               func_type->Arity());
+                               arguments.size());
         if (return_type != kAstStmt) b.AddReturn(return_type);
         for (int i = 0; i < expr->parameter_count(); ++i) {
-          LocalType type = TypeFrom(func_type->Parameter(i));
+          LocalType type = TypeFrom(arguments[i]);
           DCHECK_NE(kAstStmt, type);
           b.AddParam(type);
           InsertParameter(scope->parameter(i), type, i);
@@ -573,15 +569,17 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (!value->IsNumber() || (scope_ != kFuncScope && scope_ != kInitScope)) {
       return;
     }
-    Type* type = bounds_->get(expr).upper;
-    if (type->Is(cache_.kAsmSigned)) {
+    AsmType* type = typer_->TypeOf(expr);
+    DCHECK_NE(type, AsmType::None());
+
+    if (type->IsA(AsmType::Signed())) {
       int32_t i = 0;
       if (!value->ToInt32(&i)) {
         UNREACHABLE();
       }
       byte code[] = {WASM_I32V(i)};
       current_function_builder_->EmitCode(code, sizeof(code));
-    } else if (type->Is(cache_.kAsmUnsigned) || type->Is(cache_.kAsmFixnum)) {
+    } else if (type->IsA(AsmType::Unsigned()) || type->IsA(AsmType::FixNum())) {
       uint32_t u = 0;
       if (!value->ToUint32(&u)) {
         UNREACHABLE();
@@ -589,7 +587,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       int32_t i = static_cast<int32_t>(u);
       byte code[] = {WASM_I32V(i)};
       current_function_builder_->EmitCode(code, sizeof(code));
-    } else if (type->Is(cache_.kAsmDouble)) {
+    } else if (type->IsA(AsmType::Double())) {
       double val = expr->raw_value()->AsNumber();
       byte code[] = {WASM_F64(val)};
       current_function_builder_->EmitCode(code, sizeof(code));
@@ -635,16 +633,18 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void AddFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
-    FunctionType* func_type =
-        bounds_->get(funcs).lower->AsArray()->Element()->AsFunction();
-    LocalType return_type = TypeFrom(func_type->Result());
+    auto* func_tbl_type = typer_->TypeOf(funcs)->AsFunctionTableType();
+    DCHECK_NOT_NULL(func_tbl_type);
+    auto* func_type = func_tbl_type->signature()->AsFunctionType();
+    const auto& arguments = func_type->Arguments();
+    LocalType return_type = TypeFrom(func_type->ReturnType());
     FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
-                             func_type->Arity());
+                             arguments.size());
     if (return_type != kAstStmt) {
-      sig.AddReturn(static_cast<LocalType>(return_type));
+      sig.AddReturn(return_type);
     }
-    for (int i = 0; i < func_type->Arity(); ++i) {
-      sig.AddParam(TypeFrom(func_type->Parameter(i)));
+    for (auto* arg : arguments) {
+      sig.AddParam(TypeFrom(arg));
     }
     uint32_t signature_index = builder_->AddSignature(sig.Build());
     InsertFunctionTable(table->var(), next_table_index_, signature_index);
@@ -805,8 +805,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (target_prop != nullptr) {
       // Left hand side is a property access, i.e. the asm.js heap.
       if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
-          bounds_->get(expr->target()->AsProperty()->obj())
-              .lower->Is(cache_.kFloat32Array)) {
+          typer_->TypeOf(expr->target()->AsProperty()->obj())
+              ->IsA(AsmType::Float32Array())) {
         current_function_builder_->Emit(kExprF32ConvertF64);
       }
       WasmOpcode opcode;
@@ -846,7 +846,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         if (vp != nullptr && vp->var()->IsParameter() &&
             vp->var()->index() == 1) {
           VariableProxy* target = expr->target()->AsVariableProxy();
-          if (bounds_->get(target).lower->Is(Type::Function())) {
+          if (typer_->TypeOf(target)->AsFFIType() != nullptr) {
             const AstRawString* name =
                 prop->key()->AsLiteral()->AsRawPropertyName();
             imported_function_table_.AddImport(
@@ -859,7 +859,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
       ArrayLiteral* funcs = expr->value()->AsArrayLiteral();
       if (funcs != nullptr &&
-          bounds_->get(funcs).lower->AsArray()->Element()->IsFunction()) {
+          typer_->TypeOf(funcs)
+              ->AsFunctionTableType()
+              ->signature()
+              ->AsFunctionType()) {
         VariableProxy* target = expr->target()->AsVariableProxy();
         DCHECK_NOT_NULL(target);
         AddFunctionTable(target, funcs);
@@ -905,34 +908,33 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitPropertyAndEmitIndex(Property* expr, MachineType* mtype) {
     Expression* obj = expr->obj();
-    DCHECK_EQ(bounds_->get(obj).lower, bounds_->get(obj).upper);
-    Type* type = bounds_->get(obj).lower;
+    AsmType* type = typer_->TypeOf(obj);
     int size;
-    if (type->Is(cache_.kUint8Array)) {
+    if (type->IsA(AsmType::Uint8Array())) {
       *mtype = MachineType::Uint8();
       size = 1;
-    } else if (type->Is(cache_.kInt8Array)) {
+    } else if (type->IsA(AsmType::Int8Array())) {
       *mtype = MachineType::Int8();
       size = 1;
-    } else if (type->Is(cache_.kUint16Array)) {
+    } else if (type->IsA(AsmType::Uint16Array())) {
       *mtype = MachineType::Uint16();
       size = 2;
-    } else if (type->Is(cache_.kInt16Array)) {
+    } else if (type->IsA(AsmType::Int16Array())) {
       *mtype = MachineType::Int16();
       size = 2;
-    } else if (type->Is(cache_.kUint32Array)) {
+    } else if (type->IsA(AsmType::Uint32Array())) {
       *mtype = MachineType::Uint32();
       size = 4;
-    } else if (type->Is(cache_.kInt32Array)) {
+    } else if (type->IsA(AsmType::Int32Array())) {
       *mtype = MachineType::Int32();
       size = 4;
-    } else if (type->Is(cache_.kUint32Array)) {
+    } else if (type->IsA(AsmType::Uint32Array())) {
       *mtype = MachineType::Uint32();
       size = 4;
-    } else if (type->Is(cache_.kFloat32Array)) {
+    } else if (type->IsA(AsmType::Float32Array())) {
       *mtype = MachineType::Float32();
       size = 4;
-    } else if (type->Is(cache_.kFloat64Array)) {
+    } else if (type->IsA(AsmType::Float64Array())) {
       *mtype = MachineType::Float64();
       size = 8;
     } else {
@@ -1228,7 +1230,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
           }
         }
         VisitCallArgs(call);
-        switch (TypeIndexOf(args->at(0))) {
+        static const bool kDontIgnoreSign = false;
+        switch (TypeIndexOf(args->at(0), kDontIgnoreSign)) {
           case kInt32:
           case kFixnum:
             current_function_builder_->Emit(kExprF32SConvertI32);
@@ -1275,8 +1278,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         }
         uint32_t index;
         VariableProxy* vp = expr->expression()->AsVariableProxy();
-        if (vp != nullptr &&
-            Type::Any()->Is(bounds_->get(vp).lower->AsFunction()->Result())) {
+        DCHECK_NOT_NULL(vp);
+        if (typer_->TypeOf(vp)->AsFFIType() != nullptr) {
           LocalType return_type = TypeOf(expr);
           ZoneList<Expression*>* args = expr->arguments();
           FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
@@ -1479,9 +1482,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitBinaryOperation(BinaryOperation* expr) override {
     ConvertOperation convertOperation = MatchBinaryOperation(expr);
+    static const bool kDontIgnoreSign = false;
     if (convertOperation == kToDouble) {
       RECURSE(Visit(expr->left()));
-      TypeIndex type = TypeIndexOf(expr->left());
+      TypeIndex type = TypeIndexOf(expr->left(), kDontIgnoreSign);
       if (type == kInt32 || type == kFixnum) {
         current_function_builder_->Emit(kExprF64SConvertI32);
       } else if (type == kUint32) {
@@ -1493,7 +1497,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     } else if (convertOperation == kToInt) {
       RECURSE(Visit(GetLeft(expr)));
-      TypeIndex type = TypeIndexOf(GetLeft(expr));
+      TypeIndex type = TypeIndexOf(GetLeft(expr), kDontIgnoreSign);
       if (type == kFloat32) {
         current_function_builder_->Emit(kExprI32AsmjsSConvertF32);
       } else if (type == kFloat64) {
@@ -1583,8 +1587,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   };
 
   TypeIndex TypeIndexOf(Expression* left, Expression* right, bool ignore_sign) {
-    TypeIndex left_index = TypeIndexOf(left);
-    TypeIndex right_index = TypeIndexOf(right);
+    TypeIndex left_index = TypeIndexOf(left, ignore_sign);
+    TypeIndex right_index = TypeIndexOf(right, ignore_sign);
     if (left_index == kFixnum) {
       left_index = right_index;
     }
@@ -1595,30 +1599,43 @@ class AsmWasmBuilderImpl : public AstVisitor {
       left_index = kInt32;
       right_index = kInt32;
     }
-    DCHECK((left_index == right_index) ||
-           (ignore_sign && (left_index <= 1) && (right_index <= 1)));
+    if (left_index != right_index) {
+      DCHECK(ignore_sign && (left_index <= 1) && (right_index <= 1));
+    }
     return left_index;
   }
 
-  TypeIndex TypeIndexOf(Expression* expr) {
-    DCHECK_EQ(bounds_->get(expr).lower, bounds_->get(expr).upper);
-    Type* type = bounds_->get(expr).lower;
-    if (type->Is(cache_.kAsmFixnum)) {
+  TypeIndex TypeIndexOf(Expression* expr, bool ignore_sign) {
+    AsmType* type = typer_->TypeOf(expr);
+    if (type->IsA(AsmType::FixNum())) {
       return kFixnum;
-    } else if (type->Is(cache_.kAsmSigned)) {
-      return kInt32;
-    } else if (type->Is(cache_.kAsmUnsigned)) {
-      return kUint32;
-    } else if (type->Is(cache_.kAsmInt)) {
-      return kInt32;
-    } else if (type->Is(cache_.kAsmFloat)) {
-      return kFloat32;
-    } else if (type->Is(cache_.kAsmDouble)) {
-      return kFloat64;
-    } else {
-      UNREACHABLE();
+    }
+
+    if (type->IsA(AsmType::Signed())) {
       return kInt32;
     }
+
+    if (type->IsA(AsmType::Unsigned())) {
+      return kUint32;
+    }
+
+    if (type->IsA(AsmType::Intish())) {
+      if (!ignore_sign) {
+        // TODO(jpp): log a warning and move on.
+      }
+      return kInt32;
+    }
+
+    if (type->IsA(AsmType::Floatish())) {
+      return kFloat32;
+    }
+
+    if (type->IsA(AsmType::DoubleQ())) {
+      return kFloat64;
+    }
+
+    UNREACHABLE();
+    return kInt32;
   }
 
 #undef CASE
@@ -1721,21 +1738,22 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return (reinterpret_cast<IndexContainer*>(entry->value))->index;
   }
 
-  LocalType TypeOf(Expression* expr) {
-    DCHECK_EQ(bounds_->get(expr).lower, bounds_->get(expr).upper);
-    return TypeFrom(bounds_->get(expr).lower);
-  }
+  LocalType TypeOf(Expression* expr) { return TypeFrom(typer_->TypeOf(expr)); }
 
-  LocalType TypeFrom(Type* type) {
-    if (type->Is(cache_.kAsmInt)) {
+  LocalType TypeFrom(AsmType* type) {
+    if (type->IsA(AsmType::Intish())) {
       return kAstI32;
-    } else if (type->Is(cache_.kAsmFloat)) {
-      return kAstF32;
-    } else if (type->Is(cache_.kAsmDouble)) {
-      return kAstF64;
-    } else {
-      return kAstStmt;
     }
+
+    if (type->IsA(AsmType::Floatish())) {
+      return kAstF32;
+    }
+
+    if (type->IsA(AsmType::DoubleQ())) {
+      return kAstF64;
+    }
+
+    return kAstStmt;
   }
 
   Zone* zone() { return zone_; }
@@ -1750,7 +1768,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
   Isolate* isolate_;
   Zone* zone_;
   AsmTyper* typer_;
-  TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   ZoneVector<ForeignVariable> foreign_variables_;
   uint32_t init_function_index_;
@@ -1758,7 +1775,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
   ImportedFunctionTable imported_function_table_;
-  const AstTypeBounds* bounds_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

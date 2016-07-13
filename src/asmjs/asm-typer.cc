@@ -48,6 +48,9 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace {
+static const uint32_t LargestFixNum = std::numeric_limits<int32_t>::max();
+}  // namespace
 
 using v8::internal::AstNode;
 using v8::internal::GetCurrentStackPosition;
@@ -122,7 +125,8 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                    ZoneHashMap::kDefaultHashMapCapacity,
                    ZoneAllocationPolicy(zone)),
       stack_limit_(isolate->stack_guard()->real_climit()),
-      node_types_(zone_) {
+      node_types_(zone_),
+      fround_type_(AsmType::FroundType(zone_)) {
   InitializeStdlib();
   module_info_.set_standard_member(kModule);
 }
@@ -165,12 +169,16 @@ void AsmTyper::InitializeStdlib() {
   ii2s->AsFunctionType()->AddArgument(i);
 
   auto* minmax_d = AsmType::MinMaxType(zone_, d, d);
+  // *VIOLATION* The float variant is not part of the spec, but firefox accepts
+  // it.
+  auto* minmax_f = AsmType::MinMaxType(zone_, f, f);
   auto* minmax_i = AsmType::MinMaxType(zone_, s, i);
   auto* minmax = AsmType::OverloadedFunction(zone_);
   minmax->AsOverloadedFunctionType()->AddOverload(minmax_i);
+  minmax->AsOverloadedFunctionType()->AddOverload(minmax_f);
   minmax->AsOverloadedFunctionType()->AddOverload(minmax_d);
 
-  auto* fround = AsmType::FroundType(zone_);
+  auto* fround = fround_type_;
 
   auto* abs = AsmType::OverloadedFunction(zone_);
   abs->AsOverloadedFunctionType()->AddOverload(s2s);
@@ -362,17 +370,36 @@ bool AsmTyper::AddLocal(Variable* variable, VariableInfo* info) {
 
 void AsmTyper::SetTypeOf(AstNode* node, AsmType* type) {
   DCHECK_NE(type, AsmType::None());
-  auto** node_type = &node_types_[node];
-  DCHECK(*node_type == nullptr);
-  *node_type = type;
+  DCHECK(node_types_.find(node) == node_types_.end());
+  node_types_.insert(std::make_pair(node, type));
 }
 
 AsmType* AsmTyper::TypeOf(AstNode* node) const {
   auto node_type_iter = node_types_.find(node);
-  if (node_type_iter == node_types_.end()) {
-    return AsmType::None();
+  if (node_type_iter != node_types_.end()) {
+    return node_type_iter->second;
   }
-  return node_type_iter->second;
+
+  // Sometimes literal nodes are not added to the node_type_ map simply because
+  // their are not visited with ValidateExpression().
+  if (auto* literal = node->AsLiteral()) {
+    if (literal->raw_value()->ContainsDot()) {
+      return AsmType::Double();
+    }
+    uint32_t u;
+    if (literal->value()->ToUint32(&u)) {
+      if (u > LargestFixNum) {
+        return AsmType::Unsigned();
+      }
+      return AsmType::FixNum();
+    }
+    int32_t i;
+    if (literal->value()->ToInt32(&i)) {
+      return AsmType::Signed();
+    }
+  }
+
+  return AsmType::None();
 }
 
 AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
@@ -607,11 +634,13 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
   auto* value = assign->value();
   // Not all types of assignment are allowed by asm.js. See
   // 5.5 Global Variable Type Annotations.
+  bool global_variable = false;
   if (value->IsLiteral() || value->IsCall()) {
     AsmType* type = nullptr;
     RECURSE(type = VariableTypeAnnotations(value));
     target_info = new (zone_) VariableInfo(type);
     target_info->set_mutability(VariableInfo::kMutableGlobal);
+    global_variable = true;
   } else if (value->IsProperty()) {
     target_info = ImportLookup(value->AsProperty());
     if (target_info == nullptr) {
@@ -689,6 +718,12 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
   }
 
   DCHECK(target_info->type() != AsmType::None());
+  if (!global_variable) {
+    // Global variables have their types set in VariableTypeAnnotations.
+    SetTypeOf(value, target_info->type());
+  }
+  SetTypeOf(assign, target_info->type());
+  SetTypeOf(target, target_info->type());
   return target_info->type();
 }
 
@@ -830,6 +865,7 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
       DCHECK(false);
       FAIL(assign, "Redeclared global identifier in function table name.");
     }
+    SetTypeOf(value, target_info->type());
     return target_info->type();
   }
 
@@ -854,7 +890,7 @@ AsmType* AsmTyper::ValidateFunctionTable(Assignment* assign) {
   }
 
   target_info->MarkDefined();
-  DCHECK(target_info->type() == AsmType::None());
+  DCHECK(target_info->type() != AsmType::None());
   SetTypeOf(value, target_info->type());
 
   return target_info->type();
@@ -916,6 +952,8 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
       FAIL(proxy, "Redeclared parameter.");
     }
     parameter_types.push_back(type);
+    SetTypeOf(proxy, type);
+    SetTypeOf(expr, type);
   }
 
   if (annotated_parameters != fun->parameter_count()) {
@@ -952,6 +990,9 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     if (!AddLocal(local->var(), local_info)) {
       FAIL(initializer, "Redeclared local.");
     }
+
+    SetTypeOf(local, type);
+    SetTypeOf(initializer, type);
   }
 
   // 5.2 Return Type Annotations
@@ -1018,6 +1059,8 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
       DCHECK(false);
       FAIL(fun_decl, "Redeclared global identifier.");
     }
+
+    SetTypeOf(fun, fun_type);
     return fun_type;
   }
 
@@ -1221,6 +1264,7 @@ AsmType* AsmTyper::ValidateSwitchStatement(SwitchStatement* stmt) {
       CHECK(!has_default);
       RECURSE(ValidateDefault(a_case));
       has_default = true;
+      continue;
     }
 
     int32_t case_lbl;
@@ -1364,7 +1408,7 @@ bool IsUnaryMinus(BinaryOperation* binop) {
     return false;
   }
 
-  return right_as_literal->raw_value()->ContainsDot() &&
+  return !right_as_literal->raw_value()->ContainsDot() &&
          right_as_literal->raw_value()->AsNumber() == -1.0;
 }
 }  // namespace
@@ -1391,6 +1435,7 @@ AsmType* AsmTyper::ValidateBinaryOperation(BinaryOperation* expr) {
         }
         AsmType* left_type;
         RECURSE(left_type = ValidateExpression(expr->left()));
+        SetTypeOf(expr->right(), AsmType::Double());
         UNOP_OVERLOAD(Signed, Double);
         UNOP_OVERLOAD(Unsigned, Double);
         UNOP_OVERLOAD(DoubleQ, Double);
@@ -1402,6 +1447,7 @@ AsmType* AsmTyper::ValidateBinaryOperation(BinaryOperation* expr) {
         // *VIOLATION* the parser converts -x to x * -1.0.
         AsmType* left_type;
         RECURSE(left_type = ValidateExpression(expr->left()));
+        SetTypeOf(expr->right(), left_type);
         UNOP_OVERLOAD(Int, Intish);
         UNOP_OVERLOAD(DoubleQ, Double);
         UNOP_OVERLOAD(FloatQ, Floatish);
@@ -1431,6 +1477,9 @@ AsmType* AsmTyper::ValidateBinaryOperation(BinaryOperation* expr) {
           // This is the special ~~ operator.
           AsmType* left_type;
           RECURSE(left_type = ValidateExpression(left_as_binop->left()));
+          SetTypeOf(left_as_binop->right(), AsmType::FixNum());
+          SetTypeOf(left_as_binop, AsmType::Signed());
+          SetTypeOf(expr->right(), AsmType::FixNum());
           UNOP_OVERLOAD(Double, Signed);
           UNOP_OVERLOAD(FloatQ, Signed);
           FAIL(left_as_binop, "Invalid type for conversion to signed.");
@@ -1456,24 +1505,21 @@ AsmType* AsmTyper::ValidateCommaExpression(BinaryOperation* comma) {
   // (expr COMMA (expr COMMA (expr COMMA (... ))))
 
   auto* left = comma->left();
-  auto* left_as_binop = left->AsBinaryOperation();
-  if (left_as_binop && left_as_binop->op() == Token::COMMA) {
-    ValidateCommaExpression(left_as_binop);
-  } else if (auto* left_as_call = left->AsCall()) {
-    ValidateCall(AsmType::Void(), left_as_call);
+  if (auto* left_as_call = left->AsCall()) {
+    RECURSE(ValidateCall(AsmType::Void(), left_as_call));
   } else {
-    ValidateExpression(left);
+    RECURSE(ValidateExpression(left));
   }
 
   auto* right = comma->right();
-  auto* right_as_binop = right->AsBinaryOperation();
-  if (right_as_binop && right_as_binop->op() == Token::COMMA) {
-    return ValidateCommaExpression(right_as_binop);
+  AsmType* right_type = nullptr;
+  if (auto* right_as_call = right->AsCall()) {
+    RECURSE(right_type = ValidateCall(AsmType::Void(), right_as_call));
   } else {
-    return ValidateExpression(right);
+    RECURSE(right_type = ValidateExpression(right));
   }
 
-  UNREACHABLE();
+  return right_type;
 }
 
 // 6.8.2 NumericLiteral
@@ -1500,7 +1546,6 @@ AsmType* AsmTyper::ValidateNumericLiteral(Literal* literal) {
     return AsmType::Signed();
   }
 
-  static const uint32_t LargestFixNum = std::numeric_limits<int32_t>::max();
   if (value <= LargestFixNum) {
     return AsmType::FixNum();
   }
@@ -1587,13 +1632,15 @@ AsmType* AsmTyper::ValidateAssignmentExpression(Assignment* assignment) {
                 ValidateHeapAccess(target_as_property, StoreToHeap));
 
     // TODO(jpp): Change FloatishDoubleQ and FloatQDoubleQ so that they are base
-    // classes for Floatish, DoubleQ, and FloatQ, and then invert this if so
-    // that it reads more naturally as
-    //
-    // if (!value_type->IsA(allowed_store_types))
-    if (allowed_store_types == AsmType::FloatishDoubleQ() ||
-        allowed_store_types == AsmType::FloatQDoubleQ()) {
-      if (!allowed_store_types->IsA(value_type)) {
+    // classes for Floatish, DoubleQ, and FloatQ.
+    if (allowed_store_types == AsmType::FloatishDoubleQ()) {
+      if (!value_type->IsA(AsmType::Floatish()) &&
+          !value_type->IsA(AsmType::DoubleQ())) {
+        FAIL(assignment, "Type mismatch in heap assignment.");
+      }
+    } else if (allowed_store_types == AsmType::FloatQDoubleQ()) {
+      if (!value_type->IsA(AsmType::FloatQ()) &&
+          !value_type->IsA(AsmType::DoubleQ())) {
         FAIL(assignment, "Type mismatch in heap assignment.");
       }
     } else {
@@ -1778,6 +1825,7 @@ AsmType* AsmTyper::ValidateAdditiveExpression(BinaryOperation* binop,
                                    left_as_binop->op() == Token::SUB)) {
     RECURSE(left_type =
                 ValidateAdditiveExpression(left_as_binop, intish_count + 1));
+    SetTypeOf(left_as_binop, left_type);
   } else {
     RECURSE(left_type = ValidateExpression(left));
   }
@@ -1790,6 +1838,7 @@ AsmType* AsmTyper::ValidateAdditiveExpression(BinaryOperation* binop,
                                     right_as_binop->op() == Token::SUB)) {
     RECURSE(right_type =
                 ValidateAdditiveExpression(right_as_binop, intish_count + 1));
+    SetTypeOf(right_as_binop, right_type);
   } else {
     RECURSE(right_type = ValidateExpression(right));
   }
@@ -2084,32 +2133,14 @@ bool ExtractIndirectCallMask(Expression* expr, uint32_t* value) {
 
   return base::bits::IsPowerOfTwo32(1 + *value);
 }
-
-// TODO(jpp): Add a AsmType::ValidateCall is poorly designed. It can only handle
-// function declarations, not invocations. CheckInvocationOf temporarily works
-// around this limitation by converting each actual in actuals to a parameter
-// type before invoking prototype->ValidateCall. This is the wrong behavior for
-// FFIs (we need to pass Signed integers to FFIs, not Ints), so that case is
-// handled separately.
-bool CheckInvocationOf(AsmCallableType* prototype, AsmType* return_type,
-                       ZoneVector<AsmType*>* actuals) {
-  if (auto* ffi = prototype->AsFFIType()) {
-    return ffi->ValidateCall(return_type, *actuals) != AsmType::None();
-  }
-
-  for (size_t ii = 0; ii < actuals->size(); ++ii) {
-    (*actuals)[ii] = (*actuals)[ii]->ToParameterType();
-  }
-  return prototype->ValidateCall(return_type, *actuals) != AsmType::None();
-}
-
 }  // namespace
 
 AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
   AsmType* float_coercion_type;
   RECURSE(float_coercion_type = ValidateFloatCoercion(call));
   if (float_coercion_type == AsmType::Float()) {
-    return AsmType::Float();
+    SetTypeOf(call, AsmType::Float());
+    return return_type;
   }
 
   // TODO(jpp): we should be able to reuse the args vector's storage space.
@@ -2148,6 +2179,8 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      SetTypeOf(call_var_proxy, reinterpret_cast<AsmType*>(call_type));
+      SetTypeOf(call, return_type);
       return return_type;
     }
 
@@ -2161,10 +2194,12 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
       FAIL(call, "Foreign functions can't return float.");
     }
 
-    if (!CheckInvocationOf(callee_type, return_type, &args)) {
+    if (!callee_type->CanBeInvokedWith(return_type, args)) {
       FAIL(call, "Function invocation does not match function type.");
     }
 
+    SetTypeOf(call_var_proxy, call_var_info->type());
+    SetTypeOf(call, return_type);
     return return_type;
   }
 
@@ -2221,6 +2256,8 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      SetTypeOf(call_property, reinterpret_cast<AsmType*>(call_type));
+      SetTypeOf(call, return_type);
       return return_type;
     }
 
@@ -2236,12 +2273,15 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
     auto* previous_type_signature =
         previous_type->signature()->AsFunctionType();
     DCHECK(previous_type_signature != nullptr);
-    if (!CheckInvocationOf(previous_type_signature, return_type, &args)) {
+    if (!previous_type_signature->CanBeInvokedWith(return_type, args)) {
+      // TODO(jpp): better error messages.
       FAIL(call,
            "Function pointer table signature does not match previous "
            "signature.");
     }
 
+    SetTypeOf(call_property, previous_type->signature());
+    SetTypeOf(call, return_type);
     return return_type;
   }
 
@@ -2280,6 +2320,7 @@ AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
   if (!obj_type->IsA(AsmType::Heap())) {
     FAIL(heap, "Identifier does not represent a heap view.");
   }
+  SetTypeOf(obj, obj_type);
 
   if (auto* key_as_literal = heap->key()->AsLiteral()) {
     if (key_as_literal->raw_value()->ContainsDot()) {
@@ -2371,6 +2412,7 @@ AsmType* AsmTyper::ValidateFloatCoercion(Call* call) {
   RECURSE(arg_type = ValidateExpression(arg));
   if (arg_type->IsA(AsmType::Floatish()) || arg_type->IsA(AsmType::DoubleQ()) ||
       arg_type->IsA(AsmType::Signed()) || arg_type->IsA(AsmType::Unsigned())) {
+    SetTypeOf(call->expression(), fround_type_);
     return AsmType::Float();
   }
 
@@ -2395,9 +2437,11 @@ AsmType* AsmTyper::ParameterTypeAnnotations(Variable* parameter,
            "Invalid parameter type annotation - should annotate a parameter.");
     }
     if (IsDoubleAnnotation(binop)) {
+      SetTypeOf(left, AsmType::Double());
       return AsmType::Double();
     }
     if (IsIntAnnotation(binop)) {
+      SetTypeOf(left, AsmType::Int());
       return AsmType::Int();
     }
     FAIL(binop, "Invalid parameter type annotation.");
@@ -2428,6 +2472,7 @@ AsmType* AsmTyper::ParameterTypeAnnotations(Variable* parameter,
          "a parameter.");
   }
 
+  SetTypeOf(src_expr, AsmType::Float());
   return AsmType::Float();
 }
 
@@ -2485,18 +2530,26 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
 AsmType* AsmTyper::VariableTypeAnnotations(Expression* initializer) {
   if (auto* literal = initializer->AsLiteral()) {
     if (literal->raw_value()->ContainsDot()) {
+      SetTypeOf(initializer, AsmType::Double());
       return AsmType::Double();
     }
     int32_t i32;
     uint32_t u32;
-    if (literal->value()->ToInt32(&i32) || literal->value()->ToUint32(&u32)) {
-      return AsmType::Int();
+    if (literal->value()->ToUint32(&u32)) {
+      if (u32 > LargestFixNum) {
+        SetTypeOf(initializer, AsmType::Unsigned());
+      } else {
+        SetTypeOf(initializer, AsmType::FixNum());
+      }
+    } else if (literal->value()->ToInt32(&i32)) {
+      SetTypeOf(initializer, AsmType::Signed());
+    } else {
+      FAIL(initializer, "Invalid type annotation - forbidden literal.");
     }
-    FAIL(initializer, "Invalid type annotation - forbidden literal.");
+    return AsmType::Int();
   }
 
   auto* call = initializer->AsCall();
-  DCHECK(call != nullptr);
   if (call == nullptr) {
     FAIL(initializer,
          "Invalid variable initialization - it should be a literal, or "

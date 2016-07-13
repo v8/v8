@@ -149,11 +149,8 @@ v8::internal::wasm::ZoneBuffer* TranslateAsmModule(
   info->set_literal(
       info->scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
-  v8::internal::AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
-                               info->literal());
-  if (i::FLAG_enable_simd_asmjs) {
-    typer.set_allow_simd(true);
-  }
+  v8::internal::wasm::AsmTyper typer(info->isolate(), info->zone(),
+                                     *(info->script()), info->literal());
   if (!typer.Validate()) {
     thrower->Error("Asm.js validation failed: %s", typer.error_message());
     return nullptr;

@@ -504,7 +504,6 @@ DEFINE_BOOL(wasm_loop_assignment_analysis, true,
             "perform loop assignment analysis for WASM")
 
 DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
-DEFINE_BOOL(enable_simd_asmjs, false, "enable SIMD.js in asm.js stdlib")
 
 DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")
 DEFINE_STRING(dump_wasm_module_path, NULL, "directory to dump wasm modules to")
