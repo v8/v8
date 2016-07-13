@@ -868,11 +868,12 @@ void MarkCompactCollector::Finish() {
 #endif
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
-  // The stub cache is not traversed during GC; clear the cache to
-  // force lazy re-initialization of it. This must be done after the
+  // The stub caches are not traversed during GC; clear them to force
+  // their lazy re-initialization. This must be done after the
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
-  isolate()->stub_cache()->Clear();
+  isolate()->load_stub_cache()->Clear();
+  isolate()->store_stub_cache()->Clear();
 
   if (have_code_to_deoptimize_) {
     // Some code objects were marked for deoptimization during the GC.

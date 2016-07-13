@@ -455,10 +455,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               compiler::Node* map, Label* if_handler,
                               Variable* var_handler, Label* if_miss);
 
-  void TryProbeStubCache(StubCache* stub_cache, Code::Flags flags,
-                         compiler::Node* receiver, compiler::Node* name,
-                         Label* if_handler, Variable* var_handler,
-                         Label* if_miss);
+  void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
+                         compiler::Node* name, Label* if_handler,
+                         Variable* var_handler, Label* if_miss);
 
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);

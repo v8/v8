@@ -2829,9 +2829,11 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 }
 
 void CodeStubAssembler::TryProbeStubCache(
-    StubCache* stub_cache, Code::Flags flags, compiler::Node* receiver,
-    compiler::Node* name, Label* if_handler, Variable* var_handler,
-    Label* if_miss) {
+    StubCache* stub_cache, compiler::Node* receiver, compiler::Node* name,
+    Label* if_handler, Variable* var_handler, Label* if_miss) {
+  Code::Flags flags = Code::RemoveHolderFromFlags(
+      Code::ComputeHandlerFlags(stub_cache->ic_kind()));
+
   Label try_secondary(this), miss(this);
 
   Counters* counters = isolate()->counters();
@@ -2899,10 +2901,7 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
         WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
         &miss);
 
-    Code::Flags code_flags =
-        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
-
-    TryProbeStubCache(isolate()->stub_cache(), code_flags, p->receiver, p->name,
+    TryProbeStubCache(isolate()->load_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
   }
   Bind(&miss);

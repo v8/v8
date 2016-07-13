@@ -1216,10 +1216,11 @@ TEST(TryProbeStubCache) {
   const int kNumParams = 3;
   CodeStubAssemblerTester m(isolate, kNumParams);
 
+  Code::Kind ic_kind = Code::LOAD_IC;
   Code::Flags flags_to_query =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
 
-  StubCache stub_cache(isolate);
+  StubCache stub_cache(isolate, ic_kind);
   stub_cache.Clear();
 
   {
@@ -1232,8 +1233,8 @@ TEST(TryProbeStubCache) {
     Variable var_handler(&m, MachineRepresentation::kTagged);
     Label if_handler(&m), if_miss(&m);
 
-    m.TryProbeStubCache(&stub_cache, flags_to_query, receiver, name,
-                        &if_handler, &var_handler, &if_miss);
+    m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
+                        &if_miss);
     m.Bind(&if_handler);
     m.BranchIfWordEqual(expected_handler, var_handler.value(), &passed,
                         &failed);

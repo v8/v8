@@ -281,7 +281,8 @@ void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorSlot slot,
   if (!slot.IsInvalid()) {
     LoadICNexus nexus(feedback_vector_, slot);
     Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-    CollectReceiverTypes(&nexus, name, flags, receiver_types);
+    CollectReceiverTypes(isolate()->load_stub_cache(), &nexus, name, flags,
+                         receiver_types);
   }
 }
 
@@ -307,7 +308,8 @@ void TypeFeedbackOracle::AssignmentReceiverTypes(FeedbackVectorSlot slot,
                                                  SmallMapList* receiver_types) {
   receiver_types->Clear();
   Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
-  CollectReceiverTypes(slot, name, flags, receiver_types);
+  CollectReceiverTypes(isolate()->store_stub_cache(), slot, name, flags,
+                       receiver_types);
 }
 
 
@@ -326,24 +328,25 @@ void TypeFeedbackOracle::CountReceiverTypes(FeedbackVectorSlot slot,
   if (!slot.IsInvalid()) CollectReceiverTypes(slot, receiver_types);
 }
 
-
-void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackVectorSlot slot,
                                               Handle<Name> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   StoreICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes(&nexus, name, flags, types);
+  CollectReceiverTypes(stub_cache, &nexus, name, flags, types);
 }
 
-void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackNexus* nexus,
                                               Handle<Name> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
       nexus->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
-    isolate()->stub_cache()->CollectMatchingMaps(
-        types, name, flags, native_context_, zone());
+    stub_cache->CollectMatchingMaps(types, name, flags, native_context_,
+                                    zone());
   } else {
     CollectReceiverTypes(nexus, types);
   }

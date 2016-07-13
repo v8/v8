@@ -350,21 +350,37 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
     Add(setters[i].address, setters[i].name);
   }
 
-  StubCache* stub_cache = isolate->stub_cache();
+  StubCache* load_stub_cache = isolate->load_stub_cache();
 
   // Stub cache tables
-  Add(stub_cache->key_reference(StubCache::kPrimary).address(),
-      "StubCache::primary_->key");
-  Add(stub_cache->value_reference(StubCache::kPrimary).address(),
-      "StubCache::primary_->value");
-  Add(stub_cache->map_reference(StubCache::kPrimary).address(),
-      "StubCache::primary_->map");
-  Add(stub_cache->key_reference(StubCache::kSecondary).address(),
-      "StubCache::secondary_->key");
-  Add(stub_cache->value_reference(StubCache::kSecondary).address(),
-      "StubCache::secondary_->value");
-  Add(stub_cache->map_reference(StubCache::kSecondary).address(),
-      "StubCache::secondary_->map");
+  Add(load_stub_cache->key_reference(StubCache::kPrimary).address(),
+      "Load StubCache::primary_->key");
+  Add(load_stub_cache->value_reference(StubCache::kPrimary).address(),
+      "Load StubCache::primary_->value");
+  Add(load_stub_cache->map_reference(StubCache::kPrimary).address(),
+      "Load StubCache::primary_->map");
+  Add(load_stub_cache->key_reference(StubCache::kSecondary).address(),
+      "Load StubCache::secondary_->key");
+  Add(load_stub_cache->value_reference(StubCache::kSecondary).address(),
+      "Load StubCache::secondary_->value");
+  Add(load_stub_cache->map_reference(StubCache::kSecondary).address(),
+      "Load StubCache::secondary_->map");
+
+  StubCache* store_stub_cache = isolate->store_stub_cache();
+
+  // Stub cache tables
+  Add(store_stub_cache->key_reference(StubCache::kPrimary).address(),
+      "Store StubCache::primary_->key");
+  Add(store_stub_cache->value_reference(StubCache::kPrimary).address(),
+      "Store StubCache::primary_->value");
+  Add(store_stub_cache->map_reference(StubCache::kPrimary).address(),
+      "Store StubCache::primary_->map");
+  Add(store_stub_cache->key_reference(StubCache::kSecondary).address(),
+      "Store StubCache::secondary_->key");
+  Add(store_stub_cache->value_reference(StubCache::kSecondary).address(),
+      "Store StubCache::secondary_->value");
+  Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
+      "Store StubCache::secondary_->map");
 
   // Runtime entries
   Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),

@@ -3485,10 +3485,8 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ j(not_equal, &miss);
   __ push(slot);
   __ push(vector);
-  Code::Flags code_flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, code_flags,
-                                               receiver, name, vector, scratch);
+  masm->isolate()->load_stub_cache()->GenerateProbe(masm, receiver, name,
+                                                    vector, scratch);
   __ pop(vector);
   __ pop(slot);
 
@@ -3746,10 +3744,8 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ pop(value);
   __ push(slot);
   __ push(vector);
-  Code::Flags code_flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, code_flags,
-                                               receiver, key, slot, no_reg);
+  masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, slot,
+                                                     no_reg);
   __ pop(vector);
   __ pop(slot);
   Label no_pop_miss;

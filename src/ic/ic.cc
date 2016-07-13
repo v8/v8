@@ -963,9 +963,25 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   TRACE_IC("LoadIC", lookup->name());
 }
 
+StubCache* IC::stub_cache() {
+  switch (kind()) {
+    case Code::LOAD_IC:
+    case Code::KEYED_LOAD_IC:
+      return isolate()->load_stub_cache();
+
+    case Code::STORE_IC:
+    case Code::KEYED_STORE_IC:
+      return isolate()->store_stub_cache();
+
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 void IC::UpdateMegamorphicCache(Map* map, Name* name, Code* code) {
-  isolate()->stub_cache()->Set(name, map, code);
+  stub_cache()->Set(name, map, code);
 }
 
 
@@ -1009,7 +1025,7 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
       if (state() == MEGAMORPHIC && lookup->GetReceiver()->IsHeapObject()) {
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
         Code* megamorphic_cached_code =
-            isolate()->stub_cache()->Get(*lookup->name(), map, code->flags());
+            stub_cache()->Get(*lookup->name(), map, code->flags());
         if (megamorphic_cached_code != *code) {
           TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
           return code;

@@ -1851,7 +1851,8 @@ Isolate::Isolate(bool enable_serializer)
       counters_(NULL),
       logger_(NULL),
       stats_table_(NULL),
-      stub_cache_(NULL),
+      load_stub_cache_(NULL),
+      store_stub_cache_(NULL),
       code_aging_helper_(NULL),
       deoptimizer_data_(NULL),
       deoptimizer_lazy_throw_(false),
@@ -2089,8 +2090,10 @@ Isolate::~Isolate() {
   delete keyed_lookup_cache_;
   keyed_lookup_cache_ = NULL;
 
-  delete stub_cache_;
-  stub_cache_ = NULL;
+  delete load_stub_cache_;
+  load_stub_cache_ = NULL;
+  delete store_stub_cache_;
+  store_stub_cache_ = NULL;
   delete code_aging_helper_;
   code_aging_helper_ = NULL;
   delete stats_table_;
@@ -2233,7 +2236,8 @@ bool Isolate::Init(Deserializer* des) {
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
-  stub_cache_ = new StubCache(this);
+  load_stub_cache_ = new StubCache(this, Code::LOAD_IC);
+  store_stub_cache_ = new StubCache(this, Code::STORE_IC);
   materialized_object_store_ = new MaterializedObjectStore(this);
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
@@ -2309,7 +2313,8 @@ bool Isolate::Init(Deserializer* des) {
   if (!create_heap_objects) {
     des->Deserialize(this);
   }
-  stub_cache_->Initialize();
+  load_stub_cache_->Initialize();
+  store_stub_cache_->Initialize();
   if (FLAG_ignition || serializer_enabled()) {
     interpreter_->Initialize();
   }

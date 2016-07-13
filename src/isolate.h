@@ -835,7 +835,8 @@ class Isolate {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StatsTable* stats_table();
-  StubCache* stub_cache() { return stub_cache_; }
+  StubCache* load_stub_cache() { return load_stub_cache_; }
+  StubCache* store_stub_cache() { return store_stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
@@ -1277,7 +1278,8 @@ class Isolate {
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
-  StubCache* stub_cache_;
+  StubCache* load_stub_cache_;
+  StubCache* store_stub_cache_;
   CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
   bool deoptimizer_lazy_throw_;

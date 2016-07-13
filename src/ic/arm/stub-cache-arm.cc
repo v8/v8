@@ -14,15 +14,15 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
+static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        Code::Flags flags, StubCache::Table table,
                        Register receiver, Register name,
                        // Number of the cache entry, not scaled.
                        Register offset, Register scratch, Register scratch2,
                        Register offset_scratch) {
-  ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
-  ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
-  ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
+  ExternalReference key_offset(stub_cache->key_reference(table));
+  ExternalReference value_offset(stub_cache->value_reference(table));
+  ExternalReference map_offset(stub_cache->map_reference(table));
 
   uint32_t key_off_addr = reinterpret_cast<uint32_t>(key_offset.address());
   uint32_t value_off_addr = reinterpret_cast<uint32_t>(value_offset.address());
@@ -90,12 +90,12 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   __ bind(&miss);
 }
 
-
-void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, Register receiver,
+void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
-  Isolate* isolate = masm->isolate();
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
+
   Label miss;
 
   // Make sure that code is valid. The multiplying code relies on the
@@ -115,12 +115,13 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // If vector-based ics are in use, ensure that scratch, extra, extra2 and
   // extra3 don't conflict with the vector and slot registers, which need
   // to be preserved for a handler call or miss.
-  if (IC::ICUseVector(ic_kind)) {
+  if (IC::ICUseVector(ic_kind_)) {
     Register vector, slot;
-    if (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC) {
+    if (ic_kind_ == Code::STORE_IC || ic_kind_ == Code::KEYED_STORE_IC) {
       vector = VectorStoreICDescriptor::VectorRegister();
       slot = VectorStoreICDescriptor::SlotRegister();
     } else {
+      DCHECK(ic_kind_ == Code::LOAD_IC || ic_kind_ == Code::KEYED_LOAD_IC);
       vector = LoadWithVectorDescriptor::VectorRegister();
       slot = LoadWithVectorDescriptor::SlotRegister();
     }
@@ -150,7 +151,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ and_(scratch, scratch, Operand(mask));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch, extra,
+  ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
              extra2, extra3);
 
   // Primary miss: Compute hash for secondary probe.
@@ -160,7 +161,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ and_(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch, extra,
+  ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,
              extra2, extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by

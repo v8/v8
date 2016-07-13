@@ -52,8 +52,7 @@ class StubCache {
   // Arguments extra, extra2 and extra3 may be used to pass additional scratch
   // registers. Set to no_reg if not needed.
   // If leave_frame is true, then exit a frame before the tail call.
-  void GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                     Code::Flags flags, Register receiver, Register name,
+  void GenerateProbe(MacroAssembler* masm, Register receiver, Register name,
                      Register scratch, Register extra, Register extra2 = no_reg,
                      Register extra3 = no_reg);
 
@@ -86,6 +85,7 @@ class StubCache {
   }
 
   Isolate* isolate() { return isolate_; }
+  Code::Kind ic_kind() const { return ic_kind_; }
 
   // Setting the entry size such that the index is shifted by Name::kHashShift
   // is convenient; shifting down the length field (to extract the hash code)
@@ -107,7 +107,7 @@ class StubCache {
   }
 
   // The constructor is made public only for the purposes of testing.
-  explicit StubCache(Isolate* isolate);
+  StubCache(Isolate* isolate, Code::Kind ic_kind);
 
  private:
   // The stub cache has a primary and secondary level.  The two levels have
@@ -169,6 +169,7 @@ class StubCache {
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
+  Code::Kind ic_kind_;
 
   friend class Isolate;
   friend class SCTableReference;

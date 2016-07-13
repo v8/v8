@@ -153,6 +153,8 @@ class IC {
   bool UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code);
   void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
 
+  StubCache* stub_cache();
+
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Code> code);
