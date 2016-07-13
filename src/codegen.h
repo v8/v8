@@ -79,8 +79,7 @@ class CodeGenerator {
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
                                        EhFrameWriter* unwinding,
-                                       CompilationInfo* info,
-                                       Handle<Object> self_reference);
+                                       CompilationInfo* info);
 
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
