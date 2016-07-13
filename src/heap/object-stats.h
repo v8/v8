@@ -5,8 +5,7 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include <math.h>
-
+#include "src/base/ieee754.h"
 #include "src/heap/heap.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects.h"
@@ -92,8 +91,8 @@ class ObjectStats {
 
   int HistogramIndexFromSize(size_t size) {
     if (size == 0) return 0;
-    int idx =
-        static_cast<int>(log2(static_cast<double>(size))) - kFirstBucketShift;
+    int idx = static_cast<int>(base::ieee754::log2(static_cast<double>(size))) -
+              kFirstBucketShift;
     return idx < 0 ? 0 : idx;
   }
 
