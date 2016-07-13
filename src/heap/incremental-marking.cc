@@ -213,9 +213,6 @@ class IncrementalMarkingMarkingVisitor
     table_.Register(kVisitFixedArray, &VisitFixedArrayIncremental);
     table_.Register(kVisitNativeContext, &VisitNativeContextIncremental);
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
-    if (FLAG_track_gc_object_stats) {
-      IncrementalMarkingObjectStatsVisitor::Initialize(&table_);
-    }
   }
 
   static const int kProgressBarScanningChunk = 32 * 1024;

@@ -141,7 +141,8 @@ Heap::Heap()
       incremental_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
-      object_stats_(nullptr),
+      live_object_stats_(nullptr),
+      dead_object_stats_(nullptr),
       scavenge_job_(nullptr),
       idle_scavenge_observer_(nullptr),
       full_codegen_bytes_generated_(0),
@@ -5327,8 +5328,10 @@ bool Heap::SetUp() {
 
   memory_reducer_ = new MemoryReducer(this);
 
-  object_stats_ = new ObjectStats(this);
-  object_stats_->ClearObjectStats(true);
+  if (FLAG_track_gc_object_stats) {
+    live_object_stats_ = new ObjectStats(this);
+    dead_object_stats_ = new ObjectStats(this);
+  }
 
   scavenge_job_ = new ScavengeJob();
 
@@ -5486,8 +5489,15 @@ void Heap::TearDown() {
     memory_reducer_ = nullptr;
   }
 
-  delete object_stats_;
-  object_stats_ = nullptr;
+  if (live_object_stats_ != nullptr) {
+    delete live_object_stats_;
+    live_object_stats_ = nullptr;
+  }
+
+  if (dead_object_stats_ != nullptr) {
+    delete dead_object_stats_;
+    dead_object_stats_ = nullptr;
+  }
 
   delete scavenge_job_;
   scavenge_job_ = nullptr;
@@ -6378,14 +6388,16 @@ size_t Heap::NumberOfTrackedHeapObjectTypes() {
 
 
 size_t Heap::ObjectCountAtLastGC(size_t index) {
-  if (index >= ObjectStats::OBJECT_STATS_COUNT) return 0;
-  return object_stats_->object_count_last_gc(index);
+  if (live_object_stats_ == nullptr || index >= ObjectStats::OBJECT_STATS_COUNT)
+    return 0;
+  return live_object_stats_->object_count_last_gc(index);
 }
 
 
 size_t Heap::ObjectSizeAtLastGC(size_t index) {
-  if (index >= ObjectStats::OBJECT_STATS_COUNT) return 0;
-  return object_stats_->object_size_last_gc(index);
+  if (live_object_stats_ == nullptr || index >= ObjectStats::OBJECT_STATS_COUNT)
+    return 0;
+  return live_object_stats_->object_size_last_gc(index);
 }
 
 

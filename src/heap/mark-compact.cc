@@ -325,7 +325,6 @@ void MarkCompactCollector::ClearInvalidRememberedSetSlots() {
 #endif
 }
 
-
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
@@ -1263,10 +1262,6 @@ void MarkCompactMarkingVisitor::Initialize() {
   StaticMarkingVisitor<MarkCompactMarkingVisitor>::Initialize();
 
   table_.Register(kVisitJSRegExp, &VisitRegExpAndFlushCode);
-
-  if (FLAG_track_gc_object_stats) {
-    MarkCompactObjectStatsVisitor::Initialize(&table_);
-  }
 }
 
 
@@ -2243,6 +2238,41 @@ void MarkCompactCollector::RegisterExternallyReferencedObject(Object** object) {
   MarkObject(heap_object, mark_bit);
 }
 
+class MarkCompactCollector::ObjectStatsVisitor
+    : public MarkCompactCollector::HeapObjectVisitor {
+ public:
+  ObjectStatsVisitor(ObjectStats* live_stats, ObjectStats* dead_stats)
+      : live_stats_(live_stats), dead_stats_(dead_stats) {
+    DCHECK_NOT_NULL(live_stats_);
+    DCHECK_NOT_NULL(dead_stats_);
+  }
+
+  bool Visit(HeapObject* obj) override {
+    if (Marking::IsBlack(ObjectMarking::MarkBitFrom(obj))) {
+      ObjectStatsCollector::CollectStatistics(live_stats_, obj);
+    } else {
+      DCHECK(!Marking::IsGrey(ObjectMarking::MarkBitFrom(obj)));
+      ObjectStatsCollector::CollectStatistics(dead_stats_, obj);
+    }
+    return true;
+  }
+
+ private:
+  ObjectStats* live_stats_;
+  ObjectStats* dead_stats_;
+};
+
+void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
+  SpaceIterator space_it(heap());
+  HeapObject* obj = nullptr;
+  while (space_it.has_next()) {
+    ObjectIterator* it = space_it.next();
+    while ((obj = it->Next()) != nullptr) {
+      visitor->Visit(obj);
+    }
+  }
+}
+
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;
@@ -2262,10 +2292,6 @@ void MarkCompactCollector::MarkLiveObjects() {
     } else {
       // Abort any pending incremental activities e.g. incremental sweeping.
       incremental_marking->Stop();
-      if (FLAG_track_gc_object_stats) {
-        // Clear object stats collected during incremental marking.
-        heap()->object_stats_->ClearObjectStats();
-      }
       if (marking_deque_.in_use()) {
         marking_deque_.Uninitialize(true);
       }
@@ -2347,10 +2373,15 @@ void MarkCompactCollector::MarkLiveObjects() {
                                     start_time);
   }
   if (FLAG_track_gc_object_stats) {
+    ObjectStatsVisitor visitor(heap()->live_object_stats_,
+                               heap()->dead_object_stats_);
+    VisitAllObjects(&visitor);
     if (FLAG_trace_gc_object_stats) {
-      heap()->object_stats_->TraceObjectStats();
+      heap()->live_object_stats_->PrintJSON("live");
+      heap()->dead_object_stats_->PrintJSON("dead");
     }
-    heap()->object_stats_->CheckpointObjectStats();
+    heap()->live_object_stats_->CheckpointObjectStats();
+    heap()->dead_object_stats_->ClearObjectStats();
   }
 }
 

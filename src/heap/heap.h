@@ -2201,7 +2201,8 @@ class Heap {
 
   MemoryReducer* memory_reducer_;
 
-  ObjectStats* object_stats_;
+  ObjectStats* live_object_stats_;
+  ObjectStats* dead_object_stats_;
 
   ScavengeJob* scavenge_job_;
 

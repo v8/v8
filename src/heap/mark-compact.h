@@ -501,6 +501,7 @@ class MarkCompactCollector {
   class EvacuateRecordOnlyVisitor;
   class EvacuateVisitorBase;
   class HeapObjectVisitor;
+  class ObjectStatsVisitor;
 
   explicit MarkCompactCollector(Heap* heap);
 
@@ -510,6 +511,8 @@ class MarkCompactCollector {
   void ComputeEvacuationHeuristics(int area_size,
                                    int* target_fragmentation_percent,
                                    int* max_evacuated_bytes);
+
+  void VisitAllObjects(HeapObjectVisitor* visitor);
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();

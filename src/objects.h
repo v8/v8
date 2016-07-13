@@ -777,22 +777,33 @@ STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
 
-
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
-  V(FAST_ELEMENTS_SUB_TYPE)                   \
+  V(CONTEXT_SUB_TYPE)                         \
+  V(COPY_ON_WRITE_SUB_TYPE)                   \
+  V(DEOPTIMIZATION_DATA_SUB_TYPE)             \
+  V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
+  V(ENUM_CACHE_SUB_TYPE)                      \
+  V(ENUM_INDICES_CACHE_SUB_TYPE)              \
   V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
-  V(FAST_PROPERTIES_SUB_TYPE)                 \
   V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
+  V(FAST_ELEMENTS_SUB_TYPE)                   \
+  V(FAST_PROPERTIES_SUB_TYPE)                 \
+  V(LITERALS_ARRAY_SUB_TYPE)                  \
   V(MAP_CODE_CACHE_SUB_TYPE)                  \
+  V(OBJECT_TO_CODE_SUB_TYPE)                  \
+  V(RELOC_INFO_SUB_TYPE)                      \
   V(SCOPE_INFO_SUB_TYPE)                      \
+  V(SOURCE_POS_SUB_TYPE)                      \
   V(STRING_TABLE_SUB_TYPE)                    \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)
+  V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)            \
+  V(TYPE_FEEDBACK_METADATA_SUB_TYPE)          \
+  V(WEAK_COLLECTION_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
 #define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-      LAST_FIXED_ARRAY_SUB_TYPE = DESCRIPTOR_ARRAY_SUB_TYPE
+      LAST_FIXED_ARRAY_SUB_TYPE = WEAK_COLLECTION_SUB_TYPE
 };
 
 
@@ -10056,6 +10067,8 @@ class JSMapIterator: public OrderedHashTableIterator<JSMapIterator,
 // Base class for both JSWeakMap and JSWeakSet
 class JSWeakCollection: public JSObject {
  public:
+  DECLARE_CAST(JSWeakCollection)
+
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
 
