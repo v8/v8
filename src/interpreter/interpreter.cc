@@ -138,7 +138,7 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
-  if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
+  if (FLAG_print_bytecode || FLAG_print_ast) {
     OFStream os(stdout);
     base::SmartArrayPointer<char> name = info->GetDebugName();
     os << "[generating bytecode for function: " << info->GetDebugName().get()
@@ -147,14 +147,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   }
 
 #ifdef DEBUG
-  if (info->parse_info() && FLAG_print_source) {
-    OFStream os(stdout);
-    os << "--- Source from AST ---" << std::endl
-       << PrettyPrinter(info->isolate()).PrintProgram(info->literal())
-       << std::endl
-       << std::flush;
-  }
-
   if (info->parse_info() && FLAG_print_ast) {
     OFStream os(stdout);
     os << "--- AST ---" << std::endl

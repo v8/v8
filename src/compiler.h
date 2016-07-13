@@ -397,10 +397,6 @@ class CompilationInfo final {
     osr_expr_stack_height_ = height;
   }
 
-#if DEBUG
-  void PrintAstForTesting();
-#endif
-
   bool has_simple_parameters();
 
   struct InlinedFunctionHolder {

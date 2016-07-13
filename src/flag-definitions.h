@@ -967,9 +967,6 @@ DEFINE_BOOL(enable_slow_asserts, false,
 #endif
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
-DEFINE_BOOL(print_source, false, "pretty print source code")
-DEFINE_BOOL(print_builtin_source, false,
-            "pretty print source code for builtins")
 DEFINE_BOOL(print_ast, false, "print source AST")
 DEFINE_BOOL(print_builtin_ast, false, "print source AST for builtins")
 DEFINE_BOOL(trap_on_abort, false, "replace aborts by breakpoints")

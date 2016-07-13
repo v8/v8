@@ -41,10 +41,6 @@ void AstNode::Print(Isolate* isolate) {
 }
 
 
-void AstNode::PrettyPrint(Isolate* isolate) {
-  PrettyPrinter::PrintOut(isolate, this);
-}
-
 #endif  // DEBUG
 
 

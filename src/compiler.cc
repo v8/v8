@@ -236,13 +236,6 @@ bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
 }
 
-#if DEBUG
-void CompilationInfo::PrintAstForTesting() {
-  PrintF("--- Source from AST ---\n%s\n",
-         PrettyPrinter(isolate()).PrintProgram(literal()));
-}
-#endif
-
 // ----------------------------------------------------------------------------
 // Implementation of CompilationJob
 
