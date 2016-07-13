@@ -1993,7 +1993,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   // Save callee-saved Double registers.
   if (double_saves != 0) {
-    frame->AlignFrame();
+    frame->AlignSavedCalleeRegisterSlots();
     DCHECK(kNumCalleeSavedDoubles ==
            base::bits::CountPopulation32(double_saves));
     frame->AllocateSavedCalleeRegisterSlots(kNumCalleeSavedDoubles *

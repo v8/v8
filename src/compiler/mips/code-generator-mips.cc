@@ -1822,7 +1822,10 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
-    frame->AlignFrame();
+    frame->AlignSavedCalleeRegisterSlots();
+  }
+
+  if (saves_fpu != 0) {
     int count = base::bits::CountPopulation32(saves_fpu);
     DCHECK(kNumCalleeSavedFPU == count);
     frame->AllocateSavedCalleeRegisterSlots(count *

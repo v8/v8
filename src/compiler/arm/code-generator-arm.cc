@@ -1559,7 +1559,10 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
-    frame->AlignFrame();
+    frame->AlignSavedCalleeRegisterSlots();
+  }
+
+  if (saves_fp != 0) {
     // Save callee-saved FP registers.
     STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
