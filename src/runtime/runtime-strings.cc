@@ -292,11 +292,13 @@ RUNTIME_FUNCTION(Runtime_SubString) {
     CONVERT_SMI_ARG_CHECKED(to_number, 2);
     start = from_number;
     end = to_number;
-  } else {
+  } else if (args[1]->IsNumber() && args[2]->IsNumber()) {
     CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
     CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
     start = FastD2IChecked(from_number);
     end = FastD2IChecked(to_number);
+  } else {
+    return isolate->ThrowIllegalOperation();
   }
   // The following condition is intentionally robust because the SubStringStub
   // delegates here and we test this in cctest/test-strings/RobustSubStringStub.

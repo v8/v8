@@ -2342,6 +2342,7 @@ ScriptMirror.prototype.source = function() {
 
 
 ScriptMirror.prototype.setSource = function(source) {
+  if (!IS_STRING(source)) throw MakeError(kDebugger, "Source is not a string");
   %DebugSetScriptSource(this.script_, source);
 };
 

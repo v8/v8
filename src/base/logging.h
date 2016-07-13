@@ -15,9 +15,6 @@
 extern "C" PRINTF_FORMAT(3, 4) V8_NORETURN
     void V8_Fatal(const char* file, int line, const char* format, ...);
 
-extern "C" void V8_RuntimeError(const char* file, int line,
-                                const char* message);
-
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
 // development, but they should not be relied on in the final product.
 #ifdef DEBUG
