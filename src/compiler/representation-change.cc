@@ -663,6 +663,18 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
   }
 }
 
+const Operator* RepresentationChanger::Uint32OverflowOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeNumberDivide:
+      return simplified()->CheckedUint32Div();
+    case IrOpcode::kSpeculativeNumberModulus:
+      return simplified()->CheckedUint32Mod();
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
 
 const Operator* RepresentationChanger::Float64OperatorFor(
     IrOpcode::Value opcode) {

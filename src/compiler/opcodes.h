@@ -182,6 +182,8 @@
   V(CheckedInt32Sub)                  \
   V(CheckedInt32Div)                  \
   V(CheckedInt32Mod)                  \
+  V(CheckedUint32Div)                 \
+  V(CheckedUint32Mod)                 \
   V(CheckedUint32ToInt32)             \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedToInt32)             \

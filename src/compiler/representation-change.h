@@ -190,6 +190,7 @@ class RepresentationChanger final {
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
+  const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Float64OperatorFor(IrOpcode::Value opcode);
 
   MachineType TypeForBasePointer(const FieldAccess& access) {

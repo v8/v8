@@ -642,6 +642,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt32Mod:
       state = LowerCheckedInt32Mod(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckedUint32Div:
+      state = LowerCheckedUint32Div(node, frame_state, *effect, *control);
+      break;
+    case IrOpcode::kCheckedUint32Mod:
+      state = LowerCheckedUint32Mod(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
@@ -1244,6 +1250,50 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
   Node* value =
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
                        vfalse0, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedUint32Div(Node* node, Node* frame_state,
+                                               Node* effect, Node* control) {
+  Node* zero = jsgraph()->Int32Constant(0);
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
+  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  // Perform the actual unsigned integer division.
+  Node* value = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, control);
+
+  // Check if the remainder is non-zero.
+  check = graph()->NewNode(machine()->Word32Equal(), lhs,
+                           graph()->NewNode(machine()->Int32Mul(), rhs, value));
+  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedUint32Mod(Node* node, Node* frame_state,
+                                               Node* effect, Node* control) {
+  Node* zero = jsgraph()->Int32Constant(0);
+
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
+  Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  // Perform the actual unsigned integer modulus.
+  Node* value = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, control);
 
   return ValueEffectControl(value, effect, control);
 }
