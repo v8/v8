@@ -356,14 +356,17 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
 // Control scope implementation for a TryCatchStatement.
 class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
  public:
-  ControlScopeForCatch(AstGraphBuilder* owner, TryCatchBuilder* control)
-      : ControlScope(owner), control_(control) {
+  ControlScopeForCatch(AstGraphBuilder* owner, TryCatchStatement* stmt,
+                       TryCatchBuilder* control)
+      : ControlScope(owner),
+        control_(control),
+        outer_prediction_(owner->try_catch_prediction_) {
     builder()->try_nesting_level_++;  // Increment nesting.
-    builder()->try_catch_nesting_level_++;
+    builder()->try_catch_prediction_ = stmt->catch_predicted();
   }
   ~ControlScopeForCatch() {
     builder()->try_nesting_level_--;  // Decrement nesting.
-    builder()->try_catch_nesting_level_--;
+    builder()->try_catch_prediction_ = outer_prediction_;
   }
 
  protected:
@@ -382,19 +385,25 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
 
  private:
   TryCatchBuilder* control_;
+  bool outer_prediction_;
 };
 
 
 // Control scope implementation for a TryFinallyStatement.
 class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  public:
-  ControlScopeForFinally(AstGraphBuilder* owner, DeferredCommands* commands,
-                         TryFinallyBuilder* control)
-      : ControlScope(owner), commands_(commands), control_(control) {
+  ControlScopeForFinally(AstGraphBuilder* owner, TryFinallyStatement* stmt,
+                         DeferredCommands* commands, TryFinallyBuilder* control)
+      : ControlScope(owner),
+        commands_(commands),
+        control_(control),
+        outer_prediction_(owner->try_catch_prediction_) {
     builder()->try_nesting_level_++;  // Increment nesting.
+    builder()->try_catch_prediction_ = stmt->catch_predicted();
   }
   ~ControlScopeForFinally() {
     builder()->try_nesting_level_--;  // Decrement nesting.
+    builder()->try_catch_prediction_ = outer_prediction_;
   }
 
  protected:
@@ -407,6 +416,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  private:
   DeferredCommands* commands_;
   TryFinallyBuilder* control_;
+  bool outer_prediction_;
 };
 
 
@@ -463,7 +473,6 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
   Node* frame_state_before_;
 };
 
-
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                                  JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
                                  TypeHintAnalysis* type_hint_analysis)
@@ -476,8 +485,8 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       globals_(0, local_zone),
       execution_control_(nullptr),
       execution_context_(nullptr),
-      try_catch_nesting_level_(0),
       try_nesting_level_(0),
+      try_catch_prediction_(false),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone),
@@ -1483,7 +1492,7 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // that is intercepting 'throw' control commands.
   try_control.BeginTry();
   {
-    ControlScopeForCatch scope(this, &try_control);
+    ControlScopeForCatch scope(this, stmt, &try_control);
     STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
     environment()->Push(current_context());
     Visit(stmt->try_block());
@@ -1529,7 +1538,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // that is intercepting all control commands.
   try_control.BeginTry();
   {
-    ControlScopeForFinally scope(this, commands, &try_control);
+    ControlScopeForFinally scope(this, stmt, commands, &try_control);
     STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
     environment()->Push(current_context());
     Visit(stmt->try_block());
@@ -4136,7 +4145,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         // Conservative prediction whether caught locally.
-        IfExceptionHint hint = try_catch_nesting_level_ > 0
+        IfExceptionHint hint = try_catch_prediction_
                                    ? IfExceptionHint::kLocallyCaught
                                    : IfExceptionHint::kLocallyUncaught;
         // Copy the environment for the success continuation.

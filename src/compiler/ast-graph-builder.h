@@ -96,8 +96,10 @@ class AstGraphBuilder : public AstVisitor {
   SetOncePointer<Node> new_target_;
 
   // Tracks how many try-blocks are currently entered.
-  int try_catch_nesting_level_;
   int try_nesting_level_;
+
+  // Tracks the prediction of the innermost try-block.
+  bool try_catch_prediction_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
