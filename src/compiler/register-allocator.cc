@@ -72,8 +72,8 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kTagged:
-      return kPointerSize;
     case MachineRepresentation::kFloat32:
+      return kPointerSize;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
       return 8;

@@ -959,6 +959,9 @@ class Assembler : public AssemblerBase {
   void ucomiss(XMMRegister dst, XMMRegister src) { ucomiss(dst, Operand(src)); }
   void ucomiss(XMMRegister dst, const Operand& src);
   void movaps(XMMRegister dst, XMMRegister src);
+  void movups(XMMRegister dst, XMMRegister src);
+  void movups(XMMRegister dst, const Operand& src);
+  void movups(const Operand& dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   void maxss(XMMRegister dst, XMMRegister src) { maxss(dst, Operand(src)); }

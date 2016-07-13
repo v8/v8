@@ -1422,6 +1422,20 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (f0byte == 0x10 || f0byte == 0x11) {
+            data += 2;
+            // movups xmm, xmm/m128
+            // movups xmm/m128, xmm
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movups ");
+            if (f0byte == 0x11) {
+              data += PrintRightXMMOperand(data);
+              AppendToBuffer(",%s", NameOfXMMRegister(regop));
+            } else {
+              AppendToBuffer("%s,", NameOfXMMRegister(regop));
+              data += PrintRightXMMOperand(data);
+            }
           } else if (f0byte == 0x2e) {
             data += 2;
             int mod, regop, rm;

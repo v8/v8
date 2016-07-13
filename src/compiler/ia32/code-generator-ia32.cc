@@ -2012,18 +2012,44 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else {
       DCHECK(destination->IsFPStackSlot());
       Operand dst = g.ToOperand(destination);
-      __ movsd(dst, src);
+      MachineRepresentation rep =
+          LocationOperand::cast(source)->representation();
+      if (rep == MachineRepresentation::kFloat64) {
+        __ movsd(dst, src);
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ movss(dst, src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        __ movups(dst, src);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     Operand src = g.ToOperand(source);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (destination->IsFPRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);
-      __ movsd(dst, src);
+      if (rep == MachineRepresentation::kFloat64) {
+        __ movsd(dst, src);
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ movss(dst, src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        __ movups(dst, src);
+      }
     } else {
       Operand dst = g.ToOperand(destination);
-      __ movsd(kScratchDoubleReg, src);
-      __ movsd(dst, kScratchDoubleReg);
+      if (rep == MachineRepresentation::kFloat64) {
+        __ movsd(kScratchDoubleReg, src);
+        __ movsd(dst, kScratchDoubleReg);
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ movss(kScratchDoubleReg, src);
+        __ movss(dst, kScratchDoubleReg);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        __ movups(kScratchDoubleReg, src);
+        __ movups(dst, kScratchDoubleReg);
+      }
     }
   } else {
     UNREACHABLE();
@@ -2076,21 +2102,51 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // XMM register-memory swap.
     XMMRegister reg = g.ToDoubleRegister(source);
     Operand other = g.ToOperand(destination);
-    __ movsd(kScratchDoubleReg, other);
-    __ movsd(other, reg);
-    __ movaps(reg, kScratchDoubleReg);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      __ movsd(kScratchDoubleReg, other);
+      __ movsd(other, reg);
+      __ movaps(reg, kScratchDoubleReg);
+    } else if (rep == MachineRepresentation::kFloat32) {
+      __ movss(kScratchDoubleReg, other);
+      __ movss(other, reg);
+      __ movaps(reg, kScratchDoubleReg);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      __ movups(kScratchDoubleReg, other);
+      __ movups(other, reg);
+      __ movups(reg, kScratchDoubleReg);
+    }
   } else if (source->IsFPStackSlot() && destination->IsFPStackSlot()) {
     // Double-width memory-to-memory.
     Operand src0 = g.ToOperand(source);
-    Operand src1 = g.HighOperand(source);
     Operand dst0 = g.ToOperand(destination);
-    Operand dst1 = g.HighOperand(destination);
-    __ movsd(kScratchDoubleReg, dst0);  // Save destination in scratch register.
-    __ push(src0);  // Then use stack to copy source to destination.
-    __ pop(dst0);
-    __ push(src1);
-    __ pop(dst1);
-    __ movsd(src0, kScratchDoubleReg);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      Operand src1 = g.HighOperand(source);
+      Operand dst1 = g.HighOperand(destination);
+      __ movsd(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+      __ push(src0);  // Then use stack to copy src to destination.
+      __ pop(dst0);
+      __ push(src1);
+      __ pop(dst1);
+      __ movsd(src0, kScratchDoubleReg);
+    } else if (rep == MachineRepresentation::kFloat32) {
+      __ movss(kScratchDoubleReg, dst0);  // Save dst in scratch register.
+      __ push(src0);  // Then use stack to copy src to destination.
+      __ pop(dst0);
+      __ movss(src0, kScratchDoubleReg);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      // Use the XOR trick to swap without a temporary.
+      __ movups(kScratchDoubleReg, src0);
+      __ xorps(kScratchDoubleReg, dst0);  // scratch contains src ^ dst.
+      __ movups(src0, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, dst0);  // scratch contains src.
+      __ movups(dst0, kScratchDoubleReg);
+      __ xorps(kScratchDoubleReg, src0);  // scratch contains dst.
+      __ movups(src0, kScratchDoubleReg);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();
