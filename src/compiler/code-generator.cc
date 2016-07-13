@@ -204,7 +204,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
   safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
   Handle<Code> result =
-      v8::internal::CodeGenerator::MakeCodeEpilogue(masm(), info);
+      v8::internal::CodeGenerator::MakeCodeEpilogue(masm(), nullptr, info);
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
