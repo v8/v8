@@ -62,7 +62,6 @@
 #ifdef ENABLE_DISASSEMBLER
 #include "src/disasm.h"
 #include "src/disassembler.h"
-#include "src/eh-frame.h"
 #endif
 
 namespace v8 {
@@ -14374,14 +14373,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     it.rinfo()->Print(GetIsolate(), os);
   }
   os << "\n";
-
-  if (has_unwinding_info()) {
-    os << "UnwindingInfo (size = " << unwinding_info_size() << ")\n";
-    EhFrameDisassembler eh_frame_disassembler(unwinding_info_start(),
-                                              unwinding_info_end());
-    eh_frame_disassembler.DisassembleToStream(os);
-    os << "\n";
-  }
 }
 #endif  // ENABLE_DISASSEMBLER
 
