@@ -15,14 +15,7 @@ namespace compiler {
 // Type hints for an binary operation.
 class BinaryOperationHints final {
  public:
-  enum Hint {
-    kNone,
-    kSignedSmall,
-    kSigned32,
-    kNumberOrUndefined,
-    kString,
-    kAny
-  };
+  enum Hint { kNone, kSignedSmall, kSigned32, kNumberOrOddball, kString, kAny };
 
   BinaryOperationHints() : BinaryOperationHints(kNone, kNone, kNone) {}
   BinaryOperationHints(Hint left, Hint right, Hint result)
@@ -71,7 +64,7 @@ class CompareOperationHints final {
     kNone,
     kBoolean,
     kSignedSmall,
-    kNumber,
+    kNumberOrOddball,
     kString,
     kInternalizedString,
     kUniqueName,

@@ -1130,7 +1130,7 @@ class RepresentationSelector {
     }
 
     // default case => Float64Add/Sub
-    VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) {
       ChangeToPureOp(node, Float64Op(node));
@@ -1283,9 +1283,9 @@ class RepresentationSelector {
           if (lower()) ChangeToPureOp(node, Int32Op(node));
           return;
         }
-        DCHECK_EQ(CompareOperationHints::kNumber, hint);
+        DCHECK_EQ(CompareOperationHints::kNumberOrOddball, hint);
         // default case => Float64 comparison
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                    MachineRepresentation::kBit);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1338,7 +1338,7 @@ class RepresentationSelector {
         }
         // Checked float64 x float64 => float64
         DCHECK_EQ(IrOpcode::kSpeculativeNumberMultiply, node->opcode());
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1409,7 +1409,7 @@ class RepresentationSelector {
         }
 
         // default case => Float64Div
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1443,7 +1443,7 @@ class RepresentationSelector {
         }
         // Checked float64 x float64 => float64
         DCHECK_EQ(IrOpcode::kSpeculativeNumberDivide, node->opcode());
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1514,7 +1514,7 @@ class RepresentationSelector {
         }
 
         // default case => Float64Mod
-        VisitBinop(node, UseInfo::CheckedNumberOrUndefinedAsFloat64(),
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1969,8 +1969,7 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
           if (lower()) lowering->DoStringToNumber(node);
         } else if (truncation.TruncatesToWord32()) {
-          // TODO(jarin): Extend this to Number \/ Oddball
-          if (InputIs(node, Type::NumberOrUndefined())) {
+          if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop(node, UseInfo::TruncatingWord32(),
                       MachineRepresentation::kWord32);
             if (lower()) DeferReplacement(node, node->InputAt(0));
@@ -1983,8 +1982,7 @@ class RepresentationSelector {
             }
           }
         } else if (truncation.TruncatesToFloat64()) {
-          // TODO(jarin): Extend this to Number \/ Oddball
-          if (InputIs(node, Type::NumberOrUndefined())) {
+          if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop(node, UseInfo::TruncatingFloat64(),
                       MachineRepresentation::kFloat64);
             if (lower()) DeferReplacement(node, node->InputAt(0));

@@ -20,7 +20,7 @@ BinaryOperationHints::Hint ToBinaryOperationHint(Type* type) {
   if (type->Is(Type::None())) return BinaryOperationHints::kNone;
   if (type->Is(Type::SignedSmall())) return BinaryOperationHints::kSignedSmall;
   if (type->Is(Type::Signed32())) return BinaryOperationHints::kSigned32;
-  if (type->Is(Type::Number())) return BinaryOperationHints::kNumberOrUndefined;
+  if (type->Is(Type::Number())) return BinaryOperationHints::kNumberOrOddball;
   if (type->Is(Type::String())) return BinaryOperationHints::kString;
   return BinaryOperationHints::kAny;
 }
@@ -35,7 +35,7 @@ CompareOperationHints::Hint ToCompareOperationHint(
     case CompareICState::SMI:
       return CompareOperationHints::kSignedSmall;
     case CompareICState::NUMBER:
-      return CompareOperationHints::kNumber;
+      return CompareOperationHints::kNumberOrOddball;
     case CompareICState::STRING:
       return CompareOperationHints::kString;
     case CompareICState::INTERNALIZED_STRING:

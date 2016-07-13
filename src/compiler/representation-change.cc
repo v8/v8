@@ -63,6 +63,11 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
       LessGeneral(rep2, TruncationKind::kFloat64)) {
     return TruncationKind::kFloat64;
   }
+  // Handle the generalization of any-representable values.
+  if (LessGeneral(rep1, TruncationKind::kAny) &&
+      LessGeneral(rep2, TruncationKind::kAny)) {
+    return TruncationKind::kAny;
+  }
   // All other combinations are illegal.
   FATAL("Tried to combine incompatible truncations");
   return TruncationKind::kNone;
@@ -278,7 +283,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
       op = machine()->TruncateFloat64ToFloat32();
     }
   } else if (output_rep == MachineRepresentation::kTagged) {
-    if (output_type->Is(Type::NumberOrUndefined())) {
+    if (output_type->Is(Type::NumberOrOddball())) {
       // tagged -> float64 -> float32
       if (output_type->Is(Type::Number())) {
         op = simplified()->ChangeTaggedToFloat64();
@@ -344,10 +349,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type->Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
-    } else if (output_type->Is(Type::NumberOrUndefined())) {
+    } else if (output_type->Is(Type::NumberOrOddball())) {
       // TODO(jarin) Here we should check that truncation is Number.
       op = simplified()->TruncateTaggedToFloat64();
-    } else if (use_info.type_check() == TypeCheckKind::kNumberOrUndefined) {
+    } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = simplified()->CheckedTaggedToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {

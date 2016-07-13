@@ -73,12 +73,7 @@ class Truncation final {
   static bool LessGeneral(TruncationKind rep1, TruncationKind rep2);
 };
 
-enum class TypeCheckKind : uint8_t {
-  kNone,
-  kSigned32,
-  kNumberOrUndefined,
-  kNumber
-};
+enum class TypeCheckKind : uint8_t { kNone, kSigned32, kNumberOrOddball };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
   switch (type_check) {
@@ -86,10 +81,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "None";
     case TypeCheckKind::kSigned32:
       return os << "Signed32";
-    case TypeCheckKind::kNumberOrUndefined:
-      return os << "NumberOrUndefined";
-    case TypeCheckKind::kNumber:
-      return os << "Number";
+    case TypeCheckKind::kNumberOrOddball:
+      return os << "NumberOrOddball";
   }
   UNREACHABLE();
   return os;
@@ -141,9 +134,9 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
                    TypeCheckKind::kSigned32);
   }
-  static UseInfo CheckedNumberOrUndefinedAsFloat64() {
+  static UseInfo CheckedNumberOrOddballAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumberOrUndefined);
+                   TypeCheckKind::kNumberOrOddball);
   }
 
   // Undetermined representation.

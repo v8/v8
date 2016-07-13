@@ -16,8 +16,8 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
       return os << "SignedSmall";
     case BinaryOperationHints::kSigned32:
       return os << "Signed32";
-    case BinaryOperationHints::kNumberOrUndefined:
-      return os << "NumberOrUndefined";
+    case BinaryOperationHints::kNumberOrOddball:
+      return os << "NumberOrOddball";
     case BinaryOperationHints::kString:
       return os << "String";
     case BinaryOperationHints::kAny:
@@ -39,8 +39,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHints::Hint hint) {
       return os << "Boolean";
     case CompareOperationHints::kSignedSmall:
       return os << "SignedSmall";
-    case CompareOperationHints::kNumber:
-      return os << "Number";
+    case CompareOperationHints::kNumberOrOddball:
+      return os << "NumberOrOddball";
     case CompareOperationHints::kString:
       return os << "String";
     case CompareOperationHints::kInternalizedString:
@@ -112,10 +112,10 @@ bool BinaryOperationHints::Is(Hint h1, Hint h2) {
     case kNone:
       return true;
     case kSignedSmall:
-      return h2 == kSigned32 || h2 == kNumberOrUndefined || h2 == kAny;
+      return h2 == kSigned32 || h2 == kNumberOrOddball || h2 == kAny;
     case kSigned32:
-      return h2 == kNumberOrUndefined || h2 == kAny;
-    case kNumberOrUndefined:
+      return h2 == kNumberOrOddball || h2 == kAny;
+    case kNumberOrOddball:
       return h2 == kAny;
     case kString:
       return h2 == kAny;

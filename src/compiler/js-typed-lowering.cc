@@ -39,7 +39,7 @@ class JSBinopReduction final {
     BinaryOperationHints::Hint combined = hints.combined();
     if (combined == BinaryOperationHints::kSignedSmall ||
         combined == BinaryOperationHints::kSigned32 ||
-        combined == BinaryOperationHints::kNumberOrUndefined) {
+        combined == BinaryOperationHints::kNumberOrOddball) {
       return combined;
     }
     return BinaryOperationHints::kAny;
@@ -56,7 +56,7 @@ class JSBinopReduction final {
     CompareOperationHints hints = CompareOperationHintsOf(node_->op());
     CompareOperationHints::Hint combined = hints.combined();
     if (combined == CompareOperationHints::kSignedSmall ||
-        combined == CompareOperationHints::kNumber) {
+        combined == CompareOperationHints::kNumberOrOddball) {
       return combined;
     }
     return CompareOperationHints::kAny;
@@ -435,7 +435,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+  if (feedback == BinaryOperationHints::kNumberOrOddball &&
       r.BothInputsAre(Type::PlainPrimitive()) &&
       r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
@@ -486,7 +486,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+  if (feedback == BinaryOperationHints::kNumberOrOddball &&
       r.BothInputsAre(Type::PlainPrimitive())) {
     // JSSubtract(x:plain-primitive, y:plain-primitive)
     //   => NumberSubtract(ToNumber(x), ToNumber(y))
@@ -533,7 +533,7 @@ Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
 Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+  if (feedback == BinaryOperationHints::kNumberOrOddball &&
       r.BothInputsAre(Type::PlainPrimitive())) {
     // JSDivide(x:plain-primitive,
     //          y:plain-primitive) => NumberDivide(ToNumber(x), ToNumber(y))
@@ -556,7 +556,7 @@ Reduction JSTypedLowering::ReduceJSDivide(Node* node) {
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kNumberOrUndefined &&
+  if (feedback == BinaryOperationHints::kNumberOrOddball &&
       r.BothInputsAre(Type::PlainPrimitive())) {
     // JSModulus(x:plain-primitive,
     //           y:plain-primitive) => NumberModulus(ToNumber(x), ToNumber(y))
