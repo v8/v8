@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
+#include <math.h>
+
 #include "src/heap/heap.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects.h"
