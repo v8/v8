@@ -25043,7 +25043,7 @@ TEST(FutexInterruption) {
   CompileRun(
       "var ab = new SharedArrayBuffer(4);"
       "var i32a = new Int32Array(ab);"
-      "Atomics.futexWait(i32a, 0, 0);");
+      "Atomics.wait(i32a, 0, 0);");
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }

@@ -97,12 +97,14 @@
   V(name_string, "name")                                           \
   V(nan_string, "NaN")                                             \
   V(next_string, "next")                                           \
+  V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
   V(null_to_string, "[object Null]")                               \
   V(number_string, "number")                                       \
   V(Number_string, "Number")                                       \
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
+  V(ok, "ok")                                                      \
   V(ownKeys_string, "ownKeys")                                     \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
@@ -129,6 +131,7 @@
   V(Symbol_string, "Symbol")                                       \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
+  V(timed_out, "timed-out")                                        \
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \

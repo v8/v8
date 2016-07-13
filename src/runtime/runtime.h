@@ -64,13 +64,10 @@ namespace internal {
   F(AtomicsOr, 3, 1)                            \
   F(AtomicsXor, 3, 1)                           \
   F(AtomicsExchange, 3, 1)                      \
-  F(AtomicsIsLockFree, 1, 1)
-
-#define FOR_EACH_INTRINSIC_FUTEX(F)  \
-  F(AtomicsFutexWait, 4, 1)          \
-  F(AtomicsFutexWake, 3, 1)          \
-  F(AtomicsFutexWakeOrRequeue, 5, 1) \
-  F(AtomicsFutexNumWaitersForTesting, 2, 1)
+  F(AtomicsIsLockFree, 1, 1)                    \
+  F(AtomicsWait, 4, 1)                          \
+  F(AtomicsWake, 3, 1)                          \
+  F(AtomicsNumWaitersForTesting, 2, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)       \
   F(ThrowNonMethodError, 0, 1)              \
@@ -966,7 +963,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_FORIN(F)               \
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_FUNCTION(F)            \
-  FOR_EACH_INTRINSIC_FUTEX(F)               \
   FOR_EACH_INTRINSIC_GENERATOR(F)           \
   FOR_EACH_INTRINSIC_I18N(F)                \
   FOR_EACH_INTRINSIC_INTERNAL(F)            \
