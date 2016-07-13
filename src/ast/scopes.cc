@@ -141,7 +141,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       zone_(zone) {
   SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
   AddInnerScope(inner_scope);
-  ++num_var_or_const_;
+  ++num_var_;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   Variable* variable = variables_.Declare(this,
                                           catch_variable_name,
@@ -185,7 +185,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
-  num_var_or_const_ = 0;
+  num_var_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
@@ -339,8 +339,7 @@ Scope* Scope::FinalizeBlockScope() {
   DCHECK(temps_.is_empty());
   DCHECK(params_.is_empty());
 
-  if (num_var_or_const() > 0 ||
-      (is_declaration_scope() && calls_sloppy_eval())) {
+  if (num_var() > 0 || (is_declaration_scope() && calls_sloppy_eval())) {
     return this;
   }
 
@@ -512,7 +511,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
-  ++num_var_or_const_;
+  ++num_var_;
   return variables_.Declare(this, name, mode, kind, init_flag,
                             maybe_assigned_flag);
 }
@@ -611,6 +610,25 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   return NULL;
 }
 
+Declaration* Scope::CheckLexDeclarationsConflictingWith(
+    const ZoneList<const AstRawString*>& names) {
+  DCHECK(is_block_scope());
+  for (int i = 0; i < names.length(); ++i) {
+    Variable* var = LookupLocal(names.at(i));
+    if (var != nullptr) {
+      // Conflict; find and return its declaration.
+      DCHECK(IsLexicalVariableMode(var->mode()));
+      const AstRawString* name = names.at(i);
+      for (int j = 0; j < decls_.length(); ++j) {
+        if (decls_[j]->proxy()->raw_name() == name) {
+          return decls_[j];
+        }
+      }
+      DCHECK(false);
+    }
+  }
+  return nullptr;
+}
 
 class VarAndOrder {
  public:

@@ -1889,11 +1889,10 @@ Statement* Parser::ParseStatementAsUnlabelled(
 
 VariableProxy* Parser::NewUnresolved(const AstRawString* name,
                                      VariableMode mode) {
-  // If we are inside a function, a declaration of a var/const variable is a
+  // If we are inside a function, a declaration of a 'var' variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
-  // Let/const variables in harmony mode are always added to the immediately
-  // enclosing scope.
+  // Let/const variables are always added to the immediately enclosing scope.
   Scope* scope =
       IsLexicalVariableMode(mode) ? scope_ : scope_->DeclarationScope();
   return scope->NewUnresolved(factory(), name, Variable::NORMAL,
@@ -2311,11 +2310,11 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  // The scope of a var/const declared variable anywhere inside a function
+  // The scope of a var declared variable anywhere inside a function
   // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
-  // transform a source-level var/const declaration into a (Function)
-  // Scope declaration, and rewrite the source-level initialization into an
-  // assignment statement. We use a block to collect multiple assignments.
+  // transform a source-level var declaration into a (Function) Scope
+  // declaration, and rewrite the source-level initialization into an assignment
+  // statement. We use a block to collect multiple assignments.
   //
   // We mark the block as initializer block because we don't want the
   // rewriter to add a '.result' assignment to such a block (to get compliant
@@ -3013,6 +3012,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
         Expect(Token::RPAREN, CHECK_OK);
 
+        ZoneList<const AstRawString*> bound_names(1, zone());
+
         if (!is_simple) {
           DeclarationDescriptor descriptor;
           descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
@@ -3033,20 +3034,34 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           Block* init_block =
               factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
           PatternRewriter::DeclareAndInitializeVariables(
-              init_block, &descriptor, &decl, nullptr, CHECK_OK);
+              init_block, &descriptor, &decl, &bound_names, CHECK_OK);
           catch_block->statements()->Add(init_block, zone());
+        } else {
+          bound_names.Add(name, zone());
         }
 
-        // TODO(adamk): This should call ParseBlock in order to properly
-        // add an additional block scope for the catch body.
-        Expect(Token::LBRACE, CHECK_OK);
-        while (peek() != Token::RBRACE) {
-          Statement* stat = ParseStatementListItem(CHECK_OK);
-          if (stat && !stat->IsEmpty()) {
-            catch_block->statements()->Add(stat, zone());
+        Block* inner_block = ParseBlock(nullptr, CHECK_OK);
+        catch_block->statements()->Add(inner_block, zone());
+
+        // Check for `catch(e) { let e; }` and similar errors.
+        Scope* inner_block_scope = inner_block->scope();
+        if (inner_block_scope != nullptr) {
+          Declaration* decl =
+              inner_block_scope->CheckLexDeclarationsConflictingWith(
+                  bound_names);
+          if (decl != nullptr) {
+            const AstRawString* name = decl->proxy()->raw_name();
+            int position = decl->proxy()->position();
+            Scanner::Location location =
+                position == kNoSourcePosition
+                    ? Scanner::Location::invalid()
+                    : Scanner::Location(position, position + 1);
+            ParserTraits::ReportMessageAt(
+                location, MessageTemplate::kVarRedeclaration, name);
+            *ok = false;
+            return nullptr;
           }
         }
-        Consume(Token::RBRACE);
       }
       block_scope->set_end_position(scanner()->location().end_pos);
       block_scope = block_scope->FinalizeBlockScope();
@@ -3622,7 +3637,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
                                      bool* ok) {
   int stmt_pos = peek_position();
   Statement* init = NULL;
-  ZoneList<const AstRawString*> lexical_bindings(1, zone());
+  ZoneList<const AstRawString*> bound_names(1, zone());
+  bool bound_names_are_lexical = false;
 
   // Create an in-between scope for let-bound iteration variables.
   Scope* for_scope = NewScope(scope_, BLOCK_SCOPE);
@@ -3673,10 +3689,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         }
 
         Block* init_block = nullptr;
+        bound_names_are_lexical =
+            IsLexicalVariableMode(parsing_result.descriptor.mode);
 
-        // special case for legacy for (var/const x =.... in)
-        if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
-            decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+        // special case for legacy for (var ... = ... in ...)
+        if (!bound_names_are_lexical && decl.pattern->IsVariableProxy() &&
+            decl.initializer != nullptr) {
           DCHECK(!allow_harmony_for_in());
           ++use_counts_[v8::Isolate::kForInInitializer];
           const AstRawString* name =
@@ -3750,11 +3768,44 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             descriptor.initialization_pos = kNoSourcePosition;
             decl.initializer = factory()->NewVariableProxy(temp);
 
+            bool is_for_var_of =
+                mode == ForEachStatement::ITERATE &&
+                parsing_result.descriptor.mode == VariableMode::VAR;
+
             PatternRewriter::DeclareAndInitializeVariables(
                 each_initialization_block, &descriptor, &decl,
-                IsLexicalVariableMode(descriptor.mode) ? &lexical_bindings
-                                                       : nullptr,
+                bound_names_are_lexical || is_for_var_of ? &bound_names
+                                                         : nullptr,
                 CHECK_OK);
+
+            // Annex B.3.5 prohibits the form
+            // `try {} catch(e) { for (var e of {}); }`
+            // So if we are parsing a statement like `for (var ... of ...)`
+            // we need to walk up the scope chain and look for catch scopes
+            // which have a simple binding, then compare their binding against
+            // all of the names declared in the init of the for-of we're
+            // parsing.
+            if (is_for_var_of) {
+              Scope* catch_scope = scope_;
+              while (catch_scope != nullptr &&
+                     !catch_scope->is_declaration_scope()) {
+                if (catch_scope->is_catch_scope()) {
+                  auto name = catch_scope->catch_variable_name();
+                  if (name !=
+                      ast_value_factory()
+                          ->dot_catch_string()) {  // i.e. is a simple binding
+                    if (bound_names.Contains(name)) {
+                      ParserTraits::ReportMessageAt(
+                          parsing_result.bindings_loc,
+                          MessageTemplate::kVarRedeclaration, name);
+                      *ok = false;
+                      return nullptr;
+                    }
+                  }
+                }
+                catch_scope = catch_scope->outer_scope();
+              }
+            }
           }
 
           body_block->statements()->Add(each_initialization_block, zone());
@@ -3769,18 +3820,17 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         body_block->set_scope(body_scope);
 
         // Create a TDZ for any lexically-bound names.
-        if (IsLexicalVariableMode(parsing_result.descriptor.mode)) {
+        if (bound_names_are_lexical) {
           DCHECK_NULL(init_block);
 
           init_block =
               factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
 
-          for (int i = 0; i < lexical_bindings.length(); ++i) {
+          for (int i = 0; i < bound_names.length(); ++i) {
             // TODO(adamk): This needs to be some sort of special
             // INTERNAL variable that's invisible to the debugger
             // but visible to everything else.
-            VariableProxy* tdz_proxy =
-                NewUnresolved(lexical_bindings[i], LET);
+            VariableProxy* tdz_proxy = NewUnresolved(bound_names[i], LET);
             Declaration* tdz_decl = factory()->NewVariableDeclaration(
                 tdz_proxy, LET, scope_, kNoSourcePosition);
             Variable* tdz_var = Declare(
@@ -3801,11 +3851,10 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           return final_loop;
         }
       } else {
+        bound_names_are_lexical =
+            IsLexicalVariableMode(parsing_result.descriptor.mode);
         init = parsing_result.BuildInitializationBlock(
-            IsLexicalVariableMode(parsing_result.descriptor.mode)
-                ? &lexical_bindings
-                : nullptr,
-            CHECK_OK);
+            bound_names_are_lexical ? &bound_names : nullptr, CHECK_OK);
       }
     } else {
       int lhs_beg_pos = peek_position();
@@ -3880,7 +3929,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope_;
-  if (lexical_bindings.length() > 0) {
+  if (bound_names_are_lexical && bound_names.length() > 0) {
     inner_scope = NewScope(for_scope, BLOCK_SCOPE);
     inner_scope->set_start_position(scanner()->location().beg_pos);
   }
@@ -3902,11 +3951,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   }
 
   Statement* result = NULL;
-  if (lexical_bindings.length() > 0) {
+  if (bound_names_are_lexical && bound_names.length() > 0) {
     BlockState block_state(&scope_, for_scope);
     result = DesugarLexicalBindingsInForStatement(
-        inner_scope, parsing_result.descriptor.mode, &lexical_bindings, loop,
-        init, cond, next, body, CHECK_OK);
+        inner_scope, parsing_result.descriptor.mode, &bound_names, loop, init,
+        cond, next, body, CHECK_OK);
     for_scope->set_end_position(scanner()->location().end_pos);
   } else {
     for_scope->set_end_position(scanner()->location().end_pos);
