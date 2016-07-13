@@ -319,7 +319,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  VisitBinop(this, node, kMips64And);
+  VisitBinop(this, node, kMips64And32);
 }
 
 
@@ -375,7 +375,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kMips64Or);
+  VisitBinop(this, node, kMips64Or32);
 }
 
 
@@ -391,7 +391,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (!mleft.right().HasValue()) {
       Mips64OperandGenerator g(this);
-      Emit(kMips64Nor, g.DefineAsRegister(node),
+      Emit(kMips64Nor32, g.DefineAsRegister(node),
            g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
       return;
@@ -400,11 +400,11 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   if (m.right().Is(-1)) {
     // Use Nor for bit negation and eliminate constant loading for xori.
     Mips64OperandGenerator g(this);
-    Emit(kMips64Nor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+    Emit(kMips64Nor32, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
          g.TempImmediate(0));
     return;
   }
-  VisitBinop(this, node, kMips64Xor);
+  VisitBinop(this, node, kMips64Xor32);
 }
 
 
