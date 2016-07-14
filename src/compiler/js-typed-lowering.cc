@@ -28,36 +28,32 @@ class JSBinopReduction final {
       : lowering_(lowering), node_(node) {}
 
   BinaryOperationHints::Hint GetNumberBinaryOperationFeedback() {
-    if (!(lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) ||
-        !(lowering_->flags() & JSTypedLowering::kTypeFeedbackEnabled)) {
-      return BinaryOperationHints::kAny;
-    }
-    DCHECK_NE(0, node_->op()->ControlOutputCount());
-    DCHECK_EQ(1, node_->op()->EffectOutputCount());
-    DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
-    BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
-    BinaryOperationHints::Hint combined = hints.combined();
-    if (combined == BinaryOperationHints::kSignedSmall ||
-        combined == BinaryOperationHints::kSigned32 ||
-        combined == BinaryOperationHints::kNumberOrOddball) {
-      return combined;
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_NE(0, node_->op()->ControlOutputCount());
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      DCHECK_LE(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
+      BinaryOperationHints hints = BinaryOperationHintsOf(node_->op());
+      BinaryOperationHints::Hint combined = hints.combined();
+      if (combined == BinaryOperationHints::kSignedSmall ||
+          combined == BinaryOperationHints::kSigned32 ||
+          combined == BinaryOperationHints::kNumberOrOddball) {
+        return combined;
+      }
     }
     return BinaryOperationHints::kAny;
   }
 
   CompareOperationHints::Hint GetNumberCompareOperationFeedback() {
-    if (!(lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) ||
-        !(lowering_->flags() & JSTypedLowering::kTypeFeedbackEnabled)) {
-      return CompareOperationHints::kAny;
-    }
-    DCHECK_NE(0, node_->op()->ControlOutputCount());
-    DCHECK_EQ(1, node_->op()->EffectOutputCount());
-    DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
-    CompareOperationHints hints = CompareOperationHintsOf(node_->op());
-    CompareOperationHints::Hint combined = hints.combined();
-    if (combined == CompareOperationHints::kSignedSmall ||
-        combined == CompareOperationHints::kNumberOrOddball) {
-      return combined;
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_NE(0, node_->op()->ControlOutputCount());
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
+      CompareOperationHints hints = CompareOperationHintsOf(node_->op());
+      CompareOperationHints::Hint combined = hints.combined();
+      if (combined == CompareOperationHints::kSignedSmall ||
+          combined == CompareOperationHints::kNumberOrOddball) {
+        return combined;
+      }
     }
     return CompareOperationHints::kAny;
   }

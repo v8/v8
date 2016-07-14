@@ -87,9 +87,8 @@ class JSTypedLoweringTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSTypedLowering reducer(&graph_reducer, &deps_,
-                            JSTypedLowering::kDeoptimizationEnabled |
-                                JSTypedLowering::kTypeFeedbackEnabled,
-                            &jsgraph, zone());
+                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
+                            zone());
     return reducer.Reduce(node);
   }
 
