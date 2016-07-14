@@ -168,23 +168,23 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
                              ExternalReference::DIRECT_API_CALL, isolate());
 
   // Create & call API callback via stub.
-  CallApiCallbackStub stub(isolate(), 1, true);
+  CallApiCallbackStub stub(isolate(), 1, true, true);
   DCHECK_EQ(5, stub.GetCallInterfaceDescriptor().GetParameterCount());
   DCHECK_EQ(1, stub.GetCallInterfaceDescriptor().GetStackParameterCount());
   // TODO(vogelheim): There is currently no clean way to retrieve the context
   //     parameter for a stub and the implementation details are hidden in
   //     compiler/*. The context_paramter is computed as:
   //       Linkage::GetJSCallContextParamIndex(descriptor->JSParameterCount())
-  const int context_parameter = 2;
+  const int context_parameter = 3;
   Node* call = assembler_->CallStub(
       stub.GetCallInterfaceDescriptor(),
       assembler_->HeapConstant(stub.GetCode()),
       assembler_->Parameter(context_parameter),
 
       // Stub/register parameters:
-      assembler_->Parameter(0),               /* receiver (use accessor's) */
-      assembler_->UndefinedConstant(),        /* call_data (undefined) */
-      assembler_->NullConstant(),             /* holder (null) */
+      assembler_->UndefinedConstant(), /* callee (there's no JSFunction) */
+      assembler_->UndefinedConstant(), /* call_data (undefined) */
+      assembler_->Parameter(0), /* receiver (same as holder in this case) */
       assembler_->ExternalConstant(callback), /* API callback function */
 
       // JS arguments, on stack:

@@ -9369,7 +9369,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(
         Vector<HValue*>(op_vals, arraysize(op_vals) - 1),
         syntactic_tail_call_mode);
   } else {
-    CallApiCallbackStub stub(isolate(), argc, call_data_undefined);
+    CallApiCallbackStub stub(isolate(), argc, call_data_undefined, false);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     call = New<HCallWithDescriptor>(

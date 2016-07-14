@@ -1774,8 +1774,10 @@ class CallApiCallbackStub : public PlatformCodeStub {
                             call_data_undefined, is_lazy) {}
 
   // CallApiCallbackStub for callback functions.
-  CallApiCallbackStub(Isolate* isolate, int argc, bool call_data_undefined)
-      : CallApiCallbackStub(isolate, argc, false, call_data_undefined, false) {}
+  CallApiCallbackStub(Isolate* isolate, int argc, bool call_data_undefined,
+                      bool is_lazy)
+      : CallApiCallbackStub(isolate, argc, false, call_data_undefined,
+                            is_lazy) {}
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
     return ApiCallbackDescriptorBase::ForArgs(isolate(), argc());
