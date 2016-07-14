@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-assertThrows("Intl.DateTimeFormat('en-US', {timeZone: 0})", RangeError);
-assertThrows("Intl.DateTimeFormat('en-US', {timeZone: true})", RangeError);
-assertThrows("Intl.DateTimeFormat('en-US', {timeZone: null})", RangeError);
+if (this.Intl) {
+  assertThrows("Intl.DateTimeFormat('en-US', {timeZone: 0})", RangeError);
+  assertThrows("Intl.DateTimeFormat('en-US', {timeZone: true})", RangeError);
+  assertThrows("Intl.DateTimeFormat('en-US', {timeZone: null})", RangeError);
 
-var object = { toString: function() { return "UTC" } };
-assertDoesNotThrow("Intl.DateTimeFormat('en-US', {timeZone: object})");
+  var object = { toString: function() { return "UTC" } };
+  assertDoesNotThrow("Intl.DateTimeFormat('en-US', {timeZone: object})");
+}
