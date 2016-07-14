@@ -7,6 +7,7 @@
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
+#include "src/macro-assembler.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -25,6 +26,7 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
     memset(object_counts_last_time_, 0, sizeof(object_counts_last_time_));
     memset(object_sizes_last_time_, 0, sizeof(object_sizes_last_time_));
   }
+  visited_fixed_array_sub_types_.clear();
 }
 
 static void PrintJSONArray(size_t* array, const int len) {
@@ -187,12 +189,35 @@ void ObjectStatsCollector::CollectStatistics(ObjectStats* stats,
   if (obj->IsJSWeakCollection()) {
     RecordJSWeakCollectionDetails(stats, heap, JSWeakCollection::cast(obj));
   }
+  if (obj->IsScript()) {
+    RecordScriptDetails(stats, heap, Script::cast(obj));
+  }
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
-  return array->map() != heap->fixed_cow_array_map() &&
+  return array->map()->instance_type() == FIXED_ARRAY_TYPE &&
+         array->map() != heap->fixed_cow_array_map() &&
          array->map() != heap->fixed_double_array_map() &&
-         array != heap->empty_fixed_array();
+         array != heap->empty_fixed_array() &&
+         array != heap->empty_byte_array() &&
+         array != heap->empty_literals_array() &&
+         array != heap->empty_sloppy_arguments_elements() &&
+         array != heap->empty_slow_element_dictionary() &&
+         array != heap->empty_descriptor_array() &&
+         array != heap->empty_properties_dictionary();
+}
+
+static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
+  return ObjectMarking::Color(obj1) == ObjectMarking::Color(obj2);
+}
+
+void ObjectStatsCollector::RecordFixedArrayHelper(
+    ObjectStats* stats, Heap* heap, HeapObject* parent, FixedArray* array,
+    int subtype, size_t overhead) {
+  if (SameLiveness(parent, array) && CanRecordFixedArray(heap, array)) {
+    stats->RecordFixedArraySubTypeStats(array, subtype, array->Size(),
+                                        overhead);
+  }
 }
 
 void ObjectStatsCollector::RecordJSObjectDetails(ObjectStats* stats, Heap* heap,
@@ -202,13 +227,13 @@ void ObjectStatsCollector::RecordJSObjectDetails(ObjectStats* stats, Heap* heap,
   size_t overhead = 0;
   FixedArrayBase* elements = object->elements();
   if (CanRecordFixedArray(heap, elements)) {
-    if (elements->IsDictionary()) {
-      SeededNumberDictionary* dict = object->element_dictionary();
+    if (elements->IsDictionary() && SameLiveness(object, elements)) {
+      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
       int used = dict->NumberOfElements() * SeededNumberDictionary::kEntrySize;
       CHECK_GE(elements->Size(), used);
       overhead = elements->Size() - used;
-      stats->RecordFixedArraySubTypeStats(DICTIONARY_ELEMENTS_SUB_TYPE,
-                                          elements->Size(), overhead);
+      stats->RecordFixedArraySubTypeStats(
+          elements, DICTIONARY_ELEMENTS_SUB_TYPE, elements->Size(), overhead);
     } else {
       if (IsFastHoleyElementsKind(object->GetElementsKind())) {
         int used = object->GetFastElementsUsage() * kPointerSize;
@@ -216,23 +241,25 @@ void ObjectStatsCollector::RecordJSObjectDetails(ObjectStats* stats, Heap* heap,
         CHECK_GE(elements->Size(), used);
         overhead = elements->Size() - used;
       }
-      stats->RecordFixedArraySubTypeStats(FAST_ELEMENTS_SUB_TYPE,
+      stats->RecordFixedArraySubTypeStats(elements, FAST_ELEMENTS_SUB_TYPE,
                                           elements->Size(), overhead);
     }
   }
 
   overhead = 0;
   FixedArrayBase* properties = object->properties();
-  if (CanRecordFixedArray(heap, properties)) {
+  if (CanRecordFixedArray(heap, properties) &&
+      SameLiveness(object, properties)) {
     if (properties->IsDictionary()) {
-      NameDictionary* dict = object->property_dictionary();
+      NameDictionary* dict = NameDictionary::cast(properties);
       int used = dict->NumberOfElements() * NameDictionary::kEntrySize;
       CHECK_GE(properties->Size(), used);
       overhead = properties->Size() - used;
-      stats->RecordFixedArraySubTypeStats(DICTIONARY_PROPERTIES_SUB_TYPE,
+      stats->RecordFixedArraySubTypeStats(properties,
+                                          DICTIONARY_PROPERTIES_SUB_TYPE,
                                           properties->Size(), overhead);
     } else {
-      stats->RecordFixedArraySubTypeStats(FAST_PROPERTIES_SUB_TYPE,
+      stats->RecordFixedArraySubTypeStats(properties, FAST_PROPERTIES_SUB_TYPE,
                                           properties->Size(), overhead);
     }
   }
@@ -244,9 +271,17 @@ void ObjectStatsCollector::RecordJSWeakCollectionDetails(
     ObjectHashTable* table = ObjectHashTable::cast(obj->table());
     int used = table->NumberOfElements() * ObjectHashTable::kEntrySize;
     size_t overhead = table->Size() - used;
-    stats->RecordFixedArraySubTypeStats(WEAK_COLLECTION_SUB_TYPE, table->Size(),
-                                        overhead);
+    RecordFixedArrayHelper(stats, heap, obj, table, WEAK_COLLECTION_SUB_TYPE,
+                           overhead);
   }
+}
+
+void ObjectStatsCollector::RecordScriptDetails(ObjectStats* stats, Heap* heap,
+                                               Script* obj) {
+  Object* infos = WeakFixedArray::cast(obj->shared_function_infos());
+  if (infos->IsWeakFixedArray())
+    RecordFixedArrayHelper(stats, heap, obj, WeakFixedArray::cast(infos),
+                           SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordMapDetails(ObjectStats* stats, Heap* heap,
@@ -254,24 +289,23 @@ void ObjectStatsCollector::RecordMapDetails(ObjectStats* stats, Heap* heap,
   Map* map_obj = Map::cast(obj);
   DCHECK(obj->map()->instance_type() == MAP_TYPE);
   DescriptorArray* array = map_obj->instance_descriptors();
-  if (map_obj->owns_descriptors() && array != heap->empty_descriptor_array()) {
-    int fixed_array_size = array->Size();
-    stats->RecordFixedArraySubTypeStats(DESCRIPTOR_ARRAY_SUB_TYPE,
-                                        fixed_array_size, 0);
+  if (map_obj->owns_descriptors() && array != heap->empty_descriptor_array() &&
+      SameLiveness(map_obj, array)) {
+    RecordFixedArrayHelper(stats, heap, map_obj, array,
+                           DESCRIPTOR_ARRAY_SUB_TYPE, 0);
     if (array->HasEnumCache()) {
-      stats->RecordFixedArraySubTypeStats(ENUM_CACHE_SUB_TYPE,
-                                          array->GetEnumCache()->Size(), 0);
+      RecordFixedArrayHelper(stats, heap, array, array->GetEnumCache(),
+                             ENUM_CACHE_SUB_TYPE, 0);
     }
     if (array->HasEnumIndicesCache()) {
-      stats->RecordFixedArraySubTypeStats(
-          ENUM_INDICES_CACHE_SUB_TYPE, array->GetEnumIndicesCache()->Size(), 0);
+      RecordFixedArrayHelper(stats, heap, array, array->GetEnumIndicesCache(),
+                             ENUM_INDICES_CACHE_SUB_TYPE, 0);
     }
   }
 
   if (map_obj->has_code_cache()) {
-    FixedArray* cache = map_obj->code_cache();
-    stats->RecordFixedArraySubTypeStats(MAP_CODE_CACHE_SUB_TYPE, cache->Size(),
-                                        0);
+    RecordFixedArrayHelper(stats, heap, map_obj, map_obj->code_cache(),
+                           MAP_CODE_CACHE_SUB_TYPE, 0);
   }
 }
 
@@ -283,21 +317,17 @@ void ObjectStatsCollector::RecordCodeDetails(ObjectStats* stats, Heap* heap,
   stats->RecordCodeSubTypeStats(code_obj->kind(), code_obj->GetAge(),
                                 object_size);
   Code* code = Code::cast(obj);
-  if (code->deoptimization_data() != heap->empty_fixed_array()) {
-    stats->RecordFixedArraySubTypeStats(DEOPTIMIZATION_DATA_SUB_TYPE,
-                                        code->deoptimization_data()->Size(), 0);
-  }
-  FixedArrayBase* reloc_info =
-      reinterpret_cast<FixedArrayBase*>(code->unchecked_relocation_info());
-  if (reloc_info != heap->empty_fixed_array()) {
-    stats->RecordFixedArraySubTypeStats(RELOC_INFO_SUB_TYPE,
-                                        code->relocation_info()->Size(), 0);
-  }
-  FixedArrayBase* source_pos_table =
-      reinterpret_cast<FixedArrayBase*>(code->source_position_table());
-  if (source_pos_table != heap->empty_fixed_array()) {
-    stats->RecordFixedArraySubTypeStats(SOURCE_POS_SUB_TYPE,
-                                        source_pos_table->Size(), 0);
+  RecordFixedArrayHelper(stats, heap, code, code->deoptimization_data(),
+                         DEOPTIMIZATION_DATA_SUB_TYPE, 0);
+  for (RelocIterator it(code); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::EMBEDDED_OBJECT) {
+      Object* target = it.rinfo()->target_object();
+      if (target->IsFixedArray()) {
+        RecordFixedArrayHelper(stats, heap, code, FixedArray::cast(target),
+                               EMBEDDED_OBJECT_SUB_TYPE, 0);
+      }
+    }
   }
 }
 
@@ -305,14 +335,12 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(ObjectStats* stats,
                                                            Heap* heap,
                                                            HeapObject* obj) {
   SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
-  if (sfi->scope_info() != heap->empty_fixed_array()) {
-    stats->RecordFixedArraySubTypeStats(SCOPE_INFO_SUB_TYPE,
-                                        sfi->scope_info()->Size(), 0);
-  }
-  if (sfi->feedback_metadata() != heap->empty_fixed_array()) {
-    stats->RecordFixedArraySubTypeStats(TYPE_FEEDBACK_METADATA_SUB_TYPE,
-                                        sfi->feedback_metadata()->Size(), 0);
-  }
+  FixedArray* scope_info = sfi->scope_info();
+  RecordFixedArrayHelper(stats, heap, sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
+  FixedArray* feedback_metadata = sfi->feedback_metadata();
+  RecordFixedArrayHelper(stats, heap, sfi, feedback_metadata,
+                         TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
+
   if (!sfi->OptimizedCodeMapIsCleared()) {
     FixedArray* optimized_code_map = sfi->optimized_code_map();
     // Optimized code map should be small, so skip accounting.
@@ -331,12 +359,10 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(ObjectStats* stats,
         literals = LiteralsArray::cast(slot);
       }
       if (literals != nullptr) {
-        stats->RecordFixedArraySubTypeStats(LITERALS_ARRAY_SUB_TYPE,
-                                            literals->Size(), 0);
-        TypeFeedbackVector* tfv = literals->feedback_vector();
-
-        stats->RecordFixedArraySubTypeStats(TYPE_FEEDBACK_VECTOR_SUB_TYPE,
-                                            tfv->Size(), 0);
+        RecordFixedArrayHelper(stats, heap, sfi, literals,
+                               LITERALS_ARRAY_SUB_TYPE, 0);
+        RecordFixedArrayHelper(stats, heap, sfi, literals->feedback_vector(),
+                               TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
       }
     }
   }
@@ -345,26 +371,61 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(ObjectStats* stats,
 void ObjectStatsCollector::RecordFixedArrayDetails(ObjectStats* stats,
                                                    Heap* heap,
                                                    HeapObject* obj) {
-  FixedArray* fixed_array = FixedArray::cast(obj);
-  if (fixed_array == heap->string_table()) {
-    stats->RecordFixedArraySubTypeStats(STRING_TABLE_SUB_TYPE,
-                                        fixed_array->Size(), 0);
+  FixedArray* array = FixedArray::cast(obj);
+
+  // Special fixed arrays.
+  int subtype = -1;
+  if (array == heap->weak_new_space_object_to_code_list())
+    subtype = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE;
+  if (array == heap->serialized_templates())
+    subtype = SERIALIZED_TEMPLATES_SUB_TYPE;
+  if (array == heap->string_table()) subtype = STRING_TABLE_SUB_TYPE;
+  if (array == heap->number_string_cache())
+    subtype = NUMBER_STRING_CACHE_SUB_TYPE;
+  if (array == heap->single_character_string_cache())
+    subtype = SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE;
+  if (array == heap->string_split_cache())
+    subtype = STRING_SPLIT_CACHE_SUB_TYPE;
+  if (array == heap->regexp_multiple_cache())
+    subtype = REGEXP_MULTIPLE_CACHE_SUB_TYPE;
+  if (array->IsContext()) subtype = CONTEXT_SUB_TYPE;
+  if (array->map() == heap->fixed_cow_array_map())
+    subtype = COPY_ON_WRITE_SUB_TYPE;
+  if (subtype != -1) {
+    stats->RecordFixedArraySubTypeStats(array, subtype, array->Size(), 0);
   }
-  if (fixed_array == heap->weak_object_to_code_table()) {
-    WeakHashTable* table = reinterpret_cast<WeakHashTable*>(fixed_array);
+
+  // Special hash maps.
+  if (array == heap->weak_object_to_code_table()) {
+    WeakHashTable* table = reinterpret_cast<WeakHashTable*>(array);
     int used = table->NumberOfElements() * WeakHashTable::kEntrySize;
-    CHECK_GE(fixed_array->Size(), used);
-    size_t overhead = fixed_array->Size() - used;
-    stats->RecordFixedArraySubTypeStats(OBJECT_TO_CODE_SUB_TYPE,
-                                        fixed_array->Size(), overhead);
+    CHECK_GE(array->Size(), used);
+    size_t overhead = array->Size() - used;
+    stats->RecordFixedArraySubTypeStats(table, OBJECT_TO_CODE_SUB_TYPE,
+                                        table->Size(), overhead);
   }
-  if (obj->IsContext()) {
-    stats->RecordFixedArraySubTypeStats(CONTEXT_SUB_TYPE, fixed_array->Size(),
-                                        0);
+  if (array->IsNativeContext()) {
+    Context* native_ctx = Context::cast(array);
+    UnseededNumberDictionary* dict =
+        native_ctx->template_instantiations_cache();
+    int used = dict->NumberOfElements() * UnseededNumberDictionary::kEntrySize;
+    size_t overhead = dict->Size() - used;
+    RecordFixedArrayHelper(stats, heap, array, dict,
+                           TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE, overhead);
   }
-  if (fixed_array->map() == heap->fixed_cow_array_map()) {
-    stats->RecordFixedArraySubTypeStats(COPY_ON_WRITE_SUB_TYPE,
-                                        fixed_array->Size(), 0);
+  if (array == heap->code_stubs()) {
+    UnseededNumberDictionary* dict = UnseededNumberDictionary::cast(array);
+    int used = dict->NumberOfElements() * UnseededNumberDictionary::kEntrySize;
+    size_t overhead = dict->Size() - used;
+    stats->RecordFixedArraySubTypeStats(dict, CODE_STUBS_TABLE_SUB_TYPE,
+                                        dict->Size(), overhead);
+  }
+  if (array == heap->intrinsic_function_names()) {
+    NameDictionary* dict = NameDictionary::cast(array);
+    int used = dict->NumberOfElements() * NameDictionary::kEntrySize;
+    size_t overhead = dict->Size() - used;
+    stats->RecordFixedArraySubTypeStats(dict, INTRINSIC_FUNCTION_NAMES_SUB_TYPE,
+                                        dict->Size(), overhead);
   }
 }
 

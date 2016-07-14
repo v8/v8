@@ -273,7 +273,6 @@ class Marking : public AllStatic {
     markbit.Next().Clear();
   }
 
-#ifdef DEBUG
   enum ObjectColor {
     BLACK_OBJECT,
     WHITE_OBJECT,
@@ -302,7 +301,6 @@ class Marking : public AllStatic {
     UNREACHABLE();
     return IMPOSSIBLE_COLOR;
   }
-#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Marking);

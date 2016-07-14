@@ -40,11 +40,9 @@ class ObjectMarking : public AllStatic {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
-#ifdef DEBUG
   static Marking::ObjectColor Color(HeapObject* obj) {
     return Marking::Color(ObjectMarking::MarkBitFrom(obj));
   }
-#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
@@ -513,6 +511,8 @@ class MarkCompactCollector {
                                    int* max_evacuated_bytes);
 
   void VisitAllObjects(HeapObjectVisitor* visitor);
+
+  void RecordObjectStats();
 
   // Finishes GC, performs heap verification if enabled.
   void Finish();

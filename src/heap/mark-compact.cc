@@ -336,6 +336,8 @@ void MarkCompactCollector::CollectGarbage() {
 
   ClearNonLiveReferences();
 
+  RecordObjectStats();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyMarking(heap_);
@@ -2273,6 +2275,20 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
   }
 }
 
+void MarkCompactCollector::RecordObjectStats() {
+  if (FLAG_track_gc_object_stats) {
+    ObjectStatsVisitor visitor(heap()->live_object_stats_,
+                               heap()->dead_object_stats_);
+    VisitAllObjects(&visitor);
+    if (FLAG_trace_gc_object_stats) {
+      heap()->live_object_stats_->PrintJSON("live");
+      heap()->dead_object_stats_->PrintJSON("dead");
+    }
+    heap()->live_object_stats_->CheckpointObjectStats();
+    heap()->dead_object_stats_->ClearObjectStats();
+  }
+}
+
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
   double start_time = 0.0;
@@ -2371,17 +2387,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   if (FLAG_print_cumulative_gc_stat) {
     heap_->tracer()->AddMarkingTime(heap_->MonotonicallyIncreasingTimeInMs() -
                                     start_time);
-  }
-  if (FLAG_track_gc_object_stats) {
-    ObjectStatsVisitor visitor(heap()->live_object_stats_,
-                               heap()->dead_object_stats_);
-    VisitAllObjects(&visitor);
-    if (FLAG_trace_gc_object_stats) {
-      heap()->live_object_stats_->PrintJSON("live");
-      heap()->dead_object_stats_->PrintJSON("dead");
-    }
-    heap()->live_object_stats_->CheckpointObjectStats();
-    heap()->dead_object_stats_->ClearObjectStats();
   }
 }
 

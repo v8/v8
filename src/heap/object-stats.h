@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
+#include <set>
+
 #include "src/base/ieee754.h"
 #include "src/heap/heap.h"
 #include "src/heap/objects-visiting.h"
@@ -58,8 +60,10 @@ class ObjectStats {
     size_histogram_[code_age_index][idx]++;
   }
 
-  void RecordFixedArraySubTypeStats(int array_sub_type, size_t size,
-                                    size_t over_allocated) {
+  void RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
+                                    size_t size, size_t over_allocated) {
+    auto it = visited_fixed_array_sub_types_.insert(array);
+    if (!it.second) return;
     DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
     object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
     object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
@@ -107,6 +111,8 @@ class ObjectStats {
   // Detailed histograms by InstanceType.
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
+
+  std::set<FixedArrayBase*> visited_fixed_array_sub_types_;
 };
 
 class ObjectStatsCollector {
@@ -126,6 +132,11 @@ class ObjectStatsCollector {
                                     JSObject* object);
   static void RecordJSWeakCollectionDetails(ObjectStats* stats, Heap* heap,
                                             JSWeakCollection* obj);
+  static void RecordScriptDetails(ObjectStats* stats, Heap* heap, Script* obj);
+
+  static void RecordFixedArrayHelper(ObjectStats* stats, Heap* heap,
+                                     HeapObject* parent, FixedArray* array,
+                                     int subtype, size_t overhead);
 };
 
 }  // namespace internal
