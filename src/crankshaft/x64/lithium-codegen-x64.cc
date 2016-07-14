@@ -4556,13 +4556,10 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this);
-
-    // NumberTagIU uses the context from the frame, rather than
-    // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
-    // The corresponding HChange instructions are added in a phase that does
-    // not have easy access to the local context.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    // Reset the context register.
+    if (!reg.is(rsi)) {
+      __ Set(rsi, 0);
+    }
     __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
@@ -4612,12 +4609,10 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   {
     PushSafepointRegistersScope scope(this);
-    // NumberTagD uses the context from the frame, rather than
-    // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
-    // The corresponding HChange instructions are added in a phase that does
-    // not have easy access to the local context.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    // Reset the context register.
+    if (!reg.is(rsi)) {
+      __ Move(rsi, 0);
+    }
     __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
