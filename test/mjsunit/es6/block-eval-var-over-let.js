@@ -124,8 +124,6 @@ try {
 }
 assertTrue(caught);
 
-// TODO(littledan): Hoisting x out of the block should be
-// prevented in this case BUG(v8:4479)
 caught = false
 try {
   (function() {
@@ -137,5 +135,4 @@ try {
 } catch (e) {
   caught = true;
 }
-// TODO(littledan): switch to assertTrue when bug is fixed
-assertTrue(caught);
+assertFalse(caught);

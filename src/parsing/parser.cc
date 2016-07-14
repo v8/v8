@@ -5233,7 +5233,11 @@ void Parser::InsertSloppyBlockFunctionVarBindings(Scope* scope,
     auto delegates = static_cast<SloppyBlockFunctionMap::Vector*>(p->value);
     for (SloppyBlockFunctionStatement* delegate : *delegates) {
       // Check if there's a conflict with a lexical declaration
-      Scope* outer_scope = scope->outer_scope();
+      Scope* decl_scope = scope;
+      while (decl_scope->is_eval_scope()) {
+        decl_scope = decl_scope->outer_scope()->DeclarationScope();
+      }
+      Scope* outer_scope = decl_scope->outer_scope();
       Scope* query_scope = delegate->scope()->outer_scope();
       Variable* var = nullptr;
       bool should_hoist = true;

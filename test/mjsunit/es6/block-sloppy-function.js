@@ -461,7 +461,7 @@
 
   try {
     throw 0;
-  } catch(f) {
+  } catch (f) {
     {
       assertEquals(4, f());
 
@@ -471,6 +471,8 @@
 
       assertEquals(4, f());
     }
+
+    assertEquals(0, f);
   }
 
   assertEquals(4, f());
@@ -479,7 +481,7 @@
 (function noHoistingThroughComplexCatch() {
   try {
     throw 0;
-  } catch({f}) {
+  } catch ({f}) {
     {
       assertEquals(4, f());
 
@@ -492,6 +494,26 @@
   }
 
   assertThrows(()=>f, ReferenceError);
+})();
+
+(function hoistingThroughWith() {
+  with ({f: 0}) {
+    assertEquals(0, f);
+
+    {
+      assertEquals(4, f());
+
+      function f() {
+        return 4;
+      }
+
+      assertEquals(4, f());
+    }
+
+    assertEquals(0, f);
+  }
+
+  assertEquals(4, f());
 })();
 
 // Test that hoisting from blocks does happen in global scope
@@ -572,30 +594,63 @@ eval(`
   `);
 }();
 
+// This test is incorrect BUG(v8:5168). The commented assertions are correct.
+(function evalHoistingThroughSimpleCatch() {
+  try {
+    throw 0;
+  } catch (f) {
+    eval(`{ function f() {
+      return 4;
+    } }`);
+
+    // assertEquals(0, f);
+    assertEquals(4, f());
+  }
+
+  // assertEquals(4, f());
+  assertEquals(undefined, f);
+})();
+
+// This test is incorrect BUG(v8:5168). The commented assertions are correct.
+(function evalHoistingThroughWith() {
+  with ({f: 0}) {
+    eval(`{ function f() {
+      return 4;
+    } }`);
+
+    // assertEquals(0, f);
+    assertEquals(4, f());
+  }
+
+  // assertEquals(4, f());
+  assertEquals(undefined, f);
+})();
+
 let dontHoistGlobal;
 { function dontHoistGlobal() {} }
 assertEquals(undefined, dontHoistGlobal);
 
 let dontHoistEval;
-// BUG(v8:) This shouldn't hoist and shouldn't throw
 var throws = false;
 try {
   eval("{ function dontHoistEval() {} }");
 } catch (e) {
   throws = true;
 }
-assertTrue(throws);
+assertFalse(throws);
 
 // When the global object is frozen, silently don't hoist
 // Currently this actually throws BUG(v8:4452)
 Object.freeze(this);
-throws = false;
-try {
-  eval('{ function hoistWhenFrozen() {} }');
-} catch (e) {
-  throws = true;
+{
+  let throws = false;
+  try {
+    eval('{ function hoistWhenFrozen() {} }');
+  } catch (e) {
+    throws = true;
+  }
+  assertFalse(this.hasOwnProperty("hoistWhenFrozen"));
+  assertThrows(() => hoistWhenFrozen, ReferenceError);
+  // Should be assertFalse BUG(v8:4452)
+  assertTrue(throws);
 }
-assertFalse(this.hasOwnProperty("hoistWhenFrozen"));
-assertThrows(() => hoistWhenFrozen, ReferenceError);
-// Should be assertFalse BUG(v8:4452)
-assertTrue(throws);
