@@ -475,7 +475,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
     Register tmp =
-        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
     GenerateRestoreMap(transition, tmp, scratch2(), &miss);
     GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
     if (virtual_args) {
@@ -499,7 +499,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             : StoreTransitionStub::StoreMapAndValue;
 
     Register tmp =
-        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
     GenerateRestoreMap(transition, tmp, scratch2(), &miss);
     if (virtual_args) {
       RearrangeVectorAndSlot(tmp, map_reg);

@@ -553,8 +553,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ movzxbp(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
   __ JumpIfNotUniqueNameInstanceType(r9, &slow_with_tagged_index);
 
-  Register vector = VectorStoreICDescriptor::VectorRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
   Handle<TypeFeedbackVector> dummy_vector =
@@ -716,8 +716,8 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   __ Push(receiver);
   __ Push(name);
   __ Push(value);
-  Register slot = VectorStoreICDescriptor::SlotRegister();
-  Register vector = VectorStoreICDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
   DCHECK(!temp.is(slot) && !temp.is(vector));
   __ Push(slot);
   __ Push(vector);
@@ -739,8 +739,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
   Register dictionary = r11;
-  DCHECK(!AreAliased(dictionary, VectorStoreICDescriptor::VectorRegister(),
-                     VectorStoreICDescriptor::SlotRegister()));
+  DCHECK(!AreAliased(dictionary, StoreWithVectorDescriptor::VectorRegister(),
+                     StoreWithVectorDescriptor::SlotRegister()));
 
   Label miss;
 

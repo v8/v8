@@ -3669,13 +3669,13 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 }
 
 void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
@@ -3687,11 +3687,11 @@ void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
 }
 
 void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // r3
-  Register key = VectorStoreICDescriptor::NameRegister();           // r4
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // r5
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // r6
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(r2));          // r2
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // r3
+  Register key = StoreWithVectorDescriptor::NameRegister();           // r4
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // r5
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // r6
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(r2));          // r2
   Register feedback = r7;
   Register receiver_map = r8;
   Register scratch1 = r9;
@@ -3805,11 +3805,11 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
 }
 
 void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // r3
-  Register key = VectorStoreICDescriptor::NameRegister();           // r4
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // r5
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // r6
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(r2));          // r2
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // r3
+  Register key = StoreWithVectorDescriptor::NameRegister();           // r4
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // r5
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // r6
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(r2));          // r2
   Register feedback = r7;
   Register receiver_map = r8;
   Register scratch1 = r9;

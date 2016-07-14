@@ -1073,7 +1073,7 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
 
 void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
   DCHECK(!slot.IsInvalid());
-  __ Move(VectorStoreICTrampolineDescriptor::SlotRegister(), SmiFromSlot(slot));
+  __ Move(StoreDescriptor::SlotRegister(), SmiFromSlot(slot));
 }
 
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {

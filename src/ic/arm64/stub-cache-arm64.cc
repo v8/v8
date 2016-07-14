@@ -109,8 +109,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   if (IC::ICUseVector(ic_kind_)) {
     Register vector, slot;
     if (ic_kind_ == Code::STORE_IC || ic_kind_ == Code::KEYED_STORE_IC) {
-      vector = VectorStoreICDescriptor::VectorRegister();
-      slot = VectorStoreICDescriptor::SlotRegister();
+      vector = StoreWithVectorDescriptor::VectorRegister();
+      slot = StoreWithVectorDescriptor::SlotRegister();
     } else {
       DCHECK(ic_kind_ == Code::LOAD_IC || ic_kind_ == Code::KEYED_LOAD_IC);
       vector = LoadWithVectorDescriptor::VectorRegister();

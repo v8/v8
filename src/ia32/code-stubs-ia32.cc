@@ -3553,13 +3553,13 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 }
 
 void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
@@ -3604,7 +3604,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register receiver,
 
   // found, now call handler.
   Register handler = feedback;
-  DCHECK(handler.is(VectorStoreICDescriptor::ValueRegister()));
+  DCHECK(handler.is(StoreWithVectorDescriptor::ValueRegister()));
   __ mov(handler, FieldOperand(feedback, FixedArray::OffsetOfElementAt(1)));
   __ pop(vector);
   __ pop(receiver);
@@ -3664,7 +3664,7 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
                                        Register slot, Register weak_cell,
                                        Label* miss) {
   // The store ic value is on the stack.
-  DCHECK(weak_cell.is(VectorStoreICDescriptor::ValueRegister()));
+  DCHECK(weak_cell.is(StoreWithVectorDescriptor::ValueRegister()));
   ExternalReference virtual_register =
       ExternalReference::virtual_handler_register(masm->isolate());
 
@@ -3703,11 +3703,11 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
 }
 
 void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
-  Register key = VectorStoreICDescriptor::NameRegister();           // ecx
-  Register value = VectorStoreICDescriptor::ValueRegister();        // eax
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // ebx
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // edi
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // edx
+  Register key = StoreWithVectorDescriptor::NameRegister();           // ecx
+  Register value = StoreWithVectorDescriptor::ValueRegister();        // eax
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // ebx
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // edi
   Label miss;
 
   __ push(value);
@@ -3868,11 +3868,11 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
 }
 
 void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
-  Register key = VectorStoreICDescriptor::NameRegister();           // ecx
-  Register value = VectorStoreICDescriptor::ValueRegister();        // eax
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // ebx
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // edi
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // edx
+  Register key = StoreWithVectorDescriptor::NameRegister();           // ecx
+  Register value = StoreWithVectorDescriptor::ValueRegister();        // eax
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // ebx
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // edi
   Label miss;
 
   __ push(value);

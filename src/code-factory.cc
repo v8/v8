@@ -84,14 +84,14 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
   StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
-  return Callable(stub.GetCode(), VectorStoreICTrampolineDescriptor(isolate));
+  return Callable(stub.GetCode(), StoreDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
-  CallInterfaceDescriptor descriptor = VectorStoreICDescriptor(isolate);
+  CallInterfaceDescriptor descriptor = StoreWithVectorDescriptor(isolate);
   return Callable(
       StoreIC::initialize_stub_in_optimized_code(isolate, language_mode),
       descriptor);
@@ -102,14 +102,14 @@ Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
 Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
                                    LanguageMode language_mode) {
   KeyedStoreICTrampolineStub stub(isolate, StoreICState(language_mode));
-  return Callable(stub.GetCode(), VectorStoreICTrampolineDescriptor(isolate));
+  return Callable(stub.GetCode(), StoreDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
                                                   LanguageMode language_mode) {
-  CallInterfaceDescriptor descriptor = VectorStoreICDescriptor(isolate);
+  CallInterfaceDescriptor descriptor = StoreWithVectorDescriptor(isolate);
   return Callable(
       KeyedStoreIC::initialize_stub_in_optimized_code(isolate, language_mode),
       descriptor);

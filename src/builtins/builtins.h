@@ -68,9 +68,9 @@ namespace internal {
       LoadGlobalWithVector)                                                 \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                  \
-  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)                \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)           \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)           \
+  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)              \
+  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)         \
+  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)         \
   /* Code aging */                                                          \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                     \
   /* Calls */                                                               \

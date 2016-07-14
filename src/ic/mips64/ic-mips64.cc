@@ -653,8 +653,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorStoreICDescriptor::VectorRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
 
   DCHECK(!AreAliased(vector, slot, a5, a6, a7, t0));
   Handle<TypeFeedbackVector> dummy_vector =
@@ -716,8 +716,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 static void StoreIC_PushArgs(MacroAssembler* masm) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister(),
-          VectorStoreICDescriptor::SlotRegister(),
-          VectorStoreICDescriptor::VectorRegister());
+          StoreWithVectorDescriptor::SlotRegister(),
+          StoreWithVectorDescriptor::VectorRegister());
 }
 
 
@@ -742,8 +742,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register value = StoreDescriptor::ValueRegister();
   Register dictionary = a5;
   DCHECK(!AreAliased(
-      value, receiver, name, VectorStoreICDescriptor::VectorRegister(),
-      VectorStoreICDescriptor::SlotRegister(), dictionary, a6, a7));
+      value, receiver, name, StoreWithVectorDescriptor::VectorRegister(),
+      StoreWithVectorDescriptor::SlotRegister(), dictionary, a6, a7));
 
   __ ld(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 

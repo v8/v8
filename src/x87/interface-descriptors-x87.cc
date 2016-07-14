@@ -30,13 +30,9 @@ const Register LoadWithVectorDescriptor::VectorRegister() { return ebx; }
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return eax; }
+const Register StoreDescriptor::SlotRegister() { return edi; }
 
-
-const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
-
-
-const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
-
+const Register StoreWithVectorDescriptor::VectorRegister() { return ebx; }
 
 const Register VectorStoreTransitionDescriptor::SlotRegister() {
   return no_reg;

@@ -66,8 +66,8 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
     // probe, and need to be dropped before calling the handler.
     if (is_vector_store) {
       // The overlap here is rather embarrassing. One does what one must.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(extra.is(VectorStoreICDescriptor::SlotRegister()));
+      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      DCHECK(extra.is(StoreWithVectorDescriptor::SlotRegister()));
       __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ pop(vector);
       __ mov(Operand::StaticVariable(virtual_register), extra);
@@ -127,8 +127,8 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
     if (is_vector_store) {
       // The vector and slot were pushed onto the stack before starting the
       // probe, and need to be dropped before calling the handler.
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      DCHECK(offset.is(VectorStoreICDescriptor::SlotRegister()));
+      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      DCHECK(offset.is(StoreWithVectorDescriptor::SlotRegister()));
       __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ mov(Operand::StaticVariable(virtual_register), offset);
       __ pop(vector);

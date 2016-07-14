@@ -80,7 +80,7 @@ void VoidDescriptor::InitializePlatformSpecific(
 }
 
 FunctionType* LoadDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -98,7 +98,7 @@ void LoadDescriptor::InitializePlatformSpecific(
 }
 
 FunctionType* LoadGlobalDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 1, zone)->AsFunction();
@@ -114,7 +114,7 @@ void LoadGlobalDescriptor::InitializePlatformSpecific(
 
 FunctionType*
 LoadGlobalWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
@@ -130,9 +130,22 @@ void LoadGlobalWithVectorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+FunctionType* StoreDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int parameter_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  FunctionType* function =
+      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
+  function->InitParameter(0, AnyTagged(zone));
+  function->InitParameter(1, AnyTagged(zone));
+  function->InitParameter(2, AnyTagged(zone));
+  function->InitParameter(3, SmiType(zone));
+  return function;
+}
+
 void StoreDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister()};
+  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
+                          SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -162,7 +175,7 @@ void VectorStoreTransitionDescriptor::InitializePlatformSpecific(
 
 FunctionType*
 StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
@@ -175,7 +188,7 @@ StoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 StoreGlobalViaContextDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
@@ -218,7 +231,7 @@ void MathPowIntegerDescriptor::InitializePlatformSpecific(
 
 FunctionType*
 LoadWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
@@ -239,7 +252,7 @@ void LoadWithVectorDescriptor::InitializePlatformSpecific(
 
 FunctionType*
 VectorStoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   bool has_slot = !VectorStoreTransitionDescriptor::SlotRegister().is(no_reg);
   int arg_count = has_slot ? 6 : 5;
@@ -258,8 +271,9 @@ VectorStoreTransitionDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
-FunctionType* VectorStoreICDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+FunctionType*
+StoreWithVectorDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
@@ -271,32 +285,10 @@ FunctionType* VectorStoreICDescriptor::BuildCallInterfaceDescriptorFunctionType(
   return function;
 }
 
-
-void VectorStoreICDescriptor::InitializePlatformSpecific(
+void StoreWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
                           SlotRegister(), VectorRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-FunctionType*
-VectorStoreICTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
-  function->InitParameter(0, AnyTagged(zone));
-  function->InitParameter(1, AnyTagged(zone));
-  function->InitParameter(2, AnyTagged(zone));
-  function->InitParameter(3, SmiType(zone));
-  return function;
-}
-
-
-void VectorStoreICTrampolineDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
-                          SlotRegister()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -367,7 +359,7 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
 
 FunctionType*
 VarArgFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), AnyTagged(zone), 1, zone)->AsFunction();
@@ -377,7 +369,7 @@ VarArgFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 FastCloneRegExpDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
@@ -390,7 +382,7 @@ FastCloneRegExpDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 FastCloneShallowArrayDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -402,7 +394,7 @@ FastCloneShallowArrayDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 CreateAllocationSiteDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
@@ -413,7 +405,7 @@ CreateAllocationSiteDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 CreateWeakCellDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -425,7 +417,7 @@ CreateWeakCellDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 CallTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
@@ -435,7 +427,7 @@ CallTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
 }
 
 FunctionType* ConstructStubDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
@@ -448,7 +440,7 @@ FunctionType* ConstructStubDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 ConstructTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -460,7 +452,7 @@ ConstructTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 CallFunctionWithFeedbackDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 2, zone)->AsFunction();
@@ -471,7 +463,7 @@ CallFunctionWithFeedbackDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType* CallFunctionWithFeedbackAndVectorDescriptor::
     BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
-                                             int paramater_count) {
+                                             int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -483,7 +475,7 @@ FunctionType* CallFunctionWithFeedbackAndVectorDescriptor::
 
 FunctionType*
 ArrayNoArgumentConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();
@@ -496,7 +488,7 @@ ArrayNoArgumentConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType* ArraySingleArgumentConstructorDescriptor::
     BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
-                                             int paramater_count) {
+                                             int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 5, zone)->AsFunction();
@@ -510,7 +502,7 @@ FunctionType* ArraySingleArgumentConstructorDescriptor::
 
 FunctionType*
 ArrayNArgumentsConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
@@ -522,7 +514,7 @@ ArrayNArgumentsConstructorDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 FunctionType*
 ArgumentAdaptorDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
+    Isolate* isolate, int parameter_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   FunctionType* function =
       Type::Function(AnyTagged(zone), Type::Undefined(), 4, zone)->AsFunction();

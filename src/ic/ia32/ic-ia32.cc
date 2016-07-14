@@ -564,8 +564,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, edi,
                                                      no_reg);
 
-  __ pop(VectorStoreICDescriptor::VectorRegister());
-  __ pop(VectorStoreICDescriptor::SlotRegister());
+  __ pop(StoreWithVectorDescriptor::VectorRegister());
+  __ pop(StoreWithVectorDescriptor::SlotRegister());
 
   // Cache miss.
   __ jmp(&miss);
@@ -708,8 +708,8 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
-  Register vector = VectorStoreICDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
 
   __ xchg(receiver, Operand(esp, 0));
   __ push(name);
@@ -734,8 +734,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
-  Register vector = VectorStoreICDescriptor::VectorRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
 
   // A lot of registers are needed for storing to slow case
   // objects. Push and restore receiver but rely on

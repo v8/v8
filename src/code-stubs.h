@@ -966,7 +966,7 @@ class StoreInterceptorStub : public TurboFanCodeStub {
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
 };
 
@@ -2383,7 +2383,7 @@ class StoreICTrampolineStub : public PlatformCodeStub {
   }
 
  private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreICTrampoline);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_PLATFORM_CODE_STUB(StoreICTrampoline, PlatformCodeStub);
 };
 
@@ -2497,7 +2497,7 @@ class StoreICStub : public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_PLATFORM_CODE_STUB(StoreIC, PlatformCodeStub);
 
  protected:
@@ -2519,7 +2519,7 @@ class KeyedStoreICStub : public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_PLATFORM_CODE_STUB(KeyedStoreIC, PlatformCodeStub);
 
  protected:
@@ -2688,7 +2688,7 @@ class StoreFastElementStub : public HydrogenCodeStub {
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return VectorStoreICDescriptor(isolate());
+    return StoreWithVectorDescriptor(isolate());
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
@@ -2885,7 +2885,7 @@ class StoreElementStub : public PlatformCodeStub {
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return VectorStoreICDescriptor(isolate());
+    return StoreWithVectorDescriptor(isolate());
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }

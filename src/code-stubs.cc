@@ -3932,7 +3932,9 @@ void StoreInterceptorStub::GenerateAssembly(
   Node* receiver = assembler->Parameter(0);
   Node* name = assembler->Parameter(1);
   Node* value = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  // Node* slot = assembler->Parameter(3);
+  // Node* vector = assembler->Parameter(4);
+  Node* context = assembler->Parameter(5);
   assembler->TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
                              receiver, name, value);
 }
@@ -4164,7 +4166,7 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
     return LoadWithVectorDescriptor(isolate());
   } else {
     DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return VectorStoreICDescriptor(isolate());
+    return StoreWithVectorDescriptor(isolate());
   }
 }
 

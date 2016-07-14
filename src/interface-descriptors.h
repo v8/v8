@@ -24,14 +24,13 @@ class PlatformInterfaceDescriptor;
   V(OnStackWith6Args)                  \
   V(OnStackWith7Args)                  \
   V(Load)                              \
+  V(LoadWithVector)                    \
   V(LoadGlobal)                        \
   V(LoadGlobalWithVector)              \
   V(Store)                             \
+  V(StoreWithVector)                   \
   V(StoreTransition)                   \
   V(VectorStoreTransition)             \
-  V(VectorStoreICTrampoline)           \
-  V(VectorStoreIC)                     \
-  V(LoadWithVector)                    \
   V(VarArgFunction)                    \
   V(FastNewClosure)                    \
   V(FastNewFunctionContext)            \
@@ -201,7 +200,7 @@ class CallInterfaceDescriptor {
   const char* DebugName(Isolate* isolate) const;
 
   static FunctionType* BuildDefaultFunctionType(Isolate* isolate,
-                                                int paramater_count);
+                                                int parameter_count);
 
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }
@@ -384,17 +383,15 @@ class LoadGlobalDescriptor : public CallInterfaceDescriptor {
 
 class StoreDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(StoreDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreDescriptor,
+                                               CallInterfaceDescriptor)
 
-  enum ParameterIndices {
-    kReceiverIndex,
-    kNameIndex,
-    kValueIndex,
-    kParameterCount
-  };
+  enum ParameterIndices { kReceiverIndex, kNameIndex, kValueIndex, kSlotIndex };
+
   static const Register ReceiverRegister();
   static const Register NameRegister();
   static const Register ValueRegister();
+  static const Register SlotRegister();
 };
 
 
@@ -440,22 +437,10 @@ class VectorStoreTransitionDescriptor : public StoreDescriptor {
   static const Register VectorRegister();
 };
 
-
-class VectorStoreICTrampolineDescriptor : public StoreDescriptor {
+class StoreWithVectorDescriptor : public StoreDescriptor {
  public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      VectorStoreICTrampolineDescriptor, StoreDescriptor)
-
-  enum ParameterIndices { kReceiverIndex, kNameIndex, kValueIndex, kSlotIndex };
-
-  static const Register SlotRegister();
-};
-
-
-class VectorStoreICDescriptor : public VectorStoreICTrampolineDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      VectorStoreICDescriptor, VectorStoreICTrampolineDescriptor)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreWithVectorDescriptor,
+                                               StoreDescriptor)
 
   enum ParameterIndices {
     kReceiverIndex,

@@ -29,10 +29,9 @@ const Register LoadWithVectorDescriptor::VectorRegister() { return r5; }
 const Register StoreDescriptor::ReceiverRegister() { return r3; }
 const Register StoreDescriptor::NameRegister() { return r4; }
 const Register StoreDescriptor::ValueRegister() { return r2; }
+const Register StoreDescriptor::SlotRegister() { return r6; }
 
-const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return r6; }
-
-const Register VectorStoreICDescriptor::VectorRegister() { return r5; }
+const Register StoreWithVectorDescriptor::VectorRegister() { return r5; }
 
 const Register VectorStoreTransitionDescriptor::SlotRegister() { return r6; }
 const Register VectorStoreTransitionDescriptor::VectorRegister() { return r5; }

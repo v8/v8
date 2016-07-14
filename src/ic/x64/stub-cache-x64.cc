@@ -110,8 +110,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
       DCHECK(!AreAliased(vector, slot, scratch));
     } else {
       DCHECK(ic_kind_ == Code::STORE_IC || ic_kind_ == Code::KEYED_STORE_IC);
-      Register vector = VectorStoreICDescriptor::VectorRegister();
-      Register slot = VectorStoreICDescriptor::SlotRegister();
+      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      Register slot = StoreWithVectorDescriptor::SlotRegister();
       DCHECK(!AreAliased(vector, slot, scratch));
     }
   }

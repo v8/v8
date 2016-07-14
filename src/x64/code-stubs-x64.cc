@@ -3472,13 +3472,13 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
 }
 
 void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
 void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
+  __ EmitLoadTypeFeedbackVector(StoreWithVectorDescriptor::VectorRegister());
   KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
@@ -3490,11 +3490,11 @@ void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
 }
 
 void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // rdx
-  Register key = VectorStoreICDescriptor::NameRegister();           // rcx
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // rbx
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // rdi
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(rax));         // rax
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // rdx
+  Register key = StoreWithVectorDescriptor::NameRegister();           // rcx
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // rbx
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // rdi
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(rax));         // rax
   Register feedback = r8;
   Register integer_slot = r9;
   Register receiver_map = r11;
@@ -3596,11 +3596,11 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
 }
 
 void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
-  Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // rdx
-  Register key = VectorStoreICDescriptor::NameRegister();           // rcx
-  Register vector = VectorStoreICDescriptor::VectorRegister();      // rbx
-  Register slot = VectorStoreICDescriptor::SlotRegister();          // rdi
-  DCHECK(VectorStoreICDescriptor::ValueRegister().is(rax));         // rax
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();  // rdx
+  Register key = StoreWithVectorDescriptor::NameRegister();           // rcx
+  Register vector = StoreWithVectorDescriptor::VectorRegister();      // rbx
+  Register slot = StoreWithVectorDescriptor::SlotRegister();          // rdi
+  DCHECK(StoreWithVectorDescriptor::ValueRegister().is(rax));         // rax
   Register feedback = r8;
   Register integer_slot = r9;
   Register receiver_map = r11;
