@@ -395,6 +395,24 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(input_count, 1 + effect_count);
       break;
     }
+    case IrOpcode::kLoopExit: {
+      CHECK_EQ(2, control_count);
+      Node* loop = NodeProperties::GetControlInput(node, 1);
+      CHECK_EQ(IrOpcode::kLoop, loop->opcode());
+      break;
+    }
+    case IrOpcode::kLoopExitValue: {
+      CHECK_EQ(1, control_count);
+      Node* loop_exit = NodeProperties::GetControlInput(node, 0);
+      CHECK_EQ(IrOpcode::kLoopExit, loop_exit->opcode());
+      break;
+    }
+    case IrOpcode::kLoopExitEffect: {
+      CHECK_EQ(1, control_count);
+      Node* loop_exit = NodeProperties::GetControlInput(node, 0);
+      CHECK_EQ(IrOpcode::kLoopExit, loop_exit->opcode());
+      break;
+    }
     case IrOpcode::kCheckpoint:
       // Type is empty.
       CheckNotTyped(node);

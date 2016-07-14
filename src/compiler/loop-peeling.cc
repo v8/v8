@@ -329,6 +329,60 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
   return iter;
 }
 
+namespace {
+
+void EliminateLoopExit(Node* node) {
+  DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
+  // The exit markers take the loop exit as input. We iterate over uses
+  // and remove all the markers from the graph.
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) {
+      Node* marker = edge.from();
+      if (marker->opcode() == IrOpcode::kLoopExitValue) {
+        NodeProperties::ReplaceUses(marker, marker->InputAt(0));
+        marker->Kill();
+      } else if (marker->opcode() == IrOpcode::kLoopExitEffect) {
+        NodeProperties::ReplaceUses(marker, nullptr,
+                                    NodeProperties::GetEffectInput(marker));
+        marker->Kill();
+      }
+    }
+  }
+  NodeProperties::ReplaceUses(node, nullptr, nullptr,
+                              NodeProperties::GetControlInput(node, 0));
+  node->Kill();
+}
+
+}  // namespace
+
+// static
+void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* temp_zone) {
+  ZoneQueue<Node*> queue(temp_zone);
+  ZoneVector<bool> visited(graph->NodeCount(), false, temp_zone);
+  queue.push(graph->end());
+  while (!queue.empty()) {
+    Node* node = queue.front();
+    queue.pop();
+
+    if (node->opcode() == IrOpcode::kLoopExit) {
+      Node* control = NodeProperties::GetControlInput(node);
+      EliminateLoopExit(node);
+      if (!visited[control->id()]) {
+        visited[control->id()] = true;
+        queue.push(control);
+      }
+    } else {
+      for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+        Node* control = NodeProperties::GetControlInput(node, i);
+        if (!visited[control->id()]) {
+          visited[control->id()] = true;
+          queue.push(control);
+        }
+      }
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

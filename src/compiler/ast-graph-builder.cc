@@ -178,14 +178,14 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 
   // Interface to execute a given command in this scope. Returning {true} here
   // indicates successful execution whereas {false} requests to skip scope.
-  virtual bool Execute(Command cmd, Statement* target, Node* value) {
+  virtual bool Execute(Command cmd, Statement* target, Node** value) {
     // For function-level control.
     switch (cmd) {
       case CMD_THROW:
-        builder()->BuildThrow(value);
+        builder()->BuildThrow(*value);
         return true;
       case CMD_RETURN:
-        builder()->BuildReturn(value);
+        builder()->BuildReturn(*value);
         return true;
       case CMD_BREAK:
       case CMD_CONTINUE:
@@ -303,7 +303,7 @@ class AstGraphBuilder::ControlScopeForBreakable : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node** value) override {
     if (target != target_) return false;  // We are not the command target.
     switch (cmd) {
       case CMD_BREAK:
@@ -331,8 +331,11 @@ class AstGraphBuilder::ControlScopeForIteration : public ControlScope {
       : ControlScope(owner), target_(target), control_(control) {}
 
  protected:
-  bool Execute(Command cmd, Statement* target, Node* value) override {
-    if (target != target_) return false;  // We are not the command target.
+  bool Execute(Command cmd, Statement* target, Node** value) override {
+    if (target != target_) {
+      control_->ExitLoop(value);
+      return false;
+    }
     switch (cmd) {
       case CMD_BREAK:
         control_->Break();
@@ -370,10 +373,10 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
   }
 
  protected:
-  bool Execute(Command cmd, Statement* target, Node* value) override {
+  bool Execute(Command cmd, Statement* target, Node** value) override {
     switch (cmd) {
       case CMD_THROW:
-        control_->Throw(value);
+        control_->Throw(*value);
         return true;
       case CMD_BREAK:
       case CMD_CONTINUE:
@@ -407,9 +410,9 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
   }
 
  protected:
-  bool Execute(Command cmd, Statement* target, Node* value) override {
-    Node* token = commands_->RecordCommand(cmd, target, value);
-    control_->LeaveTry(token, value);
+  bool Execute(Command cmd, Statement* target, Node** value) override {
+    Node* token = commands_->RecordCommand(cmd, target, *value);
+    control_->LeaveTry(token, *value);
     return true;
   }
 
@@ -935,6 +938,34 @@ Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
   return result;
 }
 
+void AstGraphBuilder::Environment::PrepareForLoopExit(
+    Node* loop, BitVector* assigned_variables) {
+  if (IsMarkedAsUnreachable()) return;
+
+  DCHECK_EQ(loop->opcode(), IrOpcode::kLoop);
+
+  Node* control = GetControlDependency();
+
+  // Create the loop exit node.
+  Node* loop_exit = graph()->NewNode(common()->LoopExit(), control, loop);
+  UpdateControlDependency(loop_exit);
+
+  // Rename the environmnent values.
+  for (size_t i = 0; i < values()->size(); i++) {
+    if (assigned_variables == nullptr ||
+        static_cast<int>(i) >= assigned_variables->length() ||
+        assigned_variables->Contains(static_cast<int>(i))) {
+      Node* rename = graph()->NewNode(common()->LoopExitValue(), (*values())[i],
+                                      loop_exit);
+      (*values())[i] = rename;
+    }
+  }
+
+  // Rename the effect.
+  Node* effect_rename = graph()->NewNode(common()->LoopExitEffect(),
+                                         GetEffectDependency(), loop_exit);
+  UpdateEffectDependency(effect_rename);
+}
 
 bool AstGraphBuilder::Environment::IsLivenessAnalysisEnabled() {
   return FLAG_analyze_environment_liveness &&
@@ -1027,7 +1058,7 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
   while (current != nullptr) {
     environment()->TrimStack(current->stack_height());
     environment()->TrimContextChain(current->context_length());
-    if (current->Execute(command, target, value)) break;
+    if (current->Execute(command, target, &value)) break;
     current = current->outer_;
   }
   builder()->set_environment(env);

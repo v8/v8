@@ -713,6 +713,18 @@ Type* Typer::Visitor::TypeEffectPhi(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeLoopExit(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
+Type* Typer::Visitor::TypeLoopExitValue(Node* node) { return Operand(node, 0); }
+
+Type* Typer::Visitor::TypeLoopExitEffect(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeCheckpoint(Node* node) {
   UNREACHABLE();
   return nullptr;

@@ -2275,6 +2275,9 @@ class RepresentationSelector {
       case IrOpcode::kCheckedTaggedToFloat64:
       case IrOpcode::kPlainPrimitiveToWord32:
       case IrOpcode::kPlainPrimitiveToFloat64:
+      case IrOpcode::kLoopExit:
+      case IrOpcode::kLoopExitValue:
+      case IrOpcode::kLoopExitEffect:
         FATAL("Representation inference: unsupported opcodes.");
         break;
 

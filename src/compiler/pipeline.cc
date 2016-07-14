@@ -942,6 +942,14 @@ struct RepresentationSelectionPhase {
   }
 };
 
+struct LoopExitEliminationPhase {
+  static const char* phase_name() { return "loop exit elimination"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    LoopPeeler::EliminateLoopExits(data->graph(), temp_zone);
+  }
+};
+
 struct EarlyOptimizationPhase {
   static const char* phase_name() { return "early optimization"; }
 
@@ -1429,6 +1437,10 @@ bool PipelineImpl::CreateGraph() {
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
+
+    // Eventually, loop peeling will be done here.
+    Run<LoopExitEliminationPhase>();
+    RunPrintAndVerify("Loop exits eliminated", true);
 
     if (FLAG_turbo_stress_loop_peeling) {
       Run<StressLoopPeelingPhase>();

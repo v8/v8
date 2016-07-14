@@ -57,6 +57,9 @@
   V(Call)                \
   V(Parameter)           \
   V(OsrValue)            \
+  V(LoopExit)            \
+  V(LoopExitValue)       \
+  V(LoopExitEffect)      \
   V(Projection)
 
 #define COMMON_OP_LIST(V) \

@@ -213,6 +213,9 @@ std::ostream& operator<<(std::ostream& os,
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
+  V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)          \
+  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)        \
+  V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)    \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)        \
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)
 

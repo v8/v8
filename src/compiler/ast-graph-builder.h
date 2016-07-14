@@ -540,6 +540,10 @@ class AstGraphBuilder::Environment : public ZoneObject {
                                          OutputFrameStateCombine::Ignore(),
                    bool node_has_exception = false);
 
+  // Inserts a loop exit control node and renames the environment.
+  // This is useful for loop peeling to insert phis at loop exits.
+  void PrepareForLoopExit(Node* loop, BitVector* assigned_variables);
+
   // Control dependency tracked by this environment.
   Node* GetControlDependency() { return control_dependency_; }
   void UpdateControlDependency(Node* dependency) {
