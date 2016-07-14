@@ -426,8 +426,6 @@
         'asmjs/asm-types.h',
         'asmjs/asm-wasm-builder.cc',
         'asmjs/asm-wasm-builder.h',
-        'asmjs/typing-asm.cc',
-        'asmjs/typing-asm.h',
         'assembler.cc',
         'assembler.h',
         'assert-scope.h',

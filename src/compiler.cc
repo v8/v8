@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "src/asmjs/asm-js.h"
-#include "src/asmjs/typing-asm.h"
+#include "src/asmjs/asm-typer.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopeinfo.h"

@@ -794,8 +794,6 @@ v8_source_set("v8_base") {
     "src/asmjs/asm-types.h",
     "src/asmjs/asm-wasm-builder.cc",
     "src/asmjs/asm-wasm-builder.h",
-    "src/asmjs/typing-asm.cc",
-    "src/asmjs/typing-asm.h",
     "src/assembler.cc",
     "src/assembler.h",
     "src/assert-scope.cc",
