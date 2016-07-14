@@ -449,8 +449,8 @@ void FlushAssemblyCache(Isolate* isolate, Handle<FixedArray> functions) {
 
 }  // namespace
 
-WasmModule::WasmModule()
-    : module_start(nullptr),
+WasmModule::WasmModule(byte* module_start)
+    : module_start(module_start),
       module_end(nullptr),
       min_mem_pages(0),
       max_mem_pages(0),

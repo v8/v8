@@ -361,6 +361,10 @@ Node* WasmGraphBuilder::NumberConstant(int32_t value) {
   return jsgraph()->Constant(value);
 }
 
+Node* WasmGraphBuilder::Uint32Constant(uint32_t value) {
+  return jsgraph()->Uint32Constant(value);
+}
+
 Node* WasmGraphBuilder::Int32Constant(int32_t value) {
   return jsgraph()->Int32Constant(value);
 }
@@ -2092,6 +2096,100 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args,
   args[0] = load_code;
   wasm::FunctionSig* sig = module_->GetSignature(index);
   return BuildWasmCall(sig, args, position);
+}
+
+Node* WasmGraphBuilder::JITSingleFunction(Node* const base, Node* const length,
+                                          Node* const index,
+                                          const uint32_t sig_index,
+                                          wasm::FunctionSig* const sig,
+                                          wasm::WasmCodePosition position) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  // Bounds check the memory access
+  {
+    Node* base_negative =
+        graph()->NewNode(machine->Uint32LessThan(), base, Int32Constant(0));
+    trap_->AddTrapIfTrue(wasm::kTrapMemOutOfBounds, base_negative, position);
+
+    Node* length_negative = graph()->NewNode(machine->Uint32LessThanOrEqual(),
+                                             length, Int32Constant(0));
+    trap_->AddTrapIfTrue(wasm::kTrapFuncInvalid, length_negative, position);
+
+    Node* in_bounds = graph()->NewNode(
+        machine->Uint32LessThanOrEqual(),
+        graph()->NewNode(machine->Int32Add(), base, length), MemSize(0));
+    trap_->AddTrapIfFalse(wasm::kTrapMemOutOfBounds, in_bounds, position);
+  }
+
+  // Bounds check the index.
+  {
+    int table_size = static_cast<int>(module_->FunctionTableSize());
+    if (table_size > 0) {
+      // Bounds check against the table size.
+      Node* size = Int32Constant(static_cast<int>(table_size));
+      Node* in_bounds =
+          graph()->NewNode(machine->Uint32LessThan(), index, size);
+      trap_->AddTrapIfFalse(wasm::kTrapInvalidIndex, in_bounds, position);
+    } else {
+      // No function table. Generate a trap and return a constant.
+      trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, Int32Constant(0), position);
+      return trap_->GetTrapValue(module_->GetSignature(sig_index));
+    }
+  }
+
+  const size_t runtime_input_params = 7;
+  const size_t runtime_env_params = 5;
+
+  Runtime::FunctionId f = Runtime::kJITSingleFunction;
+  const Runtime::Function* fun = Runtime::FunctionForId(f);
+  // CEntryStubConstant nodes have to be created and cached in the main
+  // thread. At the moment this is only done for CEntryStubConstant(1).
+  DCHECK_EQ(1, fun->result_size);
+  const uint32_t return_count = static_cast<uint32_t>(sig->return_count());
+  const uint32_t parameter_count =
+      static_cast<uint32_t>(sig->parameter_count());
+
+  const uint32_t inputs_size = runtime_input_params + runtime_env_params +
+                               return_count + parameter_count;
+  Node** inputs = Buffer(inputs_size);
+  inputs[0] = jsgraph()->CEntryStubConstant(fun->result_size);
+  inputs[1] = BuildChangeUint32ToSmi(base);
+  inputs[2] = BuildChangeUint32ToSmi(length);
+  inputs[3] = BuildChangeUint32ToSmi(index);
+  inputs[4] = FunctionTable();
+  inputs[5] = Uint32Constant(sig_index);
+  inputs[6] = BuildChangeUint32ToSmi(Uint32Constant(return_count));
+
+  // Pass in parameters and return types in to the runtime function
+  // to allow it to regenerate signature
+  for (uint32_t i = 0; i < return_count; ++i) {
+    inputs[i + runtime_input_params] = BuildChangeUint32ToSmi(
+        Uint32Constant(static_cast<int>(sig->GetReturn(i))));
+  }
+
+  for (uint32_t i = 0; i < parameter_count; ++i) {
+    inputs[i + runtime_input_params + return_count] = BuildChangeUint32ToSmi(
+        Uint32Constant(static_cast<int>(sig->GetParam(i))));
+  }
+
+  const uint32_t args_offset = inputs_size - runtime_env_params;
+  inputs[args_offset] = jsgraph()->ExternalConstant(
+      ExternalReference(f, jsgraph()->isolate()));                      // ref
+  inputs[args_offset + 1] = jsgraph()->Int32Constant(args_offset - 1);  // arity
+  inputs[args_offset + 2] =
+      HeapConstant(module_->instance->context);  // context
+  inputs[args_offset + 3] = *effect_;
+  inputs[args_offset + 4] = *control_;
+
+  // Use the module context to call the runtime.
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      jsgraph()->zone(), f, args_offset - 1, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+
+  Node* node =
+      graph()->NewNode(jsgraph()->common()->Call(desc), inputs_size, inputs);
+  *control_ = node;
+  *effect_ = node;
+  return node;
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {

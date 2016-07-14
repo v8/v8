@@ -150,6 +150,16 @@ struct CallImportOperand {
   }
 };
 
+struct JITSingleFunctionOperand {
+  uint32_t sig_index;
+  FunctionSig* sig;
+  unsigned length;
+  inline JITSingleFunctionOperand(Decoder* decoder, const byte* pc) {
+    sig_index = decoder->checked_read_u32v(pc, 1, &length, "signature index");
+    sig = nullptr;
+  }
+};
+
 struct BranchTableOperand {
   uint32_t arity;
   uint32_t table_count;

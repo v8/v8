@@ -190,7 +190,8 @@ struct WasmModule {
   // switch to libc-2.21 or higher.
   base::SmartPointer<base::Semaphore> pending_tasks;
 
-  WasmModule();
+  WasmModule() : WasmModule(nullptr) {}
+  explicit WasmModule(byte* module_start);
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetName(uint32_t offset, uint32_t length) const {

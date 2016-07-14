@@ -492,7 +492,8 @@ class CallSite {
   T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
   T(WasmTrapFuncInvalid, "invalid function")                                   \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
-  T(WasmTrapMemAllocationFail, "failed to allocate memory")
+  T(WasmTrapMemAllocationFail, "failed to allocate memory")                    \
+  T(WasmTrapInvalidIndex, "invalid index into function table")
 
 class MessageTemplate {
  public:

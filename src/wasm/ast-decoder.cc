@@ -193,6 +193,23 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
+  inline bool Complete(const byte* pc, JITSingleFunctionOperand& operand) {
+    ModuleEnv* m = module_;
+    if (m && m->module && operand.sig_index < m->module->signatures.size()) {
+      operand.sig = m->module->signatures[operand.sig_index];
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, JITSingleFunctionOperand& operand) {
+    if (Complete(pc, operand)) {
+      return true;
+    }
+    error(pc, pc + 1, "invalid signature index");
+    return false;
+  }
+
   inline bool Validate(const byte* pc, BreakDepthOperand& operand,
                        ZoneVector<Control>& control) {
     if (operand.arity > 1) {
@@ -287,6 +304,8 @@ class WasmDecoder : public Decoder {
         ReturnArityOperand operand(this, pc);
         return operand.arity;
       }
+      case kExprJITSingleFunction:
+        return 3;
 
 #define DECLARE_OPCODE_CASE(name, opcode, sig) \
   case kExpr##name:                            \
@@ -340,6 +359,10 @@ class WasmDecoder : public Decoder {
         return 1 + operand.length;
       }
 
+      case kExprJITSingleFunction: {
+        JITSingleFunctionOperand operand(this, pc);
+        return 1 + operand.length;
+      }
       case kExprSetLocal:
       case kExprGetLocal: {
         LocalIndexOperand operand(this, pc);
@@ -996,6 +1019,21 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
             break;
           }
+          case kExprJITSingleFunction: {
+            if (FLAG_wasm_jit_prototype) {
+              JITSingleFunctionOperand operand(this, pc_);
+              if (Validate(pc_, operand)) {
+                Value index = Pop(2, kAstI32);
+                Value length = Pop(1, kAstI32);
+                Value base = Pop(0, kAstI32);
+                TFNode* call =
+                    BUILD(JITSingleFunction, base.node, length.node, index.node,
+                          operand.sig_index, operand.sig, position());
+                Push(kAstI32, call);
+                break;
+              }
+            }
+          }
           default:
             error("Invalid opcode");
             return;
@@ -1617,6 +1655,13 @@ bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
           os << "   // function #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " function #" << operand.index;
+        }
+        break;
+      }
+      case kExprJITSingleFunction: {
+        JITSingleFunctionOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
+          os << "   // sig #" << operand.sig_index << ": " << *operand.sig;
         }
         break;
       }

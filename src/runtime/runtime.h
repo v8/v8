@@ -30,6 +30,8 @@ namespace internal {
 
 
 // Entries have the form F(name, number of arguments, number of values):
+// A variable number of arguments is specified by a -1, additional restrictions
+// are specified by inline comments
 
 #define FOR_EACH_INTRINSIC_ARRAY(F)  \
   F(FinishArrayPrototypeSetup, 1, 1) \
@@ -294,6 +296,7 @@ namespace internal {
   F(ThrowGeneratorRunning, 0, 1)                    \
   F(ThrowStackOverflow, 0, 1)                       \
   F(ThrowWasmError, 2, 1)                           \
+  F(JITSingleFunction, -1 /* >= 7 */, 1)            \
   F(PromiseRejectEvent, 3, 1)                       \
   F(PromiseRevokeReject, 1, 1)                      \
   F(StackGuard, 0, 1)                               \

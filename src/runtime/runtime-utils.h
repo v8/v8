@@ -80,6 +80,14 @@ namespace internal {
   int32_t name = 0;                            \
   CHECK(args[index]->ToInt32(&name));
 
+// Assert that the given argument is a number within the Uint32 range
+// and convert it to uint32_t.  If the argument is not an Uint32 call
+// IllegalOperation and return.
+#define CONVERT_UINT32_ARG_CHECKED(name, index) \
+  CHECK(args[index]->IsNumber());               \
+  uint32_t name = 0;                            \
+  CHECK(args[index]->ToUint32(&name));
+
 // Cast the given argument to PropertyAttributes and store its value in a
 // variable with the given name.  If the argument is not a Smi or the
 // enum value is out of range, we crash safely.
