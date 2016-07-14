@@ -100,6 +100,31 @@ UseInfo UseInfoForBasePointer(const ElementAccess& access) {
   return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
 }
 
+void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge)) {
+      edge.UpdateTo(control);
+    } else if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+    } else {
+      DCHECK(NodeProperties::IsValueEdge(edge));
+    }
+  }
+}
+
+void ChangeToPureOp(Node* node, const Operator* new_op) {
+  if (node->op()->EffectInputCount() > 0) {
+    DCHECK_LT(0, node->op()->ControlInputCount());
+    // Disconnect the node from effect and control chains.
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    ReplaceEffectControlUses(node, effect, control);
+    node->TrimInputCount(new_op->ValueInputCount());
+  } else {
+    DCHECK_EQ(0, node->op()->ControlInputCount());
+  }
+  NodeProperties::ChangeOp(node, new_op);
+}
 
 #ifdef DEBUG
 // Helpers for monotonicity checking.
@@ -1048,33 +1073,6 @@ class RepresentationSelector {
     return jsgraph_->simplified();
   }
 
-  void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
-    for (Edge edge : node->use_edges()) {
-      if (NodeProperties::IsControlEdge(edge)) {
-        edge.UpdateTo(control);
-      } else if (NodeProperties::IsEffectEdge(edge)) {
-        edge.UpdateTo(effect);
-      } else {
-        DCHECK(NodeProperties::IsValueEdge(edge));
-      }
-    }
-  }
-
-  void ChangeToPureOp(Node* node, const Operator* new_op) {
-    if (node->op()->EffectInputCount() > 0) {
-      DCHECK_LT(0, node->op()->ControlInputCount());
-      // Disconnect the node from effect and control chains.
-      Node* control = NodeProperties::GetControlInput(node);
-      Node* effect = NodeProperties::GetEffectInput(node);
-      ReplaceEffectControlUses(node, effect, control);
-      node->TrimInputCount(new_op->ValueInputCount());
-    } else {
-      DCHECK_EQ(0, node->op()->ControlInputCount());
-    }
-
-    NodeProperties::ChangeOp(node, new_op);
-  }
-
   void ChangeToInt32OverflowOp(Node* node) {
     NodeProperties::ChangeOp(node, Int32OverflowOp(node));
   }
@@ -1560,6 +1558,40 @@ class RepresentationSelector {
           lowering->DoShift(node, lowering->machine()->Word32Shl(), rhs_type);
         }
         return;
+      }
+      case IrOpcode::kSpeculativeNumberShiftLeft: {
+        if (BothInputsAre(node, Type::NumberOrOddball())) {
+          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            lowering->DoShift(node, lowering->machine()->Word32Shl(), rhs_type);
+          }
+          return;
+        }
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+        if (hint == BinaryOperationHints::kSignedSmall ||
+            hint == BinaryOperationHints::kSigned32) {
+          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          if (truncation.TruncatesToWord32()) {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32);
+            if (lower()) {
+              lowering->DoShift(node, lowering->machine()->Word32Shl(),
+                                rhs_type);
+            }
+          } else {
+            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                       MachineRepresentation::kWord32, Type::Signed32());
+            if (lower()) {
+              lowering->DoShift(node, lowering->machine()->Word32Shl(),
+                                rhs_type);
+            }
+          }
+          return;
+        }
+        UNREACHABLE();
       }
       case IrOpcode::kNumberShiftRight: {
         Type* rhs_type = GetUpperBound(node->InputAt(1));
@@ -3237,7 +3269,8 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
                                            jsgraph()->Int32Constant(0x1f)));
   }
-  NodeProperties::ChangeOp(node, op);
+  DCHECK(op->HasProperty(Operator::kPure));
+  ChangeToPureOp(node, op);
 }
 
 void SimplifiedLowering::DoStringToNumber(Node* node) {

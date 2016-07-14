@@ -84,6 +84,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSSubtract(Node* node);
   Reduction ReduceJSDivide(Node* node);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
+  Reduction ReduceShiftLeft(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 

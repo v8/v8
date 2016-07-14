@@ -220,6 +220,7 @@
   V(NumberBitwiseXor)                 \
   V(NumberBitwiseAnd)                 \
   V(NumberShiftLeft)                  \
+  V(SpeculativeNumberShiftLeft)       \
   V(NumberShiftRight)                 \
   V(NumberShiftRightLogical)          \
   V(NumberImul)                       \

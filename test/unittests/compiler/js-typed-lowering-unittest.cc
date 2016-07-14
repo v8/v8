@@ -888,10 +888,29 @@ TEST_F(JSTypedLoweringTest, JSSubtractSmis) {
 }
 
 // -----------------------------------------------------------------------------
+// JSShiftLeft
+
+TEST_F(JSTypedLoweringTest, JSShiftLeftSmis) {
+  BinaryOperationHints const hints(BinaryOperationHints::kSignedSmall,
+                                   BinaryOperationHints::kSignedSmall,
+                                   BinaryOperationHints::kSignedSmall);
+  Node* lhs = Parameter(Type::Number(), 2);
+  Node* rhs = Parameter(Type::Number(), 3);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ShiftLeft(hints), lhs, rhs, UndefinedConstant(),
+      EmptyFrameState(), EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsSpeculativeNumberShiftLeft(BinaryOperationHints::kSignedSmall,
+                                           lhs, rhs, effect, control));
+}
+
+// -----------------------------------------------------------------------------
 // JSInstanceOf
 // Test that instanceOf is reduced if and only if the right-hand side is a
 // function constant. Functional correctness is ensured elsewhere.
-
 
 TEST_F(JSTypedLoweringTest, JSInstanceOfSpecializationWithoutSmiCheck) {
   Node* const context = Parameter(Type::Any());

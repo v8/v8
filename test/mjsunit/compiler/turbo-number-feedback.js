@@ -56,3 +56,14 @@
   assertEquals(1, f3(0, 1));
   assertEquals(1.5, f3(1, 1));
 })();
+
+(function ShiftLeftSmis() {
+  function f4(a, b) {
+    return a << b;
+  }
+
+  assertEquals(24, f4(3, 3));
+  assertEquals(40, f4(5, 3));
+  %OptimizeFunctionOnNextCall(f4);
+  assertEquals(64, f4(4, 4));
+})();

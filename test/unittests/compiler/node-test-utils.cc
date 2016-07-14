@@ -2050,6 +2050,16 @@ Matcher<Node*> IsSpeculativeNumberSubtract(
       rhs_matcher, effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsSpeculativeNumberShiftLeft(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsSpeculativeBinopMatcher(
+      IrOpcode::kSpeculativeNumberShiftLeft, hint_matcher, lhs_matcher,
+      rhs_matcher, effect_matcher, control_matcher));
+}
+
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher) {

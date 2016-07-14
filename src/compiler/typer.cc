@@ -1556,6 +1556,10 @@ Type* Typer::Visitor::TypeSpeculativeNumberModulus(Node* node) {
   return Type::Number();
 }
 
+Type* Typer::Visitor::TypeSpeculativeNumberShiftLeft(Node* node) {
+  return Type::Signed32();
+}
+
 Type* Typer::Visitor::TypeNumberMultiply(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberDivide(Node* node) { return Type::Number(); }
