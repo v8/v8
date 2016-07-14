@@ -200,7 +200,7 @@ void AsmTyper::InitializeStdlib() {
 
   const StandardMemberInitializer stdlib[] = {{"Infinity", kInfinity, d},
                                               {"NaN", kNaN, d},
-#define asm_TYPED_ARRAYS(V) \
+#define ASM_TYPED_ARRAYS(V) \
   V(Uint8)                  \
   V(Int8)                   \
   V(Uint16)                 \
@@ -210,10 +210,10 @@ void AsmTyper::InitializeStdlib() {
   V(Float32)                \
   V(Float64)
 
-#define asm_TYPED_ARRAY(TypeName) \
+#define ASM_TYPED_ARRAY(TypeName) \
   {#TypeName "Array", kNone, AsmType::TypeName##Array()},
-                                              asm_TYPED_ARRAYS(asm_TYPED_ARRAY)
-#undef asm_TYPED_ARRAY
+                                              ASM_TYPED_ARRAYS(ASM_TYPED_ARRAY)
+#undef ASM_TYPED_ARRAY
   };
   for (size_t ii = 0; ii < arraysize(stdlib); ++ii) {
     stdlib_types_[stdlib[ii].name] = new (zone_) VariableInfo(stdlib[ii].type);
@@ -1623,22 +1623,8 @@ AsmType* AsmTyper::ValidateAssignmentExpression(Assignment* assignment) {
     RECURSE(allowed_store_types =
                 ValidateHeapAccess(target_as_property, StoreToHeap));
 
-    // TODO(jpp): Change FloatishDoubleQ and FloatQDoubleQ so that they are base
-    // classes for Floatish, DoubleQ, and FloatQ.
-    if (allowed_store_types == AsmType::FloatishDoubleQ()) {
-      if (!value_type->IsA(AsmType::Floatish()) &&
-          !value_type->IsA(AsmType::DoubleQ())) {
-        FAIL(assignment, "Type mismatch in heap assignment.");
-      }
-    } else if (allowed_store_types == AsmType::FloatQDoubleQ()) {
-      if (!value_type->IsA(AsmType::FloatQ()) &&
-          !value_type->IsA(AsmType::DoubleQ())) {
-        FAIL(assignment, "Type mismatch in heap assignment.");
-      }
-    } else {
-      if (!value_type->IsA(allowed_store_types)) {
-        FAIL(assignment, "Type mismatch in heap assignment.");
-      }
+    if (!value_type->IsA(allowed_store_types)) {
+      FAIL(assignment, "Type mismatch in heap assignment.");
     }
 
     return value_type;
@@ -2294,6 +2280,23 @@ bool ExtractHeapAccessShift(Expression* expr, uint32_t* value) {
 
   return as_literal->value()->ToUint32(value);
 }
+
+// Returns whether index is too large to access a heap with the given type.
+bool LiteralIndexOutOfBounds(AsmType* obj_type, uint32_t index) {
+  switch (obj_type->ElementSizeInBytes()) {
+    case 1:
+      return false;
+    case 2:
+      return (index & 0x80000000u) != 0;
+    case 4:
+      return (index & 0xC0000000u) != 0;
+    case 8:
+      return (index & 0xE0000000u) != 0;
+  }
+  UNREACHABLE();
+  return true;
+}
+
 }  // namespace
 
 AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
@@ -2316,13 +2319,17 @@ AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
 
   if (auto* key_as_literal = heap->key()->AsLiteral()) {
     if (key_as_literal->raw_value()->ContainsDot()) {
-      FAIL(key_as_literal, "Heap access index must be intish.");
+      FAIL(key_as_literal, "Heap access index must be int.");
     }
 
-    uint32_t _;
-    if (!key_as_literal->value()->ToUint32(&_)) {
+    uint32_t index;
+    if (!key_as_literal->value()->ToUint32(&index)) {
       FAIL(key_as_literal,
            "Heap access index must be a 32-bit unsigned integer.");
+    }
+
+    if (LiteralIndexOutOfBounds(obj_type, index)) {
+      FAIL(key_as_literal, "Heap access index is out of bounds");
     }
 
     if (access_type == LoadFromHeap) {

@@ -976,7 +976,7 @@ TEST(ErrorsInExpression) {
       {"HEAP32[0][0] = 0", "Invalid heap access"},
       {"heap32[0] = 0", "Undeclared identifier in heap access"},
       {"not_a_function[0] = 0", "Identifier does not represent a heap view"},
-      {"HEAP32[0.0] = 0", "Heap access index must be intish"},
+      {"HEAP32[0.0] = 0", "Heap access index must be int"},
       {"HEAP32[-1] = 0", "Heap access index must be a 32-bit unsigned integer"},
       {"HEAP32[ilocal >> 1] = 0", "Invalid heap access index"},
       // *VIOLATION* the following is invalid, but because of desugaring it is
@@ -1142,22 +1142,22 @@ TEST(ValidateMemberExpression) {
       {"U8[2147483648]", iw::AsmType::Intish()},
       {"I16[iish >> 1]", iw::AsmType::Intish()},
       {"I16[0]", iw::AsmType::Intish()},
-      {"I16[2147483648]", iw::AsmType::Intish()},  // bug: must be pre-shifted.
+      {"I16[1073741824]", iw::AsmType::Intish()},
       {"U16[iish >> 1]", iw::AsmType::Intish()},
       {"U16[0]", iw::AsmType::Intish()},
-      {"U16[2147483648]", iw::AsmType::Intish()},  // bug: must be pre-shifted.
+      {"U16[1073741824]", iw::AsmType::Intish()},
       {"I32[iish >> 2]", iw::AsmType::Intish()},
       {"I32[0]", iw::AsmType::Intish()},
-      {"I32[2147483648]", iw::AsmType::Intish()},  // bug: must be pre-shifted.
+      {"I32[536870912]", iw::AsmType::Intish()},
       {"U32[iish >> 2]", iw::AsmType::Intish()},
       {"U32[0]", iw::AsmType::Intish()},
-      {"U32[2147483648]", iw::AsmType::Intish()},  // bug: must be pre-shifted.
+      {"U32[536870912]", iw::AsmType::Intish()},
       {"F32[iish >> 2]", iw::AsmType::FloatQ()},
       {"F32[0]", iw::AsmType::FloatQ()},
-      {"F32[2147483648]", iw::AsmType::FloatQ()},  // bug: must be pre-shifted.
+      {"F32[536870912]", iw::AsmType::FloatQ()},
       {"F64[iish >> 3]", iw::AsmType::DoubleQ()},
       {"F64[0]", iw::AsmType::DoubleQ()},
-      {"F64[2147483648]", iw::AsmType::DoubleQ()},  // bug: must be pre-shifted.
+      {"F64[268435456]", iw::AsmType::DoubleQ()},
   };
 
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
@@ -1197,16 +1197,16 @@ TEST(ValidateAssignmentExpression) {
       {"U8[2147483648] = -1024", iw::AsmType::Signed()},
       {"I16[1024 >> 1] = -1024", iw::AsmType::Signed()},
       {"I16[0] = -1024", iw::AsmType::Signed()},
-      {"I16[2147483648] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
+      {"I16[1073741824] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
       {"U16[1024 >> 1] = -1024", iw::AsmType::Signed()},
       {"U16[0] = -1024", iw::AsmType::Signed()},
-      {"U16[2147483648] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
+      {"U16[1073741824] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
       {"I32[1024 >> 2] = -1024", iw::AsmType::Signed()},
       {"I32[0] = -1024", iw::AsmType::Signed()},
-      {"I32[2147483648] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
+      {"I32[536870912] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
       {"U32[1024 >> 2] = -1024", iw::AsmType::Signed()},
       {"U32[0] = -1024", iw::AsmType::Signed()},
-      {"U32[2147483648] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
+      {"U32[536870912] = -1024", iw::AsmType::Signed()},  // not pre-shifted.
       // Sroting fixnum to int heap view.
       {"I8[1024] = 1024", iw::AsmType::FixNum()},
       {"I8[1024 >> 0] = 1024", iw::AsmType::FixNum()},
@@ -1217,16 +1217,16 @@ TEST(ValidateAssignmentExpression) {
       {"U8[2147483648] = 1024", iw::AsmType::FixNum()},
       {"I16[1024 >> 1] = 1024", iw::AsmType::FixNum()},
       {"I16[0] = 1024", iw::AsmType::FixNum()},
-      {"I16[2147483648] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
+      {"I16[1073741824] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
       {"U16[1024 >> 1] = 1024", iw::AsmType::FixNum()},
       {"U16[0] = 1024", iw::AsmType::FixNum()},
-      {"U16[2147483648] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
+      {"U16[1073741824] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
       {"I32[1024 >> 2] = 1024", iw::AsmType::FixNum()},
       {"I32[0] = 1024", iw::AsmType::FixNum()},
-      {"I32[2147483648] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
+      {"I32[536870912] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
       {"U32[1024 >> 2] = 1024", iw::AsmType::FixNum()},
       {"U32[0] = 1024", iw::AsmType::FixNum()},
-      {"U32[2147483648] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
+      {"U32[536870912] = 1024", iw::AsmType::FixNum()},  // not pre-shifted.
       // Storing int to int heap view.
       {"I8[ilocal] = ilocal", iw::AsmType::Int()},
       {"I8[ilocal >> 0] = ilocal", iw::AsmType::Int()},
@@ -1237,16 +1237,16 @@ TEST(ValidateAssignmentExpression) {
       {"U8[2147483648] = ilocal", iw::AsmType::Int()},
       {"I16[ilocal >> 1] = ilocal", iw::AsmType::Int()},
       {"I16[0] = ilocal", iw::AsmType::Int()},
-      {"I16[2147483648] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
+      {"I16[1073741824] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
       {"U16[ilocal >> 1] = ilocal", iw::AsmType::Int()},
       {"U16[0] = ilocal", iw::AsmType::Int()},
-      {"U16[2147483648] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
+      {"U16[1073741824] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
       {"I32[ilocal >> 2] = ilocal", iw::AsmType::Int()},
       {"I32[0] = ilocal", iw::AsmType::Int()},
-      {"I32[2147483648] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
+      {"I32[536870912] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
       {"U32[ilocal >> 2] = ilocal", iw::AsmType::Int()},
       {"U32[0] = ilocal", iw::AsmType::Int()},
-      {"U32[2147483648] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
+      {"U32[536870912] = ilocal", iw::AsmType::Int()},  // not pre-shifted.
       // Storing intish to int heap view.
       {"I8[ilocal] = iish", iw::AsmType::Intish()},
       {"I8[iish >> 0] = iish", iw::AsmType::Intish()},
@@ -1257,32 +1257,32 @@ TEST(ValidateAssignmentExpression) {
       {"U8[2147483648] = iish", iw::AsmType::Intish()},
       {"I16[iish >> 1] = iish", iw::AsmType::Intish()},
       {"I16[0] = iish", iw::AsmType::Intish()},
-      {"I16[2147483648] = iish", iw::AsmType::Intish()},  // not pre-shifted.
+      {"I16[1073741824] = iish", iw::AsmType::Intish()},  // not pre-shifted.
       {"U16[iish >> 1] = iish", iw::AsmType::Intish()},
       {"U16[0] = iish", iw::AsmType::Intish()},
-      {"U16[2147483648] = iish", iw::AsmType::Intish()},  // not pre-shifted.
+      {"U16[1073741824] = iish", iw::AsmType::Intish()},  // not pre-shifted.
       {"I32[iish >> 2] = iish", iw::AsmType::Intish()},
       {"I32[0] = iish", iw::AsmType::Intish()},
-      {"I32[2147483648] = iish", iw::AsmType::Intish()},  // not pre-shifted.
+      {"I32[536870912] = iish", iw::AsmType::Intish()},  // not pre-shifted.
       {"U32[iish >> 2] = iish", iw::AsmType::Intish()},
       {"U32[0] = iish", iw::AsmType::Intish()},
-      {"U32[2147483648] = iish", iw::AsmType::Intish()},  // not pre-shifted.
+      {"U32[536870912] = iish", iw::AsmType::Intish()},  // not pre-shifted.
       // Storing floatish to f32 heap view.
       {"F32[iish >> 2] = fish", iw::AsmType::Floatish()},
       {"F32[0] = fish", iw::AsmType::Floatish()},
-      {"F32[2147483648] = fish ", iw::AsmType::Floatish()},  // not pre-shifted.
+      {"F32[536870912] = fish ", iw::AsmType::Floatish()},  // not pre-shifted.
       // Storing double? to f32 heap view.
       {"F32[iish >> 2] = dq", iw::AsmType::DoubleQ()},
       {"F32[0] = dq", iw::AsmType::DoubleQ()},
-      {"F32[2147483648] = dq", iw::AsmType::DoubleQ()},  // not pre-shifted.
+      {"F32[536870912] = dq", iw::AsmType::DoubleQ()},  // not pre-shifted.
       // Storing float? to f64 heap view.
       {"F64[iish >> 3] = fq", iw::AsmType::FloatQ()},
       {"F64[0] = fq", iw::AsmType::FloatQ()},
-      {"F64[2147483648] = fq", iw::AsmType::FloatQ()},  // not pre-shifted.
+      {"F64[268435456] = fq", iw::AsmType::FloatQ()},  // not pre-shifted.
       // Storing double? to f64 heap view.
       {"F64[iish >> 3] = dq", iw::AsmType::DoubleQ()},
       {"F64[0] = dq", iw::AsmType::DoubleQ()},
-      {"F64[2147483648] = dq", iw::AsmType::DoubleQ()},  // not pre-shifted.
+      {"F64[268435456] = dq", iw::AsmType::DoubleQ()},  // not pre-shifted.
       // -----------------------------------------------------------------------
       // Scalar assignments.
       {"ilocal = 1024", iw::AsmType::FixNum()},
