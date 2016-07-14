@@ -83,6 +83,8 @@ class EffectControlLinearizer {
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckedUint32Mod(Node* node, Node* frame_state,
                                            Node* effect, Node* control);
+  ValueEffectControl LowerCheckedInt32Mul(Node* node, Node* frame_state,
+                                          Node* effect, Node* control);
   ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,

@@ -257,6 +257,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedInt32Mod();
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
+  const Operator* CheckedInt32Mul();
   const Operator* CheckedUint32ToInt32();
   const Operator* CheckedFloat64ToInt32();
   const Operator* CheckedTaggedToInt32();

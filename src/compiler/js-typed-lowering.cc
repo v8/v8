@@ -510,6 +510,14 @@ Reduction JSTypedLowering::ReduceJSSubtract(Node* node) {
 Reduction JSTypedLowering::ReduceJSMultiply(Node* node) {
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback == BinaryOperationHints::kNumberOrOddball &&
+      r.BothInputsAre(Type::PlainPrimitive())) {
+    // JSMultiply(x:plain-primitive,
+    //            y:plain-primitive) => NumberMultiply(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberMultiply(),
+                                  Type::Number());
+  }
   if (feedback != BinaryOperationHints::kAny) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberMultiply(feedback), Type::Number());

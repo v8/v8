@@ -401,6 +401,67 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   return var_result.value();
 }
 
+Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Variable var_lhs_float64(this, MachineRepresentation::kFloat64),
+      var_rhs_float64(this, MachineRepresentation::kFloat64);
+  Label return_result(this, &var_result);
+
+  // Both {a} and {b} are Smis. Convert them to integers and multiply.
+  Node* lhs32 = SmiToWord32(a);
+  Node* rhs32 = SmiToWord32(b);
+  Node* pair = Int32MulWithOverflow(lhs32, rhs32);
+
+  Node* overflow = Projection(1, pair);
+
+  // Check if the multiplication overflowed.
+  Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
+  Branch(overflow, &if_overflow, &if_notoverflow);
+  Bind(&if_notoverflow);
+  {
+    // If the answer is zero, we may need to return -0.0, depending on the
+    // input.
+    Label answer_zero(this), answer_not_zero(this);
+    Node* answer = Projection(0, pair);
+    Node* zero = Int32Constant(0);
+    Branch(WordEqual(answer, zero), &answer_zero, &answer_not_zero);
+    Bind(&answer_not_zero);
+    {
+      var_result.Bind(ChangeInt32ToTagged(answer));
+      Goto(&return_result);
+    }
+    Bind(&answer_zero);
+    {
+      Node* or_result = Word32Or(lhs32, rhs32);
+      Label if_should_be_negative_zero(this), if_should_be_zero(this);
+      Branch(Int32LessThan(or_result, zero), &if_should_be_negative_zero,
+             &if_should_be_zero);
+      Bind(&if_should_be_negative_zero);
+      {
+        var_result.Bind(MinusZeroConstant());
+        Goto(&return_result);
+      }
+      Bind(&if_should_be_zero);
+      {
+        var_result.Bind(zero);
+        Goto(&return_result);
+      }
+    }
+  }
+  Bind(&if_overflow);
+  {
+    var_lhs_float64.Bind(SmiToFloat64(a));
+    var_rhs_float64.Bind(SmiToFloat64(b));
+    Node* value = Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
+    Node* result = ChangeFloat64ToTagged(value);
+    var_result.Bind(result);
+    Goto(&return_result);
+  }
+
+  Bind(&return_result);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::WordIsSmi(Node* a) {
   return WordEqual(WordAnd(a, IntPtrConstant(kSmiTagMask)), IntPtrConstant(0));
 }

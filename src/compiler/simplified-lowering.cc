@@ -1311,7 +1311,52 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kSpeculativeNumberMultiply:
+      case IrOpcode::kSpeculativeNumberMultiply: {
+        if (BothInputsAre(node, Type::Integral32()) &&
+            (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
+             NodeProperties::GetType(node)->Is(Type::Unsigned32()) ||
+             (truncation.TruncatesToWord32() &&
+              NodeProperties::GetType(node)->Is(
+                  type_cache_.kSafeIntegerOrMinusZero)))) {
+          // Multiply reduces to Int32Mul if the inputs are integers, and
+          // (a) the output is either known to be Signed32, or
+          // (b) the output is known to be Unsigned32, or
+          // (c) the uses are truncating and the result is in the safe
+          //     integer range.
+          VisitWord32TruncatingBinop(node);
+          if (lower()) ChangeToPureOp(node, Int32Op(node));
+          return;
+        }
+        // Try to use type feedback.
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+
+        // Handle the case when no int32 checks on inputs are necessary
+        // (but an overflow check is needed on the output).
+        if (BothInputsAre(node, Type::Signed32())) {
+          // If both the inputs the feedback are int32, use the overflow op.
+          if (hint == BinaryOperationHints::kSignedSmall ||
+              hint == BinaryOperationHints::kSigned32) {
+            VisitBinop(node, UseInfo::TruncatingWord32(),
+                       MachineRepresentation::kWord32, Type::Signed32());
+            if (lower()) ChangeToInt32OverflowOp(node);
+            return;
+          }
+        }
+
+        if (hint == BinaryOperationHints::kSignedSmall ||
+            hint == BinaryOperationHints::kSigned32) {
+          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                     MachineRepresentation::kWord32, Type::Signed32());
+          if (lower()) ChangeToInt32OverflowOp(node);
+          return;
+        }
+
+        // Checked float64 x float64 => float64
+        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+                   MachineRepresentation::kFloat64, Type::Number());
+        if (lower()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
       case IrOpcode::kNumberMultiply: {
         if (BothInputsAre(node, Type::Integral32()) &&
             (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
@@ -1329,15 +1374,7 @@ class RepresentationSelector {
           return;
         }
         // Number x Number => Float64Mul
-        if (BothInputsAre(node, Type::NumberOrUndefined())) {
-          VisitFloat64Binop(node);
-          if (lower()) ChangeToPureOp(node, Float64Op(node));
-          return;
-        }
-        // Checked float64 x float64 => float64
-        DCHECK_EQ(IrOpcode::kSpeculativeNumberMultiply, node->opcode());
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
-                   MachineRepresentation::kFloat64, Type::Number());
+        VisitFloat64Binop(node);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }

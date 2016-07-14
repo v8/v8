@@ -1097,56 +1097,10 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&rhs_is_smi);
       {
-        // Both {lhs} and {rhs} are Smis. Convert them to integers and multiply.
-        Node* lhs32 = assembler->SmiToWord32(lhs);
-        Node* rhs32 = assembler->SmiToWord32(rhs);
-        Node* pair = assembler->Int32MulWithOverflow(lhs32, rhs32);
-
-        Node* overflow = assembler->Projection(1, pair);
-
-        // Check if the multiplication overflowed.
-        Label if_overflow(assembler, Label::kDeferred),
-            if_notoverflow(assembler);
-        assembler->Branch(overflow, &if_overflow, &if_notoverflow);
-        assembler->Bind(&if_notoverflow);
-        {
-          // If the answer is zero, we may need to return -0.0, depending on the
-          // input.
-          Label answer_zero(assembler), answer_not_zero(assembler);
-          Node* answer = assembler->Projection(0, pair);
-          Node* zero = assembler->Int32Constant(0);
-          assembler->Branch(assembler->WordEqual(answer, zero), &answer_zero,
-                            &answer_not_zero);
-          assembler->Bind(&answer_not_zero);
-          {
-            var_result.Bind(assembler->ChangeInt32ToTagged(answer));
-            assembler->Goto(&return_result);
-          }
-          assembler->Bind(&answer_zero);
-          {
-            Node* or_result = assembler->Word32Or(lhs32, rhs32);
-            Label if_should_be_negative_zero(assembler),
-                if_should_be_zero(assembler);
-            assembler->Branch(assembler->Int32LessThan(or_result, zero),
-                              &if_should_be_negative_zero, &if_should_be_zero);
-            assembler->Bind(&if_should_be_negative_zero);
-            {
-              var_result.Bind(assembler->MinusZeroConstant());
-              assembler->Goto(&return_result);
-            }
-            assembler->Bind(&if_should_be_zero);
-            {
-              var_result.Bind(zero);
-              assembler->Goto(&return_result);
-            }
-          }
-        }
-        assembler->Bind(&if_overflow);
-        {
-          var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
-          var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
-          assembler->Goto(&do_fmul);
-        }
+        // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
+        // in case of overflow.
+        var_result.Bind(assembler->SmiMul(lhs, rhs));
+        assembler->Goto(&return_result);
       }
 
       assembler->Bind(&rhs_is_not_smi);

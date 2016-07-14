@@ -951,6 +951,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedInt32Mod:
     case IrOpcode::kCheckedUint32Div:
     case IrOpcode::kCheckedUint32Mod:
+    case IrOpcode::kCheckedInt32Mul:
     case IrOpcode::kCheckedUint32ToInt32:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedToInt32:

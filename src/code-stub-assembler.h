@@ -82,6 +82,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   compiler::Node* SmiMod(compiler::Node* a, compiler::Node* b);
+  // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
+  compiler::Node* SmiMul(compiler::Node* a, compiler::Node* b);
 
   // Allocate an object of the given size.
   compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);

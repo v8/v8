@@ -648,6 +648,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedUint32Mod:
       state = LowerCheckedUint32Mod(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckedInt32Mul:
+      state = LowerCheckedInt32Mul(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       state = LowerCheckedUint32ToInt32(node, frame_state, *effect, *control);
       break;
@@ -1294,6 +1297,47 @@ EffectControlLinearizer::LowerCheckedUint32Mod(Node* node, Node* frame_state,
 
   // Perform the actual unsigned integer modulus.
   Node* value = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedInt32Mul(Node* node, Node* frame_state,
+                                              Node* effect, Node* control) {
+  Node* zero = jsgraph()->Int32Constant(0);
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* projection =
+      graph()->NewNode(machine()->Int32MulWithOverflow(), lhs, rhs, control);
+
+  Node* check = graph()->NewNode(common()->Projection(1), projection, control);
+  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
+                                      frame_state, effect, control);
+
+  Node* value = graph()->NewNode(common()->Projection(0), projection, control);
+
+  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value, zero);
+  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check_zero, control);
+
+  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+  Node* e_if_zero = effect;
+  {
+    // We may need to return negative zero.
+    Node* or_inputs = graph()->NewNode(machine()->Word32Or(), lhs, rhs);
+    Node* check_or =
+        graph()->NewNode(machine()->Int32LessThan(), or_inputs, zero);
+    if_zero = e_if_zero = graph()->NewNode(common()->DeoptimizeIf(), check_or,
+                                           frame_state, e_if_zero, if_zero);
+  }
+
+  Node* if_not_zero = graph()->NewNode(common()->IfFalse(), branch_zero);
+  Node* e_if_not_zero = effect;
+
+  control = graph()->NewNode(common()->Merge(2), if_zero, if_not_zero);
+  effect = graph()->NewNode(common()->EffectPhi(2), e_if_zero, e_if_not_zero,
+                            control);
 
   return ValueEffectControl(value, effect, control);
 }

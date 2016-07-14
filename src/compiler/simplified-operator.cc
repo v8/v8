@@ -325,6 +325,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(CheckedInt32Mod, 2, 1)       \
   V(CheckedUint32Div, 2, 1)      \
   V(CheckedUint32Mod, 2, 1)      \
+  V(CheckedInt32Mul, 2, 1)       \
   V(CheckedUint32ToInt32, 1, 1)  \
   V(CheckedFloat64ToInt32, 1, 1) \
   V(CheckedTaggedToInt32, 1, 1)  \
