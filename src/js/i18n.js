@@ -1785,6 +1785,9 @@ function canonicalizeTimeZoneID(tzID) {
     return tzID;
   }
 
+  // Convert zone name to string.
+  tzID = TO_STRING(tzID);
+
   // Special case handling (UTC, GMT).
   var upperID = %StringToUpperCase(tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
