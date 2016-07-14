@@ -41,13 +41,12 @@ class StubCache {
   void Initialize();
   // Access cache for entry hash(name, map).
   Code* Set(Name* name, Map* map, Code* code);
-  Code* Get(Name* name, Map* map, Code::Flags flags);
+  Code* Get(Name* name, Map* map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
-  // Collect all maps that match the name and flags.
+  // Collect all maps that match the name.
   void CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
-                           Code::Flags flags, Handle<Context> native_context,
-                           Zone* zone);
+                           Handle<Context> native_context, Zone* zone);
   // Generate code for probing the stub cache table.
   // Arguments extra, extra2 and extra3 may be used to pass additional scratch
   // registers. Set to no_reg if not needed.
@@ -97,13 +96,12 @@ class StubCache {
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
-  static int PrimaryOffsetForTesting(Name* name, Code::Flags flags, Map* map) {
-    return PrimaryOffset(name, flags, map);
+  static int PrimaryOffsetForTesting(Name* name, Map* map) {
+    return PrimaryOffset(name, map);
   }
 
-  static int SecondaryOffsetForTesting(Name* name, Code::Flags flags,
-                                       int seed) {
-    return SecondaryOffset(name, flags, seed);
+  static int SecondaryOffsetForTesting(Name* name, int seed) {
+    return SecondaryOffset(name, seed);
   }
 
   // The constructor is made public only for the purposes of testing.
@@ -120,7 +118,7 @@ class StubCache {
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name* name, Code::Flags flags, Map* map) {
+  static int PrimaryOffset(Name* name, Map* map) {
     STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
     // Compute the hash of the name (use entire hash field).
     DCHECK(name->HasHashCode());
@@ -130,27 +128,19 @@ class StubCache {
     // 4Gb (and not at all if it isn't).
     uint32_t map_low32bits =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    // Base the offset on a simple combination of name, flags, and map.
-    uint32_t key = (map_low32bits + field) ^ iflags;
+    // Base the offset on a simple combination of name and map.
+    uint32_t key = map_low32bits + field;
     return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
   }
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name* name, Code::Flags flags, int seed) {
+  static int SecondaryOffset(Name* name, int seed) {
     // Use the seed from the primary cache in the secondary cache.
     uint32_t name_low32bits =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    uint32_t key = (seed - name_low32bits) + iflags;
+    uint32_t key = (seed - name_low32bits);
     return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
   }
 
