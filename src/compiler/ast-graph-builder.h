@@ -416,7 +416,8 @@ class AstGraphBuilder : public AstVisitor {
   void VisitForValues(ZoneList<Expression*>* exprs);
 
   // Common for all IterationStatement bodies.
-  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop);
+  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop,
+                          BailoutId stack_check_id);
 
   // Dispatched from VisitCall.
   void VisitCallSuper(Call* expr);

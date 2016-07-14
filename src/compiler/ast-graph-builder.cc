@@ -1380,7 +1380,7 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 void AstGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder while_loop(this);
   while_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-  VisitIterationBody(stmt, &while_loop);
+  VisitIterationBody(stmt, &while_loop, stmt->StackCheckId());
   while_loop.EndBody();
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
@@ -1395,7 +1395,7 @@ void AstGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   VisitForTest(stmt->cond());
   Node* condition = environment()->Pop();
   while_loop.BreakUnless(condition);
-  VisitIterationBody(stmt, &while_loop);
+  VisitIterationBody(stmt, &while_loop, stmt->StackCheckId());
   while_loop.EndBody();
   while_loop.EndLoop();
 }
@@ -1412,7 +1412,7 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
   } else {
     for_loop.BreakUnless(jsgraph()->TrueConstant());
   }
-  VisitIterationBody(stmt, &for_loop);
+  VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
   for_loop.EndBody();
   VisitIfNotNull(stmt->next());
   for_loop.EndLoop();
@@ -1489,7 +1489,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
             CreateVectorSlotPair(stmt->EachFeedbackSlot());
         VisitForInAssignment(stmt->each(), value, feedback,
                              stmt->AssignmentId());
-        VisitIterationBody(stmt, &for_loop);
+        VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
       }
       test_value.End();
       for_loop.EndBody();
@@ -1515,7 +1515,7 @@ void AstGraphBuilder::VisitForOfStatement(ForOfStatement* stmt) {
   Node* condition = environment()->Pop();
   for_loop.BreakWhen(condition);
   VisitForEffect(stmt->assign_each());
-  VisitIterationBody(stmt, &for_loop);
+  VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
   for_loop.EndBody();
   for_loop.EndLoop();
 }
@@ -3014,13 +3014,13 @@ void AstGraphBuilder::VisitInScope(Statement* stmt, Scope* s, Node* context) {
   Visit(stmt);
 }
 
-
 void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
-                                         LoopBuilder* loop) {
+                                         LoopBuilder* loop,
+                                         BailoutId stack_check_id) {
   ControlScopeForIteration scope(this, stmt, loop);
   if (FLAG_turbo_loop_stackcheck || !info()->shared_info()->asm_function()) {
     Node* node = NewNode(javascript()->StackCheck());
-    PrepareFrameState(node, stmt->StackCheckId());
+    PrepareFrameState(node, stack_check_id);
   }
   Visit(stmt->body());
 }

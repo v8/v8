@@ -3544,13 +3544,13 @@ HBasicBlock* HOptimizedGraphBuilder::CreateJoin(HBasicBlock* first,
   }
 }
 
-
 HBasicBlock* HOptimizedGraphBuilder::JoinContinue(IterationStatement* statement,
+                                                  BailoutId continue_id,
                                                   HBasicBlock* exit_block,
                                                   HBasicBlock* continue_block) {
   if (continue_block != NULL) {
     if (exit_block != NULL) Goto(exit_block, continue_block);
-    continue_block->SetJoinId(statement->ContinueId());
+    continue_block->SetJoinId(continue_id);
     return continue_block;
   }
   return exit_block;
@@ -5097,10 +5097,10 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 }
 
-
 void HOptimizedGraphBuilder::VisitLoopBody(IterationStatement* stmt,
+                                           BailoutId stack_check_id,
                                            HBasicBlock* loop_entry) {
-  Add<HSimulate>(stmt->StackCheckId());
+  Add<HSimulate>(stack_check_id);
   HStackCheck* stack_check =
       HStackCheck::cast(Add<HStackCheck>(HStackCheck::kBackwardsBranch));
   DCHECK(loop_entry->IsLoopHeader());
@@ -5119,10 +5119,10 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   BreakAndContinueInfo break_info(stmt, scope());
   {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+    CHECK_BAILOUT(VisitLoopBody(stmt, stmt->StackCheckId(), loop_entry));
   }
-  HBasicBlock* body_exit =
-      JoinContinue(stmt, current_block(), break_info.continue_block());
+  HBasicBlock* body_exit = JoinContinue(
+      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
   HBasicBlock* loop_successor = NULL;
   if (body_exit != NULL) {
     set_current_block(body_exit);
@@ -5182,10 +5182,10 @@ void HOptimizedGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   BreakAndContinueInfo break_info(stmt, scope());
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+    CHECK_BAILOUT(VisitLoopBody(stmt, stmt->StackCheckId(), loop_entry));
   }
-  HBasicBlock* body_exit =
-      JoinContinue(stmt, current_block(), break_info.continue_block());
+  HBasicBlock* body_exit = JoinContinue(
+      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
   HBasicBlock* loop_exit = CreateLoop(stmt,
                                       loop_entry,
                                       body_exit,
@@ -5231,10 +5231,10 @@ void HOptimizedGraphBuilder::VisitForStatement(ForStatement* stmt) {
   BreakAndContinueInfo break_info(stmt, scope());
   if (current_block() != NULL) {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+    CHECK_BAILOUT(VisitLoopBody(stmt, stmt->StackCheckId(), loop_entry));
   }
-  HBasicBlock* body_exit =
-      JoinContinue(stmt, current_block(), break_info.continue_block());
+  HBasicBlock* body_exit = JoinContinue(
+      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
 
   if (stmt->next() != NULL && body_exit != NULL) {
     set_current_block(body_exit);
@@ -5430,11 +5430,11 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
   break_info.set_continue_block(continue_block);
   {
     BreakAndContinueScope push(&break_info, this);
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+    CHECK_BAILOUT(VisitLoopBody(stmt, stmt->StackCheckId(), loop_entry));
   }
 
-  HBasicBlock* body_exit =
-      JoinContinue(stmt, current_block(), break_info.continue_block());
+  HBasicBlock* body_exit = JoinContinue(
+      stmt, stmt->ContinueId(), current_block(), break_info.continue_block());
 
   if (body_exit != NULL) {
     set_current_block(body_exit);
@@ -6717,7 +6717,7 @@ static bool ComputeReceiverTypes(Expression* expr, HValue* receiver,
   SmallMapList* maps = expr->GetReceiverTypes();
   *t = maps;
   bool monomorphic = expr->IsMonomorphic();
-  if (maps != NULL && receiver->HasMonomorphicJSObjectType()) {
+  if (maps != nullptr && receiver->HasMonomorphicJSObjectType()) {
     if (maps->length() > 0) {
       Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
       maps->FilterForPossibleTransitions(root_map);
@@ -6762,7 +6762,6 @@ static bool AreStringTypes(SmallMapList* maps) {
   }
   return true;
 }
-
 
 void HOptimizedGraphBuilder::BuildStore(Expression* expr, Property* prop,
                                         FeedbackVectorSlot slot,
@@ -7596,7 +7595,6 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   return access_type == STORE ? val : Pop();
 }
 
-
 HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     HValue* obj, HValue* key, HValue* val, Expression* expr,
     FeedbackVectorSlot slot, BailoutId ast_id, BailoutId return_id,
@@ -7808,7 +7806,6 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   ast_context()->ReturnInstruction(result, expr->id());
   return true;
 }
-
 
 HValue* HOptimizedGraphBuilder::BuildNamedAccess(
     PropertyAccessType access, BailoutId ast_id, BailoutId return_id,
@@ -10714,7 +10711,6 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   instr->SetFlag(HInstruction::kCannotBeTagged);
   return instr;
 }
-
 
 void HOptimizedGraphBuilder::BuildStoreForEffect(
     Expression* expr, Property* prop, FeedbackVectorSlot slot, BailoutId ast_id,

@@ -43,6 +43,49 @@ void AstNode::Print(Isolate* isolate) {
 
 #endif  // DEBUG
 
+#define RETURN_NODE(Node) \
+  case k##Node:           \
+    return static_cast<Node*>(this);
+
+IterationStatement* AstNode::AsIterationStatement() {
+  switch (node_type()) {
+    ITERATION_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+BreakableStatement* AstNode::AsBreakableStatement() {
+  switch (node_type()) {
+    BREAKABLE_NODE_LIST(RETURN_NODE);
+    ITERATION_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+MaterializedLiteral* AstNode::AsMaterializedLiteral() {
+  switch (node_type()) {
+    LITERAL_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+#undef RETURN_NODE
+
+InitializationFlag Declaration::initialization() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->initialization();
+    DECLARATION_NODE_LIST(GENERATE_CASE);
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return kNeedsInitialization;
+  }
+}
 
 bool Expression::IsSmiLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsSmi();
@@ -53,6 +96,9 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
+bool Expression::IsPropertyName() const {
+  return IsLiteral() && AsLiteral()->IsPropertyName();
+}
 
 bool Expression::IsNullLiteral() const {
   if (!IsLiteral()) return false;
@@ -79,12 +125,60 @@ bool Expression::IsUndefinedLiteral() const {
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
+bool Expression::ToBooleanIsTrue() const {
+  return IsLiteral() && AsLiteral()->ToBooleanIsTrue();
+}
+
+bool Expression::ToBooleanIsFalse() const {
+  return IsLiteral() && AsLiteral()->ToBooleanIsFalse();
+}
+
+bool Expression::IsValidReferenceExpression() const {
+  return IsProperty() ||
+         (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
+}
 
 bool Expression::IsValidReferenceExpressionOrThis() const {
   return IsValidReferenceExpression() ||
          (IsVariableProxy() && AsVariableProxy()->is_this());
 }
 
+bool Expression::IsAnonymousFunctionDefinition() const {
+  return (IsFunctionLiteral() &&
+          AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
+         (IsClassLiteral() &&
+          AsClassLiteral()->IsAnonymousFunctionDefinition());
+}
+
+void Expression::MarkTail() {
+  if (IsConditional()) {
+    AsConditional()->MarkTail();
+  } else if (IsCall()) {
+    AsCall()->MarkTail();
+  } else if (IsBinaryOperation()) {
+    AsBinaryOperation()->MarkTail();
+  }
+}
+
+bool Statement::IsJump() const {
+  switch (node_type()) {
+#define JUMP_NODE_LIST(V) \
+  V(Block)                \
+  V(ExpressionStatement)  \
+  V(ContinueStatement)    \
+  V(BreakStatement)       \
+  V(ReturnStatement)      \
+  V(IfStatement)
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->IsJump();
+    JUMP_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+#undef JUMP_NODE_LIST
+    default:
+      return false;
+  }
+}
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
                              int end_position)
@@ -715,9 +809,71 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 // once we use the common type field in the AST consistently.
 
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
-  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
+  if (IsUnaryOperation()) {
+    AsUnaryOperation()->RecordToBooleanTypeFeedback(oracle);
+  } else if (IsBinaryOperation()) {
+    AsBinaryOperation()->RecordToBooleanTypeFeedback(oracle);
+  } else {
+    set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
+  }
 }
 
+SmallMapList* Expression::GetReceiverTypes() {
+  switch (node_type()) {
+#define NODE_LIST(V)    \
+  PROPERTY_NODE_LIST(V) \
+  V(Call)
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<Node*>(this)->GetReceiverTypes();
+    NODE_LIST(GENERATE_CASE)
+#undef NODE_LIST
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
+
+KeyedAccessStoreMode Expression::GetStoreMode() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->GetStoreMode();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return STANDARD_STORE;
+  }
+}
+
+IcCheckType Expression::GetKeyType() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->GetKeyType();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return PROPERTY;
+  }
+}
+
+bool Expression::IsMonomorphic() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->IsMonomorphic();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+    CALL_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
 
 bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);

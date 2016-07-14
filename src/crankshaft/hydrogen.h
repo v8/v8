@@ -2270,7 +2270,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void VisitLogicalExpression(BinaryOperation* expr);
   void VisitArithmeticExpression(BinaryOperation* expr);
 
-  void VisitLoopBody(IterationStatement* stmt,
+  void VisitLoopBody(IterationStatement* stmt, BailoutId stack_check_id,
                      HBasicBlock* loop_entry);
 
   void BuildForInBody(ForInStatement* stmt, Variable* each_var,
@@ -2296,7 +2296,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HBasicBlock* BuildLoopEntry(IterationStatement* statement);
 
   HBasicBlock* JoinContinue(IterationStatement* statement,
-                            HBasicBlock* exit_block,
+                            BailoutId continue_id, HBasicBlock* exit_block,
                             HBasicBlock* continue_block);
 
   HValue* Top() const { return environment()->Top(); }
