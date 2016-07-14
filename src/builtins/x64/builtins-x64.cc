@@ -953,30 +953,13 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   const int bailout_id = BailoutId::None().ToInt();
   __ cmpl(temp, Immediate(bailout_id));
   __ j(not_equal, &loop_bottom);
-
   // Literals available?
-  Label got_literals, maybe_cleared_weakcell;
   __ movp(temp, FieldOperand(map, index, times_pointer_size,
                              SharedFunctionInfo::kOffsetToPreviousLiterals));
-  // temp contains either a WeakCell pointing to the literals array or the
-  // literals array directly.
-  STATIC_ASSERT(WeakCell::kValueOffset == FixedArray::kLengthOffset);
-  __ movp(r15, FieldOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(r15, &maybe_cleared_weakcell);
-  // r15 is a pointer, therefore temp is a WeakCell pointing to a literals
-  // array.
   __ movp(temp, FieldOperand(temp, WeakCell::kValueOffset));
-  __ jmp(&got_literals);
-
-  // r15 is a smi. If it's 0, then we are looking at a cleared WeakCell
-  // around the literals array, and we should visit the runtime. If it's > 0,
-  // then temp already contains the literals array.
-  __ bind(&maybe_cleared_weakcell);
-  __ cmpp(r15, Immediate(0));
-  __ j(equal, &gotta_call_runtime);
+  __ JumpIfSmi(temp, &gotta_call_runtime);
 
   // Save the literals in the closure.
-  __ bind(&got_literals);
   __ movp(FieldOperand(closure, JSFunction::kLiteralsOffset), temp);
   __ movp(r15, index);
   __ RecordWriteField(closure, JSFunction::kLiteralsOffset, temp, r15,
