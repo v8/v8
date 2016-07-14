@@ -78,6 +78,22 @@ int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs) {
   return FromCheckedNumeric(rv);
 }
 
+bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
+  internal::CheckedNumeric<int32_t> rv(lhs);
+  rv *= rhs;
+  int32_t limit = std::numeric_limits<int32_t>::max();
+  *val = rv.ValueOrDefault(limit);
+  return !rv.IsValid();
+}
+
+bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  internal::CheckedNumeric<int64_t> rv(lhs);
+  rv *= rhs;
+  int64_t limit = std::numeric_limits<int64_t>::max();
+  *val = rv.ValueOrDefault(limit);
+  return !rv.IsValid();
+}
+
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

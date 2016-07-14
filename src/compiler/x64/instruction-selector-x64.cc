@@ -848,7 +848,6 @@ void VisitMul(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   }
 }
 
-
 void VisitMulHigh(InstructionSelector* selector, Node* node,
                   ArchOpcode opcode) {
   X64OperandGenerator g(selector);
@@ -897,11 +896,19 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   VisitMul(this, node, kX64Imul32);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  // TODO(mvstanton): Use Int32ScaleMatcher somehow.
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Imul32, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Imul32, &cont);
+}
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
   VisitMul(this, node, kX64Imul);
 }
-
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64ImulHigh32);
@@ -1776,6 +1783,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kX64Sub32, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kX64Imul32, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kX64Add, cont);

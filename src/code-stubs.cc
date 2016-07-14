@@ -1066,7 +1066,7 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
   typedef CodeStubAssembler::Variable Variable;
 
   // Shared entry point for floating point multiplication.
-  Label do_fmul(assembler);
+  Label do_fmul(assembler), return_result(assembler);
   Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
       var_rhs_float64(assembler, MachineRepresentation::kFloat64);
 
@@ -1074,7 +1074,8 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
 
   // We might need to loop one or two times due to ToNumber conversions.
   Variable var_lhs(assembler, MachineRepresentation::kTagged),
-      var_rhs(assembler, MachineRepresentation::kTagged);
+      var_rhs(assembler, MachineRepresentation::kTagged),
+      var_result(assembler, MachineRepresentation::kTagged);
   Variable* loop_variables[] = {&var_lhs, &var_rhs};
   Label loop(assembler, 2, loop_variables);
   var_lhs.Bind(left);
@@ -1096,11 +1097,56 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
 
       assembler->Bind(&rhs_is_smi);
       {
-        // Both {lhs} and {rhs} are Smis. Convert them to double and multiply.
-        // TODO(epertoso): use SmiMulWithOverflow once available.
-        var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
-        var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
-        assembler->Goto(&do_fmul);
+        // Both {lhs} and {rhs} are Smis. Convert them to integers and multiply.
+        Node* lhs32 = assembler->SmiToWord32(lhs);
+        Node* rhs32 = assembler->SmiToWord32(rhs);
+        Node* pair = assembler->Int32MulWithOverflow(lhs32, rhs32);
+
+        Node* overflow = assembler->Projection(1, pair);
+
+        // Check if the multiplication overflowed.
+        Label if_overflow(assembler, Label::kDeferred),
+            if_notoverflow(assembler);
+        assembler->Branch(overflow, &if_overflow, &if_notoverflow);
+        assembler->Bind(&if_notoverflow);
+        {
+          // If the answer is zero, we may need to return -0.0, depending on the
+          // input.
+          Label answer_zero(assembler), answer_not_zero(assembler);
+          Node* answer = assembler->Projection(0, pair);
+          Node* zero = assembler->Int32Constant(0);
+          assembler->Branch(assembler->WordEqual(answer, zero), &answer_zero,
+                            &answer_not_zero);
+          assembler->Bind(&answer_not_zero);
+          {
+            var_result.Bind(assembler->ChangeInt32ToTagged(answer));
+            assembler->Goto(&return_result);
+          }
+          assembler->Bind(&answer_zero);
+          {
+            Node* or_result = assembler->Word32Or(lhs32, rhs32);
+            Label if_should_be_negative_zero(assembler),
+                if_should_be_zero(assembler);
+            assembler->Branch(assembler->Int32LessThan(or_result, zero),
+                              &if_should_be_negative_zero, &if_should_be_zero);
+            assembler->Bind(&if_should_be_negative_zero);
+            {
+              var_result.Bind(assembler->MinusZeroConstant());
+              assembler->Goto(&return_result);
+            }
+            assembler->Bind(&if_should_be_zero);
+            {
+              var_result.Bind(zero);
+              assembler->Goto(&return_result);
+            }
+          }
+        }
+        assembler->Bind(&if_overflow);
+        {
+          var_lhs_float64.Bind(assembler->SmiToFloat64(lhs));
+          var_rhs_float64.Bind(assembler->SmiToFloat64(rhs));
+          assembler->Goto(&do_fmul);
+        }
       }
 
       assembler->Bind(&rhs_is_not_smi);
@@ -1201,8 +1247,12 @@ compiler::Node* MultiplyStub::Generate(CodeStubAssembler* assembler,
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
     Node* result = assembler->ChangeFloat64ToTagged(value);
-    return result;
+    var_result.Bind(result);
+    assembler->Goto(&return_result);
   }
+
+  assembler->Bind(&return_result);
+  return var_result.value();
 }
 
 // static

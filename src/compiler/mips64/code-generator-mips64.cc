@@ -851,6 +851,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMips64MulOvf:
+      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      break;
     case kMips64MulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1876,6 +1879,20 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNSUPPORTED_COND(kMips64DsubOvf, branch->condition);
         break;
     }
+  } else if (instr->arch_opcode() == kMips64MulOvf) {
+    switch (branch->condition) {
+      case kOverflow: {
+        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
+                        i.InputOperand(1), tlabel, flabel, kScratchReg);
+      } break;
+      case kNotOverflow: {
+        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
+                        i.InputOperand(1), flabel, tlabel, kScratchReg);
+      } break;
+      default:
+        UNSUPPORTED_COND(kMips64MulOvf, branch->condition);
+        break;
+    }
   } else if (instr->arch_opcode() == kMips64Cmp) {
     cc = FlagsConditionToConditionCmp(branch->condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
@@ -1951,7 +1968,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ xori(result, result, 1);
     return;
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
-             instr->arch_opcode() == kMips64DsubOvf) {
+             instr->arch_opcode() == kMips64DsubOvf ||
+             instr->arch_opcode() == kMips64MulOvf) {
     Label flabel, tlabel;
     switch (instr->arch_opcode()) {
       case kMips64DaddOvf:
@@ -1962,6 +1980,10 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case kMips64DsubOvf:
         __ DsubBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
                            i.InputOperand(1), &flabel);
+        break;
+      case kMips64MulOvf:
+        __ MulBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
+                          i.InputOperand(1), &flabel, kScratchReg);
         break;
       default:
         UNREACHABLE();

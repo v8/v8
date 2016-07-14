@@ -2007,6 +2007,9 @@ Type* Typer::Visitor::TypeInt32SubWithOverflow(Node* node) {
 
 Type* Typer::Visitor::TypeInt32Mul(Node* node) { return Type::Integral32(); }
 
+Type* Typer::Visitor::TypeInt32MulWithOverflow(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeInt32MulHigh(Node* node) { return Type::Signed32(); }
 
@@ -2061,7 +2064,6 @@ Type* Typer::Visitor::TypeInt64SubWithOverflow(Node* node) {
 
 
 Type* Typer::Visitor::TypeInt64Mul(Node* node) { return Type::Internal(); }
-
 
 Type* Typer::Visitor::TypeInt64Div(Node* node) { return Type::Internal(); }
 

@@ -1274,6 +1274,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kMipsSubOvf, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMipsMulOvf, cont);
               default:
                 break;
             }
@@ -1408,6 +1411,14 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   VisitBinop(this, node, kMipsSubOvf, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kMipsMulOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMipsMulOvf, &cont);
+}
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);

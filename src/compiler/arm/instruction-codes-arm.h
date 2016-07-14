@@ -27,6 +27,7 @@ namespace compiler {
   V(ArmMul)                        \
   V(ArmMla)                        \
   V(ArmMls)                        \
+  V(ArmSmull)                      \
   V(ArmSmmul)                      \
   V(ArmSmmla)                      \
   V(ArmUmull)                      \

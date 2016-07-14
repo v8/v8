@@ -119,6 +119,8 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(InputRegister32(index), SXTB);
       case kMode_Operand2_R_SXTH:
         return Operand(InputRegister32(index), SXTH);
+      case kMode_Operand2_R_SXTW:
+        return Operand(InputRegister32(index), SXTW);
       case kMode_MRI:
       case kMode_MRR:
         break;
@@ -147,6 +149,8 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(InputRegister64(index), SXTB);
       case kMode_Operand2_R_SXTH:
         return Operand(InputRegister64(index), SXTH);
+      case kMode_Operand2_R_SXTW:
+        return Operand(InputRegister32(index), SXTW);
       case kMode_MRI:
       case kMode_MRR:
         break;
@@ -166,6 +170,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_UXTH:
       case kMode_Operand2_R_SXTB:
       case kMode_Operand2_R_SXTH:
+      case kMode_Operand2_R_SXTW:
         break;
       case kMode_Operand2_R_LSL_I:
         *first_index += 3;
@@ -1255,7 +1260,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Rbit(i.OutputRegister32(), i.InputRegister32(0));
       break;
     case kArm64Cmp:
-      __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand(1));
+      if (AddressingModeField::decode(opcode) == kMode_Operand2_R_SXTW) {
+        __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand2_32(1));
+      } else {
+        __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand(1));
+      }
       break;
     case kArm64Cmp32:
       __ Cmp(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));

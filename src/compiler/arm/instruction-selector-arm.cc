@@ -1093,6 +1093,37 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   VisitBinop(this, node, kArmSub, kArmRsb);
 }
 
+namespace {
+
+void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  ArmOperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand result_operand = g.DefineAsRegister(node);
+  InstructionOperand temp_operand = g.TempRegister();
+  InstructionOperand outputs[] = {result_operand, temp_operand};
+  InstructionOperand inputs[] = {g.UseRegister(m.left().node()),
+                                 g.UseRegister(m.right().node())};
+  selector->Emit(kArmSmull, 2, outputs, 2, inputs);
+
+  // result operand needs shift operator.
+  InstructionOperand shift_31 = g.UseImmediate(31);
+  InstructionCode opcode = cont->Encode(kArmCmp) |
+                           AddressingModeField::encode(kMode_Operand2_R_ASR_I);
+  if (cont->IsBranch()) {
+    selector->Emit(opcode, g.NoOutput(), temp_operand, result_operand, shift_31,
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    InstructionOperand in[] = {temp_operand, result_operand, shift_31};
+    selector->EmitDeoptimize(opcode, 0, nullptr, 3, in, cont->frame_state());
+  } else {
+    DCHECK(cont->IsSet());
+    selector->Emit(opcode, g.DefineAsRegister(cont->result()), temp_operand,
+                   result_operand, shift_31);
+  }
+}
+
+}  // namespace
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
   ArmOperandGenerator g(this);
@@ -1681,6 +1712,13 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kArmSub, kArmRsb, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                // ARM doesn't set the overflow flag for multiplication, so we
+                // need to test on kNotEqual. Here is the code sequence used:
+                //   smull resultlow, resulthigh, left, right
+                //   cmp resulthigh, Operand(resultlow, ASR, 31)
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(selector, node, cont);
               default:
                 break;
             }
@@ -1822,7 +1860,6 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   VisitBinop(this, node, kArmAdd, kArmAdd, &cont);
 }
 
-
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
@@ -1832,6 +1869,18 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   VisitBinop(this, node, kArmSub, kArmRsb, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    // ARM doesn't set the overflow flag for multiplication, so we need to test
+    // on kNotEqual. Here is the code sequence used:
+    //   smull resultlow, resulthigh, left, right
+    //   cmp resulthigh, Operand(resultlow, ASR, 31)
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt32MulWithOverflow(this, node, &cont);
+}
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);

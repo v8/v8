@@ -1032,6 +1032,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kInt32Sub:
     case IrOpcode::kInt32SubWithOverflow:
     case IrOpcode::kInt32Mul:
+    case IrOpcode::kInt32MulWithOverflow:
     case IrOpcode::kInt32MulHigh:
     case IrOpcode::kInt32Div:
     case IrOpcode::kInt32Mod:

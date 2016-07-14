@@ -2081,7 +2081,6 @@ TEST(RunInt32MulImm) {
   }
 }
 
-
 TEST(RunInt32MulAndInt32AddP) {
   {
     FOR_INT32_INPUTS(i) {
@@ -5274,6 +5273,98 @@ TEST(RunInt32SubWithOverflowInBranchP) {
   }
 }
 
+TEST(RunInt32MulWithOverflowP) {
+  int32_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* add = m.Int32MulWithOverflow(bt.param0, bt.param1);
+  Node* val = m.Projection(0, add);
+  Node* ovf = m.Projection(1, add);
+  m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
+  bt.AddReturn(ovf);
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected_val;
+      int expected_ovf = bits::SignedMulOverflow32(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      if (!expected_ovf) {
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+  }
+}
+
+TEST(RunInt32MulWithOverflowImm) {
+  int32_t actual_val = -1, expected_val = 0;
+  FOR_INT32_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+      Node* add = m.Int32MulWithOverflow(m.Int32Constant(*i), m.Parameter(0));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = bits::SignedMulOverflow32(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        if (!expected_ovf) {
+          CHECK_EQ(expected_val, actual_val);
+        }
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+      Node* add = m.Int32MulWithOverflow(m.Parameter(0), m.Int32Constant(*i));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = bits::SignedMulOverflow32(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        if (!expected_ovf) {
+          CHECK_EQ(expected_val, actual_val);
+        }
+      }
+    }
+    FOR_INT32_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* add =
+          m.Int32MulWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
+      m.Return(ovf);
+      int expected_ovf = bits::SignedMulOverflow32(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      if (!expected_ovf) {
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+  }
+}
+
+TEST(RunInt32MulWithOverflowInBranchP) {
+  int constant = 911777;
+  RawMachineLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* add = m.Int32MulWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, add);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Int32Constant(constant));
+  m.Bind(&blockb);
+  Node* val = m.Projection(0, add);
+  bt.AddReturn(val);
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected;
+      if (bits::SignedMulOverflow32(*i, *j, &expected)) expected = constant;
+      CHECK_EQ(expected, bt.call(*i, *j));
+    }
+  }
+}
 
 TEST(RunWord64EqualInBranchP) {
   int64_t input;

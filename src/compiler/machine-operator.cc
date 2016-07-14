@@ -395,6 +395,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \
+  V(Int32MulWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int64AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int64SubWithOverflow, Operator::kNoProperties)
 

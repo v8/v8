@@ -988,6 +988,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt32SubWithOverflow(node);
     case IrOpcode::kInt32Mul:
       return MarkAsWord32(node), VisitInt32Mul(node);
+    case IrOpcode::kInt32MulWithOverflow:
+      return MarkAsWord32(node), VisitInt32MulWithOverflow(node);
     case IrOpcode::kInt32MulHigh:
       return VisitInt32MulHigh(node);
     case IrOpcode::kInt32Div:
@@ -1480,7 +1482,6 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
   UNIMPLEMENTED();
 }
 
-
 void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
 
 
@@ -1648,6 +1649,7 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kInt32MulWithOverflow:
     case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kTryTruncateFloat32ToInt64:

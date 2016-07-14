@@ -17,6 +17,7 @@ namespace compiler {
   V(MipsSub)                       \
   V(MipsSubOvf)                    \
   V(MipsMul)                       \
+  V(MipsMulOvf)                    \
   V(MipsMulHigh)                   \
   V(MipsMulHighU)                  \
   V(MipsDiv)                       \

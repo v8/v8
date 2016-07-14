@@ -242,6 +242,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Int32Sub();
   const Operator* Int32SubWithOverflow();
   const Operator* Int32Mul();
+  const Operator* Int32MulWithOverflow();
   const Operator* Int32MulHigh();
   const Operator* Int32Div();
   const Operator* Int32Mod();

@@ -5871,6 +5871,78 @@ void MacroAssembler::DsubBranchOvf(Register dst, Register left, Register right,
   BranchOvfHelper(this, overflow_dst, overflow_label, no_overflow_label);
 }
 
+static inline void BranchOvfHelperMult(MacroAssembler* masm,
+                                       Register overflow_dst,
+                                       Label* overflow_label,
+                                       Label* no_overflow_label) {
+  DCHECK(overflow_label || no_overflow_label);
+  if (!overflow_label) {
+    DCHECK(no_overflow_label);
+    masm->Branch(no_overflow_label, eq, overflow_dst, Operand(zero_reg));
+  } else {
+    masm->Branch(overflow_label, ne, overflow_dst, Operand(zero_reg));
+    if (no_overflow_label) masm->Branch(no_overflow_label);
+  }
+}
+
+void MacroAssembler::MulBranchOvf(Register dst, Register left,
+                                  const Operand& right, Label* overflow_label,
+                                  Label* no_overflow_label, Register scratch) {
+  DCHECK(overflow_label || no_overflow_label);
+  if (right.is_reg()) {
+    MulBranchOvf(dst, left, right.rm(), overflow_label, no_overflow_label,
+                 scratch);
+  } else {
+    Register overflow_dst = t9;
+    DCHECK(!dst.is(scratch));
+    DCHECK(!dst.is(overflow_dst));
+    DCHECK(!scratch.is(overflow_dst));
+    DCHECK(!left.is(overflow_dst));
+    DCHECK(!left.is(scratch));
+
+    if (dst.is(left)) {
+      Mul(scratch, left, static_cast<int32_t>(right.immediate()));
+      Mulh(overflow_dst, left, static_cast<int32_t>(right.immediate()));
+      mov(dst, scratch);
+    } else {
+      Mul(dst, left, static_cast<int32_t>(right.immediate()));
+      Mulh(overflow_dst, left, static_cast<int32_t>(right.immediate()));
+    }
+
+    dsra32(scratch, dst, 0);
+    xor_(overflow_dst, overflow_dst, scratch);
+
+    BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
+  }
+}
+
+void MacroAssembler::MulBranchOvf(Register dst, Register left, Register right,
+                                  Label* overflow_label,
+                                  Label* no_overflow_label, Register scratch) {
+  DCHECK(overflow_label || no_overflow_label);
+  Register overflow_dst = t9;
+  DCHECK(!dst.is(scratch));
+  DCHECK(!dst.is(overflow_dst));
+  DCHECK(!scratch.is(overflow_dst));
+  DCHECK(!overflow_dst.is(left));
+  DCHECK(!overflow_dst.is(right));
+  DCHECK(!scratch.is(left));
+  DCHECK(!scratch.is(right));
+
+  if (dst.is(left) || dst.is(right)) {
+    Mul(scratch, left, right);
+    Mulh(overflow_dst, left, right);
+    mov(dst, scratch);
+  } else {
+    Mul(dst, left, right);
+    Mulh(overflow_dst, left, right);
+  }
+
+  dsra32(scratch, dst, 0);
+  xor_(overflow_dst, overflow_dst, scratch);
+
+  BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
+}
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles,

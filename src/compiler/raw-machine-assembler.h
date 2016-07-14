@@ -255,6 +255,9 @@ class RawMachineAssembler {
   Node* Int32MulHigh(Node* a, Node* b) {
     return AddNode(machine()->Int32MulHigh(), a, b);
   }
+  Node* Int32MulWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int32MulWithOverflow(), a, b);
+  }
   Node* Int32Div(Node* a, Node* b) {
     return AddNode(machine()->Int32Div(), a, b);
   }

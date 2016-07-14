@@ -1336,6 +1336,24 @@ class MacroAssembler: public Assembler {
                     Label* overflow_label, Label* no_overflow_label,
                     Register scratch = at);
 
+  inline void MulBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
+  }
+
+  inline void MulBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void MulBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void MulBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
   // -------------------------------------------------------------------------
   // Runtime calls.
 

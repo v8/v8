@@ -863,6 +863,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmSmull:
+      __ smull(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+               i.InputRegister(1));
+      break;
     case kArmSmmul:
       __ smmul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

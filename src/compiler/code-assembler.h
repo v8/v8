@@ -85,6 +85,7 @@ class Schedule;
   V(Int32AddWithOverflow)                  \
   V(Int32Sub)                              \
   V(Int32Mul)                              \
+  V(Int32MulWithOverflow)                  \
   V(Int32Div)                              \
   V(Int32Mod)                              \
   V(WordOr)                                \

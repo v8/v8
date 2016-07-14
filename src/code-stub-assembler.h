@@ -44,9 +44,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* EmptyStringConstant();
   compiler::Node* HeapNumberMapConstant();
   compiler::Node* NoContextConstant();
-  compiler::Node* MinusZeroConstant();
   compiler::Node* NanConstant();
   compiler::Node* NullConstant();
+  compiler::Node* MinusZeroConstant();
   compiler::Node* UndefinedConstant();
   compiler::Node* TheHoleConstant();
   compiler::Node* HashSeed();

@@ -836,6 +836,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsMul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMipsMulOvf:
+      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      break;
     case kMipsMulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1594,6 +1597,20 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNSUPPORTED_COND(kMipsAddOvf, branch->condition);
         break;
     }
+  } else if (instr->arch_opcode() == kMipsMulOvf) {
+    switch (branch->condition) {
+      case kOverflow:
+        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
+                        i.InputOperand(1), tlabel, flabel);
+        break;
+      case kNotOverflow:
+        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
+                        i.InputOperand(1), flabel, tlabel);
+        break;
+      default:
+        UNSUPPORTED_COND(kMipsMulOvf, branch->condition);
+        break;
+    }
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(branch->condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
@@ -1659,7 +1676,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else if (instr->arch_opcode() == kMipsAddOvf ||
-             instr->arch_opcode() == kMipsSubOvf) {
+             instr->arch_opcode() == kMipsSubOvf ||
+             instr->arch_opcode() == kMipsMulOvf) {
     Label flabel, tlabel;
     switch (instr->arch_opcode()) {
       case kMipsAddOvf:
@@ -1669,6 +1687,10 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         break;
       case kMipsSubOvf:
         __ SubBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
+                          i.InputOperand(1), &flabel);
+        break;
+      case kMipsMulOvf:
+        __ MulBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
                           i.InputOperand(1), &flabel);
         break;
       default:

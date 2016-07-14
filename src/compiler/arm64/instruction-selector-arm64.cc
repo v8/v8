@@ -1270,6 +1270,32 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   VisitAddSub<Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
 }
 
+namespace {
+
+void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  Arm64OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand result = g.DefineAsRegister(node);
+  InstructionOperand left = g.UseRegister(m.left().node());
+  InstructionOperand right = g.UseRegister(m.right().node());
+  selector->Emit(kArm64Smull, result, left, right);
+
+  InstructionCode opcode = cont->Encode(kArm64Cmp) |
+                           AddressingModeField::encode(kMode_Operand2_R_SXTW);
+  if (cont->IsBranch()) {
+    selector->Emit(opcode, g.NoOutput(), result, result,
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    InstructionOperand in[] = {result, result};
+    selector->EmitDeoptimize(opcode, 0, nullptr, 2, in, cont->frame_state());
+  } else {
+    DCHECK(cont->IsSet());
+    selector->Emit(opcode, g.DefineAsRegister(cont->result()), result, result);
+  }
+}
+
+}  // namespace
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
   Arm64OperandGenerator g(this);
@@ -1352,7 +1378,6 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 
   VisitRRR(this, kArm64Mul, node);
 }
-
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   Arm64OperandGenerator g(this);
@@ -2248,6 +2273,13 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int32BinopMatcher>(
                     selector, node, kArm64Sub32, kArithmeticImm, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                // ARM64 doesn't set the overflow flag for multiplication, so we
+                // need to test on kNotEqual. Here is the code sequence used:
+                //   smull result, left, right
+                //   cmp result.X(), Operand(result, SXTW)
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(selector, node, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int64BinopMatcher>(selector, node, kArm64Add,
@@ -2455,6 +2487,18 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kArm64Sub32, kArithmeticImm, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    // ARM64 doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   smull result, left, right
+    //   cmp result.X(), Operand(result, SXTW)
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt32MulWithOverflow(this, node, &cont);
+}
 
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
