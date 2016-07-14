@@ -72,14 +72,6 @@
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
-  # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
-  'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
-  'debug-step': [PASS, NO_VARIANTS],  # windows only.
-  'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
-  'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
-  'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
-  'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
-
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
