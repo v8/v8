@@ -144,7 +144,9 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
       debug_name_(debug_name) {}
 
 CompilationInfo::~CompilationInfo() {
-  DisableFutureOptimization();
+  if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
+    shared_info()->DisableOptimization(bailout_reason());
+  }
   dependencies()->Rollback();
   delete deferred_handles_;
 }
@@ -621,9 +623,9 @@ bool Renumber(ParseInfo* parse_info) {
     if (lit->dont_optimize_reason() != kNoReason) {
       shared_info->DisableOptimization(lit->dont_optimize_reason());
     }
-    shared_info->set_dont_crankshaft(
-        shared_info->dont_crankshaft() ||
-        (lit->flags() & AstProperties::kDontCrankshaft));
+    if (lit->flags() & AstProperties::kDontCrankshaft) {
+      shared_info->set_dont_crankshaft(true);
+    }
   }
   return true;
 }
