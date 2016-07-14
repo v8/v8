@@ -837,7 +837,7 @@ Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
 Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
     Isolate* isolate, LanguageMode language_mode) {
   StoreICState state = StoreICState(language_mode);
-  return VectorKeyedStoreICStub(isolate, state).GetCode();
+  return KeyedStoreICStub(isolate, state).GetCode();
 }
 
 
@@ -1588,7 +1588,7 @@ Handle<Code> CallIC::initialize_stub_in_optimized_code(
 
 Handle<Code> StoreIC::initialize_stub_in_optimized_code(
     Isolate* isolate, LanguageMode language_mode) {
-  VectorStoreICStub stub(isolate, StoreICState(language_mode));
+  StoreICStub stub(isolate, StoreICState(language_mode));
   return stub.GetCode();
 }
 

@@ -3797,32 +3797,25 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ jmp(&compare_map);
 }
 
-
-void VectorStoreICTrampolineStub::Generate(MacroAssembler* masm) {
+void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorStoreICStub stub(isolate(), state());
+  StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
-
-void VectorKeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
+void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorKeyedStoreICStub stub(isolate(), state());
+  KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
+void StoreICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
 
-void VectorStoreICStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
-
-
-void VectorStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
-
-void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // a1
   Register key = VectorStoreICDescriptor::NameRegister();           // a2
   Register vector = VectorStoreICDescriptor::VectorRegister();      // a3
@@ -3867,13 +3860,11 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ LoadRoot(receiver_map, Heap::kHeapNumberMapRootIndex);  // In delay slot.
 }
 
-
-void VectorKeyedStoreICStub::Generate(MacroAssembler* masm) {
+void KeyedStoreICStub::Generate(MacroAssembler* masm) {
   GenerateImpl(masm, false);
 }
 
-
-void VectorKeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void KeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
@@ -3939,8 +3930,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   __ jmp(miss);
 }
 
-
-void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // a1
   Register key = VectorStoreICDescriptor::NameRegister();           // a2
   Register vector = VectorStoreICDescriptor::VectorRegister();      // a3

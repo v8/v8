@@ -3364,27 +3364,21 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   KeyedLoadIC::GenerateMiss(masm);
 }
 
-
-void VectorStoreICTrampolineStub::Generate(MacroAssembler* masm) {
+void StoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorStoreICStub stub(isolate(), state());
+  StoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
-
-void VectorKeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
+void KeyedStoreICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(VectorStoreICDescriptor::VectorRegister());
-  VectorKeyedStoreICStub stub(isolate(), state());
+  KeyedStoreICStub stub(isolate(), state());
   stub.GenerateForTrampoline(masm);
 }
 
+void StoreICStub::Generate(MacroAssembler* masm) { GenerateImpl(masm, false); }
 
-void VectorStoreICStub::Generate(MacroAssembler* masm) {
-  GenerateImpl(masm, false);
-}
-
-
-void VectorStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void StoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
@@ -3520,8 +3514,7 @@ static void HandleMonomorphicStoreCase(MacroAssembler* masm, Register receiver,
   __ jmp(Operand::StaticVariable(virtual_register));
 }
 
-
-void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+void StoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
   Register key = VectorStoreICDescriptor::NameRegister();           // ecx
   Register value = VectorStoreICDescriptor::ValueRegister();        // eax
@@ -3569,13 +3562,11 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   StoreIC::GenerateMiss(masm);
 }
 
-
-void VectorKeyedStoreICStub::Generate(MacroAssembler* masm) {
+void KeyedStoreICStub::Generate(MacroAssembler* masm) {
   GenerateImpl(masm, false);
 }
 
-
-void VectorKeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
+void KeyedStoreICStub::GenerateForTrampoline(MacroAssembler* masm) {
   GenerateImpl(masm, true);
 }
 
@@ -3688,7 +3679,7 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ jmp(&compare_map);
 }
 
-void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
+void KeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
   Register key = VectorStoreICDescriptor::NameRegister();           // ecx
   Register value = VectorStoreICDescriptor::ValueRegister();        // eax

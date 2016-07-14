@@ -49,10 +49,10 @@ namespace internal {
   V(ToString)                               \
   V(ToName)                                 \
   V(ToObject)                               \
-  V(VectorStoreICTrampoline)                \
-  V(VectorKeyedStoreICTrampoline)           \
-  V(VectorStoreIC)                          \
-  V(VectorKeyedStoreIC)                     \
+  V(StoreICTrampoline)                      \
+  V(KeyedStoreICTrampoline)                 \
+  V(StoreIC)                                \
+  V(KeyedStoreIC)                           \
   /* HydrogenCodeStubs */                   \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
@@ -2363,10 +2363,9 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, LoadICTrampolineStub);
 };
 
-
-class VectorStoreICTrampolineStub : public PlatformCodeStub {
+class StoreICTrampolineStub : public PlatformCodeStub {
  public:
-  VectorStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
+  StoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2384,19 +2383,17 @@ class VectorStoreICTrampolineStub : public PlatformCodeStub {
 
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreICTrampoline);
-  DEFINE_PLATFORM_CODE_STUB(VectorStoreICTrampoline, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(StoreICTrampoline, PlatformCodeStub);
 };
 
-
-class VectorKeyedStoreICTrampolineStub : public VectorStoreICTrampolineStub {
+class KeyedStoreICTrampolineStub : public StoreICTrampolineStub {
  public:
-  VectorKeyedStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
-      : VectorStoreICTrampolineStub(isolate, state) {}
+  KeyedStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
+      : StoreICTrampolineStub(isolate, state) {}
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
 
-  DEFINE_PLATFORM_CODE_STUB(VectorKeyedStoreICTrampoline,
-                            VectorStoreICTrampolineStub);
+  DEFINE_PLATFORM_CODE_STUB(KeyedStoreICTrampoline, StoreICTrampolineStub);
 };
 
 
@@ -2484,10 +2481,9 @@ class KeyedLoadICStub : public PlatformCodeStub {
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
-
-class VectorStoreICStub : public PlatformCodeStub {
+class StoreICStub : public PlatformCodeStub {
  public:
-  VectorStoreICStub(Isolate* isolate, const StoreICState& state)
+  StoreICStub(Isolate* isolate, const StoreICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2501,16 +2497,15 @@ class VectorStoreICStub : public PlatformCodeStub {
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
-  DEFINE_PLATFORM_CODE_STUB(VectorStoreIC, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(StoreIC, PlatformCodeStub);
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
 };
 
-
-class VectorKeyedStoreICStub : public PlatformCodeStub {
+class KeyedStoreICStub : public PlatformCodeStub {
  public:
-  VectorKeyedStoreICStub(Isolate* isolate, const StoreICState& state)
+  KeyedStoreICStub(Isolate* isolate, const StoreICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -2524,7 +2519,7 @@ class VectorKeyedStoreICStub : public PlatformCodeStub {
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorStoreIC);
-  DEFINE_PLATFORM_CODE_STUB(VectorKeyedStoreIC, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(KeyedStoreIC, PlatformCodeStub);
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
