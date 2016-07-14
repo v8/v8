@@ -230,6 +230,12 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
       NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidStringLength));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

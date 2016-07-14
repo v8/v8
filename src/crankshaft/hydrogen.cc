@@ -2413,7 +2413,20 @@ HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
   HValue* length = AddUncasted<HAdd>(left_length, right_length);
   // Check that length <= kMaxLength <=> length < MaxLength + 1.
   HValue* max_length = Add<HConstant>(String::kMaxLength + 1);
-  Add<HBoundsCheck>(length, max_length);
+  if (top_info()->IsStub()) {
+    // This is a mitigation for crbug.com/627934; the real fix
+    // will be to migrate the StringAddStub to TurboFan one day.
+    IfBuilder if_invalid(this);
+    if_invalid.If<HCompareNumericAndBranch>(length, max_length, Token::GT);
+    if_invalid.Then();
+    {
+      Add<HCallRuntime>(
+          Runtime::FunctionForId(Runtime::kThrowInvalidStringLength), 0);
+    }
+    if_invalid.End();
+  } else {
+    Add<HBoundsCheck>(length, max_length);
+  }
   return length;
 }
 
