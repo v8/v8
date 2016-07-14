@@ -41,7 +41,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Unknown()),
-      masm_(info->isolate(), nullptr, 0, CodeObjectRequired::kYes),
+      masm_(info->isolate(), nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
       safepoints_(code->zone()),
       handlers_(code->zone()),
@@ -203,8 +203,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
-  Handle<Code> result =
-      v8::internal::CodeGenerator::MakeCodeEpilogue(masm(), info);
+  Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
+      masm(), info, Handle<Object>());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
