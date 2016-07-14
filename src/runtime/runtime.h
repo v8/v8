@@ -289,6 +289,7 @@ namespace internal {
   F(NewTypeError, 2, 1)                             \
   F(NewSyntaxError, 2, 1)                           \
   F(NewReferenceError, 2, 1)                        \
+  F(ThrowCannotConvertToPrimitive, 0, 1)            \
   F(ThrowIllegalInvocation, 0, 1)                   \
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \

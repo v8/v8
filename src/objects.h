@@ -169,16 +169,6 @@ enum KeyedAccessStoreMode {
 };
 
 
-// Valid hints for the abstract operation ToPrimitive,
-// implemented according to ES6, section 7.1.1.
-enum class ToPrimitiveHint { kDefault, kNumber, kString };
-
-
-// Valid hints for the abstract operation OrdinaryToPrimitive,
-// implemented according to ES6, section 7.1.1.
-enum class OrdinaryToPrimitiveHint { kNumber, kString };
-
-
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
@@ -1845,6 +1835,8 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<Object> ToPrimitive(
       Handle<JSReceiver> receiver,
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+
+  // ES6 section 7.1.1.1 OrdinaryToPrimitive
   MUST_USE_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 

@@ -837,7 +837,6 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
       isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
 }
 
-
 RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

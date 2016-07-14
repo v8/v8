@@ -362,17 +362,22 @@ class CodeStubAssembler;
   V(AtomicsStore, 4)
 
 // Define list of builtins implemented in TurboFan (with CallStub linkage).
-#define BUILTIN_LIST_S(V)                                              \
-  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector) \
-  V(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,   \
-    LoadGlobalWithVector)                                              \
-  V(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,      \
-    LoadGlobalWithVector)                                              \
-  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)             \
-  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)               \
-  V(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)             \
-  V(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)        \
-  V(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)
+#define BUILTIN_LIST_S(V)                                                      \
+  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)         \
+  V(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,           \
+    LoadGlobalWithVector)                                                      \
+  V(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,              \
+    LoadGlobalWithVector)                                                      \
+  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                     \
+  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                       \
+  V(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)                     \
+  V(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)                \
+  V(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)                \
+  V(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)      \
+  V(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)      \
+  V(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState, TypeConversion) \
+  V(NonPrimitiveToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)  \
+  V(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)
 
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
@@ -457,6 +462,9 @@ class Builtins {
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny,
                     TailCallMode tail_call_mode = TailCallMode::kDisallow);
   Handle<Code> CallBoundFunction(TailCallMode tail_call_mode);
+  Handle<Code> NonPrimitiveToPrimitive(
+      ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
   Handle<Code> InterpreterPushArgsAndCall(
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);

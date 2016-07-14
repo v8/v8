@@ -138,6 +138,12 @@ Callable CodeFactory::InstanceOf(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::GetProperty(Isolate* isolate) {
+  GetPropertyStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::ToBoolean(Isolate* isolate) {
   ToBooleanStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
@@ -196,13 +202,25 @@ Callable CodeFactory::ToObject(Isolate* isolate) {
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
+// static
+Callable CodeFactory::NonPrimitiveToPrimitive(Isolate* isolate,
+                                              ToPrimitiveHint hint) {
+  return Callable(isolate->builtins()->NonPrimitiveToPrimitive(hint),
+                  TypeConversionDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
+                                          OrdinaryToPrimitiveHint hint) {
+  return Callable(isolate->builtins()->OrdinaryToPrimitive(hint),
+                  TypeConversionDescriptor(isolate));
+}
 
 // static
 Callable CodeFactory::NumberToString(Isolate* isolate) {
   NumberToStringStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
-
 
 // static
 Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {

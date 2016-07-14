@@ -784,6 +784,14 @@ inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
   return os;
 }
 
+// Valid hints for the abstract operation OrdinaryToPrimitive,
+// implemented according to ES6, section 7.1.1.
+enum class OrdinaryToPrimitiveHint { kNumber, kString };
+
+// Valid hints for the abstract operation ToPrimitive,
+// implemented according to ES6, section 7.1.1.
+enum class ToPrimitiveHint { kDefault, kNumber, kString };
+
 // Defines specifics about arguments object or rest parameter creation.
 enum class CreateArgumentsType : uint8_t {
   kMappedArguments,

@@ -5801,6 +5801,30 @@ Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
   return Handle<Code>::null();
 }
 
+Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
+  switch (hint) {
+    case ToPrimitiveHint::kDefault:
+      return NonPrimitiveToPrimitive_Default();
+    case ToPrimitiveHint::kNumber:
+      return NonPrimitiveToPrimitive_Number();
+    case ToPrimitiveHint::kString:
+      return NonPrimitiveToPrimitive_String();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
+Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
+  switch (hint) {
+    case OrdinaryToPrimitiveHint::kNumber:
+      return OrdinaryToPrimitive_Number();
+    case OrdinaryToPrimitiveHint::kString:
+      return OrdinaryToPrimitive_String();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
 Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode,
                                                   CallableType function_type) {
   switch (tail_call_mode) {
@@ -6085,6 +6109,166 @@ void Generate_StoreIC_SlowSloppy(CodeStubAssembler* assembler) {
 
 void Generate_StoreIC_SlowStrict(CodeStubAssembler* assembler) {
   Generate_StoreIC_Slow(assembler, STRICT);
+}
+
+// 7.1.1.1 OrdinaryToPrimitive ( O, hint )
+void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
+                                  OrdinaryToPrimitiveHint hint) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* input = assembler->Parameter(0);
+  Node* context = assembler->Parameter(1);
+
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label return_result(assembler, &var_result);
+
+  Handle<String> method_names[2];
+  switch (hint) {
+    case OrdinaryToPrimitiveHint::kNumber:
+      method_names[0] = assembler->factory()->valueOf_string();
+      method_names[1] = assembler->factory()->toString_string();
+      break;
+    case OrdinaryToPrimitiveHint::kString:
+      method_names[0] = assembler->factory()->toString_string();
+      method_names[1] = assembler->factory()->valueOf_string();
+      break;
+  }
+  for (Handle<String> name : method_names) {
+    // Lookup the {name} on the {input}.
+    Callable callable = CodeFactory::GetProperty(assembler->isolate());
+    Node* name_string = assembler->HeapConstant(name);
+    Node* method = assembler->CallStub(callable, context, input, name_string);
+
+    // Check if the {method} is callable.
+    Label if_methodiscallable(assembler),
+        if_methodisnotcallable(assembler, Label::kDeferred);
+    assembler->GotoIf(assembler->WordIsSmi(method), &if_methodisnotcallable);
+    Node* method_map = assembler->LoadMap(method);
+    Node* method_bit_field = assembler->LoadMapBitField(method_map);
+    assembler->Branch(
+        assembler->Word32Equal(
+            assembler->Word32And(method_bit_field, assembler->Int32Constant(
+                                                       1 << Map::kIsCallable)),
+            assembler->Int32Constant(0)),
+        &if_methodisnotcallable, &if_methodiscallable);
+
+    assembler->Bind(&if_methodiscallable);
+    {
+      // Call the {method} on the {input}.
+      Callable callable = CodeFactory::Call(assembler->isolate());
+      Node* result = assembler->CallJS(callable, context, method, input);
+      var_result.Bind(result);
+
+      // Return the {result} if it is a primitive.
+      assembler->GotoIf(assembler->WordIsSmi(result), &return_result);
+      Node* result_instance_type = assembler->LoadInstanceType(result);
+      STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+      assembler->GotoIf(assembler->Int32LessThanOrEqual(
+                            result_instance_type,
+                            assembler->Int32Constant(LAST_PRIMITIVE_TYPE)),
+                        &return_result);
+    }
+
+    // Just continue with the next {name} if the {method} is not callable.
+    assembler->Goto(&if_methodisnotcallable);
+    assembler->Bind(&if_methodisnotcallable);
+  }
+
+  assembler->TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+
+  assembler->Bind(&return_result);
+  assembler->Return(var_result.value());
+}
+
+void Generate_OrdinaryToPrimitive_Number(CodeStubAssembler* assembler) {
+  Generate_OrdinaryToPrimitive(assembler, OrdinaryToPrimitiveHint::kNumber);
+}
+
+void Generate_OrdinaryToPrimitive_String(CodeStubAssembler* assembler) {
+  Generate_OrdinaryToPrimitive(assembler, OrdinaryToPrimitiveHint::kString);
+}
+
+// ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
+void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
+                                      ToPrimitiveHint hint) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* input = assembler->Parameter(0);
+  Node* context = assembler->Parameter(1);
+
+  // Lookup the @@toPrimitive property on the {input}.
+  Callable callable = CodeFactory::GetProperty(assembler->isolate());
+  Node* to_primitive_symbol =
+      assembler->HeapConstant(assembler->factory()->to_primitive_symbol());
+  Node* exotic_to_prim =
+      assembler->CallStub(callable, context, input, to_primitive_symbol);
+
+  // Check if {exotic_to_prim} is neither null nor undefined.
+  Label ordinary_to_primitive(assembler);
+  assembler->GotoIf(
+      assembler->WordEqual(exotic_to_prim, assembler->NullConstant()),
+      &ordinary_to_primitive);
+  assembler->GotoIf(
+      assembler->WordEqual(exotic_to_prim, assembler->UndefinedConstant()),
+      &ordinary_to_primitive);
+  {
+    // Invoke the {exotic_to_prim} method on the {input} with a string
+    // representation of the {hint}.
+    Callable callable = CodeFactory::Call(assembler->isolate());
+    Node* hint_string = assembler->HeapConstant(
+        assembler->factory()->ToPrimitiveHintString(hint));
+    Node* result = assembler->CallJS(callable, context, exotic_to_prim, input,
+                                     hint_string);
+
+    // Verify that the {result} is actually a primitive.
+    Label if_resultisprimitive(assembler),
+        if_resultisnotprimitive(assembler, Label::kDeferred);
+    assembler->GotoIf(assembler->WordIsSmi(result), &if_resultisprimitive);
+    Node* result_instance_type = assembler->LoadInstanceType(result);
+    STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+    assembler->Branch(assembler->Int32LessThanOrEqual(
+                          result_instance_type,
+                          assembler->Int32Constant(LAST_PRIMITIVE_TYPE)),
+                      &if_resultisprimitive, &if_resultisnotprimitive);
+
+    assembler->Bind(&if_resultisprimitive);
+    {
+      // Just return the {result}.
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_resultisnotprimitive);
+    {
+      // Somehow the @@toPrimitive method on {input} didn't yield a primitive.
+      assembler->TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive,
+                                 context);
+    }
+  }
+
+  // Convert using the OrdinaryToPrimitive algorithm instead.
+  assembler->Bind(&ordinary_to_primitive);
+  {
+    Callable callable = CodeFactory::OrdinaryToPrimitive(
+        assembler->isolate(), (hint == ToPrimitiveHint::kString)
+                                  ? OrdinaryToPrimitiveHint::kString
+                                  : OrdinaryToPrimitiveHint::kNumber);
+    assembler->TailCallStub(callable, context, input);
+  }
+}
+
+void Generate_NonPrimitiveToPrimitive_Default(CodeStubAssembler* assembler) {
+  Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kDefault);
+}
+
+void Generate_NonPrimitiveToPrimitive_Number(CodeStubAssembler* assembler) {
+  Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kNumber);
+}
+
+void Generate_NonPrimitiveToPrimitive_String(CodeStubAssembler* assembler) {
+  Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kString);
 }
 
 void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {

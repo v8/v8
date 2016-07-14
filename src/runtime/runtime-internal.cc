@@ -207,6 +207,11 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
+}
 
 RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
   HandleScope scope(isolate);

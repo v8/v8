@@ -619,9 +619,9 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             assembler->Bind(&if_rhsisreceiver);
             {
               // Convert {rhs} to a primitive first passing no hint.
-              // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
-              var_rhs.Bind(
-                  assembler->CallRuntime(Runtime::kToPrimitive, context, rhs));
+              Callable callable =
+                  CodeFactory::NonPrimitiveToPrimitive(assembler->isolate());
+              var_rhs.Bind(assembler->CallStub(callable, context, rhs));
               assembler->Goto(&loop);
             }
 
@@ -697,9 +697,9 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             assembler->Bind(&if_lhsisreceiver);
             {
               // Convert {lhs} to a primitive first passing no hint.
-              // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
-              var_lhs.Bind(
-                  assembler->CallRuntime(Runtime::kToPrimitive, context, lhs));
+              Callable callable =
+                  CodeFactory::NonPrimitiveToPrimitive(assembler->isolate());
+              var_lhs.Bind(assembler->CallStub(callable, context, lhs));
               assembler->Goto(&loop);
             }
 
@@ -774,9 +774,9 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 assembler->Bind(&if_rhsisreceiver);
                 {
                   // Convert {rhs} to a primitive first passing no hint.
-                  // TODO(bmeurer): Hook up ToPrimitiveStub here too.
-                  var_rhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
-                                                      context, rhs));
+                  Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                      assembler->isolate());
+                  var_rhs.Bind(assembler->CallStub(callable, context, rhs));
                   assembler->Goto(&loop);
                 }
 
@@ -805,9 +805,9 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
               assembler->Bind(&if_lhsisreceiver);
               {
                 // Convert {lhs} to a primitive first passing no hint.
-                // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
-                var_lhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
-                                                    context, lhs));
+                Callable callable =
+                    CodeFactory::NonPrimitiveToPrimitive(assembler->isolate());
+                var_lhs.Bind(assembler->CallStub(callable, context, lhs));
                 assembler->Goto(&loop);
               }
 
@@ -825,9 +825,9 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 assembler->Bind(&if_rhsisreceiver);
                 {
                   // Convert {rhs} to a primitive first passing no hint.
-                  // TODO(bmeurer): Hook up ToPrimitiveStub here too.
-                  var_rhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
-                                                      context, rhs));
+                  Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                      assembler->isolate());
+                  var_rhs.Bind(assembler->CallStub(callable, context, rhs));
                   assembler->Goto(&loop);
                 }
 
@@ -2211,9 +2211,9 @@ compiler::Node* GenerateAbstractRelationalComparison(
               assembler->Bind(&if_rhsisreceiver);
               {
                 // Convert {rhs} to a primitive first passing Number hint.
-                // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
-                var_rhs.Bind(assembler->CallRuntime(
-                    Runtime::kToPrimitive_Number, context, rhs));
+                Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                    assembler->isolate(), ToPrimitiveHint::kNumber);
+                var_rhs.Bind(assembler->CallStub(callable, context, rhs));
                 assembler->Goto(&loop);
               }
 
@@ -2245,9 +2245,9 @@ compiler::Node* GenerateAbstractRelationalComparison(
             assembler->Bind(&if_lhsisreceiver);
             {
               // Convert {lhs} to a primitive first passing Number hint.
-              // TODO(bmeurer): Hook up ToPrimitiveStub here, once it's there.
-              var_lhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive_Number,
-                                                  context, lhs));
+              Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                  assembler->isolate(), ToPrimitiveHint::kNumber);
+              var_lhs.Bind(assembler->CallStub(callable, context, lhs));
               assembler->Goto(&loop);
             }
 
@@ -2571,9 +2571,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                 assembler->Bind(&if_rhsisreceiver);
                 {
                   // Convert {rhs} to a primitive first (passing no hint).
-                  // TODO(bmeurer): Hook up ToPrimitiveStub here once it exists.
-                  var_rhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
-                                                      context, rhs));
+                  Callable callable = CodeFactory::NonPrimitiveToPrimitive(
+                      assembler->isolate());
+                  var_rhs.Bind(assembler->CallStub(callable, context, rhs));
                   assembler->Goto(&loop);
                 }
 
@@ -2929,9 +2929,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
               {
                 // The {rhs} is some Primitive different from Null and
                 // Undefined, need to convert {lhs} to Primitive first.
-                // TODO(bmeurer): Hook up ToPrimitiveStub here once it exists.
-                var_lhs.Bind(assembler->CallRuntime(Runtime::kToPrimitive,
-                                                    context, lhs));
+                Callable callable =
+                    CodeFactory::NonPrimitiveToPrimitive(assembler->isolate());
+                var_lhs.Bind(assembler->CallStub(callable, context, lhs));
                 assembler->Goto(&loop);
               }
             }

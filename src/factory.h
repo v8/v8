@@ -684,6 +684,9 @@ class Factory final {
   // Converts the given boolean condition to JavaScript boolean value.
   Handle<Object> ToBoolean(bool value);
 
+  // Converts the given ToPrimitive hint to it's string representation.
+  Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
+
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
 

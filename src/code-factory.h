@@ -65,6 +65,8 @@ class CodeFactory final {
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
 
+  static Callable GetProperty(Isolate* isolate);
+
   static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
@@ -75,6 +77,10 @@ class CodeFactory final {
   static Callable ToInteger(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
+  static Callable NonPrimitiveToPrimitive(
+      Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+  static Callable OrdinaryToPrimitive(Isolate* isolate,
+                                      OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
   static Callable RegExpConstructResult(Isolate* isolate);

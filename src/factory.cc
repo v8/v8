@@ -2382,6 +2382,18 @@ Handle<Object> Factory::ToBoolean(bool value) {
   return value ? true_value() : false_value();
 }
 
+Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
+  switch (hint) {
+    case ToPrimitiveHint::kDefault:
+      return default_string();
+    case ToPrimitiveHint::kNumber:
+      return number_string();
+    case ToPrimitiveHint::kString:
+      return string_string();
+  }
+  UNREACHABLE();
+  return Handle<String>::null();
+}
 
 }  // namespace internal
 }  // namespace v8

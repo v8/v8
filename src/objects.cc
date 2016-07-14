@@ -8048,18 +8048,8 @@ MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
       isolate, exotic_to_prim,
       GetMethod(receiver, isolate->factory()->to_primitive_symbol()), Object);
   if (!exotic_to_prim->IsUndefined(isolate)) {
-    Handle<Object> hint_string;
-    switch (hint) {
-      case ToPrimitiveHint::kDefault:
-        hint_string = isolate->factory()->default_string();
-        break;
-      case ToPrimitiveHint::kNumber:
-        hint_string = isolate->factory()->number_string();
-        break;
-      case ToPrimitiveHint::kString:
-        hint_string = isolate->factory()->string_string();
-        break;
-    }
+    Handle<Object> hint_string =
+        isolate->factory()->ToPrimitiveHintString(hint);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
