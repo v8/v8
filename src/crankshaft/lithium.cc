@@ -457,8 +457,8 @@ Handle<Code> LChunk::Codegen() {
   if (generator.GenerateCode()) {
     generator.CheckEnvironmentUsage();
     CodeGenerator::MakeCodePrologue(info(), "optimized");
-    Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&assembler, info(),
-                                                        assembler.CodeObject());
+    Handle<Code> code = CodeGenerator::MakeCodeEpilogue(
+        &assembler, nullptr, info(), assembler.CodeObject());
     generator.FinishCode(code);
     CommitDependencies(code);
     generator.source_position_table_builder()->EndJitLogging(
