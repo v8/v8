@@ -11,9 +11,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class CodeStubAssembler;
-
 #define CODE_AGE_LIST_WITH_ARG(V, A) \
   V(Quadragenarian, A)               \
   V(Quinquagenarian, A)              \
@@ -32,366 +29,379 @@ class CodeStubAssembler;
   V(NoAge)                        \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define DECLARE_CODE_AGE_BUILTIN(C, V)                           \
-  V(Make##C##CodeYoungAgainOddMarking, BUILTIN, kNoExtraICState) \
-  V(Make##C##CodeYoungAgainEvenMarking, BUILTIN, kNoExtraICState)
+#define DECLARE_CODE_AGE_BUILTIN(C, V) \
+  V(Make##C##CodeYoungAgainOddMarking) \
+  V(Make##C##CodeYoungAgainEvenMarking)
 
-// Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                                  \
-  V(Illegal, BUILTIN_EXIT)                                 \
-                                                           \
-  V(EmptyFunction, BUILTIN_EXIT)                           \
-                                                           \
-  V(ArrayConcat, BUILTIN_EXIT)                             \
-  V(ArrayPop, BUILTIN_EXIT)                                \
-  V(ArrayPush, BUILTIN_EXIT)                               \
-  V(ArrayShift, BUILTIN_EXIT)                              \
-  V(ArraySlice, BUILTIN_EXIT)                              \
-  V(ArraySplice, BUILTIN_EXIT)                             \
-  V(ArrayUnshift, BUILTIN_EXIT)                            \
-                                                           \
-  V(ArrayBufferConstructor, BUILTIN_EXIT)                  \
-  V(ArrayBufferConstructor_ConstructStub, BUILTIN_EXIT)    \
-  V(ArrayBufferPrototypeGetByteLength, BUILTIN_EXIT)       \
-  V(ArrayBufferIsView, BUILTIN_EXIT)                       \
-                                                           \
-  V(BooleanConstructor, BUILTIN_EXIT)                      \
-  V(BooleanConstructor_ConstructStub, BUILTIN_EXIT)        \
-                                                           \
-  V(DataViewConstructor, BUILTIN_EXIT)                     \
-  V(DataViewConstructor_ConstructStub, BUILTIN_EXIT)       \
-  V(DataViewPrototypeGetBuffer, BUILTIN_EXIT)              \
-  V(DataViewPrototypeGetByteLength, BUILTIN_EXIT)          \
-  V(DataViewPrototypeGetByteOffset, BUILTIN_EXIT)          \
-                                                           \
-  V(DateConstructor, BUILTIN_EXIT)                         \
-  V(DateConstructor_ConstructStub, BUILTIN_EXIT)           \
-  V(DateNow, BUILTIN_EXIT)                                 \
-  V(DateParse, BUILTIN_EXIT)                               \
-  V(DateUTC, BUILTIN_EXIT)                                 \
-  V(DatePrototypeSetDate, BUILTIN_EXIT)                    \
-  V(DatePrototypeSetFullYear, BUILTIN_EXIT)                \
-  V(DatePrototypeSetHours, BUILTIN_EXIT)                   \
-  V(DatePrototypeSetMilliseconds, BUILTIN_EXIT)            \
-  V(DatePrototypeSetMinutes, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetMonth, BUILTIN_EXIT)                   \
-  V(DatePrototypeSetSeconds, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetTime, BUILTIN_EXIT)                    \
-  V(DatePrototypeSetUTCDate, BUILTIN_EXIT)                 \
-  V(DatePrototypeSetUTCFullYear, BUILTIN_EXIT)             \
-  V(DatePrototypeSetUTCHours, BUILTIN_EXIT)                \
-  V(DatePrototypeSetUTCMilliseconds, BUILTIN_EXIT)         \
-  V(DatePrototypeSetUTCMinutes, BUILTIN_EXIT)              \
-  V(DatePrototypeSetUTCMonth, BUILTIN_EXIT)                \
-  V(DatePrototypeSetUTCSeconds, BUILTIN_EXIT)              \
-  V(DatePrototypeToDateString, BUILTIN_EXIT)               \
-  V(DatePrototypeToISOString, BUILTIN_EXIT)                \
-  V(DatePrototypeToPrimitive, BUILTIN_EXIT)                \
-  V(DatePrototypeToUTCString, BUILTIN_EXIT)                \
-  V(DatePrototypeToString, BUILTIN_EXIT)                   \
-  V(DatePrototypeToTimeString, BUILTIN_EXIT)               \
-  V(DatePrototypeValueOf, BUILTIN_EXIT)                    \
-  V(DatePrototypeGetYear, BUILTIN_EXIT)                    \
-  V(DatePrototypeSetYear, BUILTIN_EXIT)                    \
-  V(DatePrototypeToJson, BUILTIN_EXIT)                     \
-                                                           \
-  V(FunctionConstructor, BUILTIN_EXIT)                     \
-  V(FunctionPrototypeBind, BUILTIN_EXIT)                   \
-  V(FunctionPrototypeToString, BUILTIN_EXIT)               \
-                                                           \
-  V(GeneratorFunctionConstructor, BUILTIN_EXIT)            \
-  V(AsyncFunctionConstructor, BUILTIN_EXIT)                \
-                                                           \
-  V(GlobalDecodeURI, BUILTIN_EXIT)                         \
-  V(GlobalDecodeURIComponent, BUILTIN_EXIT)                \
-  V(GlobalEncodeURI, BUILTIN_EXIT)                         \
-  V(GlobalEncodeURIComponent, BUILTIN_EXIT)                \
-  V(GlobalEscape, BUILTIN_EXIT)                            \
-  V(GlobalUnescape, BUILTIN_EXIT)                          \
-                                                           \
-  V(GlobalEval, BUILTIN_EXIT)                              \
-                                                           \
-  V(JsonParse, BUILTIN_EXIT)                               \
-  V(JsonStringify, BUILTIN_EXIT)                           \
-                                                           \
-  V(MathHypot, BUILTIN_EXIT)                               \
-                                                           \
-  V(NumberPrototypeToExponential, BUILTIN_EXIT)            \
-  V(NumberPrototypeToFixed, BUILTIN_EXIT)                  \
-  V(NumberPrototypeToLocaleString, BUILTIN_EXIT)           \
-  V(NumberPrototypeToPrecision, BUILTIN_EXIT)              \
-  V(NumberPrototypeToString, BUILTIN_EXIT)                 \
-                                                           \
-  V(ObjectAssign, BUILTIN_EXIT)                            \
-  V(ObjectCreate, BUILTIN_EXIT)                            \
-  V(ObjectDefineGetter, BUILTIN_EXIT)                      \
-  V(ObjectDefineProperties, BUILTIN_EXIT)                  \
-  V(ObjectDefineProperty, BUILTIN_EXIT)                    \
-  V(ObjectDefineSetter, BUILTIN_EXIT)                      \
-  V(ObjectEntries, BUILTIN_EXIT)                           \
-  V(ObjectFreeze, BUILTIN_EXIT)                            \
-  V(ObjectGetOwnPropertyDescriptor, BUILTIN_EXIT)          \
-  V(ObjectGetOwnPropertyDescriptors, BUILTIN_EXIT)         \
-  V(ObjectGetOwnPropertyNames, BUILTIN_EXIT)               \
-  V(ObjectGetOwnPropertySymbols, BUILTIN_EXIT)             \
-  V(ObjectGetPrototypeOf, BUILTIN_EXIT)                    \
-  V(ObjectIs, BUILTIN_EXIT)                                \
-  V(ObjectIsExtensible, BUILTIN_EXIT)                      \
-  V(ObjectIsFrozen, BUILTIN_EXIT)                          \
-  V(ObjectIsSealed, BUILTIN_EXIT)                          \
-  V(ObjectKeys, BUILTIN_EXIT)                              \
-  V(ObjectLookupGetter, BUILTIN_EXIT)                      \
-  V(ObjectLookupSetter, BUILTIN_EXIT)                      \
-  V(ObjectPreventExtensions, BUILTIN_EXIT)                 \
-  V(ObjectPrototypePropertyIsEnumerable, BUILTIN_EXIT)     \
-  V(ObjectProtoToString, BUILTIN_EXIT)                     \
-  V(ObjectSeal, BUILTIN_EXIT)                              \
-  V(ObjectValues, BUILTIN_EXIT)                            \
-                                                           \
-  V(ProxyConstructor, BUILTIN_EXIT)                        \
-  V(ProxyConstructor_ConstructStub, BUILTIN_EXIT)          \
-                                                           \
-  V(ReflectDefineProperty, BUILTIN_EXIT)                   \
-  V(ReflectDeleteProperty, BUILTIN_EXIT)                   \
-  V(ReflectGet, BUILTIN_EXIT)                              \
-  V(ReflectGetOwnPropertyDescriptor, BUILTIN_EXIT)         \
-  V(ReflectGetPrototypeOf, BUILTIN_EXIT)                   \
-  V(ReflectHas, BUILTIN_EXIT)                              \
-  V(ReflectIsExtensible, BUILTIN_EXIT)                     \
-  V(ReflectOwnKeys, BUILTIN_EXIT)                          \
-  V(ReflectPreventExtensions, BUILTIN_EXIT)                \
-  V(ReflectSet, BUILTIN_EXIT)                              \
-  V(ReflectSetPrototypeOf, BUILTIN_EXIT)                   \
-                                                           \
-  V(SharedArrayBufferPrototypeGetByteLength, BUILTIN_EXIT) \
-                                                           \
-  V(StringFromCodePoint, BUILTIN_EXIT)                     \
-                                                           \
-  V(StringPrototypeTrim, BUILTIN_EXIT)                     \
-  V(StringPrototypeTrimLeft, BUILTIN_EXIT)                 \
-  V(StringPrototypeTrimRight, BUILTIN_EXIT)                \
-                                                           \
-  V(SymbolConstructor, BUILTIN_EXIT)                       \
-  V(SymbolConstructor_ConstructStub, BUILTIN_EXIT)         \
-                                                           \
-  V(TypedArrayPrototypeBuffer, BUILTIN_EXIT)               \
-                                                           \
-  V(HandleApiCall, EXIT)                                   \
-  V(HandleApiCallAsFunction, EXIT)                         \
-  V(HandleApiCallAsConstructor, EXIT)                      \
-                                                           \
-  V(RestrictedFunctionPropertiesThrower, BUILTIN_EXIT)     \
-  V(RestrictedStrictArgumentsPropertiesThrower, BUILTIN_EXIT)
+// CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
+//      Args: name
+// API: Builtin in C++ for API callbacks. Entered via EXIT frame.
+//      Args: name
+// TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
+//      Args: name, arguments count
+// TFS: Builtin in Turbofan, with CodeStub linkage.
+//      Args: name, code kind, extra IC state, interface descriptor
+// ASM: Builtin in platform-dependent assembly.
+//      Args: name
+// ASH: Handlers implemented in platform-dependent assembly.
+//      Args: name, code kind, extra IC state
+// DBG: Builtin in platform-dependent assembly, used by the debugger.
+//      Args: name
+#define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                     \
+  /* Handlers */                                                            \
+  ASM(KeyedLoadIC_Miss)                                                     \
+  ASM(KeyedStoreIC_Miss)                                                    \
+  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                     \
+  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)              \
+  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)    \
+  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)            \
+  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                      \
+      StoreICState::kStrictModeState)                                       \
+  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                       \
+  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                     \
+  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                \
+  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                              \
+  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)    \
+  TFS(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,      \
+      LoadGlobalWithVector)                                                 \
+  TFS(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,         \
+      LoadGlobalWithVector)                                                 \
+  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                \
+  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                  \
+  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)                \
+  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)           \
+  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)           \
+  /* Code aging */                                                          \
+  CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                     \
+  /* Calls */                                                               \
+  ASM(ArgumentsAdaptorTrampoline)                                           \
+  ASM(CallFunction_ReceiverIsNullOrUndefined)                               \
+  ASM(CallFunction_ReceiverIsNotNullOrUndefined)                            \
+  ASM(CallFunction_ReceiverIsAny)                                           \
+  ASM(TailCallFunction_ReceiverIsNullOrUndefined)                           \
+  ASM(TailCallFunction_ReceiverIsNotNullOrUndefined)                        \
+  ASM(TailCallFunction_ReceiverIsAny)                                       \
+  ASM(CallBoundFunction)                                                    \
+  ASM(TailCallBoundFunction)                                                \
+  ASM(Call_ReceiverIsNullOrUndefined)                                       \
+  ASM(Call_ReceiverIsNotNullOrUndefined)                                    \
+  ASM(Call_ReceiverIsAny)                                                   \
+  ASM(TailCall_ReceiverIsNullOrUndefined)                                   \
+  ASM(TailCall_ReceiverIsNotNullOrUndefined)                                \
+  ASM(TailCall_ReceiverIsAny)                                               \
+  /* Construct */                                                           \
+  ASM(ConstructFunction)                                                    \
+  ASM(ConstructBoundFunction)                                               \
+  ASM(ConstructedNonConstructable)                                          \
+  ASM(ConstructProxy)                                                       \
+  ASM(Construct)                                                            \
+  ASM(JSConstructStubApi)                                                   \
+  ASM(JSConstructStubGeneric)                                               \
+  ASM(JSBuiltinsConstructStub)                                              \
+  ASM(JSBuiltinsConstructStubForDerived)                                    \
+  /* Apply and entries */                                                   \
+  ASM(Apply)                                                                \
+  ASM(JSEntryTrampoline)                                                    \
+  ASM(JSConstructEntryTrampoline)                                           \
+  ASM(ResumeGeneratorTrampoline)                                            \
+  /* Stack and interrupt check */                                           \
+  ASM(InterruptCheck)                                                       \
+  ASM(StackCheck)                                                           \
+  /* Interpreter */                                                         \
+  ASM(InterpreterEntryTrampoline)                                           \
+  ASM(InterpreterMarkBaselineOnReturn)                                      \
+  ASM(InterpreterPushArgsAndCallFunction)                                   \
+  ASM(InterpreterPushArgsAndTailCallFunction)                               \
+  ASM(InterpreterPushArgsAndCall)                                           \
+  ASM(InterpreterPushArgsAndTailCall)                                       \
+  ASM(InterpreterPushArgsAndConstruct)                                      \
+  ASM(InterpreterEnterBytecodeDispatch)                                     \
+  /* Code life-cycle */                                                     \
+  ASM(CompileLazy)                                                          \
+  ASM(CompileBaseline)                                                      \
+  ASM(CompileOptimized)                                                     \
+  ASM(CompileOptimizedConcurrent)                                           \
+  ASM(InOptimizationQueue)                                                  \
+  ASM(InstantiateAsmJs)                                                     \
+  ASM(MarkCodeAsToBeExecutedOnce)                                           \
+  ASM(MarkCodeAsExecutedOnce)                                               \
+  ASM(MarkCodeAsExecutedTwice)                                              \
+  ASM(NotifyDeoptimized)                                                    \
+  ASM(NotifySoftDeoptimized)                                                \
+  ASM(NotifyLazyDeoptimized)                                                \
+  ASM(NotifyStubFailure)                                                    \
+  ASM(NotifyStubFailureSaveDoubles)                                         \
+  ASM(OnStackReplacement)                                                   \
+  /* API callback handling */                                               \
+  API(HandleApiCall)                                                        \
+  API(HandleApiCallAsFunction)                                              \
+  API(HandleApiCallAsConstructor)                                           \
+  ASM(HandleFastApiCall)                                                    \
+  /* Adapters for Turbofan into runtime */                                  \
+  ASM(AllocateInNewSpace)                                                   \
+  ASM(AllocateInOldSpace)                                                   \
+  /* Debugger */                                                            \
+  DBG(Return_DebugBreak)                                                    \
+  DBG(Slot_DebugBreak)                                                      \
+  DBG(FrameDropper_LiveEdit)                                                \
+  /* Primitives */                                                          \
+  ASM(StringToNumber)                                                       \
+  ASM(NonNumberToNumber)                                                    \
+  ASM(ToNumber)                                                             \
+  TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion) \
+  TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion) \
+  TFS(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState,            \
+      TypeConversion)                                                       \
+  TFS(NonPrimitiveToPrimitive_Number, BUILTIN, kNoExtraICState,             \
+      TypeConversion)                                                       \
+  TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,             \
+      TypeConversion)                                                       \
+                                                                            \
+  /* Built-in functions for Javascript */                                   \
+  /* Special internal builtins */                                           \
+  CPP(EmptyFunction)                                                        \
+  CPP(Illegal)                                                              \
+  CPP(RestrictedFunctionPropertiesThrower)                                  \
+  CPP(RestrictedStrictArgumentsPropertiesThrower)                           \
+  /* Array */                                                               \
+  ASM(ArrayCode)                                                            \
+  ASM(InternalArrayCode)                                                    \
+  CPP(ArrayConcat)                                                          \
+  TFJ(ArrayIsArray, 2)                                                      \
+  CPP(ArrayPop)                                                             \
+  CPP(ArrayPush)                                                            \
+  CPP(ArrayShift)                                                           \
+  CPP(ArraySlice)                                                           \
+  CPP(ArraySplice)                                                          \
+  CPP(ArrayUnshift)                                                         \
+  /* ArrayBuffer */                                                         \
+  CPP(ArrayBufferConstructor)                                               \
+  CPP(ArrayBufferConstructor_ConstructStub)                                 \
+  CPP(ArrayBufferPrototypeGetByteLength)                                    \
+  CPP(ArrayBufferIsView)                                                    \
+  /* Boolean */                                                             \
+  CPP(BooleanConstructor)                                                   \
+  CPP(BooleanConstructor_ConstructStub)                                     \
+  TFJ(BooleanPrototypeToString, 1)                                          \
+  TFJ(BooleanPrototypeValueOf, 1)                                           \
+  /* DataView */                                                            \
+  CPP(DataViewConstructor)                                                  \
+  CPP(DataViewConstructor_ConstructStub)                                    \
+  CPP(DataViewPrototypeGetBuffer)                                           \
+  CPP(DataViewPrototypeGetByteLength)                                       \
+  CPP(DataViewPrototypeGetByteOffset)                                       \
+  /* Date */                                                                \
+  CPP(DateConstructor)                                                      \
+  CPP(DateConstructor_ConstructStub)                                        \
+  CPP(DateNow)                                                              \
+  CPP(DateParse)                                                            \
+  CPP(DateUTC)                                                              \
+  CPP(DatePrototypeSetDate)                                                 \
+  CPP(DatePrototypeSetFullYear)                                             \
+  CPP(DatePrototypeSetHours)                                                \
+  CPP(DatePrototypeSetMilliseconds)                                         \
+  CPP(DatePrototypeSetMinutes)                                              \
+  CPP(DatePrototypeSetMonth)                                                \
+  CPP(DatePrototypeSetSeconds)                                              \
+  CPP(DatePrototypeSetTime)                                                 \
+  CPP(DatePrototypeSetUTCDate)                                              \
+  CPP(DatePrototypeSetUTCFullYear)                                          \
+  CPP(DatePrototypeSetUTCHours)                                             \
+  CPP(DatePrototypeSetUTCMilliseconds)                                      \
+  CPP(DatePrototypeSetUTCMinutes)                                           \
+  CPP(DatePrototypeSetUTCMonth)                                             \
+  CPP(DatePrototypeSetUTCSeconds)                                           \
+  CPP(DatePrototypeToDateString)                                            \
+  CPP(DatePrototypeToISOString)                                             \
+  CPP(DatePrototypeToPrimitive)                                             \
+  CPP(DatePrototypeToUTCString)                                             \
+  CPP(DatePrototypeToString)                                                \
+  CPP(DatePrototypeToTimeString)                                            \
+  CPP(DatePrototypeValueOf)                                                 \
+  ASM(DatePrototypeGetDate)                                                 \
+  ASM(DatePrototypeGetDay)                                                  \
+  ASM(DatePrototypeGetFullYear)                                             \
+  ASM(DatePrototypeGetHours)                                                \
+  ASM(DatePrototypeGetMilliseconds)                                         \
+  ASM(DatePrototypeGetMinutes)                                              \
+  ASM(DatePrototypeGetMonth)                                                \
+  ASM(DatePrototypeGetSeconds)                                              \
+  ASM(DatePrototypeGetTime)                                                 \
+  ASM(DatePrototypeGetTimezoneOffset)                                       \
+  ASM(DatePrototypeGetUTCDate)                                              \
+  ASM(DatePrototypeGetUTCDay)                                               \
+  ASM(DatePrototypeGetUTCFullYear)                                          \
+  ASM(DatePrototypeGetUTCHours)                                             \
+  ASM(DatePrototypeGetUTCMilliseconds)                                      \
+  ASM(DatePrototypeGetUTCMinutes)                                           \
+  ASM(DatePrototypeGetUTCMonth)                                             \
+  ASM(DatePrototypeGetUTCSeconds)                                           \
+  CPP(DatePrototypeGetYear)                                                 \
+  CPP(DatePrototypeSetYear)                                                 \
+  CPP(DatePrototypeToJson)                                                  \
+  /* Function */                                                            \
+  CPP(FunctionConstructor)                                                  \
+  ASM(FunctionPrototypeApply)                                               \
+  CPP(FunctionPrototypeBind)                                                \
+  ASM(FunctionPrototypeCall)                                                \
+  TFJ(FunctionPrototypeHasInstance, 2)                                      \
+  CPP(FunctionPrototypeToString)                                            \
+  /* Generator and Async */                                                 \
+  CPP(GeneratorFunctionConstructor)                                         \
+  TFJ(GeneratorPrototypeNext, 2)                                            \
+  TFJ(GeneratorPrototypeReturn, 2)                                          \
+  TFJ(GeneratorPrototypeThrow, 2)                                           \
+  CPP(AsyncFunctionConstructor)                                             \
+  /* Encode and decode */                                                   \
+  CPP(GlobalDecodeURI)                                                      \
+  CPP(GlobalDecodeURIComponent)                                             \
+  CPP(GlobalEncodeURI)                                                      \
+  CPP(GlobalEncodeURIComponent)                                             \
+  CPP(GlobalEscape)                                                         \
+  CPP(GlobalUnescape)                                                       \
+  /* Eval */                                                                \
+  CPP(GlobalEval)                                                           \
+  /* JSON */                                                                \
+  CPP(JsonParse)                                                            \
+  CPP(JsonStringify)                                                        \
+  /* Math */                                                                \
+  TFJ(MathAcos, 2)                                                          \
+  TFJ(MathAcosh, 2)                                                         \
+  TFJ(MathAsin, 2)                                                          \
+  TFJ(MathAsinh, 2)                                                         \
+  TFJ(MathAtan, 2)                                                          \
+  TFJ(MathAtanh, 2)                                                         \
+  TFJ(MathAtan2, 3)                                                         \
+  TFJ(MathCeil, 2)                                                          \
+  TFJ(MathCbrt, 2)                                                          \
+  TFJ(MathAbs, 2)                                                           \
+  TFJ(MathExpm1, 2)                                                         \
+  TFJ(MathClz32, 2)                                                         \
+  TFJ(MathCos, 2)                                                           \
+  TFJ(MathCosh, 2)                                                          \
+  TFJ(MathExp, 2)                                                           \
+  TFJ(MathFloor, 2)                                                         \
+  TFJ(MathFround, 2)                                                        \
+  CPP(MathHypot)                                                            \
+  TFJ(MathImul, 3)                                                          \
+  TFJ(MathLog, 2)                                                           \
+  TFJ(MathLog1p, 2)                                                         \
+  TFJ(MathLog10, 2)                                                         \
+  TFJ(MathLog2, 2)                                                          \
+  ASM(MathMax)                                                              \
+  ASM(MathMin)                                                              \
+  TFJ(MathRound, 2)                                                         \
+  TFJ(MathPow, 3)                                                           \
+  TFJ(MathSign, 2)                                                          \
+  TFJ(MathSin, 2)                                                           \
+  TFJ(MathSinh, 2)                                                          \
+  TFJ(MathTan, 2)                                                           \
+  TFJ(MathTanh, 2)                                                          \
+  TFJ(MathSqrt, 2)                                                          \
+  TFJ(MathTrunc, 2)                                                         \
+  /* Number */                                                              \
+  ASM(NumberConstructor)                                                    \
+  ASM(NumberConstructor_ConstructStub)                                      \
+  CPP(NumberPrototypeToExponential)                                         \
+  CPP(NumberPrototypeToFixed)                                               \
+  CPP(NumberPrototypeToLocaleString)                                        \
+  CPP(NumberPrototypeToPrecision)                                           \
+  CPP(NumberPrototypeToString)                                              \
+  TFJ(NumberPrototypeValueOf, 1)                                            \
+  /* Object */                                                              \
+  CPP(ObjectAssign)                                                         \
+  CPP(ObjectCreate)                                                         \
+  CPP(ObjectDefineGetter)                                                   \
+  CPP(ObjectDefineProperties)                                               \
+  CPP(ObjectDefineProperty)                                                 \
+  CPP(ObjectDefineSetter)                                                   \
+  CPP(ObjectEntries)                                                        \
+  CPP(ObjectFreeze)                                                         \
+  CPP(ObjectGetOwnPropertyDescriptor)                                       \
+  CPP(ObjectGetOwnPropertyDescriptors)                                      \
+  CPP(ObjectGetOwnPropertyNames)                                            \
+  CPP(ObjectGetOwnPropertySymbols)                                          \
+  CPP(ObjectGetPrototypeOf)                                                 \
+  TFJ(ObjectHasOwnProperty, 2)                                              \
+  CPP(ObjectIs)                                                             \
+  CPP(ObjectIsExtensible)                                                   \
+  CPP(ObjectIsFrozen)                                                       \
+  CPP(ObjectIsSealed)                                                       \
+  CPP(ObjectKeys)                                                           \
+  CPP(ObjectLookupGetter)                                                   \
+  CPP(ObjectLookupSetter)                                                   \
+  CPP(ObjectPreventExtensions)                                              \
+  CPP(ObjectPrototypePropertyIsEnumerable)                                  \
+  CPP(ObjectProtoToString)                                                  \
+  CPP(ObjectSeal)                                                           \
+  CPP(ObjectValues)                                                         \
+  /* Proxy */                                                               \
+  CPP(ProxyConstructor)                                                     \
+  CPP(ProxyConstructor_ConstructStub)                                       \
+  /* Reflect */                                                             \
+  ASM(ReflectApply)                                                         \
+  ASM(ReflectConstruct)                                                     \
+  CPP(ReflectDefineProperty)                                                \
+  CPP(ReflectDeleteProperty)                                                \
+  CPP(ReflectGet)                                                           \
+  CPP(ReflectGetOwnPropertyDescriptor)                                      \
+  CPP(ReflectGetPrototypeOf)                                                \
+  CPP(ReflectHas)                                                           \
+  CPP(ReflectIsExtensible)                                                  \
+  CPP(ReflectOwnKeys)                                                       \
+  CPP(ReflectPreventExtensions)                                             \
+  CPP(ReflectSet)                                                           \
+  CPP(ReflectSetPrototypeOf)                                                \
+  /* SharedArrayBuffer */                                                   \
+  CPP(SharedArrayBufferPrototypeGetByteLength)                              \
+  TFJ(AtomicsLoad, 3)                                                       \
+  TFJ(AtomicsStore, 4)                                                      \
+  /* String */                                                              \
+  ASM(StringConstructor)                                                    \
+  ASM(StringConstructor_ConstructStub)                                      \
+  CPP(StringFromCodePoint)                                                  \
+  TFJ(StringFromCharCode, 2)                                                \
+  TFJ(StringPrototypeCharAt, 2)                                             \
+  TFJ(StringPrototypeCharCodeAt, 2)                                         \
+  TFJ(StringPrototypeToString, 1)                                           \
+  CPP(StringPrototypeTrim)                                                  \
+  CPP(StringPrototypeTrimLeft)                                              \
+  CPP(StringPrototypeTrimRight)                                             \
+  TFJ(StringPrototypeValueOf, 1)                                            \
+  /* Symbol */                                                              \
+  CPP(SymbolConstructor)                                                    \
+  CPP(SymbolConstructor_ConstructStub)                                      \
+  TFJ(SymbolPrototypeToPrimitive, 2)                                        \
+  TFJ(SymbolPrototypeToString, 1)                                           \
+  TFJ(SymbolPrototypeValueOf, 1)                                            \
+  /* TypedArray */                                                          \
+  CPP(TypedArrayPrototypeBuffer)                                            \
+  TFJ(TypedArrayPrototypeByteLength, 1)                                     \
+  TFJ(TypedArrayPrototypeByteOffset, 1)                                     \
+  TFJ(TypedArrayPrototypeLength, 1)
 
-// Define list of builtins implemented in assembly.
-#define BUILTIN_LIST_A(V)                                                    \
-  V(AllocateInNewSpace, BUILTIN, kNoExtraICState)                            \
-  V(AllocateInOldSpace, BUILTIN, kNoExtraICState)                            \
-                                                                             \
-  V(ArgumentsAdaptorTrampoline, BUILTIN, kNoExtraICState)                    \
-                                                                             \
-  V(ConstructedNonConstructable, BUILTIN, kNoExtraICState)                   \
-                                                                             \
-  V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)        \
-  V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)     \
-  V(CallFunction_ReceiverIsAny, BUILTIN, kNoExtraICState)                    \
-  V(TailCallFunction_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)    \
-  V(TailCallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState) \
-  V(TailCallFunction_ReceiverIsAny, BUILTIN, kNoExtraICState)                \
-  V(CallBoundFunction, BUILTIN, kNoExtraICState)                             \
-  V(TailCallBoundFunction, BUILTIN, kNoExtraICState)                         \
-  V(Call_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)                \
-  V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)             \
-  V(Call_ReceiverIsAny, BUILTIN, kNoExtraICState)                            \
-  V(TailCall_ReceiverIsNullOrUndefined, BUILTIN, kNoExtraICState)            \
-  V(TailCall_ReceiverIsNotNullOrUndefined, BUILTIN, kNoExtraICState)         \
-  V(TailCall_ReceiverIsAny, BUILTIN, kNoExtraICState)                        \
-                                                                             \
-  V(ConstructFunction, BUILTIN, kNoExtraICState)                             \
-  V(ConstructBoundFunction, BUILTIN, kNoExtraICState)                        \
-  V(ConstructProxy, BUILTIN, kNoExtraICState)                                \
-  V(Construct, BUILTIN, kNoExtraICState)                                     \
-                                                                             \
-  V(StringToNumber, BUILTIN, kNoExtraICState)                                \
-  V(NonNumberToNumber, BUILTIN, kNoExtraICState)                             \
-  V(ToNumber, BUILTIN, kNoExtraICState)                                      \
-                                                                             \
-  V(Apply, BUILTIN, kNoExtraICState)                                         \
-                                                                             \
-  V(HandleFastApiCall, BUILTIN, kNoExtraICState)                             \
-                                                                             \
-  V(InOptimizationQueue, BUILTIN, kNoExtraICState)                           \
-  V(JSConstructStubGeneric, BUILTIN, kNoExtraICState)                        \
-  V(JSBuiltinsConstructStub, BUILTIN, kNoExtraICState)                       \
-  V(JSBuiltinsConstructStubForDerived, BUILTIN, kNoExtraICState)             \
-  V(JSConstructStubApi, BUILTIN, kNoExtraICState)                            \
-  V(JSEntryTrampoline, BUILTIN, kNoExtraICState)                             \
-  V(JSConstructEntryTrampoline, BUILTIN, kNoExtraICState)                    \
-  V(ResumeGeneratorTrampoline, BUILTIN, kNoExtraICState)                     \
-  V(InstantiateAsmJs, BUILTIN, kNoExtraICState)                              \
-  V(CompileLazy, BUILTIN, kNoExtraICState)                                   \
-  V(CompileBaseline, BUILTIN, kNoExtraICState)                               \
-  V(CompileOptimized, BUILTIN, kNoExtraICState)                              \
-  V(CompileOptimizedConcurrent, BUILTIN, kNoExtraICState)                    \
-  V(NotifyDeoptimized, BUILTIN, kNoExtraICState)                             \
-  V(NotifySoftDeoptimized, BUILTIN, kNoExtraICState)                         \
-  V(NotifyLazyDeoptimized, BUILTIN, kNoExtraICState)                         \
-  V(NotifyStubFailure, BUILTIN, kNoExtraICState)                             \
-  V(NotifyStubFailureSaveDoubles, BUILTIN, kNoExtraICState)                  \
-                                                                             \
-  V(InterpreterEntryTrampoline, BUILTIN, kNoExtraICState)                    \
-  V(InterpreterMarkBaselineOnReturn, BUILTIN, kNoExtraICState)               \
-  V(InterpreterPushArgsAndCallFunction, BUILTIN, kNoExtraICState)            \
-  V(InterpreterPushArgsAndTailCallFunction, BUILTIN, kNoExtraICState)        \
-  V(InterpreterPushArgsAndCall, BUILTIN, kNoExtraICState)                    \
-  V(InterpreterPushArgsAndTailCall, BUILTIN, kNoExtraICState)                \
-  V(InterpreterPushArgsAndConstruct, BUILTIN, kNoExtraICState)               \
-  V(InterpreterEnterBytecodeDispatch, BUILTIN, kNoExtraICState)              \
-                                                                             \
-  V(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState)                              \
-  V(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState)                             \
-  V(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
-  V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                 \
-                                                                             \
-  V(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
-                                                                             \
-  V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)               \
-  V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
-    StoreICState::kStrictModeState)                                          \
-                                                                             \
-  V(DatePrototypeGetDate, BUILTIN, kNoExtraICState)                          \
-  V(DatePrototypeGetDay, BUILTIN, kNoExtraICState)                           \
-  V(DatePrototypeGetFullYear, BUILTIN, kNoExtraICState)                      \
-  V(DatePrototypeGetHours, BUILTIN, kNoExtraICState)                         \
-  V(DatePrototypeGetMilliseconds, BUILTIN, kNoExtraICState)                  \
-  V(DatePrototypeGetMinutes, BUILTIN, kNoExtraICState)                       \
-  V(DatePrototypeGetMonth, BUILTIN, kNoExtraICState)                         \
-  V(DatePrototypeGetSeconds, BUILTIN, kNoExtraICState)                       \
-  V(DatePrototypeGetTime, BUILTIN, kNoExtraICState)                          \
-  V(DatePrototypeGetTimezoneOffset, BUILTIN, kNoExtraICState)                \
-  V(DatePrototypeGetUTCDate, BUILTIN, kNoExtraICState)                       \
-  V(DatePrototypeGetUTCDay, BUILTIN, kNoExtraICState)                        \
-  V(DatePrototypeGetUTCFullYear, BUILTIN, kNoExtraICState)                   \
-  V(DatePrototypeGetUTCHours, BUILTIN, kNoExtraICState)                      \
-  V(DatePrototypeGetUTCMilliseconds, BUILTIN, kNoExtraICState)               \
-  V(DatePrototypeGetUTCMinutes, BUILTIN, kNoExtraICState)                    \
-  V(DatePrototypeGetUTCMonth, BUILTIN, kNoExtraICState)                      \
-  V(DatePrototypeGetUTCSeconds, BUILTIN, kNoExtraICState)                    \
-                                                                             \
-  V(FunctionPrototypeApply, BUILTIN, kNoExtraICState)                        \
-  V(FunctionPrototypeCall, BUILTIN, kNoExtraICState)                         \
-                                                                             \
-  V(ReflectApply, BUILTIN, kNoExtraICState)                                  \
-  V(ReflectConstruct, BUILTIN, kNoExtraICState)                              \
-                                                                             \
-  V(InternalArrayCode, BUILTIN, kNoExtraICState)                             \
-  V(ArrayCode, BUILTIN, kNoExtraICState)                                     \
-                                                                             \
-  V(MathMax, BUILTIN, kNoExtraICState)                                       \
-  V(MathMin, BUILTIN, kNoExtraICState)                                       \
-                                                                             \
-  V(NumberConstructor, BUILTIN, kNoExtraICState)                             \
-  V(NumberConstructor_ConstructStub, BUILTIN, kNoExtraICState)               \
-                                                                             \
-  V(StringConstructor, BUILTIN, kNoExtraICState)                             \
-  V(StringConstructor_ConstructStub, BUILTIN, kNoExtraICState)               \
-                                                                             \
-  V(OnStackReplacement, BUILTIN, kNoExtraICState)                            \
-  V(InterruptCheck, BUILTIN, kNoExtraICState)                                \
-  V(StackCheck, BUILTIN, kNoExtraICState)                                    \
-                                                                             \
-  V(MarkCodeAsToBeExecutedOnce, BUILTIN, kNoExtraICState)                    \
-  V(MarkCodeAsExecutedOnce, BUILTIN, kNoExtraICState)                        \
-  V(MarkCodeAsExecutedTwice, BUILTIN, kNoExtraICState)                       \
-  CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
+#define IGNORE_BUILTIN(...)
 
-// Define list of builtins implemented in TurboFan (with JS linkage).
-#define BUILTIN_LIST_T(V)             \
-  V(BooleanPrototypeToString, 1)      \
-  V(BooleanPrototypeValueOf, 1)       \
-  V(FunctionPrototypeHasInstance, 2)  \
-  V(GeneratorPrototypeNext, 2)        \
-  V(GeneratorPrototypeReturn, 2)      \
-  V(GeneratorPrototypeThrow, 2)       \
-  V(MathAcos, 2)                      \
-  V(MathAcosh, 2)                     \
-  V(MathAsin, 2)                      \
-  V(MathAsinh, 2)                     \
-  V(MathAtan, 2)                      \
-  V(MathAtanh, 2)                     \
-  V(MathAtan2, 3)                     \
-  V(MathCeil, 2)                      \
-  V(MathCbrt, 2)                      \
-  V(MathAbs, 2)                       \
-  V(MathExpm1, 2)                     \
-  V(MathClz32, 2)                     \
-  V(MathCos, 2)                       \
-  V(MathCosh, 2)                      \
-  V(MathExp, 2)                       \
-  V(MathFloor, 2)                     \
-  V(MathFround, 2)                    \
-  V(MathImul, 3)                      \
-  V(MathLog, 2)                       \
-  V(MathLog1p, 2)                     \
-  V(MathLog10, 2)                     \
-  V(MathLog2, 2)                      \
-  V(MathRound, 2)                     \
-  V(MathPow, 3)                       \
-  V(MathSign, 2)                      \
-  V(MathSin, 2)                       \
-  V(MathSinh, 2)                      \
-  V(MathTan, 2)                       \
-  V(MathTanh, 2)                      \
-  V(MathSqrt, 2)                      \
-  V(MathTrunc, 2)                     \
-  V(NumberPrototypeValueOf, 1)        \
-  V(ObjectHasOwnProperty, 2)          \
-  V(ArrayIsArray, 2)                  \
-  V(StringFromCharCode, 2)            \
-  V(StringPrototypeCharAt, 2)         \
-  V(StringPrototypeCharCodeAt, 2)     \
-  V(StringPrototypeToString, 1)       \
-  V(StringPrototypeValueOf, 1)        \
-  V(SymbolPrototypeToPrimitive, 2)    \
-  V(SymbolPrototypeToString, 1)       \
-  V(SymbolPrototypeValueOf, 1)        \
-  V(TypedArrayPrototypeByteLength, 1) \
-  V(TypedArrayPrototypeByteOffset, 1) \
-  V(TypedArrayPrototypeLength, 1)     \
-  V(AtomicsLoad, 3)                   \
-  V(AtomicsStore, 4)
+#define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
 
-// Define list of builtins implemented in TurboFan (with CallStub linkage).
-#define BUILTIN_LIST_S(V)                                                      \
-  V(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)         \
-  V(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,           \
-    LoadGlobalWithVector)                                                      \
-  V(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,              \
-    LoadGlobalWithVector)                                                      \
-  V(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                     \
-  V(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                       \
-  V(StoreIC_Miss, BUILTIN, kNoExtraICState, VectorStoreIC)                     \
-  V(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, VectorStoreIC)                \
-  V(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, VectorStoreIC)                \
-  V(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)      \
-  V(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)      \
-  V(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState, TypeConversion) \
-  V(NonPrimitiveToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)  \
-  V(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)
+#define BUILTIN_LIST_C(V)                                            \
+  BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN)
 
-// Define list of builtin handlers implemented in assembly.
-#define BUILTIN_LIST_H(V)                    \
-  V(KeyedLoadIC_Slow,        KEYED_LOAD_IC)  \
-  V(KeyedStoreIC_Slow,       KEYED_STORE_IC) \
-  V(LoadIC_Normal,           LOAD_IC)        \
-  V(StoreIC_Normal,          STORE_IC)
+#define BUILTIN_LIST_A(V)                                                      \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, V, V)
 
-// Define list of builtins used by the debugger implemented in assembly.
-#define BUILTIN_LIST_DEBUG_A(V)                  \
-  V(Return_DebugBreak, BUILTIN, kNoExtraICState) \
-  V(Slot_DebugBreak, BUILTIN, kNoExtraICState)   \
-  V(FrameDropper_LiveEdit, BUILTIN, kNoExtraICState)
+#define BUILTIN_LIST_TFS(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
+#define BUILTIN_LIST_DBG(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+
+// Forward declarations.
+class CodeStubAssembler;
 class BuiltinFunctionTable;
 class ObjectVisitor;
 
@@ -411,49 +421,22 @@ class Builtins {
   const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM_C(name, ignore) k##name,
-#define DEF_ENUM_A(name, kind, extra) k##name,
-#define DEF_ENUM_T(name, argc) k##name,
-#define DEF_ENUM_S(name, kind, extra, interface_descriptor) k##name,
-#define DEF_ENUM_H(name, kind) k##name,
-    BUILTIN_LIST_C(DEF_ENUM_C)
-    BUILTIN_LIST_A(DEF_ENUM_A)
-    BUILTIN_LIST_T(DEF_ENUM_T)
-    BUILTIN_LIST_S(DEF_ENUM_S)
-    BUILTIN_LIST_H(DEF_ENUM_H)
-    BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
-#undef DEF_ENUM_C
-#undef DEF_ENUM_A
-#undef DEF_ENUM_T
-#undef DEF_ENUM_S
-#undef DEF_ENUM_H
-    builtin_count
+#define DEF_ENUM(name, ...) k##name,
+    BUILTIN_LIST_ALL(DEF_ENUM)
+#undef DEF_ENUM
+        builtin_count
   };
 
   enum CFunctionId {
-#define DEF_ENUM_C(name, ignore) c_##name,
-    BUILTIN_LIST_C(DEF_ENUM_C)
-#undef DEF_ENUM_C
+#define DEF_ENUM(name) c_##name,
+    BUILTIN_LIST_C(DEF_ENUM)
+#undef DEF_ENUM
         cfunction_count
   };
 
-#define DECLARE_BUILTIN_ACCESSOR_C(name, ignore) Handle<Code> name();
-#define DECLARE_BUILTIN_ACCESSOR_A(name, kind, extra) Handle<Code> name();
-#define DECLARE_BUILTIN_ACCESSOR_T(name, argc) Handle<Code> name();
-#define DECLARE_BUILTIN_ACCESSOR_S(name, kind, extra, interface_descriptor) \
-  Handle<Code> name();
-#define DECLARE_BUILTIN_ACCESSOR_H(name, kind) Handle<Code> name();
-  BUILTIN_LIST_C(DECLARE_BUILTIN_ACCESSOR_C)
-  BUILTIN_LIST_A(DECLARE_BUILTIN_ACCESSOR_A)
-  BUILTIN_LIST_T(DECLARE_BUILTIN_ACCESSOR_T)
-  BUILTIN_LIST_S(DECLARE_BUILTIN_ACCESSOR_S)
-  BUILTIN_LIST_H(DECLARE_BUILTIN_ACCESSOR_H)
-  BUILTIN_LIST_DEBUG_A(DECLARE_BUILTIN_ACCESSOR_A)
-#undef DECLARE_BUILTIN_ACCESSOR_C
-#undef DECLARE_BUILTIN_ACCESSOR_A
-#undef DECLARE_BUILTIN_ACCESSOR_T
-#undef DECLARE_BUILTIN_ACCESSOR_S
-#undef DECLARE_BUILTIN_ACCESSOR_H
+#define DECLARE_BUILTIN_ACCESSOR(name, ...) Handle<Code> name();
+  BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
+#undef DECLARE_BUILTIN_ACCESSOR
 
   // Convenience wrappers.
   Handle<Code> CallFunction(

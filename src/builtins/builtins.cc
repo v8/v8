@@ -6314,7 +6314,7 @@ Builtins::Builtins() : initialized_(false) {
 
 Builtins::~Builtins() {}
 
-#define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
+#define DEF_ENUM_C(name) FUNCTION_ADDR(Builtin_##name),
 Address const Builtins::c_functions_[cfunction_count] = {
     BUILTIN_LIST_C(DEF_ENUM_C)};
 #undef DEF_ENUM_C
@@ -6437,73 +6437,80 @@ void Builtins::InitBuiltinFunctionTable() {
   functions[builtin_count].exit_frame_type = EXIT;
   functions[builtin_count].argc = 0;
 
-#define DEF_FUNCTION_PTR_C(aname, aexit_frame_type)       \
+#define DEF_CPP(Name)                                     \
   functions->builder = &MacroAssemblerBuilder;            \
   functions->generator = FUNCTION_ADDR(Generate_Adaptor); \
-  functions->c_code = FUNCTION_ADDR(Builtin_##aname);     \
-  functions->s_name = #aname;                             \
-  functions->name = c_##aname;                            \
+  functions->c_code = FUNCTION_ADDR(Builtin_##Name);      \
+  functions->s_name = #Name;                              \
+  functions->name = c_##Name;                             \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
-  functions->exit_frame_type = aexit_frame_type;          \
+  functions->exit_frame_type = BUILTIN_EXIT;              \
   functions->argc = 0;                                    \
   ++functions;
 
-#define DEF_FUNCTION_PTR_A(aname, kind, extra)              \
-  functions->builder = &MacroAssemblerBuilder;              \
-  functions->generator = FUNCTION_ADDR(Generate_##aname);   \
-  functions->c_code = NULL;                                 \
-  functions->s_name = #aname;                               \
-  functions->name = k##aname;                               \
-  functions->flags = Code::ComputeFlags(Code::kind, extra); \
-  functions->exit_frame_type = EXIT;                        \
-  functions->argc = 0;                                      \
-  ++functions;
-
-#define DEF_FUNCTION_PTR_T(aname, aargc)                  \
-  functions->builder = &CodeStubAssemblerBuilderJS;       \
-  functions->generator = FUNCTION_ADDR(Generate_##aname); \
-  functions->c_code = NULL;                               \
-  functions->s_name = #aname;                             \
-  functions->name = k##aname;                             \
+#define DEF_API(Name)                                     \
+  functions->builder = &MacroAssemblerBuilder;            \
+  functions->generator = FUNCTION_ADDR(Generate_Adaptor); \
+  functions->c_code = FUNCTION_ADDR(Builtin_##Name);      \
+  functions->s_name = #Name;                              \
+  functions->name = c_##Name;                             \
   functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
   functions->exit_frame_type = EXIT;                      \
-  functions->argc = aargc;                                \
+  functions->argc = 0;                                    \
   ++functions;
 
-#define DEF_FUNCTION_PTR_S(aname, kind, extra, interface_descriptor) \
-  functions->builder = &CodeStubAssemblerBuilderCS;                  \
-  functions->generator = FUNCTION_ADDR(Generate_##aname);            \
-  functions->c_code = NULL;                                          \
-  functions->s_name = #aname;                                        \
-  functions->name = k##aname;                                        \
-  functions->flags = Code::ComputeFlags(Code::kind, extra);          \
-  functions->exit_frame_type = EXIT;                                 \
-  functions->argc = CallDescriptors::interface_descriptor;           \
+#define DEF_TFJ(Name, Argc)                              \
+  functions->builder = &CodeStubAssemblerBuilderJS;      \
+  functions->generator = FUNCTION_ADDR(Generate_##Name); \
+  functions->c_code = NULL;                              \
+  functions->s_name = #Name;                             \
+  functions->name = k##Name;                             \
+  functions->flags = Code::ComputeFlags(Code::BUILTIN);  \
+  functions->exit_frame_type = EXIT;                     \
+  functions->argc = Argc;                                \
   ++functions;
 
-#define DEF_FUNCTION_PTR_H(aname, kind)                     \
-  functions->builder = &MacroAssemblerBuilder;              \
-  functions->generator = FUNCTION_ADDR(Generate_##aname);   \
+#define DEF_TFS(Name, Kind, Extra, InterfaceDescriptor)     \
+  functions->builder = &CodeStubAssemblerBuilderCS;         \
+  functions->generator = FUNCTION_ADDR(Generate_##Name);    \
   functions->c_code = NULL;                                 \
-  functions->s_name = #aname;                               \
-  functions->name = k##aname;                               \
-  functions->flags = Code::ComputeHandlerFlags(Code::kind); \
+  functions->s_name = #Name;                                \
+  functions->name = k##Name;                                \
+  functions->flags = Code::ComputeFlags(Code::Kind, Extra); \
+  functions->exit_frame_type = EXIT;                        \
+  functions->argc = CallDescriptors::InterfaceDescriptor;   \
+  ++functions;
+
+#define DEF_ASM(Name)                                    \
+  functions->builder = &MacroAssemblerBuilder;           \
+  functions->generator = FUNCTION_ADDR(Generate_##Name); \
+  functions->c_code = NULL;                              \
+  functions->s_name = #Name;                             \
+  functions->name = k##Name;                             \
+  functions->flags = Code::ComputeFlags(Code::BUILTIN);  \
+  functions->exit_frame_type = EXIT;                     \
+  functions->argc = 0;                                   \
+  ++functions;
+
+#define DEF_ASH(Name, Kind, Extra)                          \
+  functions->builder = &MacroAssemblerBuilder;              \
+  functions->generator = FUNCTION_ADDR(Generate_##Name);    \
+  functions->c_code = NULL;                                 \
+  functions->s_name = #Name;                                \
+  functions->name = k##Name;                                \
+  functions->flags = Code::ComputeFlags(Code::Kind, Extra); \
   functions->exit_frame_type = EXIT;                        \
   functions->argc = 0;                                      \
   ++functions;
 
-  BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
-  BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
-  BUILTIN_LIST_T(DEF_FUNCTION_PTR_T)
-  BUILTIN_LIST_S(DEF_FUNCTION_PTR_S)
-  BUILTIN_LIST_H(DEF_FUNCTION_PTR_H)
-  BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
+  BUILTIN_LIST(DEF_CPP, DEF_API, DEF_TFJ, DEF_TFS, DEF_ASM, DEF_ASH, DEF_ASM)
 
-#undef DEF_FUNCTION_PTR_C
-#undef DEF_FUNCTION_PTR_A
-#undef DEF_FUNCTION_PTR_T
-#undef DEF_FUNCTION_PTR_S
-#undef DEF_FUNCTION_PTR_H
+#undef DEF_CPP
+#undef DEF_API
+#undef DEF_TFJ
+#undef DEF_TFS
+#undef DEF_ASM
+#undef DEF_ASH
 }
 
 void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
@@ -6514,7 +6521,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 
 #define INITIALIZE_CALL_DESCRIPTOR(name, kind, extra, interface_descriptor) \
   { interface_descriptor##Descriptor descriptor(isolate); }
-  BUILTIN_LIST_S(INITIALIZE_CALL_DESCRIPTOR)
+  BUILTIN_LIST_TFS(INITIALIZE_CALL_DESCRIPTOR)
 #undef INITIALIZE_CALL_DESCRIPTOR
 
   const BuiltinDesc* functions = builtin_function_table.functions();
@@ -6814,42 +6821,13 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   a->Return(a->Int32Constant(0));
 }
 
-#define DEFINE_BUILTIN_ACCESSOR_C(name, ignore)                               \
-  Handle<Code> Builtins::name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+#define DEFINE_BUILTIN_ACCESSOR(Name, ...)                                    \
+  Handle<Code> Builtins::Name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##Name)); \
     return Handle<Code>(code_address);                                        \
   }
-#define DEFINE_BUILTIN_ACCESSOR_A(name, kind, extra)                          \
-  Handle<Code> Builtins::name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
-    return Handle<Code>(code_address);                                        \
-  }
-#define DEFINE_BUILTIN_ACCESSOR_T(name, argc)                                 \
-  Handle<Code> Builtins::name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
-    return Handle<Code>(code_address);                                        \
-  }
-#define DEFINE_BUILTIN_ACCESSOR_S(name, kind, extra, interface_descriptor)    \
-  Handle<Code> Builtins::name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
-    return Handle<Code>(code_address);                                        \
-  }
-#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)                                 \
-  Handle<Code> Builtins::name() {                                             \
-    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
-    return Handle<Code>(code_address);                                        \
-  }
-BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
-BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
-BUILTIN_LIST_T(DEFINE_BUILTIN_ACCESSOR_T)
-BUILTIN_LIST_S(DEFINE_BUILTIN_ACCESSOR_S)
-BUILTIN_LIST_H(DEFINE_BUILTIN_ACCESSOR_H)
-BUILTIN_LIST_DEBUG_A(DEFINE_BUILTIN_ACCESSOR_A)
-#undef DEFINE_BUILTIN_ACCESSOR_C
-#undef DEFINE_BUILTIN_ACCESSOR_A
-#undef DEFINE_BUILTIN_ACCESSOR_T
-#undef DEFINE_BUILTIN_ACCESSOR_S
-#undef DEFINE_BUILTIN_ACCESSOR_H
+BUILTIN_LIST_ALL(DEFINE_BUILTIN_ACCESSOR)
+#undef DEFINE_BUILTIN_ACCESSOR
 
 }  // namespace internal
 }  // namespace v8

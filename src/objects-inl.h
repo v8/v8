@@ -5172,8 +5172,8 @@ bool Code::is_inline_cache_stub() {
 bool Code::is_debug_stub() {
   if (kind() != BUILTIN) return false;
   switch (builtin_index()) {
-#define CASE_DEBUG_BUILTIN(name, kind, extra) case Builtins::k##name:
-    BUILTIN_LIST_DEBUG_A(CASE_DEBUG_BUILTIN)
+#define CASE_DEBUG_BUILTIN(name) case Builtins::k##name:
+    BUILTIN_LIST_DBG(CASE_DEBUG_BUILTIN)
 #undef CASE_DEBUG_BUILTIN
       return true;
     default:
