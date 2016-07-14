@@ -10131,12 +10131,6 @@ static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
   return false;
 }
 
-static bool AccessAlwaysAllowed(Local<v8::Context> accessing_context,
-                                Local<v8::Object> global,
-                                Local<v8::Value> data) {
-  i::PrintF("Access allowed.\n");
-  return true;
-}
 
 THREADED_TEST(AccessControlGetOwnPropertyNames) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -25348,74 +25342,4 @@ THREADED_TEST(ImmutableProto) {
   CHECK(new_proto.As<v8::Object>()
             ->Equals(context.local(), original_proto)
             .FromJust());
-}
-
-Local<v8::Context> call_eval_context;
-Local<v8::Function> call_eval_bound_function;
-
-static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Context::Scope scope(call_eval_context);
-  args.GetReturnValue().Set(
-      call_eval_bound_function
-          ->Call(call_eval_context, call_eval_context->Global(), 0, NULL)
-          .ToLocalChecked());
-}
-
-TEST(CrossActivationEval) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  {
-    call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
-    call_eval_bound_function =
-        Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
-  }
-  env->Global()
-      ->Set(env.local(), v8_str("CallEval"),
-            v8::FunctionTemplate::New(isolate, CallEval)
-                ->GetFunction(env.local())
-                .ToLocalChecked())
-      .FromJust();
-  Local<Value> result = CompileRun("CallEval();");
-  CHECK(result->IsInt32());
-  CHECK_EQ(1, result->Int32Value(env.local()).FromJust());
-}
-
-TEST(EvalInAccessCheckedContext) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-
-  v8::Local<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New(isolate);
-
-  obj_template->SetAccessCheckCallback(AccessAlwaysAllowed);
-
-  v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
-  v8::Local<Context> context1 = Context::New(isolate, NULL, obj_template);
-
-  Local<Value> foo = v8_str("foo");
-  Local<Value> bar = v8_str("bar");
-
-  // Set to different domains.
-  context0->SetSecurityToken(foo);
-  context1->SetSecurityToken(bar);
-
-  // Set up function in context0 that uses eval from context0.
-  context0->Enter();
-  v8::Local<v8::Value> fun = CompileRun(
-      "var x = 42;"
-      "(function() {"
-      "  var e = eval;"
-      "  return function(s) { return e(s); }"
-      "})()");
-  context0->Exit();
-
-  // Put the function into context1 and call it. Since the access check
-  // callback always returns true, the call succeeds even though the tokens
-  // are different.
-  context1->Enter();
-  context1->Global()->Set(context1, v8_str("fun"), fun).FromJust();
-  v8::Local<v8::Value> x_value = CompileRun("fun('x')");
-  CHECK_EQ(42, x_value->Int32Value(context1).FromJust());
-  context1->Exit();
 }
