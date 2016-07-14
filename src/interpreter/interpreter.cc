@@ -10,7 +10,6 @@
 #include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/factory.h"
-#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"

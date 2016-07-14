@@ -4,7 +4,6 @@
 
 #include "src/extensions/ignition-statistics-extension.h"
 
-#include "src/base/logging.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"

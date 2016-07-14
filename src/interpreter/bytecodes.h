@@ -5,13 +5,12 @@
 #ifndef V8_INTERPRETER_BYTECODES_H_
 #define V8_INTERPRETER_BYTECODES_H_
 
-#include <cstdint>
 #include <iosfwd>
-#include <string>
 
-// This interface and it's implementation are independent of the
-// libv8_base library as they are used by the interpreter and the
-// standalone mkpeephole table generator program.
+// Clients of this interface shouldn't depend on lots of interpreter internals.
+// Do not include anything from src/interpreter here!
+#include "src/frames.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -287,12 +286,12 @@ enum class AccumulatorUse : uint8_t {
   kReadWrite = kRead | kWrite
 };
 
-inline AccumulatorUse operator&(AccumulatorUse lhs, AccumulatorUse rhs) {
+V8_INLINE AccumulatorUse operator&(AccumulatorUse lhs, AccumulatorUse rhs) {
   int result = static_cast<int>(lhs) & static_cast<int>(rhs);
   return static_cast<AccumulatorUse>(result);
 }
 
-inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
+V8_INLINE AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
   int result = static_cast<int>(lhs) | static_cast<int>(rhs);
   return static_cast<AccumulatorUse>(result);
 }
@@ -349,6 +348,7 @@ enum class OperandType : uint8_t {
 #undef COUNT_OPERAND_TYPES
 };
 
+
 // Enumeration of interpreter bytecodes.
 enum class Bytecode : uint8_t {
 #define DECLARE_BYTECODE(Name, ...) k##Name,
@@ -361,7 +361,94 @@ enum class Bytecode : uint8_t {
 #undef COUNT_BYTECODE
 };
 
-class Bytecodes final {
+
+// An interpreter Register which is located in the function's Register file
+// in its stack-frame. Register hold parameters, this, and expression values.
+class Register final {
+ public:
+  explicit Register(int index = kInvalidIndex) : index_(index) {}
+
+  int index() const { return index_; }
+  bool is_parameter() const { return index() < 0; }
+  bool is_valid() const { return index_ != kInvalidIndex; }
+
+  static Register FromParameterIndex(int index, int parameter_count);
+  int ToParameterIndex(int parameter_count) const;
+
+  // Returns an invalid register.
+  static Register invalid_value() { return Register(); }
+
+  // Returns the register for the function's closure object.
+  static Register function_closure();
+  bool is_function_closure() const;
+
+  // Returns the register which holds the current context object.
+  static Register current_context();
+  bool is_current_context() const;
+
+  // Returns the register for the incoming new target value.
+  static Register new_target();
+  bool is_new_target() const;
+
+  // Returns the register for the bytecode array.
+  static Register bytecode_array();
+  bool is_bytecode_array() const;
+
+  // Returns the register for the saved bytecode offset.
+  static Register bytecode_offset();
+  bool is_bytecode_offset() const;
+
+  // Returns a register that can be used to represent the accumulator
+  // within code in the interpreter, but should never be emitted in
+  // bytecode.
+  static Register virtual_accumulator();
+
+  OperandSize SizeOfOperand() const;
+
+  int32_t ToOperand() const { return kRegisterFileStartOffset - index_; }
+  static Register FromOperand(int32_t operand) {
+    return Register(kRegisterFileStartOffset - operand);
+  }
+
+  static bool AreContiguous(Register reg1, Register reg2,
+                            Register reg3 = Register(),
+                            Register reg4 = Register(),
+                            Register reg5 = Register());
+
+  std::string ToString(int parameter_count);
+
+  bool operator==(const Register& other) const {
+    return index() == other.index();
+  }
+  bool operator!=(const Register& other) const {
+    return index() != other.index();
+  }
+  bool operator<(const Register& other) const {
+    return index() < other.index();
+  }
+  bool operator<=(const Register& other) const {
+    return index() <= other.index();
+  }
+  bool operator>(const Register& other) const {
+    return index() > other.index();
+  }
+  bool operator>=(const Register& other) const {
+    return index() >= other.index();
+  }
+
+ private:
+  static const int kInvalidIndex = kMaxInt;
+  static const int kRegisterFileStartOffset =
+      InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
+
+  void* operator new(size_t size);
+  void operator delete(void* p);
+
+  int index_;
+};
+
+
+class Bytecodes {
  public:
   //  The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 4;
@@ -385,7 +472,10 @@ class Bytecodes final {
   static const char* OperandSizeToString(OperandSize operand_size);
 
   // Returns byte value of bytecode.
-  static uint8_t ToByte(Bytecode bytecode);
+  static uint8_t ToByte(Bytecode bytecode) {
+    DCHECK_LE(bytecode, Bytecode::kLast);
+    return static_cast<uint8_t>(bytecode);
+  }
 
   // Returns bytecode for |value|.
   static Bytecode FromByte(uint8_t value);
@@ -546,6 +636,25 @@ class Bytecodes final {
   // Returns true if |operand_type| is unsigned, false if signed.
   static bool IsUnsignedOperandType(OperandType operand_type);
 
+  // Decodes a register operand in a byte array.
+  static Register DecodeRegisterOperand(const uint8_t* operand_start,
+                                        OperandType operand_type,
+                                        OperandScale operand_scale);
+
+  // Decodes a signed operand in a byte array.
+  static int32_t DecodeSignedOperand(const uint8_t* operand_start,
+                                     OperandType operand_type,
+                                     OperandScale operand_scale);
+
+  // Decodes an unsigned operand in a byte array.
+  static uint32_t DecodeUnsignedOperand(const uint8_t* operand_start,
+                                        OperandType operand_type,
+                                        OperandScale operand_scale);
+
+  // Decode a single bytecode and operands to |os|.
+  static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
+                              int number_of_parameters);
+
   // Returns true if a handler is generated for a bytecode at a given
   // operand scale. All bytecodes have handlers at OperandScale::kSingle,
   // but only bytecodes with scalable operands have handlers with larger
@@ -557,6 +666,33 @@ class Bytecodes final {
 
   // Return the operand size required to hold an unsigned operand.
   static OperandSize SizeForUnsignedOperand(uint32_t value);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Bytecodes);
+};
+
+class CreateObjectLiteralFlags {
+ public:
+  class FlagsBits : public BitField8<int, 0, 3> {};
+  class FastClonePropertiesCountBits
+      : public BitField8<int, FlagsBits::kNext, 3> {};
+
+  static uint8_t Encode(bool fast_clone_supported, int properties_count,
+                        int runtime_flags);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateObjectLiteralFlags);
+};
+
+class CreateClosureFlags {
+ public:
+  class PretenuredBit : public BitField8<bool, 0, 1> {};
+  class FastNewClosureBit : public BitField8<bool, PretenuredBit::kNext, 1> {};
+
+  static uint8_t Encode(bool pretenure, bool is_function_scope);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);
 };
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);

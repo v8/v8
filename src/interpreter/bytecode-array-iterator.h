@@ -6,7 +6,6 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_ITERATOR_H_
 
 #include "src/handles.h"
-#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
