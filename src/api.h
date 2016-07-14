@@ -184,6 +184,7 @@ class Utils {
     if (!condition) Utils::ReportApiFailure(location, message);
     return condition;
   }
+  static void ReportOOMFailure(const char* location, bool is_heap_oom);
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);

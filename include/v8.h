@@ -5016,6 +5016,7 @@ class V8_EXPORT ResourceConstraints {
 
 typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
+typedef void (*OOMErrorCallback)(const char* location, bool is_heap_oom);
 
 typedef void (*MessageCallback)(Local<Message> message, Local<Value> error);
 
@@ -6328,6 +6329,9 @@ class V8_EXPORT Isolate {
 
   /** Set the callback to invoke in case of fatal errors. */
   void SetFatalErrorHandler(FatalErrorCallback that);
+
+  /** Set the callback to invoke in case of OOM errors. */
+  void SetOOMErrorHandler(OOMErrorCallback that);
 
   /**
    * Set the callback to invoke to check if code generation from
@@ -8874,7 +8878,6 @@ void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->SetFatalErrorHandler(callback);
 }
-
 
 void V8::RemoveGCPrologueCallback(GCCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();

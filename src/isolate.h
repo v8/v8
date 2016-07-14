@@ -398,6 +398,7 @@ typedef List<HeapObject*> DebugObjectCache;
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
   V(FatalErrorCallback, exception_behavior, nullptr)                          \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \

@@ -253,7 +253,7 @@ void i::FatalProcessOutOfMemory(const char* location) {
 
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
-// The default fatal error handler is called and execution is stopped.
+// The default OOM error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
   i::Isolate* isolate = i::Isolate::Current();
   char last_few_messages[Heap::kTraceRingBufferSize + 1];
@@ -316,9 +316,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
     PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
     PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
   }
-  Utils::ApiCheck(false, location, is_heap_oom
-                  ? "Allocation failed - JavaScript heap out of memory"
-                  : "Allocation failed - process out of memory");
+  Utils::ReportOOMFailure(location, is_heap_oom);
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -327,7 +325,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
 void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
   FatalErrorCallback callback = isolate->exception_behavior();
-  if (callback == NULL) {
+  if (callback == nullptr) {
     base::OS::PrintError("\n#\n# Fatal error in %s\n# %s\n#\n\n", location,
                          message);
     base::OS::Abort();
@@ -337,6 +335,28 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
   isolate->SignalFatalError();
 }
 
+void Utils::ReportOOMFailure(const char* location, bool is_heap_oom) {
+  i::Isolate* isolate = i::Isolate::Current();
+  OOMErrorCallback oom_callback = isolate->oom_behavior();
+  if (oom_callback == nullptr) {
+    // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
+    // crbug.com/614440.
+    FatalErrorCallback fatal_callback = isolate->exception_behavior();
+    if (fatal_callback == nullptr) {
+      base::OS::PrintError("\n#\n# Fatal %s OOM in %s\n#\n\n",
+                           is_heap_oom ? "javascript" : "process", location);
+      base::OS::Abort();
+    } else {
+      fatal_callback(location,
+                     is_heap_oom
+                         ? "Allocation failed - JavaScript heap out of memory"
+                         : "Allocation failed - process out of memory");
+    }
+  } else {
+    oom_callback(location, is_heap_oom);
+  }
+  isolate->SignalFatalError();
+}
 
 static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
   if (isolate->has_scheduled_exception()) {
@@ -7915,6 +7935,10 @@ void Isolate::SetFatalErrorHandler(FatalErrorCallback that) {
   isolate->set_exception_behavior(that);
 }
 
+void Isolate::SetOOMErrorHandler(OOMErrorCallback that) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_oom_behavior(that);
+}
 
 void Isolate::SetAllowCodeGenerationFromStringsCallback(
     AllowCodeGenerationFromStringsCallback callback) {
