@@ -195,8 +195,9 @@ i::MaybeHandle<i::JSObject> InstantiateModuleCommon(
     }
 
     i::MaybeHandle<i::FixedArray> compiled_module =
-        result.val->CompileFunctions(isolate);
-    if (!compiled_module.is_null()) {
+        result.val->CompileFunctions(isolate, thrower);
+    if (!thrower->error()) {
+      DCHECK(!compiled_module.is_null());
       object = i::wasm::WasmModule::Instantiate(
           isolate, compiled_module.ToHandleChecked(), ffi, memory);
       if (!object.is_null()) {
@@ -296,22 +297,33 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   InstantiateModuleCommon(args, buffer.start, buffer.end, &thrower);
 }
 
-
 static i::MaybeHandle<i::JSObject> CreateModuleObject(
     v8::Isolate* isolate, const v8::Local<v8::Value> source,
     ErrorThrower* thrower) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::MaybeHandle<i::JSObject> nothing;
 
   RawBuffer buffer = GetRawBufferSource(source, thrower);
   if (buffer.start == nullptr) return i::MaybeHandle<i::JSObject>();
 
-  // TODO(rossberg): Once we can, do compilation here.
   DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
+  i::Zone zone(i_isolate->allocator());
+  i::wasm::ModuleResult result = i::wasm::DecodeWasmModule(
+      i_isolate, &zone, buffer.start, buffer.end, false, i::wasm::kWasmOrigin);
+  std::unique_ptr<const i::wasm::WasmModule> decoded_module(result.val);
+  if (result.failed()) {
+    thrower->Failed("", result);
+    return nothing;
+  }
+  i::MaybeHandle<i::FixedArray> compiled_module =
+      decoded_module->CompileFunctions(i_isolate, thrower);
+  if (compiled_module.is_null()) return nothing;
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
   i::Handle<i::JSFunction> module_cons(i_context->wasm_module_constructor());
   i::Handle<i::JSObject> module_obj =
       i_isolate->factory()->NewJSObject(module_cons);
+  module_obj->SetInternalField(0, *compiled_module.ToHandleChecked());
   i::Handle<i::Object> module_ref = Utils::OpenHandle(*source);
   i::Handle<i::Symbol> module_sym(i_context->wasm_module_sym());
   i::Object::SetProperty(module_obj, module_sym, module_ref, i::STRICT).Check();
@@ -331,13 +343,15 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   i::MaybeHandle<i::JSObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
-  if (module_obj.is_null()) return;
 
   Local<Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Promise::Resolver> resolver;
   if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
-  resolver->Resolve(context, Utils::ToLocal(module_obj.ToHandleChecked()));
-
+  if (thrower.error()) {
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+  } else {
+    resolver->Resolve(context, Utils::ToLocal(module_obj.ToHandleChecked()));
+  }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(resolver->GetPromise());
 }
@@ -363,25 +377,59 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
-  ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
-                       "WebAssembly.Instance()");
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
   if (args.Length() < 1) {
-    thrower.Error("Argument 0 must be a WebAssembly.Module");
+    thrower.Error(
+        "Argument 0 must be provided, and must be a WebAssembly.Module object");
     return;
   }
+
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
   i::Handle<i::Symbol> module_sym(i_context->wasm_module_sym());
   i::MaybeHandle<i::Object> source =
       i::Object::GetProperty(Utils::OpenHandle(*args[0]), module_sym);
-  if (source.is_null()) return;
+  if (source.is_null() || source.ToHandleChecked()->IsUndefined(i_isolate)) {
+    thrower.Error("Argument 0 must be a WebAssembly.Module");
+    return;
+  }
 
-  RawBuffer buffer =
-      GetRawBufferSource(Utils::ToLocal(source.ToHandleChecked()), &thrower);
-  if (buffer.start == nullptr) return;
+  Local<Object> obj = Local<Object>::Cast(args[0]);
 
-  InstantiateModuleCommon(args, buffer.start, buffer.end, &thrower);
+  i::Handle<i::JSObject> module_obj =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj));
+  if (module_obj->GetInternalFieldCount() < 1 ||
+      !module_obj->GetInternalField(0)->IsFixedArray()) {
+    thrower.Error("Argument 0 is an invalid WebAssembly.Module");
+    return;
+  }
+
+  i::Handle<i::FixedArray> compiled_code = i::Handle<i::FixedArray>(
+      i::FixedArray::cast(module_obj->GetInternalField(0)));
+
+  i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    Local<Object> obj = Local<Object>::Cast(args[1]);
+    ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
+  }
+
+  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
+  if (args.Length() > 2 && args[2]->IsArrayBuffer()) {
+    Local<Object> obj = Local<Object>::Cast(args[2]);
+    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
+    memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
+  }
+  i::MaybeHandle<i::JSObject> instance =
+      i::wasm::WasmModule::Instantiate(i_isolate, compiled_code, ffi, memory);
+  if (instance.is_null()) {
+    thrower.Error("Could not instantiate module");
+    return;
+  }
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(Utils::ToLocal(instance.ToHandleChecked()));
 }
 }  // namespace
 
@@ -478,6 +526,11 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
       InstallFunc(isolate, wasm_object, "Module", WebAssemblyModule);
   Handle<JSFunction> instance_constructor =
       InstallFunc(isolate, wasm_object, "Instance", WebAssemblyInstance);
+  i::Handle<i::Map> map = isolate->factory()->NewMap(
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize + i::kPointerSize);
+  module_constructor->set_prototype_or_initial_map(*map);
+  map->SetConstructor(*module_constructor);
+
   context->set_wasm_module_constructor(*module_constructor);
   context->set_wasm_instance_constructor(*instance_constructor);
 }

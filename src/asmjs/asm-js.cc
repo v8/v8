@@ -48,7 +48,7 @@ i::MaybeHandle<i::FixedArray> CompileModule(
   } else if (result.failed()) {
     thrower->Failed("", result);
   } else {
-    compiled_module = result.val->CompileFunctions(isolate);
+    compiled_module = result.val->CompileFunctions(isolate, thrower);
   }
 
   if (result.val) delete result.val;

@@ -1013,9 +1013,9 @@ bool SetupExportsObject(Handle<FixedArray> compiled_module, Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<FixedArray> WasmModule::CompileFunctions(Isolate* isolate) const {
+MaybeHandle<FixedArray> WasmModule::CompileFunctions(
+    Isolate* isolate, ErrorThrower* thrower) const {
   Factory* factory = isolate->factory();
-  ErrorThrower thrower(isolate, "WasmModule::CompileFunctions()");
 
   MaybeHandle<FixedArray> nothing;
 
@@ -1052,14 +1052,14 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(Isolate* isolate) const {
       static_cast<int>(functions.size()));
   if (FLAG_wasm_num_compilation_tasks != 0) {
     CompileInParallel(isolate, this,
-                      temp_instance_for_compilation.function_code, &thrower,
+                      temp_instance_for_compilation.function_code, thrower,
                       &module_env);
   } else {
     CompileSequentially(isolate, this,
-                        temp_instance_for_compilation.function_code, &thrower,
+                        temp_instance_for_compilation.function_code, thrower,
                         &module_env);
   }
-  if (thrower.error()) return nothing;
+  if (thrower->error()) return nothing;
 
   // At this point, compilation has completed. Update the code table.
   for (size_t i = FLAG_skip_compiling_wasm_funcs;
@@ -1099,7 +1099,7 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(Isolate* isolate) const {
           temp_instance_for_compilation.function_code[exp.func_index];
       Handle<Code> export_code = compiler::CompileJSToWasmWrapper(
           isolate, &module_env, code, exp.func_index);
-      if (thrower.error()) return nothing;
+      if (thrower->error()) return nothing;
       export_metadata->set(kExportCode, *export_code);
       export_metadata->set(kExportName, *name);
       export_metadata->set(
@@ -1509,7 +1509,8 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   }
 
   if (thrower.error()) return -1;
-  MaybeHandle<FixedArray> compiled_module = module->CompileFunctions(isolate);
+  MaybeHandle<FixedArray> compiled_module =
+      module->CompileFunctions(isolate, &thrower);
 
   if (compiled_module.is_null()) return -1;
   Handle<JSObject> instance =

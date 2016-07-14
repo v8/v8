@@ -233,7 +233,8 @@ struct WasmModule {
                                            Handle<JSReceiver> ffi,
                                            Handle<JSArrayBuffer> memory);
 
-  MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate) const;
+  MaybeHandle<FixedArray> CompileFunctions(Isolate* isolate,
+                                           ErrorThrower* thrower) const;
 
   uint32_t FunctionTableSize() const {
     if (indirect_table_size > 0) {
