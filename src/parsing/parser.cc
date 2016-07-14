@@ -2995,17 +2995,14 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
         BlockState block_state(&scope_, block_scope);
         Target target(&this->target_stack_, catch_block);
 
-        ExpressionClassifier pattern_classifier(this);
-        Expression* pattern =
-            ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
-        ValidateBindingPattern(&pattern_classifier, CHECK_OK);
-
         const AstRawString* name = ast_value_factory()->dot_catch_string();
-        bool is_simple = pattern->IsVariableProxy();
-        if (is_simple) {
-          auto proxy = pattern->AsVariableProxy();
-          scope_->RemoveUnresolved(proxy);
-          name = proxy->raw_name();
+        Expression* pattern = nullptr;
+        if (peek_any_identifier()) {
+          name = ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+        } else {
+          ExpressionClassifier pattern_classifier(this);
+          pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+          ValidateBindingPattern(&pattern_classifier, CHECK_OK);
         }
         catch_variable = catch_scope->DeclareLocal(
             name, VAR, kCreatedInitialized, Variable::NORMAL);
@@ -3013,8 +3010,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
         Expect(Token::RPAREN, CHECK_OK);
 
         ZoneList<const AstRawString*> bound_names(1, zone());
-
-        if (!is_simple) {
+        if (pattern != nullptr) {
           DeclarationDescriptor descriptor;
           descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
           descriptor.parser = this;

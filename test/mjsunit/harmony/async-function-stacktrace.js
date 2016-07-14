@@ -97,7 +97,7 @@ async function runTests() {
     } catch (e) {
       throw new Error("FAIL");
     }
-  }, ["e"]); // TODO(caitp): FuncNameInferer is doing some weird stuff...
+  }, ["async"]);
 
   await test(async() => {
     await 1;
@@ -106,7 +106,7 @@ async function runTests() {
     } catch (e) {
       throw new Error("FAIL");
     }
-  }, ["e"]);
+  }, ["async"]);
 }
 
 runTests().catch(e => {
