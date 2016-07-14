@@ -835,8 +835,8 @@ v8_source_set("v8_base") {
     "src/bit-vector.h",
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
-    "src/builtins.cc",
-    "src/builtins.h",
+    "src/builtins/builtins.cc",
+    "src/builtins/builtins.h",
     "src/cached-powers.cc",
     "src/cached-powers.h",
     "src/cancelable-task.cc",
@@ -1571,6 +1571,7 @@ v8_source_set("v8_base") {
 
   if (v8_target_cpu == "x86") {
     sources += [
+      "src/builtins/ia32/builtins-ia32.cc",
       "src/compiler/ia32/code-generator-ia32.cc",
       "src/compiler/ia32/instruction-codes-ia32.h",
       "src/compiler/ia32/instruction-scheduler-ia32.cc",
@@ -1586,7 +1587,6 @@ v8_source_set("v8_base") {
       "src/ia32/assembler-ia32-inl.h",
       "src/ia32/assembler-ia32.cc",
       "src/ia32/assembler-ia32.h",
-      "src/ia32/builtins-ia32.cc",
       "src/ia32/code-stubs-ia32.cc",
       "src/ia32/code-stubs-ia32.h",
       "src/ia32/codegen-ia32.cc",
@@ -1609,6 +1609,7 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_target_cpu == "x64") {
     sources += [
+      "src/builtins/x64/builtins-x64.cc",
       "src/compiler/x64/code-generator-x64.cc",
       "src/compiler/x64/instruction-codes-x64.h",
       "src/compiler/x64/instruction-scheduler-x64.cc",
@@ -1631,7 +1632,6 @@ v8_source_set("v8_base") {
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
       "src/x64/assembler-x64.h",
-      "src/x64/builtins-x64.cc",
       "src/x64/code-stubs-x64.cc",
       "src/x64/code-stubs-x64.h",
       "src/x64/codegen-x64.cc",
@@ -1650,7 +1650,6 @@ v8_source_set("v8_base") {
       "src/arm/assembler-arm-inl.h",
       "src/arm/assembler-arm.cc",
       "src/arm/assembler-arm.h",
-      "src/arm/builtins-arm.cc",
       "src/arm/code-stubs-arm.cc",
       "src/arm/code-stubs-arm.h",
       "src/arm/codegen-arm.cc",
@@ -1668,6 +1667,7 @@ v8_source_set("v8_base") {
       "src/arm/macro-assembler-arm.h",
       "src/arm/simulator-arm.cc",
       "src/arm/simulator-arm.h",
+      "src/builtins/arm/builtins-arm.cc",
       "src/compiler/arm/code-generator-arm.cc",
       "src/compiler/arm/instruction-codes-arm.h",
       "src/compiler/arm/instruction-scheduler-arm.cc",
@@ -1693,7 +1693,6 @@ v8_source_set("v8_base") {
       "src/arm64/assembler-arm64-inl.h",
       "src/arm64/assembler-arm64.cc",
       "src/arm64/assembler-arm64.h",
-      "src/arm64/builtins-arm64.cc",
       "src/arm64/code-stubs-arm64.cc",
       "src/arm64/code-stubs-arm64.h",
       "src/arm64/codegen-arm64.cc",
@@ -1721,6 +1720,7 @@ v8_source_set("v8_base") {
       "src/arm64/simulator-arm64.h",
       "src/arm64/utils-arm64.cc",
       "src/arm64/utils-arm64.h",
+      "src/builtins/arm64/builtins-arm64.cc",
       "src/compiler/arm64/code-generator-arm64.cc",
       "src/compiler/arm64/instruction-codes-arm64.h",
       "src/compiler/arm64/instruction-scheduler-arm64.cc",
@@ -1746,6 +1746,7 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_target_cpu == "mipsel") {
     sources += [
+      "src/builtins/mips/builtins-mips.cc",
       "src/compiler/mips/code-generator-mips.cc",
       "src/compiler/mips/instruction-codes-mips.h",
       "src/compiler/mips/instruction-scheduler-mips.cc",
@@ -1766,7 +1767,6 @@ v8_source_set("v8_base") {
       "src/mips/assembler-mips-inl.h",
       "src/mips/assembler-mips.cc",
       "src/mips/assembler-mips.h",
-      "src/mips/builtins-mips.cc",
       "src/mips/code-stubs-mips.cc",
       "src/mips/code-stubs-mips.h",
       "src/mips/codegen-mips.cc",
@@ -1788,6 +1788,7 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_target_cpu == "mips64el") {
     sources += [
+      "src/builtins/mips64/builtins-mips64.cc",
       "src/compiler/mips64/code-generator-mips64.cc",
       "src/compiler/mips64/instruction-codes-mips64.h",
       "src/compiler/mips64/instruction-scheduler-mips64.cc",
@@ -1808,7 +1809,6 @@ v8_source_set("v8_base") {
       "src/mips64/assembler-mips64-inl.h",
       "src/mips64/assembler-mips64.cc",
       "src/mips64/assembler-mips64.h",
-      "src/mips64/builtins-mips64.cc",
       "src/mips64/code-stubs-mips64.cc",
       "src/mips64/code-stubs-mips64.h",
       "src/mips64/codegen-mips64.cc",
@@ -1830,6 +1830,7 @@ v8_source_set("v8_base") {
     ]
   } else if (v8_target_cpu == "s390" || v8_target_cpu == "s390x") {
     sources += [
+      "src/builtins/s390/builtins-s390.cc",
       "src/compiler/s390/code-generator-s390.cc",
       "src/compiler/s390/instruction-codes-s390.h",
       "src/compiler/s390/instruction-scheduler-s390.cc",
@@ -1852,7 +1853,6 @@ v8_source_set("v8_base") {
       "src/s390/assembler-s390-inl.h",
       "src/s390/assembler-s390.cc",
       "src/s390/assembler-s390.h",
-      "src/s390/builtins-s390.cc",
       "src/s390/code-stubs-s390.cc",
       "src/s390/code-stubs-s390.h",
       "src/s390/codegen-s390.cc",

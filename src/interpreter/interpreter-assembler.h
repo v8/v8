@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/smart-pointers.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecode-register.h"

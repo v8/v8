@@ -43,7 +43,6 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/builtins.h"
 #include "src/codegen.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"

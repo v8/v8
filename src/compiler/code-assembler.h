@@ -10,7 +10,7 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"

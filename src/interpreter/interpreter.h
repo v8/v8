@@ -9,7 +9,7 @@
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
 #include "src/base/macros.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"

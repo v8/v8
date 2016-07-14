@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 
 #include "src/api-arguments.h"
 #include "src/api-natives.h"
@@ -43,12 +43,13 @@ class BuiltinArguments : public Arguments {
     DCHECK_LE(1, this->length());
   }
 
-  Object*& operator[] (int index) {
+  Object*& operator[](int index) {
     DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }
 
-  template <class S> Handle<S> at(int index) {
+  template <class S>
+  Handle<S> at(int index) {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);
   }
@@ -60,9 +61,7 @@ class BuiltinArguments : public Arguments {
     return at<Object>(index);
   }
 
-  Handle<Object> receiver() {
-    return Arguments::at<Object>(0);
-  }
+  Handle<Object> receiver() { return Arguments::at<Object>(0); }
 
   static const int kNewTargetOffset = 0;
   static const int kTargetOffset = 1;
@@ -83,7 +82,6 @@ class BuiltinArguments : public Arguments {
   // excluding extra arguments).
   int length() const { return Arguments::length() - kNumExtraArgs; }
 };
-
 
 // ----------------------------------------------------------------------------
 // Support macro for defining builtins in C++.
@@ -178,7 +176,6 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
   }
   return false;
 }
-
 
 inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
                                      int* out) {
@@ -294,7 +291,7 @@ MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
                                                BuiltinArguments args) {
   HandleScope handleScope(isolate);
   int argc = args.length() - 1;
-  ScopedVector<Handle<Object> > argv(argc);
+  ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at<Object>(i + 1);
   }
@@ -303,15 +300,12 @@ MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
       Execution::Call(isolate, function, args.receiver(), argc, argv.start()));
 }
 
-
 }  // namespace
-
 
 BUILTIN(Illegal) {
   UNREACHABLE();
   return isolate->heap()->undefined_value();  // Make compiler happy.
 }
-
 
 BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
 
@@ -465,7 +459,6 @@ BUILTIN(ArrayPop) {
   return *result;
 }
 
-
 BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
@@ -486,7 +479,6 @@ BUILTIN(ArrayShift) {
   Handle<Object> first = array->GetElementsAccessor()->Shift(array);
   return *first;
 }
-
 
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
@@ -509,7 +501,6 @@ BUILTIN(ArrayUnshift) {
   int new_length = accessor->Unshift(array, &args, to_add);
   return Smi::FromInt(new_length);
 }
-
 
 BUILTIN(ArraySlice) {
   HandleScope scope(isolate);
@@ -580,7 +571,6 @@ BUILTIN(ArraySlice) {
   return *accessor->Slice(object, actual_start, actual_end);
 }
 
-
 BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
@@ -640,7 +630,6 @@ BUILTIN(ArraySplice) {
       array, actual_start, actual_delete_count, &args, add_count);
   return *result_array;
 }
-
 
 // Array Concat -------------------------------------------------------------
 
@@ -817,7 +806,6 @@ class ArrayConcatVisitor {
   uint32_t bit_field_;
 };
 
-
 uint32_t EstimateElementCount(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
@@ -887,14 +875,12 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
   return element_count;
 }
 
-
 // Used for sorting indices in a List<uint32_t>.
 int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
   uint32_t a = *ap;
   uint32_t b = *bp;
   return (a == b) ? 0 : (a < b) ? -1 : 1;
 }
-
 
 void CollectElementIndices(Handle<JSObject> object, uint32_t range,
                            List<uint32_t>* indices) {
@@ -1011,7 +997,6 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
   }
 }
 
-
 bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
   FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
@@ -1028,7 +1013,6 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
   visitor->increase_index_offset(length);
   return true;
 }
-
 
 /**
  * A helper function that visits "array" elements of a JSReceiver in numerical
@@ -1442,7 +1426,6 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
 
 }  // namespace
 
-
 // ES6 22.1.3.1 Array.prototype.concat
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
@@ -1483,7 +1466,6 @@ BUILTIN(ArrayConcat) {
   }
   return Slow_ArrayConcat(&args, species, isolate);
 }
-
 
 namespace {
 
@@ -1623,7 +1605,6 @@ BUILTIN(ObjectAssign) {
   // 5. Return to.
   return *to;
 }
-
 
 // ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
 // TODO(verwaest): Support the common cases with precached map directly in
@@ -1841,20 +1822,18 @@ BUILTIN(ObjectFreeze) {
   return *object;
 }
 
-
 // ES section 19.1.2.9 Object.getPrototypeOf ( O )
 BUILTIN(ObjectGetPrototypeOf) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
 
   Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, object));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSReceiver::GetPrototype(isolate, receiver));
 }
-
 
 // ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
 BUILTIN(ObjectGetOwnPropertyDescriptor) {
@@ -1879,7 +1858,6 @@ BUILTIN(ObjectGetOwnPropertyDescriptor) {
   return *desc.ToObject(isolate);
 }
 
-
 namespace {
 
 Object* GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
@@ -1899,18 +1877,15 @@ Object* GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
 
 }  // namespace
 
-
 // ES6 section 19.1.2.7 Object.getOwnPropertyNames ( O )
 BUILTIN(ObjectGetOwnPropertyNames) {
   return GetOwnPropertyKeys(isolate, args, SKIP_SYMBOLS);
 }
 
-
 // ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
 BUILTIN(ObjectGetOwnPropertySymbols) {
   return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
 }
-
 
 // ES#sec-object.is Object.is ( value1, value2 )
 BUILTIN(ObjectIs) {
@@ -1920,7 +1895,6 @@ BUILTIN(ObjectIs) {
   Handle<Object> value2 = args.at<Object>(2);
   return isolate->heap()->ToBoolean(value1->SameValue(*value2));
 }
-
 
 // ES6 section 19.1.2.11 Object.isExtensible ( O )
 BUILTIN(ObjectIsExtensible) {
@@ -1934,7 +1908,6 @@ BUILTIN(ObjectIsExtensible) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
-
 // ES6 section 19.1.2.12 Object.isFrozen ( O )
 BUILTIN(ObjectIsFrozen) {
   HandleScope scope(isolate);
@@ -1947,7 +1920,6 @@ BUILTIN(ObjectIsFrozen) {
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
-
 // ES6 section 19.1.2.13 Object.isSealed ( O )
 BUILTIN(ObjectIsSealed) {
   HandleScope scope(isolate);
@@ -1959,7 +1931,6 @@ BUILTIN(ObjectIsSealed) {
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
-
 
 // ES6 section 19.1.2.14 Object.keys ( O )
 BUILTIN(ObjectKeys) {
@@ -2007,7 +1978,6 @@ BUILTIN(ObjectValues) {
       isolate, values, JSReceiver::GetOwnValues(receiver, ENUMERABLE_STRINGS));
   return *isolate->factory()->NewJSArrayWithElements(values);
 }
-
 
 BUILTIN(ObjectEntries) {
   HandleScope scope(isolate);
@@ -2070,7 +2040,6 @@ BUILTIN(ObjectPreventExtensions) {
   }
   return *object;
 }
-
 
 // ES6 section 19.1.2.17 Object.seal ( O )
 BUILTIN(ObjectSeal) {
@@ -2169,7 +2138,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
-
 MaybeHandle<JSFunction> CompileString(Handle<Context> context,
                                       Handle<String> source,
                                       ParseRestriction restriction) {
@@ -2197,7 +2165,6 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
 }
 
 }  // namespace
-
 
 // ES6 section 18.2.1 eval (x)
 BUILTIN(GlobalEval) {
@@ -3033,8 +3000,8 @@ void Generate_GeneratorPrototypeResume(
   Node* receiver = assembler->Parameter(0);
   Node* value = assembler->Parameter(1);
   Node* context = assembler->Parameter(4);
-  Node* closed = assembler->SmiConstant(
-      Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
+  Node* closed =
+      assembler->SmiConstant(Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
 
   // Check if the {receiver} is actually a JSGeneratorObject.
   Label if_receiverisincompatible(assembler, Label::kDeferred);
@@ -3158,7 +3125,6 @@ BUILTIN(ReflectDefineProperty) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-
 // ES6 section 26.1.4 Reflect.deleteProperty
 BUILTIN(ReflectDeleteProperty) {
   HandleScope scope(isolate);
@@ -3183,7 +3149,6 @@ BUILTIN(ReflectDeleteProperty) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-
 // ES6 section 26.1.6 Reflect.get
 BUILTIN(ReflectGet) {
   HandleScope scope(isolate);
@@ -3206,7 +3171,6 @@ BUILTIN(ReflectGet) {
       isolate, Object::GetPropertyOrElement(receiver, name,
                                             Handle<JSReceiver>::cast(target)));
 }
-
 
 // ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
 BUILTIN(ReflectGetOwnPropertyDescriptor) {
@@ -3234,7 +3198,6 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
   return *desc.ToObject(isolate);
 }
 
-
 // ES6 section 26.1.8 Reflect.getPrototypeOf
 BUILTIN(ReflectGetPrototypeOf) {
   HandleScope scope(isolate);
@@ -3251,7 +3214,6 @@ BUILTIN(ReflectGetPrototypeOf) {
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSReceiver::GetPrototype(isolate, receiver));
 }
-
 
 // ES6 section 26.1.9 Reflect.has
 BUILTIN(ReflectHas) {
@@ -3277,7 +3239,6 @@ BUILTIN(ReflectHas) {
                          : isolate->heap()->exception();
 }
 
-
 // ES6 section 26.1.10 Reflect.isExtensible
 BUILTIN(ReflectIsExtensible) {
   HandleScope scope(isolate);
@@ -3296,7 +3257,6 @@ BUILTIN(ReflectIsExtensible) {
   MAYBE_RETURN(result, isolate->heap()->exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
-
 
 // ES6 section 26.1.11 Reflect.ownKeys
 BUILTIN(ReflectOwnKeys) {
@@ -3320,7 +3280,6 @@ BUILTIN(ReflectOwnKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
-
 // ES6 section 26.1.12 Reflect.preventExtensions
 BUILTIN(ReflectPreventExtensions) {
   HandleScope scope(isolate);
@@ -3339,7 +3298,6 @@ BUILTIN(ReflectPreventExtensions) {
   MAYBE_RETURN(result, isolate->heap()->exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
-
 
 // ES6 section 26.1.13 Reflect.set
 BUILTIN(ReflectSet) {
@@ -3368,7 +3326,6 @@ BUILTIN(ReflectSet) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-
 // ES6 section 26.1.14 Reflect.setPrototypeOf
 BUILTIN(ReflectSetPrototypeOf) {
   HandleScope scope(isolate);
@@ -3394,10 +3351,8 @@ BUILTIN(ReflectSetPrototypeOf) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-
 // -----------------------------------------------------------------------------
 // ES6 section 19.3 Boolean Objects
-
 
 // ES6 section 19.3.1.1 Boolean ( value ) for the [[Call]] case.
 BUILTIN(BooleanConstructor) {
@@ -3405,7 +3360,6 @@ BUILTIN(BooleanConstructor) {
   Handle<Object> value = args.atOrUndefined(isolate, 1);
   return isolate->heap()->ToBoolean(value->BooleanValue());
 }
-
 
 // ES6 section 19.3.1.1 Boolean ( value ) for the [[Construct]] case.
 BUILTIN(BooleanConstructor_ConstructStub) {
@@ -3421,7 +3375,6 @@ BUILTIN(BooleanConstructor_ConstructStub) {
       isolate->heap()->ToBoolean(value->BooleanValue()));
   return *result;
 }
-
 
 // ES6 section 19.3.3.2 Boolean.prototype.toString ( )
 void Builtins::Generate_BooleanPrototypeToString(CodeStubAssembler* assembler) {
@@ -3451,7 +3404,6 @@ void Builtins::Generate_BooleanPrototypeValueOf(CodeStubAssembler* assembler) {
 // -----------------------------------------------------------------------------
 // ES6 section 24.2 DataView Objects
 
-
 // ES6 section 24.2.2 The DataView Constructor for the [[Call]] case.
 BUILTIN(DataViewConstructor) {
   HandleScope scope(isolate);
@@ -3460,7 +3412,6 @@ BUILTIN(DataViewConstructor) {
       NewTypeError(MessageTemplate::kConstructorNotFunction,
                    isolate->factory()->NewStringFromAsciiChecked("DataView")));
 }
-
 
 // ES6 section 24.2.2 The DataView Constructor for the [[Construct]] case.
 BUILTIN(DataViewConstructor_ConstructStub) {
@@ -3527,8 +3478,8 @@ BUILTIN(DataViewConstructor_ConstructStub) {
     //       a. Let viewByteLength be ? ToLength(byteLength).
     //       b. If offset+viewByteLength > bufferByteLength, throw a RangeError
     //          exception
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, view_byte_length, Object::ToLength(isolate, byte_length));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, view_byte_length,
+                                       Object::ToLength(isolate, byte_length));
     if (offset->Number() + view_byte_length->Number() > buffer_byte_length) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
@@ -3676,7 +3627,6 @@ void Builtins::Generate_TypedArrayPrototypeLength(
 // -----------------------------------------------------------------------------
 // ES6 section 20.3 Date Objects
 
-
 namespace {
 
 // ES6 section 20.3.1.1 Time Values and Time Range
@@ -3685,16 +3635,13 @@ const double kMaxYear = -kMinYear;
 const double kMinMonth = -10000000.0;
 const double kMaxMonth = -kMinMonth;
 
-
 // 20.3.1.2 Day Number and Time within Day
 const double kMsPerDay = 86400000.0;
-
 
 // ES6 section 20.3.1.11 Hours, Minutes, Second, and Milliseconds
 const double kMsPerSecond = 1000.0;
 const double kMsPerMinute = 60000.0;
 const double kMsPerHour = 3600000.0;
-
 
 // ES6 section 20.3.1.14 MakeDate (day, time)
 double MakeDate(double day, double time) {
@@ -3703,7 +3650,6 @@ double MakeDate(double day, double time) {
   }
   return std::numeric_limits<double>::quiet_NaN();
 }
-
 
 // ES6 section 20.3.1.13 MakeDay (year, month, date)
 double MakeDay(double year, double month, double date) {
@@ -3749,7 +3695,6 @@ double MakeDay(double year, double month, double date) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-
 // ES6 section 20.3.1.12 MakeTime (hour, min, sec, ms)
 double MakeTime(double hour, double min, double sec, double ms) {
   if (std::isfinite(hour) && std::isfinite(min) && std::isfinite(sec) &&
@@ -3763,7 +3708,6 @@ double MakeTime(double hour, double min, double sec, double ms) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-
 // ES6 section 20.3.1.15 TimeClip (time)
 double TimeClip(double time) {
   if (-DateCache::kMaxTimeInMs <= time && time <= DateCache::kMaxTimeInMs) {
@@ -3772,12 +3716,10 @@ double TimeClip(double time) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-
 const char* kShortWeekDays[] = {"Sun", "Mon", "Tue", "Wed",
                                 "Thu", "Fri", "Sat"};
 const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-
 
 // ES6 section 20.3.1.16 Date Time String Format
 double ParseDateTimeString(Handle<String> str) {
@@ -3810,9 +3752,7 @@ double ParseDateTimeString(Handle<String> str) {
   return date;
 }
 
-
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
-
 
 // ES6 section 20.3.4.41.1 ToDateString(tv)
 void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
@@ -3850,7 +3790,6 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   UNREACHABLE();
 }
 
-
 Object* SetLocalDateValue(Handle<JSDate> date, double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
@@ -3864,7 +3803,6 @@ Object* SetLocalDateValue(Handle<JSDate> date, double time_val) {
 
 }  // namespace
 
-
 // ES6 section 20.3.2 The Date Constructor for the [[Call]] case.
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
@@ -3874,7 +3812,6 @@ BUILTIN(DateConstructor) {
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
-
 
 // ES6 section 20.3.2 The Date Constructor for the [[Construct]] case.
 BUILTIN(DateConstructor_ConstructStub) {
@@ -3957,13 +3894,11 @@ BUILTIN(DateConstructor_ConstructStub) {
   RETURN_RESULT_OR_FAILURE(isolate, JSDate::New(target, new_target, time_val));
 }
 
-
 // ES6 section 20.3.3.1 Date.now ( )
 BUILTIN(DateNow) {
   HandleScope scope(isolate);
   return *isolate->factory()->NewNumber(JSDate::CurrentTimeValue(isolate));
 }
-
 
 // ES6 section 20.3.3.2 Date.parse ( string )
 BUILTIN(DateParse) {
@@ -3974,7 +3909,6 @@ BUILTIN(DateParse) {
       Object::ToString(isolate, args.atOrUndefined(isolate, 1)));
   return *isolate->factory()->NewNumber(ParseDateTimeString(string));
 }
-
 
 // ES6 section 20.3.3.4 Date.UTC (year,month,date,hours,minutes,seconds,ms)
 BUILTIN(DateUTC) {
@@ -4035,7 +3969,6 @@ BUILTIN(DateUTC) {
   return *isolate->factory()->NewNumber(TimeClip(MakeDate(day, time)));
 }
 
-
 // ES6 section 20.3.4.20 Date.prototype.setDate ( date )
 BUILTIN(DatePrototypeSetDate) {
   HandleScope scope(isolate);
@@ -4054,7 +3987,6 @@ BUILTIN(DatePrototypeSetDate) {
   }
   return SetLocalDateValue(date, time_val);
 }
-
 
 // ES6 section 20.3.4.21 Date.prototype.setFullYear (year, month, date)
 BUILTIN(DatePrototypeSetFullYear) {
@@ -4088,7 +4020,6 @@ BUILTIN(DatePrototypeSetFullYear) {
   double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
   return SetLocalDateValue(date, time_val);
 }
-
 
 // ES6 section 20.3.4.22 Date.prototype.setHours(hour, min, sec, ms)
 BUILTIN(DatePrototypeSetHours) {
@@ -4127,7 +4058,6 @@ BUILTIN(DatePrototypeSetHours) {
   return SetLocalDateValue(date, time_val);
 }
 
-
 // ES6 section 20.3.4.23 Date.prototype.setMilliseconds(ms)
 BUILTIN(DatePrototypeSetMilliseconds) {
   HandleScope scope(isolate);
@@ -4147,7 +4077,6 @@ BUILTIN(DatePrototypeSetMilliseconds) {
   }
   return SetLocalDateValue(date, time_val);
 }
-
 
 // ES6 section 20.3.4.24 Date.prototype.setMinutes ( min, sec, ms )
 BUILTIN(DatePrototypeSetMinutes) {
@@ -4181,7 +4110,6 @@ BUILTIN(DatePrototypeSetMinutes) {
   return SetLocalDateValue(date, time_val);
 }
 
-
 // ES6 section 20.3.4.25 Date.prototype.setMonth ( month, date )
 BUILTIN(DatePrototypeSetMonth) {
   HandleScope scope(isolate);
@@ -4208,7 +4136,6 @@ BUILTIN(DatePrototypeSetMonth) {
   }
   return SetLocalDateValue(date, time_val);
 }
-
 
 // ES6 section 20.3.4.26 Date.prototype.setSeconds ( sec, ms )
 BUILTIN(DatePrototypeSetSeconds) {
@@ -4237,7 +4164,6 @@ BUILTIN(DatePrototypeSetSeconds) {
   return SetLocalDateValue(date, time_val);
 }
 
-
 // ES6 section 20.3.4.27 Date.prototype.setTime ( time )
 BUILTIN(DatePrototypeSetTime) {
   HandleScope scope(isolate);
@@ -4246,7 +4172,6 @@ BUILTIN(DatePrototypeSetTime) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(value));
   return *JSDate::SetValue(date, TimeClip(value->Number()));
 }
-
 
 // ES6 section 20.3.4.28 Date.prototype.setUTCDate ( date )
 BUILTIN(DatePrototypeSetUTCDate) {
@@ -4264,7 +4189,6 @@ BUILTIN(DatePrototypeSetUTCDate) {
       MakeDate(MakeDay(year, month, value->Number()), time_within_day);
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
-
 
 // ES6 section 20.3.4.29 Date.prototype.setUTCFullYear (year, month, date)
 BUILTIN(DatePrototypeSetUTCFullYear) {
@@ -4297,7 +4221,6 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
   double const time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
-
 
 // ES6 section 20.3.4.30 Date.prototype.setUTCHours(hour, min, sec, ms)
 BUILTIN(DatePrototypeSetUTCHours) {
@@ -4335,7 +4258,6 @@ BUILTIN(DatePrototypeSetUTCHours) {
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
 
-
 // ES6 section 20.3.4.31 Date.prototype.setUTCMilliseconds(ms)
 BUILTIN(DatePrototypeSetUTCMilliseconds) {
   HandleScope scope(isolate);
@@ -4354,7 +4276,6 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
   }
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
-
 
 // ES6 section 20.3.4.32 Date.prototype.setUTCMinutes ( min, sec, ms )
 BUILTIN(DatePrototypeSetUTCMinutes) {
@@ -4387,7 +4308,6 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
 
-
 // ES6 section 20.3.4.31 Date.prototype.setUTCMonth ( month, date )
 BUILTIN(DatePrototypeSetUTCMonth) {
   HandleScope scope(isolate);
@@ -4413,7 +4333,6 @@ BUILTIN(DatePrototypeSetUTCMonth) {
   }
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
-
 
 // ES6 section 20.3.4.34 Date.prototype.setUTCSeconds ( sec, ms )
 BUILTIN(DatePrototypeSetUTCSeconds) {
@@ -4441,7 +4360,6 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
   return *JSDate::SetValue(date, TimeClip(time_val));
 }
 
-
 // ES6 section 20.3.4.35 Date.prototype.toDateString ( )
 BUILTIN(DatePrototypeToDateString) {
   HandleScope scope(isolate);
@@ -4452,7 +4370,6 @@ BUILTIN(DatePrototypeToDateString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
-
 
 // ES6 section 20.3.4.36 Date.prototype.toISOString ( )
 BUILTIN(DatePrototypeToISOString) {
@@ -4481,7 +4398,6 @@ BUILTIN(DatePrototypeToISOString) {
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
-
 // ES6 section 20.3.4.41 Date.prototype.toString ( )
 BUILTIN(DatePrototypeToString) {
   HandleScope scope(isolate);
@@ -4493,7 +4409,6 @@ BUILTIN(DatePrototypeToString) {
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
 
-
 // ES6 section 20.3.4.42 Date.prototype.toTimeString ( )
 BUILTIN(DatePrototypeToTimeString) {
   HandleScope scope(isolate);
@@ -4504,7 +4419,6 @@ BUILTIN(DatePrototypeToTimeString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
-
 
 // ES6 section 20.3.4.43 Date.prototype.toUTCString ( )
 BUILTIN(DatePrototypeToUTCString) {
@@ -4525,14 +4439,12 @@ BUILTIN(DatePrototypeToUTCString) {
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
-
 // ES6 section 20.3.4.44 Date.prototype.valueOf ( )
 BUILTIN(DatePrototypeValueOf) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.valueOf");
   return date->value();
 }
-
 
 // ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
 BUILTIN(DatePrototypeToPrimitive) {
@@ -4542,7 +4454,6 @@ BUILTIN(DatePrototypeToPrimitive) {
   Handle<Object> hint = args.at<Object>(1);
   RETURN_RESULT_OR_FAILURE(isolate, JSDate::ToPrimitive(receiver, hint));
 }
-
 
 // ES6 section B.2.4.1 Date.prototype.getYear ( )
 BUILTIN(DatePrototypeGetYear) {
@@ -4557,7 +4468,6 @@ BUILTIN(DatePrototypeGetYear) {
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   return Smi::FromInt(year - 1900);
 }
-
 
 // ES6 section B.2.4.2 Date.prototype.setYear ( year )
 BUILTIN(DatePrototypeSetYear) {
@@ -4617,108 +4527,90 @@ void Builtins::Generate_DatePrototypeGetDate(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kDay);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetDay(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kWeekday);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetFullYear(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kYear);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetHours(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kHour);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetMilliseconds(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMillisecond);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetMinutes(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMinute);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetMonth(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMonth);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetSeconds(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kSecond);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetTime(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kDateValue);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetTimezoneOffset(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kTimezoneOffset);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCDate(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kDayUTC);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetUTCDay(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kWeekdayUTC);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCFullYear(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kYearUTC);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetUTCHours(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kHourUTC);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCMilliseconds(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMillisecondUTC);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetUTCMinutes(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMinuteUTC);
 }
-
 
 // static
 void Builtins::Generate_DatePrototypeGetUTCMonth(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kMonthUTC);
 }
 
-
 // static
 void Builtins::Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm) {
   Generate_DatePrototype_GetField(masm, JSDate::kSecondUTC);
 }
-
 
 namespace {
 
@@ -4832,7 +4724,6 @@ MaybeHandle<JSFunction> CreateDynamicFunction(Isolate* isolate,
 }
 
 }  // namespace
-
 
 // ES6 section 19.2.1.1 Function ( p1, p2, ... , pn, body )
 BUILTIN(FunctionConstructor) {
@@ -4960,7 +4851,6 @@ BUILTIN(FunctionPrototypeToString) {
                                 "Function.prototype.toString")));
 }
 
-
 // ES6 section 25.2.1.1 GeneratorFunction (p1, p2, ... , pn, body)
 BUILTIN(GeneratorFunctionConstructor) {
   HandleScope scope(isolate);
@@ -5025,7 +4915,6 @@ BUILTIN(SymbolConstructor) {
   }
   return *result;
 }
-
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Construct]] case.
 BUILTIN(SymbolConstructor_ConstructStub) {
@@ -5604,7 +5493,6 @@ BUILTIN(ArrayBufferConstructor) {
                             handle(target->shared()->name(), isolate)));
 }
 
-
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
 BUILTIN(ArrayBufferConstructor_ConstructStub) {
   HandleScope scope(isolate);
@@ -5691,7 +5579,6 @@ BUILTIN(ProxyConstructor) {
                    isolate->factory()->NewStringFromAsciiChecked("Proxy")));
 }
 
-
 // ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Construct]] case.
 BUILTIN(ProxyConstructor_ConstructStub) {
   HandleScope scope(isolate);
@@ -5701,11 +5588,9 @@ BUILTIN(ProxyConstructor_ConstructStub) {
   RETURN_RESULT_OR_FAILURE(isolate, JSProxy::New(isolate, target, handler));
 }
 
-
 // -----------------------------------------------------------------------------
 // Throwers for restricted function properties and strict arguments object
 // properties
-
 
 BUILTIN(RestrictedFunctionPropertiesThrower) {
   HandleScope scope(isolate);
@@ -5713,17 +5598,14 @@ BUILTIN(RestrictedFunctionPropertiesThrower) {
       isolate, NewTypeError(MessageTemplate::kRestrictedFunctionProperties));
 }
 
-
 BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
 }
 
-
 // -----------------------------------------------------------------------------
 //
-
 
 namespace {
 
@@ -5834,7 +5716,6 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 }  // namespace
 
-
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.target<JSFunction>();
@@ -5852,7 +5733,6 @@ BUILTIN(HandleApiCall) {
                                             fun_data, receiver, args));
   }
 }
-
 
 Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode,
                                     TailCallMode tail_call_mode) {
@@ -6014,7 +5894,6 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   return result;
 }
 
-
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
@@ -6074,13 +5953,11 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   return result;
 }
 
-
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a normal function call.
 BUILTIN(HandleApiCallAsFunction) {
   return HandleApiCallAsFunctionOrConstructor(isolate, false, args);
 }
-
 
 // Handle calls to non-function objects created through the API. This delegate
 // function is used when the call is a construct call.
@@ -6251,16 +6128,12 @@ Builtins::Builtins() : initialized_(false) {
   memset(names_, 0, sizeof(names_[0]) * builtin_count);
 }
 
-
-Builtins::~Builtins() {
-}
+Builtins::~Builtins() {}
 
 #define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
 Address const Builtins::c_functions_[cfunction_count] = {
-  BUILTIN_LIST_C(DEF_ENUM_C)
-};
+    BUILTIN_LIST_C(DEF_ENUM_C)};
 #undef DEF_ENUM_C
-
 
 struct BuiltinDesc {
   Handle<Code> (*builder)(Isolate*, struct BuiltinDesc const*);
@@ -6273,7 +6146,10 @@ struct BuiltinDesc {
   int argc;
 };
 
-#define BUILTIN_FUNCTION_TABLE_INIT { V8_ONCE_INIT, {} }
+#define BUILTIN_FUNCTION_TABLE_INIT \
+  {                                 \
+    V8_ONCE_INIT, {}                \
+  }
 
 class BuiltinFunctionTable {
  public:
@@ -6446,7 +6322,6 @@ void Builtins::InitBuiltinFunctionTable() {
 #undef DEF_FUNCTION_PTR_H
 }
 
-
 void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   DCHECK(!initialized_);
 
@@ -6491,16 +6366,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   initialized_ = true;
 }
 
-
-void Builtins::TearDown() {
-  initialized_ = false;
-}
-
+void Builtins::TearDown() { initialized_ = false; }
 
 void Builtins::IterateBuiltins(ObjectVisitor* v) {
   v->VisitPointers(&builtins_[0], &builtins_[0] + builtin_count);
 }
-
 
 const char* Builtins::Lookup(byte* pc) {
   // may be called during initialization (disassembler!)
@@ -6515,11 +6385,9 @@ const char* Builtins::Lookup(byte* pc) {
   return NULL;
 }
 
-
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::kInterrupt);
 }
-
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::kStackGuard);
@@ -6782,12 +6650,11 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
     Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
     return Handle<Code>(code_address);                                        \
   }
-#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)               \
-Handle<Code> Builtins::name() {                             \
-  Code** code_address =                                     \
-      reinterpret_cast<Code**>(builtin_address(k##name));   \
-  return Handle<Code>(code_address);                        \
-}
+#define DEFINE_BUILTIN_ACCESSOR_H(name, kind)                                 \
+  Handle<Code> Builtins::name() {                                             \
+    Code** code_address = reinterpret_cast<Code**>(builtin_address(k##name)); \
+    return Handle<Code>(code_address);                                        \
+  }
 BUILTIN_LIST_C(DEFINE_BUILTIN_ACCESSOR_C)
 BUILTIN_LIST_A(DEFINE_BUILTIN_ACCESSOR_A)
 BUILTIN_LIST_T(DEFINE_BUILTIN_ACCESSOR_T)

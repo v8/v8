@@ -1,10 +1,9 @@
-
 // Copyright 2011 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BUILTINS_H_
-#define V8_BUILTINS_H_
+#ifndef V8_BUILTINS_BUILTINS_H_
+#define V8_BUILTINS_BUILTINS_H_
 
 #include "src/base/flags.h"
 #include "src/handles.h"
@@ -15,23 +14,22 @@ namespace internal {
 // Forward declarations.
 class CodeStubAssembler;
 
-#define CODE_AGE_LIST_WITH_ARG(V, A)     \
-  V(Quadragenarian, A)                   \
-  V(Quinquagenarian, A)                  \
-  V(Sexagenarian, A)                     \
-  V(Septuagenarian, A)                   \
+#define CODE_AGE_LIST_WITH_ARG(V, A) \
+  V(Quadragenarian, A)               \
+  V(Quinquagenarian, A)              \
+  V(Sexagenarian, A)                 \
+  V(Septuagenarian, A)               \
   V(Octogenarian, A)
 
 #define CODE_AGE_LIST_IGNORE_ARG(X, V) V(X)
 
-#define CODE_AGE_LIST(V) \
-  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
+#define CODE_AGE_LIST(V) CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
-#define CODE_AGE_LIST_COMPLETE(V)                  \
-  V(ToBeExecutedOnce)                              \
-  V(NotExecuted)                                   \
-  V(ExecutedOnce)                                  \
-  V(NoAge)                                         \
+#define CODE_AGE_LIST_COMPLETE(V) \
+  V(ToBeExecutedOnce)             \
+  V(NotExecuted)                  \
+  V(ExecutedOnce)                 \
+  V(NoAge)                        \
   CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
 
 #define DECLARE_CODE_AGE_BUILTIN(C, V)                           \
@@ -392,7 +390,6 @@ class CodeStubAssembler;
 class BuiltinFunctionTable;
 class ObjectVisitor;
 
-
 class Builtins {
  public:
   ~Builtins();
@@ -414,15 +411,18 @@ class Builtins {
 #define DEF_ENUM_T(name, argc) k##name,
 #define DEF_ENUM_S(name, kind, extra, interface_descriptor) k##name,
 #define DEF_ENUM_H(name, kind) k##name,
-    BUILTIN_LIST_C(DEF_ENUM_C) BUILTIN_LIST_A(DEF_ENUM_A)
-        BUILTIN_LIST_T(DEF_ENUM_T) BUILTIN_LIST_S(DEF_ENUM_S)
-            BUILTIN_LIST_H(DEF_ENUM_H) BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
+    BUILTIN_LIST_C(DEF_ENUM_C)
+    BUILTIN_LIST_A(DEF_ENUM_A)
+    BUILTIN_LIST_T(DEF_ENUM_T)
+    BUILTIN_LIST_S(DEF_ENUM_S)
+    BUILTIN_LIST_H(DEF_ENUM_H)
+    BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
 #undef DEF_ENUM_C
 #undef DEF_ENUM_A
 #undef DEF_ENUM_T
 #undef DEF_ENUM_S
 #undef DEF_ENUM_H
-                builtin_count
+    builtin_count
   };
 
   enum CFunctionId {
@@ -471,9 +471,7 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
-  static Address c_function_address(CFunctionId id) {
-    return c_functions_[id];
-  }
+  static Address c_function_address(CFunctionId id) { return c_functions_[id]; }
 
   const char* name(int index) {
     DCHECK(index >= 0);
@@ -821,11 +819,10 @@ class Builtins {
       CallableType function_type);
   static void Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm);
 
-#define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
-  static void Generate_Make##C##CodeYoungAgainEvenMarking(   \
-      MacroAssembler* masm);                                 \
-  static void Generate_Make##C##CodeYoungAgainOddMarking(    \
-      MacroAssembler* masm);
+#define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)              \
+  static void Generate_Make##C##CodeYoungAgainEvenMarking( \
+      MacroAssembler* masm);                               \
+  static void Generate_Make##C##CodeYoungAgainOddMarking(MacroAssembler* masm);
   CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
 
@@ -849,4 +846,4 @@ class Builtins {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BUILTINS_H_
+#endif  // V8_BUILTINS_BUILTINS_H_
