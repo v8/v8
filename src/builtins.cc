@@ -4723,22 +4723,12 @@ void Builtins::Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm) {
 namespace {
 
 // ES6 section 19.2.1.1.1 CreateDynamicFunction
-MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
-                                          BuiltinArguments args,
-                                          const char* token) {
+MaybeHandle<JSFunction> CreateDynamicFunction(Isolate* isolate,
+                                              BuiltinArguments args,
+                                              const char* token) {
   // Compute number of arguments, ignoring the receiver.
   DCHECK_LE(1, args.length());
   int const argc = args.length() - 1;
-
-  Handle<JSFunction> target = args.target<JSFunction>();
-  Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
-
-  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  if (!FLAG_allow_unsafe_function_constructor &&
-      !isolate->MayAccess(impl->LastEnteredContext(), target_global_proxy)) {
-    isolate->CountUsage(v8::Isolate::kFunctionConstructorReturnedUndefined);
-    return isolate->factory()->undefined_value();
-  }
 
   // Build the source string.
   Handle<String> source;
@@ -4754,7 +4744,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         Handle<String> param;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, param, Object::ToString(isolate, args.at<Object>(i)),
-            Object);
+            JSFunction);
         param = String::Flatten(param);
         builder.AppendString(param);
         // If the formal parameters string include ) - an illegal
@@ -4779,35 +4769,37 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
       Handle<String> body;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, body, Object::ToString(isolate, args.at<Object>(argc)),
-          Object);
+          JSFunction);
       builder.AppendString(body);
     }
     builder.AppendCString("\n})");
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish(), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish(), JSFunction);
 
     // The SyntaxError must be thrown after all the (observable) ToString
     // conversions are done.
     if (parenthesis_in_arg_string) {
       THROW_NEW_ERROR(isolate,
                       NewSyntaxError(MessageTemplate::kParenthesisInArgString),
-                      Object);
+                      JSFunction);
     }
   }
 
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
+  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   Handle<JSFunction> function;
   {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, function,
         CompileString(handle(target->native_context(), isolate), source,
                       ONLY_SINGLE_FUNCTION_LITERAL),
-        Object);
+        JSFunction);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, function, target_global_proxy, 0, nullptr),
-        Object);
+        JSFunction);
     function = Handle<JSFunction>::cast(result);
     function->shared()->set_name_should_print_as_anonymous(true);
   }
@@ -4826,7 +4818,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     Handle<Map> initial_map;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, initial_map,
-        JSFunction::GetDerivedMap(isolate, target, new_target), Object);
+        JSFunction::GetDerivedMap(isolate, target, new_target), JSFunction);
 
     Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
     Handle<Map> map = Map::AsLanguageMode(
@@ -4845,7 +4837,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 // ES6 section 19.2.1.1 Function ( p1, p2, ... , pn, body )
 BUILTIN(FunctionConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> result;
+  Handle<JSFunction> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, CreateDynamicFunction(isolate, args, "function"));
   return *result;
@@ -4978,15 +4970,12 @@ BUILTIN(GeneratorFunctionConstructor) {
 
 BUILTIN(AsyncFunctionConstructor) {
   HandleScope scope(isolate);
-  Handle<Object> maybe_func;
+  Handle<JSFunction> func;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, maybe_func,
-      CreateDynamicFunction(isolate, args, "async function"));
-  if (!maybe_func->IsJSFunction()) return *maybe_func;
+      isolate, func, CreateDynamicFunction(isolate, args, "async function"));
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
-  Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script = handle(Script::cast(func->shared()->script()));
   int position = script->GetEvalPosition();
   USE(position);
