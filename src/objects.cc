@@ -38,7 +38,6 @@
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -62,7 +61,6 @@
 #ifdef ENABLE_DISASSEMBLER
 #include "src/disasm.h"
 #include "src/disassembler.h"
-#include "src/eh-frame.h"
 #endif
 
 namespace v8 {
@@ -14374,14 +14372,6 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     it.rinfo()->Print(GetIsolate(), os);
   }
   os << "\n";
-
-  if (has_unwinding_info()) {
-    os << "UnwindingInfo (size = " << unwinding_info_size() << ")\n";
-    EhFrameDisassembler eh_frame_disassembler(unwinding_info_start(),
-                                              unwinding_info_end());
-    eh_frame_disassembler.DisassembleToStream(os);
-    os << "\n";
-  }
 }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -14406,8 +14396,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     const uint8_t* current_address = base_address + iterator.current_offset();
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(os, current_address,
-                                         parameter_count());
+    interpreter::Bytecodes::Decode(os, current_address, parameter_count());
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       const void* jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << jump_target << " @ " << iterator.GetJumpTargetOffset()

@@ -11,7 +11,6 @@
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
-#include "src/eh-frame.h"
 #include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 
@@ -118,8 +117,8 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
 #endif  // DEBUG
 }
 
+
 Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
-                                             EhFrameWriter* eh_frame_writer,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
@@ -130,7 +129,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
       info->IsStub();
   masm->GetCode(&desc);
-  if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
                                   false, is_crankshafted,
