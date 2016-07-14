@@ -42,7 +42,7 @@ TEST_F(EhFrameWriterTest, Alignment) {
   ASSERT_EQ(0, EhFrameConstants::kEhFrameTerminatorSize % 4);
   EXPECT_EQ(0, (iterator.GetBufferSize() - EhFrameConstants::kEhFrameHdrSize -
                 EhFrameConstants::kEhFrameTerminatorSize) %
-                   8);
+                   kPointerSize);
 }
 
 TEST_F(EhFrameWriterTest, FDEHeader) {
