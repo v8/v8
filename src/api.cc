@@ -1787,13 +1787,11 @@ ScriptCompiler::StreamedSource::GetCachedData() const {
 Local<Script> UnboundScript::BindToCurrentContext() {
   i::Handle<i::HeapObject> obj =
       i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::SharedFunctionInfo>
-      function_info(i::SharedFunctionInfo::cast(*obj), obj->GetIsolate());
   i::Isolate* isolate = obj->GetIsolate();
-
-  i::Handle<i::JSReceiver> global(isolate->native_context()->global_object());
+  i::Handle<i::SharedFunctionInfo> function_info(
+      i::SharedFunctionInfo::cast(*obj), isolate);
   i::Handle<i::JSFunction> function =
-      obj->GetIsolate()->factory()->NewFunctionFromSharedFunctionInfo(
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function_info, isolate->native_context());
   return ToApiHandle<Script>(function);
 }
@@ -5267,10 +5265,10 @@ int String::WriteUtf8(char* buffer,
                       int capacity,
                       int* nchars_ref,
                       int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::Isolate* isolate = str->GetIsolate();
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8(isolate);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     str = i::String::Flatten(str);  // Flatten the string for efficiency.
   }
@@ -5286,7 +5284,7 @@ int String::WriteUtf8(char* buffer,
     if (success) return writer.CompleteWrite(write_null, nchars_ref);
   } else if (capacity >= string_length) {
     // First check that the buffer is large enough.
-    int utf8_bytes = v8::Utf8Length(*str, str->GetIsolate());
+    int utf8_bytes = v8::Utf8Length(*str, isolate);
     if (utf8_bytes <= capacity) {
       // one-byte fast path.
       if (utf8_bytes == string_length) {
@@ -6871,7 +6869,7 @@ void v8::ArrayBuffer::Neuter() {
                   "Only externalized ArrayBuffers can be neutered");
   Utils::ApiCheck(obj->is_neuterable(), "v8::ArrayBuffer::Neuter",
                   "Only neuterable ArrayBuffers can be neutered");
-  LOG_API(obj->GetIsolate(), ArrayBuffer, Neuter);
+  LOG_API(isolate, ArrayBuffer, Neuter);
   ENTER_V8(isolate);
   obj->Neuter();
 }
