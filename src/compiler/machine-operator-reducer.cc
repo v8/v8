@@ -235,6 +235,21 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kInt32MulWithOverflow: {
+      Int32BinopMatcher m(node);
+      if (m.right().Is(2)) {
+        node->ReplaceInput(1, m.left().node());
+        NodeProperties::ChangeOp(node, machine()->Int32AddWithOverflow());
+        return Changed(node);
+      }
+      if (m.right().Is(-1)) {
+        node->ReplaceInput(0, Int32Constant(0));
+        node->ReplaceInput(1, m.left().node());
+        NodeProperties::ChangeOp(node, machine()->Int32SubWithOverflow());
+        return Changed(node);
+      }
+      break;
+    }
     case IrOpcode::kInt32Div:
       return ReduceInt32Div(node);
     case IrOpcode::kUint32Div:
@@ -831,10 +846,10 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
         int32_t val;
         bool ovf = base::bits::SignedAddOverflow32(m.left().Value(),
                                                    m.right().Value(), &val);
-        return ReplaceInt32((index == 0) ? val : ovf);
+        return ReplaceInt32(index == 0 ? val : ovf);
       }
       if (m.right().Is(0)) {
-        return (index == 0) ? Replace(m.left().node()) : ReplaceInt32(0);
+        return Replace(index == 0 ? m.left().node() : m.right().node());
       }
       break;
     }
@@ -845,10 +860,27 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
         int32_t val;
         bool ovf = base::bits::SignedSubOverflow32(m.left().Value(),
                                                    m.right().Value(), &val);
-        return ReplaceInt32((index == 0) ? val : ovf);
+        return ReplaceInt32(index == 0 ? val : ovf);
       }
       if (m.right().Is(0)) {
-        return (index == 0) ? Replace(m.left().node()) : ReplaceInt32(0);
+        return Replace(index == 0 ? m.left().node() : m.right().node());
+      }
+      break;
+    }
+    case IrOpcode::kInt32MulWithOverflow: {
+      DCHECK(index == 0 || index == 1);
+      Int32BinopMatcher m(node);
+      if (m.IsFoldable()) {
+        int32_t val;
+        bool ovf = base::bits::SignedMulOverflow32(m.left().Value(),
+                                                   m.right().Value(), &val);
+        return ReplaceInt32(index == 0 ? val : ovf);
+      }
+      if (m.right().Is(0)) {
+        return Replace(m.right().node());
+      }
+      if (m.right().Is(1)) {
+        return index == 0 ? Replace(m.left().node()) : ReplaceInt32(0);
       }
       break;
     }
