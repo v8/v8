@@ -561,6 +561,7 @@ TEST(ErrorsInGlobalVariableDefinition) {
       {"var a = 0; var a = 0;", "Redefined global variable"},
       {"var a = 0, b = 0; var a = 0;", "Redefined global variable"},
       {"var a = 0, b = 0; var b = 0, a = 0.0;", "Redefined global variable"},
+      {"var a = stdlib.Int8Array", "Heap view types can not be aliased"},
   };
 
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {

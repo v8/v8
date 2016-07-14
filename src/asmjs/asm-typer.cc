@@ -647,13 +647,15 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
       FAIL(assign, "Invalid import.");
     }
     CHECK(target_info->mutability() == VariableInfo::kImmutableGlobal);
-    if (!target_info->IsFFI()) {
-      target_info = target_info->Clone(zone_);
-    } else {
+    if (target_info->IsFFI()) {
       // create a new target info that represents a foreign variable.
       DCHECK(target_info->type()->AsFFIType() != nullptr);
       target_info = new (zone_) VariableInfo(target_info->type());
       target_info->set_mutability(VariableInfo::kImmutableGlobal);
+    } else if (target_info->type()->IsA(AsmType::Heap())) {
+      FAIL(assign, "Heap view types can not be aliased.");
+    } else {
+      target_info = target_info->Clone(zone_);
     }
   } else if (value->IsBinaryOperation()) {
     // This should either be:
