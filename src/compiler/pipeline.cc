@@ -898,7 +898,7 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
-    ValueNumberingReducer value_numbering(temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -955,7 +955,7 @@ struct EarlyOptimizationPhase {
                                               data->common());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
-    ValueNumberingReducer value_numbering(temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
@@ -1061,7 +1061,7 @@ struct LateOptimizationPhase {
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
-    ValueNumberingReducer value_numbering(temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
