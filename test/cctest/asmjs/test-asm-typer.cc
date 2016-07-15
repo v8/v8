@@ -177,18 +177,16 @@ class AsmTyperHarnessBuilder {
 
   AsmTyperHarnessBuilder* WithStdlib(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
-    auto* var_info = new (zone_) AsmTyper::VariableInfo();
-    var_info->set_mutability(AsmTyper::VariableInfo::kImmutableGlobal);
-    var_info->set_standard_member(AsmTyper::kStdlib);
+    auto* var_info =
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kStdlib);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
 
   AsmTyperHarnessBuilder* WithHeap(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
-    auto* var_info = new (zone_) AsmTyper::VariableInfo();
-    var_info->set_mutability(AsmTyper::VariableInfo::kImmutableGlobal);
-    var_info->set_standard_member(AsmTyper::kHeap);
+    auto* var_info =
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kHeap);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
@@ -196,9 +194,7 @@ class AsmTyperHarnessBuilder {
   AsmTyperHarnessBuilder* WithFFI(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
     auto* var_info =
-        new (zone_) AsmTyper::VariableInfo(AsmType::FFIType(zone_));
-    var_info->set_mutability(AsmTyper::VariableInfo::kImmutableGlobal);
-    var_info->set_standard_member(AsmTyper::kFFI);
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kFFI);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
@@ -911,6 +907,15 @@ TEST(ErrorsInExpression) {
   } kTests[] = {
       {"noy_a_function();", "Unanotated call to a function must be a call to"},
       {"a = 0;", "Undeclared identifier"},
+      // we can't verify the module's name being referenced here because
+      // expression validation does not invoke ValidateModule, which sets up the
+      // module information in the AsmTyper.
+      {"stdlib", "accessed by ordinary expressions"},
+      {"ffi", "accessed by ordinary expressions"},
+      {"heap", "accessed by ordinary expressions"},
+      {"d2d", "accessed by ordinary expression"},
+      {"fround", "accessed by ordinary expression"},
+      {"d2s_tbl", "accessed by ordinary expression"},
       {"ilocal = +1.0", "Type mismatch in assignment"},
       {"!dlocal", "Invalid type for !"},
       {"2 * dlocal", "Invalid types for intish *"},
@@ -990,6 +995,9 @@ TEST(ErrorsInExpression) {
   for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
     const auto* test = kTests + ii;
     if (!ValidationOf(Expression(test->expression))
+             ->WithStdlib(DynamicGlobal("stdlib"))
+             ->WithFFI(DynamicGlobal("ffi"))
+             ->WithHeap(DynamicGlobal("heap"))
              ->WithLocal(DynamicGlobal("iish"), iw::AsmType::Intish())
              ->WithLocal(DynamicGlobal("ilocal"), iw::AsmType::Int())
              ->WithLocal(DynamicGlobal("dlocal"), iw::AsmType::Double())
@@ -1759,6 +1767,31 @@ TEST(ValidateCall) {
              ->WithGlobal(DynamicGlobal("ifd2i_tbl"), ifd2i_tbl)
              ->SucceedsWithExactType(test->load_type)) {
       std::cerr << "Test:\n" << test->expression;
+      CHECK(false);
+    }
+  }
+}
+
+TEST(CannotReferenceModuleName) {
+  v8::V8::Initialize();
+
+  const struct {
+    const char* module;
+    const char* error_message;
+  } kTests[] = {
+      {"function asm() {\n"
+       "  'use asm';\n"
+       "  function f() { asm; }\n"
+       "}",
+       "accessed by ordinary expressions"},
+      {"function asm() { 'use asm'; return asm; }", "Module cannot export"},
+  };
+
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    const auto* test = kTests + ii;
+    if (!ValidationOf(Module(test->module))
+             ->FailsWithMessage(test->error_message)) {
+      std::cerr << "Test:\n" << test->module;
       CHECK(false);
     }
   }

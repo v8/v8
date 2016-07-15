@@ -92,8 +92,19 @@ Statement* AsmTyper::FlattenedStatements::Next() {
 // ----------------------------------------------------------------------------
 // Implementation of AsmTyper::VariableInfo
 
+AsmTyper::VariableInfo* AsmTyper::VariableInfo::ForSpecialSymbol(
+    Zone* zone, StandardMember standard_member) {
+  DCHECK(standard_member == kStdlib || standard_member == kFFI ||
+         standard_member == kHeap || standard_member == kModule);
+  auto* new_var_info = new (zone) VariableInfo(AsmType::None());
+  new_var_info->standard_member_ = standard_member;
+  new_var_info->mutability_ = kImmutableGlobal;
+  return new_var_info;
+}
+
 AsmTyper::VariableInfo* AsmTyper::VariableInfo::Clone(Zone* zone) const {
   CHECK(standard_member_ != kNone);
+  CHECK(!type_->IsA(AsmType::None()));
   auto* new_var_info = new (zone) VariableInfo(type_);
   new_var_info->standard_member_ = standard_member_;
   new_var_info->mutability_ = mutability_;
@@ -118,6 +129,7 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
       forward_definitions_(zone),
       stdlib_types_(zone),
       stdlib_math_types_(zone),
+      module_info_(VariableInfo::ForSpecialSymbol(zone_, kModule)),
       global_scope_(ZoneHashMap::PointersMatch,
                     ZoneHashMap::kDefaultHashMapCapacity,
                     ZoneAllocationPolicy(zone)),
@@ -126,9 +138,9 @@ AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                    ZoneAllocationPolicy(zone)),
       stack_limit_(isolate->stack_guard()->real_climit()),
       node_types_(zone_),
-      fround_type_(AsmType::FroundType(zone_)) {
+      fround_type_(AsmType::FroundType(zone_)),
+      ffi_type_(AsmType::FFIType(zone_)) {
   InitializeStdlib();
-  module_info_.set_standard_member(kModule);
 }
 
 namespace {
@@ -318,7 +330,7 @@ AsmTyper::VariableInfo* AsmTyper::Lookup(Variable* variable) {
 
   if (entry == nullptr && !module_name_.is_null() &&
       module_name_->Equals(*variable->name())) {
-    return &module_info_;
+    return module_info_;
   }
 
   return entry ? reinterpret_cast<VariableInfo*>(entry->value) : nullptr;
@@ -469,11 +481,8 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
 
   struct {
     StandardMember standard_member;
-    AsmType* type;
   } kModuleParamInfo[3] = {
-      {kStdlib, AsmType::None()},
-      {kFFI, AsmType::FFIType(zone_)},
-      {kHeap, AsmType::None()},
+      {kStdlib}, {kFFI}, {kHeap},
   };
 
   for (int ii = 0; ii < scope->num_parameters(); ++ii) {
@@ -484,10 +493,8 @@ AsmType* AsmTyper::ValidateModule(FunctionLiteral* fun) {
       FAIL(fun, "Invalid asm.js identifier in module parameter.");
     }
 
-    auto* param_info = new (zone_) VariableInfo();
-    param_info->set_mutability(VariableInfo::kImmutableGlobal);
-    param_info->set_standard_member(kModuleParamInfo[ii].standard_member);
-    param_info->set_type(kModuleParamInfo[ii].type);
+    auto* param_info = VariableInfo::ForSpecialSymbol(
+        zone_, kModuleParamInfo[ii].standard_member);
 
     if (!AddGlobal(param, param_info)) {
       FAIL(fun, "Redeclared identifier in module parameter.");
@@ -649,8 +656,7 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
     CHECK(target_info->mutability() == VariableInfo::kImmutableGlobal);
     if (target_info->IsFFI()) {
       // create a new target info that represents a foreign variable.
-      DCHECK(target_info->type()->AsFFIType() != nullptr);
-      target_info = new (zone_) VariableInfo(target_info->type());
+      target_info = new (zone_) VariableInfo(ffi_type_);
       target_info->set_mutability(VariableInfo::kImmutableGlobal);
     } else if (target_info->type()->IsA(AsmType::Heap())) {
       FAIL(assign, "Heap view types can not be aliased.");
@@ -697,7 +703,6 @@ AsmType* AsmTyper::ValidateGlobalDeclaration(Assignment* assign) {
     }
 
     // Create a new target info that represents the foreign import.
-    DCHECK(target_info->type()->AsFFIType() != nullptr);
     target_info = new (zone_) VariableInfo(import_type);
     target_info->set_mutability(VariableInfo::kMutableGlobal);
   } else if (value->IsCallNew()) {
@@ -1553,11 +1558,11 @@ AsmType* AsmTyper::ValidateIdentifier(VariableProxy* proxy) {
   if (proxy_info == nullptr) {
     FAIL(proxy, "Undeclared identifier.");
   }
-  if (proxy_info->type()->AsCallableType() != nullptr) {
+  auto* type = proxy_info->type();
+  if (type->IsA(AsmType::None()) || type->AsCallableType() != nullptr) {
     FAIL(proxy, "Identifier may not be accessed by ordinary expressions.");
   }
-  DCHECK(!proxy_info->type()->IsA(AsmType::None()));
-  return proxy_info->type();
+  return type;
 }
 
 // 6.8.4 CallExpression

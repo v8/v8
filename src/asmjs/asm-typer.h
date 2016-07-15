@@ -85,7 +85,6 @@ class AsmTyper final {
       kImmutableGlobal,
     };
 
-    VariableInfo() = default;
     explicit VariableInfo(AsmType* t) : type_(t) {}
 
     VariableInfo* Clone(Zone* zone) const;
@@ -120,8 +119,11 @@ class AsmTyper final {
 
     VariableProxy* first_forward_use() const { return first_forward_use_; }
 
+    static VariableInfo* ForSpecialSymbol(Zone* zone,
+                                          StandardMember standard_member);
+
    private:
-    AsmType* type_ = AsmType::None();
+    AsmType* type_;
     StandardMember standard_member_ = kNone;
     Mutability mutability_ = kInvalidMutability;
     // missing_definition_ is set to true for forward definition - i.e., use
@@ -303,7 +305,7 @@ class AsmTyper final {
 
   // The ASM module name. This member is used to prevent globals from redefining
   // the module name.
-  VariableInfo module_info_;
+  VariableInfo* module_info_;
   Handle<String> module_name_;
 
   // 3 Environments
@@ -315,6 +317,7 @@ class AsmTyper final {
   ZoneMap<AstNode*, AsmType*> node_types_;
   static const int kErrorMessageLimit = 100;
   AsmType* fround_type_;
+  AsmType* ffi_type_;
   char error_message_[kErrorMessageLimit];
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmTyper);
