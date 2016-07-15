@@ -79,6 +79,10 @@ template("v8_executable") {
     configs += invoker.configs
     configs -= remove_configs
     configs += add_configs
+    if (is_linux) {
+      # For enabling ASLR.
+      ldflags = [ "-pie" ]
+    }
   }
 }
 
