@@ -145,28 +145,33 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, const RegisterState& regs,
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs.fp),
                                reinterpret_cast<i::Address>(regs.sp),
                                js_entry_sp);
+
+  // If at this point iterator does not see any frames,
+  // is usually means something is wrong with the FP,
+  // e.g. it is used as a general purpose register in the function.
+  // Bailout.
+  if (it.done()) return false;
+
   size_t i = 0;
-  if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
+  if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
     frames[i++] = isolate->c_function();
   }
-  while (!it.done() && i < frames_limit) {
-    if (it.frame()->is_interpreted()) {
-      // For interpreted frames use the bytecode array pointer as the pc.
-      i::InterpretedFrame* frame =
-          static_cast<i::InterpretedFrame*>(it.frame());
-      // Since the sampler can interrupt execution at any point the
-      // bytecode_array might be garbage, so don't dereference it.
-      i::Address bytecode_array =
-          reinterpret_cast<i::Address>(frame->GetBytecodeArray()) -
-          i::kHeapObjectTag;
-      frames[i++] = bytecode_array + i::BytecodeArray::kHeaderSize +
-                    frame->GetBytecodeOffset();
-    } else {
+  for (; !it.done() && i < frames_limit; it.Advance()) {
+    if (!it.frame()->is_interpreted()) {
       frames[i++] = it.frame()->pc();
+      continue;
     }
-    it.Advance();
+    // For interpreted frames use the bytecode array pointer as the pc.
+    i::InterpretedFrame* frame = static_cast<i::InterpretedFrame*>(it.frame());
+    // Since the sampler can interrupt execution at any point the
+    // bytecode_array might be garbage, so don't dereference it.
+    i::Address bytecode_array =
+        reinterpret_cast<i::Address>(frame->GetBytecodeArray()) -
+        i::kHeapObjectTag;
+    frames[i++] = bytecode_array + i::BytecodeArray::kHeaderSize +
+                  frame->GetBytecodeOffset();
   }
   sample_info->frames_count = i;
   return true;
