@@ -457,6 +457,10 @@ class RepresentationSelector {
         break;
       }
 
+      case IrOpcode::kPlainPrimitiveToNumber:
+        new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        break;
+
       case IrOpcode::kNumberAbs: {
         new_type = op_typer_.NumberAbs(FeedbackTypeOf(node->InputAt(0)));
         break;
