@@ -1019,15 +1019,6 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
             break;
           }
-          case kSimdPrefix: {
-            if (FLAG_wasm_simd_prototype) {
-              len++;
-              byte simd_index = *(pc_ + 1);
-              opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
-              DecodeSimdOpcode(opcode);
-              break;
-            }
-          }
           case kExprJITSingleFunction: {
             if (FLAG_wasm_jit_prototype) {
               JITSingleFunctionOperand operand(this, pc_);
@@ -1146,17 +1137,6 @@ class WasmFullDecoder : public WasmDecoder {
           val.node, position());
     Push(type, val.node);
     return 1 + operand.length;
-  }
-
-  void DecodeSimdOpcode(WasmOpcode opcode) {
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
-    compiler::NodeVector inputs(sig->parameter_count(), zone_);
-    for (size_t i = sig->parameter_count(); i > 0; i--) {
-      Value val = Pop(static_cast<int>(i - 1), sig->GetParam(i - 1));
-      inputs[i - 1] = val.node;
-    }
-    TFNode* node = BUILD(SimdOp, opcode, inputs);
-    Push(GetReturnType(sig), node);
   }
 
   void DoReturn() {
