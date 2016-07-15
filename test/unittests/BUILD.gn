@@ -16,21 +16,21 @@ v8_executable("unittests") {
 
   sources = gypi_values.unittests_sources
 
-  if (v8_target_cpu == "arm") {
+  if (v8_current_cpu == "arm") {
     sources += gypi_values.unittests_sources_arm
-  } else if (v8_target_cpu == "arm64") {
+  } else if (v8_current_cpu == "arm64") {
     sources += gypi_values.unittests_sources_arm64
-  } else if (v8_target_cpu == "x86") {
+  } else if (v8_current_cpu == "x86") {
     sources += gypi_values.unittests_sources_ia32
-  } else if (v8_target_cpu == "mips" || v8_target_cpu == "mipsel") {
+  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
     sources += gypi_values.unittests_sources_mips
-  } else if (v8_target_cpu == "mips64" || v8_target_cpu == "mips64el") {
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += gypi_values.unittests_sources_mips64
-  } else if (v8_target_cpu == "x64") {
+  } else if (v8_current_cpu == "x64") {
     sources += gypi_values.unittests_sources_x64
-  } else if (v8_target_cpu == "ppc" || v8_target_cpu == "ppc64") {
+  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += gypi_values.unittests_sources_ppc
-  } else if (v8_target_cpu == "s390" || v8_target_cpu == "s390x") {
+  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += gypi_values.unittests_sources_s390
   }
 
