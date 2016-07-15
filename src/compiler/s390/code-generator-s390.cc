@@ -727,6 +727,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode opcode = ArchOpcodeField::decode(instr->opcode());
 
   switch (opcode) {
+    case kArchComment: {
+      Address comment_string = i.InputExternalReference(0).address();
+      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+      break;
+    }
     case kArchCallCodeObject: {
       EnsureSpaceForLazyDeopt();
       if (HasRegisterInput(instr, 0)) {
@@ -1217,6 +1222,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ LoadRR(r1, i.InputRegister(0));
       __ mr_z(r0, i.InputRegister(1));
       __ LoadW(i.OutputRegister(), r0);
+      break;
+    case kS390_Mul32WithHigh32:
+      __ LoadRR(r1, i.InputRegister(0));
+      __ mr_z(r0, i.InputRegister(1));
+      __ LoadW(i.OutputRegister(0), r1);  // low
+      __ LoadW(i.OutputRegister(1), r0);  // high
       break;
     case kS390_MulHighU32:
       __ LoadRR(r1, i.InputRegister(0));
