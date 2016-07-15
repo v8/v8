@@ -3451,7 +3451,7 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   DoExpression* NewDoExpression(Block* block, Variable* result_var, int pos) {
     VariableProxy* result = NewVariableProxy(result_var, pos);
-    return new (parser_zone_) DoExpression(parser_zone_, block, result, pos);
+    return new (local_zone_) DoExpression(local_zone_, block, result, pos);
   }
 
   ThisFunction* NewThisFunction(int pos) {
