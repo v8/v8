@@ -39,8 +39,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
                     is_double, inobject_properties, first_inobject_offset);
 }
 
-
-// Takes an index as computed by GetLoadFieldByIndex and reconstructs a
+// Takes an index as computed by GetLoadByFieldIndex and reconstructs a
 // FieldIndex object from it.
 inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
   int field_index = orig_index;
@@ -85,6 +84,42 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
+// Takes an offset as computed by GetLoadByFieldOffset and reconstructs a
+// FieldIndex object from it.
+inline FieldIndex FieldIndex::ForLoadByFieldOffset(Map* map, int offset) {
+  bool is_double = offset & 1;
+  int field_index = (offset >> 1) / kPointerSize;
+  int is_inobject = true;
+  int first_inobject_offset = 0;
+  if (field_index < 0) {
+    field_index = -field_index;
+    is_inobject = false;
+    first_inobject_offset = FixedArray::kHeaderSize;
+  } else {
+    first_inobject_offset =
+        map->IsJSObjectMap() ? map->GetInObjectPropertyOffset(0) : 0;
+  }
+  int inobject_properties =
+      map->IsJSObjectMap() ? map->GetInObjectProperties() : 0;
+  FieldIndex result(is_inobject, field_index, is_double, inobject_properties,
+                    first_inobject_offset);
+  DCHECK(result.GetLoadByFieldOffset() == offset);
+  return result;
+}
+
+// Returns the offset format consumed by TurboFan stubs:
+// In-object: zero-based from object start,
+// out-of-object: zero-based from FixedArray start.
+inline int FieldIndex::GetLoadByFieldOffset() const {
+  // For efficiency, stubs consume an offset that is optimized for quick
+  // access. If the property is in-object, the offset is positive.
+  // If it's out-of-object, the encoded offset is -raw_offset.
+  // In either case, the offset itself is shifted up by one bit, the lower-most
+  // bit signifying if the field is a mutable double box (1) or not (0).
+  int result = index() << kPointerSizeLog2;
+  if (!is_inobject()) result = -result;
+  return (result << 1) | (is_double() ? 1 : 0);
+}
 
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
   PropertyDetails details =

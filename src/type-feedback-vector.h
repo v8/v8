@@ -412,8 +412,9 @@ class FeedbackNexus {
 
   virtual InlineCacheState StateFromFeedback() const = 0;
   virtual int ExtractMaps(MapHandleList* maps) const;
-  virtual MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const;
-  virtual bool FindHandlers(CodeHandleList* code_list, int length = -1) const;
+  virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
+  virtual bool FindHandlers(List<Handle<Object>>* code_list,
+                            int length = -1) const;
   virtual Name* FindFirstName() const { return NULL; }
 
   virtual void ConfigureUninitialized();
@@ -434,7 +435,7 @@ class FeedbackNexus {
   Handle<FixedArray> EnsureArrayOfSize(int length);
   Handle<FixedArray> EnsureExtraArrayOfSize(int length);
   void InstallHandlers(Handle<FixedArray> array, MapHandleList* maps,
-                       CodeHandleList* handlers);
+                       List<Handle<Object>>* handlers);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and
@@ -471,10 +472,11 @@ class CallICNexus final : public FeedbackNexus {
     // CallICs don't record map feedback.
     return 0;
   }
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const final {
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
     return MaybeHandle<Code>();
   }
-  bool FindHandlers(CodeHandleList* code_list, int length = -1) const final {
+  bool FindHandlers(List<Handle<Object>>* code_list,
+                    int length = -1) const final {
     return length == 0;
   }
 
@@ -499,9 +501,10 @@ class LoadICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
+  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
-  void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
+  void ConfigurePolymorphic(MapHandleList* maps,
+                            List<Handle<Object>>* handlers);
 
   InlineCacheState StateFromFeedback() const override;
 };
@@ -521,10 +524,11 @@ class LoadGlobalICNexus : public FeedbackNexus {
     // LoadGlobalICs don't record map feedback.
     return 0;
   }
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const final {
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
     return MaybeHandle<Code>();
   }
-  bool FindHandlers(CodeHandleList* code_list, int length = -1) const final {
+  bool FindHandlers(List<Handle<Object>>* code_list,
+                    int length = -1) const final {
     return length == 0;
   }
 
@@ -556,7 +560,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
                             Handle<Code> handler);
   // name can be null.
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
 
   void ConfigureMegamorphicKeyed(IcCheckType property_type);
 
@@ -585,7 +589,8 @@ class StoreICNexus : public FeedbackNexus {
 
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
 
-  void ConfigurePolymorphic(MapHandleList* maps, CodeHandleList* handlers);
+  void ConfigurePolymorphic(MapHandleList* maps,
+                            List<Handle<Object>>* handlers);
 
   InlineCacheState StateFromFeedback() const override;
 };
@@ -613,7 +618,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
                             Handle<Code> handler);
   // name can be null.
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
   void ConfigurePolymorphic(MapHandleList* maps,
                             MapHandleList* transitioned_maps,
                             CodeHandleList* handlers);

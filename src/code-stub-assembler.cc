@@ -2143,8 +2143,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     Bind(&rebox_double);
     {
       Comment("rebox_double");
-      Node* heap_number = AllocateHeapNumber();
-      StoreHeapNumberValue(heap_number, var_double_value.value());
+      Node* heap_number = AllocateHeapNumberWithValue(var_double_value.value());
       var_value->Bind(heap_number);
       Goto(&done);
     }
@@ -2940,14 +2939,69 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
                                       &var_handler, &try_polymorphic);
   Bind(&if_handler);
   {
+    Comment("LoadIC_if_handler");
+    Label call_handler(this);
+    Node* handler = var_handler.value();
+    GotoUnless(WordIsSmi(handler), &call_handler);
+
+    // |handler| is a Smi. It encodes a field index as obtained by
+    // FieldIndex.GetLoadByFieldOffset().
+    {
+      Label inobject_double(this), out_of_object(this),
+          out_of_object_double(this);
+      Variable var_double_value(this, MachineRepresentation::kFloat64);
+      Label rebox_double(this, &var_double_value);
+
+      Node* handler_word = SmiToWord32(handler);
+      // handler == (offset << 1) | is_double.
+      Node* double_bit = Word32And(handler_word, Int32Constant(1));
+      Node* offset = Word32Sar(handler_word, Int32Constant(1));
+
+      // Negative index -> out of object.
+      GotoIf(Int32LessThan(offset, Int32Constant(0)), &out_of_object);
+
+      Node* offset_ptr = ChangeInt32ToIntPtr(offset);
+      GotoUnless(Word32Equal(double_bit, Int32Constant(0)), &inobject_double);
+      Return(LoadObjectField(p->receiver, offset_ptr));
+
+      Bind(&inobject_double);
+      if (FLAG_unbox_double_fields) {
+        var_double_value.Bind(
+            LoadObjectField(p->receiver, offset_ptr, MachineType::Float64()));
+      } else {
+        Node* mutable_heap_number = LoadObjectField(p->receiver, offset_ptr);
+        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+      }
+      Goto(&rebox_double);
+
+      Bind(&out_of_object);
+      // |offset| == -actual_offset
+      offset_ptr = ChangeInt32ToIntPtr(Int32Sub(Int32Constant(0), offset));
+      Node* properties = LoadProperties(p->receiver);
+      Node* value = LoadObjectField(properties, offset_ptr);
+      GotoUnless(Word32Equal(double_bit, Int32Constant(0)),
+                 &out_of_object_double);
+      Return(value);
+
+      Bind(&out_of_object_double);
+      var_double_value.Bind(LoadHeapNumberValue(value));
+      Goto(&rebox_double);
+
+      Bind(&rebox_double);
+      Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    }
+
+    // |handler| is a heap object. Must be code, call it.
+    Bind(&call_handler);
     LoadWithVectorDescriptor descriptor(isolate());
-    TailCallStub(descriptor, var_handler.value(), p->context, p->receiver,
-                 p->name, p->slot, p->vector);
+    TailCallStub(descriptor, handler, p->context, p->receiver, p->name, p->slot,
+                 p->vector);
   }
 
   Bind(&try_polymorphic);
   {
     // Check polymorphic case.
+    Comment("LoadIC_try_polymorphic");
     GotoUnless(
         WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
         &try_megamorphic);

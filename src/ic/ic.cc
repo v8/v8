@@ -541,35 +541,33 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   OnTypeFeedbackChanged(isolate(), get_host());
 }
 
-
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
-                              Handle<Code> handler) {
+                              Handle<Object> handler) {
   DCHECK(UseVector());
   if (kind() == Code::LOAD_IC) {
     LoadICNexus* nexus = casted_nexus<LoadICNexus>();
     nexus->ConfigureMonomorphic(map, handler);
   } else if (kind() == Code::LOAD_GLOBAL_IC) {
     LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-    nexus->ConfigureHandlerMode(handler);
+    nexus->ConfigureHandlerMode(Handle<Code>::cast(handler));
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    nexus->ConfigureMonomorphic(name, map, handler);
+    nexus->ConfigureMonomorphic(name, map, Handle<Code>::cast(handler));
   } else if (kind() == Code::STORE_IC) {
     StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-    nexus->ConfigureMonomorphic(map, handler);
+    nexus->ConfigureMonomorphic(map, Handle<Code>::cast(handler));
   } else {
     DCHECK(kind() == Code::KEYED_STORE_IC);
     KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-    nexus->ConfigureMonomorphic(name, map, handler);
+    nexus->ConfigureMonomorphic(name, map, Handle<Code>::cast(handler));
   }
 
   vector_set_ = true;
   OnTypeFeedbackChanged(isolate(), get_host());
 }
 
-
 void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
-                              CodeHandleList* handlers) {
+                              List<Handle<Object>>* handlers) {
   DCHECK(UseVector());
   if (kind() == Code::LOAD_IC) {
     LoadICNexus* nexus = casted_nexus<LoadICNexus>();
@@ -686,13 +684,15 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
   return true;
 }
 
-
-bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code) {
-  if (!code->is_handler()) return false;
+bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code) {
+  DCHECK(code->IsSmi() || code->IsCode());
+  if (!code->IsSmi() && !Code::cast(*code)->is_handler()) {
+    return false;
+  }
   if (is_keyed() && state() != RECOMPUTE_HANDLER) return false;
   Handle<Map> map = receiver_map();
   MapHandleList maps;
-  CodeHandleList handlers;
+  List<Handle<Object>> handlers;
 
   TargetMaps(&maps);
   int number_of_maps = maps.length();
@@ -747,16 +747,16 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code) {
   return true;
 }
 
-
-void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name) {
-  DCHECK(handler->is_handler());
+void IC::UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name) {
+  DCHECK(handler->IsSmi() ||
+         (handler->IsCode() && Handle<Code>::cast(handler)->is_handler()));
   ConfigureVectorState(name, receiver_map(), handler);
 }
 
 
 void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   MapHandleList maps;
-  CodeHandleList handlers;
+  List<Handle<Object>> handlers;
   TargetMaps(&maps);
   if (!nexus()->FindHandlers(&handlers, maps.length())) return;
   for (int i = 0; i < maps.length(); i++) {
@@ -780,8 +780,8 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   return transitioned_map == target_map;
 }
 
-
-void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
+void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
+  DCHECK(code->IsCode() || (kind() == Code::LOAD_IC && code->IsSmi()));
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
@@ -849,8 +849,11 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
              : isolate->builtins()->KeyedStoreIC_Megamorphic();
 }
 
-
-Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
+Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
+  if (kind() == Code::LOAD_IC && FLAG_tf_load_ic_stub) {
+    return handle(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
+  }
+  DCHECK(kind() == Code::KEYED_LOAD_IC || !FLAG_tf_load_ic_stub);
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
   return stub.GetCode();
@@ -905,7 +908,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     return;
   }
 
-  Handle<Code> code;
+  Handle<Object> code;
   if (lookup->state() == LookupIterator::JSPROXY ||
       lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
@@ -980,15 +983,31 @@ StubCache* IC::stub_cache() {
   return nullptr;
 }
 
-void IC::UpdateMegamorphicCache(Map* map, Name* name, Code* code) {
-  stub_cache()->Set(name, map, code);
+void IC::UpdateMegamorphicCache(Map* map, Name* name, Object* code) {
+  if (code->IsSmi()) {
+    // TODO(jkummerow): Support Smis in the code cache.
+    Handle<Map> map_handle(map, isolate());
+    Handle<Name> name_handle(name, isolate());
+    FieldIndex index =
+        FieldIndex::ForLoadByFieldOffset(map, Smi::cast(code)->value());
+    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
+    LoadFieldStub stub(isolate(), index);
+    Code* handler = *stub.GetCode();
+    stub_cache()->Set(*name_handle, *map_handle, handler);
+    return;
+  }
+  DCHECK(code->IsCode());
+  stub_cache()->Set(name, map, Code::cast(code));
 }
 
-
-Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
+Handle<Object> IC::ComputeHandler(LookupIterator* lookup,
+                                  Handle<Object> value) {
   // Try to find a globally shared handler stub.
-  Handle<Code> code = GetMapIndependentHandler(lookup);
-  if (!code.is_null()) return code;
+  Handle<Object> handler_or_index = GetMapIndependentHandler(lookup);
+  if (!handler_or_index.is_null()) {
+    DCHECK(handler_or_index->IsCode() || handler_or_index->IsSmi());
+    return handler_or_index;
+  }
 
   // Otherwise check the map's handler cache for a map-specific handler, and
   // compile one if the cache comes up empty.
@@ -1007,12 +1026,12 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
     stub_holder_map = receiver_map();
   }
 
-  code = PropertyHandlerCompiler::Find(lookup->name(), stub_holder_map, kind(),
-                                       flag);
+  Handle<Code> code = PropertyHandlerCompiler::Find(
+      lookup->name(), stub_holder_map, kind(), flag);
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
   if (!code.is_null()) {
-    Handle<Code> handler;
+    Handle<Object> handler;
     if (maybe_handler_.ToHandle(&handler)) {
       if (!handler.is_identical_to(code)) {
         TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
@@ -1045,7 +1064,7 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
   return code;
 }
 
-Handle<Code> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
+Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   if (receiver->IsString() &&
       Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
@@ -1389,7 +1408,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
     return;
   }
 
-  CodeHandleList handlers(target_receiver_maps.length());
+  List<Handle<Object>> handlers(target_receiver_maps.length());
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_PolymorphicElement);
   ElementHandlerCompiler compiler(isolate());
   compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
@@ -1606,7 +1625,8 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (!use_ic) {
     TRACE_GENERIC_IC(isolate(), "StoreIC", "LookupForWrite said 'false'");
   }
-  Handle<Code> code = use_ic ? ComputeHandler(lookup, value) : slow_stub();
+  Handle<Code> code =
+      use_ic ? Handle<Code>::cast(ComputeHandler(lookup, value)) : slow_stub();
 
   PatchCache(lookup->name(), code);
   TRACE_IC("StoreIC", lookup->name());
@@ -1628,7 +1648,7 @@ static Handle<Code> PropertyCellStoreHandler(
   return code;
 }
 
-Handle<Code> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
+Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
   DCHECK_NE(LookupIterator::JSPROXY, lookup->state());
 
   // This is currently guaranteed by checks in StoreIC::Store.

@@ -107,10 +107,10 @@ class IC {
   void ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
-                            Handle<Code> handler);
+                            Handle<Object> handler);
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
   // Configure the vector for POLYMORPHIC with transitions (only for element
   // keyed stores).
   void ConfigureVectorState(MapHandleList* maps,
@@ -136,9 +136,9 @@ class IC {
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Code> ComputeHandler(LookupIterator* lookup,
-                              Handle<Object> value = Handle<Code>::null());
-  virtual Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) {
+  Handle<Object> ComputeHandler(LookupIterator* lookup,
+                                Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
@@ -149,15 +149,15 @@ class IC {
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name);
-  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code);
-  void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
+  void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
+  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
+  void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
 
   StubCache* stub_cache();
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<Name> name, Handle<Code> code);
+  void PatchCache(Handle<Name> name, Handle<Object> code);
   Code::Kind kind() const { return kind_; }
   bool is_keyed() const {
     return kind_ == Code::KEYED_LOAD_IC || kind_ == Code::KEYED_STORE_IC;
@@ -239,7 +239,7 @@ class IC {
   State state_;
   Code::Kind kind_;
   Handle<Map> receiver_map_;
-  MaybeHandle<Code> maybe_handler_;
+  MaybeHandle<Object> maybe_handler_;
 
   ExtraICState extra_ic_state_;
   MapHandleList target_maps_;
@@ -305,13 +305,13 @@ class LoadIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
-  Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) override;
+  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
 
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> unused,
                               CacheHolderFlag cache_holder) override;
 
  private:
-  Handle<Code> SimpleFieldLoad(FieldIndex index);
+  Handle<Object> SimpleFieldLoad(FieldIndex index);
 
   friend class IC;
 };
@@ -418,7 +418,7 @@ class StoreIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode);
-  Handle<Code> GetMapIndependentHandler(LookupIterator* lookup) override;
+  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
   Handle<Code> CompileHandler(LookupIterator* lookup, Handle<Object> value,
                               CacheHolderFlag cache_holder) override;
 

@@ -173,6 +173,7 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
 void FullCodeGenerator::CallLoadIC(TypeFeedbackId id) {
   Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
   CallIC(ic, id);
+  if (FLAG_tf_load_ic_stub) RestoreContext();
 }
 
 void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,

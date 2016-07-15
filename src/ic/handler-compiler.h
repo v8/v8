@@ -280,7 +280,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
   virtual ~ElementHandlerCompiler() {}
 
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers);
+                              List<Handle<Object>>* handlers);
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };

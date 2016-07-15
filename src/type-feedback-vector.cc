@@ -427,10 +427,9 @@ Handle<FixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
   return Handle<FixedArray>::cast(feedback_extra);
 }
 
-
 void FeedbackNexus::InstallHandlers(Handle<FixedArray> array,
                                     MapHandleList* maps,
-                                    CodeHandleList* handlers) {
+                                    List<Handle<Object>>* handlers) {
   int receiver_count = maps->length();
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps->at(current);
@@ -656,9 +655,8 @@ void CallICNexus::ConfigureMegamorphic(int call_count) {
   SetFeedbackExtra(Smi::FromInt(call_count), SKIP_WRITE_BARRIER);
 }
 
-
 void LoadICNexus::ConfigureMonomorphic(Handle<Map> receiver_map,
-                                       Handle<Code> handler) {
+                                       Handle<Object> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   SetFeedback(*cell);
   SetFeedbackExtra(*handler);
@@ -722,9 +720,8 @@ void KeyedStoreICNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
-
 void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                       CodeHandleList* handlers) {
+                                       List<Handle<Object>>* handlers) {
   Isolate* isolate = GetIsolate();
   int receiver_count = maps->length();
   Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
@@ -735,7 +732,7 @@ void LoadICNexus::ConfigurePolymorphic(MapHandleList* maps,
 
 void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
                                             MapHandleList* maps,
-                                            CodeHandleList* handlers) {
+                                            List<Handle<Object>>* handlers) {
   int receiver_count = maps->length();
   DCHECK(receiver_count > 1);
   Handle<FixedArray> array;
@@ -751,9 +748,8 @@ void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
   InstallHandlers(array, maps, handlers);
 }
 
-
 void StoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
-                                        CodeHandleList* handlers) {
+                                        List<Handle<Object>>* handlers) {
   Isolate* isolate = GetIsolate();
   int receiver_count = maps->length();
   Handle<FixedArray> array = EnsureArrayOfSize(receiver_count * 2);
@@ -762,10 +758,9 @@ void StoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
                    SKIP_WRITE_BARRIER);
 }
 
-
 void KeyedStoreICNexus::ConfigurePolymorphic(Handle<Name> name,
                                              MapHandleList* maps,
-                                             CodeHandleList* handlers) {
+                                             List<Handle<Object>>* handlers) {
   int receiver_count = maps->length();
   DCHECK(receiver_count > 1);
   Handle<FixedArray> array;
@@ -807,6 +802,30 @@ void KeyedStoreICNexus::ConfigurePolymorphic(MapHandleList* maps,
   }
 }
 
+namespace {
+
+int GetStepSize(FixedArray* array, Isolate* isolate) {
+  // The array should be of the form
+  // [map, handler, map, handler, ...]
+  // or
+  // [map, map, handler, map, map, handler, ...]
+  // where "map" is either a WeakCell or |undefined|,
+  // and "handler" is either a Code object or a Smi.
+  DCHECK(array->length() >= 2);
+  Object* second = array->get(1);
+  if (second->IsWeakCell() || second->IsUndefined(isolate)) return 3;
+  DCHECK(second->IsCode() || second->IsSmi());
+  return 2;
+}
+
+#ifdef DEBUG  // Only used by DCHECKs below.
+bool IsHandler(Object* object) {
+  return object->IsSmi() ||
+         (object->IsCode() && Code::cast(object)->is_handler());
+}
+#endif
+
+}  // namespace
 
 int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   Isolate* isolate = GetIsolate();
@@ -818,12 +837,7 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    // The array should be of the form
-    // [map, handler, map, handler, ...]
-    // or
-    // [map, map, handler, map, map, handler, ...]
-    DCHECK(array->length() >= 2);
-    int increment = array->get(1)->IsCode() ? 2 : 3;
+    int increment = GetStepSize(array, isolate);
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
@@ -846,26 +860,25 @@ int FeedbackNexus::ExtractMaps(MapHandleList* maps) const {
   return 0;
 }
 
-
-MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
+MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   Object* feedback = GetFeedback();
+  Isolate* isolate = GetIsolate();
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
   if (feedback->IsFixedArray() || is_named_feedback) {
     if (is_named_feedback) {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    DCHECK(array->length() >= 2);
-    int increment = array->get(1)->IsCode() ? 2 : 3;
+    int increment = GetStepSize(array, isolate);
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
       if (!cell->cleared()) {
         Map* array_map = Map::cast(cell->value());
         if (array_map == *map) {
-          Code* code = Code::cast(array->get(i + increment - 1));
-          DCHECK(code->kind() == Code::HANDLER);
-          return handle(code);
+          Object* code = array->get(i + increment - 1);
+          DCHECK(IsHandler(code));
+          return handle(code, isolate);
         }
       }
     }
@@ -874,9 +887,9 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
     if (!cell->cleared()) {
       Map* cell_map = Map::cast(cell->value());
       if (cell_map == *map) {
-        Code* code = Code::cast(GetFeedbackExtra());
-        DCHECK(code->kind() == Code::HANDLER);
-        return handle(code);
+        Object* code = GetFeedbackExtra();
+        DCHECK(IsHandler(code));
+        return handle(code, isolate);
       }
     }
   }
@@ -884,9 +897,10 @@ MaybeHandle<Code> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   return MaybeHandle<Code>();
 }
 
-
-bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
+bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
+                                 int length) const {
   Object* feedback = GetFeedback();
+  Isolate* isolate = GetIsolate();
   int count = 0;
   bool is_named_feedback = IsPropertyNameFeedback(feedback);
   if (feedback->IsFixedArray() || is_named_feedback) {
@@ -894,29 +908,24 @@ bool FeedbackNexus::FindHandlers(CodeHandleList* code_list, int length) const {
       feedback = GetFeedbackExtra();
     }
     FixedArray* array = FixedArray::cast(feedback);
-    // The array should be of the form
-    // [map, handler, map, handler, ...]
-    // or
-    // [map, map, handler, map, map, handler, ...]
-    // Be sure to skip handlers whose maps have been cleared.
-    DCHECK(array->length() >= 2);
-    int increment = array->get(1)->IsCode() ? 2 : 3;
+    int increment = GetStepSize(array, isolate);
     for (int i = 0; i < array->length(); i += increment) {
       DCHECK(array->get(i)->IsWeakCell());
       WeakCell* cell = WeakCell::cast(array->get(i));
+      // Be sure to skip handlers whose maps have been cleared.
       if (!cell->cleared()) {
-        Code* code = Code::cast(array->get(i + increment - 1));
-        DCHECK(code->kind() == Code::HANDLER);
-        code_list->Add(handle(code));
+        Object* code = array->get(i + increment - 1);
+        DCHECK(IsHandler(code));
+        code_list->Add(handle(code, isolate));
         count++;
       }
     }
   } else if (feedback->IsWeakCell()) {
     WeakCell* cell = WeakCell::cast(feedback);
     if (!cell->cleared()) {
-      Code* code = Code::cast(GetFeedbackExtra());
-      DCHECK(code->kind() == Code::HANDLER);
-      code_list->Add(handle(code));
+      Object* code = GetFeedbackExtra();
+      DCHECK(IsHandler(code));
+      code_list->Add(handle(code, isolate));
       count++;
     }
   }
@@ -966,7 +975,7 @@ void KeyedStoreICNexus::Clear(Code* host) {
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandleList maps;
-  CodeHandleList handlers;
+  List<Handle<Object>> handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
@@ -974,7 +983,7 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   FindHandlers(&handlers, maps.length());
   for (int i = 0; i < handlers.length(); i++) {
     // The first handler that isn't the slow handler will have the bits we need.
-    Handle<Code> handler = handlers.at(i);
+    Handle<Code> handler = Handle<Code>::cast(handlers.at(i));
     CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
     uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
     CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
