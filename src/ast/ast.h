@@ -114,7 +114,6 @@ namespace internal {
 
 // Forward declarations
 class AstNodeFactory;
-class AstVisitor;
 class Declaration;
 class Module;
 class BreakableStatement;
@@ -135,8 +134,6 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
 
 
 #define DECLARE_NODE_TYPE(type)                                          \
-  void Accept(AstVisitor* v) override;                                   \
-  AstNode::NodeType node_type() const final { return AstNode::k##type; } \
   friend class AstNodeFactory;
 
 
@@ -196,19 +193,12 @@ DEFINE_OPERATORS_FOR_FLAGS(AstProperties::Flags)
 class AstNode: public ZoneObject {
  public:
 #define DECLARE_TYPE_ENUM(type) k##type,
-  enum NodeType {
-    AST_NODE_LIST(DECLARE_TYPE_ENUM)
-    kInvalid = -1
-  };
+  enum NodeType : uint8_t { kModule = 0, AST_NODE_LIST(DECLARE_TYPE_ENUM) };
 #undef DECLARE_TYPE_ENUM
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
 
-  explicit AstNode(int position): position_(position) {}
-  virtual ~AstNode() {}
-
-  virtual void Accept(AstVisitor* v) = 0;
-  virtual NodeType node_type() const = 0;
+  NodeType node_type() const { return node_type_; }
   int position() const { return position_; }
 
 #ifdef DEBUG
@@ -227,6 +217,10 @@ class AstNode: public ZoneObject {
   IterationStatement* AsIterationStatement();
   MaterializedLiteral* AsMaterializedLiteral();
 
+ protected:
+  AstNode(int position, NodeType type)
+      : position_(position), node_type_(type) {}
+
  private:
   // Hidden to prevent accidental usage. It would have to load the
   // current zone from the TLS.
@@ -235,15 +229,18 @@ class AstNode: public ZoneObject {
   friend class CaseClause;  // Generates AST IDs.
 
   int position_;
+  NodeType node_type_;
 };
 
 
 class Statement : public AstNode {
  public:
-  explicit Statement(Zone* zone, int position) : AstNode(position) {}
-
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
   bool IsJump() const;
+
+ protected:
+  Statement(Zone* zone, int position, NodeType type)
+      : AstNode(position, type) {}
 };
 
 
@@ -360,8 +357,8 @@ class Expression : public AstNode {
   TypeFeedbackId test_id() const { return TypeFeedbackId(local_id(1)); }
 
  protected:
-  Expression(Zone* zone, int pos)
-      : AstNode(pos),
+  Expression(Zone* zone, int pos, NodeType type)
+      : AstNode(pos, type),
         base_id_(BailoutId::None().ToInt()),
         bit_field_(0) {}
   static int parent_num_ids() { return 0; }
@@ -411,8 +408,8 @@ class BreakableStatement : public Statement {
 
  protected:
   BreakableStatement(Zone* zone, ZoneList<const AstRawString*>* labels,
-                     BreakableType breakable_type, int position)
-      : Statement(zone, position),
+                     BreakableType breakable_type, int position, NodeType type)
+      : Statement(zone, position, type),
         labels_(labels),
         breakable_type_(breakable_type),
         base_id_(BailoutId::None().ToInt()) {
@@ -456,7 +453,7 @@ class Block final : public BreakableStatement {
  protected:
   Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
         bool ignore_completion_value, int pos)
-      : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos),
+      : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos, kBlock),
         statements_(capacity, zone),
         ignore_completion_value_(ignore_completion_value),
         scope_(NULL) {}
@@ -482,7 +479,7 @@ class DoExpression final : public Expression {
 
  protected:
   DoExpression(Zone* zone, Block* block, VariableProxy* result, int pos)
-      : Expression(zone, pos), block_(block), result_(result) {
+      : Expression(zone, pos, kDoExpression), block_(block), result_(result) {
     DCHECK_NOT_NULL(block_);
     DCHECK_NOT_NULL(result_);
   }
@@ -505,8 +502,8 @@ class Declaration : public AstNode {
 
  protected:
   Declaration(Zone* zone, VariableProxy* proxy, VariableMode mode, Scope* scope,
-              int pos)
-      : AstNode(pos), mode_(mode), proxy_(proxy), scope_(scope) {
+              int pos, NodeType type)
+      : AstNode(pos, type), mode_(mode), proxy_(proxy), scope_(scope) {
     DCHECK(IsDeclaredVariableMode(mode));
   }
 
@@ -530,7 +527,7 @@ class VariableDeclaration final : public Declaration {
  protected:
   VariableDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
                       Scope* scope, int pos)
-      : Declaration(zone, proxy, mode, scope, pos) {}
+      : Declaration(zone, proxy, mode, scope, pos, kVariableDeclaration) {}
 };
 
 
@@ -543,13 +540,9 @@ class FunctionDeclaration final : public Declaration {
   InitializationFlag initialization() const { return kCreatedInitialized; }
 
  protected:
-  FunctionDeclaration(Zone* zone,
-                      VariableProxy* proxy,
-                      VariableMode mode,
-                      FunctionLiteral* fun,
-                      Scope* scope,
-                      int pos)
-      : Declaration(zone, proxy, mode, scope, pos),
+  FunctionDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
+                      FunctionLiteral* fun, Scope* scope, int pos)
+      : Declaration(zone, proxy, mode, scope, pos, kFunctionDeclaration),
         fun_(fun) {
     DCHECK(mode == VAR || mode == LET || mode == CONST);
     DCHECK(fun != NULL);
@@ -576,7 +569,7 @@ class ImportDeclaration final : public Declaration {
   ImportDeclaration(Zone* zone, VariableProxy* proxy,
                     const AstRawString* import_name,
                     const AstRawString* module_specifier, Scope* scope, int pos)
-      : Declaration(zone, proxy, CONST, scope, pos),
+      : Declaration(zone, proxy, CONST, scope, pos, kImportDeclaration),
         import_name_(import_name),
         module_specifier_(module_specifier) {}
 
@@ -585,17 +578,18 @@ class ImportDeclaration final : public Declaration {
   const AstRawString* module_specifier_;
 };
 
-
-class Module : public AstNode {
+class Module final : public AstNode {
  public:
   ModuleDescriptor* descriptor() const { return descriptor_; }
   Block* body() const { return body_; }
 
  protected:
   Module(Zone* zone, int pos)
-      : AstNode(pos), descriptor_(ModuleDescriptor::New(zone)), body_(NULL) {}
+      : AstNode(pos, kModule),
+        descriptor_(ModuleDescriptor::New(zone)),
+        body_(NULL) {}
   Module(Zone* zone, ModuleDescriptor* descriptor, int pos, Block* body = NULL)
-      : AstNode(pos), descriptor_(descriptor), body_(body) {}
+      : AstNode(pos, kModule), descriptor_(descriptor), body_(body) {}
 
  private:
   ModuleDescriptor* descriptor_;
@@ -622,8 +616,9 @@ class IterationStatement : public BreakableStatement {
   Label* continue_target()  { return &continue_target_; }
 
  protected:
-  IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
+  IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
+                     NodeType type)
+      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos, type),
         body_(NULL),
         yield_count_(0),
         first_yield_id_(0) {}
@@ -659,7 +654,7 @@ class DoWhileStatement final : public IterationStatement {
 
  protected:
   DoWhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos), cond_(NULL) {}
+      : IterationStatement(zone, labels, pos, kDoWhileStatement), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
@@ -688,7 +683,7 @@ class WhileStatement final : public IterationStatement {
 
  protected:
   WhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos), cond_(NULL) {}
+      : IterationStatement(zone, labels, pos, kWhileStatement), cond_(NULL) {}
   static int parent_num_ids() { return IterationStatement::num_ids(); }
 
  private:
@@ -727,7 +722,7 @@ class ForStatement final : public IterationStatement {
 
  protected:
   ForStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos),
+      : IterationStatement(zone, labels, pos, kForStatement),
         init_(NULL),
         cond_(NULL),
         next_(NULL) {}
@@ -756,8 +751,9 @@ class ForEachStatement : public IterationStatement {
   }
 
  protected:
-  ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos) {}
+  ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
+                   NodeType type)
+      : IterationStatement(zone, labels, pos, type) {}
 };
 
 
@@ -806,7 +802,7 @@ class ForInStatement final : public ForEachStatement {
 
  protected:
   ForInStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos),
+      : ForEachStatement(zone, labels, pos, kForInStatement),
         each_(nullptr),
         subject_(nullptr),
         for_in_type_(SLOW_FOR_IN) {}
@@ -875,7 +871,7 @@ class ForOfStatement final : public ForEachStatement {
 
  protected:
   ForOfStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : ForEachStatement(zone, labels, pos),
+      : ForEachStatement(zone, labels, pos, kForOfStatement),
         iterator_(NULL),
         assign_iterator_(NULL),
         next_result_(NULL),
@@ -904,7 +900,7 @@ class ExpressionStatement final : public Statement {
 
  protected:
   ExpressionStatement(Zone* zone, Expression* expression, int pos)
-      : Statement(zone, pos), expression_(expression) { }
+      : Statement(zone, pos, kExpressionStatement), expression_(expression) {}
 
  private:
   Expression* expression_;
@@ -916,7 +912,8 @@ class JumpStatement : public Statement {
   bool IsJump() const { return true; }
 
  protected:
-  explicit JumpStatement(Zone* zone, int pos) : Statement(zone, pos) {}
+  JumpStatement(Zone* zone, int pos, NodeType type)
+      : Statement(zone, pos, type) {}
 };
 
 
@@ -927,8 +924,8 @@ class ContinueStatement final : public JumpStatement {
   IterationStatement* target() const { return target_; }
 
  protected:
-  explicit ContinueStatement(Zone* zone, IterationStatement* target, int pos)
-      : JumpStatement(zone, pos), target_(target) { }
+  ContinueStatement(Zone* zone, IterationStatement* target, int pos)
+      : JumpStatement(zone, pos, kContinueStatement), target_(target) {}
 
  private:
   IterationStatement* target_;
@@ -942,8 +939,8 @@ class BreakStatement final : public JumpStatement {
   BreakableStatement* target() const { return target_; }
 
  protected:
-  explicit BreakStatement(Zone* zone, BreakableStatement* target, int pos)
-      : JumpStatement(zone, pos), target_(target) { }
+  BreakStatement(Zone* zone, BreakableStatement* target, int pos)
+      : JumpStatement(zone, pos, kBreakStatement), target_(target) {}
 
  private:
   BreakableStatement* target_;
@@ -959,8 +956,8 @@ class ReturnStatement final : public JumpStatement {
   void set_expression(Expression* e) { expression_ = e; }
 
  protected:
-  explicit ReturnStatement(Zone* zone, Expression* expression, int pos)
-      : JumpStatement(zone, pos), expression_(expression) { }
+  ReturnStatement(Zone* zone, Expression* expression, int pos)
+      : JumpStatement(zone, pos, kReturnStatement), expression_(expression) {}
 
  private:
   Expression* expression_;
@@ -985,7 +982,7 @@ class WithStatement final : public Statement {
  protected:
   WithStatement(Zone* zone, Scope* scope, Expression* expression,
                 Statement* statement, int pos)
-      : Statement(zone, pos),
+      : Statement(zone, pos, kWithStatement),
         scope_(scope),
         expression_(expression),
         statement_(statement),
@@ -1058,7 +1055,8 @@ class SwitchStatement final : public BreakableStatement {
 
  protected:
   SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
+      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos,
+                           kSwitchStatement),
         tag_(NULL),
         cases_(NULL) {}
 
@@ -1102,7 +1100,7 @@ class IfStatement final : public Statement {
  protected:
   IfStatement(Zone* zone, Expression* condition, Statement* then_statement,
               Statement* else_statement, int pos)
-      : Statement(zone, pos),
+      : Statement(zone, pos, kIfStatement),
         condition_(condition),
         then_statement_(then_statement),
         else_statement_(else_statement),
@@ -1143,8 +1141,10 @@ class TryStatement : public Statement {
   void set_catch_predicted(bool b) { catch_predicted_ = b; }
 
  protected:
-  TryStatement(Zone* zone, Block* try_block, int pos)
-      : Statement(zone, pos), try_block_(try_block), catch_predicted_(false) {}
+  TryStatement(Zone* zone, Block* try_block, int pos, NodeType type)
+      : Statement(zone, pos, type),
+        try_block_(try_block),
+        catch_predicted_(false) {}
 
  private:
   Block* try_block_;
@@ -1177,7 +1177,7 @@ class TryCatchStatement final : public TryStatement {
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
                     Variable* variable, Block* catch_block,
                     bool clear_pending_message, int pos)
-      : TryStatement(zone, try_block, pos),
+      : TryStatement(zone, try_block, pos, kTryCatchStatement),
         scope_(scope),
         variable_(variable),
         catch_block_(catch_block),
@@ -1201,7 +1201,8 @@ class TryFinallyStatement final : public TryStatement {
  protected:
   TryFinallyStatement(Zone* zone, Block* try_block, Block* finally_block,
                       int pos)
-      : TryStatement(zone, try_block, pos), finally_block_(finally_block) {}
+      : TryStatement(zone, try_block, pos, kTryFinallyStatement),
+        finally_block_(finally_block) {}
 
  private:
   Block* finally_block_;
@@ -1217,8 +1218,9 @@ class DebuggerStatement final : public Statement {
   BailoutId DebugBreakId() const { return BailoutId(local_id(0)); }
 
  protected:
-  explicit DebuggerStatement(Zone* zone, int pos)
-      : Statement(zone, pos), base_id_(BailoutId::None().ToInt()) {}
+  DebuggerStatement(Zone* zone, int pos)
+      : Statement(zone, pos, kDebuggerStatement),
+        base_id_(BailoutId::None().ToInt()) {}
   static int parent_num_ids() { return 0; }
 
   int base_id() const {
@@ -1238,7 +1240,7 @@ class EmptyStatement final : public Statement {
   DECLARE_NODE_TYPE(EmptyStatement)
 
  protected:
-  explicit EmptyStatement(Zone* zone, int pos): Statement(zone, pos) {}
+  EmptyStatement(Zone* zone, int pos) : Statement(zone, pos, kEmptyStatement) {}
 };
 
 
@@ -1256,7 +1258,7 @@ class SloppyBlockFunctionStatement final : public Statement {
 
  private:
   SloppyBlockFunctionStatement(Zone* zone, Statement* statement, Scope* scope)
-      : Statement(zone, kNoSourcePosition),
+      : Statement(zone, kNoSourcePosition, kSloppyBlockFunctionStatement),
         statement_(statement),
         scope_(scope) {}
 
@@ -1299,7 +1301,7 @@ class Literal final : public Expression {
 
  protected:
   Literal(Zone* zone, const AstValue* value, int position)
-      : Expression(zone, position), value_(value) {}
+      : Expression(zone, position, kLiteral), value_(value) {}
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
@@ -1323,8 +1325,8 @@ class MaterializedLiteral : public Expression {
   }
 
  protected:
-  MaterializedLiteral(Zone* zone, int literal_index, int pos)
-      : Expression(zone, pos),
+  MaterializedLiteral(Zone* zone, int literal_index, int pos, NodeType type)
+      : Expression(zone, pos, type),
         literal_index_(literal_index),
         is_simple_(false),
         depth_(0) {}
@@ -1507,7 +1509,7 @@ class ObjectLiteral final : public MaterializedLiteral {
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
                 int boilerplate_properties, int pos)
-      : MaterializedLiteral(zone, literal_index, pos),
+      : MaterializedLiteral(zone, literal_index, pos, kObjectLiteral),
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
@@ -1560,7 +1562,7 @@ class RegExpLiteral final : public MaterializedLiteral {
  protected:
   RegExpLiteral(Zone* zone, const AstRawString* pattern, int flags,
                 int literal_index, int pos)
-      : MaterializedLiteral(zone, literal_index, pos),
+      : MaterializedLiteral(zone, literal_index, pos, kRegExpLiteral),
         pattern_(pattern),
         flags_(flags) {
     set_depth(1);
@@ -1634,7 +1636,7 @@ class ArrayLiteral final : public MaterializedLiteral {
  protected:
   ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
                int first_spread_index, int literal_index, int pos)
-      : MaterializedLiteral(zone, literal_index, pos),
+      : MaterializedLiteral(zone, literal_index, pos, kArrayLiteral),
         values_(values),
         first_spread_index_(first_spread_index) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
@@ -1820,7 +1822,7 @@ class Property final : public Expression {
 
  protected:
   Property(Zone* zone, Expression* obj, Expression* key, int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kProperty),
         bit_field_(IsForCallField::encode(false) |
                    IsStringAccessField::encode(false) |
                    InlineCacheStateField::encode(UNINITIALIZED)),
@@ -1940,7 +1942,7 @@ class Call final : public Expression {
  protected:
   Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
        int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kCall),
         expression_(expression),
         arguments_(arguments),
         bit_field_(IsUninitializedField::encode(false)) {
@@ -2011,7 +2013,7 @@ class CallNew final : public Expression {
  protected:
   CallNew(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
           int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kCallNew),
         expression_(expression),
         arguments_(arguments),
         is_monomorphic_(false) {}
@@ -2060,11 +2062,13 @@ class CallRuntime final : public Expression {
  protected:
   CallRuntime(Zone* zone, const Runtime::Function* function,
               ZoneList<Expression*>* arguments, int pos)
-      : Expression(zone, pos), function_(function), arguments_(arguments) {}
+      : Expression(zone, pos, kCallRuntime),
+        function_(function),
+        arguments_(arguments) {}
 
   CallRuntime(Zone* zone, int context_index, ZoneList<Expression*>* arguments,
               int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kCallRuntime),
         function_(NULL),
         context_index_(context_index),
         arguments_(arguments) {}
@@ -2098,7 +2102,9 @@ class UnaryOperation final : public Expression {
 
  protected:
   UnaryOperation(Zone* zone, Token::Value op, Expression* expression, int pos)
-      : Expression(zone, pos), op_(op), expression_(expression) {
+      : Expression(zone, pos, kUnaryOperation),
+        op_(op),
+        expression_(expression) {
     DCHECK(Token::IsUnaryOp(op));
   }
   static int parent_num_ids() { return Expression::num_ids(); }
@@ -2157,7 +2163,7 @@ class BinaryOperation final : public Expression {
  protected:
   BinaryOperation(Zone* zone, Token::Value op, Expression* left,
                   Expression* right, int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kBinaryOperation),
         op_(static_cast<byte>(op)),
         has_fixed_right_arg_(false),
         fixed_right_arg_value_(0),
@@ -2228,7 +2234,7 @@ class CountOperation final : public Expression {
  protected:
   CountOperation(Zone* zone, Token::Value op, bool is_prefix, Expression* expr,
                  int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kCountOperation),
         bit_field_(
             IsPrefixField::encode(is_prefix) | KeyTypeField::encode(ELEMENT) |
             StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
@@ -2281,7 +2287,7 @@ class CompareOperation final : public Expression {
  protected:
   CompareOperation(Zone* zone, Token::Value op, Expression* left,
                    Expression* right, int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kCompareOperation),
         op_(op),
         left_(left),
         right_(right),
@@ -2314,7 +2320,9 @@ class Spread final : public Expression {
 
  protected:
   Spread(Zone* zone, Expression* expression, int pos, int expr_pos)
-      : Expression(zone, pos), expression_(expression), expr_pos_(expr_pos) {}
+      : Expression(zone, pos, kSpread),
+        expression_(expression),
+        expr_pos_(expr_pos) {}
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
@@ -2349,7 +2357,7 @@ class Conditional final : public Expression {
  protected:
   Conditional(Zone* zone, Expression* condition, Expression* then_expression,
               Expression* else_expression, int position)
-      : Expression(zone, position),
+      : Expression(zone, position, kConditional),
         condition_(condition),
         then_expression_(then_expression),
         else_expression_(else_expression) {}
@@ -2476,7 +2484,7 @@ class RewritableExpression : public Expression {
 
  protected:
   RewritableExpression(Zone* zone, Expression* expression)
-      : Expression(zone, expression->position()),
+      : Expression(zone, expression->position(), kRewritableExpression),
         is_rewritten_(false),
         expr_(expression) {
     DCHECK(!expression->IsRewritableExpression());
@@ -2512,7 +2520,7 @@ class Yield final : public Expression {
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
         int pos, OnException on_exception)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kYield),
         generator_object_(generator_object),
         expression_(expression),
         on_exception_(on_exception),
@@ -2535,7 +2543,7 @@ class Throw final : public Expression {
 
  protected:
   Throw(Zone* zone, Expression* exception, int pos)
-      : Expression(zone, pos), exception_(exception) {}
+      : Expression(zone, pos, kThrow), exception_(exception) {}
 
  private:
   Expression* exception_;
@@ -2684,7 +2692,7 @@ class FunctionLiteral final : public Expression {
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, FunctionKind kind,
                   int position, bool is_function)
-      : Expression(zone, position),
+      : Expression(zone, position, kFunctionLiteral),
         raw_name_(name),
         scope_(scope),
         body_(body),
@@ -2786,7 +2794,7 @@ class ClassLiteral final : public Expression {
                Expression* extends, FunctionLiteral* constructor,
                ZoneList<Property*>* properties, int start_position,
                int end_position)
-      : Expression(zone, start_position),
+      : Expression(zone, start_position, kClassLiteral),
         scope_(scope),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
@@ -2820,7 +2828,9 @@ class NativeFunctionLiteral final : public Expression {
  protected:
   NativeFunctionLiteral(Zone* zone, const AstRawString* name,
                         v8::Extension* extension, int pos)
-      : Expression(zone, pos), name_(name), extension_(extension) {}
+      : Expression(zone, pos, kNativeFunctionLiteral),
+        name_(name),
+        extension_(extension) {}
 
  private:
   const AstRawString* name_;
@@ -2833,7 +2843,7 @@ class ThisFunction final : public Expression {
   DECLARE_NODE_TYPE(ThisFunction)
 
  protected:
-  ThisFunction(Zone* zone, int pos) : Expression(zone, pos) {}
+  ThisFunction(Zone* zone, int pos) : Expression(zone, pos, kThisFunction) {}
 };
 
 
@@ -2849,7 +2859,9 @@ class SuperPropertyReference final : public Expression {
  protected:
   SuperPropertyReference(Zone* zone, VariableProxy* this_var,
                          Expression* home_object, int pos)
-      : Expression(zone, pos), this_var_(this_var), home_object_(home_object) {
+      : Expression(zone, pos, kSuperPropertyReference),
+        this_var_(this_var),
+        home_object_(home_object) {
     DCHECK(this_var->is_this());
     DCHECK(home_object->IsProperty());
   }
@@ -2875,7 +2887,7 @@ class SuperCallReference final : public Expression {
   SuperCallReference(Zone* zone, VariableProxy* this_var,
                      VariableProxy* new_target_var,
                      VariableProxy* this_function_var, int pos)
-      : Expression(zone, pos),
+      : Expression(zone, pos, kSuperCallReference),
         this_var_(this_var),
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
@@ -2898,7 +2910,8 @@ class EmptyParentheses final : public Expression {
   DECLARE_NODE_TYPE(EmptyParentheses)
 
  private:
-  EmptyParentheses(Zone* zone, int pos) : Expression(zone, pos) {}
+  EmptyParentheses(Zone* zone, int pos)
+      : Expression(zone, pos, kEmptyParentheses) {}
 };
 
 
@@ -2907,32 +2920,59 @@ class EmptyParentheses final : public Expression {
 
 // ----------------------------------------------------------------------------
 // Basic visitor
-// - leaf node visitors are abstract.
+// Sub-class should parametrize AstVisitor with itself, e.g.:
+//   class SpecificVisitor : public AstVisitor<SpecificVisitor> { ... }
 
+template <class Subclass>
 class AstVisitor BASE_EMBEDDED {
  public:
-  AstVisitor() {}
-  virtual ~AstVisitor() {}
+  void Visit(AstNode* node) { This()->Visit(node); }
 
-  // Stack overflow check and dynamic dispatch.
-  virtual void Visit(AstNode* node) = 0;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations) {
+    for (int i = 0; i < declarations->length(); i++) {
+      Visit(declarations->at(i));
+    }
+  }
 
-  // Iteration left-to-right.
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  virtual void VisitStatements(ZoneList<Statement*>* statements);
-  virtual void VisitExpressions(ZoneList<Expression*>* expressions);
+  void VisitStatements(ZoneList<Statement*>* statements) {
+    for (int i = 0; i < statements->length(); i++) {
+      Statement* stmt = statements->at(i);
+      Visit(stmt);
+      if (stmt->IsJump()) break;
+    }
+  }
 
-  // Individual AST nodes.
-#define DEF_VISIT(type)                         \
-  virtual void Visit##type(type* node) = 0;
-  AST_NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
+  void VisitExpressions(ZoneList<Expression*>* expressions) {
+    for (int i = 0; i < expressions->length(); i++) {
+      // The variable statement visiting code may pass NULL expressions
+      // to this code. Maybe this should be handled by introducing an
+      // undefined expression or literal?  Revisit this code if this
+      // changes
+      Expression* expression = expressions->at(i);
+      if (expression != NULL) Visit(expression);
+    }
+  }
+
+ private:
+  Subclass* This() { return static_cast<Subclass*>(this); }
 };
+
+#define GENERATE_VISIT_CASE(NodeType) \
+  case AstNode::k##NodeType:          \
+    return Visit##NodeType(static_cast<NodeType*>(node));
+
+#define GENERATE_AST_VISITOR_SWITCH()  \
+  switch (node->node_type()) {         \
+    AST_NODE_LIST(GENERATE_VISIT_CASE) \
+    case AstNode::kModule:             \
+      UNREACHABLE();                   \
+  }
 
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
  public:                                                    \
-  void Visit(AstNode* node) final {                         \
-    if (!CheckStackOverflow()) node->Accept(this);          \
+  void Visit(AstNode* node) {                               \
+    if (CheckStackOverflow()) return;                       \
+    GENERATE_AST_VISITOR_SWITCH()                           \
   }                                                         \
                                                             \
   void SetStackOverflow() { stack_overflow_ = true; }       \
@@ -2962,6 +3002,12 @@ class AstVisitor BASE_EMBEDDED {
   uintptr_t stack_limit_;                                   \
   bool stack_overflow_
 
+#define DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()    \
+ public:                                                      \
+  void Visit(AstNode* node) { GENERATE_AST_VISITOR_SWITCH() } \
+                                                              \
+ private:
+
 #define DEFINE_AST_REWRITER_SUBCLASS_MEMBERS()        \
  public:                                              \
   AstNode* Rewrite(AstNode* node) {                   \
@@ -2990,7 +3036,6 @@ class AstVisitor BASE_EMBEDDED {
                                                       \
  protected:                                           \
   AstNode* replacement_
-
 // Generic macro for rewriting things; `GET` is the expression to be
 // rewritten; `SET` is a command that should do the rewriting, i.e.
 // something sensible with the variable called `replacement`.
@@ -3030,18 +3075,20 @@ class AstVisitor BASE_EMBEDDED {
 // Traversing visitor
 // - fully traverses the entire AST.
 
-class AstTraversalVisitor : public AstVisitor {
+// This AstVistor is not final, and provides the AstVisitor methods as virtual
+// methods so they can be specialized by subclasses.
+class AstTraversalVisitor : public AstVisitor<AstTraversalVisitor> {
  public:
   explicit AstTraversalVisitor(Isolate* isolate);
   explicit AstTraversalVisitor(uintptr_t stack_limit);
   virtual ~AstTraversalVisitor() {}
 
   // Iteration left-to-right.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitStatements(ZoneList<Statement*>* statements);
 
 // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

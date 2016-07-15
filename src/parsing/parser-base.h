@@ -3062,7 +3062,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
       IsClassConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
       scope->RecordSuperPropertyUsage();
-      return this->SuperPropertyReference(scope_, factory(), pos);
+      return this->NewSuperPropertyReference(scope_, factory(), pos);
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
@@ -3070,7 +3070,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       function_state_->set_super_location(scanner()->location());
-      return this->SuperCallReference(scope_, factory(), pos);
+      return this->NewSuperCallReference(scope_, factory(), pos);
     }
   }
 

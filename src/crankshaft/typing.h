@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-class AstTyper: public AstVisitor {
+class AstTyper final : public AstVisitor<AstTyper> {
  public:
   AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
            Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
@@ -71,10 +71,10 @@ class AstTyper: public AstVisitor {
            var->IsParameter() ? parameter_index(var->index()) : kNoVar;
   }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitStatements(ZoneList<Statement*>* statements);
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

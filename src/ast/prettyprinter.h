@@ -12,10 +12,10 @@
 namespace v8 {
 namespace internal {
 
-class CallPrinter : public AstVisitor {
+class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
   explicit CallPrinter(Isolate* isolate, bool is_builtin);
-  virtual ~CallPrinter();
+  ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
   // string. The result string is alive as long as the CallPrinter is alive.
@@ -26,7 +26,7 @@ class CallPrinter : public AstVisitor {
   void Find(AstNode* node, bool print = false);
 
 // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -53,14 +53,13 @@ class CallPrinter : public AstVisitor {
 
 #ifdef DEBUG
 
-// Prints the AST structure
-class AstPrinter : public AstVisitor {
+class AstPrinter final : public AstVisitor<AstPrinter> {
  public:
   explicit AstPrinter(Isolate* isolate);
-  virtual ~AstPrinter();
+  ~AstPrinter();
 
   // The following routines print a node into a string.
-  // The result string is alive as long as the PrettyPrinter is alive.
+  // The result string is alive as long as the AstPrinter is alive.
   const char* Print(AstNode* node);
   const char* PrintProgram(FunctionLiteral* program);
 
@@ -70,7 +69,7 @@ class AstPrinter : public AstVisitor {
   static void PrintOut(Isolate* isolate, AstNode* node);
 
   // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

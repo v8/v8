@@ -321,9 +321,6 @@ void AstLiteralReindexer::VisitFunctionLiteral(FunctionLiteral* node) {
   // We don't recurse into the declarations or body of the function literal:
 }
 
-
-void AstLiteralReindexer::Reindex(Expression* pattern) {
-  pattern->Accept(this);
-}
+void AstLiteralReindexer::Reindex(Expression* pattern) { Visit(pattern); }
 }  // namespace internal
 }  // namespace v8

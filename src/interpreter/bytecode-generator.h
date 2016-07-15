@@ -19,19 +19,19 @@ namespace interpreter {
 
 class LoopBuilder;
 
-class BytecodeGenerator final : public AstVisitor {
+class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(CompilationInfo* info);
 
   Handle<BytecodeArray> MakeBytecode();
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list and statements are overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void VisitStatements(ZoneList<Statement*>* statments) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitStatements(ZoneList<Statement*>* statments);
 
  private:
   class ContextScope;

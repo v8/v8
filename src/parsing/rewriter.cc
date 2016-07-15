@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class Processor: public AstVisitor {
+class Processor final : public AstVisitor<Processor> {
  public:
   Processor(Isolate* isolate, Scope* scope, Variable* result,
             AstValueFactory* ast_value_factory)
@@ -36,8 +36,6 @@ class Processor: public AstVisitor {
         factory_(ast_value_factory) {
     InitializeAstVisitor(parser->stack_limit());
   }
-
-  ~Processor() override {}
 
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
@@ -81,7 +79,7 @@ class Processor: public AstVisitor {
   AstNodeFactory factory_;
 
   // Node visitors.
-#define DEF_VISIT(type) void Visit##type(type* node) override;
+#define DEF_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 

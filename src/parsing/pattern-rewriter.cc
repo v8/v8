@@ -328,7 +328,7 @@ void Parser::PatternRewriter::VisitRewritableExpression(
     // perform BindingPattern rewriting
     DCHECK(!node->is_rewritten());
     node->Rewrite(node->expression());
-    return node->expression()->Accept(this);
+    return Visit(node->expression());
   }
 
   if (node->is_rewritten()) return;
@@ -729,8 +729,6 @@ void Parser::PatternRewriter::VisitProperty(v8::internal::Property* node) {
 
 
 // =============== UNREACHABLE =============================
-
-void Parser::PatternRewriter::Visit(AstNode* node) { UNREACHABLE(); }
 
 #define NOT_A_PATTERN(Node)                                        \
   void Parser::PatternRewriter::Visit##Node(v8::internal::Node*) { \

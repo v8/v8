@@ -507,10 +507,10 @@ class ParserTraits {
 
   Expression* ThisExpression(Scope* scope, AstNodeFactory* factory,
                              int pos = kNoSourcePosition);
-  Expression* SuperPropertyReference(Scope* scope, AstNodeFactory* factory,
-                                     int pos);
-  Expression* SuperCallReference(Scope* scope, AstNodeFactory* factory,
-                                 int pos);
+  Expression* NewSuperPropertyReference(Scope* scope, AstNodeFactory* factory,
+                                        int pos);
+  Expression* NewSuperCallReference(Scope* scope, AstNodeFactory* factory,
+                                    int pos);
   Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
                                   int pos);
   Expression* FunctionSentExpression(Scope* scope, AstNodeFactory* factory,
@@ -840,7 +840,7 @@ class Parser : public ParserBase<ParserTraits> {
     Scanner::Location bindings_loc;
   };
 
-  class PatternRewriter : private AstVisitor {
+  class PatternRewriter final : private AstVisitor<PatternRewriter> {
    public:
     static void DeclareAndInitializeVariables(
         Block* block, const DeclarationDescriptor* declaration_descriptor,
@@ -858,11 +858,10 @@ class Parser : public ParserBase<ParserTraits> {
    private:
     PatternRewriter() {}
 
-#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(v8::internal::type* node);
     // Visiting functions for AST nodes make this an AstVisitor.
     AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-    void Visit(AstNode* node) override;
 
     enum PatternContext {
       BINDING,
@@ -878,7 +877,7 @@ class Parser : public ParserBase<ParserTraits> {
       Expression* old_value = current_value_;
       current_value_ = value;
       recursion_level_++;
-      pattern->Accept(this);
+      Visit(pattern);
       recursion_level_--;
       current_value_ = old_value;
     }
@@ -917,6 +916,8 @@ class Parser : public ParserBase<ParserTraits> {
     Expression* current_value_;
     int recursion_level_;
     bool* ok_;
+
+    DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,

@@ -12141,7 +12141,7 @@ void HOptimizedGraphBuilder::VisitSuperCallReference(SuperCallReference* expr) {
 void HOptimizedGraphBuilder::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   DCHECK(globals_.is_empty());
-  AstVisitor::VisitDeclarations(declarations);
+  AstVisitor<HOptimizedGraphBuilder>::VisitDeclarations(declarations);
   if (!globals_.is_empty()) {
     Handle<FixedArray> array =
        isolate()->factory()->NewFixedArray(globals_.length(), TENURED);

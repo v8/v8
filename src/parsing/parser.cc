@@ -634,10 +634,9 @@ Expression* ParserTraits::ThisExpression(Scope* scope, AstNodeFactory* factory,
                               Variable::THIS, pos, pos + 4);
 }
 
-
-Expression* ParserTraits::SuperPropertyReference(Scope* scope,
-                                                 AstNodeFactory* factory,
-                                                 int pos) {
+Expression* ParserTraits::NewSuperPropertyReference(Scope* scope,
+                                                    AstNodeFactory* factory,
+                                                    int pos) {
   // this_function[home_object_symbol]
   VariableProxy* this_function_proxy = scope->NewUnresolved(
       factory, parser_->ast_value_factory()->this_function_string(),
@@ -650,9 +649,9 @@ Expression* ParserTraits::SuperPropertyReference(Scope* scope,
       ThisExpression(scope, factory, pos)->AsVariableProxy(), home_object, pos);
 }
 
-
-Expression* ParserTraits::SuperCallReference(Scope* scope,
-                                             AstNodeFactory* factory, int pos) {
+Expression* ParserTraits::NewSuperCallReference(Scope* scope,
+                                                AstNodeFactory* factory,
+                                                int pos) {
   VariableProxy* new_target_proxy = scope->NewUnresolved(
       factory, parser_->ast_value_factory()->new_target_string(),
       Variable::NORMAL, pos);

@@ -2062,8 +2062,10 @@ inline HContext* HGraphBuilder::New<HContext>() {
   return HContext::New(zone());
 }
 
-
-class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
+// This AstVistor is not final, and provides the AstVisitor methods as virtual
+// methods so they can be specialized by subclasses.
+class HOptimizedGraphBuilder : public HGraphBuilder,
+                               public AstVisitor<HOptimizedGraphBuilder> {
  public:
   // A class encapsulating (lazily-allocated) break and continue blocks for
   // a breakable statement.  Separated from BreakAndContinueScope so that it
@@ -2143,7 +2145,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   FunctionState* function_state() const { return function_state_; }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
 
   AstTypeBounds* bounds() { return &bounds_; }
 
@@ -2351,7 +2353,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        HBasicBlock* false_block);
 
   // Visit a list of expressions from left to right, each in a value context.
-  void VisitExpressions(ZoneList<Expression*>* exprs) override;
+  void VisitExpressions(ZoneList<Expression*>* exprs);
   void VisitExpressions(ZoneList<Expression*>* exprs,
                         ArgumentsAllowedFlag flag);
 
@@ -2361,9 +2363,9 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void PushArgumentsFromEnvironment(int count);
 
   void SetUpScope(Scope* scope);
-  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitStatements(ZoneList<Statement*>* statements);
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

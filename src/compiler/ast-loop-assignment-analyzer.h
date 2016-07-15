@@ -40,13 +40,14 @@ class LoopAssignmentAnalysis : public ZoneObject {
 
 
 // The class that performs loop assignment analysis by walking the AST.
-class AstLoopAssignmentAnalyzer : public AstVisitor {
+class AstLoopAssignmentAnalyzer final
+    : public AstVisitor<AstLoopAssignmentAnalyzer> {
  public:
   AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info);
 
   LoopAssignmentAnalysis* Analyze();
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

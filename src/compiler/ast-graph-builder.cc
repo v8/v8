@@ -1112,7 +1112,7 @@ void AstGraphBuilder::VisitForValues(ZoneList<Expression*>* exprs) {
 void AstGraphBuilder::VisitForValue(Expression* expr) {
   AstValueContext for_value(this);
   if (!CheckStackOverflow()) {
-    expr->Accept(this);
+    AstVisitor<AstGraphBuilder>::Visit(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1122,7 +1122,7 @@ void AstGraphBuilder::VisitForValue(Expression* expr) {
 void AstGraphBuilder::VisitForEffect(Expression* expr) {
   AstEffectContext for_effect(this);
   if (!CheckStackOverflow()) {
-    expr->Accept(this);
+    AstVisitor<AstGraphBuilder>::Visit(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1132,7 +1132,7 @@ void AstGraphBuilder::VisitForEffect(Expression* expr) {
 void AstGraphBuilder::VisitForTest(Expression* expr) {
   AstTestContext for_condition(this, expr->test_id());
   if (!CheckStackOverflow()) {
-    expr->Accept(this);
+    AstVisitor<AstGraphBuilder>::Visit(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -1142,7 +1142,7 @@ void AstGraphBuilder::VisitForTest(Expression* expr) {
 void AstGraphBuilder::Visit(Expression* expr) {
   // Reuses enclosing AstContext.
   if (!CheckStackOverflow()) {
-    expr->Accept(this);
+    AstVisitor<AstGraphBuilder>::Visit(expr);
   } else {
     ast_context()->ProduceValue(expr, jsgraph()->UndefinedConstant());
   }
@@ -2982,7 +2982,7 @@ void AstGraphBuilder::VisitCaseClause(CaseClause* expr) {
 
 void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   DCHECK(globals()->empty());
-  AstVisitor::VisitDeclarations(declarations);
+  AstVisitor<AstGraphBuilder>::VisitDeclarations(declarations);
   if (globals()->empty()) return;
   int array_index = 0;
   Handle<TypeFeedbackVector> feedback_vector(

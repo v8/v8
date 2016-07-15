@@ -10,11 +10,10 @@
 namespace v8 {
 namespace internal {
 
-class AstNumberingVisitor final : public AstVisitor {
+class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
   AstNumberingVisitor(Isolate* isolate, Zone* zone)
-      : AstVisitor(),
-        isolate_(isolate),
+      : isolate_(isolate),
         zone_(zone),
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
@@ -29,7 +28,7 @@ class AstNumberingVisitor final : public AstVisitor {
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
@@ -37,8 +36,8 @@ class AstNumberingVisitor final : public AstVisitor {
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
 
-  void VisitStatements(ZoneList<Statement*>* statements) override;
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statements);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 

@@ -23,15 +23,6 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// All the Accept member functions for each syntax tree node type.
-
-#define DECL_ACCEPT(type)                                       \
-  void type::Accept(AstVisitor* v) { v->Visit##type(this); }
-AST_NODE_LIST(DECL_ACCEPT)
-#undef DECL_ACCEPT
-
-
-// ----------------------------------------------------------------------------
 // Implementation of other node functionality.
 
 #ifdef DEBUG
@@ -182,7 +173,7 @@ bool Statement::IsJump() const {
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
                              int end_position)
-    : Expression(zone, start_position),
+    : Expression(zone, start_position, kVariableProxy),
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
@@ -191,17 +182,15 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
   BindTo(var);
 }
 
-
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
                              Variable::Kind variable_kind, int start_position,
                              int end_position)
-    : Expression(zone, start_position),
+    : Expression(zone, start_position, kVariableProxy),
       bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       raw_name_(name),
       end_position_(end_position) {}
-
 
 void VariableProxy::BindTo(Variable* var) {
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
@@ -255,17 +244,15 @@ void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
   for_in_feedback_slot_ = spec->AddGeneralSlot();
 }
 
-
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
-    : Expression(zone, pos),
+    : Expression(zone, pos, kAssignment),
       bit_field_(
           IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
           StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
       binary_operation_(NULL) {}
-
 
 void Assignment::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,
@@ -931,36 +918,6 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 
 
 // ----------------------------------------------------------------------------
-// Implementation of AstVisitor
-
-void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    Visit(declarations->at(i));
-  }
-}
-
-
-void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
-  for (int i = 0; i < statements->length(); i++) {
-    Statement* stmt = statements->at(i);
-    Visit(stmt);
-    if (stmt->IsJump()) break;
-  }
-}
-
-
-void AstVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
-  for (int i = 0; i < expressions->length(); i++) {
-    // The variable statement visiting code may pass NULL expressions
-    // to this code. Maybe this should be handled by introducing an
-    // undefined expression or literal?  Revisit this code if this
-    // changes
-    Expression* expression = expressions->at(i);
-    if (expression != NULL) Visit(expression);
-  }
-}
-
-// ----------------------------------------------------------------------------
 // Implementation of AstTraversalVisitor
 
 #define RECURSE(call)               \
@@ -1263,7 +1220,7 @@ void AstTraversalVisitor::VisitRewritableExpression(
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos)
-    : Expression(zone, pos),
+    : Expression(zone, pos, kCaseClause),
       label_(label),
       statements_(statements),
       compare_type_(Type::None()) {}

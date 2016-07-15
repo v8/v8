@@ -32,11 +32,14 @@ class TypeHintAnalysis;
 // underlying AST. The produced graph can either be compiled into a
 // stand-alone function or be wired into another graph for the purposes
 // of function inlining.
-class AstGraphBuilder : public AstVisitor {
+// This AstVistor is not final, and provides the AstVisitor methods as virtual
+// methods so they can be specialized by subclasses.
+class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
                   LoopAssignmentAnalysis* loop_assignment = nullptr,
                   TypeHintAnalysis* type_hint_analysis = nullptr);
+  virtual ~AstGraphBuilder() {}
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph(bool stack_check = true);
@@ -51,13 +54,13 @@ class AstGraphBuilder : public AstVisitor {
   }
 
  protected:
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
 
  private:
   class AstContext;

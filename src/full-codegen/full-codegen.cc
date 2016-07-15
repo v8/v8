@@ -390,7 +390,7 @@ void FullCodeGenerator::VisitDeclarations(
   ZoneList<Handle<Object> > inner_globals(10, zone());
   globals_ = &inner_globals;
 
-  AstVisitor::VisitDeclarations(declarations);
+  AstVisitor<FullCodeGenerator>::VisitDeclarations(declarations);
 
   if (!globals_->is_empty()) {
     // Invoke the platform-dependent code generator to do the actual

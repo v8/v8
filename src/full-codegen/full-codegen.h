@@ -27,7 +27,7 @@ class JumpPatchSite;
 // -----------------------------------------------------------------------------
 // Full code generator.
 
-class FullCodeGenerator: public AstVisitor {
+class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
  public:
   FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
@@ -387,7 +387,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
 
@@ -737,7 +737,7 @@ class FullCodeGenerator: public AstVisitor {
   void PushCalleeAndWithBaseObject(Call* expr);
 
   // AST node visit functions.
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

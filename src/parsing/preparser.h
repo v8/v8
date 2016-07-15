@@ -802,15 +802,14 @@ class PreParserTraits {
     return PreParserExpression::This();
   }
 
-  static PreParserExpression SuperPropertyReference(Scope* scope,
-                                                    PreParserFactory* factory,
-                                                    int pos) {
+  static PreParserExpression NewSuperPropertyReference(
+      Scope* scope, PreParserFactory* factory, int pos) {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpression SuperCallReference(Scope* scope,
-                                                PreParserFactory* factory,
-                                                int pos) {
+  static PreParserExpression NewSuperCallReference(Scope* scope,
+                                                   PreParserFactory* factory,
+                                                   int pos) {
     return PreParserExpression::SuperCallReference();
   }
 
