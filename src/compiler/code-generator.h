@@ -7,6 +7,7 @@
 
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/unwinding-info-writer.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
@@ -254,6 +255,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
   InstructionSequence* const code_;
+  UnwindingInfoWriter unwinding_info_writer_;
   CompilationInfo* const info_;
   Label* const labels_;
   Label return_label_;

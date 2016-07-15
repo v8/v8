@@ -37,6 +37,7 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
     : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
+      unwinding_info_writer_(zone()),
       info_(info),
       labels_(zone()->NewArray<Label>(code->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
@@ -101,6 +102,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
+  unwinding_info_writer_.SetNumberOfInstructionBlocks(
+      code()->InstructionBlockCount());
+
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
     for (const InstructionBlock* block : code()->instruction_blocks()) {
@@ -113,6 +117,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
       if (block->IsHandler()) EnsureSpaceForLazyDeopt();
       // Bind a label for a block.
       current_block_ = block->rpo_number();
+      unwinding_info_writer_.BeginInstructionBlock(masm()->pc_offset(), block);
       if (FLAG_code_comments) {
         // TODO(titzer): these code comments are a giant memory leak.
         Vector<char> buffer = Vector<char>::New(200);
@@ -163,6 +168,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
         result = AssembleBlock(block);
       }
       if (result != kSuccess) return Handle<Code>();
+      unwinding_info_writer_.EndInstructionBlock(block);
     }
   }
 
@@ -203,8 +209,10 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
+  unwinding_info_writer_.Finish(masm()->pc_offset());
+
   Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      masm(), nullptr, info, Handle<Object>());
+      masm(), unwinding_info_writer_.eh_frame_writer(), info, Handle<Object>());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());

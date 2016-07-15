@@ -41,6 +41,7 @@
       'compiler/graph-builder-tester.h',
       'compiler/test-basic-block-profiler.cc',
       'compiler/test-branch-combine.cc',
+      'compiler/test-run-unwinding-info.cc',
       'compiler/test-gap-resolver.cc',
       'compiler/test-graph-visualizer.cc',
       'compiler/test-code-assembler.cc',

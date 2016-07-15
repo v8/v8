@@ -180,19 +180,28 @@ class OutOfLineLoadNaN final : public OutOfLineCode {
 class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
  public:
   OutOfLineTruncateDoubleToI(CodeGenerator* gen, Register result,
-                             XMMRegister input)
-      : OutOfLineCode(gen), result_(result), input_(input) {}
+                             XMMRegister input,
+                             UnwindingInfoWriter* unwinding_info_writer)
+      : OutOfLineCode(gen),
+        result_(result),
+        input_(input),
+        unwinding_info_writer_(unwinding_info_writer) {}
 
   void Generate() final {
     __ subp(rsp, Immediate(kDoubleSize));
+    unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                      kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
     __ SlowTruncateToI(result_, rsp, 0);
     __ addp(rsp, Immediate(kDoubleSize));
+    unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                      -kDoubleSize);
   }
 
  private:
   Register const result_;
   XMMRegister const input_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
 };
 
 
@@ -622,6 +631,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
+  unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
   __ popq(rbp);
 }
@@ -756,6 +766,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
         __ jmp(reg);
       }
+      unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
       break;
@@ -764,6 +775,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
       __ jmp(reg);
+      unwinding_info_writer_.MarkBlockWillExit();
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
       break;
@@ -872,7 +884,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);
-      auto ool = new (zone()) OutOfLineTruncateDoubleToI(this, result, input);
+      auto ool = new (zone()) OutOfLineTruncateDoubleToI(
+          this, result, input, &unwinding_info_writer_);
       // We use Cvttsd2siq instead of Cvttsd2si due to performance reasons. The
       // use of Cvttsd2siq requires the movl below to avoid sign extension.
       __ Cvttsd2siq(result, input);
@@ -1234,6 +1247,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kSSEFloat64Mod: {
       __ subq(rsp, Immediate(kDoubleSize));
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       kDoubleSize);
       // Move values to st(0) and st(1).
       __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(1));
       __ fld_d(Operand(rsp, 0));
@@ -1254,7 +1269,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ shrl(rax, Immediate(8));
         __ andl(rax, Immediate(0xFF));
         __ pushq(rax);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
         __ popfq();
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         -kPointerSize);
       }
       __ j(parity_even, &mod_loop);
       // Move output to stack and clean up.
@@ -1262,6 +1281,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fstp_d(Operand(rsp, 0));
       __ Movsd(i.OutputDoubleRegister(), Operand(rsp, 0));
       __ addq(rsp, Immediate(kDoubleSize));
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       -kDoubleSize);
       break;
     }
     case kSSEFloat64Max:
@@ -1843,18 +1864,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 0)) {
         __ pushq(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
       } else {
         if (instr->InputAt(0)->IsRegister()) {
           __ pushq(i.InputRegister(0));
           frame_access_state()->IncreaseSPDelta(1);
+          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                           kPointerSize);
         } else if (instr->InputAt(0)->IsFPRegister()) {
           // TODO(titzer): use another machine instruction?
           __ subq(rsp, Immediate(kDoubleSize));
           frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                           kDoubleSize);
           __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
         } else {
           __ pushq(i.InputOperand(0));
           frame_access_state()->IncreaseSPDelta(1);
+          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                           kPointerSize);
         }
       }
       break;
@@ -2147,6 +2176,8 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
+    int pc_base = __ pc_offset();
+
     if (descriptor->IsCFunctionCall()) {
       __ pushq(rbp);
       __ movq(rbp, rsp);
@@ -2154,6 +2185,10 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Prologue(this->info()->GeneratePreagedPrologue());
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
+    }
+
+    if (!descriptor->IsJSFunctionCall() || !info()->GeneratePreagedPrologue()) {
+      unwinding_info_writer_.MarkFrameConstructed(pc_base);
     }
   }
   int shrink_slots = frame()->GetSpillSlotCount();
@@ -2227,6 +2262,8 @@ void CodeGenerator::AssembleReturn() {
     // Adjust the stack pointer.
     __ addp(rsp, Immediate(stack_size));
   }
+
+  unwinding_info_writer_.MarkBlockWillExit();
 
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
@@ -2416,11 +2453,15 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     Register src = g.ToRegister(source);
     __ pushq(src);
     frame_access_state()->IncreaseSPDelta(1);
+    unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                     kPointerSize);
     Operand dst = g.ToOperand(destination);
     __ movq(src, dst);
     frame_access_state()->IncreaseSPDelta(-1);
     dst = g.ToOperand(destination);
     __ popq(dst);
+    unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                     -kPointerSize);
   } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
              (source->IsFPStackSlot() && destination->IsFPStackSlot())) {
     // Memory-memory.
@@ -2431,12 +2472,16 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       Register tmp = kScratchRegister;
       __ movq(tmp, dst);
       __ pushq(src);
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       kPointerSize);
       frame_access_state()->IncreaseSPDelta(1);
       src = g.ToOperand(source);
       __ movq(src, tmp);
       frame_access_state()->IncreaseSPDelta(-1);
       dst = g.ToOperand(destination);
       __ popq(dst);
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       -kPointerSize);
     } else {
       // Use the XOR trick to swap without a temporary.
       __ Movups(kScratchDoubleReg, src);
@@ -2490,7 +2535,7 @@ void CodeGenerator::EnsureSpaceForLazyDeopt() {
   int space_needed = Deoptimizer::patch_size();
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
-  int current_pc = masm()->pc_offset();
+  int current_pc = __ pc_offset();
   if (current_pc < last_lazy_deopt_pc_ + space_needed) {
     int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
     __ Nop(padding_size);
