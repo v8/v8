@@ -144,10 +144,7 @@ namespace internal {
   DBG(Return_DebugBreak)                                                    \
   DBG(Slot_DebugBreak)                                                      \
   DBG(FrameDropper_LiveEdit)                                                \
-  /* Primitives */                                                          \
-  ASM(StringToNumber)                                                       \
-  ASM(NonNumberToNumber)                                                    \
-  ASM(ToNumber)                                                             \
+  /* Type conversions */                                                    \
   TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion) \
   TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion) \
   TFS(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState,            \
@@ -156,6 +153,9 @@ namespace internal {
       TypeConversion)                                                       \
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,             \
       TypeConversion)                                                       \
+  ASM(StringToNumber)                                                       \
+  TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)          \
+  ASM(ToNumber)                                                             \
                                                                             \
   /* Built-in functions for Javascript */                                   \
   /* Special internal builtins */                                           \
@@ -515,7 +515,6 @@ class Builtins {
   static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
   static void Generate_StringToNumber(MacroAssembler* masm);
-  static void Generate_NonNumberToNumber(MacroAssembler* masm);
   static void Generate_ToNumber(MacroAssembler* masm);
 
   static void Generate_Apply(MacroAssembler* masm);

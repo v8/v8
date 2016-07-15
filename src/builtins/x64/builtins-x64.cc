@@ -2159,37 +2159,6 @@ void Builtins::Generate_ToNumber(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-// static
-void Builtins::Generate_NonNumberToNumber(MacroAssembler* masm) {
-  // The NonNumberToNumber stub takes one argument in rax.
-  __ AssertNotNumber(rax);
-
-  Label not_string;
-  __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rdi);
-  // rax: object
-  // rdi: object map
-  __ j(above_equal, &not_string, Label::kNear);
-  __ Jump(masm->isolate()->builtins()->StringToNumber(),
-          RelocInfo::CODE_TARGET);
-  __ bind(&not_string);
-
-  Label not_oddball;
-  __ CmpInstanceType(rdi, ODDBALL_TYPE);
-  __ j(not_equal, &not_oddball, Label::kNear);
-  __ movp(rax, FieldOperand(rax, Oddball::kToNumberOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    // Push argument.
-    __ Push(rax);
-    // We cannot use a tail call here because this builtin can also be called
-    // from wasm.
-    __ CallRuntime(Runtime::kToNumber);
-  }
-  __ Ret();
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : actual number of arguments
