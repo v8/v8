@@ -942,6 +942,22 @@ struct RepresentationSelectionPhase {
   }
 };
 
+struct LoopPeelingPhase {
+  static const char* phase_name() { return "loop peeling"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
+
+    LoopTree* loop_tree =
+        LoopFinder::BuildLoopTree(data->jsgraph()->graph(), temp_zone);
+    LoopPeeler::PeelInnerLoopsOfTree(data->graph(), data->common(), loop_tree,
+                                     temp_zone);
+  }
+};
+
 struct LoopExitEliminationPhase {
   static const char* phase_name() { return "loop exit elimination"; }
 
@@ -1438,9 +1454,13 @@ bool PipelineImpl::CreateGraph() {
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
 
-    // Eventually, loop peeling will be done here.
-    Run<LoopExitEliminationPhase>();
-    RunPrintAndVerify("Loop exits eliminated", true);
+    if (FLAG_turbo_loop_peeling) {
+      Run<LoopPeelingPhase>();
+      RunPrintAndVerify("Loops peeled", true);
+    } else {
+      Run<LoopExitEliminationPhase>();
+      RunPrintAndVerify("Loop exits eliminated", true);
+    }
 
     if (FLAG_turbo_stress_loop_peeling) {
       Run<StressLoopPeelingPhase>();
