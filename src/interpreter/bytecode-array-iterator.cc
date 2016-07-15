@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
+#include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
@@ -70,8 +71,8 @@ uint32_t BytecodeArrayIterator::GetUnsignedOperand(
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
-  return Bytecodes::DecodeUnsignedOperand(operand_start, operand_type,
-                                          current_operand_scale());
+  return BytecodeDecoder::DecodeUnsignedOperand(operand_start, operand_type,
+                                                current_operand_scale());
 }
 
 int32_t BytecodeArrayIterator::GetSignedOperand(
@@ -86,8 +87,8 @@ int32_t BytecodeArrayIterator::GetSignedOperand(
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
-  return Bytecodes::DecodeSignedOperand(operand_start, operand_type,
-                                        current_operand_scale());
+  return BytecodeDecoder::DecodeSignedOperand(operand_start, operand_type,
+                                              current_operand_scale());
 }
 
 uint32_t BytecodeArrayIterator::GetFlagOperand(int operand_index) const {
@@ -124,8 +125,8 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
       current_prefix_offset() +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index,
                                   current_operand_scale());
-  return Bytecodes::DecodeRegisterOperand(operand_start, operand_type,
-                                          current_operand_scale());
+  return BytecodeDecoder::DecodeRegisterOperand(operand_start, operand_type,
+                                                current_operand_scale());
 }
 
 int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {

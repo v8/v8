@@ -7,10 +7,8 @@
 #include <iomanip>
 
 #include "src/base/bits.h"
-#include "src/code-stubs.h"
-#include "src/frames.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-traits.h"
-#include "src/interpreter/interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -101,6 +99,12 @@ const char* Bytecodes::OperandSizeToString(OperandSize operand_size) {
   }
   UNREACHABLE();
   return "";
+}
+
+// static
+uint8_t Bytecodes::ToByte(Bytecode bytecode) {
+  DCHECK_LE(bytecode, Bytecode::kLast);
+  return static_cast<uint8_t>(bytecode);
 }
 
 // static
@@ -380,7 +384,6 @@ bool Bytecodes::IsConditionalJumpImmediate(Bytecode bytecode) {
          bytecode == Bytecode::kJumpIfUndefined;
 }
 
-
 // static
 bool Bytecodes::IsConditionalJumpConstant(Bytecode bytecode) {
   return bytecode == Bytecode::kJumpIfTrueConstant ||
@@ -622,144 +625,6 @@ OperandSize Bytecodes::SizeForUnsignedOperand(uint32_t value) {
 }
 
 // static
-Register Bytecodes::DecodeRegisterOperand(const uint8_t* operand_start,
-                                          OperandType operand_type,
-                                          OperandScale operand_scale) {
-  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
-  int32_t operand =
-      DecodeSignedOperand(operand_start, operand_type, operand_scale);
-  return Register::FromOperand(operand);
-}
-
-// static
-int32_t Bytecodes::DecodeSignedOperand(const uint8_t* operand_start,
-                                       OperandType operand_type,
-                                       OperandScale operand_scale) {
-  DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
-  switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
-    case OperandSize::kByte:
-      return static_cast<int8_t>(*operand_start);
-    case OperandSize::kShort:
-      return static_cast<int16_t>(ReadUnalignedUInt16(operand_start));
-    case OperandSize::kQuad:
-      return static_cast<int32_t>(ReadUnalignedUInt32(operand_start));
-    case OperandSize::kNone:
-      UNREACHABLE();
-  }
-  return 0;
-}
-
-// static
-uint32_t Bytecodes::DecodeUnsignedOperand(const uint8_t* operand_start,
-                                          OperandType operand_type,
-                                          OperandScale operand_scale) {
-  DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
-  switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
-    case OperandSize::kByte:
-      return *operand_start;
-    case OperandSize::kShort:
-      return ReadUnalignedUInt16(operand_start);
-    case OperandSize::kQuad:
-      return ReadUnalignedUInt32(operand_start);
-    case OperandSize::kNone:
-      UNREACHABLE();
-  }
-  return 0;
-}
-
-// static
-std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
-                                int parameter_count) {
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_start[0]);
-  int prefix_offset = 0;
-  OperandScale operand_scale = OperandScale::kSingle;
-  if (IsPrefixScalingBytecode(bytecode)) {
-    prefix_offset = 1;
-    operand_scale = Bytecodes::PrefixBytecodeToOperandScale(bytecode);
-    bytecode = Bytecodes::FromByte(bytecode_start[1]);
-  }
-
-  // Prepare to print bytecode and operands as hex digits.
-  std::ios saved_format(nullptr);
-  saved_format.copyfmt(saved_format);
-  os.fill('0');
-  os.flags(std::ios::hex);
-
-  int bytecode_size = Bytecodes::Size(bytecode, operand_scale);
-  for (int i = 0; i < prefix_offset + bytecode_size; i++) {
-    os << std::setw(2) << static_cast<uint32_t>(bytecode_start[i]) << ' ';
-  }
-  os.copyfmt(saved_format);
-
-  const int kBytecodeColumnSize = 6;
-  for (int i = prefix_offset + bytecode_size; i < kBytecodeColumnSize; i++) {
-    os << "   ";
-  }
-
-  os << Bytecodes::ToString(bytecode, operand_scale) << " ";
-
-  // Operands for the debug break are from the original instruction.
-  if (IsDebugBreak(bytecode)) return os;
-
-  int number_of_operands = NumberOfOperands(bytecode);
-  int range = 0;
-  for (int i = 0; i < number_of_operands; i++) {
-    OperandType op_type = GetOperandType(bytecode, i);
-    const uint8_t* operand_start =
-        &bytecode_start[prefix_offset +
-                        GetOperandOffset(bytecode, i, operand_scale)];
-    switch (op_type) {
-      case interpreter::OperandType::kRegCount:
-        os << "#"
-           << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
-        break;
-      case interpreter::OperandType::kIdx:
-      case interpreter::OperandType::kRuntimeId:
-      case interpreter::OperandType::kIntrinsicId:
-        os << "["
-           << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
-           << "]";
-        break;
-      case interpreter::OperandType::kImm:
-        os << "[" << DecodeSignedOperand(operand_start, op_type, operand_scale)
-           << "]";
-        break;
-      case interpreter::OperandType::kFlag8:
-        os << "#"
-           << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
-        break;
-      case interpreter::OperandType::kMaybeReg:
-      case interpreter::OperandType::kReg:
-      case interpreter::OperandType::kRegOut: {
-        Register reg =
-            DecodeRegisterOperand(operand_start, op_type, operand_scale);
-        os << reg.ToString(parameter_count);
-        break;
-      }
-      case interpreter::OperandType::kRegOutTriple:
-        range += 1;
-      case interpreter::OperandType::kRegOutPair:
-      case interpreter::OperandType::kRegPair: {
-        range += 1;
-        Register first_reg =
-            DecodeRegisterOperand(operand_start, op_type, operand_scale);
-        Register last_reg = Register(first_reg.index() + range);
-        os << first_reg.ToString(parameter_count) << "-"
-           << last_reg.ToString(parameter_count);
-        break;
-      }
-      case interpreter::OperandType::kNone:
-        UNREACHABLE();
-        break;
-    }
-    if (i != number_of_operands - 1) {
-      os << ", ";
-    }
-  }
-  return os;
-}
-
-// static
 bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
                                    OperandScale operand_scale) {
   return operand_scale == OperandScale::kSingle ||
@@ -784,169 +649,6 @@ std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale) {
 
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
   return os << Bytecodes::OperandTypeToString(operand_type);
-}
-
-static const int kLastParamRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kLastParamFromFp) /
-    kPointerSize;
-static const int kFunctionClosureRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     StandardFrameConstants::kFunctionOffset) /
-    kPointerSize;
-static const int kCurrentContextRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     StandardFrameConstants::kContextOffset) /
-    kPointerSize;
-static const int kNewTargetRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kNewTargetFromFp) /
-    kPointerSize;
-static const int kBytecodeArrayRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kBytecodeArrayFromFp) /
-    kPointerSize;
-static const int kBytecodeOffsetRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kBytecodeOffsetFromFp) /
-    kPointerSize;
-static const int kCallerPCOffsetRegisterIndex =
-    (InterpreterFrameConstants::kRegisterFileFromFp -
-     InterpreterFrameConstants::kCallerPCOffsetFromFp) /
-    kPointerSize;
-
-Register Register::FromParameterIndex(int index, int parameter_count) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, parameter_count);
-  int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
-  DCHECK_LT(register_index, 0);
-  return Register(register_index);
-}
-
-int Register::ToParameterIndex(int parameter_count) const {
-  DCHECK(is_parameter());
-  return index() - kLastParamRegisterIndex + parameter_count - 1;
-}
-
-Register Register::function_closure() {
-  return Register(kFunctionClosureRegisterIndex);
-}
-
-bool Register::is_function_closure() const {
-  return index() == kFunctionClosureRegisterIndex;
-}
-
-Register Register::current_context() {
-  return Register(kCurrentContextRegisterIndex);
-}
-
-bool Register::is_current_context() const {
-  return index() == kCurrentContextRegisterIndex;
-}
-
-Register Register::new_target() { return Register(kNewTargetRegisterIndex); }
-
-bool Register::is_new_target() const {
-  return index() == kNewTargetRegisterIndex;
-}
-
-Register Register::bytecode_array() {
-  return Register(kBytecodeArrayRegisterIndex);
-}
-
-bool Register::is_bytecode_array() const {
-  return index() == kBytecodeArrayRegisterIndex;
-}
-
-Register Register::bytecode_offset() {
-  return Register(kBytecodeOffsetRegisterIndex);
-}
-
-bool Register::is_bytecode_offset() const {
-  return index() == kBytecodeOffsetRegisterIndex;
-}
-
-// static
-Register Register::virtual_accumulator() {
-  return Register(kCallerPCOffsetRegisterIndex);
-}
-
-OperandSize Register::SizeOfOperand() const {
-  int32_t operand = ToOperand();
-  if (operand >= kMinInt8 && operand <= kMaxInt8) {
-    return OperandSize::kByte;
-  } else if (operand >= kMinInt16 && operand <= kMaxInt16) {
-    return OperandSize::kShort;
-  } else {
-    return OperandSize::kQuad;
-  }
-}
-
-bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
-                             Register reg4, Register reg5) {
-  if (reg1.index() + 1 != reg2.index()) {
-    return false;
-  }
-  if (reg3.is_valid() && reg2.index() + 1 != reg3.index()) {
-    return false;
-  }
-  if (reg4.is_valid() && reg3.index() + 1 != reg4.index()) {
-    return false;
-  }
-  if (reg5.is_valid() && reg4.index() + 1 != reg5.index()) {
-    return false;
-  }
-  return true;
-}
-
-std::string Register::ToString(int parameter_count) {
-  if (is_current_context()) {
-    return std::string("<context>");
-  } else if (is_function_closure()) {
-    return std::string("<closure>");
-  } else if (is_new_target()) {
-    return std::string("<new.target>");
-  } else if (is_parameter()) {
-    int parameter_index = ToParameterIndex(parameter_count);
-    if (parameter_index == 0) {
-      return std::string("<this>");
-    } else {
-      std::ostringstream s;
-      s << "a" << parameter_index - 1;
-      return s.str();
-    }
-  } else {
-    std::ostringstream s;
-    s << "r" << index();
-    return s.str();
-  }
-}
-
-// static
-uint8_t CreateObjectLiteralFlags::Encode(bool fast_clone_supported,
-                                         int properties_count,
-                                         int runtime_flags) {
-  uint8_t result = FlagsBits::encode(runtime_flags);
-  if (fast_clone_supported) {
-    STATIC_ASSERT(
-        FastCloneShallowObjectStub::kMaximumClonedProperties <=
-        1 << CreateObjectLiteralFlags::FastClonePropertiesCountBits::kShift);
-    DCHECK_LE(properties_count,
-              FastCloneShallowObjectStub::kMaximumClonedProperties);
-    result |= CreateObjectLiteralFlags::FastClonePropertiesCountBits::encode(
-        properties_count);
-  }
-  return result;
-}
-
-// static
-uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope) {
-  uint8_t result = PretenuredBit::encode(pretenure);
-  if (!FLAG_always_opt && !FLAG_prepare_always_opt &&
-      pretenure == NOT_TENURED && is_function_scope) {
-    result |= FastNewClosureBit::encode(true);
-  }
-  return result;
 }
 
 }  // namespace interpreter
