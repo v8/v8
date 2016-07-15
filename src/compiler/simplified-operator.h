@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "src/compiler/operator.h"
 #include "src/compiler/type-hints.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
@@ -79,6 +80,9 @@ std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
 FieldAccess const& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
+template <>
+void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
+                                            PrintVerbosity verbose) const;
 
 // An access descriptor for loads/stores of indexed structures like characters
 // in strings or off-heap backing stores. Accesses from either tagged or

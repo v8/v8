@@ -50,6 +50,7 @@ class Operator : public ZoneObject {
     kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
   };
   typedef base::Flags<Property, uint8_t> Properties;
+  enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.
   Operator(Opcode opcode, Properties properties, const char* mnemonic,
@@ -111,11 +112,18 @@ class Operator : public ZoneObject {
   }
 
   // TODO(titzer): API for input and output types, for typechecking graph.
- protected:
+
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual void PrintTo(std::ostream& os) const;
-  friend std::ostream& operator<<(std::ostream& os, const Operator& op);
+  void PrintTo(std::ostream& os,
+               PrintVerbosity verbose = PrintVerbosity::kVerbose) const {
+    // We cannot make PrintTo virtual, because default arguments to virtual
+    // methods are banned in the style guide.
+    return PrintToImpl(os, verbose);
+  }
+
+ protected:
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
   Opcode opcode_;
@@ -172,14 +180,19 @@ class Operator1 : public Operator {
   size_t HashCode() const final {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
-  virtual void PrintParameter(std::ostream& os) const {
-    os << "[" << this->parameter() << "]";
+  // For most parameter types, we have only a verbose way to print them, namely
+  // ostream << parameter. But for some types it is particularly useful to have
+  // a shorter way to print them for the node labels in Turbolizer. The
+  // following method can be overridden to provide a concise and a verbose
+  // printing of a parameter.
+
+  virtual void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    os << "[" << parameter() << "]";
   }
 
- protected:
-  void PrintTo(std::ostream& os) const final {
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
     os << mnemonic();
-    PrintParameter(os);
+    PrintParameter(os, verbose);
   }
 
  private:

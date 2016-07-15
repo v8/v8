@@ -124,6 +124,15 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   return os;
 }
 
+template <>
+void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
+                                            PrintVerbosity verbose) const {
+  if (verbose == PrintVerbosity::kVerbose) {
+    os << parameter();
+  } else {
+    os << "[+" << parameter().offset << "]";
+  }
+}
 
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
   // On purpose we don't include the write barrier kind here, as this method is

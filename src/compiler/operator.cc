@@ -44,8 +44,9 @@ std::ostream& operator<<(std::ostream& os, const Operator& op) {
   return os;
 }
 
-
-void Operator::PrintTo(std::ostream& os) const { os << mnemonic(); }
+void Operator::PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
+  os << mnemonic();
+}
 
 }  // namespace compiler
 }  // namespace internal

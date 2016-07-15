@@ -788,7 +788,7 @@ class GraphView extends View {
         })
         .append("title")
         .text(function(l) {
-          return d.getLabel();
+          return d.getTitle();
         })
       if (d.type != undefined) {
         d3.select(this).append("text")
