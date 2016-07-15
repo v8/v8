@@ -16,10 +16,10 @@ if (((v8_target_cpu == "x86" ||
       v8_target_cpu=="x87") &&
      (is_linux || is_mac)) ||
     (v8_target_cpu == "ppc64" && is_linux)) {
-  v8_enable_gdbjit = true
+  v8_enable_gdbjit_default = true
 }
 
-v8_imminent_deprecation_warnings = true
+v8_imminent_deprecation_warnings_default = true
 
 # Add simple extras solely for the purpose of the cctests.
 v8_extra_library_files = [ "//test/cctest/test-extra.js" ]

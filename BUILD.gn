@@ -26,7 +26,7 @@ declare_args() {
   v8_deprecation_warnings = false
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-  v8_imminent_deprecation_warnings = false
+  v8_imminent_deprecation_warnings = ""
 
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
@@ -38,7 +38,7 @@ declare_args() {
   v8_enable_disassembler = false
 
   # Sets -dENABLE_GDB_JIT_INTERFACE.
-  v8_enable_gdbjit = false
+  v8_enable_gdbjit = ""
 
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = true
@@ -67,6 +67,23 @@ declare_args() {
 
   # Similar to the ARM hard float ABI but on MIPS.
   v8_use_mips_abi_hardfloat = true
+}
+
+# Set project-specific defaults for some args if not provided in args.gn. The
+# defaults can be set in the respective build_overrides files.
+if (v8_imminent_deprecation_warnings == "") {
+  if (defined(v8_imminent_deprecation_warnings_default)) {
+    v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings_default
+  } else {
+    v8_imminent_deprecation_warnings = false
+  }
+}
+if (v8_enable_gdbjit == "") {
+  if (defined(v8_enable_gdbjit_default)) {
+    v8_enable_gdbjit = v8_enable_gdbjit_default
+  } else {
+    v8_enable_gdbjit = false
+  }
 }
 
 v8_random_seed = "314159265"
