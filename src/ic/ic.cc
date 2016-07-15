@@ -1024,7 +1024,8 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
       // cache (which just missed) is different from the cached handler.
       if (state() == MEGAMORPHIC && lookup->GetReceiver()->IsHeapObject()) {
         Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
-        Code* megamorphic_cached_code = stub_cache()->Get(*lookup->name(), map);
+        Code* megamorphic_cached_code =
+            stub_cache()->Get(*lookup->name(), map, code->flags());
         if (megamorphic_cached_code != *code) {
           TRACE_HANDLER_STATS(isolate(), IC_HandlerCacheHit);
           return code;

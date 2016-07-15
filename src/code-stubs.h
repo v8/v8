@@ -1386,7 +1386,6 @@ class FunctionPrototypeStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
   // TODO(mvstanton): only the receiver register is accessed. When this is
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor

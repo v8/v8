@@ -23,9 +23,9 @@ namespace internal {
 //
 // 'receiver', 'name' and 'offset' registers are preserved on miss.
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
-                       StubCache::Table table, Register receiver, Register name,
-                       Register offset, Register scratch, Register scratch2,
-                       Register scratch3) {
+                       Code::Flags flags, StubCache::Table table,
+                       Register receiver, Register name, Register offset,
+                       Register scratch, Register scratch2, Register scratch3) {
   // Some code below relies on the fact that the Entry struct contains
   // 3 pointers (name, code, map).
   STATIC_ASSERT(sizeof(StubCache::Entry) == (3 * kPointerSize));
@@ -64,16 +64,13 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   // Get the code entry from the cache.
   __ Ldr(scratch, MemOperand(scratch, value_off_addr - key_off_addr));
 
-#ifdef DEBUG
   // Check that the flags match what we're looking for.
-  Code::Flags flags = Code::RemoveHolderFromFlags(
-      Code::ComputeHandlerFlags(stub_cache->ic_kind()));
   __ Ldr(scratch2.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
   __ Bic(scratch2.W(), scratch2.W(), Code::kFlagsNotUsedInLookup);
   __ Cmp(scratch2.W(), flags);
   __ B(ne, &miss);
-  __ Check(eq, kUnexpectedValue);
 
+#ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
     __ B(&miss);
   } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
@@ -92,6 +89,9 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
+
   Label miss;
 
   // Make sure that there are no register conflicts.
@@ -131,21 +131,23 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ Ldr(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ Ldr(extra, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Add(scratch, scratch, extra);
+  __ Eor(scratch, scratch, flags);
   // We shift out the last two bits because they are not part of the hash.
   __ Ubfx(scratch, scratch, kCacheIndexShift,
           CountTrailingZeros(kPrimaryTableSize, 64));
 
   // Probe the primary table.
-  ProbeTable(this, masm, kPrimary, receiver, name, scratch, extra, extra2,
-             extra3);
+  ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
+             extra2, extra3);
 
   // Primary miss: Compute hash for secondary table.
   __ Sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
+  __ Add(scratch, scratch, flags >> kCacheIndexShift);
   __ And(scratch, scratch, kSecondaryTableSize - 1);
 
   // Probe the secondary table.
-  ProbeTable(this, masm, kSecondary, receiver, name, scratch, extra, extra2,
-             extra3);
+  ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,
+             extra2, extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

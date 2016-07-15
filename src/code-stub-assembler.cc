@@ -2791,6 +2791,7 @@ void CodeStubAssembler::HandlePolymorphicCase(
 }
 
 compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
+                                                          Code::Flags flags,
                                                           compiler::Node* map) {
   // See v8::internal::StubCache::PrimaryOffset().
   STATIC_ASSERT(StubCache::kCacheIndexShift == Name::kHashShift);
@@ -2804,18 +2805,28 @@ compiler::Node* CodeStubAssembler::StubCachePrimaryOffset(compiler::Node* name,
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
   Node* hash = Int32Add(hash_field, map);
-  // Base the offset on a simple combination of name and map.
+  // We always set the in_loop bit to zero when generating the lookup code
+  // so do it here too so the hash codes match.
+  uint32_t iflags =
+      (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
+  // Base the offset on a simple combination of name, flags, and map.
+  hash = Word32Xor(hash, Int32Constant(iflags));
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
                   << StubCache::kCacheIndexShift;
   return Word32And(hash, Int32Constant(mask));
 }
 
 compiler::Node* CodeStubAssembler::StubCacheSecondaryOffset(
-    compiler::Node* name, compiler::Node* seed) {
+    compiler::Node* name, Code::Flags flags, compiler::Node* seed) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
   Node* hash = Int32Sub(seed, name);
+  // We always set the in_loop bit to zero when generating the lookup code
+  // so do it here too so the hash codes match.
+  uint32_t iflags =
+      (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
+  hash = Int32Add(hash, Int32Constant(iflags));
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
   return Word32And(hash, Int32Constant(mask));
@@ -2828,8 +2839,9 @@ enum CodeStubAssembler::StubCacheTable : int {
 
 void CodeStubAssembler::TryProbeStubCacheTable(
     StubCache* stub_cache, StubCacheTable table_id,
-    compiler::Node* entry_offset, compiler::Node* name, compiler::Node* map,
-    Label* if_handler, Variable* var_handler, Label* if_miss) {
+    compiler::Node* entry_offset, compiler::Node* name, Code::Flags flags,
+    compiler::Node* map, Label* if_handler, Variable* var_handler,
+    Label* if_miss) {
   StubCache::Table table = static_cast<StubCache::Table>(table_id);
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
@@ -2859,19 +2871,18 @@ void CodeStubAssembler::TryProbeStubCacheTable(
            Int32Add(entry_offset, Int32Constant(kPointerSize * 2)));
   GotoIf(WordNotEqual(map, entry_map), if_miss);
 
+  // Check that the flags match what we're looking for.
   DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
                               stub_cache->key_reference(table).address());
   Node* code = Load(MachineType::Pointer(), key_base,
                     Int32Add(entry_offset, Int32Constant(kPointerSize)));
 
-  // Check that the flags match what we're looking for.
-  Code::Flags flags = Code::RemoveHolderFromFlags(
-      Code::ComputeHandlerFlags(stub_cache->ic_kind()));
   Node* code_flags =
       LoadObjectField(code, Code::kFlagsOffset, MachineType::Uint32());
-  Assert(Word32Equal(
-      Int32Constant(flags),
-      Word32And(code_flags, Int32Constant(~Code::kFlagsNotUsedInLookup))));
+  GotoIf(Word32NotEqual(Int32Constant(flags),
+                        Word32And(code_flags,
+                                  Int32Constant(~Code::kFlagsNotUsedInLookup))),
+         if_miss);
 
   // We found the handler.
   var_handler->Bind(code);
@@ -2881,6 +2892,9 @@ void CodeStubAssembler::TryProbeStubCacheTable(
 void CodeStubAssembler::TryProbeStubCache(
     StubCache* stub_cache, compiler::Node* receiver, compiler::Node* name,
     Label* if_handler, Variable* var_handler, Label* if_miss) {
+  Code::Flags flags = Code::RemoveHolderFromFlags(
+      Code::ComputeHandlerFlags(stub_cache->ic_kind()));
+
   Label try_secondary(this), miss(this);
 
   Counters* counters = isolate()->counters();
@@ -2892,16 +2906,17 @@ void CodeStubAssembler::TryProbeStubCache(
   Node* receiver_map = LoadMap(receiver);
 
   // Probe the primary table.
-  Node* primary_offset = StubCachePrimaryOffset(name, receiver_map);
-  TryProbeStubCacheTable(stub_cache, kPrimary, primary_offset, name,
+  Node* primary_offset = StubCachePrimaryOffset(name, flags, receiver_map);
+  TryProbeStubCacheTable(stub_cache, kPrimary, primary_offset, name, flags,
                          receiver_map, if_handler, var_handler, &try_secondary);
 
   Bind(&try_secondary);
   {
     // Probe the secondary table.
-    Node* secondary_offset = StubCacheSecondaryOffset(name, primary_offset);
+    Node* secondary_offset =
+        StubCacheSecondaryOffset(name, flags, primary_offset);
     TryProbeStubCacheTable(stub_cache, kSecondary, secondary_offset, name,
-                           receiver_map, if_handler, var_handler, &miss);
+                           flags, receiver_map, if_handler, var_handler, &miss);
   }
 
   Bind(&miss);

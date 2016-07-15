@@ -15,7 +15,8 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
-                       StubCache::Table table, Register receiver, Register name,
+                       Code::Flags flags, StubCache::Table table,
+                       Register receiver, Register name,
                        // The offset is scaled by 4, based on
                        // kCacheIndexShift, which is two bits
                        Register offset) {
@@ -56,15 +57,13 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   __ LoadAddress(kScratchRegister, value_offset);
   __ movp(kScratchRegister, Operand(kScratchRegister, offset, scale_factor, 0));
 
-#ifdef DEBUG
   // Check that the flags match what we're looking for.
-  Code::Flags flags = Code::RemoveHolderFromFlags(
-      Code::ComputeHandlerFlags(stub_cache->ic_kind()));
   __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
   __ andp(offset, Immediate(~Code::kFlagsNotUsedInLookup));
   __ cmpl(offset, Immediate(flags));
-  __ Check(equal, kUnexpectedValue);
+  __ j(not_equal, &miss);
 
+#ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
     __ jmp(&miss);
   } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
@@ -82,6 +81,9 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
+  Code::Flags flags =
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
+
   Label miss;
   USE(extra);   // The register extra is not used on the X64 platform.
   USE(extra2);  // The register extra2 is not used on the X64 platform.
@@ -127,22 +129,25 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   // Use only the low 32 bits of the map pointer.
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ xorp(scratch, Immediate(flags));
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
   __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(this, masm, kPrimary, receiver, name, scratch);
+  ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch);
 
   // Primary miss: Compute hash for secondary probe.
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ xorp(scratch, Immediate(flags));
   __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kCacheIndexShift));
   __ subl(scratch, name);
+  __ addl(scratch, Immediate(flags));
   __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(this, masm, kSecondary, receiver, name, scratch);
+  ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
