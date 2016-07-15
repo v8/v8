@@ -335,6 +335,17 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   'intl402/Intl/getCanonicalLocales/*': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5113
+  'built-ins/TypedArray/prototype/toLocaleString/calls-tolocalestring-from-each-value': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/calls-tostring-from-each-value': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/calls-valueof-from-each-value': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-firstelement-tolocalestring': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-firstelement-tostring': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-firstelement-valueof': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-nextelement-tolocalestring': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-nextelement-tostring': [FAIL],
+  'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-nextelement-valueof': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5115
   'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
   'language/statements/class/subclass/class-definition-null-proto-this': [FAIL],
