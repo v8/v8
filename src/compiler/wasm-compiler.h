@@ -22,6 +22,7 @@ class JSGraph;
 class Graph;
 class Operator;
 class SourcePositionTable;
+class MachineOperatorBuilder;
 }  // namespace compiler
 
 namespace wasm {
@@ -90,6 +91,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
 class WasmTrapHelper;
+enum class Conversion { kNone, kOpaque, kInt32, kFloat32, kFloat64 };
+typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
@@ -124,6 +127,7 @@ class WasmGraphBuilder {
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
   Node* HeapConstant(Handle<HeapObject> value);
+  Node* DefaultS128Value();
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
@@ -161,6 +165,8 @@ class WasmGraphBuilder {
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
   Node* FunctionTable();
+  Node* ChangeToRuntimeCall(Node* node, Runtime::FunctionId function_id,
+                            Signature<Conversion>* signature);
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -192,6 +198,10 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
+  Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
+
+  bool has_simd_ops() { return has_simd_ops_; }
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
@@ -213,6 +223,7 @@ class WasmGraphBuilder {
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* source_position_table_ = nullptr;
+  bool has_simd_ops_;
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }
@@ -316,6 +327,7 @@ class WasmGraphBuilder {
   Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
                                 Node* control);
   Node* BuildChangeInt32ToTagged(Node* value);
+  Node* BuildChangeTaggedToInt32(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);
   Node* BuildChangeTaggedToFloat64(Node* value);
 
@@ -348,6 +360,9 @@ class WasmGraphBuilder {
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
+
+  // Simd helper functions
+  MachineOperatorBuilder* simd();
 };
 }  // namespace compiler
 }  // namespace internal

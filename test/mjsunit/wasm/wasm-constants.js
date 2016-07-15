@@ -303,6 +303,9 @@ var kExprI32Ror = 0xb6;
 var kExprI32Rol = 0xb7;
 var kExprI64Ror = 0xb8;
 var kExprI64Rol = 0xb9;
+var kExprSimdPrefix = 0xe5;
+var kExprI32x4Splat = 0x1b;
+var kExprI32x4ExtractLane = 0x1c;
 
 var kExprJITSingleFunction = 0xf0;
 

@@ -579,6 +579,13 @@ class LocalDeclEncoder {
 #define WASM_I32_REINTERPRET_F32(x) x, kExprI32ReinterpretF32
 #define WASM_I64_REINTERPRET_F64(x) x, kExprI64ReinterpretF64
 
+//------------------------------------------------------------------------------
+// Simd Operations.
+//------------------------------------------------------------------------------
+#define WASM_SIMD_I32x4_SPLAT(x) x, kSimdPrefix, kExprI32x4Splat & 0xff
+#define WASM_SIMD_I32x4_EXTRACT_LANE(x, y) \
+  x, y, kSimdPrefix, kExprI32x4ExtractLane & 0xff
+
 #define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3
 

@@ -23,6 +23,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/simd-lowering.h"
 #include "src/compiler/source-position.h"
 #include "src/compiler/zone-pool.h"
 
@@ -2346,6 +2347,12 @@ Node* WasmGraphBuilder::ToJS(Node* node, Node* context, wasm::LocalType type) {
   }
 }
 
+Node* WasmGraphBuilder::BuildChangeTaggedToInt32(Node* value) {
+  value = BuildChangeTaggedToFloat64(value);
+  value = graph()->NewNode(jsgraph()->machine()->ChangeFloat64ToInt32(), value);
+  return value;
+}
+
 Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* context,
                                                 Node* effect, Node* control) {
   Callable callable = CodeFactory::ToNumber(jsgraph()->isolate());
@@ -2785,6 +2792,12 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
   }
 }
 
+Node* WasmGraphBuilder::DefaultS128Value() {
+  Node* zero = jsgraph()->Int32Constant(0);
+  return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), zero, zero,
+                          zero, zero);
+}
+
 Node* WasmGraphBuilder::FunctionTable() {
   DCHECK(module_ && module_->instance &&
          !module_->instance->function_table.is_null());
@@ -2792,6 +2805,79 @@ Node* WasmGraphBuilder::FunctionTable() {
     function_table_ = HeapConstant(module_->instance->function_table);
   }
   return function_table_;
+}
+
+Node* WasmGraphBuilder::ChangeToRuntimeCall(Node* node,
+                                            Runtime::FunctionId function_id,
+                                            Signature<Conversion>* signature) {
+  SimplifiedOperatorBuilder simplified(jsgraph()->zone());
+  const Runtime::Function* function = Runtime::FunctionForId(function_id);
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      jsgraph()->zone(), function_id, function->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  const int kInputSize = 16;
+  const int kDefaultFunctionParams = 6;
+  Node* inputs[kInputSize + kDefaultFunctionParams];
+  DCHECK_LE(function->nargs + kDefaultFunctionParams,
+            static_cast<int>(arraysize(inputs)));
+  // Either there are control + effect or not.
+  DCHECK(node->InputCount() == function->nargs ||
+         node->InputCount() == function->nargs + 2);
+  int index = 0;
+  inputs[index++] = jsgraph()->CEntryStubConstant(function->result_size);
+  for (int i = 0; i < function->nargs; ++i) {
+    Node* arg = node->InputAt(i);
+    switch (signature->GetParam(i)) {
+      case Conversion::kInt32:
+        arg = BuildChangeInt32ToTagged(arg);
+        break;
+      case Conversion::kFloat32:
+        arg = jsgraph()->graph()->NewNode(
+            jsgraph()->machine()->ChangeFloat32ToFloat64(), arg);
+        arg = BuildChangeFloat64ToTagged(arg);
+        break;
+      case Conversion::kFloat64:
+        arg = BuildChangeFloat64ToTagged(arg);
+        break;
+      default:
+        break;
+    }
+    inputs[index++] = arg;
+  }
+  inputs[index++] = jsgraph()->ExternalConstant(
+      ExternalReference(function_id, jsgraph()->isolate()));
+  inputs[index++] = jsgraph()->Int32Constant(function->nargs);
+  inputs[index++] = jsgraph()->Constant(module_->instance->context);
+  // Loads and stores have control and effect, others do not and use
+  // the start node instead.
+  if (node->InputCount() == function->nargs + 2) {
+    inputs[index++] = node->InputAt(function->nargs + 1);  // effect
+    inputs[index++] = node->InputAt(function->nargs + 2);  // control
+  } else {
+    inputs[index++] = jsgraph()->graph()->start();  // effect
+    inputs[index++] = jsgraph()->graph()->start();  // control
+  }
+  Node* ret = jsgraph()->graph()->NewNode(jsgraph()->common()->Call(desc),
+                                          index, inputs);
+
+  Conversion return_type = signature->GetReturn();
+  switch (return_type) {
+    case Conversion::kInt32:
+      ret = BuildChangeTaggedToInt32(ret);
+      break;
+    case Conversion::kFloat32:
+      NodeProperties::SetType(ret, Type::Number());
+      ret = BuildChangeTaggedToFloat64(ret);
+      ret = jsgraph()->graph()->NewNode(
+          jsgraph()->machine()->TruncateInt64ToInt32(), ret);
+      break;
+    case Conversion::kFloat64:
+      ret = BuildChangeTaggedToFloat64(ret);
+      break;
+    default:
+      break;
+  }
+  return ret;
 }
 
 Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
@@ -3190,6 +3276,25 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, pos);
 }
 
+MachineOperatorBuilder* WasmGraphBuilder::simd() {
+  has_simd_ops_ = true;
+  return jsgraph()->machine();
+}
+
+Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
+                               const NodeVector& inputs) {
+  switch (opcode) {
+    case wasm::kExprI32x4ExtractLane:
+      return graph()->NewNode(simd()->Int32x4ExtractLane(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI32x4Splat:
+      return graph()->NewNode(simd()->CreateInt32x4(), inputs[0], inputs[0],
+                              inputs[0], inputs[0]);
+    default:
+      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+  }
+}
+
 static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                       Isolate* isolate, Handle<Code> code,
                                       const char* message, uint32_t index,
@@ -3402,6 +3507,21 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
 
   int index = static_cast<int>(function_->func_index);
+
+  // Run lowering pass if SIMD ops are present in the function
+  if (builder.has_simd_ops()) {
+    SimdLowering simd(jsgraph_->zone(), &builder);
+    GraphReducer graph_reducer(jsgraph_->zone(), graph);
+    graph_reducer.AddReducer(&simd);
+    graph_reducer.ReduceGraph();
+
+    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      OFStream os(stdout);
+      os << "-- Graph after simd lowering -- " << std::endl;
+      os << AsRPO(*graph);
+    }
+  }
+
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
     PrintAst(isolate_->allocator(), body, os, nullptr);
