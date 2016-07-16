@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "6d146149b533ff2223abf1523d097e21884a2595",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "c409cdb27d5dfcfd5d08f22b18af9010ae50b6a8",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -18,7 +18,7 @@ deps = {
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "1b8214f7fe4354b36d90b62086d844dae0c71747",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "6aa2ae44b604e6feec721bec77208210142dd4f5",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
@@ -39,7 +39,7 @@ deps = {
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "5b5f2f60b78198eaef25d442ac60f823142a8a6e",
+      Var("git_url") + "/android_tools.git" + "@" + "20a4bd598cf3ba8434311156ce94c110a0024fe7",
   },
   "win": {
     "v8/third_party/cygwin":
