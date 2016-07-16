@@ -660,6 +660,8 @@
         'compiler/scheduler.h',
         'compiler/select-lowering.cc',
         'compiler/select-lowering.h',
+        'compiler/simd-lowering.cc',
+        'compiler/simd-lowering.h',
         'compiler/simplified-lowering.cc',
         'compiler/simplified-lowering.h',
         'compiler/simplified-operator-reducer.cc',

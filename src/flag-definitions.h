@@ -514,6 +514,8 @@ DEFINE_INT(typed_array_max_size_in_heap, 64,
 
 DEFINE_BOOL(wasm_jit_prototype, false,
             "enable experimental wasm runtime dynamic code generation")
+DEFINE_BOOL(wasm_simd_prototype, false,
+            "enable prototype simd opcodes for wasm")
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")

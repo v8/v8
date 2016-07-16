@@ -465,11 +465,16 @@ const WasmCodePosition kNoCodePosition = -1;
   V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
+#define FOREACH_PREFIX(V) V(Simd, 0xe5)
+
 enum WasmOpcode {
 // Declare expression opcodes.
 #define DECLARE_NAMED_ENUM(name, opcode, sig) kExpr##name = opcode,
   FOREACH_OPCODE(DECLARE_NAMED_ENUM)
 #undef DECLARE_NAMED_ENUM
+#define DECLARE_PREFIX(name, opcode) k##name##Prefix = opcode,
+      FOREACH_PREFIX(DECLARE_PREFIX)
+#undef DECLARE_PREFIX
 };
 
 // The reason for a trap.
