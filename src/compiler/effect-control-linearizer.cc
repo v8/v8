@@ -378,13 +378,17 @@ void EffectControlLinearizer::Run() {
           // The input blocks do not have the same effect. We have
           // to create an effect phi node.
           inputs_buffer.clear();
-          inputs_buffer.resize(block->PredecessorCount(), graph()->start());
+          inputs_buffer.resize(block->PredecessorCount(), jsgraph()->Dead());
           inputs_buffer.push_back(control);
           effect = graph()->NewNode(
               common()->EffectPhi(static_cast<int>(block->PredecessorCount())),
               static_cast<int>(inputs_buffer.size()), &(inputs_buffer.front()));
-          // Let us update the effect phi node later.
-          pending_effect_phis.push_back(PendingEffectPhi(effect, block));
+          // For loops, we update the effect phi node later to break cycles.
+          if (control->opcode() == IrOpcode::kLoop) {
+            pending_effect_phis.push_back(PendingEffectPhi(effect, block));
+          } else {
+            UpdateEffectPhi(effect, block, &block_effects);
+          }
         } else if (control->opcode() == IrOpcode::kIfException) {
           // The IfException is connected into the effect chain, so we need
           // to update the effect here.
