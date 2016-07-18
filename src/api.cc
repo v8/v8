@@ -5619,6 +5619,7 @@ HeapStatistics::HeapStatistics()
       used_heap_size_(0),
       heap_size_limit_(0),
       malloced_memory_(0),
+      peak_malloced_memory_(0),
       does_zap_garbage_(0) {}
 
 HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
@@ -7597,6 +7598,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
   heap_statistics->malloced_memory_ =
       isolate->allocator()->GetCurrentMemoryUsage();
+  heap_statistics->peak_malloced_memory_ =
+      isolate->allocator()->GetMaxMemoryUsage();
   heap_statistics->does_zap_garbage_ = heap->ShouldZapGarbage();
 }
 

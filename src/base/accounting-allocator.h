@@ -21,9 +21,11 @@ class AccountingAllocator final {
   void Free(void* memory, size_t bytes);
 
   size_t GetCurrentMemoryUsage() const;
+  size_t GetMaxMemoryUsage() const;
 
  private:
   AtomicWord current_memory_usage_ = 0;
+  AtomicWord max_memory_usage_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(AccountingAllocator);
 };
