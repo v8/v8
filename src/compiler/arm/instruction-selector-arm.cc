@@ -1593,6 +1593,101 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   }
 }
 
+// Check whether we can convert:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+// We only generate conditions <cond'> that are a combination of the N
+// and Z flags. This avoids the need to make this function dependent on
+// the flag-setting operation.
+bool CanUseFlagSettingBinop(FlagsCondition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+    case kSignedLessThan:
+    case kSignedGreaterThanOrEqual:
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+    case kUnsignedGreaterThan:      // x > 0 -> x != 0
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Map <cond> to <cond'> so that the following transformation is possible:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
+  DCHECK(CanUseFlagSettingBinop(cond));
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+      return cond;
+    case kSignedLessThan:
+      return kNegative;
+    case kSignedGreaterThanOrEqual:
+      return kPositiveOrZero;
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+      return kEqual;
+    case kUnsignedGreaterThan:  // x > 0 -> x != 0
+      return kNotEqual;
+    default:
+      UNREACHABLE();
+      return cond;
+  }
+}
+
+// Check if we can perform the transformation:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>, and if so,
+// updates {node}, {opcode} and {cont} accordingly.
+void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
+                                             Node** node, Node* binop,
+                                             InstructionCode* opcode,
+                                             FlagsCondition cond,
+                                             FlagsContinuation* cont) {
+  InstructionCode binop_opcode;
+  InstructionCode no_output_opcode;
+  switch (binop->opcode()) {
+    case IrOpcode::kInt32Add:
+      binop_opcode = kArmAdd;
+      no_output_opcode = kArmCmn;
+      break;
+    case IrOpcode::kWord32And:
+      binop_opcode = kArmAnd;
+      no_output_opcode = kArmTst;
+      break;
+    case IrOpcode::kWord32Or:
+      binop_opcode = kArmOrr;
+      no_output_opcode = kArmOrr;
+      break;
+    case IrOpcode::kWord32Xor:
+      binop_opcode = kArmEor;
+      no_output_opcode = kArmTeq;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (selector->CanCover(*node, binop)) {
+    // The comparison is the only user of {node}.
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = no_output_opcode;
+    *node = binop;
+  } else if (selector->IsOnlyUserOfNodeInSameBlock(*node, binop)) {
+    // We can also handle the case where the {node} and the comparison are in
+    // the same basic block, and the comparison is the only user of {node} in
+    // this basic block ({node} has users in other basic blocks).
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = binop_opcode;
+    *node = binop;
+  }
+}
 
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
@@ -1601,8 +1696,10 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   InstructionOperand inputs[5];
   size_t input_count = 0;
-  InstructionOperand outputs[1];
+  InstructionOperand outputs[2];
   size_t output_count = 0;
+  bool has_result = (opcode != kArmCmp) && (opcode != kArmCmn) &&
+                    (opcode != kArmTst) && (opcode != kArmTeq);
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
@@ -1617,6 +1714,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
     inputs[input_count++] = g.UseRegister(m.left().node());
     inputs[input_count++] = g.UseRegister(m.right().node());
+  }
+
+  if (has_result) {
+    if (cont->IsDeoptimize()) {
+      // If we can deoptimize as a result of the binop, we need to make sure
+      // that the deopt inputs are not overwritten by the binop result. One way
+      // to achieve that is to declare the output register as same-as-first.
+      outputs[output_count++] = g.DefineSameAsFirst(node);
+    } else {
+      outputs[output_count++] = g.DefineAsRegister(node);
+    }
   }
 
   if (cont->IsBranch()) {
@@ -1642,7 +1750,32 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
-  VisitWordCompare(selector, node, kArmCmp, cont);
+  InstructionCode opcode = kArmCmp;
+  Int32BinopMatcher m(node);
+
+  FlagsCondition cond = cont->condition();
+  if (m.right().Is(0) && (m.left().IsInt32Add() || m.left().IsWord32Or() ||
+                          m.left().IsWord32And() || m.left().IsWord32Xor())) {
+    // Emit flag setting instructions for comparisons against zero.
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.left().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont);
+    }
+  } else if (m.left().Is(0) &&
+             (m.right().IsInt32Add() || m.right().IsWord32Or() ||
+              m.right().IsWord32And() || m.right().IsWord32Xor())) {
+    // Same as above, but we need to commute the condition before we
+    // continue with the rest of the checks.
+    cond = CommuteFlagsCondition(cond);
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.right().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont);
+    }
+  }
+
+  VisitWordCompare(selector, node, opcode, cont);
 }
 
 
