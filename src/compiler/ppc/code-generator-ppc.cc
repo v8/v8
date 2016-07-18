@@ -975,6 +975,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
+    case kArchComment: {
+      Address comment_string = i.InputExternalReference(0).address();
+      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+      break;
+    }
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       if (instr->InputAt(0)->IsImmediate()) {
@@ -1300,6 +1305,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                LeaveOE, i.OutputRCBit());
       break;
 #endif
+
+    case kPPC_Mul32WithHigh32:
+      if (i.OutputRegister(0).is(i.InputRegister(0)) ||
+          i.OutputRegister(0).is(i.InputRegister(1)) ||
+          i.OutputRegister(1).is(i.InputRegister(0)) ||
+          i.OutputRegister(1).is(i.InputRegister(1))) {
+        __ mullw(kScratchReg,
+                 i.InputRegister(0), i.InputRegister(1));  // low
+        __ mulhw(i.OutputRegister(1),
+                 i.InputRegister(0), i.InputRegister(1));  // high
+        __ mr(i.OutputRegister(0), kScratchReg);
+      } else {
+        __ mullw(i.OutputRegister(0),
+                 i.InputRegister(0), i.InputRegister(1));  // low
+        __ mulhw(i.OutputRegister(1),
+                 i.InputRegister(0), i.InputRegister(1));  // high
+      }
+      break;
     case kPPC_MulHigh32:
       __ mulhw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                i.OutputRCBit());
