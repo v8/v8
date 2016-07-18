@@ -3181,8 +3181,8 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
       Statement* statement, Scope* scope) {
-    return new (parser_zone_)
-        SloppyBlockFunctionStatement(parser_zone_, statement, scope);
+    return new (local_zone_)
+        SloppyBlockFunctionStatement(local_zone_, statement, scope);
   }
 
   CaseClause* NewCaseClause(
@@ -3417,8 +3417,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   FunctionLiteral* NewScriptOrEvalFunctionLiteral(
       Scope* scope, ZoneList<Statement*>* body, int materialized_literal_count,
       int expected_property_count) {
-    return new (parser_zone_) FunctionLiteral(
-        parser_zone_, ast_value_factory_->empty_string(), ast_value_factory_,
+    return new (local_zone_) FunctionLiteral(
+        local_zone_, ast_value_factory_->empty_string(), ast_value_factory_,
         scope, body, materialized_literal_count, expected_property_count, 0,
         FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
@@ -3431,16 +3431,16 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 FunctionLiteral* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
-    return new (parser_zone_)
-        ClassLiteral(parser_zone_, scope, proxy, extends, constructor,
+    return new (local_zone_)
+        ClassLiteral(local_zone_, scope, proxy, extends, constructor,
                      properties, start_position, end_position);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,
                                                   v8::Extension* extension,
                                                   int pos) {
-    return new (parser_zone_)
-        NativeFunctionLiteral(parser_zone_, name, extension, pos);
+    return new (local_zone_)
+        NativeFunctionLiteral(local_zone_, name, extension, pos);
   }
 
   DoExpression* NewDoExpression(Block* block, Variable* result_var, int pos) {
@@ -3455,16 +3455,16 @@ class AstNodeFactory final BASE_EMBEDDED {
   SuperPropertyReference* NewSuperPropertyReference(VariableProxy* this_var,
                                                     Expression* home_object,
                                                     int pos) {
-    return new (parser_zone_)
-        SuperPropertyReference(parser_zone_, this_var, home_object, pos);
+    return new (local_zone_)
+        SuperPropertyReference(local_zone_, this_var, home_object, pos);
   }
 
   SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
                                             VariableProxy* new_target_var,
                                             VariableProxy* this_function_var,
                                             int pos) {
-    return new (parser_zone_) SuperCallReference(
-        parser_zone_, this_var, new_target_var, this_function_var, pos);
+    return new (local_zone_) SuperCallReference(
+        local_zone_, this_var, new_target_var, this_function_var, pos);
   }
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
