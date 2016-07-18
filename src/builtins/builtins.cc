@@ -6229,9 +6229,7 @@ BUILTIN(HandleApiCallAsConstructor) {
   return HandleApiCallAsFunctionOrConstructor(isolate, true, args);
 }
 
-namespace {
-
-void Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
+void Builtins::Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(0);
@@ -6244,7 +6242,7 @@ void Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
                              slot, vector);
 }
 
-void Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
+void Builtins::Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
   Node* slot = assembler->Parameter(0);
@@ -6255,15 +6253,15 @@ void Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
                              vector);
 }
 
-void Generate_LoadIC_Normal(MacroAssembler* masm) {
+void Builtins::Generate_LoadIC_Normal(MacroAssembler* masm) {
   LoadIC::GenerateNormal(masm);
 }
 
-void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
+void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
-void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
+void Builtins::Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(0);
@@ -6275,6 +6273,7 @@ void Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
   assembler->TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
+namespace {
 void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler, TypeofMode mode) {
   typedef compiler::Node Node;
 
@@ -6286,28 +6285,31 @@ void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler, TypeofMode mode) {
   assembler->TailCallRuntime(Runtime::kGetGlobal, context, slot, vector,
                              typeof_mode);
 }
+}  // anonymous namespace
 
-void Generate_LoadGlobalIC_SlowInsideTypeof(CodeStubAssembler* assembler) {
+void Builtins::Generate_LoadGlobalIC_SlowInsideTypeof(
+    CodeStubAssembler* assembler) {
   Generate_LoadGlobalIC_Slow(assembler, INSIDE_TYPEOF);
 }
 
-void Generate_LoadGlobalIC_SlowNotInsideTypeof(CodeStubAssembler* assembler) {
+void Builtins::Generate_LoadGlobalIC_SlowNotInsideTypeof(
+    CodeStubAssembler* assembler) {
   Generate_LoadGlobalIC_Slow(assembler, NOT_INSIDE_TYPEOF);
 }
 
-void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
+void Builtins::Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
   KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
-void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
+void Builtins::Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMiss(masm);
 }
 
-void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
+void Builtins::Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
   KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
-void Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
+void Builtins::Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
 
   Node* receiver = assembler->Parameter(0);
@@ -6321,10 +6323,11 @@ void Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
                              value, slot, vector);
 }
 
-void Generate_StoreIC_Normal(MacroAssembler* masm) {
+void Builtins::Generate_StoreIC_Normal(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
 }
 
+namespace {
 void Generate_StoreIC_Slow(CodeStubAssembler* assembler,
                            LanguageMode language_mode) {
   typedef compiler::Node Node;
@@ -6342,15 +6345,17 @@ void Generate_StoreIC_Slow(CodeStubAssembler* assembler,
   assembler->TailCallRuntime(Runtime::kSetProperty, context, receiver, name,
                              value, lang_mode);
 }
+}  // anonymous namespace
 
-void Generate_StoreIC_SlowSloppy(CodeStubAssembler* assembler) {
+void Builtins::Generate_StoreIC_SlowSloppy(CodeStubAssembler* assembler) {
   Generate_StoreIC_Slow(assembler, SLOPPY);
 }
 
-void Generate_StoreIC_SlowStrict(CodeStubAssembler* assembler) {
+void Builtins::Generate_StoreIC_SlowStrict(CodeStubAssembler* assembler) {
   Generate_StoreIC_Slow(assembler, STRICT);
 }
 
+namespace {
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
 void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
                                   OrdinaryToPrimitiveHint hint) {
@@ -6421,15 +6426,19 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
   assembler->Bind(&return_result);
   assembler->Return(var_result.value());
 }
+}  // anonymous namespace
 
-void Generate_OrdinaryToPrimitive_Number(CodeStubAssembler* assembler) {
+void Builtins::Generate_OrdinaryToPrimitive_Number(
+    CodeStubAssembler* assembler) {
   Generate_OrdinaryToPrimitive(assembler, OrdinaryToPrimitiveHint::kNumber);
 }
 
-void Generate_OrdinaryToPrimitive_String(CodeStubAssembler* assembler) {
+void Builtins::Generate_OrdinaryToPrimitive_String(
+    CodeStubAssembler* assembler) {
   Generate_OrdinaryToPrimitive(assembler, OrdinaryToPrimitiveHint::kString);
 }
 
+namespace {
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
                                       ToPrimitiveHint hint) {
@@ -6498,21 +6507,25 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
     assembler->TailCallStub(callable, context, input);
   }
 }
+}  // anonymous namespace
 
-void Generate_NonPrimitiveToPrimitive_Default(CodeStubAssembler* assembler) {
+void Builtins::Generate_NonPrimitiveToPrimitive_Default(
+    CodeStubAssembler* assembler) {
   Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kDefault);
 }
 
-void Generate_NonPrimitiveToPrimitive_Number(CodeStubAssembler* assembler) {
+void Builtins::Generate_NonPrimitiveToPrimitive_Number(
+    CodeStubAssembler* assembler) {
   Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kNumber);
 }
 
-void Generate_NonPrimitiveToPrimitive_String(CodeStubAssembler* assembler) {
+void Builtins::Generate_NonPrimitiveToPrimitive_String(
+    CodeStubAssembler* assembler) {
   Generate_NonPrimitiveToPrimitive(assembler, ToPrimitiveHint::kString);
 }
 
 // ES6 section 7.1.3 ToNumber ( argument )
-void Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
+void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -6609,41 +6622,39 @@ void Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   }
 }
 
-void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
-void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
+void Builtins::Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
-void Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
+void Builtins::Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMegamorphic(masm, SLOPPY);
 }
 
-void Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMegamorphic(masm, STRICT);
 }
 
-void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
+void Builtins::Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
 }
 
-void Generate_Return_DebugBreak(MacroAssembler* masm) {
+void Builtins::Generate_Return_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateDebugBreakStub(masm,
                                        DebugCodegen::SAVE_RESULT_REGISTER);
 }
 
-void Generate_Slot_DebugBreak(MacroAssembler* masm) {
+void Builtins::Generate_Slot_DebugBreak(MacroAssembler* masm) {
   DebugCodegen::GenerateDebugBreakStub(masm,
                                        DebugCodegen::IGNORE_RESULT_REGISTER);
 }
 
-void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
+void Builtins::Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
   DebugCodegen::GenerateFrameDropperLiveEdit(masm);
 }
-
-}  // namespace
 
 Builtins::Builtins() : initialized_(false) {
   memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
@@ -7067,6 +7078,107 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   // This shouldn't happen, we've already validated the type.
   a->Bind(&other);
   a->Return(a->Int32Constant(0));
+}
+
+void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined,
+                        TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_CallFunction_ReceiverIsNotNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                        TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kAny,
+                        TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_TailCallFunction_ReceiverIsNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined,
+                        TailCallMode::kAllow);
+}
+
+void Builtins::Generate_TailCallFunction_ReceiverIsNotNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                        TailCallMode::kAllow);
+}
+
+void Builtins::Generate_TailCallFunction_ReceiverIsAny(MacroAssembler* masm) {
+  Generate_CallFunction(masm, ConvertReceiverMode::kAny, TailCallMode::kAllow);
+}
+
+void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
+  Generate_CallBoundFunctionImpl(masm, TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_TailCallBoundFunction(MacroAssembler* masm) {
+  Generate_CallBoundFunctionImpl(masm, TailCallMode::kAllow);
+}
+
+void Builtins::Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined,
+                TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_Call_ReceiverIsNotNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow);
+}
+
+void Builtins::Generate_TailCall_ReceiverIsNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined,
+                TailCallMode::kAllow);
+}
+
+void Builtins::Generate_TailCall_ReceiverIsNotNullOrUndefined(
+    MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                TailCallMode::kAllow);
+}
+
+void Builtins::Generate_TailCall_ReceiverIsAny(MacroAssembler* masm) {
+  Generate_Call(masm, ConvertReceiverMode::kAny, TailCallMode::kAllow);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kDisallow,
+                                                 CallableType::kAny);
+}
+void Builtins::Generate_InterpreterPushArgsAndTailCall(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow,
+                                                 CallableType::kAny);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndCallFunction(
+    MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kDisallow,
+                                                 CallableType::kJSFunction);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndTailCallFunction(
+    MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow,
+                                                 CallableType::kJSFunction);
+}
+
+void Builtins::Generate_MathMax(MacroAssembler* masm) {
+  Generate_MathMaxMin(masm, MathMaxMinKind::kMax);
+}
+
+void Builtins::Generate_MathMin(MacroAssembler* masm) {
+  Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
 }
 
 #define DEFINE_BUILTIN_ACCESSOR(Name, ...)                                    \
