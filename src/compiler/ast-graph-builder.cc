@@ -1232,11 +1232,6 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 }
 
 
-void AstGraphBuilder::VisitImportDeclaration(ImportDeclaration* decl) {
-  UNREACHABLE();
-}
-
-
 void AstGraphBuilder::VisitBlock(Block* stmt) {
   BlockBuilder block(this);
   ControlScopeForBreakable scope(this, stmt, &block);

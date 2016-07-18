@@ -133,8 +133,6 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     local_variables_.Clear();
   }
 
-  void VisitImportDeclaration(ImportDeclaration* decl) {}
-
   void VisitStatements(ZoneList<Statement*>* stmts) {
     for (int i = 0; i < stmts->length(); ++i) {
       Statement* stmt = stmts->at(i);

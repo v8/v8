@@ -12235,12 +12235,6 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
 }
 
 
-void HOptimizedGraphBuilder::VisitImportDeclaration(
-    ImportDeclaration* declaration) {
-  UNREACHABLE();
-}
-
-
 void HOptimizedGraphBuilder::VisitRewritableExpression(
     RewritableExpression* node) {
   CHECK_ALIVE(Visit(node->expression()));

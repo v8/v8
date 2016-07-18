@@ -666,6 +666,7 @@ class ParserTraits {
 
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
+  void SetFunctionName(Expression* value, const AstRawString* name);
 
   // Rewrite expressions that are not used as patterns
   V8_INLINE void RewriteNonPattern(Type::ExpressionClassifier* classifier,
@@ -765,14 +766,24 @@ class Parser : public ParserBase<ParserTraits> {
   void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   const AstRawString* ParseModuleSpecifier(bool* ok);
-  Statement* ParseImportDeclaration(bool* ok);
+  void* ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
   void* ParseExportClause(ZoneList<const AstRawString*>* export_names,
                           ZoneList<Scanner::Location>* export_locations,
                           ZoneList<const AstRawString*>* local_names,
                           Scanner::Location* reserved_loc, bool* ok);
-  ZoneList<ImportDeclaration*>* ParseNamedImports(int pos, bool* ok);
+  struct NamedImport : public ZoneObject {
+    const AstRawString* import_name;
+    const AstRawString* local_name;
+    const Scanner::Location location;
+    NamedImport(const AstRawString* import_name, const AstRawString* local_name,
+                Scanner::Location location)
+        : import_name(import_name),
+          local_name(local_name),
+          location(location) {}
+  };
+  ZoneList<const NamedImport*>* ParseNamedImports(int pos, bool* ok);
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels,
                             AllowLabelledFunctionStatement allow_function,
                             bool* ok);
@@ -1026,6 +1037,7 @@ class Parser : public ParserBase<ParserTraits> {
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind, bool resolve,
                     bool* ok, Scope* declaration_scope = nullptr);
+  void* DeclareImport(const AstRawString* local_name, int pos, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);

@@ -948,6 +948,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     parsing_module_ = info->is_module();
     if (parsing_module_) {
       ParseModuleItemList(body, &ok);
+      ok = ok &&
+           scope_->module()->Validate(scope_, &pending_error_handler_, zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
@@ -1318,7 +1320,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
 
 
 Statement* Parser::ParseModuleItem(bool* ok) {
-  // (Ecma 262 6th Edition, 15.2):
+  // ecma262/#prod-ModuleItem
   // ModuleItem :
   //    ImportDeclaration
   //    ExportDeclaration
@@ -1326,7 +1328,8 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 
   switch (peek()) {
     case Token::IMPORT:
-      return ParseImportDeclaration(ok);
+      ParseImportDeclaration(CHECK_OK);
+      return factory()->NewEmptyStatement(kNoSourcePosition);
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
     default:
@@ -1336,38 +1339,22 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 
 
 void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
-  // (Ecma 262 6th Edition, 15.2):
+  // ecma262/#prod-Module
   // Module :
   //    ModuleBody?
   //
+  // ecma262/#prod-ModuleItemList
   // ModuleBody :
   //    ModuleItem*
 
   DCHECK(scope_->is_module_scope());
-
   while (peek() != Token::EOS) {
     Statement* stat = ParseModuleItem(CHECK_OK);
     if (stat && !stat->IsEmpty()) {
       body->Add(stat, zone());
     }
   }
-
-  // Check that all exports are bound.
-  ModuleDescriptor* descriptor = scope_->module();
-  for (ModuleDescriptor::Iterator it = descriptor->iterator(); !it.done();
-       it.Advance()) {
-    if (scope_->LookupLocal(it.local_name()) == NULL) {
-      // TODO(adamk): Pass both local_name and export_name once ParserTraits
-      // supports multiple arg error messages.
-      // Also try to report this at a better location.
-      ParserTraits::ReportMessage(MessageTemplate::kModuleExportUndefined,
-                                  it.local_name());
-      *ok = false;
-      return NULL;
-    }
-  }
-
-  return NULL;
+  return nullptr;
 }
 
 
@@ -1424,11 +1411,12 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
 
   Expect(Token::RBRACE, CHECK_OK);
 
-  return 0;
+  return nullptr;
 }
 
 
-ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
+ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
+    int pos, bool* ok) {
   // NamedImports :
   //   '{' '}'
   //   '{' ImportsList '}'
@@ -1444,8 +1432,7 @@ ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
 
   Expect(Token::LBRACE, CHECK_OK);
 
-  ZoneList<ImportDeclaration*>* result =
-      new (zone()) ZoneList<ImportDeclaration*>(1, zone());
+  auto result = new (zone()) ZoneList<const NamedImport*>(1, zone());
   while (peek() != Token::RBRACE) {
     const AstRawString* import_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* local_name = import_name;
@@ -1459,36 +1446,37 @@ ZoneList<ImportDeclaration*>* Parser::ParseNamedImports(int pos, bool* ok) {
                              parsing_module_)) {
       *ok = false;
       ReportMessage(MessageTemplate::kUnexpectedReserved);
-      return NULL;
+      return nullptr;
     } else if (IsEvalOrArguments(local_name)) {
       *ok = false;
       ReportMessage(MessageTemplate::kStrictEvalArguments);
-      return NULL;
+      return nullptr;
     }
-    VariableProxy* proxy = NewUnresolved(local_name, CONST);
-    ImportDeclaration* declaration =
-        factory()->NewImportDeclaration(proxy, import_name, NULL, scope_, pos);
-    Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
-    result->Add(declaration, zone());
+
+    DeclareImport(local_name, position(), CHECK_OK);
+
+    NamedImport* import = new (zone()) NamedImport(
+        import_name, local_name, scanner()->location());
+    result->Add(import, zone());
+
     if (peek() == Token::RBRACE) break;
     Expect(Token::COMMA, CHECK_OK);
   }
 
   Expect(Token::RBRACE, CHECK_OK);
-
   return result;
 }
 
 
-Statement* Parser::ParseImportDeclaration(bool* ok) {
+void* Parser::ParseImportDeclaration(bool* ok) {
   // ImportDeclaration :
   //   'import' ImportClause 'from' ModuleSpecifier ';'
   //   'import' ModuleSpecifier ';'
   //
   // ImportClause :
+  //   ImportedDefaultBinding
   //   NameSpaceImport
   //   NamedImports
-  //   ImportedDefaultBinding
   //   ImportedDefaultBinding ',' NameSpaceImport
   //   ImportedDefaultBinding ',' NamedImports
   //
@@ -1503,131 +1491,160 @@ Statement* Parser::ParseImportDeclaration(bool* ok) {
   // 'import' ModuleSpecifier ';'
   if (tok == Token::STRING) {
     const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-    scope_->module()->AddModuleRequest(module_specifier, zone());
     ExpectSemicolon(CHECK_OK);
-    return factory()->NewEmptyStatement(pos);
+    scope_->module()->AddEmptyImport(
+        module_specifier, scanner()->location(), zone());
+    return nullptr;
   }
 
   // Parse ImportedDefaultBinding if present.
-  ImportDeclaration* import_default_declaration = NULL;
+  const AstRawString* import_default_binding = nullptr;
+  Scanner::Location import_default_binding_loc;
   if (tok != Token::MUL && tok != Token::LBRACE) {
-    const AstRawString* local_name =
+    import_default_binding =
         ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
-    VariableProxy* proxy = NewUnresolved(local_name, CONST);
-    import_default_declaration = factory()->NewImportDeclaration(
-        proxy, ast_value_factory()->default_string(), NULL, scope_, pos);
-    Declare(import_default_declaration, DeclarationDescriptor::NORMAL, true,
-            CHECK_OK);
+    import_default_binding_loc = scanner()->location();
+    DeclareImport(import_default_binding, pos, CHECK_OK);
   }
 
-  const AstRawString* module_instance_binding = NULL;
-  ZoneList<ImportDeclaration*>* named_declarations = NULL;
-  if (import_default_declaration == NULL || Check(Token::COMMA)) {
+  // Parse NameSpaceImport or NamedImports if present.
+  const AstRawString* module_namespace_binding = nullptr;
+  Scanner::Location module_namespace_binding_loc;
+  const ZoneList<const NamedImport*>* named_imports = nullptr;
+  if (import_default_binding == nullptr || Check(Token::COMMA)) {
     switch (peek()) {
       case Token::MUL: {
         Consume(Token::MUL);
         ExpectContextualKeyword(CStrVector("as"), CHECK_OK);
-        module_instance_binding =
+        module_namespace_binding =
             ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
-        // TODO(ES6): Add an appropriate declaration.
+        module_namespace_binding_loc = scanner()->location();
         break;
       }
 
       case Token::LBRACE:
-        named_declarations = ParseNamedImports(pos, CHECK_OK);
+        named_imports = ParseNamedImports(pos, CHECK_OK);
         break;
 
       default:
         *ok = false;
         ReportUnexpectedToken(scanner()->current_token());
-        return NULL;
+        return nullptr;
     }
   }
 
   ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
   const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-  scope_->module()->AddModuleRequest(module_specifier, zone());
+  ExpectSemicolon(CHECK_OK);
 
-  if (module_instance_binding != NULL) {
-    // TODO(ES6): Set the module specifier for the module namespace binding.
+  // Now that we have all the information, we can make the appropriate
+  // declarations.
+
+  if (module_namespace_binding != nullptr) {
+    scope_->module()->AddStarImport(
+        module_namespace_binding, module_specifier,
+        module_namespace_binding_loc, zone());
+    // TODO(neis): Create special immutable binding for the namespace object.
   }
 
-  if (import_default_declaration != NULL) {
-    import_default_declaration->set_module_specifier(module_specifier);
+  // TODO(neis): Would prefer to call DeclareImport below rather than above and
+  // in ParseNamedImports, but then a possible error message would point to the
+  // wrong location.  Maybe have a DeclareAt version of Declare that takes a
+  // location?
+
+  if (import_default_binding != nullptr) {
+    scope_->module()->AddImport(
+        ast_value_factory()->default_string(), import_default_binding,
+        module_specifier, import_default_binding_loc, zone());
+    // DeclareImport(import_default_binding, pos, CHECK_OK);
   }
 
-  if (named_declarations != NULL) {
-    for (int i = 0; i < named_declarations->length(); ++i) {
-      named_declarations->at(i)->set_module_specifier(module_specifier);
+  if (named_imports != nullptr) {
+    if (named_imports->length() == 0) {
+      scope_->module()->AddEmptyImport(
+          module_specifier, scanner()->location(), zone());
+    } else {
+      for (int i = 0; i < named_imports->length(); ++i) {
+        const NamedImport* import = named_imports->at(i);
+        scope_->module()->AddImport(
+            import->import_name, import->local_name,
+            module_specifier, import->location, zone());
+        // DeclareImport(import->local_name, pos, CHECK_OK);
+      }
     }
   }
 
-  ExpectSemicolon(CHECK_OK);
-  return factory()->NewEmptyStatement(pos);
+  return nullptr;
 }
 
 
 Statement* Parser::ParseExportDefault(bool* ok) {
   //  Supports the following productions, starting after the 'default' token:
-  //    'export' 'default' FunctionDeclaration
+  //    'export' 'default' HoistableDeclaration
   //    'export' 'default' ClassDeclaration
   //    'export' 'default' AssignmentExpression[In] ';'
 
   Expect(Token::DEFAULT, CHECK_OK);
   Scanner::Location default_loc = scanner()->location();
 
-  const AstRawString* default_string = ast_value_factory()->default_string();
-  ZoneList<const AstRawString*> names(1, zone());
+  ZoneList<const AstRawString*> local_names(1, zone());
   Statement* result = nullptr;
-  Expression* default_export = nullptr;
   switch (peek()) {
     case Token::FUNCTION:
-      result = ParseHoistableDeclaration(&names, true, CHECK_OK);
+      result = ParseHoistableDeclaration(&local_names, true, CHECK_OK);
       break;
 
     case Token::CLASS:
       Consume(Token::CLASS);
-      result = ParseClassDeclaration(&names, true, CHECK_OK);
+      result = ParseClassDeclaration(&local_names, true, CHECK_OK);
       break;
 
     case Token::ASYNC:
       if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
-        result = ParseAsyncFunctionDeclaration(&names, true, CHECK_OK);
+        result = ParseAsyncFunctionDeclaration(&local_names, true, CHECK_OK);
         break;
       }
     /* falls through */
 
     default: {
-      int pos = peek_position();
+      int pos = position();
       ExpressionClassifier classifier(this);
-      Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+      Expression* value =
+          ParseAssignmentExpression(true, &classifier, CHECK_OK);
       RewriteNonPattern(&classifier, CHECK_OK);
+      SetFunctionName(value, ast_value_factory()->default_string());
+
+      const AstRawString* local_name =
+          ast_value_factory()->star_default_star_string();
+      local_names.Add(local_name, zone());
+
+      // It's fine to declare this as CONST because the user has no way of
+      // writing to it.
+      VariableProxy* proxy = NewUnresolved(local_name, CONST);
+      Declaration* declaration =
+          factory()->NewVariableDeclaration(proxy, CONST, scope_, pos);
+      Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+      proxy->var()->set_initializer_position(position());
+
+      Assignment* assignment = factory()->NewAssignment(
+          Token::INIT, proxy, value, kNoSourcePosition);
+      result = factory()->NewExpressionStatement(assignment, kNoSourcePosition);
 
       ExpectSemicolon(CHECK_OK);
-      result = factory()->NewExpressionStatement(expr, pos);
       break;
     }
   }
 
-  DCHECK_LE(names.length(), 1);
-  if (names.length() == 1) {
-    scope_->module()->AddLocalExport(default_string, names.first(), zone(), ok);
-    if (!*ok) {
-      ParserTraits::ReportMessageAt(
-          default_loc, MessageTemplate::kDuplicateExport, default_string);
-      return nullptr;
-    }
-  } else {
-    // TODO(ES6): Assign result to a const binding with the name "*default*"
-    // and add an export entry with "*default*" as the local name.
-    USE(default_export);
-  }
+  DCHECK_EQ(local_names.length(), 1);
+  scope_->module()->AddExport(
+      local_names.first(), ast_value_factory()->default_string(), default_loc,
+      zone());
 
+  DCHECK_NOT_NULL(result);
   return result;
 }
-
 
 Statement* Parser::ParseExportDeclaration(bool* ok) {
   // ExportDeclaration:
@@ -1640,7 +1657,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   int pos = peek_position();
   Expect(Token::EXPORT, CHECK_OK);
 
-  Statement* result = NULL;
+  Statement* result = nullptr;
   ZoneList<const AstRawString*> names(1, zone());
   switch (peek()) {
     case Token::DEFAULT:
@@ -1650,9 +1667,9 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       Consume(Token::MUL);
       ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
       const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-      scope_->module()->AddModuleRequest(module_specifier, zone());
-      // TODO(ES6): scope_->module()->AddStarExport(...)
       ExpectSemicolon(CHECK_OK);
+      scope_->module()->AddStarExport(
+          module_specifier, scanner()->location(), zone());
       return factory()->NewEmptyStatement(pos);
     }
 
@@ -1671,38 +1688,35 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       Scanner::Location reserved_loc = Scanner::Location::invalid();
       ZoneList<const AstRawString*> export_names(1, zone());
       ZoneList<Scanner::Location> export_locations(1, zone());
-      ZoneList<const AstRawString*> local_names(1, zone());
-      ParseExportClause(&export_names, &export_locations, &local_names,
+      ZoneList<const AstRawString*> original_names(1, zone());
+      ParseExportClause(&export_names, &export_locations, &original_names,
                         &reserved_loc, CHECK_OK);
-      const AstRawString* indirect_export_module_specifier = NULL;
+      const AstRawString* module_specifier = nullptr;
       if (CheckContextualKeyword(CStrVector("from"))) {
-        indirect_export_module_specifier = ParseModuleSpecifier(CHECK_OK);
+        module_specifier = ParseModuleSpecifier(CHECK_OK);
       } else if (reserved_loc.IsValid()) {
         // No FromClause, so reserved words are invalid in ExportClause.
         *ok = false;
         ReportMessageAt(reserved_loc, MessageTemplate::kUnexpectedReserved);
-        return NULL;
+        return nullptr;
       }
       ExpectSemicolon(CHECK_OK);
       const int length = export_names.length();
-      DCHECK_EQ(length, local_names.length());
+      DCHECK_EQ(length, original_names.length());
       DCHECK_EQ(length, export_locations.length());
-      if (indirect_export_module_specifier == NULL) {
+      if (module_specifier == nullptr) {
         for (int i = 0; i < length; ++i) {
-          scope_->module()->AddLocalExport(export_names[i], local_names[i],
-                                           zone(), ok);
-          if (!*ok) {
-            ParserTraits::ReportMessageAt(export_locations[i],
-                                          MessageTemplate::kDuplicateExport,
-                                          export_names[i]);
-            return NULL;
-          }
+          scope_->module()->AddExport(original_names[i], export_names[i],
+                                      export_locations[i], zone());
         }
+      } else if (length == 0) {
+        scope_->module()->AddEmptyImport(
+            module_specifier, scanner()->location(), zone());
       } else {
-        scope_->module()->AddModuleRequest(indirect_export_module_specifier,
-                                           zone());
         for (int i = 0; i < length; ++i) {
-          // TODO(ES6): scope_->module()->AddIndirectExport(...);(
+          scope_->module()->AddExport(
+              original_names[i], export_names[i], module_specifier,
+              export_locations[i], zone());
         }
       }
       return factory()->NewEmptyStatement(pos);
@@ -1725,6 +1739,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
 
     case Token::ASYNC:
       if (allow_harmony_async_await()) {
+        // TODO(neis): Why don't we have the same check here as in
+        // ParseStatementListItem?
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&names, false, CHECK_OK);
         break;
@@ -1734,18 +1750,13 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     default:
       *ok = false;
       ReportUnexpectedToken(scanner()->current_token());
-      return NULL;
+      return nullptr;
   }
 
-  // Extract declared names into export declarations.
   ModuleDescriptor* descriptor = scope_->module();
   for (int i = 0; i < names.length(); ++i) {
-    descriptor->AddLocalExport(names[i], names[i], zone(), ok);
-    if (!*ok) {
-      // TODO(adamk): Possibly report this error at the right place.
-      ParserTraits::ReportMessage(MessageTemplate::kDuplicateExport, names[i]);
-      return NULL;
-    }
+    // TODO(neis): Provide better location.
+    descriptor->AddExport(names[i], names[i], scanner()->location(), zone());
   }
 
   DCHECK_NOT_NULL(result);
@@ -1897,6 +1908,16 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
   return scope->NewUnresolved(factory(), name, Variable::NORMAL,
                               scanner()->location().beg_pos,
                               scanner()->location().end_pos);
+}
+
+
+void* Parser::DeclareImport(const AstRawString* local_name, int pos, bool* ok) {
+  DCHECK_NOT_NULL(local_name);
+  VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, IMPORT, scope_, pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+  return nullptr;
 }
 
 
@@ -2171,9 +2192,6 @@ Statement* Parser::ParseHoistableDeclaration(
                               : FunctionKind::kNormalFunction,
       pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
 
-  // Even if we're not at the top-level of the global or a function
-  // scope, we treat it as such and introduce the function with its
-  // initial value upon entering the corresponding scope.
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
   VariableMode mode =
@@ -6048,32 +6066,27 @@ void ParserTraits::SetFunctionNameFromPropertyName(
     }
   }
 
-  if (!value->IsAnonymousFunctionDefinition()) return;
-  DCHECK_NOT_NULL(name);
-
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
   if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
 
-  if (function != nullptr) {
-    function->set_raw_name(name);
-    DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
-  } else {
-    DCHECK(value->IsClassLiteral());
-    DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
-    value->AsClassLiteral()->constructor()->set_raw_name(name);
-  }
+  DCHECK(!value->IsAnonymousFunctionDefinition() ||
+         property->kind() == ObjectLiteralProperty::COMPUTED);
+  SetFunctionName(value, name);
 }
 
 
 void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
                                                     Expression* identifier) {
-  if (!value->IsAnonymousFunctionDefinition()) return;
   if (!identifier->IsVariableProxy()) return;
+  SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
+}
 
-  auto name = identifier->AsVariableProxy()->raw_name();
+
+void ParserTraits::SetFunctionName(Expression* value,
+                                   const AstRawString* name) {
   DCHECK_NOT_NULL(name);
-
+  if (!value->IsAnonymousFunctionDefinition()) return;
   auto function = value->AsFunctionLiteral();
   if (function != nullptr) {
     function->set_raw_name(name);

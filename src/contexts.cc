@@ -203,6 +203,7 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
                            ? BINDING_CHECK_INITIALIZED
                            : BINDING_IS_INITIALIZED;
       break;
+    case IMPORT:  // TODO(neis): Make sure this is what we want for IMPORT.
     case DYNAMIC:
     case DYNAMIC_GLOBAL:
     case DYNAMIC_LOCAL:

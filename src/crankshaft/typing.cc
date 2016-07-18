@@ -786,9 +786,5 @@ void AstTyper::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
 }
 
 
-void AstTyper::VisitImportDeclaration(ImportDeclaration* declaration) {
-}
-
-
 }  // namespace internal
 }  // namespace v8

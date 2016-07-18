@@ -807,10 +807,6 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   }
 }
 
-void BytecodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
-  UNIMPLEMENTED();
-}
-
 void BytecodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   RegisterAllocationScope register_scope(this);

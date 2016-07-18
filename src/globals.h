@@ -867,6 +867,9 @@ enum VariableMode {
 
   LET,  // declared via 'let' declarations (first lexical)
 
+  // TODO(neis): Is it correct to make this one of the lexical modes?
+  IMPORT,  // declared via 'import' declarations (except namespace imports)
+
   CONST,  // declared via 'const' declarations (last lexical)
 
   // Variables introduced by the compiler:
@@ -902,7 +905,7 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY;
+  return mode == CONST || mode == CONST_LEGACY || mode == IMPORT;
 }
 
 

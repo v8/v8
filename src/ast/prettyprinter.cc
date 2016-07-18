@@ -101,10 +101,6 @@ void CallPrinter::VisitVariableDeclaration(VariableDeclaration* node) {}
 void CallPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {}
 
 
-void CallPrinter::VisitImportDeclaration(ImportDeclaration* node) {
-}
-
-
 void CallPrinter::VisitExpressionStatement(ExpressionStatement* node) {
   Find(node->expression());
 }
@@ -740,13 +736,6 @@ void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
   Print(" = function ");
   PrintLiteral(node->fun()->name(), false);
   Print("\n");
-}
-
-
-void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
-  IndentedScope indent(this, "IMPORT", node->position());
-  PrintLiteralIndented("NAME", node->proxy()->name(), true);
-  PrintLiteralIndented("FROM", node->module_specifier()->string(), true);
 }
 
 

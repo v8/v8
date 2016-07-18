@@ -90,8 +90,9 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      module_descriptor_(
-          scope_type == MODULE_SCOPE ? ModuleDescriptor::New(zone) : NULL),
+      module_descriptor_(scope_type == MODULE_SCOPE ? new (zone)
+                                                          ModuleDescriptor(zone)
+                                                    : NULL),
       sloppy_block_function_map_(zone),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),

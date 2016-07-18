@@ -407,30 +407,6 @@ void FullCodeGenerator::VisitDeclarations(
 }
 
 
-void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  switch (variable->location()) {
-    case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED:
-      // TODO(rossberg)
-      break;
-
-    case VariableLocation::CONTEXT: {
-      Comment cmnt(masm_, "[ ImportDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      // TODO(rossberg)
-      break;
-    }
-
-    case VariableLocation::PARAMETER:
-    case VariableLocation::LOCAL:
-    case VariableLocation::LOOKUP:
-      UNREACHABLE();
-  }
-}
-
-
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);

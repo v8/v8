@@ -78,11 +78,6 @@ void AstLiteralReindexer::VisitRewritableExpression(
 }
 
 
-void AstLiteralReindexer::VisitImportDeclaration(ImportDeclaration* node) {
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstLiteralReindexer::VisitExpressionStatement(ExpressionStatement* node) {
   Visit(node->expression());
 }

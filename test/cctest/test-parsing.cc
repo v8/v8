@@ -5890,6 +5890,11 @@ TEST(ModuleParsingInternals) {
       "import n from 'n.js';"
       "export { a as b } from 'm.js';"
       "export * from 'p.js';"
+      "export var foo;"
+      "export function goo() {};"
+      "export let hoo;"
+      "export const joo = 42;"
+      "export default (function koo() {});"
       "import 'q.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
@@ -5907,34 +5912,18 @@ TEST(ModuleParsingInternals) {
   CHECK(module_scope->is_module_scope());
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
-  CHECK_EQ(1, descriptor->Length());
-  const i::AstRawString* export_name =
-      info.ast_value_factory()->GetOneByteString("y");
-  const i::AstRawString* local_name =
-      descriptor->LookupLocalExport(export_name, &zone);
-  CHECK_NOT_NULL(local_name);
-  CHECK(local_name->IsOneByteEqualTo("x"));
   i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
-  CHECK_EQ(3, declarations->length());
+  CHECK_EQ(8, declarations->length());
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
-  i::ImportDeclaration* import_decl =
-      declarations->at(1)->AsImportDeclaration();
-  CHECK(import_decl->import_name()->IsOneByteEqualTo("q"));
-  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("z"));
-  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("m.js"));
-  import_decl = declarations->at(2)->AsImportDeclaration();
-  CHECK(import_decl->import_name()->IsOneByteEqualTo("default"));
-  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("n"));
-  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("n.js"));
-  // TODO(adamk): Add test for indirect exports once they're fully implemented.
-  // TODO(adamk): Add test for star exports once they're fully implemented.
-  const i::ZoneList<const i::AstRawString*>& requested_modules =
-      descriptor->requested_modules();
-  CHECK_EQ(4, requested_modules.length());
-  CHECK(requested_modules[0]->IsOneByteEqualTo("m.js"));
-  CHECK(requested_modules[1]->IsOneByteEqualTo("n.js"));
-  CHECK(requested_modules[2]->IsOneByteEqualTo("p.js"));
-  CHECK(requested_modules[3]->IsOneByteEqualTo("q.js"));
+  CHECK(declarations->at(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(declarations->at(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(declarations->at(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
+  CHECK(declarations->at(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
+  CHECK(declarations->at(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
+  CHECK(declarations->at(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(
+      declarations->at(7)->proxy()->raw_name()->IsOneByteEqualTo("*default*"));
+  // TODO(neis): Test more once we can inspect the imports/exports.
 }
 
 

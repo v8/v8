@@ -191,13 +191,6 @@ void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void AstNumberingVisitor::VisitImportDeclaration(ImportDeclaration* node) {
-  IncrementNodeCount();
-  DisableOptimization(kImportDeclaration);
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());

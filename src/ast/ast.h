@@ -39,8 +39,7 @@ namespace internal {
 
 #define DECLARATION_NODE_LIST(V) \
   V(VariableDeclaration)         \
-  V(FunctionDeclaration)         \
-  V(ImportDeclaration)
+  V(FunctionDeclaration)
 
 #define ITERATION_NODE_LIST(V) \
   V(DoWhileStatement)          \
@@ -550,50 +549,6 @@ class FunctionDeclaration final : public Declaration {
 
  private:
   FunctionLiteral* fun_;
-};
-
-
-class ImportDeclaration final : public Declaration {
- public:
-  DECLARE_NODE_TYPE(ImportDeclaration)
-
-  const AstRawString* import_name() const { return import_name_; }
-  const AstRawString* module_specifier() const { return module_specifier_; }
-  void set_module_specifier(const AstRawString* module_specifier) {
-    DCHECK(module_specifier_ == NULL);
-    module_specifier_ = module_specifier;
-  }
-  InitializationFlag initialization() const { return kNeedsInitialization; }
-
- protected:
-  ImportDeclaration(Zone* zone, VariableProxy* proxy,
-                    const AstRawString* import_name,
-                    const AstRawString* module_specifier, Scope* scope, int pos)
-      : Declaration(zone, proxy, CONST, scope, pos, kImportDeclaration),
-        import_name_(import_name),
-        module_specifier_(module_specifier) {}
-
- private:
-  const AstRawString* import_name_;
-  const AstRawString* module_specifier_;
-};
-
-class Module final : public AstNode {
- public:
-  ModuleDescriptor* descriptor() const { return descriptor_; }
-  Block* body() const { return body_; }
-
- protected:
-  Module(Zone* zone, int pos)
-      : AstNode(pos, kModule),
-        descriptor_(ModuleDescriptor::New(zone)),
-        body_(NULL) {}
-  Module(Zone* zone, ModuleDescriptor* descriptor, int pos, Block* body = NULL)
-      : AstNode(pos, kModule), descriptor_(descriptor), body_(body) {}
-
- private:
-  ModuleDescriptor* descriptor_;
-  Block* body_;
 };
 
 
@@ -3129,14 +3084,6 @@ class AstNodeFactory final BASE_EMBEDDED {
                                               int pos) {
     return new (parser_zone_)
         FunctionDeclaration(parser_zone_, proxy, mode, fun, scope, pos);
-  }
-
-  ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
-                                          const AstRawString* import_name,
-                                          const AstRawString* module_specifier,
-                                          Scope* scope, int pos) {
-    return new (parser_zone_) ImportDeclaration(
-        parser_zone_, proxy, import_name, module_specifier, scope, pos);
   }
 
   Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
