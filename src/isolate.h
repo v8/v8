@@ -1173,7 +1173,7 @@ class Isolate {
   // the Isolate. The top of the stack points to a thread which is currently
   // running the Isolate. When the stack is empty, the Isolate is considered
   // not entered by any thread and can be Disposed.
-  // If the same thread enters the Isolate more then once, the entry_count_
+  // If the same thread enters the Isolate more than once, the entry_count_
   // is incremented rather then a new item pushed to the stack.
   class EntryStackItem {
    public:

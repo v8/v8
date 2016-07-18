@@ -42,8 +42,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 
     // The size of each prefetch.
     uint32_t pref_chunk = 32;
-    // The maximum size of a prefetch, it must not be less then pref_chunk.
-    // If the real size of a prefetch is greater then max_pref_size and
+    // The maximum size of a prefetch, it must not be less than pref_chunk.
+    // If the real size of a prefetch is greater than max_pref_size and
     // the kPrefHintPrepareForStore hint is used, the code will not work
     // correctly.
     uint32_t max_pref_size = 128;

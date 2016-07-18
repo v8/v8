@@ -334,7 +334,7 @@ void GCTracer::SampleAllocation(double current_ms,
     return;
   }
   // This assumes that counters are unsigned integers so that the subtraction
-  // below works even if the new counter is less then the old counter.
+  // below works even if the new counter is less than the old counter.
   size_t new_space_allocated_bytes =
       new_space_counter_bytes - new_space_allocation_counter_bytes_;
   size_t old_generation_allocated_bytes =
