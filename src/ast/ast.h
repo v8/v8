@@ -1665,6 +1665,8 @@ class VariableProxy final : public Expression {
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId BeforeId() const { return BailoutId(local_id(0)); }
+  void set_next_unresolved(VariableProxy* next) { next_unresolved_ = next; }
+  VariableProxy* next_unresolved() { return next_unresolved_; }
 
  protected:
   VariableProxy(Zone* zone, Variable* var, int start_position,
@@ -1693,6 +1695,7 @@ class VariableProxy final : public Expression {
     const AstRawString* raw_name_;  // if !is_resolved_
     Variable* var_;                 // if is_resolved_
   };
+  VariableProxy* next_unresolved_;
 };
 
 

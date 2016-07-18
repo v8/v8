@@ -178,7 +178,8 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       end_position_(end_position),
-      raw_name_(var->raw_name()) {
+      raw_name_(var->raw_name()),
+      next_unresolved_(nullptr) {
   BindTo(var);
 }
 
@@ -190,7 +191,8 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       end_position_(end_position),
-      raw_name_(name) {}
+      raw_name_(name),
+      next_unresolved_(nullptr) {}
 
 void VariableProxy::BindTo(Variable* var) {
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());

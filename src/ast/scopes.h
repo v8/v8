@@ -183,14 +183,16 @@ class Scope: public ZoneObject {
     DCHECK(!already_resolved());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, kind, start_position, end_position);
-    unresolved_.Add(proxy, zone_);
+    proxy->set_next_unresolved(unresolved_);
+    unresolved_ = proxy;
     return proxy;
   }
 
   void AddUnresolved(VariableProxy* proxy) {
     DCHECK(!already_resolved());
     DCHECK(!proxy->is_resolved());
-    unresolved_.Add(proxy, zone_);
+    proxy->set_next_unresolved(unresolved_);
+    unresolved_ = proxy;
   }
 
   // Remove a unresolved variable. During parsing, an unresolved variable
@@ -629,8 +631,9 @@ class Scope: public ZoneObject {
   ZoneList<Variable*> params_;
   // Variables that must be looked up dynamically.
   DynamicScopePart* dynamics_;
-  // Unresolved variables referred to from this scope.
-  ZoneList<VariableProxy*> unresolved_;
+  // Unresolved variables referred to from this scope. The proxies themselves
+  // form a linked list of all unresolved proxies.
+  VariableProxy* unresolved_;
   // Declarations.
   ZoneList<Declaration*> decls_;
   // Convenience variable.

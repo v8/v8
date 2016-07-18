@@ -88,7 +88,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
-      unresolved_(16, zone),
+      unresolved_(nullptr),
       decls_(4, zone),
       module_descriptor_(scope_type == MODULE_SCOPE ? new (zone)
                                                           ModuleDescriptor(zone)
@@ -109,7 +109,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
-      unresolved_(16, zone),
+      unresolved_(nullptr),
       decls_(4, zone),
       module_descriptor_(NULL),
       sloppy_block_function_map_(zone),
@@ -133,7 +133,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       variables_(zone),
       temps_(0, zone),
       params_(0, zone),
-      unresolved_(0, zone),
+      unresolved_(nullptr),
       decls_(0, zone),
       module_descriptor_(NULL),
       sloppy_block_function_map_(zone),
@@ -353,8 +353,15 @@ Scope* Scope::FinalizeBlockScope() {
   }
 
   // Move unresolved variables
-  for (int i = 0; i < unresolved_.length(); i++) {
-    outer_scope()->unresolved_.Add(unresolved_[i], zone());
+  VariableProxy* unresolved = unresolved_;
+  if (outer_scope()->unresolved_ == nullptr) {
+    outer_scope()->unresolved_ = unresolved;
+  } else if (unresolved != nullptr) {
+    while (unresolved->next_unresolved() != nullptr) {
+      unresolved = unresolved->next_unresolved();
+    }
+    unresolved->set_next_unresolved(outer_scope()->unresolved_);
+    outer_scope()->unresolved_ = unresolved_;
   }
 
   PropagateUsageFlagsToScope(outer_scope_);
@@ -529,13 +536,20 @@ Variable* Scope::DeclareDynamicGlobal(const AstRawString* name) {
 
 
 bool Scope::RemoveUnresolved(VariableProxy* var) {
-  // Most likely (always?) any variable we want to remove
-  // was just added before, so we search backwards.
-  for (int i = unresolved_.length(); i-- > 0;) {
-    if (unresolved_[i] == var) {
-      unresolved_.Remove(i);
+  if (unresolved_ == var) {
+    unresolved_ = var->next_unresolved();
+    var->set_next_unresolved(nullptr);
+    return true;
+  }
+  VariableProxy* current = unresolved_;
+  while (current != nullptr) {
+    VariableProxy* next = current->next_unresolved();
+    if (var == next) {
+      current->set_next_unresolved(next->next_unresolved());
+      var->set_next_unresolved(nullptr);
       return true;
     }
+    current = next;
   }
   return false;
 }
@@ -822,8 +836,8 @@ Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
   // Collect non-local variables referenced in the scope.
   // TODO(yangguo): store non-local variables explicitly if we can no longer
   //                rely on unresolved_ to find them.
-  for (int i = 0; i < unresolved_.length(); i++) {
-    VariableProxy* proxy = unresolved_[i];
+  for (VariableProxy* proxy = unresolved_; proxy != nullptr;
+       proxy = proxy->next_unresolved()) {
     if (proxy->is_resolved() && proxy->var()->IsStackAllocated()) continue;
     Handle<String> name = proxy->name();
     non_locals = StringSet::Add(non_locals, name);
@@ -1218,8 +1232,9 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info,
   DCHECK(info->script_scope()->is_script_scope());
 
   // Resolve unresolved variables for this scope.
-  for (int i = 0; i < unresolved_.length(); i++) {
-    if (!ResolveVariable(info, unresolved_[i], factory)) return false;
+  for (VariableProxy* proxy = unresolved_; proxy != nullptr;
+       proxy = proxy->next_unresolved()) {
+    if (!ResolveVariable(info, proxy, factory)) return false;
   }
 
   // Resolve unresolved variables for inner scopes.
