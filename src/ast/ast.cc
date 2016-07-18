@@ -177,8 +177,8 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
-      raw_name_(var->raw_name()),
-      end_position_(end_position) {
+      end_position_(end_position),
+      raw_name_(var->raw_name()) {
   BindTo(var);
 }
 
@@ -189,8 +189,8 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
       bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
-      raw_name_(name),
-      end_position_(end_position) {}
+      end_position_(end_position),
+      raw_name_(name) {}
 
 void VariableProxy::BindTo(Variable* var) {
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
