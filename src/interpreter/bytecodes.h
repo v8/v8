@@ -514,14 +514,14 @@ class Bytecodes final {
   // Returns true if the bytecode is Ldar or Star.
   static bool IsLdarOrStar(Bytecode bytecode);
 
-  // Returns true if the bytecode is LdaSmi or LdaZero.
-  static bool IsLdaSmiOrLdaZero(Bytecode bytecode);
-
   // Returns true if the bytecode has wider operand forms.
   static bool IsBytecodeWithScalableOperands(Bytecode bytecode);
 
   // Returns true if the bytecode is a scaling prefix bytecode.
   static bool IsPrefixScalingBytecode(Bytecode bytecode);
+
+  // Returns true if |bytecode| puts a name in the accumulator.
+  static bool PutsNameInAccumulator(Bytecode bytecode);
 
   // Returns true if |operand_type| is any type of register operand.
   static bool IsRegisterOperandType(OperandType operand_type);

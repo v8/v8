@@ -134,12 +134,10 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
 TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
   BytecodeNode first(Bytecode::kLdaNull);
   BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
+  BytecodeLabel label;
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
+  optimizer()->WriteJump(&second, &label);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
@@ -147,15 +145,12 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
 TEST_F(BytecodePeepholeOptimizerTest, ElideJumpIfToBooleanTrue) {
   BytecodeNode first(Bytecode::kLdaTrue);
   BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
+  BytecodeLabel label;
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
+  optimizer()->WriteJump(&second, &label);
   CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kJumpIfTrue);
-  CHECK_EQ(last_written().operand(0), second.operand(0));
+  CHECK_EQ(last_written(), second);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, KeepToBooleanLogicalNot) {
@@ -204,12 +199,11 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRx) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatement) {
@@ -262,11 +256,10 @@ TEST_F(BytecodePeepholeOptimizerTest, ToNameToName) {
   BytecodeNode first(Bytecode::kToName);
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
+  CHECK_EQ(last_written(), first);
   CHECK_EQ(write_count(), 1);
 }
 
@@ -274,12 +267,11 @@ TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   BytecodeNode first(Bytecode::kTypeOf);
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
@@ -289,12 +281,11 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
   BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {

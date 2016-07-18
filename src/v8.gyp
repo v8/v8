@@ -35,6 +35,7 @@
     'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+    'mkpeephole_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkpeephole<(EXECUTABLE_SUFFIX)',
   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
@@ -382,13 +383,31 @@
         'v8_libbase',
         'v8_libsampler',
       ],
+      'objs': ['foo.o'],
       'variables': {
         'optimize': 'max',
       },
       'include_dirs+': [
         '..',
         '<(DEPTH)',
+        '<(SHARED_INTERMEDIATE_DIR)'
       ],
+      'actions':[{
+        'action_name': 'run mkpeephole',
+        'inputs': ['<(mkpeephole_exec)'],
+        'outputs': ['<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc'],
+        'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
+        'process_outputs_as_sources': 1,
+        'conditions': [
+          ['want_separate_host_toolset==1', {
+            'dependencies': ['mkpeephole#host'],
+            'toolsets': ['host'],
+          }, {
+            'dependencies': ['mkpeephole'],
+            'toolsets': ['target'],
+          }],
+        ],
+      }],
       'sources': [  ### gcmole(all) ###
         '../include/v8-debug.h',
         '../include/v8-experimental.h',
@@ -929,6 +948,7 @@
         'interpreter/bytecode-label.h',
         'interpreter/bytecode-peephole-optimizer.cc',
         'interpreter/bytecode-peephole-optimizer.h',
+        'interpreter/bytecode-peephole-table.h',
         'interpreter/bytecode-pipeline.cc',
         'interpreter/bytecode-pipeline.h',
         'interpreter/bytecode-register.cc',
@@ -2308,6 +2328,27 @@
             '<(icu_gyp_path):icuuc',
           ]
         }],
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+    },
+    {
+      'target_name': 'mkpeephole',
+      'type': 'executable',
+      'dependencies': [ 'v8_libbase' ],
+      'include_dirs+': [
+        '..',
+       ],
+      'sources': [
+        'interpreter/bytecode-peephole-table.h',
+        'interpreter/bytecodes.h',
+        'interpreter/bytecodes.cc',
+        'interpreter/mkpeephole.cc'
+      ],
+      'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host'],
         }, {
