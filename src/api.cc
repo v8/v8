@@ -8942,6 +8942,10 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
     Object** start = reinterpret_cast<Object**>(&context_lists[i]->first());
     v->VisitPointers(start, start + context_lists[i]->length());
   }
+  if (microtask_context_) {
+    Object** start = reinterpret_cast<Object**>(&microtask_context_);
+    v->VisitPointers(start, start + 1);
+  }
 }
 
 

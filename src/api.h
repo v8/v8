@@ -453,6 +453,7 @@ class HandleScopeImplementer {
         blocks_(0),
         entered_contexts_(0),
         saved_contexts_(0),
+        microtask_context_(nullptr),
         spare_(NULL),
         call_depth_(0),
         microtasks_depth_(0),
@@ -519,6 +520,10 @@ class HandleScopeImplementer {
   // contexts have been entered.
   inline Handle<Context> LastEnteredContext();
 
+  inline void EnterMicrotaskContext(Handle<Context> context);
+  inline void LeaveMicrotaskContext();
+  inline Handle<Context> MicrotaskContext();
+
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
   inline bool HasSavedContexts();
@@ -537,6 +542,7 @@ class HandleScopeImplementer {
     blocks_.Initialize(0);
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
+    microtask_context_ = nullptr;
     spare_ = NULL;
     last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
@@ -546,6 +552,7 @@ class HandleScopeImplementer {
     DCHECK(blocks_.length() == 0);
     DCHECK(entered_contexts_.length() == 0);
     DCHECK(saved_contexts_.length() == 0);
+    DCHECK(!microtask_context_);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -565,6 +572,7 @@ class HandleScopeImplementer {
   List<Context*> entered_contexts_;
   // Used as a stack to keep track of saved contexts.
   List<Context*> saved_contexts_;
+  Context* microtask_context_;
   Object** spare_;
   int call_depth_;
   int microtasks_depth_;
@@ -637,6 +645,20 @@ Handle<Context> HandleScopeImplementer::LastEnteredContext() {
   return Handle<Context>(entered_contexts_.last());
 }
 
+void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
+  DCHECK(!microtask_context_);
+  microtask_context_ = *context;
+}
+
+void HandleScopeImplementer::LeaveMicrotaskContext() {
+  DCHECK(microtask_context_);
+  microtask_context_ = nullptr;
+}
+
+Handle<Context> HandleScopeImplementer::MicrotaskContext() {
+  if (microtask_context_) return Handle<Context>(microtask_context_);
+  return Handle<Context>::null();
+}
 
 // If there's a spare block, use it for growing the current scope.
 internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
