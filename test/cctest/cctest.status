@@ -201,18 +201,6 @@
 
   # BUG(v8:3434).
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-
-  # BUG(v8:4795).
-  'test-run-wasm-js/Run_JSSelectAlign_0': [SKIP],
-  'test-run-wasm-js/Run_JSSelectAlign_2': [SKIP],
-  'test-run-wasm-js/Run_JSSelectAlign_4': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_0': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_1': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_2': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_3': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_4': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_5': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_6': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
