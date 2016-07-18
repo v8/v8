@@ -14,7 +14,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
+void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments excluding receiver
@@ -49,7 +49,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   __ Push(rdx);
   __ PushReturnAddressFrom(kScratchRegister);
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()),
+  __ JumpToExternalReference(ExternalReference(address, masm->isolate()),
                              exit_frame_type == BUILTIN_EXIT);
 }
 

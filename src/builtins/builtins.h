@@ -392,17 +392,12 @@ namespace internal {
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                V, V, V)
 
-#define BUILTIN_LIST_TFS(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-
 #define BUILTIN_LIST_DBG(V)                                                    \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
 // Forward declarations.
 class CodeStubAssembler;
-class BuiltinFunctionTable;
 class ObjectVisitor;
 
 class Builtins {
@@ -421,20 +416,13 @@ class Builtins {
   const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM(name, ...) k##name,
+#define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM
         builtin_count
   };
 
-  enum CFunctionId {
-#define DEF_ENUM(name) c_##name,
-    BUILTIN_LIST_C(DEF_ENUM)
-#undef DEF_ENUM
-        cfunction_count
-  };
-
-#define DECLARE_BUILTIN_ACCESSOR(name, ...) Handle<Code> name();
+#define DECLARE_BUILTIN_ACCESSOR(Name, ...) Handle<Code> Name();
   BUILTIN_LIST_ALL(DECLARE_BUILTIN_ACCESSOR)
 #undef DECLARE_BUILTIN_ACCESSOR
 
@@ -462,13 +450,7 @@ class Builtins {
     return reinterpret_cast<Address>(&builtins_[name]);
   }
 
-  static Address c_function_address(CFunctionId id) { return c_functions_[id]; }
-
-  const char* name(int index) {
-    DCHECK(index >= 0);
-    DCHECK(index < builtin_count);
-    return names_[index];
-  }
+  const char* name(int index);
 
   bool is_initialized() const { return initialized_; }
 
@@ -478,20 +460,12 @@ class Builtins {
 
   enum ExitFrameType { EXIT, BUILTIN_EXIT };
 
+  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
+                               ExitFrameType exit_frame_type);
+
  private:
   Builtins();
 
-  // The external C++ functions called from the code.
-  static Address const c_functions_[cfunction_count];
-
-  // Note: These are always Code objects, but to conform with
-  // IterateBuiltins() above which assumes Object**'s for the callback
-  // function f, we use an Object* array here.
-  Object* builtins_[builtin_count];
-  const char* names_[builtin_count];
-
-  static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
-                               ExitFrameType exit_frame_type);
   static void Generate_AllocateInNewSpace(MacroAssembler* masm);
   static void Generate_AllocateInOldSpace(MacroAssembler* masm);
   static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
@@ -823,11 +797,12 @@ class Builtins {
   static void Generate_AtomicsLoad(CodeStubAssembler* assembler);
   static void Generate_AtomicsStore(CodeStubAssembler* assembler);
 
-  static void InitBuiltinFunctionTable();
-
+  // Note: These are always Code objects, but to conform with
+  // IterateBuiltins() above which assumes Object**'s for the callback
+  // function f, we use an Object* array here.
+  Object* builtins_[builtin_count];
   bool initialized_;
 
-  friend class BuiltinFunctionTable;
   friend class Isolate;
 
   DISALLOW_COPY_AND_ASSIGN(Builtins);

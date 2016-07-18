@@ -15,7 +15,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
+void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
   // ----------- S t a t e -------------
   //  -- a0                 : number of arguments excluding receiver
@@ -44,8 +44,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
   __ Push(a0, a1, a3);
   __ SmiUntag(a0);
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()), PROTECT,
-                             exit_frame_type == BUILTIN_EXIT);
+  __ JumpToExternalReference(ExternalReference(address, masm->isolate()),
+                             PROTECT, exit_frame_type == BUILTIN_EXIT);
 }
 
 // Load the built-in InternalArray function from the current context.

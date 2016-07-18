@@ -110,7 +110,7 @@ class BuiltinArguments : public Arguments {
     return Builtin_Impl_##name(args, isolate);                                \
   }                                                                           \
                                                                               \
-  MUST_USE_RESULT static Object* Builtin_##name(                              \
+  MUST_USE_RESULT Object* Builtin_##name(                                     \
       int args_length, Object** args_object, Isolate* isolate) {              \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     if (FLAG_runtime_call_stats) {                                            \
@@ -6408,209 +6408,95 @@ void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
 
 Builtins::Builtins() : initialized_(false) {
   memset(builtins_, 0, sizeof(builtins_[0]) * builtin_count);
-  memset(names_, 0, sizeof(names_[0]) * builtin_count);
 }
 
 Builtins::~Builtins() {}
 
-#define DEF_ENUM_C(name) FUNCTION_ADDR(Builtin_##name),
-Address const Builtins::c_functions_[cfunction_count] = {
-    BUILTIN_LIST_C(DEF_ENUM_C)};
-#undef DEF_ENUM_C
-
-struct BuiltinDesc {
-  Handle<Code> (*builder)(Isolate*, struct BuiltinDesc const*);
-  byte* generator;
-  byte* c_code;
-  const char* s_name;  // name is only used for generating log information.
-  int name;
-  Code::Flags flags;
-  Builtins::ExitFrameType exit_frame_type;
-  int argc;
-};
-
-#define BUILTIN_FUNCTION_TABLE_INIT \
-  {                                 \
-    V8_ONCE_INIT, {}                \
-  }
-
-class BuiltinFunctionTable {
- public:
-  BuiltinDesc* functions() {
-    base::CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
-    return functions_;
-  }
-
-  base::OnceType once_;
-  BuiltinDesc functions_[Builtins::builtin_count + 1];
-
-  friend class Builtins;
-};
-
 namespace {
-
-BuiltinFunctionTable builtin_function_table = BUILTIN_FUNCTION_TABLE_INIT;
-
-Handle<Code> MacroAssemblerBuilder(Isolate* isolate,
-                                   BuiltinDesc const* builtin_desc) {
-// For now we generate builtin adaptor code into a stack-allocated
-// buffer, before copying it into individual code objects. Be careful
-// with alignment, some platforms don't like unaligned code.
-#ifdef DEBUG
-  // We can generate a lot of debug code on Arm64.
-  const size_t buffer_size = 32 * KB;
-#elif V8_TARGET_ARCH_PPC64
-  // 8 KB is insufficient on PPC64 when FLAG_debug_code is on.
-  const size_t buffer_size = 10 * KB;
-#else
-  const size_t buffer_size = 8 * KB;
+void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
+                                const char* name) {
+  PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
+                                   AbstractCode::cast(code), name));
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_builtin_code) {
+    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+    OFStream os(trace_scope.file());
+    os << "Builtin: " << name << "\n";
+    code->Disassemble(name, os);
+    os << "\n";
+  }
 #endif
-  union {
-    int force_alignment;
-    byte buffer[buffer_size];  // NOLINT(runtime/arrays)
-  } u;
+}
 
-  MacroAssembler masm(isolate, u.buffer, sizeof(u.buffer),
-                      CodeObjectRequired::kYes);
-  // Generate the code/adaptor.
-  typedef void (*Generator)(MacroAssembler*, int, Builtins::ExitFrameType);
-  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
-  // We pass all arguments to the generator, but it may not use all of
-  // them.  This works because the first arguments are on top of the
-  // stack.
+typedef void (*MacroAssemblerGenerator)(MacroAssembler*);
+typedef void (*CodeAssemblerGenerator)(CodeStubAssembler*);
+
+Code* BuildWithMacroAssembler(Isolate* isolate,
+                              MacroAssemblerGenerator generator,
+                              Code::Flags flags, const char* s_name) {
+  HandleScope scope(isolate);
+  const size_t buffer_size = 32 * KB;
+  byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
   DCHECK(!masm.has_frame());
-  g(&masm, builtin_desc->name, builtin_desc->exit_frame_type);
-  // Move the code into the object heap.
+  generator(&masm);
   CodeDesc desc;
   masm.GetCode(&desc);
-  Code::Flags flags = builtin_desc->flags;
-  return isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+  PostBuildProfileAndTracing(isolate, *code, s_name);
+  return *code;
+}
+
+Code* BuildAdaptor(Isolate* isolate, Address builtin_address,
+                   Builtins::ExitFrameType exit_frame_type, Code::Flags flags,
+                   const char* name) {
+  HandleScope scope(isolate);
+  const size_t buffer_size = 32 * KB;
+  byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  DCHECK(!masm.has_frame());
+  Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, flags, masm.CodeObject());
+  PostBuildProfileAndTracing(isolate, *code, name);
+  return *code;
 }
 
 // Builder for builtins implemented in TurboFan with JS linkage.
-Handle<Code> CodeStubAssemblerBuilderJS(Isolate* isolate,
-                                        BuiltinDesc const* builtin_desc) {
+Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
+                                   CodeAssemblerGenerator generator, int argc,
+                                   Code::Flags flags, const char* name) {
+  HandleScope scope(isolate);
   Zone zone(isolate->allocator());
-  CodeStubAssembler assembler(isolate, &zone, builtin_desc->argc,
-                              builtin_desc->flags, builtin_desc->s_name);
-  // Generate the code/adaptor.
-  typedef void (*Generator)(CodeStubAssembler*);
-  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
-  g(&assembler);
-  return assembler.GenerateCode();
+  CodeStubAssembler assembler(isolate, &zone, argc, flags, name);
+  generator(&assembler);
+  Handle<Code> code = assembler.GenerateCode();
+  PostBuildProfileAndTracing(isolate, *code, name);
+  return *code;
 }
 
 // Builder for builtins implemented in TurboFan with CallStub linkage.
-Handle<Code> CodeStubAssemblerBuilderCS(Isolate* isolate,
-                                        BuiltinDesc const* builtin_desc) {
+Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
+                                   CodeAssemblerGenerator generator,
+                                   CallDescriptors::Key interface_descriptor,
+                                   Code::Flags flags, const char* name) {
+  HandleScope scope(isolate);
   Zone zone(isolate->allocator());
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
-  CallInterfaceDescriptor descriptor(
-      isolate, static_cast<CallDescriptors::Key>(builtin_desc->argc));
+  CallInterfaceDescriptor descriptor(isolate, interface_descriptor);
   // Ensure descriptor is already initialized.
   DCHECK_NOT_NULL(descriptor.GetFunctionType());
-  CodeStubAssembler assembler(isolate, &zone, descriptor, builtin_desc->flags,
-                              builtin_desc->s_name);
-  // Generate the code/adaptor.
-  typedef void (*Generator)(CodeStubAssembler*);
-  Generator g = FUNCTION_CAST<Generator>(builtin_desc->generator);
-  g(&assembler);
-  return assembler.GenerateCode();
+  CodeStubAssembler assembler(isolate, &zone, descriptor, flags, name);
+  generator(&assembler);
+  Handle<Code> code = assembler.GenerateCode();
+  PostBuildProfileAndTracing(isolate, *code, name);
+  return *code;
 }
-
-}  // namespace
-
-// Define array of pointers to generators and C builtin functions.
-// We do this in a sort of roundabout way so that we can do the initialization
-// within the lexical scope of Builtins:: and within a context where
-// Code::Flags names a non-abstract type.
-void Builtins::InitBuiltinFunctionTable() {
-  BuiltinDesc* functions = builtin_function_table.functions_;
-  functions[builtin_count].builder = nullptr;
-  functions[builtin_count].generator = nullptr;
-  functions[builtin_count].c_code = nullptr;
-  functions[builtin_count].s_name = nullptr;
-  functions[builtin_count].name = builtin_count;
-  functions[builtin_count].flags = static_cast<Code::Flags>(0);
-  functions[builtin_count].exit_frame_type = EXIT;
-  functions[builtin_count].argc = 0;
-
-#define DEF_CPP(Name)                                     \
-  functions->builder = &MacroAssemblerBuilder;            \
-  functions->generator = FUNCTION_ADDR(Generate_Adaptor); \
-  functions->c_code = FUNCTION_ADDR(Builtin_##Name);      \
-  functions->s_name = #Name;                              \
-  functions->name = c_##Name;                             \
-  functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
-  functions->exit_frame_type = BUILTIN_EXIT;              \
-  functions->argc = 0;                                    \
-  ++functions;
-
-#define DEF_API(Name)                                     \
-  functions->builder = &MacroAssemblerBuilder;            \
-  functions->generator = FUNCTION_ADDR(Generate_Adaptor); \
-  functions->c_code = FUNCTION_ADDR(Builtin_##Name);      \
-  functions->s_name = #Name;                              \
-  functions->name = c_##Name;                             \
-  functions->flags = Code::ComputeFlags(Code::BUILTIN);   \
-  functions->exit_frame_type = EXIT;                      \
-  functions->argc = 0;                                    \
-  ++functions;
-
-#define DEF_TFJ(Name, Argc)                              \
-  functions->builder = &CodeStubAssemblerBuilderJS;      \
-  functions->generator = FUNCTION_ADDR(Generate_##Name); \
-  functions->c_code = NULL;                              \
-  functions->s_name = #Name;                             \
-  functions->name = k##Name;                             \
-  functions->flags = Code::ComputeFlags(Code::BUILTIN);  \
-  functions->exit_frame_type = EXIT;                     \
-  functions->argc = Argc;                                \
-  ++functions;
-
-#define DEF_TFS(Name, Kind, Extra, InterfaceDescriptor)     \
-  functions->builder = &CodeStubAssemblerBuilderCS;         \
-  functions->generator = FUNCTION_ADDR(Generate_##Name);    \
-  functions->c_code = NULL;                                 \
-  functions->s_name = #Name;                                \
-  functions->name = k##Name;                                \
-  functions->flags = Code::ComputeFlags(Code::Kind, Extra); \
-  functions->exit_frame_type = EXIT;                        \
-  functions->argc = CallDescriptors::InterfaceDescriptor;   \
-  ++functions;
-
-#define DEF_ASM(Name)                                    \
-  functions->builder = &MacroAssemblerBuilder;           \
-  functions->generator = FUNCTION_ADDR(Generate_##Name); \
-  functions->c_code = NULL;                              \
-  functions->s_name = #Name;                             \
-  functions->name = k##Name;                             \
-  functions->flags = Code::ComputeFlags(Code::BUILTIN);  \
-  functions->exit_frame_type = EXIT;                     \
-  functions->argc = 0;                                   \
-  ++functions;
-
-#define DEF_ASH(Name, Kind, Extra)                          \
-  functions->builder = &MacroAssemblerBuilder;              \
-  functions->generator = FUNCTION_ADDR(Generate_##Name);    \
-  functions->c_code = NULL;                                 \
-  functions->s_name = #Name;                                \
-  functions->name = k##Name;                                \
-  functions->flags = Code::ComputeFlags(Code::Kind, Extra); \
-  functions->exit_frame_type = EXIT;                        \
-  functions->argc = 0;                                      \
-  ++functions;
-
-  BUILTIN_LIST(DEF_CPP, DEF_API, DEF_TFJ, DEF_TFS, DEF_ASM, DEF_ASH, DEF_ASM)
-
-#undef DEF_CPP
-#undef DEF_API
-#undef DEF_TFJ
-#undef DEF_TFS
-#undef DEF_ASM
-#undef DEF_ASH
-}
+}  // anonymous namespace
 
 void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   DCHECK(!initialized_);
@@ -6618,38 +6504,50 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
 
-#define INITIALIZE_CALL_DESCRIPTOR(name, kind, extra, interface_descriptor) \
-  { interface_descriptor##Descriptor descriptor(isolate); }
-  BUILTIN_LIST_TFS(INITIALIZE_CALL_DESCRIPTOR)
-#undef INITIALIZE_CALL_DESCRIPTOR
+  if (create_heap_objects) {
+    int index = 0;
+    const Code::Flags kBuiltinFlags = Code::ComputeFlags(Code::BUILTIN);
+    Code* code;
+#define BUILD_CPP(Name)                                                     \
+  code = BuildAdaptor(isolate, FUNCTION_ADDR(Builtin_##Name), BUILTIN_EXIT, \
+                      kBuiltinFlags, #Name);                                \
+  builtins_[index++] = code;
+#define BUILD_API(Name)                                             \
+  code = BuildAdaptor(isolate, FUNCTION_ADDR(Builtin_##Name), EXIT, \
+                      kBuiltinFlags, #Name);                        \
+  builtins_[index++] = code;
+#define BUILD_TFJ(Name, Argc)                                          \
+  code = BuildWithCodeStubAssemblerJS(isolate, &Generate_##Name, Argc, \
+                                      kBuiltinFlags, #Name);           \
+  builtins_[index++] = code;
+#define BUILD_TFS(Name, Kind, Extra, InterfaceDescriptor)              \
+  { InterfaceDescriptor##Descriptor descriptor(isolate); }             \
+  code = BuildWithCodeStubAssemblerCS(                                 \
+      isolate, &Generate_##Name, CallDescriptors::InterfaceDescriptor, \
+      Code::ComputeFlags(Code::Kind, Extra), #Name);                   \
+  builtins_[index++] = code;
+#define BUILD_ASM(Name)                                                        \
+  code =                                                                       \
+      BuildWithMacroAssembler(isolate, Generate_##Name, kBuiltinFlags, #Name); \
+  builtins_[index++] = code;
+#define BUILD_ASH(Name, Kind, Extra)                                           \
+  code = BuildWithMacroAssembler(                                              \
+      isolate, Generate_##Name, Code::ComputeFlags(Code::Kind, Extra), #Name); \
+  builtins_[index++] = code;
 
-  const BuiltinDesc* functions = builtin_function_table.functions();
+    BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFS, BUILD_ASM,
+                 BUILD_ASH, BUILD_ASM);
 
-  // Traverse the list of builtins and generate an adaptor in a
-  // separate code object for each one.
-  for (int i = 0; i < builtin_count; i++) {
-    if (create_heap_objects) {
-      Handle<Code> code = (*functions[i].builder)(isolate, functions + i);
-      // Log the event and add the code to the builtins array.
-      PROFILE(isolate,
-              CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
-                              AbstractCode::cast(*code), functions[i].s_name));
-      builtins_[i] = *code;
-      code->set_builtin_index(i);
-#ifdef ENABLE_DISASSEMBLER
-      if (FLAG_print_builtin_code) {
-        CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-        OFStream os(trace_scope.file());
-        os << "Builtin: " << functions[i].s_name << "\n";
-        code->Disassemble(functions[i].s_name, os);
-        os << "\n";
-      }
-#endif
-    } else {
-      // Deserializing. The values will be filled in during IterateBuiltins.
-      builtins_[i] = NULL;
+#undef BUILD_CPP
+#undef BUILD_API
+#undef BUILD_TFJ
+#undef BUILD_TFS
+#undef BUILD_ASM
+#undef BUILD_ASH
+    CHECK_EQ(builtin_count, index);
+    for (int i = 0; i < builtin_count; i++) {
+      Code::cast(builtins_[i])->set_builtin_index(i);
     }
-    names_[i] = functions[i].s_name;
   }
 
   // Mark as initialized.
@@ -6667,12 +6565,24 @@ const char* Builtins::Lookup(byte* pc) {
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
       Code* entry = Code::cast(builtins_[i]);
-      if (entry->contains(pc)) {
-        return names_[i];
-      }
+      if (entry->contains(pc)) return name(i);
     }
   }
   return NULL;
+}
+
+const char* Builtins::name(int index) {
+  switch (index) {
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return #Name;
+    BUILTIN_LIST_ALL(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return "";
 }
 
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {

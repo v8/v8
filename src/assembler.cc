@@ -896,10 +896,8 @@ void ExternalReference::SetUp() {
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 }
 
-
-ExternalReference::ExternalReference(Builtins::CFunctionId id, Isolate* isolate)
-  : address_(Redirect(isolate, Builtins::c_function_address(id))) {}
-
+ExternalReference::ExternalReference(Address address, Isolate* isolate)
+    : address_(Redirect(isolate, address)) {}
 
 ExternalReference::ExternalReference(
     ApiFunction* fun,

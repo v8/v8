@@ -6,12 +6,19 @@
 
 #include "src/accessors.h"
 #include "src/assembler.h"
+#include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations for C++ builtins.
+#define FORWARD_DECLARE(Name) \
+  Object* Builtin_##Name(int argc, Object** args, Isolate* isolate);
+BUILTIN_LIST_C(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
 
 ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
   ExternalReferenceTable* external_reference_table =
@@ -24,6 +31,18 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+  AddReferences(isolate);
+  AddBuiltins(isolate);
+  AddRuntimeFunctions(isolate);
+  AddStatCounters(isolate);
+  AddIsolateAddresses(isolate);
+  AddAccessors(isolate);
+  AddStubCache(isolate);
+  AddDeoptEntries(isolate);
+  AddApiReferences(isolate);
+}
+
+void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   // Miscellaneous
   Add(ExternalReference::roots_array_start(isolate).address(),
       "Heap::roots_array_start()");
@@ -234,54 +253,68 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "OffsetsVector::static_offsets_vector");
 #endif  // V8_INTERPRETED_REGEXP
 
-  // The following populates all of the different type of external references
-  // into the ExternalReferenceTable.
-  //
-  // NOTE: This function was originally 100k of code.  It has since been
-  // rewritten to be mostly table driven, as the callback macro style tends to
-  // very easily cause code bloat.  Please be careful in the future when adding
-  // new references.
+  // Runtime entries
+  Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
+      "HandleScope::DeleteExtensions");
+  Add(ExternalReference::incremental_marking_record_write_function(isolate)
+          .address(),
+      "IncrementalMarking::RecordWrite");
+  Add(ExternalReference::incremental_marking_record_write_code_entry_function(
+          isolate)
+          .address(),
+      "IncrementalMarking::RecordWriteOfCodeEntryFromCode");
+  Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
+      "StoreBuffer::StoreBufferOverflow");
+}
 
-  struct RefTableEntry {
-    uint16_t id;
+void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
+  struct CBuiltinEntry {
+    Address address;
     const char* name;
   };
-
-  static const RefTableEntry c_builtins[] = {
-#define DEF_ENTRY(name) {Builtins::c_##name, "Builtins::" #name},
+  static const CBuiltinEntry c_builtins[] = {
+#define DEF_ENTRY(Name, ...) {FUNCTION_ADDR(&Builtin_##Name), "Builtin_" #Name},
       BUILTIN_LIST_C(DEF_ENTRY)
 #undef DEF_ENTRY
   };
-
   for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
-    ExternalReference ref(static_cast<Builtins::CFunctionId>(c_builtins[i].id),
-                          isolate);
-    Add(ref.address(), c_builtins[i].name);
+    Add(ExternalReference(c_builtins[i].address, isolate).address(),
+        c_builtins[i].name);
   }
 
-  static const RefTableEntry builtins[] = {
-#define DEF_ENTRY(name, ...) {Builtins::k##name, "Builtins::" #name},
+  struct BuiltinEntry {
+    Builtins::Name id;
+    const char* name;
+  };
+  static const BuiltinEntry builtins[] = {
+#define DEF_ENTRY(Name, ...) {Builtins::k##Name, "Builtin_" #Name},
       BUILTIN_LIST_C(DEF_ENTRY) BUILTIN_LIST_A(DEF_ENTRY)
 #undef DEF_ENTRY
   };
-
   for (unsigned i = 0; i < arraysize(builtins); ++i) {
-    ExternalReference ref(static_cast<Builtins::Name>(builtins[i].id), isolate);
-    Add(ref.address(), builtins[i].name);
+    Add(isolate->builtins()->builtin_address(builtins[i].id), builtins[i].name);
   }
+}
 
-  static const RefTableEntry runtime_functions[] = {
+void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
+  struct RuntimeEntry {
+    Runtime::FunctionId id;
+    const char* name;
+  };
+
+  static const RuntimeEntry runtime_functions[] = {
 #define RUNTIME_ENTRY(name, i1, i2) {Runtime::k##name, "Runtime::" #name},
       FOR_EACH_INTRINSIC(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
   };
 
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
-    ExternalReference ref(
-        static_cast<Runtime::FunctionId>(runtime_functions[i].id), isolate);
+    ExternalReference ref(runtime_functions[i].id, isolate);
     Add(ref.address(), runtime_functions[i].name);
   }
+}
 
+void ExternalReferenceTable::AddStatCounters(Isolate* isolate) {
   // Stat counters
   struct StatsRefTableEntry {
     StatsCounter* (Counters::*counter)();
@@ -305,7 +338,9 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
     }
     Add(address, stats_ref_table[i].name);
   }
+}
 
+void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
   // Top addresses
   static const char* address_names[] = {
 #define BUILD_NAME_LITERAL(Name, name) "Isolate::" #name "_address",
@@ -317,7 +352,9 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
     Add(isolate->get_address_from_id(static_cast<Isolate::AddressId>(i)),
         address_names[i]);
   }
+}
 
+void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   // Accessors
   struct AccessorRefTable {
     Address address;
@@ -346,7 +383,9 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   for (unsigned i = 0; i < arraysize(setters); ++i) {
     Add(setters[i].address, setters[i].name);
   }
+}
 
+void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
   StubCache* load_stub_cache = isolate->load_stub_cache();
 
   // Stub cache tables
@@ -378,21 +417,11 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Store StubCache::secondary_->value");
   Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
       "Store StubCache::secondary_->map");
+}
 
-  // Runtime entries
-  Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
-      "HandleScope::DeleteExtensions");
-  Add(ExternalReference::incremental_marking_record_write_function(isolate)
-          .address(),
-      "IncrementalMarking::RecordWrite");
-  Add(ExternalReference::incremental_marking_record_write_code_entry_function(
-          isolate)
-          .address(),
-      "IncrementalMarking::RecordWriteOfCodeEntryFromCode");
-  Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
-      "StoreBuffer::StoreBufferOverflow");
-
-  // Add a small set of deopt entry addresses to encoder without generating the
+void ExternalReferenceTable::AddDeoptEntries(Isolate* isolate) {
+  // Add a small set of deopt entry addresses to encoder without generating
+  // the
   // deopt table code, which isn't possible at deserialization time.
   HandleScope scope(isolate);
   for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
@@ -401,8 +430,11 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
     Add(address, "lazy_deopt");
   }
+}
 
-  // Add external references provided by the embedder (a null-terminated array).
+void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
+  // Add external references provided by the embedder (a null-terminated
+  // array).
   intptr_t* api_external_references = isolate->api_external_references();
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
