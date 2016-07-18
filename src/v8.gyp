@@ -467,6 +467,8 @@
         'bit-vector.h',
         'bootstrapper.cc',
         'bootstrapper.h',
+        'builtins/builtins-array.cc',
+        'builtins/builtins-utils.h',
         'builtins/builtins.cc',
         'builtins/builtins.h',
         'cached-powers.cc',
