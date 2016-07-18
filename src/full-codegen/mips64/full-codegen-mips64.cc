@@ -735,7 +735,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
   PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   if (should_normalize) {
     __ LoadRoot(a4, Heap::kTrueValueRootIndex);
-    Split(eq, a0, Operand(a4), if_true, if_false, NULL);
+    Split(eq, v0, Operand(a4), if_true, if_false, NULL);
     __ bind(&skip);
   }
 }
