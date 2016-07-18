@@ -677,13 +677,6 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->number_of_symbols()->Set(
       string_table()->NumberOfElements());
 
-  if (full_codegen_bytes_generated_ + crankshaft_codegen_bytes_generated_ > 0) {
-    isolate_->counters()->codegen_fraction_crankshaft()->AddSample(
-        static_cast<int>((crankshaft_codegen_bytes_generated_ * 100.0) /
-                         (crankshaft_codegen_bytes_generated_ +
-                          full_codegen_bytes_generated_)));
-  }
-
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
         static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));

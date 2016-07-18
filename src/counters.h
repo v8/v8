@@ -884,7 +884,6 @@ class RuntimeCallTimerScope {
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
 
-
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                          \
   /* Heap fragmentation. */                                                    \
   HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)        \
@@ -898,10 +897,7 @@ class RuntimeCallTimerScope {
   HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
   HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
   HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
-  HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)                     \
-  /* Percentage of crankshafted codegen. */                                    \
-  HP(codegen_fraction_crankshaft, V8.CodegenFractionCrankshaft)
-
+  HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)
 
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
   HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
