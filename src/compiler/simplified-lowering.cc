@@ -1077,6 +1077,22 @@ class RepresentationSelector {
     return jsgraph_->simplified();
   }
 
+  void LowerToCheckedInt32Mul(Node* node, Truncation truncation,
+                              Type* input0_type, Type* input1_type) {
+    // If one of the inputs is positive and/or truncation is being applied,
+    // there is no need to return -0.
+    CheckForMinusZeroMode mz_mode =
+        truncation.TruncatesToWord32() ||
+                (input0_type->Is(Type::OrderedNumber()) &&
+                 input0_type->Min() > 0) ||
+                (input1_type->Is(Type::OrderedNumber()) &&
+                 input1_type->Min() > 0)
+            ? CheckForMinusZeroMode::kDontCheckForMinusZero
+            : CheckForMinusZeroMode::kCheckForMinusZero;
+
+    NodeProperties::ChangeOp(node, simplified()->CheckedInt32Mul(mz_mode));
+  }
+
   void ChangeToInt32OverflowOp(Node* node) {
     NodeProperties::ChangeOp(node, Int32OverflowOp(node));
   }
@@ -1333,6 +1349,8 @@ class RepresentationSelector {
         }
         // Try to use type feedback.
         BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+        Type* input0_type = TypeOf(node->InputAt(0));
+        Type* input1_type = TypeOf(node->InputAt(1));
 
         // Handle the case when no int32 checks on inputs are necessary
         // (but an overflow check is needed on the output).
@@ -1342,7 +1360,10 @@ class RepresentationSelector {
               hint == BinaryOperationHints::kSigned32) {
             VisitBinop(node, UseInfo::TruncatingWord32(),
                        MachineRepresentation::kWord32, Type::Signed32());
-            if (lower()) ChangeToInt32OverflowOp(node);
+            if (lower()) {
+              LowerToCheckedInt32Mul(node, truncation, input0_type,
+                                     input1_type);
+            }
             return;
           }
         }
@@ -1351,7 +1372,9 @@ class RepresentationSelector {
             hint == BinaryOperationHints::kSigned32) {
           VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
                      MachineRepresentation::kWord32, Type::Signed32());
-          if (lower()) ChangeToInt32OverflowOp(node);
+          if (lower()) {
+            LowerToCheckedInt32Mul(node, truncation, input0_type, input1_type);
+          }
           return;
         }
 

@@ -4,6 +4,20 @@
 
 // Flags: --allow-natives-syntax
 
+// For TurboFan, make sure we can eliminate the -0 return value check
+// by recognizing a constant value.
+function gotaconstant(y) { return 15 * y; }
+assertEquals(45, gotaconstant(3));
+gotaconstant(3);
+%OptimizeFunctionOnNextCall(gotaconstant);
+gotaconstant(3);
+
+function gotaconstant_truncated(x, y) { return x * y | 0; }
+assertEquals(45, gotaconstant_truncated(3, 15));
+gotaconstant_truncated(3, 15);
+%OptimizeFunctionOnNextCall(gotaconstant_truncated);
+gotaconstant_truncated(3, 15);
+
 function test(x, y) { return x * y; }
 
 assertEquals(12, test(3, 4));

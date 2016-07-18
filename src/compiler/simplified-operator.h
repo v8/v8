@@ -129,6 +129,17 @@ std::ostream& operator<<(std::ostream&, CheckTaggedHoleMode);
 
 CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+enum class CheckForMinusZeroMode : uint8_t {
+  kCheckForMinusZero,
+  kDontCheckForMinusZero,
+};
+
+size_t hash_value(CheckForMinusZeroMode);
+
+std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
+
+CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
+
 Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
@@ -261,7 +272,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedInt32Mod();
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
-  const Operator* CheckedInt32Mul();
+  const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedUint32ToInt32();
   const Operator* CheckedFloat64ToInt32();
   const Operator* CheckedTaggedToInt32();

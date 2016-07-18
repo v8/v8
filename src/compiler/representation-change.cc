@@ -627,8 +627,6 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
       return simplified()->CheckedInt32Div();
     case IrOpcode::kSpeculativeNumberModulus:
       return simplified()->CheckedInt32Mod();
-    case IrOpcode::kSpeculativeNumberMultiply:
-      return simplified()->CheckedInt32Mul();
     default:
       UNREACHABLE();
       return nullptr;

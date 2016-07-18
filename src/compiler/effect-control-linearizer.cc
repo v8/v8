@@ -1325,6 +1325,7 @@ EffectControlLinearizer::LowerCheckedUint32Mod(Node* node, Node* frame_state,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerCheckedInt32Mul(Node* node, Node* frame_state,
                                               Node* effect, Node* control) {
+  CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
   Node* zero = jsgraph()->Int32Constant(0);
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
@@ -1339,28 +1340,30 @@ EffectControlLinearizer::LowerCheckedInt32Mul(Node* node, Node* frame_state,
 
   Node* value = graph()->NewNode(common()->Projection(0), projection, control);
 
-  Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value, zero);
-  Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check_zero, control);
+  if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+    Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value, zero);
+    Node* branch_zero = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_zero, control);
 
-  Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
-  Node* e_if_zero = effect;
-  {
-    // We may need to return negative zero.
-    Node* or_inputs = graph()->NewNode(machine()->Word32Or(), lhs, rhs);
-    Node* check_or =
-        graph()->NewNode(machine()->Int32LessThan(), or_inputs, zero);
-    if_zero = e_if_zero =
-        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
-                         check_or, frame_state, e_if_zero, if_zero);
+    Node* if_zero = graph()->NewNode(common()->IfTrue(), branch_zero);
+    Node* e_if_zero = effect;
+    {
+      // We may need to return negative zero.
+      Node* or_inputs = graph()->NewNode(machine()->Word32Or(), lhs, rhs);
+      Node* check_or =
+          graph()->NewNode(machine()->Int32LessThan(), or_inputs, zero);
+      if_zero = e_if_zero =
+          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                           check_or, frame_state, e_if_zero, if_zero);
+    }
+
+    Node* if_not_zero = graph()->NewNode(common()->IfFalse(), branch_zero);
+    Node* e_if_not_zero = effect;
+
+    control = graph()->NewNode(common()->Merge(2), if_zero, if_not_zero);
+    effect = graph()->NewNode(common()->EffectPhi(2), e_if_zero, e_if_not_zero,
+                              control);
   }
-
-  Node* if_not_zero = graph()->NewNode(common()->IfFalse(), branch_zero);
-  Node* e_if_not_zero = effect;
-
-  control = graph()->NewNode(common()->Merge(2), if_zero, if_not_zero);
-  effect = graph()->NewNode(common()->EffectPhi(2), e_if_zero, e_if_not_zero,
-                            control);
 
   return ValueEffectControl(value, effect, control);
 }

@@ -201,6 +201,26 @@ CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
   return OpParameter<CheckFloat64HoleMode>(op);
 }
 
+CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kCheckedInt32Mul, op->opcode());
+  return OpParameter<CheckForMinusZeroMode>(op);
+}
+
+size_t hash_value(CheckForMinusZeroMode mode) {
+  return static_cast<size_t>(mode);
+}
+
+std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return os << "check-for-minus-zero";
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return os << "dont-check-for-minus-zero";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 size_t hash_value(CheckTaggedHoleMode mode) {
   return static_cast<size_t>(mode);
 }
@@ -334,7 +354,6 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(CheckedInt32Mod, 2, 1)       \
   V(CheckedUint32Div, 2, 1)      \
   V(CheckedUint32Mod, 2, 1)      \
-  V(CheckedInt32Mul, 2, 1)       \
   V(CheckedUint32ToInt32, 1, 1)  \
   V(CheckedFloat64ToInt32, 1, 1) \
   V(CheckedTaggedToInt32, 1, 1)  \
@@ -361,6 +380,20 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
+
+  template <CheckForMinusZeroMode kMode>
+  struct CheckedInt32MulOperator final
+      : public Operator1<CheckForMinusZeroMode> {
+    CheckedInt32MulOperator()
+        : Operator1<CheckForMinusZeroMode>(
+              IrOpcode::kCheckedInt32Mul,
+              Operator::kFoldable | Operator::kNoThrow, "CheckedInt32Mul", 2, 1,
+              1, 1, 1, 0, kMode) {}
+  };
+  CheckedInt32MulOperator<CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedInt32MulCheckForMinusZeroOperator;
+  CheckedInt32MulOperator<CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedInt32MulDontCheckForMinusZeroOperator;
 
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
@@ -440,6 +473,18 @@ PURE_OP_LIST(GET_FROM_CACHE)
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
+    CheckForMinusZeroMode mode) {
+  switch (mode) {
+    case CheckForMinusZeroMode::kCheckForMinusZero:
+      return &cache_.kCheckedInt32MulCheckForMinusZeroOperator;
+    case CheckForMinusZeroMode::kDontCheckForMinusZero:
+      return &cache_.kCheckedInt32MulDontCheckForMinusZeroOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
     CheckFloat64HoleMode mode) {

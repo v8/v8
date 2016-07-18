@@ -246,10 +246,7 @@
   'getters-on-elements': [PASS, NO_IGNITION],
   'harmony/do-expressions': [PASS, NO_IGNITION],
   'math-floor-of-div-minus-zero': [PASS, NO_IGNITION],
-
-  # TODO(mvstanton): restore NO_IGNITION.
-  'regress/regress-2132': [PASS, NO_VARIANTS],
-
+  'regress/regress-2132': [PASS, NO_IGNITION],
   'regress/regress-2339': [PASS, NO_IGNITION],
   'regress/regress-3176': [PASS, NO_IGNITION],
   'regress/regress-3709': [PASS, NO_IGNITION],
