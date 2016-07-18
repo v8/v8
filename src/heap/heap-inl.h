@@ -254,7 +254,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
   if (!old_gen_exhausted_ && incremental_marking()->black_allocation() &&
       space != OLD_SPACE) {
-    Marking::MarkBlack(Marking::MarkBitFrom(object));
+    Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
     MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
   }
   return allocation;
@@ -399,7 +399,7 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Address age_mark = new_space_.age_mark();
 
   if (promotion_mode == PROMOTE_MARKED) {
-    MarkBit mark_bit = Marking::MarkBitFrom(old_address);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
     if (!Marking::IsWhite(mark_bit)) {
       return true;
     }
@@ -424,6 +424,12 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   RememberedSet<OLD_TO_NEW>::Insert(
       Page::FromAddress(reinterpret_cast<Address>(object)),
       HeapObject::cast(object)->address() + offset);
+}
+
+void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
+  if (InNewSpace(value)) {
+    RecordWriteIntoCodeSlow(host, rinfo, value);
+  }
 }
 
 void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
@@ -724,6 +730,17 @@ void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
+}
+
+int Heap::GetNextTemplateSerialNumber() {
+  int next_serial_number = next_template_serial_number()->value() + 1;
+  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  return next_serial_number;
+}
+
+void Heap::SetSerializedTemplates(FixedArray* templates) {
+  DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  set_serialized_templates(templates);
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)

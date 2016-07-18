@@ -282,7 +282,7 @@ TEST(DisasmX64) {
   // TODO(mstarzinger): The following is protected.
   // __ call(Operand(rbx, rcx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(CodeFactory::LoadIC(isolate, NOT_INSIDE_TYPEOF).code());
+  Handle<Code> ic(CodeFactory::LoadIC(isolate).code());
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ nop();
@@ -458,6 +458,7 @@ TEST(DisasmX64) {
     __ pcmpeqd(xmm1, xmm0);
 
     __ punpckldq(xmm1, xmm11);
+    __ punpckldq(xmm5, Operand(rdx, 4));
     __ punpckhdq(xmm8, xmm15);
   }
 
@@ -518,8 +519,6 @@ TEST(DisasmX64) {
       __ pmulld(xmm5, Operand(rdx, 4));
       __ pmuludq(xmm5, xmm1);
       __ pmuludq(xmm5, Operand(rdx, 4));
-      __ punpackldq(xmm5, xmm1);
-      __ punpackldq(xmm5, Operand(rdx, 4));
       __ psrldq(xmm5, 123);
       __ pshufd(xmm5, xmm1, 3);
       __ cvtps2dq(xmm5, xmm1);
@@ -599,6 +598,10 @@ TEST(DisasmX64) {
       __ vmovaps(xmm10, xmm11);
       __ vmovapd(xmm7, xmm0);
       __ vmovmskpd(r9, xmm4);
+
+      __ vmovups(xmm5, xmm1);
+      __ vmovups(xmm5, Operand(rdx, 4));
+      __ vmovups(Operand(rdx, 4), xmm5);
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));

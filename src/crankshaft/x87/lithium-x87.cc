@@ -1110,15 +1110,28 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   switch (instr->op()) {
-    case kMathFloor: return DoMathFloor(instr);
-    case kMathRound: return DoMathRound(instr);
-    case kMathFround: return DoMathFround(instr);
-    case kMathAbs: return DoMathAbs(instr);
-    case kMathLog: return DoMathLog(instr);
-    case kMathExp: return DoMathExp(instr);
-    case kMathSqrt: return DoMathSqrt(instr);
-    case kMathPowHalf: return DoMathPowHalf(instr);
-    case kMathClz32: return DoMathClz32(instr);
+    case kMathCos:
+      return DoMathCos(instr);
+    case kMathFloor:
+      return DoMathFloor(instr);
+    case kMathRound:
+      return DoMathRound(instr);
+    case kMathFround:
+      return DoMathFround(instr);
+    case kMathAbs:
+      return DoMathAbs(instr);
+    case kMathLog:
+      return DoMathLog(instr);
+    case kMathExp:
+      return DoMathExp(instr);
+    case kMathSqrt:
+      return DoMathSqrt(instr);
+    case kMathPowHalf:
+      return DoMathPowHalf(instr);
+    case kMathClz32:
+      return DoMathClz32(instr);
+    case kMathSin:
+      return DoMathSin(instr);
     default:
       UNREACHABLE();
       return NULL;
@@ -1173,15 +1186,25 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
   return DefineAsRegister(result);
 }
 
+LInstruction* LChunkBuilder::DoMathCos(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathCos(input)), instr);
+}
+
+LInstruction* LChunkBuilder::DoMathSin(HUnaryMathOperation* instr) {
+  DCHECK(instr->representation().IsDouble());
+  DCHECK(instr->value()->representation().IsDouble());
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathSin(input)), instr);
+}
 
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* value = UseRegisterAtStart(instr->value());
-  LOperand* temp1 = FixedTemp(ecx);
-  LOperand* temp2 = FixedTemp(edx);
-  LMathExp* result = new(zone()) LMathExp(value, temp1, temp2);
-  return MarkAsCall(DefineSameAsFirst(result), instr);
+  LOperand* input = UseRegisterAtStart(instr->value());
+  return MarkAsCall(DefineSameAsFirst(new (zone()) LMathExp(input)), instr);
 }
 
 
@@ -1962,20 +1985,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
-  HValue* value = instr->value();
-  DCHECK(value->representation().IsDouble());
-  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
-}
-
-
-LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
-  LOperand* lo = UseRegister(instr->lo());
-  LOperand* hi = UseRegister(instr->hi());
-  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
-}
-
-
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub() ? UseFixed(instr->context(), esi) : NULL;
   LOperand* parameter_count = UseRegisterOrConstant(instr->parameter_count());
@@ -2005,12 +2014,9 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* global_object =
-      UseFixed(instr->global_object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
 
-  LLoadGlobalGeneric* result =
-      new(zone()) LLoadGlobalGeneric(context, global_object, vector);
+  LLoadGlobalGeneric* result = new (zone()) LLoadGlobalGeneric(context, vector);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2218,8 +2224,8 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   DCHECK(instr->key()->representation().IsTagged());
   DCHECK(instr->value()->representation().IsTagged());
 
-  LOperand* slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
+  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
 
   LStoreKeyedGeneric* result = new (zone())
       LStoreKeyedGeneric(context, object, key, value, slot, vector);
@@ -2333,8 +2339,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* object =
       UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
   LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-  LOperand* slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
+  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
 
   LStoreNamedGeneric* result =
       new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);

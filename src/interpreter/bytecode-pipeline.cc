@@ -5,31 +5,11 @@
 #include "src/interpreter/bytecode-pipeline.h"
 
 #include <iomanip>
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
-
-void BytecodeSourceInfo::Update(const BytecodeSourceInfo& entry) {
-  if (!entry.is_valid()) return;
-
-  if (!is_valid() || (entry.is_statement() && !is_statement()) ||
-      (entry.is_statement() && is_statement() &&
-       entry.source_position() > source_position())) {
-    // Position is updated if any of the following conditions are met:
-    //   (1) there is no existing position.
-    //   (2) the incoming position is a statement and the current position
-    //       is an expression.
-    //   (3) the existing position is a statement and the incoming
-    //       statement has a later source position.
-    // Condition 3 is needed for the first statement in a function which
-    // may end up with later statement positions being added during bytecode
-    // generation.
-    source_position_ = entry.source_position_;
-    is_statement_ = entry.is_statement_;
-  }
-}
 
 BytecodeNode::BytecodeNode(Bytecode bytecode) {
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
@@ -77,17 +57,6 @@ BytecodeNode::BytecodeNode(const BytecodeNode& other) {
 BytecodeNode& BytecodeNode::operator=(const BytecodeNode& other) {
   memcpy(this, &other, sizeof(other));
   return *this;
-}
-
-void BytecodeNode::set_bytecode(Bytecode bytecode) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
-  bytecode_ = bytecode;
-}
-
-void BytecodeNode::set_bytecode(Bytecode bytecode, uint32_t operand0) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
 }
 
 void BytecodeNode::Clone(const BytecodeNode* const other) {

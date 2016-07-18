@@ -162,7 +162,7 @@ class LiteralBuffer {
   INLINE(void AddChar(char code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     DCHECK(is_one_byte_);
-    DCHECK(0 <= code_unit && code_unit <= kMaxAscii);
+    DCHECK(IsValidAscii(code_unit));
     backing_store_[position_] = static_cast<byte>(code_unit);
     position_ += kOneByteSize;
     return;
@@ -251,6 +251,15 @@ class LiteralBuffer {
   static const int kGrowthFactory = 4;
   static const int kMinConversionSlack = 256;
   static const int kMaxGrowth = 1 * MB;
+
+  inline bool IsValidAscii(char code_unit) {
+    // Control characters and printable characters span the range of
+    // valid ASCII characters (0-127). Chars are unsigned on some
+    // platforms which causes compiler warnings if the validity check
+    // tests the lower bound >= 0 as it's always true.
+    return iscntrl(code_unit) || isprint(code_unit);
+  }
+
   inline int NewCapacity(int min_capacity) {
     int capacity = Max(min_capacity, backing_store_.length());
     int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);

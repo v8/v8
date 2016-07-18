@@ -778,6 +778,20 @@ TEST(Type0) {
   }
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    COMPARE(seb(a0, a1), "7c052420       seb     a0, a1");
+    COMPARE(seb(s6, s7), "7c17b420       seb     s6, s7");
+    COMPARE(seb(v0, v1), "7c031420       seb     v0, v1");
+
+    COMPARE(seh(a0, a1), "7c052620       seh     a0, a1");
+    COMPARE(seh(s6, s7), "7c17b620       seh     s6, s7");
+    COMPARE(seh(v0, v1), "7c031620       seh     v0, v1");
+
+    COMPARE(wsbh(a0, a1), "7c0520a0       wsbh    a0, a1");
+    COMPARE(wsbh(s6, s7), "7c17b0a0       wsbh    s6, s7");
+    COMPARE(wsbh(v0, v1), "7c0310a0       wsbh    v0, v1");
+  }
+
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
     COMPARE(ins_(a0, a1, 31, 1),
             "7ca4ffc4       ins     a0, a1, 31, 1");
     COMPARE(ins_(s6, s7, 30, 2),

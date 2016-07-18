@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "src/asmjs/asm-js.h"
+#include "src/asmjs/asm-typer.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopeinfo.h"
@@ -20,6 +22,8 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/globals.h"
+#include "src/heap/heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
@@ -27,10 +31,8 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/typing-asm.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -142,7 +144,9 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
       debug_name_(debug_name) {}
 
 CompilationInfo::~CompilationInfo() {
-  DisableFutureOptimization();
+  if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
+    shared_info()->DisableOptimization(bailout_reason());
+  }
   dependencies()->Rollback();
   delete deferred_handles_;
 }
@@ -200,10 +204,9 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
     case Code::BYTECODE_HANDLER:
     case Code::HANDLER:
     case Code::BUILTIN:
-    case Code::LOAD_IC:
-    case Code::KEYED_LOAD_IC:
-    case Code::STORE_IC:
-    case Code::KEYED_STORE_IC:
+#define CASE_KIND(kind) case Code::kind:
+      IC_KIND_LIST(CASE_KIND)
+#undef CASE_KIND
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
       return StackFrame::WASM;
@@ -224,16 +227,16 @@ int CompilationInfo::GetDeclareGlobalsFlags() const {
          DeclareGlobalsLanguageMode::encode(parse_info()->language_mode());
 }
 
+SourcePositionTableBuilder::RecordingMode
+CompilationInfo::SourcePositionRecordingMode() const {
+  return parse_info() && parse_info()->is_native()
+             ? SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS
+             : SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS;
+}
+
 bool CompilationInfo::ExpectsJSReceiverAsReceiver() {
   return is_sloppy(parse_info()->language_mode()) && !parse_info()->is_native();
 }
-
-#if DEBUG
-void CompilationInfo::PrintAstForTesting() {
-  PrintF("--- Source from AST ---\n%s\n",
-         PrettyPrinter(isolate()).PrintProgram(literal()));
-}
-#endif
 
 // ----------------------------------------------------------------------------
 // Implementation of CompilationJob
@@ -286,9 +289,14 @@ void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
                                    Handle<Code> code) {
   Handle<WeakCell> cell = Code::WeakCellFor(code);
   Heap* heap = isolate->heap();
-  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
-  dep = DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
-  heap->AddWeakObjectToCodeDependency(object, dep);
+  if (heap->InNewSpace(*object)) {
+    heap->AddWeakNewSpaceObjectToCodeDependency(object, cell);
+  } else {
+    Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
+    dep =
+        DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
+    heap->AddWeakObjectToCodeDependency(object, dep);
+  }
 }
 
 }  // namespace
@@ -380,7 +388,7 @@ bool IsEvalToplevel(Handle<SharedFunctionInfo> shared) {
              Script::COMPILATION_TYPE_EVAL;
 }
 
-void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
+void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                CompilationInfo* info) {
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -403,7 +411,8 @@ void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     String* script_name = script->name()->IsString()
                               ? String::cast(script->name())
                               : info->isolate()->heap()->empty_string();
-    Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
+    CodeEventListener::LogEventsAndTags log_tag =
+        Logger::ToNativeByScript(tag, *script);
     PROFILE(info->isolate(),
             CodeCreateEvent(log_tag, *abstract_code, *shared, script_name,
                             line_num, column_num));
@@ -472,14 +481,12 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
   bool success;
   EnsureFeedbackMetadata(info);
   if (FLAG_validate_asm && info->scope()->asm_module()) {
-    AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
-                   info->literal());
-    if (FLAG_enable_simd_asmjs) {
-      typer.set_allow_simd(true);
-    }
-    if (!typer.Validate()) {
-      DCHECK(!info->isolate()->has_pending_exception());
-      PrintF("Validation of asm.js module failed: %s", typer.error_message());
+    MaybeHandle<FixedArray> wasm_data;
+    wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
+    if (!wasm_data.is_null()) {
+      info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
+      info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
+      return true;
     }
   }
   if (FLAG_ignition && UseIgnition(info)) {
@@ -552,7 +559,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
   InstallSharedCompilationResult(info, shared);
 
   // Record the function compilation event.
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
 
   return info->code();
 }
@@ -616,9 +623,9 @@ bool Renumber(ParseInfo* parse_info) {
     if (lit->dont_optimize_reason() != kNoReason) {
       shared_info->DisableOptimization(lit->dont_optimize_reason());
     }
-    shared_info->set_dont_crankshaft(
-        shared_info->dont_crankshaft() ||
-        (lit->flags() & AstProperties::kDontCrankshaft));
+    if (lit->flags() & AstProperties::kDontCrankshaft) {
+      shared_info->set_dont_crankshaft(true);
+    }
   }
   return true;
 }
@@ -657,7 +664,10 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   JSFunction::EnsureLiterals(info->closure());
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  TRACE_EVENT0("v8", "V8.RecompileSynchronous");
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
       job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
@@ -674,7 +684,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   job->RecordOptimizationStats();
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
   return true;
 }
 
@@ -685,6 +695,15 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
+      info->closure()->ShortPrint();
+      PrintF(" later.\n");
+    }
+    return false;
+  }
+
+  if (isolate->heap()->HighMemoryPressure()) {
+    if (FLAG_trace_concurrent_recompilation) {
+      PrintF("  ** High memory pressure, will retry optimizing ");
       info->closure()->ShortPrint();
       PrintF(" later.\n");
     }
@@ -708,7 +727,10 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   info->parse_info()->ReopenHandlesInNewHandleScope();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
-  TRACE_EVENT0("v8", "V8.RecompileSynchronous");
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -775,7 +797,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  TRACE_EVENT0("v8", "V8.OptimizeCode");
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
   if (FLAG_turbo_from_bytecode && use_turbofan &&
@@ -953,7 +976,7 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   InstallSharedCompilationResult(&info, shared);
 
   // Record the function compilation event.
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &info);
+  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, &info);
 
   return info.code();
 }
@@ -963,7 +986,9 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
-  TRACE_EVENT0("v8", "V8.CompileCode");
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileCodeLazy);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   if (FLAG_turbo_cache_shared_code) {
@@ -1017,7 +1042,8 @@ Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.CompileCode");
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
@@ -1084,10 +1110,11 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();
     HistogramTimerScope timer(rate);
-    TRACE_EVENT0("v8", parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
     // Allocate a shared function info object.
-    DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
+    DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
     result = NewSharedFunctionInfoForLiteral(isolate, lit, script);
     result->set_is_toplevel(true);
     if (parse_info->is_eval()) {
@@ -1111,10 +1138,10 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         script->name()->IsString()
             ? Handle<String>(String::cast(script->name()))
             : isolate->factory()->empty_string();
-    Logger::LogEventsAndTags log_tag =
+    CodeEventListener::LogEventsAndTags log_tag =
         parse_info->is_eval()
-            ? Logger::EVAL_TAG
-            : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);
+            ? CodeEventListener::EVAL_TAG
+            : Logger::ToNativeByScript(CodeEventListener::SCRIPT_TAG, *script);
 
     PROFILE(isolate, CodeCreateEvent(log_tag, result->abstract_code(), *result,
                                      *script_name));
@@ -1372,7 +1399,8 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
     shared->EnableDeoptimizationSupport(*unoptimized.code());
 
     // The existing unoptimized code was replaced with the new one.
-    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized);
+    RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
+                              &unoptimized);
   }
   return true;
 }
@@ -1482,7 +1510,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         !isolate->debug()->is_loaded()) {
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
-      TRACE_EVENT0("v8", "V8.CompileDeserialize");
+      RuntimeCallTimerScope runtimeTimer(isolate,
+                                         &RuntimeCallStats::CompileDeserialize);
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&result)) {
@@ -1554,7 +1585,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
           compile_options == ScriptCompiler::kProduceCodeCache) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
-        TRACE_EVENT0("v8", "V8.CompileSerialize");
+        RuntimeCallTimerScope runtimeTimer(isolate,
+                                           &RuntimeCallStats::CompileSerialize);
+        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                     "V8.CompileSerialize");
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
           PrintF("[Compiling and serializing took %0.3f ms]\n",
@@ -1672,7 +1706,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
-  TRACE_EVENT0("v8", "V8.CompileCode");
+  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
@@ -1692,7 +1727,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   }
 
   if (maybe_existing.is_null()) {
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info);
   }
 
   return result;
@@ -1718,7 +1753,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
-  shared->set_construct_stub(*construct_stub);
+  shared->SetConstructStub(*construct_stub);
   shared->set_feedback_metadata(fun->shared()->feedback_metadata());
 
   // Copy the function data to the shared function info.
@@ -1745,7 +1780,10 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
-  TRACE_EVENT0("v8", "V8.RecompileSynchronous");
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);
@@ -1764,7 +1802,7 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->GenerateCode() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizationStats();
-      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info);
+      RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
       if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
                                          info->osr_ast_id()).code == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info);

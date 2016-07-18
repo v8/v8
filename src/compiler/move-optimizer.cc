@@ -24,16 +24,53 @@ struct MoveKeyCompare {
   }
 };
 
-struct OperandCompare {
-  bool operator()(const InstructionOperand& a,
-                  const InstructionOperand& b) const {
-    return a.CompareCanonicalized(b);
-  }
-};
-
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
 
+bool Blocks(const OperandSet& set, const InstructionOperand& operand) {
+  if (set.find(operand) != set.end()) return true;
+  // Only FP registers on archs with non-simple aliasing need extra checks.
+  if (!operand.IsFPRegister() || kSimpleFPAliasing) return false;
+
+  // Check operand against operands of other FP types for interference.
+  const LocationOperand& loc = LocationOperand::cast(operand);
+  MachineRepresentation rep = loc.representation();
+  MachineRepresentation other_rep1, other_rep2;
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      other_rep1 = MachineRepresentation::kFloat64;
+      other_rep2 = MachineRepresentation::kSimd128;
+      break;
+    case MachineRepresentation::kFloat64:
+      other_rep1 = MachineRepresentation::kFloat32;
+      other_rep2 = MachineRepresentation::kSimd128;
+      break;
+    case MachineRepresentation::kSimd128:
+      other_rep1 = MachineRepresentation::kFloat32;
+      other_rep2 = MachineRepresentation::kFloat64;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  const RegisterConfiguration* config = RegisterConfiguration::Turbofan();
+  int base = -1;
+  int aliases = config->GetAliases(rep, loc.register_code(), other_rep1, &base);
+  DCHECK(aliases > 0 || (aliases == 0 && base == -1));
+  while (aliases--) {
+    if (set.find(LocationOperand(loc.kind(), loc.location_kind(), other_rep1,
+                                 base + aliases)) != set.end())
+      return true;
+  }
+  aliases = config->GetAliases(rep, loc.register_code(), other_rep2, &base);
+  DCHECK(aliases > 0 || (aliases == 0 && base == -1));
+  while (aliases--) {
+    if (set.find(LocationOperand(loc.kind(), loc.location_kind(), other_rep2,
+                                 base + aliases)) != set.end())
+      return true;
+  }
+  return false;
+}
 
 int FindFirstNonEmptySlot(const Instruction* instr) {
   int i = Instruction::FIRST_GAP_POSITION;
@@ -123,7 +160,7 @@ void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
 
   // The ret instruction makes any assignment before it unnecessary, except for
   // the one for its input.
-  if (instruction->opcode() == ArchOpcode::kArchRet) {
+  if (instruction->IsRet() || instruction->IsTailCall()) {
     for (MoveOperands* move : *moves) {
       if (inputs.find(move->destination()) == inputs.end()) {
         move->Eliminate();
@@ -138,8 +175,8 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   ParallelMove* from_moves = from->parallel_moves()[0];
   if (from_moves == nullptr || from_moves->empty()) return;
 
-  ZoneSet<InstructionOperand, OperandCompare> dst_cant_be(local_zone());
-  ZoneSet<InstructionOperand, OperandCompare> src_cant_be(local_zone());
+  OperandSet dst_cant_be(local_zone());
+  OperandSet src_cant_be(local_zone());
 
   // If an operand is an input to the instruction, we cannot move assignments
   // where it appears on the LHS.
@@ -172,7 +209,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
   // destination operands are eligible for being moved down.
   for (MoveOperands* move : *from_moves) {
     if (move->IsRedundant()) continue;
-    if (dst_cant_be.find(move->destination()) == dst_cant_be.end()) {
+    if (!Blocks(dst_cant_be, move->destination())) {
       MoveKey key = {move->source(), move->destination()};
       move_candidates.insert(key);
     }
@@ -187,7 +224,7 @@ void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
       auto current = iter;
       ++iter;
       InstructionOperand src = current->source;
-      if (src_cant_be.find(src) != src_cant_be.end()) {
+      if (Blocks(src_cant_be, src)) {
         src_cant_be.insert(current->destination);
         move_candidates.erase(current);
         changed = true;

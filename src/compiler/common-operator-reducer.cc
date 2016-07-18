@@ -19,8 +19,6 @@ namespace compiler {
 
 namespace {
 
-enum class Decision { kUnknown, kTrue, kFalse };
-
 Decision DecideCondition(Node* const cond) {
   switch (cond->opcode()) {
     case IrOpcode::kInt32Constant: {

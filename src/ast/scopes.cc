@@ -90,8 +90,9 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       params_(4, zone),
       unresolved_(16, zone),
       decls_(4, zone),
-      module_descriptor_(
-          scope_type == MODULE_SCOPE ? ModuleDescriptor::New(zone) : NULL),
+      module_descriptor_(scope_type == MODULE_SCOPE ? new (zone)
+                                                          ModuleDescriptor(zone)
+                                                    : NULL),
       sloppy_block_function_map_(zone),
       already_resolved_(false),
       ast_value_factory_(ast_value_factory),
@@ -141,7 +142,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       zone_(zone) {
   SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
   AddInnerScope(inner_scope);
-  ++num_var_or_const_;
+  ++num_var_;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   Variable* variable = variables_.Declare(this,
                                           catch_variable_name,
@@ -186,7 +187,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
-  num_var_or_const_ = 0;
+  num_var_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
@@ -195,8 +196,8 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   rest_parameter_ = NULL;
   rest_index_ = -1;
   scope_info_ = scope_info;
-  start_position_ = RelocInfo::kNoPosition;
-  end_position_ = RelocInfo::kNoPosition;
+  start_position_ = kNoSourcePosition;
+  end_position_ = kNoSourcePosition;
   is_hidden_ = false;
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
@@ -227,11 +228,6 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else if (context->IsScriptContext()) {
       ScopeInfo* scope_info = context->scope_info();
       current_scope = new (zone) Scope(zone, current_scope, SCRIPT_SCOPE,
-                                       Handle<ScopeInfo>(scope_info),
-                                       script_scope->ast_value_factory_);
-    } else if (context->IsModuleContext()) {
-      ScopeInfo* scope_info = context->module()->scope_info();
-      current_scope = new (zone) Scope(zone, current_scope, MODULE_SCOPE,
                                        Handle<ScopeInfo>(scope_info),
                                        script_scope->ast_value_factory_);
     } else if (context->IsFunctionContext()) {
@@ -347,8 +343,7 @@ Scope* Scope::FinalizeBlockScope() {
   DCHECK(temps_.is_empty());
   DCHECK(params_.is_empty());
 
-  if (num_var_or_const() > 0 ||
-      (is_declaration_scope() && calls_sloppy_eval())) {
+  if (num_var() > 0 || (is_declaration_scope() && calls_sloppy_eval())) {
     return this;
   }
 
@@ -472,8 +467,8 @@ Variable* Scope::LookupFunctionVar(const AstRawString* name,
     Variable* var = new (zone())
         Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
     VariableProxy* proxy = factory->NewVariableProxy(var);
-    VariableDeclaration* declaration = factory->NewVariableDeclaration(
-        proxy, mode, this, RelocInfo::kNoPosition);
+    VariableDeclaration* declaration =
+        factory->NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
     DeclareFunctionVar(declaration);
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
@@ -529,7 +524,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
-  ++num_var_or_const_;
+  ++num_var_;
   return variables_.Declare(this, name, mode, kind, init_flag,
                             maybe_assigned_flag);
 }
@@ -572,6 +567,11 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
 
 int Scope::RemoveTemporary(Variable* var) {
   DCHECK_NOT_NULL(var);
+  // Temporaries are only placed in ClosureScopes.
+  DCHECK_EQ(ClosureScope(), this);
+  DCHECK_EQ(var->scope()->ClosureScope(), var->scope());
+  // If the temporary is not here, return quickly.
+  if (var->scope() != this) return -1;
   // Most likely (always?) any temporary variable we want to remove
   // was just added before, so we search backwards.
   for (int i = temps_.length(); i-- > 0;) {
@@ -623,6 +623,25 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   return NULL;
 }
 
+Declaration* Scope::CheckLexDeclarationsConflictingWith(
+    const ZoneList<const AstRawString*>& names) {
+  DCHECK(is_block_scope());
+  for (int i = 0; i < names.length(); ++i) {
+    Variable* var = LookupLocal(names.at(i));
+    if (var != nullptr) {
+      // Conflict; find and return its declaration.
+      DCHECK(IsLexicalVariableMode(var->mode()));
+      const AstRawString* name = names.at(i);
+      for (int j = 0; j < decls_.length(); ++j) {
+        if (decls_[j]->proxy()->raw_name() == name) {
+          return decls_[j];
+        }
+      }
+      DCHECK(false);
+    }
+  }
+  return nullptr;
+}
 
 class VarAndOrder {
  public:
@@ -828,21 +847,6 @@ Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
 }
 
 
-void Scope::ReportMessage(int start_position, int end_position,
-                          MessageTemplate::Template message,
-                          const AstRawString* arg) {
-  // Propagate the error to the topmost scope targeted by this scope analysis
-  // phase.
-  Scope* top = this;
-  while (!top->is_script_scope() && !top->outer_scope()->already_resolved()) {
-    top = top->outer_scope();
-  }
-
-  top->pending_error_handler_.ReportMessageAt(start_position, end_position,
-                                              message, arg, kReferenceError);
-}
-
-
 #ifdef DEBUG
 static const char* Header(ScopeType scope_type, FunctionKind function_kind,
                           bool is_declaration_scope) {
@@ -850,7 +854,10 @@ static const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case EVAL_SCOPE: return "eval";
     // TODO(adamk): Should we print concise method scopes specially?
     case FUNCTION_SCOPE:
-      return IsArrowFunction(function_kind) ? "arrow" : "function";
+      if (IsGeneratorFunction(function_kind)) return "function*";
+      if (IsAsyncFunction(function_kind)) return "async function";
+      if (IsArrowFunction(function_kind)) return "arrow";
+      return "function";
     case MODULE_SCOPE: return "module";
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
@@ -1043,8 +1050,8 @@ void Scope::CheckScopePositions() {
   // A scope is allowed to have invalid positions if it is hidden and has no
   // inner scopes
   if (!is_hidden() && inner_scopes_.length() == 0) {
-    CHECK_NE(RelocInfo::kNoPosition, start_position());
-    CHECK_NE(RelocInfo::kNoPosition, end_position());
+    CHECK_NE(kNoSourcePosition, start_position());
+    CHECK_NE(kNoSourcePosition, end_position());
   }
   for (Scope* scope : inner_scopes_) scope->CheckScopePositions();
 }

@@ -219,7 +219,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     MacroAssembler* masm, Handle<JSGlobalObject> global, Handle<Name> name,
     Register scratch, Label* miss) {
-  Handle<PropertyCell> cell = JSGlobalObject::EnsurePropertyCell(global, name);
+  Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
+      global, name, PropertyCellType::kInvalidated);
   Isolate* isolate = masm->isolate();
   DCHECK(cell->value()->IsTheHole(isolate));
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
@@ -326,8 +327,8 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
 
-  Register slot = VectorStoreICDescriptor::SlotRegister();
-  Register vector = VectorStoreICDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
 
   __ PopReturnAddressTo(r11);
   __ Push(receiver);
@@ -336,15 +337,6 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   __ Push(slot);
   __ Push(vector);
   __ PushReturnAddressFrom(r11);
-}
-
-
-void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow);
 }
 
 

@@ -785,11 +785,9 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCompareNumericAndBranch:
     case HValue::kCompareObjectEqAndBranch:
     case HValue::kConstant:
-    case HValue::kConstructDouble:
     case HValue::kContext:
     case HValue::kDebugBreak:
     case HValue::kDeclareGlobals:
-    case HValue::kDoubleBits:
     case HValue::kDummyUse:
     case HValue::kEnterInlined:
     case HValue::kEnvironmentMarker:
@@ -1115,10 +1113,14 @@ const char* HUnaryMathOperation::OpName() const {
       return "round";
     case kMathAbs:
       return "abs";
+    case kMathCos:
+      return "cos";
     case kMathLog:
       return "log";
     case kMathExp:
       return "exp";
+    case kMathSin:
+      return "sin";
     case kMathSqrt:
       return "sqrt";
     case kMathPowHalf:
@@ -2170,6 +2172,32 @@ HConstant::HConstant(Handle<Object> object, Representation r)
           BooleanValueField::encode(object->BooleanValue()) |
           IsUndetectableField::encode(false) | IsCallableField::encode(false) |
           InstanceTypeField::encode(kUnknownInstanceType)) {
+  if (object->IsNumber()) {
+    double n = object->Number();
+    bool has_int32_value = IsInteger32(n);
+    bit_field_ = HasInt32ValueField::update(bit_field_, has_int32_value);
+    int32_value_ = DoubleToInt32(n);
+    bit_field_ = HasSmiValueField::update(
+        bit_field_, has_int32_value && Smi::IsValid(int32_value_));
+    if (std::isnan(n)) {
+      double_value_ = std::numeric_limits<double>::quiet_NaN();
+      // Canonicalize object with NaN value.
+      DCHECK(object->IsHeapObject());  // NaN can't be a Smi.
+      Isolate* isolate = HeapObject::cast(*object)->GetIsolate();
+      object = isolate->factory()->nan_value();
+      object_ = Unique<Object>::CreateUninitialized(object);
+    } else {
+      double_value_ = n;
+      // Canonicalize object with -0.0 value.
+      if (bit_cast<int64_t>(n) == bit_cast<int64_t>(-0.0)) {
+        DCHECK(object->IsHeapObject());  // -0.0 can't be a Smi.
+        Isolate* isolate = HeapObject::cast(*object)->GetIsolate();
+        object = isolate->factory()->minus_zero_value();
+        object_ = Unique<Object>::CreateUninitialized(object);
+      }
+    }
+    bit_field_ = HasDoubleValueField::update(bit_field_, true);
+  }
   if (object->IsHeapObject()) {
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
     Isolate* isolate = heap_object->GetIsolate();
@@ -2184,16 +2212,6 @@ HConstant::HConstant(Handle<Object> object, Representation r)
     bit_field_ = HasStableMapValueField::update(
         bit_field_,
         HasMapValue() && Handle<Map>::cast(heap_object)->is_stable());
-  }
-  if (object->IsNumber()) {
-    double n = object->Number();
-    bool has_int32_value = IsInteger32(n);
-    bit_field_ = HasInt32ValueField::update(bit_field_, has_int32_value);
-    int32_value_ = DoubleToInt32(n);
-    bit_field_ = HasSmiValueField::update(
-        bit_field_, has_int32_value && Smi::IsValid(int32_value_));
-    double_value_ = n;
-    bit_field_ = HasDoubleValueField::update(bit_field_, true);
   }
 
   Initialize(r);
@@ -2245,7 +2263,6 @@ HConstant::HConstant(int32_t integer_value, Representation r,
   Initialize(r);
 }
 
-
 HConstant::HConstant(double double_value, Representation r,
                      bool is_not_in_new_space, Unique<Object> object)
     : object_(object),
@@ -2259,8 +2276,7 @@ HConstant::HConstant(double double_value, Representation r,
                                            !std::isnan(double_value)) |
                  IsUndetectableField::encode(false) |
                  InstanceTypeField::encode(kUnknownInstanceType)),
-      int32_value_(DoubleToInt32(double_value)),
-      double_value_(double_value) {
+      int32_value_(DoubleToInt32(double_value)) {
   bit_field_ = HasSmiValueField::update(
       bit_field_, HasInteger32Value() && Smi::IsValid(int32_value_));
   // It's possible to create a constant with a value in Smi-range but stored
@@ -2268,6 +2284,11 @@ HConstant::HConstant(double double_value, Representation r,
   bool could_be_heapobject = r.IsTagged() && !object.handle().is_null();
   bool is_smi = HasSmiValue() && !could_be_heapobject;
   set_type(is_smi ? HType::Smi() : HType::TaggedNumber());
+  if (std::isnan(double_value)) {
+    double_value_ = std::numeric_limits<double>::quiet_NaN();
+  } else {
+    double_value_ = double_value;
+  }
   Initialize(r);
 }
 
@@ -2420,7 +2441,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
       new(zone) HConstant(1) : new(zone) HConstant(0);
   } else if (handle->IsUndefined(isolate)) {
     res = new (zone) HConstant(std::numeric_limits<double>::quiet_NaN());
-  } else if (handle->IsNull()) {
+  } else if (handle->IsNull(isolate)) {
     res = new(zone) HConstant(0);
   } else if (handle->IsString()) {
     res = new(zone) HConstant(String::ToNumber(Handle<String>::cast(handle)));
@@ -3286,13 +3307,11 @@ bool HStoreKeyed::NeedsCanonicalization() {
       Representation from = HChange::cast(value())->from();
       return from.IsTagged() || from.IsHeapObject();
     }
-    case kLoadNamedField:
-    case kPhi: {
-      // Better safe than sorry...
-      return true;
-    }
-    default:
+    case kConstant:
+      // Double constants are canonicalized upon construction.
       return false;
+    default:
+      return !value()->IsBinaryOperation();
   }
 }
 
@@ -3401,6 +3420,9 @@ HInstruction* HUnaryMathOperation::New(Isolate* isolate, Zone* zone,
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
+        case kMathCos:
+        case kMathSin:
+          return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
         case kMathExp:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
@@ -3422,11 +3444,14 @@ HInstruction* HUnaryMathOperation::New(Isolate* isolate, Zone* zone,
       }
     }
     switch (op) {
+      case kMathCos:
+        return H_CONSTANT_DOUBLE(base::ieee754::cos(d));
       case kMathExp:
-        lazily_initialize_fast_exp(isolate);
-        return H_CONSTANT_DOUBLE(fast_exp(d, isolate));
+        return H_CONSTANT_DOUBLE(base::ieee754::exp(d));
       case kMathLog:
         return H_CONSTANT_DOUBLE(base::ieee754::log(d));
+      case kMathSin:
+        return H_CONSTANT_DOUBLE(base::ieee754::sin(d));
       case kMathSqrt:
         lazily_initialize_fast_sqrt(isolate);
         return H_CONSTANT_DOUBLE(fast_sqrt(d, isolate));

@@ -616,13 +616,8 @@ TEST(ReduceInt32LessThan) {
   R.CheckDontPutConstantOnRight(-440197);
 
   Node* x = R.Parameter(0);
-  Node* y = R.Parameter(1);
-  Node* zero = R.Constant<int32_t>(0);
-  Node* sub = R.graph.NewNode(R.machine.Int32Sub(), x, y);
 
   R.CheckFoldBinop<int32_t>(0, x, x);  // x < x  => 0
-  R.CheckFoldBinop(x, y, sub, zero);   // x - y < 0 => x < y
-  R.CheckFoldBinop(y, x, zero, sub);   // 0 < x - y => y < x
 }
 
 
@@ -640,13 +635,8 @@ TEST(ReduceInt32LessThanOrEqual) {
   FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(*i); }
 
   Node* x = R.Parameter(0);
-  Node* y = R.Parameter(1);
-  Node* zero = R.Constant<int32_t>(0);
-  Node* sub = R.graph.NewNode(R.machine.Int32Sub(), x, y);
 
   R.CheckFoldBinop<int32_t>(1, x, x);  // x <= x => 1
-  R.CheckFoldBinop(x, y, sub, zero);   // x - y <= 0 => x <= y
-  R.CheckFoldBinop(y, x, zero, sub);   // 0 <= x - y => y <= x
 }
 
 

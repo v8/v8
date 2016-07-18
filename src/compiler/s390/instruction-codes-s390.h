@@ -45,6 +45,7 @@ namespace compiler {
   V(S390_SubPair)                  \
   V(S390_MulPair)                  \
   V(S390_Mul32)                    \
+  V(S390_Mul32WithHigh32)          \
   V(S390_Mul64)                    \
   V(S390_MulHigh32)                \
   V(S390_MulHighU32)               \
@@ -61,7 +62,6 @@ namespace compiler {
   V(S390_ModU32)                   \
   V(S390_ModU64)                   \
   V(S390_ModDouble)                \
-  V(S390_LogDouble)                \
   V(S390_Neg)                      \
   V(S390_NegDouble)                \
   V(S390_SqrtFloat)                \
@@ -108,6 +108,7 @@ namespace compiler {
   V(S390_Float32ToInt32)           \
   V(S390_Float32ToUint32)          \
   V(S390_Float32ToDouble)          \
+  V(S390_Float64SilenceNaN)        \
   V(S390_DoubleToInt32)            \
   V(S390_DoubleToUint32)           \
   V(S390_DoubleToInt64)            \

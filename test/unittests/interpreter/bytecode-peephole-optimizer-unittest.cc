@@ -24,6 +24,11 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
         peephole_optimizer_(&constant_array_builder_, this) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
+  void Reset() {
+    last_written_.set_bytecode(Bytecode::kIllegal);
+    write_count_ = 0;
+  }
+
   void Write(BytecodeNode* node) override {
     write_count_++;
     last_written_.Clone(node);
@@ -103,7 +108,7 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideEmptyNop) {
 
 TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update({3, false});
+  nop.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&nop);
   BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
   optimizer()->Write(&add);
@@ -114,10 +119,10 @@ TEST_F(BytecodePeepholeOptimizerTest, ElideExpressionNop) {
 
 TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update({3, true});
+  nop.source_info().MakeStatementPosition(3);
   optimizer()->Write(&nop);
   BytecodeNode add(Bytecode::kAdd, Register(0).ToOperand());
-  add.source_info().Update({3, false});
+  add.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&add);
   Flush();
   CHECK_EQ(write_count(), 2);
@@ -129,12 +134,10 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepStatementNop) {
 TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
   BytecodeNode first(Bytecode::kLdaNull);
   BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
+  BytecodeLabel label;
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
+  optimizer()->WriteJump(&second, &label);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(last_written(), second);
 }
@@ -142,15 +145,12 @@ TEST_F(BytecodePeepholeOptimizerTest, KeepJumpIfToBooleanTrue) {
 TEST_F(BytecodePeepholeOptimizerTest, ElideJumpIfToBooleanTrue) {
   BytecodeNode first(Bytecode::kLdaTrue);
   BytecodeNode second(Bytecode::kJumpIfToBooleanTrue, 3);
+  BytecodeLabel label;
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
-  Flush();
+  optimizer()->WriteJump(&second, &label);
   CHECK_EQ(write_count(), 2);
-  CHECK_EQ(last_written().bytecode(), Bytecode::kJumpIfTrue);
-  CHECK_EQ(last_written().operand(0), second.operand(0));
+  CHECK_EQ(last_written(), second);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, KeepToBooleanLogicalNot) {
@@ -199,18 +199,17 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRx) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatement) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
-  second.source_info().Update({0, true});
+  second.source_info().MakeStatementPosition(0);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -227,7 +226,7 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
   BytecodeNode first(Bytecode::kStar, Register(0).ToOperand());
   BytecodeNode second(Bytecode::kLdar, Register(0).ToOperand());
   BytecodeNode third(Bytecode::kStar, Register(3).ToOperand());
-  second.source_info().Update({0, true});
+  second.source_info().MakeStatementPosition(0);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -237,8 +236,6 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
   CHECK_EQ(write_count(), 1);
   Flush();
   CHECK_EQ(write_count(), 2);
-  // Source position should move |second| to |third| when |second| is elided.
-  third.source_info().Update(second.source_info());
   CHECK_EQ(last_written(), third);
 }
 
@@ -259,11 +256,10 @@ TEST_F(BytecodePeepholeOptimizerTest, ToNameToName) {
   BytecodeNode first(Bytecode::kToName);
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
+  CHECK_EQ(last_written(), first);
   CHECK_EQ(write_count(), 1);
 }
 
@@ -271,12 +267,11 @@ TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   BytecodeNode first(Bytecode::kTypeOf);
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
@@ -286,12 +281,11 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
   BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
   BytecodeNode second(Bytecode::kToName);
   optimizer()->Write(&first);
-  CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 1);
-  CHECK_EQ(last_written(), first);
+  CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
+  CHECK_EQ(last_written(), first);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
@@ -325,7 +319,7 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueLdaFalse) {
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   BytecodeNode first(Bytecode::kLdaTrue);
-  first.source_info().Update({3, false});
+  first.source_info().MakeExpressionPosition(3);
   BytecodeNode second(Bytecode::kLdaFalse);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
@@ -333,8 +327,9 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaTrueStatementLdaFalse) {
   CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
-  second.source_info().Update(first.source_info());
   CHECK_EQ(last_written(), second);
+  CHECK(second.source_info().is_expression());
+  CHECK_EQ(second.source_info().source_position(), 3);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
@@ -351,7 +346,7 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStackCheck) {
 
 TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   BytecodeNode first(Bytecode::kNop);
-  first.source_info().Update({3, false});
+  first.source_info().MakeExpressionPosition(3);
   BytecodeNode second(Bytecode::kStackCheck);
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
@@ -359,7 +354,8 @@ TEST_F(BytecodePeepholeOptimizerTest, NopStatementStackCheck) {
   CHECK_EQ(write_count(), 0);
   Flush();
   CHECK_EQ(write_count(), 1);
-  second.source_info().Update(first.source_info());
+  second.source_info().MakeExpressionPosition(
+      first.source_info().source_position());
   CHECK_EQ(last_written(), second);
 }
 
@@ -417,12 +413,12 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaKeyedPropertyStar) {
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, MergeLdaGlobalStar) {
-  const uint32_t operands[] = {54321, 19191,
+  const uint32_t operands[] = {19191,
                                static_cast<uint32_t>(Register(1).ToOperand())};
   const int expected_operand_count = static_cast<int>(arraysize(operands));
 
-  BytecodeNode first(Bytecode::kLdaGlobal, operands[0], operands[1]);
-  BytecodeNode second(Bytecode::kStar, operands[2]);
+  BytecodeNode first(Bytecode::kLdaGlobal, operands[0]);
+  BytecodeNode second(Bytecode::kStar, operands[1]);
   BytecodeNode third(Bytecode::kReturn);
   optimizer()->Write(&first);
   optimizer()->Write(&second);
@@ -487,6 +483,84 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaUndefinedStar) {
   CHECK_EQ(last_written().operand(0), operands[expected_operand_count - 1]);
   Flush();
   CHECK_EQ(last_written().bytecode(), third.bytecode());
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaSmiWithBinaryOp) {
+  Bytecode operator_replacement_pairs[][2] = {
+      {Bytecode::kAdd, Bytecode::kAddSmi},
+      {Bytecode::kSub, Bytecode::kSubSmi},
+      {Bytecode::kBitwiseAnd, Bytecode::kBitwiseAndSmi},
+      {Bytecode::kBitwiseOr, Bytecode::kBitwiseOrSmi},
+      {Bytecode::kShiftLeft, Bytecode::kShiftLeftSmi},
+      {Bytecode::kShiftRight, Bytecode::kShiftRightSmi}};
+
+  for (auto operator_replacement : operator_replacement_pairs) {
+    uint32_t imm_operand = 17;
+    BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
+    first.source_info().Clone({3, true});
+    uint32_t reg_operand = Register(0).ToOperand();
+    BytecodeNode second(operator_replacement[0], reg_operand);
+    optimizer()->Write(&first);
+    optimizer()->Write(&second);
+    Flush();
+    CHECK_EQ(write_count(), 1);
+    CHECK_EQ(last_written().bytecode(), operator_replacement[1]);
+    CHECK_EQ(last_written().operand_count(), 2);
+    CHECK_EQ(last_written().operand(0), imm_operand);
+    CHECK_EQ(last_written().operand(1), reg_operand);
+    CHECK_EQ(last_written().source_info(), first.source_info());
+    Reset();
+  }
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, NotMergingLdaSmiWithBinaryOp) {
+  Bytecode operator_replacement_pairs[][2] = {
+      {Bytecode::kAdd, Bytecode::kAddSmi},
+      {Bytecode::kSub, Bytecode::kSubSmi},
+      {Bytecode::kBitwiseAnd, Bytecode::kBitwiseAndSmi},
+      {Bytecode::kBitwiseOr, Bytecode::kBitwiseOrSmi},
+      {Bytecode::kShiftLeft, Bytecode::kShiftLeftSmi},
+      {Bytecode::kShiftRight, Bytecode::kShiftRightSmi}};
+
+  for (auto operator_replacement : operator_replacement_pairs) {
+    uint32_t imm_operand = 17;
+    BytecodeNode first(Bytecode::kLdaSmi, imm_operand);
+    first.source_info().Clone({3, true});
+    uint32_t reg_operand = Register(0).ToOperand();
+    BytecodeNode second(operator_replacement[0], reg_operand);
+    second.source_info().Clone({4, true});
+    optimizer()->Write(&first);
+    optimizer()->Write(&second);
+    CHECK_EQ(last_written(), first);
+    Flush();
+    CHECK_EQ(last_written(), second);
+    Reset();
+  }
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
+  Bytecode operator_replacement_pairs[][2] = {
+      {Bytecode::kAdd, Bytecode::kAddSmi},
+      {Bytecode::kSub, Bytecode::kSubSmi},
+      {Bytecode::kBitwiseAnd, Bytecode::kBitwiseAndSmi},
+      {Bytecode::kBitwiseOr, Bytecode::kBitwiseOrSmi},
+      {Bytecode::kShiftLeft, Bytecode::kShiftLeftSmi},
+      {Bytecode::kShiftRight, Bytecode::kShiftRightSmi}};
+
+  for (auto operator_replacement : operator_replacement_pairs) {
+    BytecodeNode first(Bytecode::kLdaZero);
+    uint32_t reg_operand = Register(0).ToOperand();
+    BytecodeNode second(operator_replacement[0], reg_operand);
+    optimizer()->Write(&first);
+    optimizer()->Write(&second);
+    Flush();
+    CHECK_EQ(write_count(), 1);
+    CHECK_EQ(last_written().bytecode(), operator_replacement[1]);
+    CHECK_EQ(last_written().operand_count(), 2);
+    CHECK_EQ(last_written().operand(0), 0);
+    CHECK_EQ(last_written().operand(1), reg_operand);
+    Reset();
+  }
 }
 
 }  // namespace interpreter

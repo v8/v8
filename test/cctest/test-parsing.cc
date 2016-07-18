@@ -120,15 +120,32 @@ TEST(ScanHTMLEndComments) {
   // whitespace, even a multiline-comment containing a newline).
   // This was not the case if it occurred before the first real token
   // in the input.
+  // clang-format off
   const char* tests[] = {
       // Before first real token.
+      "-->",
+      "--> is eol-comment",
       "--> is eol-comment\nvar y = 37;\n",
       "\n --> is eol-comment\nvar y = 37;\n",
+      "\n-->is eol-comment\nvar y = 37;\n",
+      "\n-->\nvar y = 37;\n",
       "/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "/* precomment */-->eol-comment\nvar y = 37;\n",
       "\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "\n/*precomment*/-->eol-comment\nvar y = 37;\n",
       // After first real token.
       "var x = 42;\n--> is eol-comment\nvar y = 37;\n",
       "var x = 42;\n/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "x/* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      "var x = 42; /* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      "var x = 42;/*\n*/-->is eol-comment\nvar y = 37;\n",
+      // With multiple comments preceding HTMLEndComment
+      "/* MLC \n */ /* SLDC */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC \n */ /* SLDC1 */ /* SLDC2 */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC1 \n */ /* MLC2 \n */ --> is eol-comment\nvar y = 37;\n",
+      "/* SLDC */ /* MLC \n */ --> is eol-comment\nvar y = 37;\n",
+      "/* MLC1 \n */ /* SLDC1 */ /* MLC2 \n */ /* SLDC2 */ --> is eol-comment\n"
+          "var y = 37;\n",
       NULL
   };
 
@@ -136,11 +153,10 @@ TEST(ScanHTMLEndComments) {
       "x --> is eol-comment\nvar y = 37;\n",
       "\"\\n\" --> is eol-comment\nvar y = 37;\n",
       "x/* precomment */ --> is eol-comment\nvar y = 37;\n",
-      "x/* precomment\n */ --> is eol-comment\nvar y = 37;\n",
       "var x = 42; --> is eol-comment\nvar y = 37;\n",
-      "var x = 42; /* precomment\n */ --> is eol-comment\nvar y = 37;\n",
       NULL
   };
+  // clang-format on
 
   // Parser/Scanner needs a stack limit.
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
@@ -1511,6 +1527,7 @@ enum ParserFlag {
   kAllowHarmonyForIn,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
+  kAllowHarmonyTrailingCommas,
   kAllowTypes
 };
 
@@ -1536,6 +1553,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
+  parser->set_allow_harmony_trailing_commas(
+      flags.Contains(kAllowHarmonyTrailingCommas));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
 
@@ -3571,10 +3590,8 @@ TEST(UseAsmUseCount) {
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("\"use asm\";\n"
              "var foo = 1;\n"
-             "\"use asm\";\n"  // Only the first one counts.
              "function bar() { \"use asm\"; var baz = 1; }");
-  // Optimizing will double-count because the source is parsed twice.
-  CHECK_EQ(i::FLAG_always_opt ? 4 : 2, use_counts[v8::Isolate::kUseAsm]);
+  CHECK_LT(0, use_counts[v8::Isolate::kUseAsm]);
 }
 
 
@@ -5511,8 +5528,8 @@ TEST(BasicImportExportParsing) {
       "export default function() {}",
       "export default function*() {}",
       "export default class C {}",
-      "export default class {}"
-      "export default class extends C {}"
+      "export default class {}",
+      "export default class extends C {}",
       "export default 42",
       "var x; export default x = 7",
       "export { Q } from 'somemodule.js';",
@@ -5875,6 +5892,11 @@ TEST(ModuleParsingInternals) {
       "import n from 'n.js';"
       "export { a as b } from 'm.js';"
       "export * from 'p.js';"
+      "export var foo;"
+      "export function goo() {};"
+      "export let hoo;"
+      "export const joo = 42;"
+      "export default (function koo() {});"
       "import 'q.js'";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
@@ -5892,34 +5914,18 @@ TEST(ModuleParsingInternals) {
   CHECK(module_scope->is_module_scope());
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
-  CHECK_EQ(1, descriptor->Length());
-  const i::AstRawString* export_name =
-      info.ast_value_factory()->GetOneByteString("y");
-  const i::AstRawString* local_name =
-      descriptor->LookupLocalExport(export_name, &zone);
-  CHECK_NOT_NULL(local_name);
-  CHECK(local_name->IsOneByteEqualTo("x"));
   i::ZoneList<i::Declaration*>* declarations = module_scope->declarations();
-  CHECK_EQ(3, declarations->length());
+  CHECK_EQ(8, declarations->length());
   CHECK(declarations->at(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
-  i::ImportDeclaration* import_decl =
-      declarations->at(1)->AsImportDeclaration();
-  CHECK(import_decl->import_name()->IsOneByteEqualTo("q"));
-  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("z"));
-  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("m.js"));
-  import_decl = declarations->at(2)->AsImportDeclaration();
-  CHECK(import_decl->import_name()->IsOneByteEqualTo("default"));
-  CHECK(import_decl->proxy()->raw_name()->IsOneByteEqualTo("n"));
-  CHECK(import_decl->module_specifier()->IsOneByteEqualTo("n.js"));
-  // TODO(adamk): Add test for indirect exports once they're fully implemented.
-  // TODO(adamk): Add test for star exports once they're fully implemented.
-  const i::ZoneList<const i::AstRawString*>& requested_modules =
-      descriptor->requested_modules();
-  CHECK_EQ(4, requested_modules.length());
-  CHECK(requested_modules[0]->IsOneByteEqualTo("m.js"));
-  CHECK(requested_modules[1]->IsOneByteEqualTo("n.js"));
-  CHECK(requested_modules[2]->IsOneByteEqualTo("p.js"));
-  CHECK(requested_modules[3]->IsOneByteEqualTo("q.js"));
+  CHECK(declarations->at(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(declarations->at(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(declarations->at(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
+  CHECK(declarations->at(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
+  CHECK(declarations->at(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
+  CHECK(declarations->at(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(
+      declarations->at(7)->proxy()->raw_name()->IsOneByteEqualTo("*default*"));
+  // TODO(neis): Test more once we can inspect the imports/exports.
 }
 
 
@@ -7508,6 +7514,9 @@ TEST(AsyncAwait) {
     "var O = { async 'method'() { await 1; } }",
     "var O = { async 0() { await 1; } }",
     "async function await() {}",
+
+    "var asyncFn = async({ foo = 1 }) => foo;",
+    "var asyncFn = async({ foo = 1 } = {}) => foo;",
     NULL
   };
   // clang-format on
@@ -7644,6 +7653,35 @@ TEST(AsyncAwaitErrors) {
     "var O = { async method() { function await() {} } }",
     "async function foo() { function await() {} }",
 
+    // Henrique Ferreiro's bug (tm)
+    "(async function foo() { } foo => 1)",
+    "(async function foo() { } () => 1)",
+    "(async function foo() { } => 1)",
+    "(async function() { } foo => 1)",
+    "(async function() { } () => 1)",
+    "(async function() { } => 1)",
+    "(async.foo => 1)",
+    "(async.foo foo => 1)",
+    "(async.foo () => 1)",
+    "(async().foo => 1)",
+    "(async().foo foo => 1)",
+    "(async().foo () => 1)",
+    "(async['foo'] => 1)",
+    "(async['foo'] foo => 1)",
+    "(async['foo'] () => 1)",
+    "(async()['foo'] => 1)",
+    "(async()['foo'] foo => 1)",
+    "(async()['foo'] () => 1)",
+    "(async`foo` => 1)",
+    "(async`foo` foo => 1)",
+    "(async`foo` () => 1)",
+    "(async`foo`.bar => 1)",
+    "(async`foo`.bar foo => 1)",
+    "(async`foo`.bar () => 1)",
+
+    // v8:5148 assert that errors are still thrown for calls that may have been
+    // async functions
+    "async({ foo = 1 })",
     NULL
   };
 
@@ -7665,12 +7703,39 @@ TEST(AsyncAwaitErrors) {
 
     NULL
   };
+
+  const char* formal_parameters_data[] = {
+    "var f = async({ await }) => 1;",
+    "var f = async({ await = 1 }) => 1;",
+    "var f = async({ await } = {}) => 1;",
+    "var f = async({ await = 1 } = {}) => 1;",
+    "var f = async([await]) => 1;",
+    "var f = async([await] = []) => 1;",
+    "var f = async([await = 1]) => 1;",
+    "var f = async([await = 1] = []) => 1;",
+    "var f = async(...await) => 1;",
+    "var f = async(await) => 1;",
+    "var f = async(await = 1) => 1;",
+    "var f = async(...[await]) => 1;",
+
+    // v8:5190
+    "var f = async(1) => 1",
+    "var f = async('str') => 1",
+    "var f = async(/foo/) => 1",
+    "var f = async({ foo = async(1) => 1 }) => 1",
+    "var f = async({ foo = async(a) => 1 })",
+
+    NULL
+  };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
                     arraysize(always_flags));
   RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -7792,6 +7857,110 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
                     test_preparser);
   RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
+}
+
+TEST(TrailingCommasInParameters) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { "'use strict';", "" },
+    { "function foo() {", "}" },
+    { "function foo() {'use strict';", "}" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    " function  a(b,) {}",
+    " function* a(b,) {}",
+    "(function  a(b,) {});",
+    "(function* a(b,) {});",
+    "(function   (b,) {});",
+    "(function*  (b,) {});",
+    " function  a(b,c,d,) {}",
+    " function* a(b,c,d,) {}",
+    "(function  a(b,c,d,) {});",
+    "(function* a(b,c,d,) {});",
+    "(function   (b,c,d,) {});",
+    "(function*  (b,c,d,) {});",
+    "(b,) => {};",
+    "(b,c,d,) => {};",
+    "a(1,);",
+    "a(1,2,3,);",
+    "a(...[],);",
+    "a(1, 2, ...[],);",
+    "a(...[], 2, ...[],);",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+TEST(TrailingCommasInParametersErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "", "" },
+    { "'use strict';", "" },
+    { "function foo() {", "}" },
+    { "function foo() {'use strict';", "}" },
+    { NULL, NULL }
+  };
+
+  const char* data[] = {
+    // too many trailing commas
+    " function  a(b,,) {}",
+    " function* a(b,,) {}",
+    "(function  a(b,,) {});",
+    "(function* a(b,,) {});",
+    "(function   (b,,) {});",
+    "(function*  (b,,) {});",
+    " function  a(b,c,d,,) {}",
+    " function* a(b,c,d,,) {}",
+    "(function  a(b,c,d,,) {});",
+    "(function* a(b,c,d,,) {});",
+    "(function   (b,c,d,,) {});",
+    "(function*  (b,c,d,,) {});",
+    "(b,,) => {};",
+    "(b,c,d,,) => {};",
+    "a(1,,);",
+    "a(1,2,3,,);",
+    // only a trailing comma and no parameters
+    " function  a1(,) {}",
+    " function* a2(,) {}",
+    "(function  a3(,) {});",
+    "(function* a4(,) {});",
+    "(function    (,) {});",
+    "(function*   (,) {});",
+    "(,) => {};",
+    "a1(,);",
+    // no trailing commas after rest parameter declaration
+    " function  a(...b,) {}",
+    " function* a(...b,) {}",
+    "(function  a(...b,) {});",
+    "(function* a(...b,) {});",
+    "(function   (...b,) {});",
+    "(function*  (...b,) {});",
+    " function  a(b, c, ...d,) {}",
+    " function* a(b, c, ...d,) {}",
+    "(function  a(b, c, ...d,) {});",
+    "(function* a(b, c, ...d,) {});",
+    "(function   (b, c, ...d,) {});",
+    "(function*  (b, c, ...d,) {});",
+    "(...b,) => {};",
+    "(b, c, ...d,) => {};",
+    // parenthesized trailing comma without arrow is still an error
+    "(,);",
+    "(a,);",
+    "(a,b,c,);",
+    NULL
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyTrailingCommas};
+  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 TEST(TypedVariableDeclarations) {

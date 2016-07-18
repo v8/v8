@@ -91,7 +91,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
   if (super_class->IsTheHole(isolate)) {
     prototype_parent = isolate->initial_object_prototype();
   } else {
-    if (super_class->IsNull()) {
+    if (super_class->IsNull(isolate)) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsConstructor()) {
       DCHECK(!super_class->IsJSFunction() ||
@@ -101,7 +101,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
           Runtime::GetObjectProperty(isolate, super_class,
                                      isolate->factory()->prototype_string()),
           Object);
-      if (!prototype_parent->IsNull() && !prototype_parent->IsJSReceiver()) {
+      if (!prototype_parent->IsNull(isolate) &&
+          !prototype_parent->IsJSReceiver()) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
                                   prototype_parent),
@@ -129,7 +130,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
     // constructor. Hence we can reuse the builtins construct stub for derived
     // classes.
     Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
-    constructor->shared()->set_construct_stub(*stub);
+    constructor->shared()->SetConstructStub(*stub);
   }
 
   JSFunction::SetPrototype(constructor, prototype);

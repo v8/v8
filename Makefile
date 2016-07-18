@@ -122,10 +122,6 @@ endif
 ifeq ($(werror), no)
   GYPFLAGS += -Dwerror=''
 endif
-# presubmit=no
-ifeq ($(presubmit), no)
-  TESTFLAGS += --no-presubmit
-endif
 # strictaliasing=off (workaround for GCC-4.5)
 ifeq ($(strictaliasing), off)
   GYPFLAGS += -Dv8_no_strict_aliasing=1
@@ -392,7 +388,7 @@ $(addsuffix .check, $(ANDROID_ARCHES)): \
 $(addsuffix .check, $(NACL_BUILDS)): $$(basename $$@)
 	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
-	     --timeout=600 --nopresubmit --noi18n \
+	     --timeout=600 --noi18n \
 	     --command-prefix="tools/nacl-run.py"
 
 $(addsuffix .check, $(NACL_ARCHES)): \
@@ -448,6 +444,10 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	        cut -f 2 -d " " | cut -f 1 -d "-" ))
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst s390x,s390,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst powerpc,ppc,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst ppc64,ppc,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst ppcle,ppc,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/gypfiles:$(PYTHONPATH):$(shell pwd)/tools/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \

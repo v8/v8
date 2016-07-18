@@ -18,14 +18,20 @@ class TypeHintAnalysis final : public ZoneObject {
  public:
   typedef ZoneMap<TypeFeedbackId, Handle<Code>> Infos;
 
-  explicit TypeHintAnalysis(Infos const& infos) : infos_(infos) {}
+  explicit TypeHintAnalysis(Infos const& infos, Zone* zone)
+      : infos_(infos), zone_(zone) {}
 
   bool GetBinaryOperationHints(TypeFeedbackId id,
                                BinaryOperationHints* hints) const;
+  bool GetCompareOperationHints(TypeFeedbackId id,
+                                CompareOperationHints* hints) const;
   bool GetToBooleanHints(TypeFeedbackId id, ToBooleanHints* hints) const;
 
  private:
+  Zone* zone() const { return zone_; }
+
   Infos const infos_;
+  Zone* zone_;
 };
 
 

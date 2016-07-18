@@ -16,6 +16,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -65,7 +66,7 @@ void Assembler::emit_code_target(Handle<Code> target,
     RecordRelocInfo(rmode);
   }
   int current = code_targets_.length();
-  if (current > 0 && code_targets_.last().is_identical_to(target)) {
+  if (current > 0 && code_targets_.last().address() == target.address()) {
     // Optimization if we keep jumping to the same code target.
     emitl(current - 1);
   } else {
@@ -410,6 +411,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

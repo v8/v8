@@ -84,7 +84,7 @@ class AstDecoderTest : public TestWithZone {
               const byte* end) {
     local_decls.Prepend(zone(), &start, &end);
     // Verify the code.
-    TreeResult result =
+    DecodeResult result =
         VerifyWasmCode(zone()->allocator(), module, sig, start, end);
 
     if (result.error_code != expected) {
@@ -1156,7 +1156,6 @@ class TestModuleEnv : public ModuleEnv {
   TestModuleEnv() {
     instance = nullptr;
     module = &mod;
-    linker = nullptr;
   }
   byte AddGlobal(MachineType mem_type) {
     mod.globals.push_back({0, 0, mem_type, 0, false});
@@ -2436,6 +2435,60 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kAstF32, 5);
   pos = ExpectRun(map, pos, kAstI32, 1337);
   pos = ExpectRun(map, pos, kAstI64, 212);
+}
+
+class BytecodeIteratorTest : public TestWithZone {};
+
+TEST_F(BytecodeIteratorTest, SimpleForeach) {
+  byte code[] = {WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO)};
+  BytecodeIterator iter(code, code + sizeof(code));
+  WasmOpcode expected[] = {kExprI8Const, kExprIf,      kExprI8Const,
+                           kExprElse,    kExprI8Const, kExprEnd};
+  size_t pos = 0;
+  for (WasmOpcode opcode : iter) {
+    if (pos >= arraysize(expected)) {
+      EXPECT_TRUE(false);
+      break;
+    }
+    EXPECT_EQ(expected[pos++], opcode);
+  }
+  EXPECT_EQ(arraysize(expected), pos);
+}
+
+TEST_F(BytecodeIteratorTest, ForeachTwice) {
+  byte code[] = {WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO)};
+  BytecodeIterator iter(code, code + sizeof(code));
+  int count = 0;
+
+  count = 0;
+  for (WasmOpcode opcode : iter) {
+    USE(opcode);
+    count++;
+  }
+  EXPECT_EQ(6, count);
+
+  count = 0;
+  for (WasmOpcode opcode : iter) {
+    USE(opcode);
+    count++;
+  }
+  EXPECT_EQ(6, count);
+}
+
+TEST_F(BytecodeIteratorTest, WithAstDecls) {
+  byte code[] = {1, 1, kLocalI32, WASM_I8(9), WASM_I8(11)};
+  AstLocalDecls decls(zone());
+  BytecodeIterator iter(code, code + sizeof(code), &decls);
+
+  EXPECT_EQ(3, decls.decls_encoded_size);
+  EXPECT_EQ(3, iter.pc_offset());
+  EXPECT_TRUE(iter.has_next());
+  EXPECT_EQ(kExprI8Const, iter.current());
+  iter.next();
+  EXPECT_TRUE(iter.has_next());
+  EXPECT_EQ(kExprI8Const, iter.current());
+  iter.next();
+  EXPECT_FALSE(iter.has_next());
 }
 
 }  // namespace wasm

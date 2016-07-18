@@ -103,6 +103,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitJSArrayBuffer;
 
     case JS_OBJECT_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_ARGUMENTS_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:

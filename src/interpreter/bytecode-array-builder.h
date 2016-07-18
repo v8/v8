@@ -8,6 +8,7 @@
 #include "src/ast/ast.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
@@ -27,9 +28,11 @@ class Register;
 
 class BytecodeArrayBuilder final : public ZoneObject {
  public:
-  BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
-                       int context_count, int locals_count,
-                       FunctionLiteral* literal = nullptr);
+  BytecodeArrayBuilder(
+      Isolate* isolate, Zone* zone, int parameter_count, int context_count,
+      int locals_count, FunctionLiteral* literal = nullptr,
+      SourcePositionTableBuilder::RecordingMode source_position_mode =
+          SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
   Handle<BytecodeArray> ToBytecodeArray();
 
@@ -85,8 +88,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
-                                   TypeofMode typeof_mode);
+  BytecodeArrayBuilder& LoadGlobal(int feedback_slot, TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
                                     LanguageMode language_mode);
@@ -130,7 +132,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Create a new closure for the SharedFunctionInfo.
   BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                      PretenureFlag tenured);
+                                      int flags);
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
@@ -153,7 +155,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|, the receiver should be in |receiver_args| and all subsequent
   // arguments should be in registers <receiver_args + 1> to
-  // <receiver_args + receiver_arg_count - 1>.
+  // <receiver_args + receiver_arg_count - 1>. Type feedback is recorded in
+  // the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& Call(
       Register callable, Register receiver_args, size_t receiver_arg_count,
       int feedback_slot, TailCallMode tail_call_mode = TailCallMode::kDisallow);

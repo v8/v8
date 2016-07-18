@@ -16,7 +16,7 @@ parameter count: 1
 bytecode array length: 5
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0),
+  /*   34 S> */ B(CreateClosure), U8(0), U8(2),
   /*   55 S> */ B(Return),
 ]
 constant pool: [
@@ -35,7 +35,7 @@ bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdrUndefined), R(1),
-                B(CreateClosure), U8(0), U8(0),
+                B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
   /*   56 E> */ B(Call), R(0), R(1), U8(1), U8(1),
   /*   59 S> */ B(Return),
@@ -56,7 +56,7 @@ bytecode array length: 18
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdrUndefined), R(1),
-                B(CreateClosure), U8(0), U8(0),
+                B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
                 B(LdaSmi), U8(1),
                 B(Star), R(2),

@@ -216,7 +216,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, offset_immediate_);
       __ add(scratch1_, object_, offset_);
     }
-    __ CallStub(&stub);
+    if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm());
+      __ CallStub(&stub);
+    } else {
+      __ CallStub(&stub);
+    }
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch1_);
@@ -436,15 +441,33 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                      \
   } while (0)
 
-#define ASSEMBLE_FLOAT_LOG()                                                \
-  do {                                                                      \
-    FrameScope scope(masm(), StackFrame::MANUAL);                           \
-    __ PrepareCallCFunction(0, 1, kScratchReg);                             \
-    __ MovToFloatParameter(i.InputDoubleRegister(0));                       \
-    __ CallCFunction(ExternalReference::ieee754_log_function(isolate()), 0, \
-                     1);                                                    \
-    __ MovFromFloatResult(i.OutputDoubleRegister());                        \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                    \
+#define ASSEMBLE_IEEE754_UNOP(name)                                            \
+  do {                                                                         \
+    /* TODO(bmeurer): We should really get rid of this special instruction, */ \
+    /* and generate a CallAddress instruction instead. */                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    __ PrepareCallCFunction(0, 1, kScratchReg);                                \
+    __ MovToFloatParameter(i.InputDoubleRegister(0));                          \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
+                     0, 1);                                                    \
+    /* Move the result in the double result register. */                       \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                           \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
+  } while (0)
+
+#define ASSEMBLE_IEEE754_BINOP(name)                                           \
+  do {                                                                         \
+    /* TODO(bmeurer): We should really get rid of this special instruction, */ \
+    /* and generate a CallAddress instruction instead. */                      \
+    FrameScope scope(masm(), StackFrame::MANUAL);                              \
+    __ PrepareCallCFunction(0, 2, kScratchReg);                                \
+    __ MovToFloatParameters(i.InputDoubleRegister(0),                          \
+                           i.InputDoubleRegister(1));                          \
+    __ CallCFunction(ExternalReference::ieee754_##name##_function(isolate()),  \
+                     0, 2);                                                    \
+    /* Move the result in the double result register. */                       \
+    __ MovFromFloatResult(i.OutputDoubleRegister());                           \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MAX(scratch_reg)                                       \
@@ -705,21 +728,7 @@ void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
 
-void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
-  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
-  if (sp_slot_delta > 0) {
-    __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
-  }
-  frame_access_state()->SetFrameAccessToDefault();
-}
-
-
-void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
-  int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
-  if (sp_slot_delta < 0) {
-    __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
-    frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
-  }
+void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
     __ RestoreFrameStateForTailCall();
   }
@@ -751,6 +760,116 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   __ bind(&done);
 }
 
+namespace {
+
+void FlushPendingPushRegisters(MacroAssembler* masm,
+                               FrameAccessState* frame_access_state,
+                               ZoneVector<Register>* pending_pushes) {
+  switch (pending_pushes->size()) {
+    case 0:
+      break;
+    case 1:
+      masm->Push((*pending_pushes)[0]);
+      break;
+    case 2:
+      masm->Push((*pending_pushes)[0], (*pending_pushes)[1]);
+      break;
+    case 3:
+      masm->Push((*pending_pushes)[0], (*pending_pushes)[1],
+                 (*pending_pushes)[2]);
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  frame_access_state->IncreaseSPDelta(pending_pushes->size());
+  pending_pushes->resize(0);
+}
+
+void AddPendingPushRegister(MacroAssembler* masm,
+                            FrameAccessState* frame_access_state,
+                            ZoneVector<Register>* pending_pushes,
+                            Register reg) {
+  pending_pushes->push_back(reg);
+  if (pending_pushes->size() == 3 || reg.is(ip)) {
+    FlushPendingPushRegisters(masm, frame_access_state, pending_pushes);
+  }
+}
+
+void AdjustStackPointerForTailCall(
+    MacroAssembler* masm, FrameAccessState* state, int new_slot_above_sp,
+    ZoneVector<Register>* pending_pushes = nullptr,
+    bool allow_shrinkage = true) {
+  int current_sp_offset = state->GetSPToFPSlotCount() +
+                          StandardFrameConstants::kFixedSlotCountAboveFp;
+  int stack_slot_delta = new_slot_above_sp - current_sp_offset;
+  if (stack_slot_delta > 0) {
+    if (pending_pushes != nullptr) {
+      FlushPendingPushRegisters(masm, state, pending_pushes);
+    }
+    masm->Add(sp, sp, -stack_slot_delta * kPointerSize, r0);
+    state->IncreaseSPDelta(stack_slot_delta);
+  } else if (allow_shrinkage && stack_slot_delta < 0) {
+    if (pending_pushes != nullptr) {
+      FlushPendingPushRegisters(masm, state, pending_pushes);
+    }
+    masm->Add(sp, sp, -stack_slot_delta * kPointerSize, r0);
+    state->IncreaseSPDelta(stack_slot_delta);
+  }
+}
+
+}  // namespace
+
+void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
+                                              int first_unused_stack_slot) {
+  CodeGenerator::PushTypeFlags flags(kImmediatePush | kScalarPush);
+  ZoneVector<MoveOperands*> pushes(zone());
+  GetPushCompatibleMoves(instr, flags, &pushes);
+
+  if (!pushes.empty() &&
+      (LocationOperand::cast(pushes.back()->destination()).index() + 1 ==
+       first_unused_stack_slot)) {
+    PPCOperandConverter g(this, instr);
+    ZoneVector<Register> pending_pushes(zone());
+    for (auto move : pushes) {
+      LocationOperand destination_location(
+          LocationOperand::cast(move->destination()));
+      InstructionOperand source(move->source());
+      AdjustStackPointerForTailCall(
+          masm(), frame_access_state(),
+          destination_location.index() - pending_pushes.size(),
+          &pending_pushes);
+      if (source.IsStackSlot()) {
+        LocationOperand source_location(LocationOperand::cast(source));
+        __ LoadP(ip, g.SlotToMemOperand(source_location.index()));
+        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+                               ip);
+      } else if (source.IsRegister()) {
+        LocationOperand source_location(LocationOperand::cast(source));
+        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+                               source_location.GetRegister());
+      } else if (source.IsImmediate()) {
+        AddPendingPushRegister(masm(), frame_access_state(), &pending_pushes,
+                               ip);
+      } else {
+        // Pushes of non-scalar data types is not supported.
+        UNIMPLEMENTED();
+      }
+      move->Eliminate();
+    }
+    FlushPendingPushRegisters(masm(), frame_access_state(), &pending_pushes);
+  }
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+                                first_unused_stack_slot, nullptr, false);
+}
+
+void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
+                                             int first_unused_stack_slot) {
+  AdjustStackPointerForTailCall(masm(), frame_access_state(),
+                                first_unused_stack_slot);
+}
+
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -777,8 +896,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       if (opcode == kArchTailCallCodeObjectFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
@@ -797,14 +914,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchTailCallAddress: {
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       CHECK(!instr->InputAt(0)->IsImmediate());
       __ Jump(i.InputRegister(0));
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchCallJSFunction: {
@@ -836,8 +953,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      int stack_param_delta = i.InputInt32(instr->InputCount() - 1);
-      AssembleDeconstructActivationRecord(stack_param_delta);
       if (opcode == kArchTailCallJSFunctionFromJSFunction) {
         AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
                                          i.TempRegister(0), i.TempRegister(1),
@@ -847,6 +962,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Jump(ip);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchPrepareCallCFunction: {
@@ -857,8 +973,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchPrepareTailCall:
-      AssemblePrepareTailCall(i.InputInt32(instr->InputCount() - 1));
+      AssemblePrepareTailCall();
       break;
+    case kArchComment: {
+      Address comment_string = i.InputExternalReference(0).address();
+      __ RecordComment(reinterpret_cast<const char*>(comment_string));
+      break;
+    }
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       if (instr->InputAt(0)->IsImmediate()) {
@@ -1184,6 +1305,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                LeaveOE, i.OutputRCBit());
       break;
 #endif
+
+    case kPPC_Mul32WithHigh32:
+      if (i.OutputRegister(0).is(i.InputRegister(0)) ||
+          i.OutputRegister(0).is(i.InputRegister(1)) ||
+          i.OutputRegister(1).is(i.InputRegister(0)) ||
+          i.OutputRegister(1).is(i.InputRegister(1))) {
+        __ mullw(kScratchReg,
+                 i.InputRegister(0), i.InputRegister(1));  // low
+        __ mulhw(i.OutputRegister(1),
+                 i.InputRegister(0), i.InputRegister(1));  // high
+        __ mr(i.OutputRegister(0), kScratchReg);
+      } else {
+        __ mullw(i.OutputRegister(0),
+                 i.InputRegister(0), i.InputRegister(1));  // low
+        __ mulhw(i.OutputRegister(1),
+                 i.InputRegister(0), i.InputRegister(1));  // high
+      }
+      break;
     case kPPC_MulHigh32:
       __ mulhw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                i.OutputRCBit());
@@ -1239,11 +1378,72 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // and generate a CallAddress instruction instead.
       ASSEMBLE_FLOAT_MODULO();
       break;
-    case kPPC_LogDouble:
-      // TODO(bmeurer): We should really get rid of this special instruction,
-      // and generate a CallAddress instruction instead.
-      ASSEMBLE_FLOAT_LOG();
+    case kIeee754Float64Acos:
+      ASSEMBLE_IEEE754_UNOP(acos);
       break;
+    case kIeee754Float64Acosh:
+      ASSEMBLE_IEEE754_UNOP(acosh);
+      break;
+    case kIeee754Float64Asin:
+      ASSEMBLE_IEEE754_UNOP(asin);
+      break;
+    case kIeee754Float64Asinh:
+      ASSEMBLE_IEEE754_UNOP(asinh);
+      break;
+    case kIeee754Float64Atan:
+      ASSEMBLE_IEEE754_UNOP(atan);
+      break;
+    case kIeee754Float64Atan2:
+      ASSEMBLE_IEEE754_BINOP(atan2);
+      break;
+    case kIeee754Float64Atanh:
+      ASSEMBLE_IEEE754_UNOP(atanh);
+      break;
+    case kIeee754Float64Tan:
+      ASSEMBLE_IEEE754_UNOP(tan);
+      break;
+    case kIeee754Float64Tanh:
+      ASSEMBLE_IEEE754_UNOP(tanh);
+      break;
+    case kIeee754Float64Cbrt:
+      ASSEMBLE_IEEE754_UNOP(cbrt);
+      break;
+    case kIeee754Float64Sin:
+      ASSEMBLE_IEEE754_UNOP(sin);
+      break;
+    case kIeee754Float64Sinh:
+      ASSEMBLE_IEEE754_UNOP(sinh);
+      break;
+    case kIeee754Float64Cos:
+      ASSEMBLE_IEEE754_UNOP(cos);
+      break;
+    case kIeee754Float64Cosh:
+      ASSEMBLE_IEEE754_UNOP(cosh);
+      break;
+    case kIeee754Float64Exp:
+      ASSEMBLE_IEEE754_UNOP(exp);
+      break;
+    case kIeee754Float64Expm1:
+      ASSEMBLE_IEEE754_UNOP(expm1);
+      break;
+    case kIeee754Float64Log:
+      ASSEMBLE_IEEE754_UNOP(log);
+      break;
+    case kIeee754Float64Log1p:
+      ASSEMBLE_IEEE754_UNOP(log1p);
+      break;
+    case kIeee754Float64Log2:
+      ASSEMBLE_IEEE754_UNOP(log2);
+      break;
+    case kIeee754Float64Log10:
+      ASSEMBLE_IEEE754_UNOP(log10);
+      break;
+    case kIeee754Float64Pow: {
+      MathPowStub stub(isolate(), MathPowStub::DOUBLE);
+      __ CallStub(&stub);
+      __ Move(d1, d3);
+      break;
+    }
     case kPPC_Neg:
       __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
       break;
@@ -1326,6 +1526,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(SetRC, i.OutputRCBit());
       break;
 #endif
+    case kPPC_Float64SilenceNaN: {
+      DoubleRegister value = i.InputDoubleRegister(0);
+      DoubleRegister result = i.OutputDoubleRegister();
+      __ CanonicalizeNaN(result, value);
+      break;
+    }
     case kPPC_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ stfdu(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
@@ -1961,6 +2167,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
 #else
           if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
               src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
 #endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
@@ -1970,7 +2177,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kInt64:
 #if V8_TARGET_ARCH_PPC64
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE) {
+          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
+              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
             DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);

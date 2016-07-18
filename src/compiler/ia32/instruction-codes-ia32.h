@@ -81,6 +81,7 @@ namespace compiler {
   V(SSEFloat64InsertLowWord32)     \
   V(SSEFloat64InsertHighWord32)    \
   V(SSEFloat64LoadLowWord32)       \
+  V(SSEFloat64SilenceNaN)          \
   V(AVXFloat32Add)                 \
   V(AVXFloat32Sub)                 \
   V(AVXFloat32Mul)                 \

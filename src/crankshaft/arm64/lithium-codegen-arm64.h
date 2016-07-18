@@ -331,8 +331,7 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count, int arity,
                          bool is_tail_call, LInstruction* instr);
 
-  // Support for recording safepoint and position information.
-  void RecordAndWritePosition(int position) override;
+  // Support for recording safepoint information.
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,

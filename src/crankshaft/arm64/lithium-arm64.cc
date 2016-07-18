@@ -1553,12 +1553,9 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* global_object =
-      UseFixed(instr->global_object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
 
-  LLoadGlobalGeneric* result =
-      new(zone()) LLoadGlobalGeneric(context, global_object, vector);
+  LLoadGlobalGeneric* result = new (zone()) LLoadGlobalGeneric(context, vector);
   return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
@@ -1915,20 +1912,6 @@ LInstruction* LChunkBuilder::DoPushArguments(HPushArguments* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
-  HValue* value = instr->value();
-  DCHECK(value->representation().IsDouble());
-  return DefineAsRegister(new(zone()) LDoubleBits(UseRegister(value)));
-}
-
-
-LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
-  LOperand* lo = UseRegisterAndClobber(instr->lo());
-  LOperand* hi = UseRegister(instr->hi());
-  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
-}
-
-
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   LOperand* context = info()->IsStub()
       ? UseFixed(instr->context(), cp)
@@ -2237,8 +2220,8 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   DCHECK(instr->key()->representation().IsTagged());
   DCHECK(instr->value()->representation().IsTagged());
 
-  LOperand* slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
+  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
 
   LStoreKeyedGeneric* result = new (zone())
       LStoreKeyedGeneric(context, object, key, value, slot, vector);
@@ -2281,8 +2264,8 @@ LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
       UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
   LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
 
-  LOperand* slot = FixedTemp(VectorStoreICDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(VectorStoreICDescriptor::VectorRegister());
+  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
+  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
 
   LStoreNamedGeneric* result =
       new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);
@@ -2459,17 +2442,26 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return result;
       }
     }
+    case kMathCos: {
+      DCHECK(instr->representation().IsDouble());
+      DCHECK(instr->value()->representation().IsDouble());
+      LOperand* input = UseFixedDouble(instr->value(), d0);
+      LMathCos* result = new (zone()) LMathCos(input);
+      return MarkAsCall(DefineFixedDouble(result, d0), instr);
+    }
+    case kMathSin: {
+      DCHECK(instr->representation().IsDouble());
+      DCHECK(instr->value()->representation().IsDouble());
+      LOperand* input = UseFixedDouble(instr->value(), d0);
+      LMathSin* result = new (zone()) LMathSin(input);
+      return MarkAsCall(DefineFixedDouble(result, d0), instr);
+    }
     case kMathExp: {
       DCHECK(instr->representation().IsDouble());
       DCHECK(instr->value()->representation().IsDouble());
-      LOperand* input = UseRegister(instr->value());
-      LOperand* double_temp1 = TempDoubleRegister();
-      LOperand* temp1 = TempRegister();
-      LOperand* temp2 = TempRegister();
-      LOperand* temp3 = TempRegister();
-      LMathExp* result = new(zone()) LMathExp(input, double_temp1,
-                                              temp1, temp2, temp3);
-      return DefineAsRegister(result);
+      LOperand* input = UseFixedDouble(instr->value(), d0);
+      LMathExp* result = new (zone()) LMathExp(input);
+      return MarkAsCall(DefineFixedDouble(result, d0), instr);
     }
     case kMathFloor: {
       DCHECK(instr->value()->representation().IsDouble());

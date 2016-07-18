@@ -256,36 +256,96 @@ bool TryMatchLoadStoreShift(Arm64OperandGenerator* g,
   }
 }
 
+// Bitfields describing binary operator properties:
+// CanCommuteField is true if we can switch the two operands, potentially
+// requiring commuting the flags continuation condition.
+typedef BitField8<bool, 1, 1> CanCommuteField;
+// MustCommuteCondField is true when we need to commute the flags continuation
+// condition in order to switch the operands.
+typedef BitField8<bool, 2, 1> MustCommuteCondField;
+// IsComparisonField is true when the operation is a comparison and has no other
+// result other than the condition.
+typedef BitField8<bool, 3, 1> IsComparisonField;
+// IsAddSubField is true when an instruction is encoded as ADD or SUB.
+typedef BitField8<bool, 4, 1> IsAddSubField;
+
+// Get properties of a binary operator.
+uint8_t GetBinopProperties(InstructionCode opcode) {
+  uint8_t result = 0;
+  switch (opcode) {
+    case kArm64Cmp32:
+    case kArm64Cmp:
+      // We can commute CMP by switching the inputs and commuting
+      // the flags continuation.
+      result = CanCommuteField::update(result, true);
+      result = MustCommuteCondField::update(result, true);
+      result = IsComparisonField::update(result, true);
+      // The CMP and CMN instructions are encoded as SUB or ADD
+      // with zero output register, and therefore support the same
+      // operand modes.
+      result = IsAddSubField::update(result, true);
+      break;
+    case kArm64Cmn32:
+    case kArm64Cmn:
+      result = CanCommuteField::update(result, true);
+      result = IsComparisonField::update(result, true);
+      result = IsAddSubField::update(result, true);
+      break;
+    case kArm64Add32:
+    case kArm64Add:
+      result = CanCommuteField::update(result, true);
+      result = IsAddSubField::update(result, true);
+      break;
+    case kArm64Sub32:
+    case kArm64Sub:
+      result = IsAddSubField::update(result, true);
+      break;
+    case kArm64Tst32:
+    case kArm64Tst:
+      result = CanCommuteField::update(result, true);
+      result = IsComparisonField::update(result, true);
+      break;
+    case kArm64And32:
+    case kArm64And:
+    case kArm64Or32:
+    case kArm64Or:
+    case kArm64Eor32:
+    case kArm64Eor:
+      result = CanCommuteField::update(result, true);
+      break;
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+  DCHECK_IMPLIES(MustCommuteCondField::decode(result),
+                 CanCommuteField::decode(result));
+  return result;
+}
+
 // Shared routine for multiple binary operations.
 template <typename Matcher>
 void VisitBinop(InstructionSelector* selector, Node* node,
                 InstructionCode opcode, ImmediateMode operand_mode,
                 FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  Matcher m(node);
   InstructionOperand inputs[5];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
-  bool is_cmp = (opcode == kArm64Cmp32) || (opcode == kArm64Cmn32);
 
-  // We can commute cmp by switching the inputs and commuting the flags
-  // continuation.
-  bool can_commute = m.HasProperty(Operator::kCommutative) || is_cmp;
+  Node* left_node = node->InputAt(0);
+  Node* right_node = node->InputAt(1);
 
-  // The cmp and cmn instructions are encoded as sub or add with zero output
-  // register, and therefore support the same operand modes.
-  bool is_add_sub = m.IsInt32Add() || m.IsInt64Add() || m.IsInt32Sub() ||
-                    m.IsInt64Sub() || is_cmp;
-
-  Node* left_node = m.left().node();
-  Node* right_node = m.right().node();
+  uint8_t properties = GetBinopProperties(opcode);
+  bool can_commute = CanCommuteField::decode(properties);
+  bool must_commute_cond = MustCommuteCondField::decode(properties);
+  bool is_add_sub = IsAddSubField::decode(properties);
 
   if (g.CanBeImmediate(right_node, operand_mode)) {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseImmediate(right_node);
-  } else if (is_cmp && g.CanBeImmediate(left_node, operand_mode)) {
-    cont->Commute();
+  } else if (can_commute && g.CanBeImmediate(left_node, operand_mode)) {
+    if (must_commute_cond) cont->Commute();
     inputs[input_count++] = g.UseRegister(right_node);
     inputs[input_count++] = g.UseImmediate(left_node);
   } else if (is_add_sub &&
@@ -295,23 +355,29 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   } else if (is_add_sub && can_commute &&
              TryMatchAnyExtend(&g, selector, node, right_node, left_node,
                                &inputs[0], &inputs[1], &opcode)) {
-    if (is_cmp) cont->Commute();
+    if (must_commute_cond) cont->Commute();
     input_count += 2;
   } else if (TryMatchAnyShift(selector, node, right_node, &opcode,
                               !is_add_sub)) {
     Matcher m_shift(right_node);
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = cont->IsDeoptimize()
+                                ? g.UseRegister(left_node)
+                                : g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
                                              !is_add_sub)) {
-    if (is_cmp) cont->Commute();
+    if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
+    inputs[input_count++] = cont->IsDeoptimize()
+                                ? g.UseRegister(right_node)
+                                : g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else {
-    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = cont->IsDeoptimize()
+                                ? g.UseRegister(left_node)
+                                : g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
   }
 
@@ -320,8 +386,15 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  if (!is_cmp) {
-    outputs[output_count++] = g.DefineAsRegister(node);
+  if (!IsComparisonField::decode(properties)) {
+    if (cont->IsDeoptimize()) {
+      // If we can deoptimize as a result of the binop, we need to make sure
+      // that the deopt inputs are not overwritten by the binop result. One way
+      // to achieve that is to declare the output register as same-as-first.
+      outputs[output_count++] = g.DefineSameAsFirst(node);
+    } else {
+      outputs[output_count++] = g.DefineAsRegister(node);
+    }
   }
 
   if (cont->IsSet()) {
@@ -329,7 +402,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   }
 
   DCHECK_NE(0u, input_count);
-  DCHECK((output_count != 0) || is_cmp);
+  DCHECK((output_count != 0) || IsComparisonField::decode(properties));
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
@@ -1197,6 +1270,32 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   VisitAddSub<Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
 }
 
+namespace {
+
+void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  Arm64OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand result = g.DefineAsRegister(node);
+  InstructionOperand left = g.UseRegister(m.left().node());
+  InstructionOperand right = g.UseRegister(m.right().node());
+  selector->Emit(kArm64Smull, result, left, right);
+
+  InstructionCode opcode = cont->Encode(kArm64Cmp) |
+                           AddressingModeField::encode(kMode_Operand2_R_SXTW);
+  if (cont->IsBranch()) {
+    selector->Emit(opcode, g.NoOutput(), result, result,
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    InstructionOperand in[] = {result, result};
+    selector->EmitDeoptimize(opcode, 0, nullptr, 2, in, cont->frame_state());
+  } else {
+    DCHECK(cont->IsSet());
+    selector->Emit(opcode, g.DefineAsRegister(cont->result()), result, result);
+  }
+}
+
+}  // namespace
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
   Arm64OperandGenerator g(this);
@@ -1279,7 +1378,6 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 
   VisitRRR(this, kArm64Mul, node);
 }
-
 
 void InstructionSelector::VisitInt32MulHigh(Node* node) {
   Arm64OperandGenerator g(this);
@@ -1848,14 +1946,126 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 }
 
+// This function checks whether we can convert:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+// We only generate conditions <cond'> that are a combination of the N
+// and Z flags. This avoids the need to make this function dependent on
+// the flag-setting operation.
+bool CanUseFlagSettingBinop(FlagsCondition cond) {
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+    case kSignedLessThan:
+    case kSignedGreaterThanOrEqual:
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+    case kUnsignedGreaterThan:      // x > 0 -> x != 0
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Map <cond> to <cond'> so that the following transformation is possible:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>.
+FlagsCondition MapForFlagSettingBinop(FlagsCondition cond) {
+  DCHECK(CanUseFlagSettingBinop(cond));
+  switch (cond) {
+    case kEqual:
+    case kNotEqual:
+      return cond;
+    case kSignedLessThan:
+      return kNegative;
+    case kSignedGreaterThanOrEqual:
+      return kPositiveOrZero;
+    case kUnsignedLessThanOrEqual:  // x <= 0 -> x == 0
+      return kEqual;
+    case kUnsignedGreaterThan:  // x > 0 -> x != 0
+      return kNotEqual;
+    default:
+      UNREACHABLE();
+      return cond;
+  }
+}
+
+// This function checks if we can perform the transformation:
+// ((a <op> b) cmp 0), b.<cond>
+// to:
+// (a <ops> b), b.<cond'>
+// where <ops> is the flag setting version of <op>, and if so,
+// updates {node}, {opcode} and {cont} accordingly.
+void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
+                                             Node** node, Node* binop,
+                                             ArchOpcode* opcode,
+                                             FlagsCondition cond,
+                                             FlagsContinuation* cont,
+                                             ImmediateMode* immediate_mode) {
+  ArchOpcode binop_opcode;
+  ArchOpcode no_output_opcode;
+  ImmediateMode binop_immediate_mode;
+  switch (binop->opcode()) {
+    case IrOpcode::kInt32Add:
+      binop_opcode = kArm64Add32;
+      no_output_opcode = kArm64Cmn32;
+      binop_immediate_mode = kArithmeticImm;
+      break;
+    case IrOpcode::kWord32And:
+      binop_opcode = kArm64And32;
+      no_output_opcode = kArm64Tst32;
+      binop_immediate_mode = kLogical32Imm;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (selector->CanCover(*node, binop)) {
+    // The comparison is the only user of the add or and, so we can generate
+    // a cmn or tst instead.
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = no_output_opcode;
+    *node = binop;
+    *immediate_mode = binop_immediate_mode;
+  } else if (selector->IsOnlyUserOfNodeInSameBlock(*node, binop)) {
+    // We can also handle the case where the add and the compare are in the
+    // same basic block, and the compare is the only use of add in this basic
+    // block (the add has users in other basic blocks).
+    cont->Overwrite(MapForFlagSettingBinop(cond));
+    *opcode = binop_opcode;
+    *node = binop;
+    *immediate_mode = binop_immediate_mode;
+  }
+}
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
   ArchOpcode opcode = kArm64Cmp32;
-
-  // Select negated compare for comparisons with negated right input.
-  if (m.right().IsInt32Sub()) {
+  FlagsCondition cond = cont->condition();
+  ImmediateMode immediate_mode = kArithmeticImm;
+  if (m.right().Is(0) && (m.left().IsInt32Add() || m.left().IsWord32And())) {
+    // Emit flag setting add/and instructions for comparisons against zero.
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.left().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont, &immediate_mode);
+    }
+  } else if (m.left().Is(0) &&
+             (m.right().IsInt32Add() || m.right().IsWord32And())) {
+    // Same as above, but we need to commute the condition before we
+    // continue with the rest of the checks.
+    cond = CommuteFlagsCondition(cond);
+    if (CanUseFlagSettingBinop(cond)) {
+      Node* binop = m.right().node();
+      MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
+                                              cond, cont, &immediate_mode);
+    }
+  } else if (m.right().IsInt32Sub()) {
+    // Select negated compare for comparisons with negated right input.
     Node* sub = m.right().node();
     Int32BinopMatcher msub(sub);
     if (msub.left().Is(0)) {
@@ -1873,7 +2083,7 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
       opcode = kArm64Cmn32;
     }
   }
-  VisitBinop<Int32BinopMatcher>(selector, node, opcode, kArithmeticImm, cont);
+  VisitBinop<Int32BinopMatcher>(selector, node, opcode, immediate_mode, cont);
 }
 
 
@@ -2063,6 +2273,13 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int32BinopMatcher>(
                     selector, node, kArm64Sub32, kArithmeticImm, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                // ARM64 doesn't set the overflow flag for multiplication, so we
+                // need to test on kNotEqual. Here is the code sequence used:
+                //   smull result, left, right
+                //   cmp result.X(), Operand(result, SXTW)
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(selector, node, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop<Int64BinopMatcher>(selector, node, kArm64Add,
@@ -2172,20 +2389,24 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kInt32Add:
-          return VisitWordCompare(this, value, kArm64Cmn32, &cont, true,
-                                  kArithmeticImm);
+        case IrOpcode::kWord32And:
+          return VisitWord32Compare(this, node, &cont);
         case IrOpcode::kInt32Sub:
           return VisitWordCompare(this, value, kArm64Cmp32, &cont, false,
                                   kArithmeticImm);
-        case IrOpcode::kWord32And:
-          return VisitWordCompare(this, value, kArm64Tst32, &cont, true,
-                                  kLogical32Imm);
         case IrOpcode::kWord32Equal: {
           // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
           Int32BinopMatcher mequal(value);
           node->ReplaceInput(0, mequal.left().node());
           node->ReplaceInput(1, mequal.right().node());
           cont.Negate();
+          // {node} still does not cover its new operands, because {mequal} is
+          // still using them.
+          // Since we won't generate any more code for {mequal}, set its
+          // operands to zero to make sure {node} can cover them.
+          // This improves pattern matching in VisitWord32Compare.
+          mequal.node()->ReplaceInput(0, m.right().node());
+          mequal.node()->ReplaceInput(1, m.right().node());
           return VisitWord32Compare(this, node, &cont);
         }
         default:
@@ -2266,6 +2487,18 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kArm64Sub32, kArithmeticImm, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    // ARM64 doesn't set the overflow flag for multiplication, so we need to
+    // test on kNotEqual. Here is the code sequence used:
+    //   smull result, left, right
+    //   cmp result.X(), Operand(result, SXTW)
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt32MulWithOverflow(this, node, &cont);
+}
 
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
@@ -2399,6 +2632,10 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   }
   Emit(kArm64Float64InsertHighWord32, g.DefineAsRegister(node),
        g.UseRegister(left), g.UseRegister(right));
+}
+
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kArm64Float64SilenceNaN, node);
 }
 
 void InstructionSelector::VisitAtomicLoad(Node* node) {

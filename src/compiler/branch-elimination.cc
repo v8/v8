@@ -92,8 +92,7 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (conditions == nullptr) {
-    DCHECK_NULL(node_conditions_.Get(node));
-    return NoChange();
+    return UpdateConditions(node, conditions);
   }
   Maybe<bool> condition_value = conditions->LookupCondition(condition);
   if (condition_value.IsJust()) {
@@ -123,8 +122,7 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (from_branch == nullptr) {
-    DCHECK(node_conditions_.Get(node) == nullptr);
-    return NoChange();
+    return UpdateConditions(node, nullptr);
   }
   Node* condition = branch->InputAt(0);
   return UpdateConditions(
@@ -145,8 +143,7 @@ Reduction BranchElimination::ReduceMerge(Node* node) {
   // input.
   for (int i = 0; i < node->InputCount(); i++) {
     if (node_conditions_.Get(node->InputAt(i)) == nullptr) {
-      DCHECK(node_conditions_.Get(node) == nullptr);
-      return NoChange();
+      return UpdateConditions(node, nullptr);
     }
   }
 
@@ -209,7 +206,8 @@ Reduction BranchElimination::UpdateConditions(
   // Only signal that the node has Changed if the condition information has
   // changed.
   if (conditions != original) {
-    if (original == nullptr || *conditions != *original) {
+    if (conditions == nullptr || original == nullptr ||
+        *conditions != *original) {
       node_conditions_.Set(node, conditions);
       return Changed(node);
     }

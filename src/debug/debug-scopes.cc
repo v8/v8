@@ -22,13 +22,15 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       nested_scope_chain_(4),
       seen_script_scope_(false),
       failed_(false) {
-  if (!frame_inspector->GetContext()->IsContext() ||
-      !frame_inspector->GetFunction()->IsJSFunction()) {
+  if (!frame_inspector->GetContext()->IsContext()) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
   }
 
   context_ = Handle<Context>::cast(frame_inspector->GetContext());
+
+  // We should not instantiate a ScopeIterator for wasm frames.
+  DCHECK(frame_inspector->GetScript()->type() != Script::TYPE_WASM);
 
   // Catch the case when the debugger stops in an internal function.
   Handle<JSFunction> function = GetFunction();
@@ -614,9 +616,9 @@ bool ScopeIterator::SetParameterValue(Handle<ScopeInfo> scope_info,
 }
 
 bool ScopeIterator::SetStackVariableValue(Handle<ScopeInfo> scope_info,
-                                          JavaScriptFrame* frame,
                                           Handle<String> variable_name,
                                           Handle<Object> new_value) {
+  JavaScriptFrame* frame = GetFrame();
   // Setting stack locals of optimized frames is not supported.
   if (frame->is_optimized()) return false;
   HandleScope scope(isolate_);
@@ -672,7 +674,7 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
   bool result = SetParameterValue(scope_info, frame, variable_name, new_value);
 
   // Stack locals.
-  if (SetStackVariableValue(scope_info, frame, variable_name, new_value)) {
+  if (SetStackVariableValue(scope_info, variable_name, new_value)) {
     return true;
   }
 
@@ -690,10 +692,9 @@ bool ScopeIterator::SetInnerScopeVariableValue(Handle<String> variable_name,
   Handle<ScopeInfo> scope_info = CurrentScopeInfo();
   DCHECK(scope_info->scope_type() == BLOCK_SCOPE ||
          scope_info->scope_type() == EVAL_SCOPE);
-  JavaScriptFrame* frame = GetFrame();
 
   // Setting stack locals of optimized frames is not supported.
-  if (SetStackVariableValue(scope_info, frame, variable_name, new_value)) {
+  if (SetStackVariableValue(scope_info, variable_name, new_value)) {
     return true;
   }
 

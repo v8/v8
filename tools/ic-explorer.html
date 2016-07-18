@@ -71,7 +71,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           if (offset == -1) return
           this.state = parts[++offset];
           this.map = parts[offset + 1];
-          if (this.map.startsWith("map=")) {
+          if (this.map !== undefined && this.map.startsWith("map=")) {
             this.map = this.map.substring(4);
             offset++;
           } else {
@@ -217,6 +217,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
 
     function escapeHtml(unsafe) {
+      if (!unsafe) return "";
       return unsafe.toString()
            .replace(/&/g, "&amp;")
            .replace(/</g, "&lt;")

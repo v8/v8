@@ -18,10 +18,8 @@ void SealCurrentObjects(Heap* heap) {
   heap->CollectAllGarbage();
   heap->CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
-  PageIterator it(heap->old_space());
   heap->old_space()->EmptyAllocationInfo();
-  while (it.has_next()) {
-    Page* page = it.next();
+  for (Page* page : *heap->old_space()) {
     page->MarkNeverAllocateForTesting();
   }
 }
@@ -143,9 +141,8 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   space->EmptyAllocationInfo();
-  PageIterator pit(space);
-  while (pit.has_next()) {
-    pit.next()->MarkNeverAllocateForTesting();
+  for (Page* page : *space) {
+    page->MarkNeverAllocateForTesting();
   }
 }
 

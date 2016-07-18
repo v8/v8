@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class Processor: public AstVisitor {
+class Processor final : public AstVisitor<Processor> {
  public:
   Processor(Isolate* isolate, Scope* scope, Variable* result,
             AstValueFactory* ast_value_factory)
@@ -37,8 +37,6 @@ class Processor: public AstVisitor {
     InitializeAstVisitor(parser->stack_limit());
   }
 
-  ~Processor() override {}
-
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
 
@@ -51,7 +49,7 @@ class Processor: public AstVisitor {
     result_assigned_ = true;
     VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
     return factory()->NewAssignment(Token::ASSIGN, result_proxy, value,
-                                    RelocInfo::kNoPosition);
+                                    kNoSourcePosition);
   }
 
   // Inserts '.result = undefined' in front of the given statement.
@@ -81,7 +79,7 @@ class Processor: public AstVisitor {
   AstNodeFactory factory_;
 
   // Node visitors.
-#define DEF_VISIT(type) void Visit##type(type* node) override;
+#define DEF_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
@@ -93,13 +91,12 @@ class Processor: public AstVisitor {
 
 Statement* Processor::AssignUndefinedBefore(Statement* s) {
   Expression* result_proxy = factory()->NewVariableProxy(result_);
-  Expression* undef = factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
-  Expression* assignment = factory()->NewAssignment(
-      Token::ASSIGN, result_proxy, undef, RelocInfo::kNoPosition);
-  Block* b = factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
+  Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
+  Expression* assignment = factory()->NewAssignment(Token::ASSIGN, result_proxy,
+                                                    undef, kNoSourcePosition);
+  Block* b = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
   b->statements()->Add(
-      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-      zone());
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
   b->statements()->Add(s, zone());
   return b;
 }
@@ -232,15 +229,13 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
     Expression* backup_proxy = factory()->NewVariableProxy(backup);
     Expression* result_proxy = factory()->NewVariableProxy(result_);
     Expression* save = factory()->NewAssignment(
-        Token::ASSIGN, backup_proxy, result_proxy, RelocInfo::kNoPosition);
+        Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
     Expression* restore = factory()->NewAssignment(
-        Token::ASSIGN, result_proxy, backup_proxy, RelocInfo::kNoPosition);
+        Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
     node->finally_block()->statements()->InsertAt(
-        0, factory()->NewExpressionStatement(save, RelocInfo::kNoPosition),
-        zone());
+        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
-        factory()->NewExpressionStatement(restore, RelocInfo::kNoPosition),
-        zone());
+        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
   }
   is_set_ = set_after;
   Visit(node->try_block());
@@ -355,7 +350,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      int pos = RelocInfo::kNoPosition;
+      int pos = kNoSourcePosition;
       VariableProxy* result_proxy =
           processor.factory()->NewVariableProxy(result, pos);
       Statement* result_statement =
@@ -383,8 +378,7 @@ bool Rewriter::Rewrite(Parser* parser, DoExpression* expr,
 
     if (!processor.result_assigned()) {
       AstNodeFactory* node_factory = processor.factory();
-      Expression* undef =
-          node_factory->NewUndefinedLiteral(RelocInfo::kNoPosition);
+      Expression* undef = node_factory->NewUndefinedLiteral(kNoSourcePosition);
       Statement* completion = node_factory->NewExpressionStatement(
           processor.SetResult(undef), expr->position());
       body->Add(completion, factory->zone());

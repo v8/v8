@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/smart-pointers.h"
 
+#include "src/handles.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -38,8 +39,7 @@ enum ErrorCode {
 // The overall result of decoding a function or a module.
 template <typename T>
 struct Result {
-  Result()
-      : val(nullptr), error_code(kSuccess), start(nullptr), error_pc(nullptr) {
+  Result() : val(), error_code(kSuccess), start(nullptr), error_pc(nullptr) {
     error_msg.Reset(nullptr);
   }
 
@@ -92,7 +92,8 @@ std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
 class ErrorThrower {
  public:
   ErrorThrower(Isolate* isolate, const char* context)
-      : isolate_(isolate), context_(context), error_(false) {}
+      : isolate_(isolate), context_(context) {}
+  ~ErrorThrower();
 
   PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
 
@@ -103,12 +104,18 @@ class ErrorThrower {
     return Error("%s", str.str().c_str());
   }
 
-  bool error() const { return error_; }
+  i::Handle<i::String> Reify() {
+    auto result = message_;
+    message_ = i::Handle<i::String>();
+    return result;
+  }
+
+  bool error() const { return !message_.is_null(); }
 
  private:
   Isolate* isolate_;
   const char* context_;
-  bool error_;
+  i::Handle<i::String> message_;
 };
 }  // namespace wasm
 }  // namespace internal

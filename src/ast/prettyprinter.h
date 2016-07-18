@@ -12,10 +12,10 @@
 namespace v8 {
 namespace internal {
 
-class CallPrinter : public AstVisitor {
+class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
   explicit CallPrinter(Isolate* isolate, bool is_builtin);
-  virtual ~CallPrinter();
+  ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
   // string. The result string is alive as long as the CallPrinter is alive.
@@ -26,7 +26,7 @@ class CallPrinter : public AstVisitor {
   void Find(AstNode* node, bool print = false);
 
 // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -55,15 +55,14 @@ class CallPrinter : public AstVisitor {
 
 // TODO(nikolaos): Think about how to pretty print optional types.
 
-class PrettyPrinter: public AstVisitor {
+class AstPrinter final : public AstVisitor<AstPrinter> {
  public:
-  explicit PrettyPrinter(Isolate* isolate);
-  virtual ~PrettyPrinter();
+  explicit AstPrinter(Isolate* isolate);
+  ~AstPrinter();
 
   // The following routines print a node into a string.
-  // The result string is alive as long as the PrettyPrinter is alive.
+  // The result string is alive as long as the AstPrinter is alive.
   const char* Print(AstNode* node);
-  const char* PrintExpression(FunctionLiteral* program);
   const char* PrintProgram(FunctionLiteral* program);
 
   void PRINTF_FORMAT(2, 3) Print(const char* format, ...);
@@ -72,53 +71,18 @@ class PrettyPrinter: public AstVisitor {
   static void PrintOut(Isolate* isolate, AstNode* node);
 
   // Individual nodes
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
- private:
-  Isolate* isolate_;
-  char* output_;  // output string buffer
-  int size_;  // output_ size
-  int pos_;  // current printing position
-
- protected:
-  void Init();
-  const char* Output() const { return output_; }
-
-  virtual void PrintStatements(ZoneList<Statement*>* statements);
-  void PrintLabels(ZoneList<const AstRawString*>* labels);
-  virtual void PrintArguments(ZoneList<Expression*>* arguments);
-  void PrintLiteral(Handle<Object> value, bool quote);
-  void PrintLiteral(const AstRawString* value, bool quote);
-  void PrintParameters(Scope* scope);
-  void PrintDeclarations(ZoneList<Declaration*>* declarations);
-  void PrintFunctionLiteral(FunctionLiteral* function);
-  void PrintCaseClause(CaseClause* clause);
-  void PrintObjectLiteralProperty(ObjectLiteralProperty* property);
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-};
-
-
-// Prints the AST structure
-class AstPrinter: public PrettyPrinter {
- public:
-  explicit AstPrinter(Isolate* isolate);
-  virtual ~AstPrinter();
-
-  const char* PrintProgram(FunctionLiteral* program);
-
-  // Print a node to stdout.
-  static void PrintOut(Isolate* isolate, AstNode* node);
-
-  // Individual nodes
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
  private:
   friend class IndentedScope;
+
+  void Init();
+
+  void PrintLabels(ZoneList<const AstRawString*>* labels);
+  void PrintLiteral(const AstRawString* value, bool quote);
+  void PrintLiteral(Handle<Object> value, bool quote);
   void PrintIndented(const char* txt);
   void PrintIndentedVisit(const char* s, AstNode* node);
 
@@ -133,10 +97,17 @@ class AstPrinter: public PrettyPrinter {
                                     Handle<Object> value);
   void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
   void PrintProperties(ZoneList<ObjectLiteral::Property*>* properties);
+  void PrintTryStatement(TryStatement* try_statement);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+
+  Isolate* isolate_;
+  char* output_;  // output string buffer
+  int size_;      // output_ size
+  int pos_;       // current printing position
   int indent_;
 };
 

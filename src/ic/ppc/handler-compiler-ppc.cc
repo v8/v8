@@ -198,7 +198,8 @@ void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
 void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     MacroAssembler* masm, Handle<JSGlobalObject> global, Handle<Name> name,
     Register scratch, Label* miss) {
-  Handle<PropertyCell> cell = JSGlobalObject::EnsurePropertyCell(global, name);
+  Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
+      global, name, PropertyCellType::kInvalidated);
   Isolate* isolate = masm->isolate();
   DCHECK(cell->value()->IsTheHole(isolate));
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
@@ -328,17 +329,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
 static void StoreIC_PushArgs(MacroAssembler* masm) {
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
           StoreDescriptor::ValueRegister(),
-          VectorStoreICDescriptor::SlotRegister(),
-          VectorStoreICDescriptor::VectorRegister());
-}
-
-
-void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
-  StoreIC_PushArgs(masm);
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow);
+          StoreWithVectorDescriptor::SlotRegister(),
+          StoreWithVectorDescriptor::VectorRegister());
 }
 
 

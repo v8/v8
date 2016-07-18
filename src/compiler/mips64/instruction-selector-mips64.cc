@@ -109,7 +109,14 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsDeoptimize()) {
+    // If we can deoptimize as a result of the binop, we need to make sure that
+    // the deopt inputs are not overwritten by the binop result. One way
+    // to achieve that is to declare the output register as same-as-first.
+    outputs[output_count++] = g.DefineSameAsFirst(node);
+  } else {
+    outputs[output_count++] = g.DefineAsRegister(node);
+  }
   if (cont->IsSet()) {
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
@@ -312,7 +319,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  VisitBinop(this, node, kMips64And);
+  VisitBinop(this, node, kMips64And32);
 }
 
 
@@ -368,7 +375,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kMips64Or);
+  VisitBinop(this, node, kMips64Or32);
 }
 
 
@@ -384,7 +391,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (!mleft.right().HasValue()) {
       Mips64OperandGenerator g(this);
-      Emit(kMips64Nor, g.DefineAsRegister(node),
+      Emit(kMips64Nor32, g.DefineAsRegister(node),
            g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
       return;
@@ -393,11 +400,11 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   if (m.right().Is(-1)) {
     // Use Nor for bit negation and eliminate constant loading for xori.
     Mips64OperandGenerator g(this);
-    Emit(kMips64Nor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+    Emit(kMips64Nor32, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
          g.TempImmediate(0));
     return;
   }
-  VisitBinop(this, node, kMips64Xor);
+  VisitBinop(this, node, kMips64Xor32);
 }
 
 
@@ -1160,7 +1167,7 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
 }
 
 void InstructionSelector::VisitFloat32SubPreserveNan(Node* node) {
-  VisitRRR(this, kMips64SubS, node);
+  VisitRRR(this, kMips64SubPreserveNanS, node);
 }
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
@@ -1182,7 +1189,7 @@ void InstructionSelector::VisitFloat64Sub(Node* node) {
 }
 
 void InstructionSelector::VisitFloat64SubPreserveNan(Node* node) {
-  VisitRRR(this, kMips64SubD, node);
+  VisitRRR(this, kMips64SubPreserveNanD, node);
 }
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
@@ -1343,8 +1350,8 @@ void InstructionSelector::VisitFloat64Neg(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
                                                    InstructionCode opcode) {
   Mips64OperandGenerator g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12),
-       g.UseFixed(node->InputAt(1), f14))
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f2),
+       g.UseFixed(node->InputAt(1), f4))
       ->MarkAsCall();
 }
 
@@ -1363,7 +1370,7 @@ void InstructionSelector::EmitPrepareArguments(
   // Prepare for C function call.
   if (descriptor->IsCFunctionCall()) {
     Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -1730,6 +1737,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kMips64Dsub, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMips64MulOvf, cont);
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kMips64DaddOvf, cont);
@@ -1859,6 +1869,14 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   VisitBinop(this, node, kMips64Dsub, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kMips64MulOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMips64MulOvf, &cont);
+}
 
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
@@ -1964,6 +1982,9 @@ void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
   VisitRR(this, kMips64Float64ExtractHighWord32, node);
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kMips64Float64SilenceNaN, node);
+}
 
 void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Mips64OperandGenerator g(this);

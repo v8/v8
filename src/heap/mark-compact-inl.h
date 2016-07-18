@@ -13,26 +13,28 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
   } else {
-    Marking::BlackToGrey(obj);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+    Marking::BlackToGrey(mark_bit);
   }
 }
 
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
+  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (!marking_deque_.Unshift(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
-    Marking::BlackToGrey(obj);
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+    Marking::BlackToGrey(mark_bit);
   }
 }
 
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
   if (Marking::IsWhite(mark_bit)) {
     Marking::WhiteToBlack(mark_bit);
     DCHECK(obj->GetIsolate()->heap()->Contains(obj));
@@ -43,7 +45,7 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::IsWhite(mark_bit));
-  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
   Marking::WhiteToBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
 }
@@ -52,7 +54,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
 bool MarkCompactCollector::IsMarked(Object* obj) {
   DCHECK(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::IsBlackOrGrey(Marking::MarkBitFrom(heap_object));
+  return Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(heap_object));
 }
 
 
@@ -62,7 +64,7 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(Marking::IsBlackOrGrey(Marking::MarkBitFrom(object)));
+    DCHECK(Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object)));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }

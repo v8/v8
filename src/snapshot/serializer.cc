@@ -140,62 +140,61 @@ bool Serializer::BackReferenceIsAlreadyAllocated(
 }
 #endif  // DEBUG
 
-bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
-                                      WhereToPoint where_to_point, int skip) {
-  if (how_to_code == kPlain && where_to_point == kStartOfObject) {
-    // Encode a reference to a hot object by its index in the working set.
-    int index = hot_objects_.Find(obj);
-    if (index != HotObjectsList::kNotFound) {
-      DCHECK(index >= 0 && index < kNumberOfHotObjects);
-      if (FLAG_trace_serializer) {
-        PrintF(" Encoding hot object %d:", index);
-        obj->ShortPrint();
-        PrintF("\n");
-      }
-      if (skip != 0) {
-        sink_.Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
-        sink_.PutInt(skip, "HotObjectSkipDistance");
-      } else {
-        sink_.Put(kHotObject + index, "HotObject");
-      }
-      return true;
-    }
+bool Serializer::SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
+                                    WhereToPoint where_to_point, int skip) {
+  if (how_to_code != kPlain || where_to_point != kStartOfObject) return false;
+  // Encode a reference to a hot object by its index in the working set.
+  int index = hot_objects_.Find(obj);
+  if (index == HotObjectsList::kNotFound) return false;
+  DCHECK(index >= 0 && index < kNumberOfHotObjects);
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding hot object %d:", index);
+    obj->ShortPrint();
+    PrintF("\n");
   }
+  if (skip != 0) {
+    sink_.Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
+    sink_.PutInt(skip, "HotObjectSkipDistance");
+  } else {
+    sink_.Put(kHotObject + index, "HotObject");
+  }
+  return true;
+}
+bool Serializer::SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
+                                        WhereToPoint where_to_point, int skip) {
   SerializerReference reference = reference_map_.Lookup(obj);
-  if (reference.is_valid()) {
-    // Encode the location of an already deserialized object in order to write
-    // its location into a later object.  We can encode the location as an
-    // offset fromthe start of the deserialized objects or as an offset
-    // backwards from thecurrent allocation pointer.
-    if (reference.is_attached_reference()) {
-      FlushSkip(skip);
-      if (FLAG_trace_serializer) {
-        PrintF(" Encoding attached reference %d\n",
-               reference.attached_reference_index());
-      }
-      PutAttachedReference(reference, how_to_code, where_to_point);
-    } else {
-      DCHECK(reference.is_back_reference());
-      if (FLAG_trace_serializer) {
-        PrintF(" Encoding back reference to: ");
-        obj->ShortPrint();
-        PrintF("\n");
-      }
-
-      PutAlignmentPrefix(obj);
-      AllocationSpace space = reference.space();
-      if (skip == 0) {
-        sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
-      } else {
-        sink_.Put(kBackrefWithSkip + how_to_code + where_to_point + space,
-                  "BackRefWithSkip");
-        sink_.PutInt(skip, "BackRefSkipDistance");
-      }
-      PutBackReference(obj, reference);
+  if (!reference.is_valid()) return false;
+  // Encode the location of an already deserialized object in order to write
+  // its location into a later object.  We can encode the location as an
+  // offset fromthe start of the deserialized objects or as an offset
+  // backwards from thecurrent allocation pointer.
+  if (reference.is_attached_reference()) {
+    FlushSkip(skip);
+    if (FLAG_trace_serializer) {
+      PrintF(" Encoding attached reference %d\n",
+             reference.attached_reference_index());
     }
-    return true;
+    PutAttachedReference(reference, how_to_code, where_to_point);
+  } else {
+    DCHECK(reference.is_back_reference());
+    if (FLAG_trace_serializer) {
+      PrintF(" Encoding back reference to: ");
+      obj->ShortPrint();
+      PrintF("\n");
+    }
+
+    PutAlignmentPrefix(obj);
+    AllocationSpace space = reference.space();
+    if (skip == 0) {
+      sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
+    } else {
+      sink_.Put(kBackrefWithSkip + how_to_code + where_to_point + space,
+                "BackRefWithSkip");
+      sink_.PutInt(skip, "BackRefSkipDistance");
+    }
+    PutBackReference(obj, reference);
   }
-  return false;
+  return true;
 }
 
 void Serializer::PutRoot(int root_index, HeapObject* object,
@@ -221,6 +220,7 @@ void Serializer::PutRoot(int root_index, HeapObject* object,
     FlushSkip(skip);
     sink_.Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
     sink_.PutInt(root_index, "root_index");
+    hot_objects_.Add(object);
   }
 }
 

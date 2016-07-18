@@ -6,10 +6,11 @@
 
 #include "src/accessors.h"
 #include "src/contexts.h"
-#include "src/debug/debug.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
+#include "src/debug/debug.h"
 #include "src/frames-inl.h"
+#include "src/globals.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -54,8 +55,9 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
   // Get the frame where the debugging is performed.
-  JavaScriptFrameIterator it(isolate, frame_id);
-  JavaScriptFrame* frame = it.frame();
+  StackTraceFrameIterator it(isolate, frame_id);
+  if (!it.is_javascript()) return isolate->factory()->undefined_value();
+  JavaScriptFrame* frame = it.javascript_frame();
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -97,9 +99,9 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(
-          source, outer_info, context, SLOPPY, NO_PARSE_RESTRICTION,
-          RelocInfo::kNoPosition, RelocInfo::kNoPosition),
+      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
+                                    NO_PARSE_RESTRICTION, kNoSourcePosition,
+                                    kNoSourcePosition),
       Object);
 
   Handle<Object> result;
@@ -126,8 +128,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  Handle<JSFunction> local_function =
-      Handle<JSFunction>::cast(frame_inspector.GetFunction());
+  Handle<JSFunction> local_function = frame_inspector.GetFunction();
   Handle<Context> outer_context(local_function->context());
   evaluation_context_ = outer_context;
   outer_info_ = handle(local_function->shared());

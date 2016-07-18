@@ -493,8 +493,6 @@ class Deoptimizer : public Malloced {
   static DeoptimizedFrameInfo* DebuggerInspectableFrame(JavaScriptFrame* frame,
                                                         int jsframe_index,
                                                         Isolate* isolate);
-  static void DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
-                                             Isolate* isolate);
 
   // Makes sure that there is enough room in the relocation
   // information of a code object to perform lazy deoptimization

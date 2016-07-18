@@ -75,7 +75,7 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNop) {
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
   Initialize(1, 1);
   BytecodeNode node(Bytecode::kNop);
-  node.source_info().Update({3, false});
+  node.source_info().MakeExpressionPosition(3);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
@@ -84,7 +84,7 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopStatement) {
   Initialize(1, 1);
   BytecodeNode node(Bytecode::kNop);
-  node.source_info().Update({3, true});
+  node.source_info().MakeStatementPosition(3);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());

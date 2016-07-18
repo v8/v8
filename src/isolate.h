@@ -5,6 +5,7 @@
 #ifndef V8_ISOLATE_H_
 #define V8_ISOLATE_H_
 
+#include <memory>
 #include <queue>
 #include <set>
 
@@ -14,7 +15,7 @@
 #include "src/base/accounting-allocator.h"
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/cancelable-task.h"
 #include "src/contexts.h"
 #include "src/date.h"
@@ -42,6 +43,8 @@ namespace internal {
 class BasicBlockProfiler;
 class Bootstrapper;
 class CallInterfaceDescriptorData;
+class CodeAgingHelper;
+class CodeEventDispatcher;
 class CodeGenerator;
 class CodeRange;
 class CodeStubDescriptor;
@@ -66,7 +69,6 @@ class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class Logger;
 class MaterializedObjectStore;
-class CodeAgingHelper;
 class RegExpStack;
 class SaveContext;
 class StatsTable;
@@ -393,35 +395,35 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 typedef List<HeapObject*> DebugObjectCache;
 
-#define ISOLATE_INIT_LIST(V)                                                   \
-  /* Assembler state. */                                                       \
-  V(FatalErrorCallback, exception_behavior, NULL)                              \
-  V(LogEventCallback, event_logger, NULL)                                      \
-  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
-  /* To distinguish the function templates, so that we can find them in the */ \
-  /* function cache of the native context. */                                  \
-  V(int, next_serial_number, 0)                                                \
-  V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
-  /* State for Relocatable. */                                                 \
-  V(Relocatable*, relocatable_top, NULL)                                       \
-  V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
-  V(Object*, string_stream_current_security_token, NULL)                       \
-  V(ExternalReferenceTable*, external_reference_table, NULL)                   \
-  V(base::HashMap*, external_reference_map, NULL)                              \
-  V(base::HashMap*, root_index_map, NULL)                                      \
-  V(int, pending_microtask_count, 0)                                           \
-  V(HStatistics*, hstatistics, NULL)                                           \
-  V(CompilationStatistics*, turbo_statistics, NULL)                            \
-  V(HTracer*, htracer, NULL)                                                   \
-  V(CodeTracer*, code_tracer, NULL)                                            \
-  V(bool, fp_stubs_generated, false)                                           \
-  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
-  V(const v8::StartupData*, snapshot_blob, NULL)                               \
-  V(int, code_and_metadata_size, 0)                                            \
-  V(int, bytecode_and_metadata_size, 0)                                        \
-  /* true if being profiled. Causes collection of extra compile info. */       \
-  V(bool, is_profiling, false)                                                 \
+#define ISOLATE_INIT_LIST(V)                                                  \
+  /* Assembler state. */                                                      \
+  V(FatalErrorCallback, exception_behavior, nullptr)                          \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
+  V(LogEventCallback, event_logger, nullptr)                                  \
+  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
+  V(ExternalReferenceRedirectorPointer*, external_reference_redirector,       \
+    nullptr)                                                                  \
+  /* State for Relocatable. */                                                \
+  V(Relocatable*, relocatable_top, nullptr)                                   \
+  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
+  V(Object*, string_stream_current_security_token, nullptr)                   \
+  V(ExternalReferenceTable*, external_reference_table, nullptr)               \
+  V(intptr_t*, api_external_references, nullptr)                              \
+  V(base::HashMap*, external_reference_map, nullptr)                          \
+  V(base::HashMap*, root_index_map, nullptr)                                  \
+  V(int, pending_microtask_count, 0)                                          \
+  V(HStatistics*, hstatistics, nullptr)                                       \
+  V(CompilationStatistics*, turbo_statistics, nullptr)                        \
+  V(HTracer*, htracer, nullptr)                                               \
+  V(CodeTracer*, code_tracer, nullptr)                                        \
+  V(bool, fp_stubs_generated, false)                                          \
+  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
+  V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
+  V(const v8::StartupData*, snapshot_blob, nullptr)                           \
+  V(int, code_and_metadata_size, 0)                                           \
+  V(int, bytecode_and_metadata_size, 0)                                       \
+  /* true if being profiled. Causes collection of extra compile info. */      \
+  V(bool, is_profiling, false)                                                \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -700,8 +702,6 @@ class Isolate {
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
       Handle<JSReceiver> error_object, Handle<Object> caller);
   Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
-  Handle<JSArray> GetDetailedFromSimpleStackTrace(
-      Handle<JSObject> error_object);
 
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -733,8 +733,7 @@ class Isolate {
 
   // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
-  // clause will consume or re-throw an exception. We conservatively assume any
-  // finally clause will behave as if the exception were consumed.
+  // clause will consume or re-throw an exception.
   enum CatchType { NOT_CAUGHT, CAUGHT_BY_JAVASCRIPT, CAUGHT_BY_EXTERNAL };
   CatchType PredictExceptionCatcher();
 
@@ -789,8 +788,6 @@ class Isolate {
   char* ArchiveThread(char* to);
   char* RestoreThread(char* from);
 
-  static const char* const kStackOverflowMessage;
-
   static const int kUC16AlphabetSize = 256;  // See StringSearchBase.
   static const int kBMMaxShift = 250;        // See StringSearchBase.
 
@@ -839,7 +836,8 @@ class Isolate {
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
   StatsTable* stats_table();
-  StubCache* stub_cache() { return stub_cache_; }
+  StubCache* load_stub_cache() { return load_stub_cache_; }
+  StubCache* store_stub_cache() { return store_stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
@@ -919,7 +917,9 @@ class Isolate {
   Debug* debug() { return debug_; }
 
   bool* is_profiling_address() { return &is_profiling_; }
-  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+  CodeEventDispatcher* code_event_dispatcher() const {
+    return code_event_dispatcher_.get();
+  }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
@@ -1250,8 +1250,6 @@ class Isolate {
 
   const char* RAILModeName(RAILMode rail_mode) const {
     switch (rail_mode) {
-      case PERFORMANCE_DEFAULT:
-        return "DEFAULT";
       case PERFORMANCE_RESPONSE:
         return "RESPONSE";
       case PERFORMANCE_ANIMATION:
@@ -1260,11 +1258,13 @@ class Isolate {
         return "IDLE";
       case PERFORMANCE_LOAD:
         return "LOAD";
-      default:
-        UNREACHABLE();
     }
     return "";
   }
+
+  // TODO(alph): Remove along with the deprecated GetCpuProfiler().
+  friend v8::CpuProfiler* v8::Isolate::GetCpuProfiler();
+  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
 
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
@@ -1279,7 +1279,8 @@ class Isolate {
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
-  StubCache* stub_cache_;
+  StubCache* load_stub_cache_;
+  StubCache* store_stub_cache_;
   CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
   bool deoptimizer_lazy_throw_;
@@ -1312,7 +1313,7 @@ class Isolate {
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
-  RAILMode rail_mode_;
+  base::AtomicValue<RAILMode> rail_mode_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1338,6 +1339,7 @@ class Isolate {
   Debug* debug_;
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
+  std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
 
   interpreter::Interpreter* interpreter_;
@@ -1460,7 +1462,7 @@ class SaveContext BASE_EMBEDDED {
   SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool IsBelowFrame(JavaScriptFrame* frame) {
+  bool IsBelowFrame(StandardFrame* frame) {
     return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
   }
 

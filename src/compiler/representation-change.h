@@ -73,12 +73,20 @@ class Truncation final {
   static bool LessGeneral(TruncationKind rep1, TruncationKind rep2);
 };
 
-enum class TypeCheckKind : uint8_t {
-  kNone,
-  kSigned32,
-  kNumberOrUndefined,
-  kNumber
-};
+enum class TypeCheckKind : uint8_t { kNone, kSigned32, kNumberOrOddball };
+
+inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
+  switch (type_check) {
+    case TypeCheckKind::kNone:
+      return os << "None";
+    case TypeCheckKind::kSigned32:
+      return os << "Signed32";
+    case TypeCheckKind::kNumberOrOddball:
+      return os << "NumberOrOddball";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 // The {UseInfo} class is used to describe a use of an input of a node.
 //
@@ -126,9 +134,9 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
                    TypeCheckKind::kSigned32);
   }
-  static UseInfo CheckedNumberOrUndefinedAsFloat64() {
+  static UseInfo CheckedNumberOrOddballAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumberOrUndefined);
+                   TypeCheckKind::kNumberOrOddball);
   }
 
   // Undetermined representation.
@@ -175,6 +183,7 @@ class RepresentationChanger final {
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
+  const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Float64OperatorFor(IrOpcode::Value opcode);
 
   MachineType TypeForBasePointer(const FieldAccess& access) {

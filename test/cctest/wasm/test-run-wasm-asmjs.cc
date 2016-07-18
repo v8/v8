@@ -228,6 +228,9 @@ WASM_EXEC_TEST(StoreMemI32_oob_asm) {
     BUILD(r, WASM_UNOP(OP_TYPE, WASM_GET_LOCAL(0)));                          \
     CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],  \
                                           RelocInfo::WASM_MEMORY_REFERENCE)); \
+    CHECK_NE(                                                                 \
+        0, GetMatchingRelocInfoCount(module.instance->function_code[0],       \
+                                     RelocInfo::WASM_MEMORY_SIZE_REFERENCE)); \
   }
 
 FOREACH_INT_CHECKED_LOAD_OP(INT_LOAD_TEST)
@@ -240,45 +243,55 @@ FOREACH_INT_CHECKED_LOAD_OP(INT_LOAD_TEST)
     BUILD(r, WASM_BINOP(OP_TYPE, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));      \
     CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],  \
                                           RelocInfo::WASM_MEMORY_REFERENCE)); \
+    CHECK_NE(                                                                 \
+        0, GetMatchingRelocInfoCount(module.instance->function_code[0],       \
+                                     RelocInfo::WASM_MEMORY_SIZE_REFERENCE)); \
   }
 
 FOREACH_INT_CHECKED_STORE_OP(INT_STORE_TEST)
 
 TEST(RunWasm_AsmCheckedLoadFloat32RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<float_t> r(&module, MachineType::Uint32());
+  WasmRunner<float> r(&module, MachineType::Uint32());
   BUILD(r, WASM_UNOP(kExprF32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
                                         RelocInfo::WASM_MEMORY_REFERENCE));
+  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+                                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedStoreFloat32RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<float_t> r(&module, MachineType::Uint32(), MachineType::Float32());
+  WasmRunner<float> r(&module, MachineType::Uint32(), MachineType::Float32());
   BUILD(r, WASM_BINOP(kExprF32AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
                                         RelocInfo::WASM_MEMORY_REFERENCE));
+  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+                                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedLoadFloat64RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<double_t> r(&module, MachineType::Uint32());
+  WasmRunner<double> r(&module, MachineType::Uint32());
   BUILD(r, WASM_UNOP(kExprF64AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
                                         RelocInfo::WASM_MEMORY_REFERENCE));
+  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+                                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedStoreFloat64RelocInfo) {
   TestingModule module(kExecuteCompiled);
-  WasmRunner<double_t> r(&module, MachineType::Uint32(),
-                         MachineType::Float64());
+  WasmRunner<double> r(&module, MachineType::Uint32(), MachineType::Float64());
   BUILD(r, WASM_BINOP(kExprF64AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
   CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
                                         RelocInfo::WASM_MEMORY_REFERENCE));
+  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+                                        RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }

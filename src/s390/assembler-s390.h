@@ -91,6 +91,7 @@ namespace internal {
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
@@ -145,8 +146,6 @@ struct Register {
     return r;
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -187,6 +186,8 @@ const Register kLithiumScratch = r1;  // lithium scratch.
 const Register kRootRegister = r10;   // Roots array pointer.
 const Register cp = r13;              // JavaScript context pointer.
 
+static const bool kSimpleFPAliasing = true;
+
 // Double word FP register.
 struct DoubleRegister {
   enum Code {
@@ -200,8 +201,6 @@ struct DoubleRegister {
   static const int kNumRegisters = Code::kAfterLast;
   static const int kMaxNumRegisters = kNumRegisters;
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
 
@@ -548,7 +547,6 @@ class Assembler : public AssemblerBase {
 
   // Helper for unconditional branch to Label with update to save register
   void b(Register r, Label* l) {
-    positions_recorder()->WriteRecordedPositions();
     int32_t halfwords = branch_offset(l) / 2;
     brasl(r, Operand(halfwords));
   }
@@ -1252,10 +1250,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,
                                           ConstantPoolEntry::Type type) {
@@ -1451,9 +1445,6 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
 
   List<Handle<Code> > code_targets_;
-
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

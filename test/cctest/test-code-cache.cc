@@ -19,6 +19,8 @@ static Handle<Code> GetDummyCode(Isolate* isolate) {
                    0,         // instr_size
                    0,         // reloc_size
                    0,         // constant_pool_size
+                   nullptr,   // unwinding_info
+                   0,         // unwinding_info_size
                    nullptr};  // origin
   Code::Flags flags =
       Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState, kCacheOnReceiver);

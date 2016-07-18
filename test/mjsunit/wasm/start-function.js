@@ -65,8 +65,8 @@ assertFails(kSig_i_dd, [kExprGetLocal, 0]);
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprNop]);
 
-  builder.addExplicitSection([kDeclStartFunction, 0]);
-  builder.addExplicitSection([kDeclStartFunction, 0]);
+  builder.addExplicitSection([kDeclStart, 0]);
+  builder.addExplicitSection([kDeclStart, 0]);
 
   assertThrows(builder.instantiate);
 })();
@@ -98,7 +98,7 @@ assertFails(kSig_i_dd, [kExprGetLocal, 0]);
   }};
 
   var builder = new WasmModuleBuilder();
-  var sig_index = builder.addSignature(kSig_v_v);
+  var sig_index = builder.addType(kSig_v_v);
 
   builder.addImport("foo", sig_index);
   var func = builder.addFunction("", sig_index)

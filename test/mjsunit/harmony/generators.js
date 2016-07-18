@@ -638,3 +638,25 @@ function Throw(generator, ...args) {
   assertEquals({value: 42, done: false}, Next(g));
   assertEquals({value: 42, done: false}, Next(g));
 }
+
+{
+  let foo = function*() {
+    yield* (function*() { yield 42; }());
+    assertUnreachable();
+  }
+  g = foo();
+  assertEquals({value: 42, done: false}, Next(g));
+  assertEquals({value: 23, done: true}, Return(g, 23));
+}
+
+{
+  let iterable = {
+    [Symbol.iterator]() {
+      return { next() { return {} } };
+    }
+  };
+  let foo = function*() { yield* iterable };
+  g = foo();
+  g.next();
+  assertThrows(() => Throw(g), TypeError);
+}

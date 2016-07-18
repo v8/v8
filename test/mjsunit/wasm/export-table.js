@@ -72,3 +72,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(kReturnValue, module.exports["0"]());
 })();
+
+(function testExportNameClash() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("one",   kSig_v_v).addBody([kExprNop]).exportAs("main");
+  builder.addFunction("two",   kSig_v_v).addBody([kExprNop]).exportAs("other");
+  builder.addFunction("three", kSig_v_v).addBody([kExprNop]).exportAs("main");
+
+  try {
+    builder.instantiate();
+    assertUnreachable("should have thrown an exception");
+  } catch (e) {
+    assertContains("Duplicate export", e.toString());
+  }
+})();

@@ -50,6 +50,8 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
+  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
+
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
@@ -60,7 +62,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
-  if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
 
@@ -88,6 +90,17 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
   SerializeDeferredObjects();
   Pad();
+}
+
+int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
+  int index;
+  if (!partial_cache_index_map_.LookupOrInsert(heap_object, &index)) {
+    // This object is not part of the partial snapshot cache yet. Add it to the
+    // startup snapshot so we can refer to it via partial snapshot index from
+    // the partial snapshot.
+    VisitPointer(reinterpret_cast<Object**>(&heap_object));
+  }
+  return index;
 }
 
 void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {

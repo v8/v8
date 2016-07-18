@@ -92,13 +92,14 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
   for (int k = index; k < uri_length; k++) {
     uc16 code = uri_content->Get(k);
     if (code == '%') {
-      uc16 decoded;
+      int two_digits;
       if (k + 2 >= uri_length ||
-          (decoded = TwoDigitHex(uri_content->Get(k + 1),
-                                 uri_content->Get(k + 2))) < 0) {
+          (two_digits = TwoDigitHex(uri_content->Get(k + 1),
+                                    uri_content->Get(k + 2))) < 0) {
         return false;
       }
       k += 2;
+      uc16 decoded = static_cast<uc16>(two_digits);
       if (decoded > unibrow::Utf8::kMaxOneByteChar) {
         uint8_t octets[unibrow::Utf8::kMaxEncodedSize];
         octets[0] = decoded;
@@ -108,15 +109,13 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
           if (number_of_continuation_bytes > 3 || k + 3 >= uri_length) {
             return false;
           }
-
-          uc16 continuation_byte;
-
           if (uri_content->Get(++k) != '%' ||
-              (continuation_byte = TwoDigitHex(uri_content->Get(k + 1),
-                                               uri_content->Get(k + 2))) < 0) {
+              (two_digits = TwoDigitHex(uri_content->Get(k + 1),
+                                        uri_content->Get(k + 2))) < 0) {
             return false;
           }
           k += 2;
+          uc16 continuation_byte = static_cast<uc16>(two_digits);
           octets[number_of_continuation_bytes] = continuation_byte;
         }
 
@@ -143,13 +142,14 @@ bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
   for (int k = 0; k < uri_length; k++) {
     uc16 code = uri_content.Get(k);
     if (code == '%') {
-      uc16 decoded;
+      int two_digits;
       if (k + 2 >= uri_length ||
-          (decoded = TwoDigitHex(uri_content.Get(k + 1),
-                                 uri_content.Get(k + 2))) < 0) {
+          (two_digits = TwoDigitHex(uri_content.Get(k + 1),
+                                    uri_content.Get(k + 2))) < 0) {
         return false;
       }
 
+      uc16 decoded = static_cast<uc16>(two_digits);
       if (decoded > unibrow::Utf8::kMaxOneByteChar) {
         return IntoTwoByte(k, is_uri, uri_length, &uri_content,
                            two_byte_buffer);

@@ -854,6 +854,52 @@ THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
   CHECK_EQ(42 * 10, value->Int32Value(context.local()).FromJust());
 }
 
+// Test load of a non-existing global when a global object has an interceptor.
+THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> templ_global = v8::ObjectTemplate::New(isolate);
+  templ_global->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter));
+
+  LocalContext context(nullptr, templ_global);
+  i::Handle<i::JSReceiver> global_proxy =
+      v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
+  CHECK(global_proxy->IsJSGlobalProxy());
+  i::Handle<i::JSGlobalObject> global(
+      i::JSGlobalObject::cast(global_proxy->map()->prototype()));
+  CHECK(global->map()->has_named_interceptor());
+
+  v8::Local<Value> value = CompileRun(
+      "var f = function() { "
+      "  try {"
+      "    x;"
+      "    return false;"
+      "  } catch(e) {"
+      "    return true;"
+      "  }"
+      "};"
+      "for (var i = 0; i < 10; i++) {"
+      "  f();"
+      "};"
+      "f();");
+  CHECK_EQ(true, value->BooleanValue(context.local()).FromJust());
+
+  value = CompileRun(
+      "var f = function() { "
+      "  try {"
+      "    typeof(x);"
+      "    return true;"
+      "  } catch(e) {"
+      "    return false;"
+      "  }"
+      "};"
+      "for (var i = 0; i < 10; i++) {"
+      "  f();"
+      "};"
+      "f();");
+  CHECK_EQ(true, value->BooleanValue(context.local()).FromJust());
+}
 
 static void InterceptorLoadICGetter0(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {

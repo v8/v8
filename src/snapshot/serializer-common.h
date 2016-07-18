@@ -94,31 +94,26 @@ class SerializerDeserializer : public ObjectVisitor {
   STATIC_ASSERT(5 == kNumberOfSpaces);
   enum Where {
     // 0x00..0x04  Allocate new object, in specified space.
-    kNewObject = 0,
-    // 0x05        Unused (including 0x25, 0x45, 0x65).
-    // 0x06        Unused (including 0x26, 0x46, 0x66).
-    // 0x07        Unused (including 0x27, 0x47, 0x67).
+    kNewObject = 0x00,
     // 0x08..0x0c  Reference to previous object from space.
     kBackref = 0x08,
-    // 0x0d        Unused (including 0x2d, 0x4d, 0x6d).
-    // 0x0e        Unused (including 0x2e, 0x4e, 0x6e).
-    // 0x0f        Unused (including 0x2f, 0x4f, 0x6f).
     // 0x10..0x14  Reference to previous object from space after skip.
     kBackrefWithSkip = 0x10,
-    // 0x15        Unused (including 0x35, 0x55, 0x75).
-    // 0x16        Unused (including 0x36, 0x56, 0x76).
-    // 0x17        Misc (including 0x37, 0x57, 0x77).
-    // 0x18        Root array item.
-    kRootArray = 0x18,
-    // 0x19        Object in the partial snapshot cache.
-    kPartialSnapshotCache = 0x19,
-    // 0x1a        External reference referenced by id.
-    kExternalReference = 0x1a,
-    // 0x1b        Object provided in the attached list.
-    kAttachedReference = 0x1b,
-    // 0x1c        Builtin code referenced by index.
-    kBuiltin = 0x1c
-    // 0x1d..0x1f  Misc (including 0x3d..0x3f, 0x5d..0x5f, 0x7d..0x7f)
+
+    // 0x05       Root array item.
+    kRootArray = 0x05,
+    // 0x06        Object in the partial snapshot cache.
+    kPartialSnapshotCache = 0x06,
+    // 0x07        External reference referenced by id.
+    kExternalReference = 0x07,
+
+    // 0x0d        Object provided in the attached list.
+    kAttachedReference = 0x0d,
+    // 0x0e        Builtin code referenced by index.
+    kBuiltin = 0x0e,
+
+    // 0x0f        Misc, see below (incl. 0x2f, 0x4f, 0x6f).
+    // 0x15..0x1f  Misc, see below (incl. 0x35..0x3f, 0x55..0x5f, 0x75..0x7f).
   };
 
   static const int kWhereMask = 0x1f;
@@ -147,36 +142,45 @@ class SerializerDeserializer : public ObjectVisitor {
 
   // ---------- Misc ----------
   // Skip.
-  static const int kSkip = 0x1d;
-  // Internal reference encoded as offsets of pc and target from code entry.
-  static const int kInternalReference = 0x1e;
-  static const int kInternalReferenceEncoded = 0x1f;
+  static const int kSkip = 0x0f;
   // Do nothing, used for padding.
-  static const int kNop = 0x3d;
+  static const int kNop = 0x2f;
   // Move to next reserved chunk.
-  static const int kNextChunk = 0x3e;
+  static const int kNextChunk = 0x4f;
   // Deferring object content.
-  static const int kDeferred = 0x3f;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x5d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x5e;
+  static const int kDeferred = 0x6f;
+  // Alignment prefixes 0x15..0x17
+  static const int kAlignmentPrefix = 0x15;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
   // Examine the build process for architecture, version or configuration
   // mismatches.
-  static const int kSynchronize = 0x17;
+  static const int kSynchronize = 0x18;
   // Repeats of variable length.
-  static const int kVariableRepeat = 0x37;
+  static const int kVariableRepeat = 0x19;
   // Raw data of variable length.
-  static const int kVariableRawData = 0x57;
-  // Alignment prefixes 0x7d..0x7f
-  static const int kAlignmentPrefix = 0x7d;
+  static const int kVariableRawData = 0x1a;
+  // Internal reference encoded as offsets of pc and target from code entry.
+  static const int kInternalReference = 0x1b;
+  static const int kInternalReferenceEncoded = 0x1c;
+  // Used for the source code of the natives, which is in the executable, but
+  // is referred to from external strings in the snapshot.
+  static const int kNativesStringResource = 0x1d;
+  // Used for the source code for compiled stubs, which is in the executable,
+  // but is referred to from external strings in the snapshot.
+  static const int kExtraNativesStringResource = 0x1e;
 
-  // 0x77 unused
+  // 8 hot (recently seen or back-referenced) objects with optional skip.
+  static const int kNumberOfHotObjects = 8;
+  STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
+  // 0x38..0x3f
+  static const int kHotObject = 0x38;
+  // 0x58..0x5f
+  static const int kHotObjectWithSkip = 0x58;
+  static const int kHotObjectMask = 0x07;
+
+  // 0x1f, 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -187,26 +191,20 @@ class SerializerDeserializer : public ObjectVisitor {
   static const int kRootArrayConstantsWithSkip = 0xa0;
   static const int kRootArrayConstantsMask = 0x1f;
 
-  // 8 hot (recently seen or back-referenced) objects with optional skip.
-  static const int kNumberOfHotObjects = 0x08;
-  // 0xc0..0xc7
-  static const int kHotObject = 0xc0;
-  // 0xc8..0xcf
-  static const int kHotObjectWithSkip = 0xc8;
-  static const int kHotObjectMask = 0x07;
-
   // 32 common raw data lengths.
   static const int kNumberOfFixedRawData = 0x20;
-  // 0xd0..0xef
-  static const int kFixedRawData = 0xd0;
+  // 0xc0..0xdf
+  static const int kFixedRawData = 0xc0;
   static const int kOnePointerRawData = kFixedRawData;
   static const int kFixedRawDataStart = kFixedRawData - 1;
 
   // 16 repeats lengths.
   static const int kNumberOfFixedRepeat = 0x10;
-  // 0xf0..0xff
-  static const int kFixedRepeat = 0xf0;
+  // 0xe0..0xef
+  static const int kFixedRepeat = 0xe0;
   static const int kFixedRepeatStart = kFixedRepeat - 1;
+
+  // 0xf0..0xff unused.
 
   // ---------- special values ----------
   static const int kAnyOldSpace = -1;

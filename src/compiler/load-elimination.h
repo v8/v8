@@ -1,36 +1,34 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_COMPILER_LOAD_ELIMINATION_H_
 #define V8_COMPILER_LOAD_ELIMINATION_H_
 
-#include "src/compiler/graph-reducer.h"
-
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Zone;
+
 namespace compiler {
 
+// Forward declarations.
 class Graph;
-class SimplifiedOperatorBuilder;
 
-class LoadElimination final : public AdvancedReducer {
+// Eliminates redundant loads via scalar replacement of aggregates.
+class LoadElimination final {
  public:
-  explicit LoadElimination(Editor* editor, Graph* graph,
-                           SimplifiedOperatorBuilder* simplified)
-      : AdvancedReducer(editor), graph_(graph), simplified_(simplified) {}
-  ~LoadElimination() final;
+  LoadElimination(Graph* graph, Zone* zone) : graph_(graph), zone_(zone) {}
 
-  Reduction Reduce(Node* node) final;
+  void Run();
 
  private:
-  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   Graph* graph() const { return graph_; }
-
-  Reduction ReduceLoadField(Node* node);
+  Zone* zone() const { return zone_; }
 
   Graph* const graph_;
-  SimplifiedOperatorBuilder* const simplified_;
+  Zone* const zone_;
 };
 
 }  // namespace compiler

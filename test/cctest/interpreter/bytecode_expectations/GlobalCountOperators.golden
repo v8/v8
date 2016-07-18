@@ -16,10 +16,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 8
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   31 S> */ B(LdaGlobal), U8(1),
                 B(Inc),
   /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(3),
   /*   48 S> */ B(Return),
@@ -38,10 +38,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 13
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   31 S> */ B(LdaGlobal), U8(1),
                 B(ToNumber),
                 B(Star), R(0),
                 B(Dec),
@@ -63,10 +63,10 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 8
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   46 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   46 S> */ B(LdaGlobal), U8(1),
                 B(Dec),
   /*   55 E> */ B(StaGlobalStrict), U8(0), U8(3),
   /*   68 S> */ B(Return),
@@ -85,10 +85,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 13
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(0), U8(1),
+  /*   32 S> */ B(LdaGlobal), U8(1),
                 B(ToNumber),
                 B(Star), R(0),
                 B(Inc),

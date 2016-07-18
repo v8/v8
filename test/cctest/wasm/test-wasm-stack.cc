@@ -51,10 +51,10 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Isolate* isolate, Handle<Object> exc,
+void CheckExceptionInfos(Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
-  CHECK(Object::IsErrorObject(isolate, exc));
+  CHECK(exc->IsJSError());
 
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
@@ -110,16 +110,15 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // Line number is 1-based, with 0 == kNoLineNumberInfo.
+  // The column is 1-based, so add 1 to the actual byte offset.
   ExceptionInfo expected_exceptions[] = {
       {"a", 3, 8},                                            // -
       {"js", 4, 2},                                           // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 1},  // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 3},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
       {"callFn", 1, 24}                                       // -
   };
-  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
-                      expected_exceptions);
+  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
 
 // Trigger a trap in WASM, stack should be JS -> WASM -> WASM.
@@ -155,12 +154,11 @@ TEST(CollectDetailedWasmStack_WasmError) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(maybe_return_obj.is_null());
 
-  // Line number is 1-based, with 0 == kNoLineNumberInfo.
+  // The column is 1-based, so add 1 to the actual byte offset.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 1},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 1},  // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
       {"callFn", 1, 24}                                       //-
   };
-  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
-                      expected_exceptions);
+  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

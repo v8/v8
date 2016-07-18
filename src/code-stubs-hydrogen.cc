@@ -467,9 +467,14 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   HValue* closure = GetParameter(0);
   HValue* literal_index = GetParameter(1);
 
+  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
+  // point and wasn't caught since it wasn't built in the snapshot. We should
+  // probably just replace with a TurboFan stub rather than fixing it.
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   // This stub is very performance sensitive, the generated code must be tuned
   // so that it doesn't build and eager frame.
   info()->MarkMustNotHaveEagerFrame();
+#endif
 
   HValue* literals_array = Add<HLoadNamedField>(
       closure, nullptr, HObjectAccess::ForLiteralsPointer());
@@ -1363,8 +1368,21 @@ Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
 template <>
 HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
   HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
+  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
+  StoreTransitionStub::StoreMode store_mode = casted_stub()->store_mode();
 
-  switch (casted_stub()->store_mode()) {
+  if (store_mode != StoreTransitionStub::StoreMapOnly) {
+    value = GetParameter(StoreTransitionHelper::ValueIndex());
+    Representation representation = casted_stub()->representation();
+    if (representation.IsDouble()) {
+      // In case we are storing a double, assure that the value is a double
+      // before manipulating the properties backing store. Otherwise the actual
+      // store may deopt, leaving the backing store in an overallocated state.
+      value = AddUncasted<HForceRepresentation>(value, representation);
+    }
+  }
+
+  switch (store_mode) {
     case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
       HValue* properties = Add<HLoadNamedField>(
           object, nullptr, HObjectAccess::ForPropertiesPointer());
@@ -1392,9 +1410,8 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
     // Fall through.
     case StoreTransitionStub::StoreMapAndValue:
       // Store the new value into the "extended" object.
-      BuildStoreNamedField(
-          object, GetParameter(StoreTransitionHelper::ValueIndex()),
-          casted_stub()->index(), casted_stub()->representation(), true);
+      BuildStoreNamedField(object, value, casted_stub()->index(),
+                           casted_stub()->representation(), true);
     // Fall through.
 
     case StoreTransitionStub::StoreMapOnly:
@@ -1403,7 +1420,7 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
                             GetParameter(StoreTransitionHelper::MapIndex()));
       break;
   }
-  return GetParameter(StoreTransitionHelper::ValueIndex());
+  return value;
 }
 
 
@@ -1432,15 +1449,61 @@ Handle<Code> StoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
+  ElementsKind const from_kind = casted_stub()->from_kind();
+  ElementsKind const to_kind = casted_stub()->to_kind();
+  HValue* const object = GetParameter(0);
+  HValue* const map = GetParameter(1);
+
+  // The {object} is known to be a JSObject (otherwise it wouldn't have elements
+  // anyways).
+  object->set_type(HType::JSObject());
+
   info()->MarkAsSavesCallerDoubles();
 
-  BuildTransitionElementsKind(GetParameter(0),
-                              GetParameter(1),
-                              casted_stub()->from_kind(),
-                              casted_stub()->to_kind(),
-                              casted_stub()->is_js_array());
+  DCHECK_IMPLIES(IsFastHoleyElementsKind(from_kind),
+                 IsFastHoleyElementsKind(to_kind));
 
-  return GetParameter(0);
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(object);
+  }
+
+  if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    HInstruction* elements = AddLoadElements(object);
+
+    IfBuilder if_objecthaselements(this);
+    if_objecthaselements.IfNot<HCompareObjectEqAndBranch>(
+        elements, Add<HConstant>(isolate()->factory()->empty_fixed_array()));
+    if_objecthaselements.Then();
+    {
+      // Determine the elements capacity.
+      HInstruction* elements_length = AddLoadFixedArrayLength(elements);
+
+      // Determine the effective (array) length.
+      IfBuilder if_objectisarray(this);
+      if_objectisarray.If<HHasInstanceTypeAndBranch>(object, JS_ARRAY_TYPE);
+      if_objectisarray.Then();
+      {
+        // The {object} is a JSArray, load the special "length" property.
+        Push(Add<HLoadNamedField>(object, nullptr,
+                                  HObjectAccess::ForArrayLength(from_kind)));
+      }
+      if_objectisarray.Else();
+      {
+        // The {object} is some other JSObject.
+        Push(elements_length);
+      }
+      if_objectisarray.End();
+      HValue* length = Pop();
+
+      BuildGrowElementsCapacity(object, elements, from_kind, to_kind, length,
+                                elements_length);
+    }
+    if_objecthaselements.End();
+  }
+
+  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map);
+
+  return object;
 }
 
 
@@ -1861,121 +1924,6 @@ HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
 
 Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
-
-template<>
-HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
-  Counters* counters = isolate()->counters();
-  Factory* factory = isolate()->factory();
-  HInstruction* empty_fixed_array =
-      Add<HConstant>(factory->empty_fixed_array());
-  HInstruction* empty_literals_array =
-      Add<HConstant>(factory->empty_literals_array());
-  HValue* shared_info = GetParameter(0);
-
-  AddIncrementCounter(counters->fast_new_closure_total());
-
-  // Create a new closure from the given function info in new space
-  HValue* size = Add<HConstant>(JSFunction::kSize);
-  HInstruction* js_function =
-      Add<HAllocate>(size, HType::JSObject(), NOT_TENURED, JS_FUNCTION_TYPE,
-                     graph()->GetConstant0());
-
-  int map_index = Context::FunctionMapIndex(casted_stub()->language_mode(),
-                                            casted_stub()->kind());
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  HInstruction* native_context = BuildGetNativeContext();
-  HInstruction* map_slot_value = Add<HLoadNamedField>(
-      native_context, nullptr, HObjectAccess::ForContextSlot(map_index));
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
-
-  // Initialize the rest of the function.
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_literals_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
-                        graph()->GetConstantHole());
-  Add<HStoreNamedField>(
-      js_function, HObjectAccess::ForSharedFunctionInfoPointer(), shared_info);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
-                        context());
-
-  Handle<Code> lazy_builtin(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy));
-  HConstant* lazy = Add<HConstant>(lazy_builtin);
-  Add<HStoreCodeEntry>(js_function, lazy);
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForNextFunctionLinkPointer(),
-                        graph()->GetConstantUndefined());
-
-  return js_function;
-}
-
-
-Handle<Code> FastNewClosureStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template<>
-HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
-  int length = casted_stub()->slots() + Context::MIN_CONTEXT_SLOTS;
-
-  // Get the function.
-  HParameter* function = GetParameter(FastNewContextStub::kFunction);
-
-  // Allocate the context in new space.
-  HAllocate* function_context = Add<HAllocate>(
-      Add<HConstant>(length * kPointerSize + FixedArray::kHeaderSize),
-      HType::HeapObject(), NOT_TENURED, FIXED_ARRAY_TYPE,
-      graph()->GetConstant0());
-
-  // Set up the object header.
-  AddStoreMapConstant(function_context,
-                      isolate()->factory()->function_context_map());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForFixedArrayLength(),
-                        Add<HConstant>(length));
-
-  // Set up the fixed slots.
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::CLOSURE_INDEX),
-                        function);
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX),
-                        context());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
-                        graph()->GetConstantHole());
-
-  // Copy the native context from the previous context.
-  HValue* native_context = Add<HLoadNamedField>(
-      context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
-  Add<HStoreNamedField>(function_context, HObjectAccess::ForContextSlot(
-                                              Context::NATIVE_CONTEXT_INDEX),
-                        native_context);
-
-  // Initialize the rest of the slots to undefined.
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
-    Add<HStoreNamedField>(function_context,
-                          HObjectAccess::ForContextSlot(i),
-                          graph()->GetConstantUndefined());
-  }
-
-  return function_context;
-}
-
-
-Handle<Code> FastNewContextStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
@@ -2003,7 +1951,12 @@ HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
   HValue* input = GetParameter(RegExpConstructResultStub::kInput);
 
+  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
+  // point and wasn't caught since it wasn't built in the snapshot. We should
+  // probably just replace with a TurboFan stub rather than fixing it.
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   info()->MarkMustNotHaveEagerFrame();
+#endif
 
   return BuildRegExpConstructResult(length, index, input);
 }

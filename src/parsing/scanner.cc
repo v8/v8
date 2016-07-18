@@ -564,7 +564,7 @@ void Scanner::Scan() {
         Advance();
         if (c0_ == '-') {
           Advance();
-          if (c0_ == '>' && has_line_terminator_before_next_) {
+          if (c0_ == '>' && HasAnyLineTerminatorBeforeNext()) {
             // For compatibility with SpiderMonkey, we skip lines that
             // start with an HTML comment end '-->'.
             token = SkipSingleLineComment();
@@ -1453,7 +1453,6 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
         flag = RegExp::kMultiline;
         break;
       case 'u':
-        if (!FLAG_harmony_unicode_regexps) return Nothing<RegExp::Flags>();
         flag = RegExp::kUnicode;
         break;
       case 'y':

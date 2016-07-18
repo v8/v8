@@ -31,17 +31,6 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-// The root of a decoded tree.
-struct Tree {
-  LocalType type;     // tree type.
-  uint32_t count;     // number of children.
-  const byte* pc;     // start of the syntax tree.
-  TFNode* node;       // node in the TurboFan graph.
-  Tree* children[1];  // pointers to children.
-
-  WasmOpcode opcode() const { return static_cast<WasmOpcode>(*pc); }
-};
-
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -109,30 +98,6 @@ class WasmDecoder : public Decoder {
   size_t total_locals_;
   ZoneVector<LocalType>* local_types_;
 
-  byte ByteOperand(const byte* pc, const char* msg = "missing 1-byte operand") {
-    if ((pc + sizeof(byte)) >= limit_) {
-      error(pc, msg);
-      return 0;
-    }
-    return pc[1];
-  }
-
-  uint32_t Uint32Operand(const byte* pc) {
-    if ((pc + sizeof(uint32_t)) >= limit_) {
-      error(pc, "missing 4-byte operand");
-      return 0;
-    }
-    return read_u32(pc + 1);
-  }
-
-  uint64_t Uint64Operand(const byte* pc) {
-    if ((pc + sizeof(uint64_t)) >= limit_) {
-      error(pc, "missing 8-byte operand");
-      return 0;
-    }
-    return read_u64(pc + 1);
-  }
-
   inline bool Validate(const byte* pc, LocalIndexOperand& operand) {
     if (operand.index < total_locals_) {
       if (local_types_) {
@@ -157,10 +122,17 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
+  inline bool Complete(const byte* pc, CallFunctionOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->functions.size()) {
       operand.sig = m->module->functions[operand.index].sig;
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallFunctionOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1,
@@ -174,10 +146,17 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
+  inline bool Complete(const byte* pc, CallIndirectOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->signatures.size()) {
       operand.sig = m->module->signatures[operand.index];
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1,
@@ -191,16 +170,40 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
-  inline bool Validate(const byte* pc, CallImportOperand& operand) {
+  inline bool Complete(const byte* pc, CallImportOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->import_table.size()) {
       operand.sig = m->module->import_table[operand.index].sig;
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, CallImportOperand& operand) {
+    if (Complete(pc, operand)) {
       uint32_t expected = static_cast<uint32_t>(operand.sig->parameter_count());
       if (operand.arity != expected) {
         error(pc, pc + 1, "arity mismatch in import call (expected %u, got %u)",
               expected, operand.arity);
         return false;
       }
+      return true;
+    }
+    error(pc, pc + 1, "invalid signature index");
+    return false;
+  }
+
+  inline bool Complete(const byte* pc, JITSingleFunctionOperand& operand) {
+    ModuleEnv* m = module_;
+    if (m && m->module && operand.sig_index < m->module->signatures.size()) {
+      operand.sig = m->module->signatures[operand.sig_index];
+      return true;
+    }
+    return false;
+  }
+
+  inline bool Validate(const byte* pc, JITSingleFunctionOperand& operand) {
+    if (Complete(pc, operand)) {
       return true;
     }
     error(pc, pc + 1, "invalid signature index");
@@ -228,7 +231,7 @@ class WasmDecoder : public Decoder {
       return false;
     }
     // Verify table.
-    for (uint32_t i = 0; i < operand.table_count + 1; i++) {
+    for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
       uint32_t target = operand.read_entry(this, i);
       if (target >= block_depth) {
         error(operand.table + i * 2, "improper branch in br_table");
@@ -238,7 +241,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  int OpcodeArity(const byte* pc) {
+  unsigned OpcodeArity(const byte* pc) {
 #define DECLARE_ARITY(name, ...)                          \
   static const LocalType kTypes_##name[] = {__VA_ARGS__}; \
   static const int kArity_##name =                        \
@@ -301,6 +304,8 @@ class WasmDecoder : public Decoder {
         ReturnArityOperand operand(this, pc);
         return operand.arity;
       }
+      case kExprJITSingleFunction:
+        return 3;
 
 #define DECLARE_OPCODE_CASE(name, opcode, sig) \
   case kExpr##name:                            \
@@ -310,6 +315,7 @@ class WasmDecoder : public Decoder {
         FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_MISC_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
+        FOREACH_SIMPLE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
         FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
@@ -319,7 +325,7 @@ class WasmDecoder : public Decoder {
     }
   }
 
-  int OpcodeLength(const byte* pc) {
+  unsigned OpcodeLength(const byte* pc) {
     switch (static_cast<WasmOpcode>(*pc)) {
 #define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
@@ -353,6 +359,10 @@ class WasmDecoder : public Decoder {
         return 1 + operand.length;
       }
 
+      case kExprJITSingleFunction: {
+        JITSingleFunctionOperand operand(this, pc);
+        return 1 + operand.length;
+      }
       case kExprSetLocal:
       case kExprGetLocal: {
         LocalIndexOperand operand(this, pc);
@@ -387,11 +397,11 @@ class WasmDecoder : public Decoder {
   }
 };
 
-// A shift-reduce-parser strategy for decoding Wasm code that uses an explicit
-// shift-reduce strategy with multiple internal stacks.
-class SR_WasmDecoder : public WasmDecoder {
+// The full WASM decoder for bytecode. Both verifies bytecode and generates
+// a TurboFan IR graph.
+class WasmFullDecoder : public WasmDecoder {
  public:
-  SR_WasmDecoder(Zone* zone, TFBuilder* builder, FunctionBody& body)
+  WasmFullDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
       : WasmDecoder(body.module, body.sig, body.start, body.end),
         zone_(zone),
         builder_(builder),
@@ -544,7 +554,7 @@ class SR_WasmDecoder : public WasmDecoder {
   char* indentation() {
     static const int kMaxIndent = 64;
     static char bytes[kMaxIndent + 1];
-    for (int i = 0; i < kMaxIndent; i++) bytes[i] = ' ';
+    for (int i = 0; i < kMaxIndent; ++i) bytes[i] = ' ';
     bytes[kMaxIndent] = 0;
     if (stack_.size() < kMaxIndent / 2) {
       bytes[stack_.size() * 2] = 0;
@@ -558,15 +568,14 @@ class SR_WasmDecoder : public WasmDecoder {
     // Initialize {local_type_vec} from signature.
     if (sig_) {
       local_type_vec_.reserve(sig_->parameter_count());
-      for (size_t i = 0; i < sig_->parameter_count(); i++) {
+      for (size_t i = 0; i < sig_->parameter_count(); ++i) {
         local_type_vec_.push_back(sig_->GetParam(i));
       }
     }
     // Decode local declarations, if any.
-    int length;
-    uint32_t entries = consume_u32v(&length, "local decls count");
+    uint32_t entries = consume_u32v("local decls count");
     while (entries-- > 0 && pc_ < limit_) {
-      uint32_t count = consume_u32v(&length, "local count");
+      uint32_t count = consume_u32v("local count");
       byte code = consume_u8("local type");
       LocalType type;
       switch (code) {
@@ -601,7 +610,7 @@ class SR_WasmDecoder : public WasmDecoder {
     if (pc_ >= limit_) return;  // Nothing to do.
 
     while (true) {  // decoding loop.
-      int len = 1;
+      unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
       TRACE("  @%-6d #%02x:%-20s|", startrel(pc_), opcode,
             WasmOpcodes::ShortOpcodeName(opcode));
@@ -793,7 +802,7 @@ class SR_WasmDecoder : public WasmDecoder {
 
                 SsaEnv* copy = Steal(break_env);
                 ssa_env_ = copy;
-                for (uint32_t i = 0; i < operand.table_count + 1; i++) {
+                for (uint32_t i = 0; i < operand.table_count + 1; ++i) {
                   uint16_t target = operand.read_entry(this, i);
                   ssa_env_ = Split(copy);
                   ssa_env_->control = (i == operand.table_count)
@@ -975,12 +984,6 @@ class SR_WasmDecoder : public WasmDecoder {
           case kExprMemorySize:
             Push(kAstI32, BUILD(MemSize, 0));
             break;
-          case kExprGrowMemory: {
-            Value val = Pop(0, kAstI32);
-            USE(val);  // TODO(titzer): build node for grow memory
-            Push(kAstI32, BUILD(Int32Constant, 0));
-            break;
-          }
           case kExprCallFunction: {
             CallFunctionOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
@@ -1016,6 +1019,30 @@ class SR_WasmDecoder : public WasmDecoder {
             len = 1 + operand.length;
             break;
           }
+          case kSimdPrefix: {
+            if (FLAG_wasm_simd_prototype) {
+              len++;
+              byte simd_index = *(pc_ + 1);
+              opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
+              DecodeSimdOpcode(opcode);
+              break;
+            }
+          }
+          case kExprJITSingleFunction: {
+            if (FLAG_wasm_jit_prototype) {
+              JITSingleFunctionOperand operand(this, pc_);
+              if (Validate(pc_, operand)) {
+                Value index = Pop(2, kAstI32);
+                Value length = Pop(1, kAstI32);
+                Value base = Pop(0, kAstI32);
+                TFNode* call =
+                    BUILD(JITSingleFunction, base.node, length.node, index.node,
+                          operand.sig_index, operand.sig, position());
+                Push(kAstI32, call);
+                break;
+              }
+            }
+          }
           default:
             error("Invalid opcode");
             return;
@@ -1024,7 +1051,7 @@ class SR_WasmDecoder : public WasmDecoder {
 
 #if DEBUG
       if (FLAG_trace_wasm_decoder) {
-        for (size_t i = 0; i < stack_.size(); i++) {
+        for (size_t i = 0; i < stack_.size(); ++i) {
           Value& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
           PrintF(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
@@ -1119,6 +1146,17 @@ class SR_WasmDecoder : public WasmDecoder {
           val.node, position());
     Push(type, val.node);
     return 1 + operand.length;
+  }
+
+  void DecodeSimdOpcode(WasmOpcode opcode) {
+    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    compiler::NodeVector inputs(sig->parameter_count(), zone_);
+    for (size_t i = sig->parameter_count(); i > 0; i--) {
+      Value val = Pop(static_cast<int>(i - 1), sig->GetParam(i - 1));
+      inputs[i - 1] = val.node;
+    }
+    TFNode* node = BUILD(SimdOp, opcode, inputs);
+    Push(GetReturnType(sig), node);
   }
 
   void DoReturn() {
@@ -1435,9 +1473,9 @@ class SR_WasmDecoder : public WasmDecoder {
         new (zone_) BitVector(static_cast<int>(local_type_vec_.size()), zone_);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
-    while (pc < limit_) {
+    while (pc < limit_ && ok()) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-      int length = 1;
+      unsigned length = 1;
       switch (opcode) {
         case kExprLoop:
         case kExprIf:
@@ -1465,7 +1503,7 @@ class SR_WasmDecoder : public WasmDecoder {
       if (depth <= 0) break;
       pc += length;
     }
-    return assigned;
+    return ok() ? assigned : nullptr;
   }
 
   inline wasm::WasmCodePosition position() {
@@ -1480,73 +1518,70 @@ bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
   base::AccountingAllocator allocator;
   Zone tmp(&allocator);
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  SR_WasmDecoder decoder(&tmp, nullptr, body);
+  WasmFullDecoder decoder(&tmp, nullptr, body);
   return decoder.DecodeLocalDecls(decls);
 }
 
-TreeResult VerifyWasmCode(base::AccountingAllocator* allocator,
-                          FunctionBody& body) {
-  Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, nullptr, body);
-  decoder.Decode();
-  return decoder.toResult<Tree*>(nullptr);
-}
-
-TreeResult BuildTFGraph(base::AccountingAllocator* allocator,
-                        TFBuilder* builder, FunctionBody& body) {
-  Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, builder, body);
-  decoder.Decode();
-  return decoder.toResult<Tree*>(nullptr);
-}
-
-std::ostream& operator<<(std::ostream& os, const Tree& tree) {
-  if (tree.pc == nullptr) {
-    os << "null";
-    return os;
+BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
+                                   AstLocalDecls* decls)
+    : Decoder(start, end) {
+  if (decls != nullptr) {
+    if (DecodeLocalDecls(*decls, start, end)) {
+      pc_ += decls->decls_encoded_size;
+      if (pc_ > end_) pc_ = end_;
+    }
   }
-  PrintF("%s", WasmOpcodes::OpcodeName(tree.opcode()));
-  if (tree.count > 0) os << "(";
-  for (uint32_t i = 0; i < tree.count; i++) {
-    if (i > 0) os << ", ";
-    os << *tree.children[i];
-  }
-  if (tree.count > 0) os << ")";
-  return os;
 }
 
-int OpcodeLength(const byte* pc, const byte* end) {
+DecodeResult VerifyWasmCode(base::AccountingAllocator* allocator,
+                            FunctionBody& body) {
+  Zone zone(allocator);
+  WasmFullDecoder decoder(&zone, nullptr, body);
+  decoder.Decode();
+  return decoder.toResult<DecodeStruct*>(nullptr);
+}
+
+DecodeResult BuildTFGraph(base::AccountingAllocator* allocator,
+                          TFBuilder* builder, FunctionBody& body) {
+  Zone zone(allocator);
+  WasmFullDecoder decoder(&zone, builder, body);
+  decoder.Decode();
+  return decoder.toResult<DecodeStruct*>(nullptr);
+}
+
+unsigned OpcodeLength(const byte* pc, const byte* end) {
   WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeLength(pc);
 }
 
-int OpcodeArity(const byte* pc, const byte* end) {
+unsigned OpcodeArity(const byte* pc, const byte* end) {
   WasmDecoder decoder(nullptr, nullptr, pc, end);
   return decoder.OpcodeArity(pc);
 }
 
 void PrintAstForDebugging(const byte* start, const byte* end) {
-  FunctionBody body = {nullptr, nullptr, start, start, end};
   base::AccountingAllocator allocator;
-  PrintAst(&allocator, body);
+  OFStream os(stdout);
+  PrintAst(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
 }
 
-void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
+bool PrintAst(base::AccountingAllocator* allocator, const FunctionBody& body,
+              std::ostream& os,
+              std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator);
-  SR_WasmDecoder decoder(&zone, nullptr, body);
-
-  OFStream os(stdout);
+  WasmFullDecoder decoder(&zone, nullptr, body);
+  int line_nr = 0;
 
   // Print the function signature.
   if (body.sig) {
     os << "// signature: " << *body.sig << std::endl;
+    ++line_nr;
   }
 
   // Print the local declarations.
   AstLocalDecls decls(&zone);
-  decoder.DecodeLocalDecls(decls);
-  const byte* pc = decoder.pc();
-  if (body.start != decoder.pc()) {
+  BytecodeIterator i(body.start, body.end, &decls);
+  if (body.start != i.pc()) {
     os << "// locals: ";
     for (auto p : decls.local_types) {
       LocalType type = p.first;
@@ -1554,26 +1589,38 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
       os << " " << count << " " << WasmOpcodes::TypeName(type);
     }
     os << std::endl;
+    ++line_nr;
 
-    for (const byte* locals = body.start; locals < pc; locals++) {
-      printf(" 0x%02x,", *locals);
+    for (const byte* locals = body.start; locals < i.pc(); locals++) {
+      os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
     }
     os << std::endl;
+    ++line_nr;
   }
 
-  os << "// body: \n";
-  int control_depth = 0;
-  while (pc < body.end) {
-    size_t length = decoder.OpcodeLength(pc);
+  os << "// body: " << std::endl;
+  ++line_nr;
+  unsigned control_depth = 0;
+  for (; i.has_next(); i.next()) {
+    unsigned length = decoder.OpcodeLength(i.pc());
 
-    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    WasmOpcode opcode = i.current();
     if (opcode == kExprElse) control_depth--;
 
-    for (int i = 0; i < control_depth && i < 32; i++) printf("  ");
-    printf("k%s,", WasmOpcodes::OpcodeName(opcode));
+    int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
+    if (offset_table) {
+      offset_table->push_back(
+          std::make_tuple(i.pc_offset(), line_nr, num_whitespaces));
+    }
 
-    for (size_t i = 1; i < length; i++) {
-      printf(" 0x%02x,", pc[i]);
+    // 64 whitespaces
+    const char* padding =
+        "                                                                ";
+    os.write(padding, num_whitespaces);
+    os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
+
+    for (size_t j = 1; j < length; ++j) {
+      os << " " << AsHex(i.pc()[j], 2) << ",";
     }
 
     switch (opcode) {
@@ -1581,32 +1628,32 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
       case kExprElse:
       case kExprLoop:
       case kExprBlock:
-        os << "   // @" << static_cast<int>(pc - body.start);
+        os << "   // @" << i.pc_offset();
         control_depth++;
         break;
       case kExprEnd:
-        os << "   // @" << static_cast<int>(pc - body.start);
+        os << "   // @" << i.pc_offset();
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthOperand operand(&decoder, pc);
+        BreakDepthOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity << " depth=" << operand.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthOperand operand(&decoder, pc);
+        BreakDepthOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity << " depth" << operand.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableOperand operand(&decoder, pc);
+        BranchTableOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity
            << " entries=" << operand.table_count;
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        CallIndirectOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // sig #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " sig #" << operand.index;
@@ -1614,8 +1661,8 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
         break;
       }
       case kExprCallImport: {
-        CallImportOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        CallImportOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // import #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " import #" << operand.index;
@@ -1623,32 +1670,40 @@ void PrintAst(base::AccountingAllocator* allocator, FunctionBody& body) {
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand operand(&decoder, pc);
-        if (decoder.Validate(pc, operand)) {
+        CallFunctionOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
           os << "   // function #" << operand.index << ": " << *operand.sig;
         } else {
           os << " // arity=" << operand.arity << " function #" << operand.index;
         }
         break;
       }
+      case kExprJITSingleFunction: {
+        JITSingleFunctionOperand operand(&i, i.pc());
+        if (decoder.Complete(i.pc(), operand)) {
+          os << "   // sig #" << operand.sig_index << ": " << *operand.sig;
+        }
+        break;
+      }
       case kExprReturn: {
-        ReturnArityOperand operand(&decoder, pc);
+        ReturnArityOperand operand(&i, i.pc());
         os << "   // arity=" << operand.arity;
         break;
       }
       default:
         break;
       }
-
-    pc += length;
     os << std::endl;
+    ++line_nr;
   }
+
+  return decoder.ok();
 }
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
   FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  SR_WasmDecoder decoder(zone, nullptr, body);
+  WasmFullDecoder decoder(zone, nullptr, body);
   return decoder.AnalyzeLoopAssignmentForTesting(start, num_locals);
 }
 

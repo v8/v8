@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   uint32_t length = static_cast<uint32_t>(input->length()->Number());
   // Set some limit to prevent fuzz tests from going OOM.
   // Can be bumped when callers' requirements change.
-  RUNTIME_ASSERT(length < 100);
+  if (length >= 100) return isolate->ThrowIllegalOperation();
   Handle<FixedArray> output = factory->NewFixedArray(length);
   Handle<Name> maximized = factory->NewStringFromStaticChars("maximized");
   Handle<Name> base = factory->NewStringFromStaticChars("base");
@@ -603,8 +603,8 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
 
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
-  RUNTIME_ASSERT(form_id >= 0 &&
-                 static_cast<size_t>(form_id) < arraysize(normalizationForms));
+  CHECK(form_id >= 0 &&
+        static_cast<size_t>(form_id) < arraysize(normalizationForms));
 
   int length = s->length();
   s = String::Flatten(s);
@@ -621,7 +621,7 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
         icu::Normalizer2::getInstance(nullptr, normalizationForms[form_id].name,
                                       normalizationForms[form_id].mode, status);
     DCHECK(U_SUCCESS(status));
-    RUNTIME_ASSERT(normalizer != nullptr);
+    CHECK(normalizer != nullptr);
     int32_t normalized_prefix_length =
         normalizer->spanQuickCheckYes(input, status);
     // Quick return if the input is already normalized.

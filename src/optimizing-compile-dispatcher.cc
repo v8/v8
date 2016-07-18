@@ -52,7 +52,9 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
         isolate_->optimizing_compile_dispatcher();
     {
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
-      TRACE_EVENT0("v8", "V8.RecompileConcurrent");
+
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.RecompileConcurrent");
 
       if (dispatcher->recompilation_delay_ != 0) {
         base::OS::Sleep(base::TimeDelta::FromMilliseconds(

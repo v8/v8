@@ -9,6 +9,7 @@
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/js-graph.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {
@@ -124,6 +125,7 @@ class BytecodeGraphBuilder {
   void BuildCall(TailCallMode tail_call_mode);
   void BuildThrow();
   void BuildBinaryOp(const Operator* op);
+  void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);

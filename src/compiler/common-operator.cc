@@ -167,6 +167,26 @@ std::ostream& operator<<(std::ostream& os,
   return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
+size_t hash_value(RegionObservability observability) {
+  return static_cast<size_t>(observability);
+}
+
+std::ostream& operator<<(std::ostream& os, RegionObservability observability) {
+  switch (observability) {
+    case RegionObservability::kObservable:
+      return os << "observable";
+    case RegionObservability::kNotObservable:
+      return os << "not-observable";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+RegionObservability RegionObservabilityOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kBeginRegion, op->opcode());
+  return OpParameter<RegionObservability>(op);
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types) {
   // Print all the MachineTypes, separated by commas.
@@ -193,9 +213,11 @@ std::ostream& operator<<(std::ostream& os,
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
+  V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)          \
+  V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)        \
+  V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)    \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)        \
-  V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
-  V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
+  V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)
 
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
@@ -374,6 +396,20 @@ struct CommonOperatorGlobalCache final {
   CACHED_EFFECT_PHI_LIST(CACHED_EFFECT_PHI)
 #undef CACHED_EFFECT_PHI
 
+  template <RegionObservability kRegionObservability>
+  struct BeginRegionOperator final : public Operator1<RegionObservability> {
+    BeginRegionOperator()
+        : Operator1<RegionObservability>(                  // --
+              IrOpcode::kBeginRegion, Operator::kKontrol,  // opcode
+              "BeginRegion",                               // name
+              0, 1, 0, 0, 1, 0,                            // counts
+              kRegionObservability) {}                     // parameter
+  };
+  BeginRegionOperator<RegionObservability::kObservable>
+      kBeginRegionObservableOperator;
+  BeginRegionOperator<RegionObservability::kNotObservable>
+      kBeginRegionNotObservableOperator;
+
   template <size_t kInputCount>
   struct LoopOperator final : public Operator {
     LoopOperator()
@@ -436,7 +472,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kProjection,  // opcode
               Operator::kPure,        // flags
               "Projection",           // name
-              1, 0, 0, 1, 0, 0,       // counts,
+              1, 0, 1, 1, 0, 0,       // counts,
               kIndex) {}              // parameter
   };
 #define CACHED_PROJECTION(index) \
@@ -773,6 +809,17 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       0, effect_input_count, 1, 0, 1, 0);     // counts
 }
 
+const Operator* CommonOperatorBuilder::BeginRegion(
+    RegionObservability region_observability) {
+  switch (region_observability) {
+    case RegionObservability::kObservable:
+      return &cache_.kBeginRegionObservableOperator;
+    case RegionObservability::kNotObservable:
+      return &cache_.kBeginRegionNotObservableOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* CommonOperatorBuilder::StateValues(int arguments) {
   switch (arguments) {
@@ -834,7 +881,7 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               Operator::ZeroIfPure(descriptor->properties()),
               Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
 
-    void PrintParameter(std::ostream& os) const override {
+    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
       os << "[" << *parameter() << "]";
     }
   };
@@ -852,7 +899,7 @@ const Operator* CommonOperatorBuilder::TailCall(
               descriptor->InputCount() + descriptor->FrameStateCount(), 1, 1, 0,
               0, 1, descriptor) {}
 
-    void PrintParameter(std::ostream& os) const override {
+    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
       os << "[" << *parameter() << "]";
     }
   };
@@ -871,12 +918,12 @@ const Operator* CommonOperatorBuilder::Projection(size_t index) {
       break;
   }
   // Uncached.
-  return new (zone()) Operator1<size_t>(         // --
-      IrOpcode::kProjection,                     // opcode
-      Operator::kFoldable | Operator::kNoThrow,  // flags
-      "Projection",                              // name
-      1, 0, 0, 1, 0, 0,                          // counts
-      index);                                    // parameter
+  return new (zone()) Operator1<size_t>(  // --
+      IrOpcode::kProjection,              // opcode
+      Operator::kPure,                    // flags
+      "Projection",                       // name
+      1, 0, 1, 1, 0, 0,                   // counts
+      index);                             // parameter
 }
 
 

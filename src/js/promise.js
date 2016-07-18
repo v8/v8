@@ -27,6 +27,7 @@ var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
 var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SpeciesConstructor;
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -563,6 +564,11 @@ function PromiseHasUserDefinedRejectHandler() {
   return PromiseHasUserDefinedRejectHandlerRecursive(this);
 };
 
+
+function PromiseSpecies() {
+  return this;
+}
+
 // -------------------------------------------------------------------
 // Install exported functions.
 
@@ -576,6 +582,8 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "race", PromiseRace,
   "resolve", PromiseResolve
 ]);
+
+utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
 
 utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
   "then", PromiseThen,

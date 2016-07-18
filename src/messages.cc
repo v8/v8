@@ -98,7 +98,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     MaybeHandle<Object> maybe_stringified;
     Handle<Object> stringified;
     // Make sure we don't leak uncaught internally generated Error objects.
-    if (Object::IsErrorObject(isolate, argument)) {
+    if (argument->IsJSError()) {
       Handle<Object> args[] = {argument};
       maybe_stringified = Execution::TryCall(
           isolate, isolate->no_side_effects_to_string_fun(),
@@ -249,7 +249,7 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  if (!IsJavaScript() || receiver_->IsNull() ||
+  if (!IsJavaScript() || receiver_->IsNull(isolate_) ||
       receiver_->IsUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
@@ -265,13 +265,11 @@ Handle<Object> CallSite::GetMethodName() {
     Handle<Name> name = Handle<Name>::cast(function_name);
     // ES2015 gives getters and setters name prefixes which must
     // be stripped to find the property name.
-    if (name->IsString() && FLAG_harmony_function_name) {
-      Handle<String> name_string = Handle<String>::cast(name);
-      if (name_string->IsUtf8EqualTo(CStrVector("get "), true) ||
-          name_string->IsUtf8EqualTo(CStrVector("set "), true)) {
-        name = isolate_->factory()->NewProperSubString(name_string, 4,
-                                                       name_string->length());
-      }
+    Handle<String> name_string = Handle<String>::cast(name);
+    if (name_string->IsUtf8EqualTo(CStrVector("get "), true) ||
+        name_string->IsUtf8EqualTo(CStrVector("set "), true)) {
+      name = isolate_->factory()->NewProperSubString(name_string, 4,
+                                                     name_string->length());
     }
     if (CheckMethodName(isolate_, obj, name, fun_,
                         LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
@@ -288,7 +286,7 @@ Handle<Object> CallSite::GetMethodName() {
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     if (current_obj->IsAccessCheckNeeded()) break;
     Handle<FixedArray> keys =
-        KeyAccumulator::GetEnumPropertyKeys(isolate_, current_obj);
+        KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
     for (int i = 0; i < keys->length(); i++) {
       HandleScope inner_scope(isolate_);
       if (!keys->get(i)->IsName()) continue;
@@ -341,7 +339,7 @@ bool CallSite::IsNative() {
 
 bool CallSite::IsToplevel() {
   if (IsWasm()) return false;
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNull() ||
+  return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
          receiver_->IsUndefined(isolate_);
 }
 
@@ -356,6 +354,10 @@ bool CallSite::IsEval() {
 
 
 bool CallSite::IsConstructor() {
+  // Builtin exit frames mark constructors by passing a special symbol as the
+  // receiver.
+  Object* ctor_symbol = isolate_->heap()->call_site_constructor_symbol();
+  if (*receiver_ == ctor_symbol) return true;
   if (!IsJavaScript() || !receiver_->IsJSObject()) return false;
   Handle<Object> constructor =
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),

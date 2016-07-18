@@ -119,20 +119,7 @@ class Variable: public ZoneObject {
     index_ = index;
   }
 
-  void SetFromEval() { is_from_eval_ = true; }
-
   static int CompareIndex(Variable* const* v, Variable* const* w);
-
-  PropertyAttributes DeclarationPropertyAttributes() const {
-    int property_attributes = NONE;
-    if (IsImmutableVariableMode(mode_)) {
-      property_attributes |= READ_ONLY;
-    }
-    if (is_from_eval_) {
-      property_attributes |= EVAL_DECLARED;
-    }
-    return static_cast<PropertyAttributes>(property_attributes);
-  }
 
  private:
   Scope* scope_;
@@ -148,9 +135,6 @@ class Variable: public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
-
-  // True if this variable is introduced by a sloppy eval
-  bool is_from_eval_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver

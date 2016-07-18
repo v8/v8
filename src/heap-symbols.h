@@ -12,10 +12,16 @@
   V(arguments_string, "arguments")                                 \
   V(Arguments_string, "Arguments")                                 \
   V(Array_string, "Array")                                         \
+  V(arguments_to_string, "[object Arguments]")                     \
   V(array_to_string, "[object Array]")                             \
-  V(object_to_string, "[object Object]")                           \
-  V(string_to_string, "[object String]")                           \
+  V(boolean_to_string, "[object Boolean]")                         \
+  V(date_to_string, "[object Date]")                               \
+  V(error_to_string, "[object Error]")                             \
   V(function_to_string, "[object Function]")                       \
+  V(number_to_string, "[object Number]")                           \
+  V(object_to_string, "[object Object]")                           \
+  V(regexp_to_string, "[object RegExp]")                           \
+  V(string_to_string, "[object String]")                           \
   V(bind_string, "bind")                                           \
   V(bool16x8_string, "bool16x8")                                   \
   V(Bool16x8_string, "Bool16x8")                                   \
@@ -91,12 +97,14 @@
   V(name_string, "name")                                           \
   V(nan_string, "NaN")                                             \
   V(next_string, "next")                                           \
+  V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
   V(null_to_string, "[object Null]")                               \
   V(number_string, "number")                                       \
   V(Number_string, "Number")                                       \
   V(object_string, "object")                                       \
   V(Object_string, "Object")                                       \
+  V(ok, "ok")                                                      \
   V(ownKeys_string, "ownKeys")                                     \
   V(position_string, "position")                                   \
   V(preventExtensions_string, "preventExtensions")                 \
@@ -123,6 +131,7 @@
   V(Symbol_string, "Symbol")                                       \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
+  V(timed_out, "timed-out")                                        \
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
@@ -145,6 +154,7 @@
   V(array_iteration_kind_symbol)            \
   V(array_iterator_next_symbol)             \
   V(array_iterator_object_symbol)           \
+  V(call_site_constructor_symbol)           \
   V(call_site_function_symbol)              \
   V(call_site_position_symbol)              \
   V(call_site_receiver_symbol)              \

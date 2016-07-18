@@ -46,5 +46,7 @@ exec_script_whitelist = [
   "//build/toolchain/win/BUILD.gn",
   "//build/util/branding.gni",
   "//build/util/version.gni",
+  "//test/cctest/BUILD.gn",
   "//test/test262/BUILD.gn",
+  "//test/unittests/BUILD.gn",
 ]

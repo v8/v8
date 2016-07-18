@@ -31,6 +31,7 @@ def apply_gyp_environment(file_path=None):
   supported_vars = ( 'V8_GYP_FILE',
                      'V8_GYP_SYNTAX_CHECK',
                      'GYP_DEFINES',
+                     'GYP_GENERATORS',
                      'GYP_GENERATOR_FLAGS',
                      'GYP_GENERATOR_OUTPUT', )
   for var in supported_vars:
@@ -51,4 +52,9 @@ def set_environment():
     # Update the environment based on v8.gyp_env
     gyp_env_path = os.path.join(os.path.dirname(V8_ROOT), 'v8.gyp_env')
     apply_gyp_environment(gyp_env_path)
+
+    if not os.environ.get('GYP_GENERATORS'):
+      # Default to ninja on all platforms.
+      os.environ['GYP_GENERATORS'] = 'ninja'
+
     vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()

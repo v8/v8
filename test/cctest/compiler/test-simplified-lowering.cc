@@ -37,14 +37,15 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
   SimplifiedLoweringTester(MachineType p0 = MachineType::None(),
                            MachineType p1 = MachineType::None())
       : GraphBuilderTester<ReturnType>(p0, p1),
-        typer(this->isolate(), this->graph()),
+        typer(new Typer(this->isolate(), this->graph())),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
                 this->simplified(), this->machine()),
         source_positions(jsgraph.graph()),
         lowering(&jsgraph, this->zone(), &source_positions) {}
+  ~SimplifiedLoweringTester() final { delete typer; }
 
-  Typer typer;
+  Typer* typer = nullptr;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   SourcePositionTable source_positions;
@@ -52,13 +53,15 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void LowerAllNodes() {
     this->End();
-    typer.Run();
+    typer->Run();
+    delete typer, typer = nullptr;
     lowering.LowerAllNodes();
   }
 
   void LowerAllNodesAndLowerChanges() {
     this->End();
-    typer.Run();
+    typer->Run();
+    delete typer, typer = nullptr;
     lowering.LowerAllNodes();
 
     Schedule* schedule = Scheduler::ComputeSchedule(this->zone(), this->graph(),
@@ -682,7 +685,7 @@ TEST(RunAllocate) {
 // Fills in most of the nodes of the graph in order to make tests shorter.
 class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
  public:
-  Typer typer;
+  Typer* typer = nullptr;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* p0;
@@ -695,7 +698,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(main_isolate(), graph()),
+        typer(new Typer(main_isolate(), graph())),
         javascript(main_zone()),
         jsgraph(main_isolate(), graph(), common(), &javascript, simplified(),
                 machine()) {
@@ -708,11 +711,12 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     p0 = graph()->NewNode(common()->Parameter(0), start);
     p1 = graph()->NewNode(common()->Parameter(1), start);
     p2 = graph()->NewNode(common()->Parameter(2), start);
-    typer.Run();
+    typer->Run();
     NodeProperties::SetType(p0, p0_type);
     NodeProperties::SetType(p1, p1_type);
     NodeProperties::SetType(p2, p2_type);
   }
+  ~TestingGraph() { delete typer; }
 
   void CheckLoweringBinop(IrOpcode::Value expected, const Operator* op) {
     Node* node = Return(graph()->NewNode(op, p0, p1));
@@ -736,11 +740,14 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   void Lower() {
+    delete typer;
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
+    typer = new Typer(main_isolate(), graph());
   }
 
   void LowerAllNodesAndLowerChanges() {
+    delete typer;
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
 
@@ -751,6 +758,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
 
     MemoryOptimizer memory_optimizer(&jsgraph, this->zone());
     memory_optimizer.Optimize();
+    typer = new Typer(main_isolate(), graph());
   }
 
   // Inserts the node as the return value of the graph.
@@ -889,63 +897,6 @@ TEST(LowerBooleanNot_tagged_tagged) {
   CHECK(b == cmp->InputAt(0) || b == cmp->InputAt(1));
   Node* f = t.jsgraph.FalseConstant();
   CHECK(f == cmp->InputAt(0) || f == cmp->InputAt(1));
-}
-
-
-TEST(LowerBooleanToNumber_bit_int32) {
-  // BooleanToNumber(x: kRepBit) used as MachineType::Int32()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(MachineType::Bool());
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::Int32());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0));
-}
-
-
-TEST(LowerBooleanToNumber_tagged_int32) {
-  // BooleanToNumber(x: kRepTagged) used as MachineType::Int32()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::Int32());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
-}
-
-
-TEST(LowerBooleanToNumber_bit_tagged) {
-  // BooleanToNumber(x: kRepBit) used as MachineType::AnyTagged()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(MachineType::Bool());
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::AnyTagged());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
-}
-
-
-TEST(LowerBooleanToNumber_tagged_tagged) {
-  // BooleanToNumber(x: kRepTagged) used as MachineType::AnyTagged()
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, MachineType::AnyTagged());
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(cnv, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt31ToTaggedSigned, use->InputAt(0)->opcode());
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
 }
 
 static Type* test_types[] = {Type::Signed32(), Type::Unsigned32(),

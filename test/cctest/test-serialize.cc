@@ -791,7 +791,7 @@ bool IsCompiled(const char* name) {
 
 TEST(SnapshotDataBlobWithWarmup) {
   DisableTurbofan();
-  const char* warmup = "Math.tan(1); Math.sin = 1;";
+  const char* warmup = "Math.abs(1); Math.random = 1;";
 
   v8::StartupData cold = v8::V8::CreateSnapshotDataBlob();
   v8::StartupData warm = v8::V8::WarmUpSnapshotDataBlob(cold, warmup);
@@ -810,9 +810,9 @@ TEST(SnapshotDataBlobWithWarmup) {
     v8::Context::Scope c_scope(context);
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
-    CHECK(IsCompiled("Math.tan"));
-    CHECK(!IsCompiled("Math.cos"));
-    CHECK(CompileRun("Math.sin")->IsFunction());
+    CHECK(IsCompiled("Math.abs"));
+    CHECK(!IsCompiled("Number.isFinite"));
+    CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
 }
@@ -820,9 +820,9 @@ TEST(SnapshotDataBlobWithWarmup) {
 TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
-      "function f() { return Math.sin(1); }\n"
-      "function g() { return Math.cos(1); }\n"
-      "Math.tan(1);"
+      "function f() { return Math.abs(1); }\n"
+      "function g() { return Number.isFinite(1); }\n"
+      "Number.isNaN(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -844,10 +844,10 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("f"));
-    CHECK(IsCompiled("Math.sin"));
+    CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Math.cos"));
-    CHECK(!IsCompiled("Math.tan"));
+    CHECK(!IsCompiled("Number.isFinite"));
+    CHECK(!IsCompiled("Number.isNaN"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -1852,15 +1852,19 @@ TEST(CodeSerializerCell) {
   assembler.enable_serializer();
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
   CHECK(isolate->heap()->InNewSpace(*number));
-  MacroAssembler* masm = &assembler;
-  masm->MoveHeapObject(rax, number);
-  masm->ret(0);
-  CodeDesc desc;
-  masm->GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::FUNCTION), masm->CodeObject());
-  code->set_has_reloc_info_for_serialization(true);
-
+  Handle<Code> code;
+  {
+    MacroAssembler* masm = &assembler;
+    Handle<Cell> cell = isolate->factory()->NewCell(number);
+    masm->Move(rax, cell, RelocInfo::CELL);
+    masm->movp(rax, Operand(rax, 0));
+    masm->ret(0);
+    CodeDesc desc;
+    masm->GetCode(&desc);
+    code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
+                                       masm->CodeObject());
+    code->set_has_reloc_info_for_serialization(true);
+  }
   RelocIterator rit1(*code, 1 << RelocInfo::CELL);
   CHECK_EQ(*number, rit1.rinfo()->target_cell()->value());
 
@@ -1881,6 +1885,237 @@ TEST(CodeSerializerCell) {
   delete script_data;
 }
 #endif  // V8_TARGET_ARCH_X64
+
+TEST(SnapshotCreatorMultipleContexts) {
+  DisableTurbofan();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun("var f = function() { return 1; }");
+      CHECK_EQ(0, creator.AddContext(context));
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun("var f = function() { return 2; }");
+      CHECK_EQ(1, creator.AddContext(context));
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK_EQ(2, creator.AddContext(context));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams params;
+  params.snapshot_blob = &blob;
+  params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 1);
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 1).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 2);
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 2).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectUndefined("this.f");
+    }
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
+}
+
+static void SerializedCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(v8_num(42));
+}
+
+static void SerializedCallbackReplacement(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(v8_num(1337));
+}
+
+intptr_t original_external_references[] = {
+    reinterpret_cast<intptr_t>(SerializedCallback), 0};
+
+intptr_t replaced_external_references[] = {
+    reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
+
+TEST(SnapshotCreatorExternalReferences) {
+  DisableTurbofan();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      v8::Local<v8::Value> function =
+          callback->GetFunction(context).ToLocalChecked();
+      CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+      ExpectInt32("f()", 42);
+      CHECK_EQ(0, creator.AddContext(context));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  // Deserialize with the original external reference.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = original_external_references;
+    v8::Isolate* isolate = v8::Isolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 42);
+    }
+    isolate->Dispose();
+  }
+
+  // Deserialize with the some other external reference.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = replaced_external_references;
+    v8::Isolate* isolate = v8::Isolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 1337);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorTemplates) {
+  DisableTurbofan();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::ExtensionConfiguration* no_extension = nullptr;
+      v8::Local<v8::ObjectTemplate> global_template =
+          v8::ObjectTemplate::New(isolate);
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->Set(v8_str("f"), callback);
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, no_extension, global_template);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 42);
+      CHECK_EQ(0, creator.AddContext(context));
+      CHECK_EQ(0, creator.AddTemplate(callback));
+      CHECK_EQ(1, creator.AddTemplate(global_template));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = original_external_references;
+    v8::Isolate* isolate = v8::Isolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      {
+        // Create a new context without a new object template.
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context =
+            v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+        v8::Context::Scope context_scope(context);
+        ExpectInt32("f()", 42);
+
+        // Retrieve the snapshotted object template.
+        v8::Local<v8::ObjectTemplate> obj_template =
+            v8::ObjectTemplate::FromSnapshot(isolate, 1).ToLocalChecked();
+        CHECK(!obj_template.IsEmpty());
+        v8::Local<v8::Object> object =
+            obj_template->NewInstance(context).ToLocalChecked();
+        CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
+        ExpectInt32("o.f()", 42);
+        // Check that it instantiates to the same prototype.
+        ExpectTrue("o.f.prototype === f.prototype");
+
+        // Retrieve the snapshotted function template.
+        v8::Local<v8::FunctionTemplate> fun_template =
+            v8::FunctionTemplate::FromSnapshot(isolate, 0).ToLocalChecked();
+        CHECK(!fun_template.IsEmpty());
+        v8::Local<v8::Function> fun =
+            fun_template->GetFunction(context).ToLocalChecked();
+        CHECK(context->Global()->Set(context, v8_str("g"), fun).FromJust());
+        ExpectInt32("g()", 42);
+        // Check that it instantiates to the same prototype.
+        ExpectTrue("g.prototype === f.prototype");
+
+        // Accessing out of bound returns empty MaybeHandle.
+        CHECK(v8::ObjectTemplate::FromSnapshot(isolate, 2).IsEmpty());
+        CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
+        CHECK(v8::Context::FromSnapshot(isolate, 2).IsEmpty());
+      }
+
+      {
+        // Create a context with a new object template. It is merged into the
+        // deserialized global object.
+        v8::HandleScope handle_scope(isolate);
+        v8::ExtensionConfiguration* no_extension = nullptr;
+        v8::Local<v8::ObjectTemplate> global_template =
+            v8::ObjectTemplate::New(isolate);
+        global_template->Set(
+            v8_str("g"),
+            v8::FunctionTemplate::New(isolate, SerializedCallbackReplacement));
+        v8::Local<v8::Context> context =
+            v8::Context::FromSnapshot(isolate, 0, no_extension, global_template)
+                .ToLocalChecked();
+        v8::Context::Scope context_scope(context);
+        ExpectInt32("g()", 1337);
+        ExpectInt32("f()", 42);
+      }
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
 
 TEST(SerializationMemoryStats) {
   FLAG_profile_deserialization = true;

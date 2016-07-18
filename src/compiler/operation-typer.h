@@ -32,8 +32,13 @@ class OperationTyper {
   Type* ToNumber(Type* type);
   Type* WeakenRange(Type* current_range, Type* previous_range);
 
-  Type* NumericAdd(Type* lhs, Type* rhs);
-  Type* NumericSubtract(Type* lhs, Type* rhs);
+  Type* NumberAdd(Type* lhs, Type* rhs);
+  Type* NumberSubtract(Type* lhs, Type* rhs);
+  Type* NumberMultiply(Type* lhs, Type* rhs);
+  Type* NumberDivide(Type* lhs, Type* rhs);
+  Type* NumberModulus(Type* lhs, Type* rhs);
+
+  Type* NumberAbs(Type* type);
 
   enum ComparisonOutcomeFlags {
     kComparisonTrue = 1,
@@ -58,8 +63,10 @@ class OperationTyper {
   Type* FalsifyUndefined(ComparisonOutcome);
 
   Type* Rangify(Type*);
-  Type* AddRanger(RangeType* lhs, RangeType* rhs);
+  Type* AddRanger(double lhs_min, double lhs_max, double rhs_min,
+                  double rhs_max);
   Type* SubtractRanger(RangeType* lhs, RangeType* rhs);
+  Type* MultiplyRanger(Type* lhs, Type* rhs);
   Type* ModulusRanger(RangeType* lhs, RangeType* rhs);
 
   Zone* zone() { return zone_; }

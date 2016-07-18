@@ -10,9 +10,8 @@
 namespace v8 {
 namespace internal {
 
-
-StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {}
-
+StubCache::StubCache(Isolate* isolate, Code::Kind ic_kind)
+    : isolate_(isolate), ic_kind_(ic_kind) {}
 
 void StubCache::Initialize() {
   DCHECK(base::bits::IsPowerOfTwo32(kPrimaryTableSize));

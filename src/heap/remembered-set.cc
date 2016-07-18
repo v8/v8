@@ -9,6 +9,7 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -16,16 +17,39 @@ namespace internal {
 template <PointerDirection direction>
 void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
   STATIC_ASSERT(direction == OLD_TO_NEW);
-  PageIterator it(heap->old_space());
-  MemoryChunk* chunk;
-  while (it.has_next()) {
-    chunk = it.next();
+  for (MemoryChunk* chunk : *heap->old_space()) {
     SlotSet* slots = GetSlotSet(chunk);
     if (slots != nullptr) {
       slots->Iterate([heap, chunk](Address addr) {
         Object** slot = reinterpret_cast<Object**>(addr);
         return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
       });
+    }
+  }
+  for (MemoryChunk* chunk : *heap->code_space()) {
+    TypedSlotSet* slots = GetTypedSlotSet(chunk);
+    if (slots != nullptr) {
+      slots->Iterate(
+          [heap, chunk](SlotType type, Address host_addr, Address addr) {
+            if (Marking::IsBlack(ObjectMarking::MarkBitFrom(host_addr))) {
+              return KEEP_SLOT;
+            } else {
+              return REMOVE_SLOT;
+            }
+          });
+    }
+  }
+  if (Heap::ShouldZapGarbage()) {
+    // Need to filter invalid slots as we overwrite them with zap values in
+    // during sweeping which runs concurrently with pointer updating.
+    for (MemoryChunk* chunk : *heap->map_space()) {
+      SlotSet* slots = GetSlotSet(chunk);
+      if (slots != nullptr) {
+        slots->Iterate([heap, chunk](Address addr) {
+          Object** slot = reinterpret_cast<Object**>(addr);
+          return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
+        });
+      }
     }
   }
 }
@@ -64,7 +88,7 @@ bool RememberedSet<direction>::IsValidSlot(Heap* heap, MemoryChunk* chunk,
   HeapObject* heap_object = HeapObject::cast(object);
   // If the target object is not black, the source slot must be part
   // of a non-black (dead) object.
-  return Marking::IsBlack(Marking::MarkBitFrom(heap_object)) &&
+  return Marking::IsBlack(ObjectMarking::MarkBitFrom(heap_object)) &&
          heap->mark_compact_collector()->IsSlotInBlackObject(
              chunk, reinterpret_cast<Address>(slot));
 }

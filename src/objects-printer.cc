@@ -106,6 +106,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_ARGUMENTS_TYPE:
+    case JS_ERROR_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
       break;
     case JS_ARRAY_TYPE:
@@ -116,9 +118,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case ODDBALL_TYPE:
       Oddball::cast(this)->to_string()->Print(os);
-      break;
-    case JS_MODULE_TYPE:
-      JSModule::cast(this)->JSModulePrint(os);
       break;
     case JS_BOUND_FUNCTION_TYPE:
       JSBoundFunction::cast(this)->JSBoundFunctionPrint(os);
@@ -453,14 +452,6 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void JSModule::JSModulePrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "JSModule");
-  os << "\n - context = " << Brief(context());
-  os << " - scope_info = " << Brief(scope_info());
-  JSObjectPrintBody(os, this);
-}
-
-
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << "\n - hash: " << Hash();
@@ -492,7 +483,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_stable()) os << "\n - stable_map";
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
-  if (has_named_interceptor()) os << " - named_interceptor";
+  if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
@@ -578,6 +569,40 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+template void FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::Print();
+template void FeedbackVectorSpecBase<FeedbackVectorSpec>::Print();
+
+template <typename Derived>
+void FeedbackVectorSpecBase<Derived>::Print() {
+  OFStream os(stdout);
+  FeedbackVectorSpecPrint(os);
+  os << std::flush;
+}
+
+template <typename Derived>
+void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
+    std::ostream& os) {  // NOLINT
+  int slot_count = This()->slots();
+  os << " - slot_count: " << slot_count;
+  if (slot_count == 0) {
+    os << " (empty)\n";
+    return;
+  }
+
+  for (int slot = 0, name_index = 0; slot < slot_count;) {
+    FeedbackVectorSlotKind kind = This()->GetKind(slot);
+    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
+    DCHECK_LT(0, entry_size);
+
+    os << "\n Slot #" << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(*This()->GetName(name_index++));
+    }
+
+    slot += entry_size;
+  }
+  os << "\n";
+}
 
 void TypeFeedbackMetadata::Print() {
   OFStream os(stdout);
@@ -594,12 +619,16 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     os << " (empty)\n";
     return;
   }
+  os << "\n - slot_count: " << slot_count();
 
   TypeFeedbackMetadataIterator iter(this);
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(iter.name());
+    }
   }
   os << "\n";
 }
@@ -625,10 +654,19 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
 
-    os << "\n Slot " << slot << " " << kind << " ";
+    os << "\n Slot " << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresName(kind)) {
+      os << ", " << Brief(iter.name());
+    }
+    os << " ";
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_IC: {
         LoadICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+        LoadGlobalICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
@@ -957,6 +995,46 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
   os << "\n - value: " << Brief(value());
   os << "\n - details: " << property_details();
+  PropertyCellType cell_type = property_details().cell_type();
+  os << "\n - cell_type: ";
+  if (value()->IsTheHole(GetIsolate())) {
+    switch (cell_type) {
+      case PropertyCellType::kUninitialized:
+        os << "Uninitialized";
+        break;
+      case PropertyCellType::kInvalidated:
+        os << "Invalidated";
+        break;
+      default:
+        os << "??? " << static_cast<int>(cell_type);
+        break;
+    }
+  } else {
+    switch (cell_type) {
+      case PropertyCellType::kUndefined:
+        os << "Undefined";
+        break;
+      case PropertyCellType::kConstant:
+        os << "Constant";
+        break;
+      case PropertyCellType::kConstantType:
+        os << "ConstantType"
+           << " (";
+        switch (GetConstantType()) {
+          case PropertyCellConstantType::kSmi:
+            os << "Smi";
+            break;
+          case PropertyCellConstantType::kStableMap:
+            os << "StableMap";
+            break;
+        }
+        os << ")";
+        break;
+      case PropertyCellType::kMutable:
+        os << "Mutable";
+        break;
+    }
+  }
   os << "\n";
 }
 
@@ -1037,6 +1115,8 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
 void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessCheckInfo");
   os << "\n - callback: " << Brief(callback());
+  os << "\n - named_interceptor: " << Brief(named_interceptor());
+  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
@@ -1093,7 +1173,8 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - property_list: " << Brief(property_list());
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - constructor: " << Brief(constructor());
-  os << "\n - internal_field_count: " << Brief(internal_field_count());
+  os << "\n - internal_field_count: " << internal_field_count();
+  os << "\n - immutable_proto: " << (immutable_proto() ? "true" : "false");
   os << "\n";
 }
 
@@ -1189,7 +1270,7 @@ void LayoutDescriptor::Print() {
 
 void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
   os << "Layout descriptor: ";
-  if (IsUninitialized()) {
+  if (IsOddball() && IsUninitialized(HeapObject::cast(this)->GetIsolate())) {
     os << "<uninitialized>";
   } else if (IsFastPointerLayout()) {
     os << "<all tagged>";

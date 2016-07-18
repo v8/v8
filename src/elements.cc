@@ -450,11 +450,13 @@ static void SortIndices(
     WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
   struct {
     bool operator()(Object* a, Object* b) {
-      if (!a->IsUndefined()) {
-        if (b->IsUndefined()) return true;
+      if (a->IsSmi() || !a->IsUndefined(HeapObject::cast(a)->GetIsolate())) {
+        if (!b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate())) {
+          return true;
+        }
         return a->Number() < b->Number();
       }
-      return b->IsUndefined();
+      return !b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate());
     }
   } cmp;
   Object** start =
@@ -1174,7 +1176,7 @@ class DictionaryElementsAccessor
     uint32_t index = GetIndexForEntryImpl(*dict, entry);
     Handle<Object> result = SeededNumberDictionary::DeleteProperty(dict, entry);
     USE(result);
-    DCHECK(result->IsTrue());
+    DCHECK(result->IsTrue(dict->GetIsolate()));
     Handle<FixedArray> new_elements =
         SeededNumberDictionary::Shrink(dict, index);
     obj->set_elements(*new_elements);
@@ -1321,10 +1323,14 @@ class DictionaryElementsAccessor
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     for (int i = 0; i < capacity; i++) {
-      uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
-      if (key == kMaxUInt32) continue;
-      Handle<Object> key_handle = isolate->factory()->NewNumberFromUint(key);
-      elements->set(insertion_index, *key_handle);
+      Object* raw_key = dictionary->KeyAt(i);
+      if (!dictionary->IsKey(isolate, raw_key)) continue;
+      uint32_t key = FilterKey(dictionary, i, raw_key, filter);
+      if (key == kMaxUInt32) {
+        keys->AddShadowKey(raw_key);
+        continue;
+      }
+      elements->set(insertion_index, raw_key);
       insertion_index++;
     }
     SortIndices(elements, insertion_index);
@@ -2445,7 +2451,7 @@ class SlowSloppyArgumentsElementsAccessor
     uint32_t index = GetIndexForEntryImpl(*dict, entry);
     Handle<Object> result = SeededNumberDictionary::DeleteProperty(dict, entry);
     USE(result);
-    DCHECK(result->IsTrue());
+    DCHECK(result->IsTrue(dict->GetIsolate()));
     Handle<FixedArray> new_elements =
         SeededNumberDictionary::Shrink(dict, index);
     parameter_map->set(1, *new_elements);

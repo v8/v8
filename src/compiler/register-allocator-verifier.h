@@ -89,7 +89,7 @@ class PendingAssessment final : public Assessment {
   DISALLOW_COPY_AND_ASSIGN(PendingAssessment);
 };
 
-// FinalAssessmens are associated to operands that we know to be a certain
+// FinalAssessments are associated to operands that we know to be a certain
 // virtual register.
 class FinalAssessment final : public Assessment {
  public:

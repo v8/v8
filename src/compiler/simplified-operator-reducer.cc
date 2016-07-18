@@ -16,8 +16,25 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SimplifiedOperatorReducer::SimplifiedOperatorReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), type_cache_(TypeCache::Get()) {}
+namespace {
+
+Decision DecideObjectIsSmi(Node* const input) {
+  NumberMatcher m(input);
+  if (m.HasValue()) {
+    return IsSmiDouble(m.Value()) ? Decision::kTrue : Decision::kFalse;
+  }
+  if (m.IsAllocate()) return Decision::kFalse;
+  if (m.IsChangeBitToTagged()) return Decision::kFalse;
+  if (m.IsChangeInt31ToTaggedSigned()) return Decision::kTrue;
+  if (m.IsHeapConstant()) return Decision::kFalse;
+  return Decision::kUnknown;
+}
+
+}  // namespace
+
+SimplifiedOperatorReducer::SimplifiedOperatorReducer(Editor* editor,
+                                                     JSGraph* jsgraph)
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
 
@@ -26,9 +43,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.HasValue()) {
-        return Replace(jsgraph()->BooleanConstant(!m.Value()->BooleanValue()));
-      }
+      if (m.Is(factory()->true_value())) return ReplaceBoolean(false);
+      if (m.Is(factory()->false_value())) return ReplaceBoolean(true);
       if (m.IsBooleanNot()) return Replace(m.InputAt(0));
       break;
     }
@@ -110,57 +126,55 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kObjectIsSmi: {
-      NumberMatcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceBoolean(IsSmiDouble(m.Value()));
-      if (m.IsChangeBitToTagged()) return ReplaceBoolean(false);
-      if (m.IsChangeInt31ToTaggedSigned()) return ReplaceBoolean(true);
-      if (m.IsHeapConstant()) return ReplaceBoolean(false);
+    case IrOpcode::kCheckIf: {
+      HeapObjectMatcher m(node->InputAt(0));
+      if (m.Is(factory()->true_value())) {
+        Node* const effect = NodeProperties::GetEffectInput(node);
+        return Replace(effect);
+      }
       break;
     }
-    case IrOpcode::kNumberCeil:
-    case IrOpcode::kNumberFloor:
-    case IrOpcode::kNumberRound:
-    case IrOpcode::kNumberTrunc: {
-      Node* const input = NodeProperties::GetValueInput(node, 0);
-      Type* const input_type = NodeProperties::GetType(input);
-      if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+    case IrOpcode::kCheckTaggedPointer: {
+      Node* const input = node->InputAt(0);
+      if (DecideObjectIsSmi(input) == Decision::kFalse) {
+        ReplaceWithValue(node, input);
         return Replace(input);
       }
       break;
     }
-    case IrOpcode::kReferenceEqual:
-      return ReduceReferenceEqual(node);
-    case IrOpcode::kTypeGuard:
-      return ReduceTypeGuard(node);
+    case IrOpcode::kCheckTaggedSigned: {
+      Node* const input = node->InputAt(0);
+      if (DecideObjectIsSmi(input) == Decision::kTrue) {
+        ReplaceWithValue(node, input);
+        return Replace(input);
+      }
+      break;
+    }
+    case IrOpcode::kObjectIsSmi: {
+      Node* const input = node->InputAt(0);
+      switch (DecideObjectIsSmi(input)) {
+        case Decision::kTrue:
+          return ReplaceBoolean(true);
+        case Decision::kFalse:
+          return ReplaceBoolean(false);
+        case Decision::kUnknown:
+          break;
+      }
+      break;
+    }
+    case IrOpcode::kNumberAbs: {
+      NumberMatcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceNumber(std::fabs(m.Value()));
+      break;
+    }
+    case IrOpcode::kReferenceEqual: {
+      HeapObjectBinopMatcher m(node);
+      if (m.left().node() == m.right().node()) return ReplaceBoolean(true);
+      break;
+    }
     default:
       break;
   }
-  return NoChange();
-}
-
-Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
-  DCHECK_EQ(IrOpcode::kReferenceEqual, node->opcode());
-  Node* const left = NodeProperties::GetValueInput(node, 0);
-  Node* const right = NodeProperties::GetValueInput(node, 1);
-  HeapObjectMatcher match_left(left);
-  HeapObjectMatcher match_right(right);
-  if (match_left.HasValue() && match_right.HasValue()) {
-    if (match_left.Value().is_identical_to(match_right.Value())) {
-      return Replace(jsgraph()->TrueConstant());
-    } else {
-      return Replace(jsgraph()->FalseConstant());
-    }
-  }
-  return NoChange();
-}
-
-Reduction SimplifiedOperatorReducer::ReduceTypeGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kTypeGuard, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetTypeOrAny(input);
-  Type* const guard_type = TypeOf(node->op());
-  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 
@@ -196,9 +210,15 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
   return Replace(jsgraph()->Constant(value));
 }
 
+Factory* SimplifiedOperatorReducer::factory() const {
+  return isolate()->factory();
+}
 
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
 
+Isolate* SimplifiedOperatorReducer::isolate() const {
+  return jsgraph()->isolate();
+}
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

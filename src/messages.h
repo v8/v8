@@ -128,6 +128,8 @@ class CallSite {
   T(FunctionBind, "Bind must be called on a function")                         \
   T(GeneratorRunning, "Generator is already running")                          \
   T(IllegalInvocation, "Illegal invocation")                                   \
+  T(ImmutablePrototypeSet,                                                     \
+    "Immutable prototype object '%' cannot have their prototype set")          \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -503,7 +505,9 @@ class CallSite {
   T(WasmTrapRemByZero, "remainder by zero")                                    \
   T(WasmTrapFloatUnrepresentable, "integer result unrepresentable")            \
   T(WasmTrapFuncInvalid, "invalid function")                                   \
-  T(WasmTrapFuncSigMismatch, "function signature mismatch")
+  T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
+  T(WasmTrapMemAllocationFail, "failed to allocate memory")                    \
+  T(WasmTrapInvalidIndex, "invalid index into function table")
 
 class MessageTemplate {
  public:

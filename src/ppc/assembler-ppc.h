@@ -110,6 +110,7 @@ namespace internal {
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
@@ -166,8 +167,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -206,6 +205,8 @@ const Register kConstantPoolRegister = r28;  // Constant pool.
 const Register kRootRegister = r29;          // Roots array pointer.
 const Register cp = r30;                     // JavaScript context pointer.
 
+static const bool kSimpleFPAliasing = true;
+
 // Double word FP register.
 struct DoubleRegister {
   enum Code {
@@ -219,8 +220,6 @@ struct DoubleRegister {
   static const int kNumRegisters = Code::kAfterLast;
   static const int kMaxNumRegisters = kNumRegisters;
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -1223,10 +1222,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
   void instr_at_put(int pos, Instr instr) {
@@ -1472,8 +1467,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

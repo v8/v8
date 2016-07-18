@@ -4,22 +4,22 @@
 
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
+import("//build/config/v8_target_cpu.gni")
 import("//gni/v8.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
 }
 
-if (((v8_target_arch == "ia32" ||
-      v8_target_arch == "x64" ||
-      v8_target_arch=="x87") &&
+if (((v8_current_cpu == "x86" ||
+      v8_current_cpu == "x64" ||
+      v8_current_cpu=="x87") &&
      (is_linux || is_mac)) ||
-    (v8_target_arch == "ppc64" && is_linux)) {
+    (v8_current_cpu == "ppc64" && is_linux)) {
   v8_enable_gdbjit = true
 }
 
-icu_use_data_file = false
-v8_imminent_deprecation_warnings = true
+v8_imminent_deprecation_warnings_default = true
 
 # Add simple extras solely for the purpose of the cctests.
 v8_extra_library_files = [ "//test/cctest/test-extra.js" ]

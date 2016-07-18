@@ -72,9 +72,6 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
       return
         CheckForName(name, isolate->factory()->length_string(),
                      JSArray::kLengthOffset, object_offset);
-    case JS_ARRAY_BUFFER_TYPE:
-      return CheckForName(name, isolate->factory()->byte_length_string(),
-                          JSArrayBuffer::kByteLengthOffset, object_offset);
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(name, isolate->factory()->length_string(),
@@ -874,7 +871,16 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
 
     // Copy the parameters to the arguments object.
     DCHECK(array->length() == length);
-    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    for (int i = 0; i < length; i++) {
+      Object* value = frame->GetParameter(i);
+      if (value->IsTheHole(isolate)) {
+        // Generators currently use holes as dummy arguments when resuming.  We
+        // must not leak those.
+        DCHECK(IsResumableFunction(function->shared()->kind()));
+        value = isolate->heap()->undefined_value();
+      }
+      array->set(i, value);
+    }
     arguments->set_elements(*array);
 
     // Return the freshly allocated arguments object.
@@ -1108,63 +1114,6 @@ Handle<AccessorInfo> Accessors::BoundFunctionNameInfo(
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &BoundFunctionNameGetter, &ReconfigureToDataProperty,
                       attributes);
-}
-
-//
-// Accessors::MakeModuleExport
-//
-
-static void ModuleGetExport(v8::Local<v8::Name> property,
-                            const v8::PropertyCallbackInfo<v8::Value>& info) {
-  JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
-  Context* context = Context::cast(instance->context());
-  DCHECK(context->IsModuleContext());
-  Isolate* isolate = instance->GetIsolate();
-  int slot = info.Data()
-                 ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                 .FromMaybe(-1);
-  if (slot < 0 || slot >= context->length()) {
-    Handle<Name> name = v8::Utils::OpenHandle(*property);
-
-    Handle<Object> exception = isolate->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, name);
-    isolate->ScheduleThrow(*exception);
-    return;
-  }
-  Object* value = context->get(slot);
-  if (value->IsTheHole(isolate)) {
-    Handle<Name> name = v8::Utils::OpenHandle(*property);
-
-    Handle<Object> exception = isolate->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, name);
-    isolate->ScheduleThrow(*exception);
-    return;
-  }
-  info.GetReturnValue().Set(v8::Utils::ToLocal(Handle<Object>(value, isolate)));
-}
-
-
-static void ModuleSetExport(v8::Local<v8::Name> property,
-                            v8::Local<v8::Value> value,
-                            const v8::PropertyCallbackInfo<void>& info) {
-  if (!info.ShouldThrowOnError()) return;
-  Handle<Name> name = v8::Utils::OpenHandle(*property);
-  Isolate* isolate = name->GetIsolate();
-  Handle<Object> exception =
-      isolate->factory()->NewTypeError(MessageTemplate::kNotDefined, name);
-  isolate->ScheduleThrow(*exception);
-}
-
-
-Handle<AccessorInfo> Accessors::MakeModuleExport(
-    Handle<String> name,
-    int index,
-    PropertyAttributes attributes) {
-  Isolate* isolate = name->GetIsolate();
-  Handle<AccessorInfo> info = MakeAccessor(isolate, name, &ModuleGetExport,
-                                           &ModuleSetExport, attributes);
-  info->set_data(Smi::FromInt(index));
-  return info;
 }
 
 

@@ -24,7 +24,7 @@ bytecodes: [
                 B(Ldar), R(new_target),
                 B(StaContextSlot), R(context), U8(6),
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0),
+  /*   34 S> */ B(CreateClosure), U8(0), U8(2),
   /*   36 E> */ B(StaLookupSlotSloppy), U8(1),
   /*   52 S> */ B(LdaConstant), U8(2),
                 B(Star), R(3),

@@ -36,14 +36,34 @@ base::SmartArrayPointer<const char> GetVisualizerLogFileName(
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }
+  EmbeddedVector<char, 256> source_file(0);
+  bool source_available = false;
+  if (FLAG_trace_file_names && info->parse_info()) {
+    Object* source_name = info->script()->name();
+    if (source_name->IsString()) {
+      String* str = String::cast(source_name);
+      if (str->length() > 0) {
+        SNPrintF(source_file, "%s", str->ToCString().get());
+        std::replace(source_file.start(),
+                     source_file.start() + source_file.length(), '/', '_');
+        source_available = true;
+      }
+    }
+  }
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> full_filename;
-  if (phase == nullptr) {
+  if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else {
+  } else if (phase != nullptr && !source_available) {
     SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
+  } else if (phase == nullptr && source_available) {
+    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file.start(),
+             suffix);
+  } else {
+    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(),
+             source_file.start(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.length() + 1];
@@ -104,10 +124,12 @@ class JSONGraphNodeWriter {
     } else {
       os_ << ",\n";
     }
-    std::ostringstream label;
-    label << *node->op();
+    std::ostringstream label, title;
+    node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
+    node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
     os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
-        << "\"";
+        << "\""
+        << ",\"title\":\"" << Escaped(title, "\"") << "\"";
     IrOpcode::Value opcode = node->opcode();
     if (IrOpcode::IsPhiOpcode(opcode)) {
       os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
@@ -494,9 +516,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        PrintableInstruction printable = {
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-            instructions->InstructionAt(j)};
+        PrintableInstruction printable = {RegisterConfiguration::Turbofan(),
+                                          instructions->InstructionAt(j)};
         os_ << j << " " << printable << " <|@\n";
       }
     }
@@ -539,13 +560,17 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
+      const auto config = RegisterConfiguration::Turbofan();
       if (op.IsRegister()) {
-        os_ << " \"" << op.GetRegister().ToString() << "\"";
+        os_ << " \"" << config->GetGeneralRegisterName(op.register_code())
+            << "\"";
       } else if (op.IsDoubleRegister()) {
-        os_ << " \"" << op.GetDoubleRegister().ToString() << "\"";
+        os_ << " \"" << config->GetDoubleRegisterName(op.register_code())
+            << "\"";
       } else {
         DCHECK(op.IsFloatRegister());
-        os_ << " \"" << op.GetFloatRegister().ToString() << "\"";
+        os_ << " \"" << config->GetFloatRegisterName(op.register_code())
+            << "\"";
       }
     } else if (range->spilled()) {
       const TopLevelLiveRange* top = range->TopLevel();
@@ -558,9 +583,9 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->kind() == FP_REGISTERS) {
-          os_ << " \"double_stack:" << index << "\"";
-        } else if (top->kind() == GENERAL_REGISTERS) {
+        if (IsFloatingPoint(top->representation())) {
+          os_ << " \"fp_stack:" << index << "\"";
+        } else {
           os_ << " \"stack:" << index << "\"";
         }
       }

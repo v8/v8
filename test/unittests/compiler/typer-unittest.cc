@@ -290,44 +290,51 @@ TEST_F(TyperTest, TypeJSShiftRight) {
 
 
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(javascript_.LessThan(), std::less<double>());
+  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHints::Any()),
+                      std::less<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(javascript_.LessThanOrEqual(), std::less_equal<double>());
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHints::Any()),
+                      std::less_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(javascript_.GreaterThan(), std::greater<double>());
+  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHints::Any()),
+                      std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
-  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(),
-                      std::greater_equal<double>());
+  TestBinaryCompareOp(
+      javascript_.GreaterThanOrEqual(CompareOperationHints::Any()),
+      std::greater_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSEqual) {
-  TestBinaryCompareOp(javascript_.Equal(), std::equal_to<double>());
+  TestBinaryCompareOp(javascript_.Equal(CompareOperationHints::Any()),
+                      std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSNotEqual) {
-  TestBinaryCompareOp(javascript_.NotEqual(), std::not_equal_to<double>());
+  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHints::Any()),
+                      std::not_equal_to<double>());
 }
 
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
-  TestBinaryCompareOp(javascript_.StrictEqual(), std::equal_to<double>());
+  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHints::Any()),
+                      std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSStrictNotEqual) {
-  TestBinaryCompareOp(javascript_.StrictNotEqual(),
+  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHints::Any()),
                       std::not_equal_to<double>());
 }
 
@@ -335,10 +342,9 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
 //------------------------------------------------------------------------------
 // Monotonicity
 
-
-#define TEST_BINARY_MONOTONICITY(name)          \
-  TEST_F(TyperTest, Monotonicity_##name) {      \
-    TestBinaryMonotonicity(javascript_.name()); \
+#define TEST_BINARY_MONOTONICITY(name)                                      \
+  TEST_F(TyperTest, Monotonicity_##name) {                                  \
+    TestBinaryMonotonicity(javascript_.name(CompareOperationHints::Any())); \
   }
 TEST_BINARY_MONOTONICITY(Equal)
 TEST_BINARY_MONOTONICITY(NotEqual)

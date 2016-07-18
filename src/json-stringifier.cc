@@ -274,7 +274,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+      isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
     return EXCEPTION;
   }
   if (object->IsJSReceiver()) {
@@ -360,7 +360,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
   } else if (class_name == isolate_->heap()->Boolean_string()) {
     Object* value = JSValue::cast(*object)->value();
     DCHECK(value->IsBoolean());
-    builder_.AppendCString(value->IsTrue() ? "true" : "false");
+    builder_.AppendCString(value->IsTrue(isolate_) ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object);
@@ -407,7 +407,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+              isolate_->stack_guard()->HandleInterrupts()->IsException(
+                  isolate_)) {
             return EXCEPTION;
           }
           Separator(i == 0);
@@ -424,7 +425,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException()) {
+              isolate_->stack_guard()->HandleInterrupts()->IsException(
+                  isolate_)) {
             return EXCEPTION;
           }
           Separator(i == 0);
@@ -476,6 +478,12 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
 
 JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Handle<JSReceiver> object, uint32_t start, uint32_t length) {
+  // We need to write out at least two characters per array element.
+  static const int kMaxSerializableArrayLength = String::kMaxLength / 2;
+  if (length > kMaxSerializableArrayLength) {
+    isolate_->Throw(*isolate_->factory()->NewInvalidStringLengthError());
+    return EXCEPTION;
+  }
   for (uint32_t i = start; i < length; i++) {
     Separator(i == 0);
     Handle<Object> element;
@@ -485,6 +493,8 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Result result = SerializeElement(isolate_, element, i);
     if (result == SUCCESS) continue;
     if (result == UNCHANGED) {
+      // Detect overflow sooner for large sparse arrays.
+      if (builder_.HasOverflowed()) return EXCEPTION;
       builder_.AppendCString("null");
     } else {
       return result;

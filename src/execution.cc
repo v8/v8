@@ -59,6 +59,19 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
                                            Handle<Object> new_target) {
   DCHECK(!receiver->IsJSGlobalObject());
 
+#ifdef USE_SIMULATOR
+  // Simulators use separate stacks for C++ and JS. JS stack overflow checks
+  // are performed whenever a JS function is called. However, it can be the case
+  // that the C++ stack grows faster than the JS stack, resulting in an overflow
+  // there. Add a check here to make that less likely.
+  StackLimitCheck check(isolate);
+  if (check.HasOverflowed()) {
+    isolate->StackOverflow();
+    isolate->ReportPendingMessages();
+    return MaybeHandle<Object>();
+  }
+#endif
+
   // Entering JavaScript.
   VMState<JS> state(isolate);
   CHECK(AllowJavascriptExecution::IsAllowed(isolate));
@@ -106,7 +119,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = value->IsException();
+  bool has_exception = value->IsException(isolate);
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     isolate->ReportPendingMessages();
@@ -140,7 +153,8 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
     SaveContext save(isolate);
     isolate->set_context(function->context());
     DCHECK(function->context()->global_object()->IsJSGlobalObject());
-    auto value = Builtins::InvokeApiFunction(function, receiver, argc, argv);
+    auto value =
+        Builtins::InvokeApiFunction(isolate, function, receiver, argc, argv);
     bool has_exception = value.is_null();
     DCHECK(has_exception == isolate->has_pending_exception());
     if (has_exception) {

@@ -99,6 +99,8 @@ void HeapObject::HeapObjectVerify() {
       Oddball::cast(this)->OddballVerify();
       break;
     case JS_OBJECT_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_ARGUMENTS_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -107,9 +109,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(this)->JSGeneratorObjectVerify();
-      break;
-    case JS_MODULE_TYPE:
-      JSModule::cast(this)->JSModuleVerify();
       break;
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
@@ -300,7 +299,7 @@ void JSObject::JSObjectVerify() {
         }
         Object* value = RawFastPropertyAt(index);
         if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
-        if (value->IsUninitialized()) continue;
+        if (value->IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value->IsSmi());
         if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
         FieldType* field_type = descriptors->GetFieldType(i);
@@ -427,14 +426,6 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kReceiverOffset);
   VerifyObjectField(kOperandStackOffset);
   VerifyObjectField(kContinuationOffset);
-}
-
-
-void JSModule::JSModuleVerify() {
-  VerifyObjectField(kContextOffset);
-  VerifyObjectField(kScopeInfoOffset);
-  CHECK(context()->IsUndefined(GetIsolate()) ||
-        Context::cast(context())->IsModuleContext());
 }
 
 
@@ -573,10 +564,13 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
-        HasBuiltinFunctionId() || HasBytecodeArray());
+        HasBytecodeArray() || HasAsmWasmData());
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kDebugInfoOffset);
+  CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
+        HasBuiltinFunctionId() || HasInferredName());
+  VerifyObjectField(kFunctionIdentifierOffset);
 }
 
 
@@ -698,11 +692,25 @@ void Code::VerifyEmbeddedObjectsDependency() {
         CHECK(map->dependent_code()->Contains(DependentCode::kWeakCodeGroup,
                                               cell));
       } else if (obj->IsJSObject()) {
-        WeakHashTable* table =
-            GetIsolate()->heap()->weak_object_to_code_table();
-        Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
-        CHECK(DependentCode::cast(table->Lookup(key_obj))
-                  ->Contains(DependentCode::kWeakCodeGroup, cell));
+        if (isolate->heap()->InNewSpace(obj)) {
+          ArrayList* list =
+              GetIsolate()->heap()->weak_new_space_object_to_code_list();
+          bool found = false;
+          for (int i = 0; i < list->Length(); i += 2) {
+            WeakCell* obj_cell = WeakCell::cast(list->Get(i));
+            if (!obj_cell->cleared() && obj_cell->value() == obj &&
+                WeakCell::cast(list->Get(i + 1)) == cell) {
+              found = true;
+              break;
+            }
+          }
+          CHECK(found);
+        } else {
+          Handle<HeapObject> key_obj(HeapObject::cast(obj), isolate);
+          DependentCode* dep =
+              GetIsolate()->heap()->LookupWeakObjectToCodeDependency(key_obj);
+          dep->Contains(DependentCode::kWeakCodeGroup, cell);
+        }
       }
     }
   }
@@ -831,7 +839,7 @@ void JSProxy::JSProxyVerify() {
   CHECK_EQ(target()->IsCallable(), map()->is_callable());
   CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
   CHECK(hash()->IsSmi() || hash()->IsUndefined(isolate));
-  CHECK(map()->prototype()->IsNull());
+  CHECK(map()->prototype()->IsNull(isolate));
   // There should be no properties on a Proxy.
   CHECK_EQ(0, map()->NumberOfOwnDescriptors());
 }
@@ -932,6 +940,8 @@ void AccessorPair::AccessorPairVerify() {
 void AccessCheckInfo::AccessCheckInfoVerify() {
   CHECK(IsAccessCheckInfo());
   VerifyPointer(callback());
+  VerifyPointer(named_interceptor());
+  VerifyPointer(indexed_interceptor());
   VerifyPointer(data());
 }
 
@@ -981,7 +991,7 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
   CHECK(IsObjectTemplateInfo());
   TemplateInfoVerify();
   VerifyPointer(constructor());
-  VerifyPointer(internal_field_count());
+  VerifyPointer(data());
 }
 
 

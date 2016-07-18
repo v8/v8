@@ -13,6 +13,7 @@ namespace internal {
 
 Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     Handle<Map> receiver_map, ExtraICState extra_ic_state) {
+  // TODO(ishell): remove extra_ic_state
   Isolate* isolate = receiver_map->GetIsolate();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   ElementsKind elements_kind = receiver_map->elements_kind();
@@ -40,8 +41,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   } else {
     DCHECK(receiver_map->has_dictionary_elements());
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
-    stub = LoadDictionaryElementStub(isolate, LoadICState(extra_ic_state))
-               .GetCode();
+    stub = LoadDictionaryElementStub(isolate).GetCode();
   }
   return stub;
 }

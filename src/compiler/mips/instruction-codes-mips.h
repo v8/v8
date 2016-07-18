@@ -17,6 +17,7 @@ namespace compiler {
   V(MipsSub)                       \
   V(MipsSubOvf)                    \
   V(MipsMul)                       \
+  V(MipsMulOvf)                    \
   V(MipsMulHigh)                   \
   V(MipsMulHighU)                  \
   V(MipsDiv)                       \
@@ -46,6 +47,7 @@ namespace compiler {
   V(MipsCmpS)                      \
   V(MipsAddS)                      \
   V(MipsSubS)                      \
+  V(MipsSubPreserveNanS)           \
   V(MipsMulS)                      \
   V(MipsDivS)                      \
   V(MipsModS)                      \
@@ -56,6 +58,7 @@ namespace compiler {
   V(MipsCmpD)                      \
   V(MipsAddD)                      \
   V(MipsSubD)                      \
+  V(MipsSubPreserveNanD)           \
   V(MipsMulD)                      \
   V(MipsDivD)                      \
   V(MipsModD)                      \
@@ -106,6 +109,7 @@ namespace compiler {
   V(MipsFloat64ExtractHighWord32)  \
   V(MipsFloat64InsertLowWord32)    \
   V(MipsFloat64InsertHighWord32)   \
+  V(MipsFloat64SilenceNaN)         \
   V(MipsFloat64Max)                \
   V(MipsFloat64Min)                \
   V(MipsFloat32Max)                \

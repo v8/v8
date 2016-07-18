@@ -215,7 +215,6 @@ function PostNatives(utils) {
     "SetIterator",
     "SetIteratorNext",
     "SetValues",
-    "SymbolToString",
     "ToLocaleLowerCaseI18N",
     "ToLocaleUpperCaseI18N",
     "ToLowerCaseI18N",
@@ -266,9 +265,6 @@ function PostExperimentals(utils) {
     imports_from_experimental(exports_container);
   }
 
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
-
   utils.Export = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
@@ -280,9 +276,6 @@ function PostDebug(utils) {
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
   }
-
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
 
   exports_container = UNDEFINED;
 

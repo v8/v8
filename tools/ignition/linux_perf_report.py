@@ -97,7 +97,8 @@ def collapsed_callchains_generator(perf_stream, show_all=False,
     if skip_until_end_of_chain:
       continue
 
-    symbol = line.split(" ", 1)[1]
+    # Trim the leading address and the trailing +offset, if present.
+    symbol = line.split(" ", 1)[1].split("+", 1)[0]
     if not show_full_signatures:
       symbol = strip_function_parameters(symbol)
     current_chain.append(symbol)
@@ -204,7 +205,7 @@ def parse_command_line():
 def main():
   program_options = parse_command_line()
 
-  perf = subprocess.Popen(["perf", "script", "-f", "ip,sym",
+  perf = subprocess.Popen(["perf", "script", "--fields", "ip,sym",
                            "-i", program_options.perf_filename],
                           stdout=subprocess.PIPE)
 

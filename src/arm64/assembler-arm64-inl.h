@@ -16,6 +16,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 void RelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references need extra work.
@@ -731,6 +732,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

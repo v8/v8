@@ -10,6 +10,7 @@
 #include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/factory.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
@@ -62,10 +63,11 @@ void Interpreter::Initialize() {
       size_t index = GetDispatchTableIndex(Bytecode::k##Name, operand_scale);  \
       dispatch_table_[index] = code->entry();                                  \
       TraceCodegen(code);                                                      \
-      LOG_CODE_EVENT(                                                          \
+      PROFILE(                                                                 \
           isolate_,                                                            \
           CodeCreateEvent(                                                     \
-              Logger::BYTECODE_HANDLER_TAG, AbstractCode::cast(*code),         \
+              CodeEventListener::BYTECODE_HANDLER_TAG,                         \
+              AbstractCode::cast(*code),                                       \
               Bytecodes::ToString(Bytecode::k##Name, operand_scale).c_str())); \
     }                                                                          \
   }
@@ -134,9 +136,9 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::CompileIgnition);
   TimerEventScope<TimerEventCompileIgnition> timer(info->isolate());
-  TRACE_EVENT0("v8", "V8.CompileIgnition");
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
-  if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
+  if (FLAG_print_bytecode || FLAG_print_ast) {
     OFStream os(stdout);
     base::SmartArrayPointer<char> name = info->GetDebugName();
     os << "[generating bytecode for function: " << info->GetDebugName().get()
@@ -145,14 +147,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   }
 
 #ifdef DEBUG
-  if (info->parse_info() && FLAG_print_source) {
-    OFStream os(stdout);
-    os << "--- Source from AST ---" << std::endl
-       << PrettyPrinter(info->isolate()).PrintProgram(info->literal())
-       << std::endl
-       << std::flush;
-  }
-
   if (info->parse_info() && FLAG_print_ast) {
     OFStream os(stdout);
     os << "--- AST ---" << std::endl
@@ -390,50 +384,48 @@ Node* Interpreter::BuildLoadGlobal(Callable ic,
                                    InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* global = __ LoadContextSlot(native_context, Context::EXTENSION_INDEX);
 
-  // Load the global via the LoadIC.
+  // Load the global via the LoadGlobalIC.
   Node* code_target = __ HeapConstant(ic.code());
-  Node* constant_index = __ BytecodeOperandIdx(0);
-  Node* name = __ LoadConstantPoolEntry(constant_index);
-  Node* raw_slot = __ BytecodeOperandIdx(1);
+  Node* raw_slot = __ BytecodeOperandIdx(0);
   Node* smi_slot = __ SmiTag(raw_slot);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  return __ CallStub(ic.descriptor(), code_target, context, global, name,
-                     smi_slot, type_feedback_vector);
+  return __ CallStub(ic.descriptor(), code_target, context, smi_slot,
+                     type_feedback_vector);
 }
 
-// LdaGlobal <name_index> <slot>
+// LdaGlobal <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// LdrGlobal <name_index> <slot> <reg>
+// LdrGlobal <slot> <reg>
 //
 // Load the global with name in constant pool entry <name_index> into
 // register <reg> using FeedBackVector slot <slot> outside of a typeof.
 void Interpreter::DoLdrGlobal(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
-  Node* destination = __ BytecodeOperandReg(2);
+  Node* destination = __ BytecodeOperandReg(1);
   __ StoreRegister(result, destination);
   __ Dispatch();
 }
 
-// LdaGlobalInsideTypeof <name_index> <slot>
+// LdaGlobalInsideTypeof <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
 // accumulator using FeedBackVector slot <slot> inside of a typeof.
 void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF);
+  Callable ic =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate_, INSIDE_TYPEOF);
   Node* result = BuildLoadGlobal(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -592,7 +584,7 @@ Node* Interpreter::BuildLoadNamedProperty(Callable ic,
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
 void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -603,7 +595,7 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index> and puts the result into register <reg>.
 void Interpreter::DoLdrNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF);
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
   Node* result = BuildLoadNamedProperty(ic, assembler);
   Node* destination = __ BytecodeOperandReg(3);
   __ StoreRegister(result, destination);
@@ -837,6 +829,174 @@ void Interpreter::DoShiftRightLogical(InterpreterAssembler* assembler) {
   DoBinaryOp<ShiftRightLogicalStub>(assembler);
 }
 
+// AddSmi <imm> <reg>
+//
+// Adds an immediate value <imm> to register <reg>. For this
+// operation <reg> is the lhs operand and <imm> is the <rhs> operand.
+void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Try fast Smi addition first.
+    Node* pair = __ SmiAddWithOverflow(left, right);
+    Node* overflow = __ Projection(1, pair);
+
+    // Check if the Smi additon overflowed.
+    Label if_notoverflow(assembler);
+    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Bind(&if_notoverflow);
+    {
+      var_result.Bind(__ Projection(0, pair));
+      __ Goto(&end);
+    }
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    Callable callable = CodeFactory::Add(__ isolate());
+    var_result.Bind(__ CallStub(callable, context, left, right));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// SubSmi <imm> <reg>
+//
+// Subtracts an immediate value <imm> to register <reg>. For this
+// operation <reg> is the lhs operand and <imm> is the rhs operand.
+void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  Label fastpath(assembler), slowpath(assembler, Label::kDeferred),
+      end(assembler);
+
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+
+  // {right} is known to be a Smi.
+  // Check if the {left} is a Smi take the fast path.
+  __ BranchIf(__ WordIsSmi(left), &fastpath, &slowpath);
+  __ Bind(&fastpath);
+  {
+    // Try fast Smi subtraction first.
+    Node* pair = __ SmiSubWithOverflow(left, right);
+    Node* overflow = __ Projection(1, pair);
+
+    // Check if the Smi subtraction overflowed.
+    Label if_notoverflow(assembler);
+    __ BranchIf(overflow, &slowpath, &if_notoverflow);
+    __ Bind(&if_notoverflow);
+    {
+      var_result.Bind(__ Projection(0, pair));
+      __ Goto(&end);
+    }
+  }
+  __ Bind(&slowpath);
+  {
+    Node* context = __ GetContext();
+    Callable callable = CodeFactory::Subtract(__ isolate());
+    var_result.Bind(__ CallStub(callable, context, left, right));
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
+// BitwiseOr <imm> <reg>
+//
+// BitwiseOr <reg> with <imm>. For this operation <reg> is the lhs
+// operand and <imm> is the rhs operand.
+void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* value = __ Word32Or(lhs_value, rhs_value);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// BitwiseAnd <imm> <reg>
+//
+// BitwiseAnd <reg> with <imm>. For this operation <reg> is the lhs
+// operand and <imm> is the rhs operand.
+void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* value = __ Word32And(lhs_value, rhs_value);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// ShiftLeftSmi <imm> <reg>
+//
+// Left shifts register <src> by the count specified in <imm>.
+// Register <src> is converted to an int32 before the operation. The 5
+// lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
+  Node* value = __ Word32Shl(lhs_value, shift_count);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// ShiftRightSmi <imm> <reg>
+//
+// Right shifts register <src> by the count specified in <imm>.
+// Register <src> is converted to an int32 before the operation. The 5
+// lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
+void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
+  Node* reg_index = __ BytecodeOperandReg(1);
+  Node* left = __ LoadRegister(reg_index);
+  Node* raw_int = __ BytecodeOperandImm(0);
+  Node* right = __ SmiTag(raw_int);
+  Node* context = __ GetContext();
+  Node* lhs_value = __ TruncateTaggedToWord32(context, left);
+  Node* rhs_value = __ SmiToWord32(right);
+  Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
+  Node* value = __ Word32Sar(lhs_value, shift_count);
+  Node* result = __ ChangeInt32ToTagged(value);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 void Interpreter::DoUnaryOp(Callable callable,
                             InterpreterAssembler* assembler) {
   Node* target = __ HeapConstant(callable.code());
@@ -991,26 +1151,30 @@ void Interpreter::DoJSCall(InterpreterAssembler* assembler,
   Node* receiver_args_count = __ BytecodeOperandCount(2);
   Node* receiver_count = __ Int32Constant(1);
   Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
+  Node* slot_id = __ BytecodeOperandIdx(3);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  // TODO(rmcilroy): Use the call type feedback slot to call via CallStub.
   Node* result =
-      __ CallJS(function, context, receiver_arg, args_count, tail_call_mode);
+      __ CallJSWithFeedback(function, context, receiver_arg, args_count,
+                            slot_id, type_feedback_vector, tail_call_mode);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
-// Call <callable> <receiver> <arg_count>
+// Call <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
+// |arg_count| arguments in subsequent registers. Collect type feedback
+// into |feedback_slot_id|
 void Interpreter::DoCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kDisallow);
 }
 
-// TailCall <callable> <receiver> <arg_count>
+// TailCall <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Tail call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
+// |arg_count| arguments in subsequent registers. Collect type feedback
+// into |feedback_slot_id|
 void Interpreter::DoTailCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kAllow);
 }
@@ -1041,7 +1205,7 @@ void Interpreter::DoCallRuntime(InterpreterAssembler* assembler) {
 // |function_id| with the first argument in |first_arg| and |arg_count|
 // arguments in subsequent registers.
 void Interpreter::DoInvokeIntrinsic(InterpreterAssembler* assembler) {
-  Node* function_id = __ BytecodeOperandRuntimeId(0);
+  Node* function_id = __ BytecodeOperandIntrinsicId(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* arg_count = __ BytecodeOperandCount(2);
   Node* context = __ GetContext();
@@ -1493,17 +1657,29 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
 // Creates a new closure for SharedFunctionInfo at position |index| in the
 // constant pool and with the PretenureFlag <tenured>.
 void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
-  // TODO(rmcilroy): Possibly call FastNewClosureStub when possible instead of
-  // calling into the runtime.
   Node* index = __ BytecodeOperandIdx(0);
   Node* shared = __ LoadConstantPoolEntry(index);
-  Node* tenured_raw = __ BytecodeOperandFlag(1);
-  Node* tenured = __ SmiTag(tenured_raw);
+  Node* flags = __ BytecodeOperandFlag(1);
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kInterpreterNewClosure, context, shared, tenured);
-  __ SetAccumulator(result);
+
+  Label call_runtime(assembler, Label::kDeferred);
+  Node* fast_new_closure = __ Word32And(
+      flags, __ Int32Constant(CreateClosureFlags::FastNewClosureBit::kMask));
+  __ GotoUnless(fast_new_closure, &call_runtime);
+  __ SetAccumulator(FastNewClosureStub::Generate(assembler, shared, context));
   __ Dispatch();
+
+  __ Bind(&call_runtime);
+  {
+    STATIC_ASSERT(CreateClosureFlags::PretenuredBit::kShift == 0);
+    Node* tenured_raw = __ Word32And(
+        flags, __ Int32Constant(CreateClosureFlags::PretenuredBit::kMask));
+    Node* tenured = __ SmiTag(tenured_raw);
+    Node* result = __ CallRuntime(Runtime::kInterpreterNewClosure, context,
+                                  shared, tenured);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 // CreateMappedArguments
@@ -1787,10 +1963,22 @@ void Interpreter::DoNop(InterpreterAssembler* assembler) { __ Dispatch(); }
 // SuspendGenerator <generator>
 //
 // Exports the register file and stores it into the generator.  Also stores the
-// current context and the state given in the accumulator into the generator.
+// current context, the state given in the accumulator, and the current bytecode
+// offset (for debugging purposes) into the generator.
 void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   Node* generator_reg = __ BytecodeOperandReg(0);
   Node* generator = __ LoadRegister(generator_reg);
+
+  Label if_stepping(assembler, Label::kDeferred), ok(assembler);
+  Node* step_action_address = __ ExternalConstant(
+      ExternalReference::debug_last_step_action_address(isolate_));
+  Node* step_action = __ Load(MachineType::Int8(), step_action_address);
+  STATIC_ASSERT(StepIn > StepNext);
+  STATIC_ASSERT(StepFrame > StepNext);
+  STATIC_ASSERT(LastStepAction == StepFrame);
+  Node* step_next = __ Int32Constant(StepNext);
+  __ BranchIfInt32LessThanOrEqual(step_next, step_action, &if_stepping, &ok);
+  __ Bind(&ok);
 
   Node* array =
       __ LoadObjectField(generator, JSGeneratorObject::kOperandStackOffset);
@@ -1801,7 +1989,18 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
   __ StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
   __ StoreObjectField(generator, JSGeneratorObject::kContinuationOffset, state);
 
+  Node* offset = __ SmiTag(__ BytecodeOffset());
+  __ StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
+                      offset);
+
   __ Dispatch();
+
+  __ Bind(&if_stepping);
+  {
+    Node* context = __ GetContext();
+    __ CallRuntime(Runtime::kDebugRecordAsyncFunction, context, generator);
+    __ Goto(&ok);
+  }
 }
 
 // ResumeGenerator <generator>

@@ -678,8 +678,7 @@ class SpillRange final : public ZoneObject {
   SpillRange(TopLevelLiveRange* range, Zone* zone);
 
   UseInterval* interval() const { return use_interval_; }
-  // Currently, only 4 or 8 byte slots are supported.
-  int ByteWidth() const;
+
   bool IsEmpty() const { return live_ranges_.empty(); }
   bool TryMerge(SpillRange* other);
   bool HasSlot() const { return assigned_slot_ != kUnassignedSlot; }
@@ -696,8 +695,8 @@ class SpillRange final : public ZoneObject {
     return live_ranges_;
   }
   ZoneVector<TopLevelLiveRange*>& live_ranges() { return live_ranges_; }
+  // Spill slots can be 4, 8, or 16 bytes wide.
   int byte_width() const { return byte_width_; }
-  RegisterKind kind() const { return kind_; }
   void Print() const;
 
  private:
@@ -711,7 +710,6 @@ class SpillRange final : public ZoneObject {
   LifetimePosition end_position_;
   int assigned_slot_;
   int byte_width_;
-  RegisterKind kind_;
 
   DISALLOW_COPY_AND_ASSIGN(SpillRange);
 };
@@ -768,18 +766,30 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<TopLevelLiveRange*>& fixed_live_ranges() {
     return fixed_live_ranges_;
   }
+  ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() {
+    return fixed_float_live_ranges_;
+  }
+  const ZoneVector<TopLevelLiveRange*>& fixed_float_live_ranges() const {
+    return fixed_float_live_ranges_;
+  }
   ZoneVector<TopLevelLiveRange*>& fixed_double_live_ranges() {
     return fixed_double_live_ranges_;
   }
   const ZoneVector<TopLevelLiveRange*>& fixed_double_live_ranges() const {
     return fixed_double_live_ranges_;
   }
+  ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() {
+    return fixed_simd128_live_ranges_;
+  }
+  const ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() const {
+    return fixed_simd128_live_ranges_;
+  }
   ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
   ZoneVector<BitVector*>& live_out_sets() { return live_out_sets_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
   DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
-  // This zone is for datastructures only needed during register allocation
+  // This zone is for data structures only needed during register allocation
   // phases.
   Zone* allocation_zone() const { return allocation_zone_; }
   // This zone is for InstructionOperands and moves that live beyond register
@@ -810,7 +820,7 @@ class RegisterAllocationData final : public ZoneObject {
   bool ExistsUseWithoutDefinition();
   bool RangesDefinedInDeferredStayInDeferred();
 
-  void MarkAllocated(RegisterKind kind, int index);
+  void MarkAllocated(MachineRepresentation rep, int index);
 
   PhiMapValue* InitializePhiMap(const InstructionBlock* block,
                                 PhiInstruction* phi);
@@ -835,7 +845,9 @@ class RegisterAllocationData final : public ZoneObject {
   ZoneVector<BitVector*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
+  ZoneVector<TopLevelLiveRange*> fixed_float_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_double_live_ranges_;
+  ZoneVector<TopLevelLiveRange*> fixed_simd128_live_ranges_;
   ZoneVector<SpillRange*> spill_ranges_;
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
@@ -911,9 +923,9 @@ class LiveRangeBuilder final : public ZoneObject {
   void ProcessLoopHeader(const InstructionBlock* block, BitVector* live);
 
   static int FixedLiveRangeID(int index) { return -index - 1; }
-  int FixedDoubleLiveRangeID(int index);
+  int FixedFPLiveRangeID(int index, MachineRepresentation rep);
   TopLevelLiveRange* FixedLiveRangeFor(int index);
-  TopLevelLiveRange* FixedDoubleLiveRangeFor(int index);
+  TopLevelLiveRange* FixedFPLiveRangeFor(int index, MachineRepresentation rep);
 
   void MapPhiHint(InstructionOperand* operand, UsePosition* use_pos);
   void ResolvePhiHint(InstructionOperand* operand, UsePosition* use_pos);
@@ -947,7 +959,7 @@ class LiveRangeBuilder final : public ZoneObject {
 
 class RegisterAllocator : public ZoneObject {
  public:
-  explicit RegisterAllocator(RegisterAllocationData* data, RegisterKind kind);
+  RegisterAllocator(RegisterAllocationData* data, RegisterKind kind);
 
  protected:
   RegisterAllocationData* data() const { return data_; }
@@ -955,8 +967,8 @@ class RegisterAllocator : public ZoneObject {
   RegisterKind mode() const { return mode_; }
   int num_registers() const { return num_registers_; }
   int num_allocatable_registers() const { return num_allocatable_registers_; }
-  int allocatable_register_code(int allocatable_index) const {
-    return allocatable_register_codes_[allocatable_index];
+  const int* allocatable_register_codes() const {
+    return allocatable_register_codes_;
   }
 
   // TODO(mtrofin): explain why splitting in gap START is always OK.
@@ -1008,6 +1020,9 @@ class RegisterAllocator : public ZoneObject {
   const int num_registers_;
   int num_allocatable_registers_;
   const int* allocatable_register_codes_;
+
+ private:
+  bool no_combining_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };

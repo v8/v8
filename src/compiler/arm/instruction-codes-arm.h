@@ -27,6 +27,7 @@ namespace compiler {
   V(ArmMul)                        \
   V(ArmMla)                        \
   V(ArmMls)                        \
+  V(ArmSmull)                      \
   V(ArmSmmul)                      \
   V(ArmSmmla)                      \
   V(ArmUmull)                      \
@@ -93,6 +94,7 @@ namespace compiler {
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
   V(ArmVmovU32F32)                 \
+  V(ArmVmovF32U32)                 \
   V(ArmVmovLowU32F64)              \
   V(ArmVmovLowF64U32)              \
   V(ArmVmovHighU32F64)             \
@@ -106,6 +108,7 @@ namespace compiler {
   V(ArmFloat32Min)                 \
   V(ArmFloat64Max)                 \
   V(ArmFloat64Min)                 \
+  V(ArmFloat64SilenceNaN)          \
   V(ArmLdrb)                       \
   V(ArmLdrsb)                      \
   V(ArmStrb)                       \

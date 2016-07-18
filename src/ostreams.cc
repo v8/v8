@@ -97,5 +97,11 @@ std::ostream& operator<<(std::ostream& os, const AsUC32& c) {
   return PrintUC32(os, c.value, IsPrint);
 }
 
+std::ostream& operator<<(std::ostream& os, const AsHex& hex) {
+  char buf[20];
+  snprintf(buf, sizeof(buf), "%.*" PRIx64, hex.min_width, hex.value);
+  return os << buf;
+}
+
 }  // namespace internal
 }  // namespace v8

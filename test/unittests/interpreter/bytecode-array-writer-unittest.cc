@@ -9,8 +9,8 @@
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/interpreter/source-position-table.h"
 #include "src/isolate.h"
+#include "src/source-position-table.h"
 #include "src/utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
@@ -23,7 +23,9 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
       : constant_array_builder_(isolate(), zone()),
-        bytecode_array_writer_(isolate(), zone(), &constant_array_builder_) {}
+        bytecode_array_writer_(
+            isolate(), zone(), &constant_array_builder_,
+            SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}
   ~BytecodeArrayWriterUnittest() override {}
 
   void Write(BytecodeNode* node, const BytecodeSourceInfo& info);
@@ -60,7 +62,7 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
 void BytecodeArrayWriterUnittest::Write(BytecodeNode* node,
                                         const BytecodeSourceInfo& info) {
   if (info.is_valid()) {
-    node->source_info().Update(info);
+    node->source_info().Clone(info);
   }
   writer()->Write(node);
 }
@@ -104,7 +106,7 @@ void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
                                             const BytecodeSourceInfo& info) {
   BytecodeNode node(bytecode, 0);
   if (info.is_valid()) {
-    node.source_info().Update(info);
+    node.source_info().Clone(info);
   }
   writer()->WriteJump(&node, label);
 }
@@ -135,17 +137,17 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), bytes[i]);
   }
 
-  writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
+  Handle<BytecodeArray> bytecode_array =
+      writer()->ToBytecodeArray(0, 0, factory()->empty_fixed_array());
   CHECK_EQ(bytecodes()->size(), arraysize(bytes));
 
   PositionTableEntry expected_positions[] = {
       {0, 10, false}, {1, 55, true}, {7, 70, true}};
-  Handle<ByteArray> source_positions =
-      source_position_table_builder()->ToSourcePositionTable();
-  SourcePositionTableIterator source_iterator(*source_positions);
+  SourcePositionTableIterator source_iterator(
+      bytecode_array->source_position_table());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
-    CHECK_EQ(source_iterator.bytecode_offset(), expected.bytecode_offset);
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
     CHECK_EQ(source_iterator.source_position(), expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
@@ -241,7 +243,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   SourcePositionTableIterator source_iterator(*source_positions);
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
-    CHECK_EQ(source_iterator.bytecode_offset(), expected.bytecode_offset);
+    CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
     CHECK_EQ(source_iterator.source_position(), expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();

@@ -58,94 +58,37 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(verwaest): Some tests are over-restrictive about object layout.
-  'array-constructor-feedback': [PASS, NO_VARIANTS],
-  'array-feedback': [PASS, NO_VARIANTS],
-  'compare-known-objects-slow': [PASS, NO_VARIANTS],
-  'elements-kind': [PASS, NO_VARIANTS],
-  'opt-elements-kind': [PASS, NO_VARIANTS],
-  'smi-representation': [PASS, NO_VARIANTS],
-
   # Some tests are just too slow to run for now.
   'big-object-literal': [PASS, NO_VARIANTS],
-  'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
-  'string-indexof-1': [PASS, NO_VARIANTS],
-  'unbox-double-arrays': [PASS, NO_VARIANTS],
   'unicode-test': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
-  'compiler/osr-assert': [PASS, NO_VARIANTS],
   'ignition/regress-599001-verifyheap': [PASS, NO_VARIANTS],
   'es6/string-fromcodepoint': [PASS, NO_VARIANTS],
-  'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
-  # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
-  'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
-  'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
-  'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
-  'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
-  'debug-conditional-breakpoints': [PASS, NO_VARIANTS],
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-step': [PASS, NO_VARIANTS],  # windows only.
-  'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
-  'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
-  'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
-  'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
-  'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
-  'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
-  'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
-  'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
-
-  # Issue 4035: unexpected frame->context() in debugger
-  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-323936': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-491943': [PASS, NO_VARIANTS],
-  'regress/regress-325676': [PASS, NO_VARIANTS],
-  'debug-evaluate-closure': [PASS, NO_VARIANTS],
-  'debug-evaluate-with': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
-  # issues on ARM and ARM64.
-  'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
-  'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
-
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-locals': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
   'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
-  # Issue 4055: Scope chain length observed by debugger is off.
-  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
-
-  # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
-  'result-table-min': [PASS, NO_VARIANTS],
-  'result-table-max': [PASS, NO_VARIANTS],
-  # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
-  'regress/regress-1122': [PASS, NO_VARIANTS],
 
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
-  'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
 
-  # issue 4078:
-  'allocation-site-info': [PASS, NO_VARIANTS],
+  # Fails in --turbo --always-opt mode.
+  'regress/regress-105': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -230,10 +173,6 @@
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == x87 or arch == arm and simulator == True', PASS]],
 
-  # Skip endain dependent test for mips due to different typed views of the same
-  # array buffer.
-  'nans': [PASS, ],
-
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
@@ -242,16 +181,12 @@
   'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
-  # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
-  # prermanently enabled.
-  'call-counts': [SKIP],
-
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
-  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
 
@@ -268,11 +203,15 @@
   'wasm/embenchen/*': [PASS, ['arch == arm64', SKIP], ['ignition == True', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
-  'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
-  'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
+  'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
+  'es6/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   'regress/regress-5036': [PASS, ['no_i18n == True', FAIL]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
+
+  # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
+  'unicodelctest': [PASS, NO_VARIANTS],
+  'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
   ############################################################################
   # Ignition
@@ -307,7 +246,10 @@
   'getters-on-elements': [PASS, NO_IGNITION],
   'harmony/do-expressions': [PASS, NO_IGNITION],
   'math-floor-of-div-minus-zero': [PASS, NO_IGNITION],
-  'regress/regress-2132': [PASS, NO_IGNITION],
+
+  # TODO(mvstanton): restore NO_IGNITION.
+  'regress/regress-2132': [PASS, NO_VARIANTS],
+
   'regress/regress-2339': [PASS, NO_IGNITION],
   'regress/regress-3176': [PASS, NO_IGNITION],
   'regress/regress-3709': [PASS, NO_IGNITION],
@@ -322,6 +264,9 @@
   'smi-mul-const': [PASS, NO_IGNITION],
   'smi-mul': [PASS, NO_IGNITION],
   'unary-minus-deopt': [PASS, NO_IGNITION],
+  'array-constructor-feedback': [PASS, NO_IGNITION],
+  'array-feedback': [PASS, NO_IGNITION],
+  'allocation-site-info': [PASS, NO_IGNITION],
 
   # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
   # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
@@ -410,12 +355,6 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['no_i18n == True and mode == debug', {
-  # Tests too slow for no18n debug.
-  'regress/regress-1200351': [SKIP],
-}],  # 'no_i18n == True and mode == debug'
-
-##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
@@ -423,8 +362,6 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
-  'regress/regress-599717': [SKIP],
-  'regress/regress-599719': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -553,6 +490,9 @@
   'try': [PASS, NO_IGNITION],
   # Too slow for interpreter and msan.
   'es6/tail-call-megatest*': [PASS, NO_IGNITION],
+
+  # Too slow.
+  'harmony/regexp-property-lu-ui': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -643,13 +583,7 @@
 }],  # 'arch == mips'
 
 ##############################################################################
-['arch == x87', {
-  # Turbofan will hit the known issue that x87 changes sNaN to qNaN by default.
-  'regress/regress-undefined-nan': [SKIP],
-  'regress/regress-crbug-242924': [SKIP],
-}],  # 'arch == x87'
 
-##############################################################################
 ['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
@@ -715,58 +649,6 @@
 }],  # 'system == windows'
 
 ##############################################################################
-# Native Client uses the ARM simulator so will behave similarly to arm
-# on mjsunit tests.
-# TODO(bradchen): enable more tests for NaCl V8 when it stops using
-# the ARM simulator.
-##############################################################################
-['arch == nacl_ia32 or arch == nacl_x64', {
-  # There is no /tmp directory for NaCl runs
-  'd8-os': [SKIP],
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-
-  # NaCl builds have problems with this test since Pepper_28.
-  # V8 Issue 2786
-  'math-exp-precision': [SKIP],
-
-  # Requires bigger stack size in the Genesis and if stack size is increased,
-  # the test requires too much time to run.  However, the problem test covers
-  # should be platform-independent.
-  'regress/regress-1132': [SKIP],
-
-  # Poor performance for NaCl V8 causes an assertion failure for this test.
-  'regress/regress-165637': [SKIP],
-
-  # Skip long running test that times out in debug mode and goes OOM on NaCl.
-  'regress/regress-crbug-160010': [SKIP],
-
-  # Skip tests that timout with turbofan.
-  'regress/regress-1257': [PASS, NO_VARIANTS],
-  'regress/regress-2618': [PASS, NO_VARIANTS],
-  'regress/regress-298269': [PASS, NO_VARIANTS],
-  'regress/regress-91008': [PASS, NO_VARIANTS],
-  'compiler/osr-alignment': [PASS, NO_VARIANTS],
-  'compiler/osr-one': [PASS, NO_VARIANTS],
-  'compiler/osr-two': [PASS, NO_VARIANTS],
-  'stack-traces-overflow': [PASS, NO_VARIANTS],
-  'mirror-object': [PASS, NO_VARIANTS],
-
-  # Bug(v8:2978).
-  'lithium/MathExp': [PASS, FAIL],
-
-  # Lead to OOM:
-  'string-oom-*': [SKIP],
-
-  # Crashes.
-  'harmony/private': [SKIP],
-}],  # 'arch == nacl_ia32 or arch == nacl_x64'
-
-##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
@@ -815,10 +697,20 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ##############################################################################
+['arch == ppc64', {
+
+  # stack overflow
+  'big-array-literal': [SKIP],
+}],  # 'arch == ppc64'
+
+##############################################################################
 ['ignition or ignition_turbofan', {
   # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
   'regress/regress-4121': [FAIL],
+  'array-constructor-feedback': [FAIL],
+  'array-feedback': [FAIL],
+  'allocation-site-info': [FAIL],
 
   # TODO(mythria, 4764): lack of osr support.
   'regress/regress-2618': [FAIL],
@@ -838,6 +730,11 @@
   'harmony/generators-turbo': [PASS, FAST_VARIANTS],
   'regress/regress-crbug-352058': [SKIP],
 
+  # TODO(jarin): No truncations on CheckFloat64Hole.
+  'getters-on-elements': [SKIP],
+
+  # TODO(rmcilroy): Flaky OOM.
+  'unicodelctest-no-optimization': [SKIP],
 }],  # ignition or ignition_turbofan
 
 ['(ignition or ignition_turbofan) and arch == arm64', {

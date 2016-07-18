@@ -232,6 +232,11 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
   return mprotect(base, size, PROT_NONE) != -1;
 }
 
+bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
+                                         void* free_start, size_t free_size) {
+  return munmap(free_start, free_size) == 0;
+}
+
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return munmap(base, size) == 0;

@@ -6,7 +6,6 @@
 #define V8_PROFILER_PROFILE_GENERATOR_H_
 
 #include <map>
-#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/compiler.h"
@@ -14,6 +13,8 @@
 
 namespace v8 {
 namespace internal {
+
+struct TickSample;
 
 // Provides a mapping from the offsets within generated code to
 // the source line.
@@ -38,7 +39,7 @@ class JITLineInfoTable : public Malloced {
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
-  inline CodeEntry(Logger::LogEventsAndTags tag, const char* name,
+  inline CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
                    const char* name_prefix = CodeEntry::kEmptyNamePrefix,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
@@ -105,14 +106,54 @@ class CodeEntry {
   bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
-  Logger::LogEventsAndTags tag() const { return TagField::decode(bit_field_); }
+  CodeEventListener::LogEventsAndTags tag() const {
+    return TagField::decode(bit_field_);
+  }
 
   static const char* const kEmptyNamePrefix;
   static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;
 
+  static const char* const kProgramEntryName;
+  static const char* const kIdleEntryName;
+  static const char* const kGarbageCollectorEntryName;
+  // Used to represent frames for which we have no reliable way to
+  // detect function.
+  static const char* const kUnresolvedFunctionName;
+
+  V8_INLINE static CodeEntry* program_entry() {
+    return kProgramEntry.Pointer();
+  }
+  V8_INLINE static CodeEntry* idle_entry() { return kIdleEntry.Pointer(); }
+  V8_INLINE static CodeEntry* gc_entry() { return kGCEntry.Pointer(); }
+  V8_INLINE static CodeEntry* unresolved_entry() {
+    return kUnresolvedEntry.Pointer();
+  }
+
  private:
+  struct ProgramEntryCreateTrait {
+    static CodeEntry* Create();
+  };
+  struct IdleEntryCreateTrait {
+    static CodeEntry* Create();
+  };
+  struct GCEntryCreateTrait {
+    static CodeEntry* Create();
+  };
+  struct UnresolvedEntryCreateTrait {
+    static CodeEntry* Create();
+  };
+
+  static base::LazyDynamicInstance<CodeEntry, ProgramEntryCreateTrait>::type
+      kProgramEntry;
+  static base::LazyDynamicInstance<CodeEntry, IdleEntryCreateTrait>::type
+      kIdleEntry;
+  static base::LazyDynamicInstance<CodeEntry, GCEntryCreateTrait>::type
+      kGCEntry;
+  static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
+      kUnresolvedEntry;
+
   class TagField : public BitField<Logger::LogEventsAndTags, 0, 8> {};
   class BuiltinIdField : public BitField<Builtins::Name, 8, 24> {};
 
@@ -228,7 +269,7 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(Isolate* isolate, const char* title, bool record_samples);
+  CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
@@ -246,6 +287,7 @@ class CpuProfile {
 
   base::TimeTicks start_time() const { return start_time_; }
   base::TimeTicks end_time() const { return end_time_; }
+  CpuProfiler* cpu_profiler() const { return profiler_; }
 
   void UpdateTicksScale();
 
@@ -259,6 +301,7 @@ class CpuProfile {
   List<ProfileNode*> samples_;
   List<base::TimeTicks> timestamps_;
   ProfileTree top_down_;
+  CpuProfiler* const profiler_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
@@ -289,34 +332,16 @@ class CodeMap {
 
 class CpuProfilesCollection {
  public:
-  explicit CpuProfilesCollection(Heap* heap);
+  explicit CpuProfilesCollection(Isolate* isolate);
   ~CpuProfilesCollection();
 
+  void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
   bool StartProfiling(const char* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
   List<CpuProfile*>* profiles() { return &finished_profiles_; }
-  const char* GetName(Name* name) {
-    return function_and_resource_names_.GetName(name);
-  }
-  const char* GetName(int args_count) {
-    return function_and_resource_names_.GetName(args_count);
-  }
-  const char* GetFunctionName(Name* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
-  const char* GetFunctionName(const char* name) {
-    return function_and_resource_names_.GetFunctionName(name);
-  }
+  const char* GetName(Name* name) { return resource_names_.GetName(name); }
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
-
-  CodeEntry* NewCodeEntry(
-      Logger::LogEventsAndTags tag, const char* name,
-      const char* name_prefix = CodeEntry::kEmptyNamePrefix,
-      const char* resource_name = CodeEntry::kEmptyResourceName,
-      int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-      int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-      JITLineInfoTable* line_info = NULL, Address instruction_start = NULL);
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(base::TimeTicks timestamp,
@@ -327,11 +352,9 @@ class CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
-  StringsStorage function_and_resource_names_;
-  List<CodeEntry*> code_entries_;
+  StringsStorage resource_names_;
   List<CpuProfile*> finished_profiles_;
-
-  Isolate* isolate_;
+  CpuProfiler* profiler_;
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;
@@ -349,22 +372,11 @@ class ProfileGenerator {
 
   CodeMap* code_map() { return &code_map_; }
 
-  static const char* const kProgramEntryName;
-  static const char* const kIdleEntryName;
-  static const char* const kGarbageCollectorEntryName;
-  // Used to represent frames for which we have no reliable way to
-  // detect function.
-  static const char* const kUnresolvedFunctionName;
-
  private:
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
-  CodeEntry* program_entry_;
-  CodeEntry* idle_entry_;
-  CodeEntry* gc_entry_;
-  CodeEntry* unresolved_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };

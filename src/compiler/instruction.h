@@ -103,6 +103,8 @@ class InstructionOperand {
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
+  bool InterferesWith(const InstructionOperand& that) const;
+
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
@@ -437,8 +439,9 @@ class LocationOperand : public InstructionOperand {
   }
 
   DoubleRegister GetDoubleRegister() const {
-    // TODO(bbudge) Tighten this test to IsDoubleRegister when all code
-    // generators are changed to use the correct Get*Register method.
+    // On platforms where FloatRegister, DoubleRegister, and Simd128Register
+    // are all the same type, it's convenient to treat everything as a
+    // DoubleRegister, so be lax about type checking here.
     DCHECK(IsFPRegister());
     return DoubleRegister::from_code(register_code());
   }
@@ -602,19 +605,23 @@ bool InstructionOperand::IsSimd128StackSlot() const {
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
-    // TODO(dcarney): put machine type last and mask.
-    MachineRepresentation canonicalized_representation =
-        IsFloatingPoint(LocationOperand::cast(this)->representation())
-            ? MachineRepresentation::kFloat64
-            : MachineRepresentation::kNone;
+    MachineRepresentation canonical = MachineRepresentation::kNone;
+    if (IsFPRegister()) {
+      if (kSimpleFPAliasing) {
+        // We treat all FP register operands the same for simple aliasing.
+        canonical = MachineRepresentation::kFloat64;
+      } else {
+        // We need to distinguish FP register operands of different reps when
+        // aliasing is not simple (e.g. ARM).
+        canonical = LocationOperand::cast(this)->representation();
+      }
+    }
     return InstructionOperand::KindField::update(
-        LocationOperand::RepresentationField::update(
-            this->value_, canonicalized_representation),
+        LocationOperand::RepresentationField::update(this->value_, canonical),
         LocationOperand::EXPLICIT);
   }
   return this->value_;
 }
-
 
 // Required for maps that don't care about machine type.
 struct CompareOperandModuloType {
@@ -650,9 +657,9 @@ class MoveOperands final : public ZoneObject {
   }
   void SetPending() { destination_ = InstructionOperand(); }
 
-  // True if this move a move into the given destination operand.
-  bool Blocks(const InstructionOperand& operand) const {
-    return !IsEliminated() && source().EqualsCanonicalized(operand);
+  // True if this move is a move into the given destination operand.
+  bool Blocks(const InstructionOperand& destination) const {
+    return !IsEliminated() && source().InterferesWith(destination);
   }
 
   // A move is redundant if it's been eliminated or if its source and

@@ -107,7 +107,7 @@
       # are using a custom toolchain and need to control -B in ldflags.
       # Do not use 32-bit gold on 32-bit hosts as it runs out address space
       # for component=static_library builds.
-      ['OS=="linux" and (target_arch=="x64" or target_arch=="arm")', {
+      ['((OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="ia32" and host_arch=="x64"))) or (OS=="linux" and target_arch=="mipsel")', {
         'linux_use_bundled_gold%': 1,
       }, {
         'linux_use_bundled_gold%': 0,
@@ -1097,7 +1097,7 @@
           }],
           [ 'v8_target_arch=="ppc64"', {
             'cflags': [ '-maix64' ],
-            'ldflags': [ '-maix64' ],
+            'ldflags': [ '-maix64 -Wl,-bbigtoc' ],
           }],
         ],
       }],
@@ -1110,7 +1110,7 @@
           'VCCLCompilerTool': {
             'Optimization': '0',
             'conditions': [
-              ['component=="shared_library"', {
+              ['component=="shared_library" or force_dynamic_crt==1', {
                 'RuntimeLibrary': '3',  # /MDd
               }, {
                 'RuntimeLibrary': '1',  # /MTd
@@ -1162,7 +1162,7 @@
             'StringPooling': 'true',
             'BasicRuntimeChecks': '0',
             'conditions': [
-              ['component=="shared_library"', {
+              ['component=="shared_library" or force_dynamic_crt==1', {
                 'RuntimeLibrary': '3',  #/MDd
               }, {
                 'RuntimeLibrary': '1',  #/MTd
@@ -1353,7 +1353,7 @@
                 'FavorSizeOrSpeed': '0',
                 'StringPooling': 'true',
                 'conditions': [
-                  ['component=="shared_library"', {
+                  ['component=="shared_library" or force_dynamic_crt==1', {
                     'RuntimeLibrary': '2',  #/MD
                   }, {
                     'RuntimeLibrary': '0',  #/MT

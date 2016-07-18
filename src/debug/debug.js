@@ -66,7 +66,8 @@ Debug.StepAction = { StepOut: 0,
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,
                      Extension: 1,
-                     Normal: 2 };
+                     Normal: 2,
+                     Wasm: 3};
 
 // The different types of script compilations matching enum
 // Script::CompilationType in objects.h.
@@ -487,7 +488,7 @@ Debug.findScript = function(func_or_script_name) {
   if (IS_FUNCTION(func_or_script_name)) {
     return %FunctionGetScript(func_or_script_name);
   } else if (IS_REGEXP(func_or_script_name)) {
-    var scripts = Debug.scripts();
+    var scripts = this.scripts();
     var last_result = null;
     var result_count = 0;
     for (var i in scripts) {
@@ -633,15 +634,12 @@ Debug.setBreakPointByScriptIdAndPosition = function(script_id, position,
   if (!enabled) {
     break_point.disable();
   }
-  var scripts = this.scripts();
-  var position_alignment = IS_UNDEFINED(opt_position_alignment)
-      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
-  for (var i = 0; i < scripts.length; i++) {
-    if (script_id == scripts[i].id) {
-      break_point.actual_position = %SetScriptBreakPoint(scripts[i], position,
-          position_alignment, break_point);
-      break;
-    }
+  var script = scriptById(script_id);
+  if (script) {
+    var position_alignment = IS_UNDEFINED(opt_position_alignment)
+        ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
+    break_point.actual_position = %SetScriptBreakPoint(script, position,
+        position_alignment, break_point);
   }
   return break_point;
 };
@@ -858,9 +856,30 @@ Debug.scripts = function() {
 };
 
 
+// Get a specific script currently loaded. This is based on scanning the heap.
+// TODO(clemensh): Create a runtime function for this.
+function scriptById(scriptId) {
+  var scripts = Debug.scripts();
+  for (var script of scripts) {
+    if (script.id == scriptId) return script;
+  }
+  return UNDEFINED;
+};
+
+
 Debug.debuggerFlags = function() {
   return debugger_flags;
 };
+
+Debug.getWasmFunctionOffsetTable = function(scriptId) {
+  var script = scriptById(scriptId);
+  return script ? %GetWasmFunctionOffsetTable(script) : UNDEFINED;
+}
+
+Debug.disassembleWasmFunction = function(scriptId) {
+  var script = scriptById(scriptId);
+  return script ? %DisassembleWasmFunction(script) : UNDEFINED;
+}
 
 Debug.MakeMirror = MakeMirror;
 
@@ -2155,7 +2174,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   }
 
   // Collect all scripts in the heap.
-  var scripts = %DebugGetLoadedScripts();
+  var scripts = Debug.scripts();
 
   response.body = [];
 
@@ -2205,14 +2224,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(
   var script_id = request.arguments.script_id;
   var preview_only = !!request.arguments.preview_only;
 
-  var scripts = %DebugGetLoadedScripts();
-
-  var the_script = null;
-  for (var i = 0; i < scripts.length; i++) {
-    if (scripts[i].id == script_id) {
-      the_script = scripts[i];
-    }
-  }
+  var the_script = scriptById(script_id);
   if (!the_script) {
     response.failed('Script not found');
     return;

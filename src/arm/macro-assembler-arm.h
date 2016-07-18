@@ -590,7 +590,8 @@ class MacroAssembler: public Assembler {
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
-  void EnterExitFrame(bool save_doubles, int stack_space = 0);
+  void EnterExitFrame(bool save_doubles, int stack_space = 0,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
@@ -1166,7 +1167,8 @@ class MacroAssembler: public Assembler {
   void MovFromFloatResult(DwVfpRegister dst);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& builtin);
+  void JumpToExternalReference(const ExternalReference& builtin,
+                               bool builtin_exit_frame = false);
 
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
@@ -1435,6 +1437,9 @@ class MacroAssembler: public Assembler {
                   bool load_constant_pool_pointer_reg = false);
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type);
+
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // Expects object in r0 and returns map with validated enum cache
   // in r0.  Assumes that any other register can be used as a scratch.

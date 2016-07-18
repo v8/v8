@@ -57,7 +57,6 @@ class LCodeGen;
   V(ConstantI)                               \
   V(ConstantS)                               \
   V(ConstantT)                               \
-  V(ConstructDouble)                         \
   V(Context)                                 \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
@@ -65,7 +64,6 @@ class LCodeGen;
   V(DivByConstI)                             \
   V(DivByPowerOf2I)                          \
   V(DivI)                                    \
-  V(DoubleBits)                              \
   V(DoubleToIntOrSmi)                        \
   V(Drop)                                    \
   V(Dummy)                                   \
@@ -104,6 +102,8 @@ class LCodeGen;
   V(MathAbs)                                 \
   V(MathAbsTagged)                           \
   V(MathClz32)                               \
+  V(MathCos)                                 \
+  V(MathSin)                                 \
   V(MathExp)                                 \
   V(MathFloorD)                              \
   V(MathFloorI)                              \
@@ -980,33 +980,6 @@ class LClampTToUint8 final : public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LDoubleBits final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LDoubleBits(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DoubleBits, "double-bits")
-  DECLARE_HYDROGEN_ACCESSOR(DoubleBits)
-};
-
-
-class LConstructDouble final : public LTemplateInstruction<1, 2, 0> {
- public:
-  LConstructDouble(LOperand* hi, LOperand* lo) {
-    inputs_[0] = hi;
-    inputs_[1] = lo;
-  }
-
-  LOperand* hi() { return inputs_[0]; }
-  LOperand* lo() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ConstructDouble, "construct-double")
-};
-
-
 class LClassOfTestAndBranch final : public LControlInstruction<1, 2> {
  public:
   LClassOfTestAndBranch(LOperand* value, LOperand* temp1, LOperand* temp2) {
@@ -1566,18 +1539,14 @@ class LLoadFunctionPrototype final : public LTemplateInstruction<1, 1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(LoadFunctionPrototype)
 };
 
-
-class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
+class LLoadGlobalGeneric final : public LTemplateInstruction<1, 1, 1> {
  public:
-  LLoadGlobalGeneric(LOperand* context, LOperand* global_object,
-                     LOperand* vector) {
+  LLoadGlobalGeneric(LOperand* context, LOperand* vector) {
     inputs_[0] = context;
-    inputs_[1] = global_object;
     temps_[0] = vector;
   }
 
   LOperand* context() { return inputs_[0]; }
-  LOperand* global_object() { return inputs_[1]; }
   LOperand* temp_vector() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
@@ -1763,26 +1732,23 @@ class LMathAbsTagged: public LTemplateInstruction<1, 2, 3> {
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
 };
 
-
-class LMathExp final : public LUnaryMathOperation<4> {
+class LMathCos final : public LUnaryMathOperation<0> {
  public:
-  LMathExp(LOperand* value,
-                LOperand* double_temp1,
-                LOperand* temp1,
-                LOperand* temp2,
-                LOperand* temp3)
-      : LUnaryMathOperation<4>(value) {
-    temps_[0] = double_temp1;
-    temps_[1] = temp1;
-    temps_[2] = temp2;
-    temps_[3] = temp3;
-    ExternalReference::InitializeMathExpData();
-  }
+  explicit LMathCos(LOperand* value) : LUnaryMathOperation<0>(value) {}
 
-  LOperand* double_temp1() { return temps_[0]; }
-  LOperand* temp1() { return temps_[1]; }
-  LOperand* temp2() { return temps_[2]; }
-  LOperand* temp3() { return temps_[3]; }
+  DECLARE_CONCRETE_INSTRUCTION(MathCos, "math-cos")
+};
+
+class LMathSin final : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathSin(LOperand* value) : LUnaryMathOperation<0>(value) {}
+
+  DECLARE_CONCRETE_INSTRUCTION(MathSin, "math-sin")
+};
+
+class LMathExp final : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathExp(LOperand* value) : LUnaryMathOperation<0>(value) {}
 
   DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
 };

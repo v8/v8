@@ -9,7 +9,6 @@
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
-#include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +27,7 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
     Handle<Name> name, Handle<Map> receiver_map) {
   Isolate* isolate = name->GetIsolate();
-  if (receiver_map->prototype()->IsNull()) {
+  if (receiver_map->prototype()->IsNull(isolate)) {
     // TODO(jkummerow/verwaest): If there is no prototype and the property
     // is nonexistent, introduce a builtin to handle this (fast properties
     // -> return undefined, dictionary properties -> do negative lookup).
@@ -51,7 +50,7 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   Handle<JSObject> last(JSObject::cast(receiver_map->prototype()));
   while (true) {
     if (current_map->is_dictionary_map()) cache_name = name;
-    if (current_map->prototype()->IsNull()) break;
+    if (current_map->prototype()->IsNull(isolate)) break;
     if (name->IsPrivate()) {
       // TODO(verwaest): Use nonexistent_private_symbol.
       cache_name = name;
@@ -79,7 +78,7 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Handle<Name> name) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(Logger::HANDLER_TAG,
+  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::HANDLER_TAG,
                                      AbstractCode::cast(*code), *name));
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
@@ -222,19 +221,23 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, Handle<AccessorInfo> callback) {
+    Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
+  if (FLAG_runtime_call_stats) {
+    GenerateTailCall(masm(), slow_stub);
+  }
   Register reg = Frontend(name);
   GenerateLoadCallback(reg, callback);
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
-    int accessor_index) {
+    int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
+  if (FLAG_runtime_call_stats) {
+    GenerateTailCall(masm(), slow_stub);
+  }
   Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
@@ -472,7 +475,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
     Register tmp =
-        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
     GenerateRestoreMap(transition, tmp, scratch2(), &miss);
     GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
     if (virtual_args) {
@@ -496,7 +499,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
             : StoreTransitionStub::StoreMapAndValue;
 
     Register tmp =
-        virtual_args ? VectorStoreICDescriptor::VectorRegister() : map_reg;
+        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
     GenerateRestoreMap(transition, tmp, scratch2(), &miss);
     if (virtual_args) {
       RearrangeVectorAndSlot(tmp, map_reg);
@@ -556,10 +559,13 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   return GetCode(kind(), name);
 }
 
-
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization, int accessor_index) {
+    const CallOptimization& call_optimization, int accessor_index,
+    Handle<Code> slow_stub) {
+  if (FLAG_runtime_call_stats) {
+    GenerateTailCall(masm(), slow_stub);
+  }
   Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
@@ -571,7 +577,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 #undef __
 
 void ElementHandlerCompiler::CompileElementHandlers(
-    MapHandleList* receiver_maps, CodeHandleList* handlers) {
+    MapHandleList* receiver_maps, List<Handle<Object>>* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
     Handle<Code> cached_stub;
@@ -603,8 +609,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
                                           convert_hole_to_undefined).GetCode();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
-        LoadICState state = LoadICState(kNoExtraICState);
-        cached_stub = LoadDictionaryElementStub(isolate(), state).GetCode();
+        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 

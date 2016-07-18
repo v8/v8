@@ -10,17 +10,17 @@
 namespace v8 {
 namespace internal {
 
-class AstNumberingVisitor final : public AstVisitor {
+class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
   AstNumberingVisitor(Isolate* isolate, Zone* zone)
-      : AstVisitor(),
-        isolate_(isolate),
+      : isolate_(isolate),
         zone_(zone),
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
         properties_(zone),
         slot_cache_(zone),
-        dont_optimize_reason_(kNoReason) {
+        dont_optimize_reason_(kNoReason),
+        catch_predicted_(false) {
     InitializeAstVisitor(isolate);
   }
 
@@ -28,7 +28,7 @@ class AstNumberingVisitor final : public AstVisitor {
 
  private:
 // AST node visitor interface.
-#define DEFINE_VISIT(type) void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
@@ -36,8 +36,8 @@ class AstNumberingVisitor final : public AstVisitor {
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
 
-  void VisitStatements(ZoneList<Statement*>* statements) override;
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statements);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 
@@ -80,6 +80,7 @@ class AstNumberingVisitor final : public AstVisitor {
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
   BailoutReason dont_optimize_reason_;
+  bool catch_predicted_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstNumberingVisitor);
@@ -88,13 +89,6 @@ class AstNumberingVisitor final : public AstVisitor {
 
 void AstNumberingVisitor::VisitVariableDeclaration(VariableDeclaration* node) {
   IncrementNodeCount();
-  VisitVariableProxy(node->proxy());
-}
-
-
-void AstNumberingVisitor::VisitExportDeclaration(ExportDeclaration* node) {
-  IncrementNodeCount();
-  DisableOptimization(kExportDeclaration);
   VisitVariableProxy(node->proxy());
 }
 
@@ -197,13 +191,6 @@ void AstNumberingVisitor::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void AstNumberingVisitor::VisitImportDeclaration(ImportDeclaration* node) {
-  IncrementNodeCount();
-  DisableOptimization(kImportDeclaration);
-  VisitVariableProxy(node->proxy());
-}
-
-
 void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());
@@ -220,8 +207,6 @@ void AstNumberingVisitor::VisitYield(Yield* node) {
   node->set_yield_id(yield_count_);
   yield_count_++;
   IncrementNodeCount();
-  DisableOptimization(kYield);
-  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Yield::num_ids()));
   Visit(node->generator_object());
   Visit(node->expression());
@@ -267,7 +252,6 @@ void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
 
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
-  ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
 }
@@ -307,7 +291,17 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
   IncrementNodeCount();
   DisableCrankshaft(kTryCatchStatement);
-  Visit(node->try_block());
+  {
+    const bool old_catch_predicted = catch_predicted_;
+    // If the node's clear_pending_message flag is unset, we assume that the
+    // catch block is a ReThrow and hence predict uncaught (unless caught by
+    // outer handlers).  Otherwise, we predict caught.
+    const bool not_rethrow = node->clear_pending_message();
+    catch_predicted_ = catch_predicted_ || not_rethrow;
+    node->set_catch_predicted(catch_predicted_);
+    Visit(node->try_block());
+    catch_predicted_ = old_catch_predicted;
+  }
   Visit(node->catch_block());
 }
 
@@ -315,6 +309,9 @@ void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
 void AstNumberingVisitor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IncrementNodeCount();
   DisableCrankshaft(kTryFinallyStatement);
+  // We can't know whether the finally block will override ("catch") an
+  // exception thrown in the try block, so we just adopt the outer prediction.
+  node->set_catch_predicted(catch_predicted_);
   Visit(node->try_block());
   Visit(node->finally_block());
 }
@@ -403,7 +400,6 @@ void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   Visit(node->assign_each());
   Visit(node->body());
   node->set_yield_count(yield_count_ - node->first_yield_id());
-  ReserveFeedbackSlots(node);
 }
 
 
@@ -577,6 +573,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   int rest_index;
   if (scope->rest_parameter(&rest_index)) {
     DisableCrankshaft(kRestParameter);
+  }
+
+  if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
+    // TODO(neis): We may want to allow Turbofan optimization here if
+    // --turbo-from-bytecode is set and we know that Ignition is used.
+    // Unfortunately we can't express that here.
+    DisableOptimization(kGenerator);
   }
 
   VisitDeclarations(scope->declarations());

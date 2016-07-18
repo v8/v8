@@ -151,7 +151,7 @@ function keys(object) {
   object.__proto__ = proxy;
   assertEquals(["0"], keys(object));
 
-  // The Proxy doesn't set his ownKeys enumerable.
+  // The Proxy doesn't set its ownKeys enumerable.
   delete object[0];
   assertEquals([], keys(object));
 

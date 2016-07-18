@@ -67,21 +67,19 @@ struct Conversion {
 // Logical instructions.
 // ----------------------------------------------------------------------------
 
-
 const MachInst2 kLogicalInstructions[] = {
-    {&RawMachineAssembler::Word32And, "Word32And", kMips64And,
+    {&RawMachineAssembler::Word32And, "Word32And", kMips64And32,
      MachineType::Int32()},
     {&RawMachineAssembler::Word64And, "Word64And", kMips64And,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Or, "Word32Or", kMips64Or,
+    {&RawMachineAssembler::Word32Or, "Word32Or", kMips64Or32,
      MachineType::Int32()},
     {&RawMachineAssembler::Word64Or, "Word64Or", kMips64Or,
      MachineType::Int64()},
-    {&RawMachineAssembler::Word32Xor, "Word32Xor", kMips64Xor,
+    {&RawMachineAssembler::Word32Xor, "Word32Xor", kMips64Xor32,
      MachineType::Int32()},
     {&RawMachineAssembler::Word64Xor, "Word64Xor", kMips64Xor,
      MachineType::Int64()}};
-
 
 // ----------------------------------------------------------------------------
 // Shift instructions.
@@ -542,7 +540,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
     m.Return(m.Word32Xor(m.Parameter(0), m.Int32Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -551,7 +549,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
     m.Return(m.Word32Xor(m.Int32Constant(-1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -589,7 +587,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
                          m.Int32Constant(-1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -599,7 +597,7 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
                          m.Word32Or(m.Parameter(0), m.Parameter(0))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMips64Nor, s[0]->arch_opcode());
+    EXPECT_EQ(kMips64Nor32, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }

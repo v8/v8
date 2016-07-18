@@ -166,31 +166,21 @@ uint32_t RelocInfo::wasm_memory_size_reference() {
      reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
 }
 
-void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
-  if (IsWasmMemoryReference(rmode_)) {
-    Address updated_memory_reference;
-    DCHECK(old_base <= wasm_memory_reference() &&
-           wasm_memory_reference() < old_base + old_size);
-    updated_memory_reference = new_base + (wasm_memory_reference() - old_base);
-    DCHECK(new_base <= updated_memory_reference &&
-           updated_memory_reference < new_base + new_size);
-    Assembler::set_target_address_at(
-        isolate_, pc_, host_, updated_memory_reference, icache_flush_mode);
-  } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t updated_size_reference;
-    DCHECK(wasm_memory_size_reference() <= old_size);
-    updated_size_reference =
-        new_size + (wasm_memory_size_reference() - old_size);
-    DCHECK(updated_size_reference <= new_size);
-    Assembler::set_target_address_at(
-        isolate_, pc_, host_, reinterpret_cast<Address>(updated_size_reference),
-        icache_flush_mode);
-  } else {
-    UNREACHABLE();
-  }
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+}
+
+void RelocInfo::unchecked_update_wasm_memory_size(uint32_t size,
+                                                  ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_,
+                                   reinterpret_cast<Address>(size), flush_mode);
 }
 
 // -----------------------------------------------------------------------------
@@ -203,7 +193,6 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -231,12 +220,10 @@ MemOperand::MemOperand(Register ra, Register rb) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits),
-      positions_recorder_(this) {
+      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   no_trampoline_pool_before_ = 0;
@@ -267,6 +254,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->constant_pool_size =
       (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
   desc->origin = this;
+  desc->unwinding_info_size = 0;
+  desc->unwinding_info = nullptr;
 }
 
 
@@ -715,13 +704,11 @@ int Assembler::link(Label* L) {
 
 
 void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
 }
 
 
 void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
 }
 
@@ -738,9 +725,6 @@ void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 
 
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm16 = branch_offset;
   CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
   emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
@@ -748,9 +732,6 @@ void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
 
 
 void Assembler::b(int branch_offset, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm26 = branch_offset;
   CHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
   emit(BX | (imm26 & kImm26Mask) | lk);
@@ -2482,8 +2463,6 @@ void Assembler::EmitRelocations() {
 
     reloc_info_writer.Write(&rinfo);
   }
-
-  reloc_info_writer.Finish();
 }
 
 

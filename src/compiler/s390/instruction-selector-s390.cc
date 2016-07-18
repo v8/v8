@@ -128,7 +128,14 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsDeoptimize()) {
+    // If we can deoptimize as a result of the binop, we need to make sure that
+    // the deopt inputs are not overwritten by the binop result. One way
+    // to achieve that is to declare the output register as same-as-first.
+    outputs[output_count++] = g.DefineSameAsFirst(node);
+  } else {
+    outputs[output_count++] = g.DefineAsRegister(node);
+  }
   if (cont->IsSet()) {
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
@@ -912,6 +919,36 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 }
 #endif
 
+namespace {
+
+void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
+                  InstructionOperand left, InstructionOperand right,
+                  FlagsContinuation* cont);
+void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
+                              FlagsContinuation* cont) {
+  S390OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand result_operand = g.DefineAsRegister(node);
+  InstructionOperand high32_operand = g.TempRegister();
+  InstructionOperand temp_operand = g.TempRegister();
+  {
+    InstructionOperand outputs[] = {result_operand, high32_operand};
+    InstructionOperand inputs[] = {g.UseRegister(m.left().node()),
+                                   g.UseRegister(m.right().node())};
+    selector->Emit(kS390_Mul32WithHigh32, 2, outputs, 2, inputs);
+  }
+  {
+    InstructionOperand shift_31 = g.UseImmediate(31);
+    InstructionOperand outputs[] = {temp_operand};
+    InstructionOperand inputs[] = {result_operand, shift_31};
+    selector->Emit(kS390_ShiftRightArith32, 1, outputs, 2, inputs);
+  }
+
+  VisitCompare(selector, kS390_Cmp32, high32_operand, temp_operand, cont);
+}
+
+}  // namespace
+
 void InstructionSelector::VisitInt32Mul(Node* node) {
   VisitRRR(this, kS390_Mul32, node);
 }
@@ -1179,6 +1216,10 @@ void InstructionSelector::VisitFloat32Max(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitFloat64Max(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  VisitRR(this, kS390_Float64SilenceNaN, node);
+}
+
 void InstructionSelector::VisitFloat32Min(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitFloat64Min(Node* node) { UNREACHABLE(); }
@@ -1191,15 +1232,23 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kS390_AbsDouble, node);
 }
 
-void InstructionSelector::VisitFloat64Log(Node* node) {
+void InstructionSelector::VisitFloat32Sqrt(Node* node) {
+  VisitRR(this, kS390_SqrtFloat, node);
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
   S390OperandGenerator g(this);
-  Emit(kS390_LogDouble, g.DefineAsFixed(node, d1),
-       g.UseFixed(node->InputAt(0), d1))
+  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
       ->MarkAsCall();
 }
 
-void InstructionSelector::VisitFloat32Sqrt(Node* node) {
-  VisitRR(this, kS390_SqrtFloat, node);
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  S390OperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
+       g.UseFixed(node->InputAt(1), d2))
+      ->MarkAsCall();
 }
 
 void InstructionSelector::VisitFloat64Sqrt(Node* node) {
@@ -1468,6 +1517,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                 return VisitBinop<Int32BinopMatcher>(selector, node,
                                                      kS390_SubWithOverflow32,
                                                      kInt16Imm_Negate, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(selector, node, cont);
 #if V8_TARGET_ARCH_S390X
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
@@ -1647,6 +1699,15 @@ void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
 }
 #endif
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, ovf);
+    return EmitInt32MulWithOverflow(this, node, &cont);
+  }
+  FlagsContinuation cont;
+  EmitInt32MulWithOverflow(this, node, &cont);
+}
+
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
@@ -1687,7 +1748,7 @@ void InstructionSelector::EmitPrepareArguments(
   // Prepare for C function call.
   if (descriptor->IsCFunctionCall()) {
     Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.

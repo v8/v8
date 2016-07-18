@@ -49,6 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
@@ -225,6 +226,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

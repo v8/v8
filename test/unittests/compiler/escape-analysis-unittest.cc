@@ -48,7 +48,8 @@ class EscapeAnalysisTest : public GraphTest {
       effect = effect_;
     }
 
-    return effect_ = graph()->NewNode(common()->BeginRegion(), effect);
+    return effect_ = graph()->NewNode(
+               common()->BeginRegion(RegionObservability::kObservable), effect);
   }
 
   Node* FinishRegion(Node* value, Node* effect = nullptr) {

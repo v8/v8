@@ -35,9 +35,20 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStrictNotEqual:
       return 0;
 
+    // Binary operations
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSSubtract:
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus:
+
     // Compare operations
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
 
@@ -83,26 +94,12 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     // Binary operators that can deopt in the middle the operation (e.g.,
     // as a result of lazy deopt in ToNumber conversion) need a second frame
     // state so that we can resume before the operation.
-    case IrOpcode::kJSMultiply:
-    case IrOpcode::kJSAdd:
     case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSSubtract:
-      return 2;
-
-    // Compare operators that can deopt in the middle the operation (e.g.,
-    // as a result of lazy deopt in ToNumber conversion) need a second frame
-    // state so that we can resume before the operation.
-    case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSLessThan:
-    case IrOpcode::kJSLessThanOrEqual:
       return 2;
 
     default:

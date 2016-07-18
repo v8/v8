@@ -722,6 +722,10 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
 
+  // Change endianness
+  void ByteSwapSigned(Register reg, int operand_size);
+  void ByteSwapUnsigned(Register reg, int operand_size);
+
   void mov(Register rd, Register rt) { or_(rd, rt, zero_reg); }
 
   void Ulh(Register rd, const MemOperand& rs);
@@ -929,6 +933,12 @@ class MacroAssembler: public Assembler {
   void Floor_w_d(FPURegister fd, FPURegister fs);
   void Ceil_w_d(FPURegister fd, FPURegister fs);
 
+  // Preserve value of a NaN operand
+  void SubNanPreservePayloadAndSign_s(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
+  void SubNanPreservePayloadAndSign_d(FPURegister fd, FPURegister fs,
+                                      FPURegister ft);
+
   void Madd_d(FPURegister fd,
               FPURegister fr,
               FPURegister fs,
@@ -1054,8 +1064,8 @@ class MacroAssembler: public Assembler {
   // argc - argument count to be dropped by LeaveExitFrame.
   // save_doubles - saves FPU registers on stack, currently disabled.
   // stack_space - extra stack space.
-  void EnterExitFrame(bool save_doubles,
-                      int stack_space = 0);
+  void EnterExitFrame(bool save_doubles, int stack_space = 0,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles, Register arg_count,
@@ -1377,6 +1387,24 @@ class MacroAssembler: public Assembler {
                     Label* overflow_label, Label* no_overflow_label,
                     Register scratch = at);
 
+  inline void MulBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
+  }
+
+  inline void MulBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    MulBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
+  }
+
+  void MulBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void MulBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
   inline void DaddBranchOvf(Register dst, Register left, const Operand& right,
                             Label* overflow_label, Register scratch = at) {
     DaddBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
@@ -1538,7 +1566,8 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT);
+                               BranchDelaySlot bd = PROTECT,
+                               bool builtin_exit_frame = false);
 
   struct Unresolved {
     int pc;
@@ -1841,6 +1870,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
+
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // Expects object in a0 and returns map with validated enum cache
   // in a0.  Assumes that any other register can be used as a scratch.

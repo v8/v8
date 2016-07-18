@@ -19,8 +19,9 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter-intrinsics.h"
 #include "src/interpreter/interpreter.h"
-#include "src/interpreter/source-position-table.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -98,12 +99,6 @@ void BytecodeExpectationsPrinter::PrintEscapedString(
   }
 }
 
-namespace {
-i::Runtime::FunctionId IndexToFunctionId(uint32_t index) {
-  return static_cast<i::Runtime::FunctionId>(index);
-}
-}  // namespace
-
 void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     std::ostream& stream, const BytecodeArrayIterator& bytecode_iterator,
     const Bytecode& bytecode, int op_index, int parameter_count) const {
@@ -164,9 +159,15 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         stream << bytecode_iterator.GetRegisterCountOperand(op_index);
         break;
       case OperandType::kRuntimeId: {
-        uint32_t operand = bytecode_iterator.GetRuntimeIdOperand(op_index);
-        stream << "Runtime::k"
-               << i::Runtime::FunctionForId(IndexToFunctionId(operand))->name;
+        Runtime::FunctionId id =
+            bytecode_iterator.GetRuntimeIdOperand(op_index);
+        stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
+        break;
+      }
+      case OperandType::kIntrinsicId: {
+        Runtime::FunctionId id =
+            bytecode_iterator.GetIntrinsicIdOperand(op_index);
+        stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
         break;
       }
       default:
@@ -200,7 +201,7 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
     int bytecode_offset) const {
   static const size_t kPositionWidth = 4;
   if (!source_iterator.done() &&
-      source_iterator.bytecode_offset() == bytecode_offset) {
+      source_iterator.code_offset() == bytecode_offset) {
     stream << "/* " << std::setw(kPositionWidth)
            << source_iterator.source_position();
     if (source_iterator.is_statement()) {

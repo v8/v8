@@ -27,10 +27,12 @@ class FieldIndex final {
   static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
+  static FieldIndex ForLoadByFieldOffset(Map* map, int index);
   static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
+  int GetLoadByFieldOffset() const;
 
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);

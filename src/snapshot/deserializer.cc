@@ -31,9 +31,7 @@ void Deserializer::DecodeReservation(
 void Deserializer::FlushICacheForNewIsolate() {
   DCHECK(!deserializing_user_code_);
   // The entire isolate is newly deserialized. Simply flush all code pages.
-  PageIterator it(isolate_->heap()->code_space());
-  while (it.has_next()) {
-    Page* p = it.next();
+  for (Page* p : *isolate_->heap()->code_space()) {
     Assembler::FlushICache(isolate_, p->area_start(),
                            p->area_end() - p->area_start());
   }
@@ -477,6 +475,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id); \
         new_object = isolate->heap()->root(root_index);                        \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
+        hot_objects_.Add(HeapObject::cast(new_object));                        \
       } else if (where == kPartialSnapshotCache) {                             \
         int cache_index = source_.GetInt();                                    \
         new_object = isolate->partial_snapshot_cache()->at(cache_index);       \
@@ -769,9 +768,8 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int index = data & kHotObjectMask;
         Object* hot_object = hot_objects_.Get(index);
         UnalignedCopy(current, &hot_object);
-        if (write_barrier_needed) {
+        if (write_barrier_needed && isolate->heap()->InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
-          SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
           isolate->heap()->RecordWrite(
               HeapObject::FromAddress(current_object_address),
               static_cast<int>(current_address - current_object_address),

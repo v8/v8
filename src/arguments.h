@@ -94,6 +94,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
   }                                                                           \
                                                                               \
   Type Name(int args_length, Object** args_object, Isolate* isolate) {        \
+    DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     CLOBBER_DOUBLE_REGISTERS();                                               \
     if (FLAG_runtime_call_stats) {                                            \
       return Stats_##Name(args_length, args_object, isolate);                 \

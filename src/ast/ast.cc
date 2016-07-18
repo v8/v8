@@ -9,7 +9,7 @@
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
@@ -23,21 +23,6 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// All the Accept member functions for each syntax tree node type.
-
-#define DECL_ACCEPT(type)                                       \
-  void type::Accept(AstVisitor* v) { v->Visit##type(this); }
-AST_NODE_LIST(DECL_ACCEPT)
-#undef DECL_ACCEPT
-
-// Dummy accept member functions for type system nodes.
-#define DECL_ACCEPT(type)                       \
-  void typesystem::type::Accept(AstVisitor* v) {}
-TYPESYSTEM_NODE_LIST(DECL_ACCEPT)
-#undef DECL_ACCEPT
-
-
-// ----------------------------------------------------------------------------
 // Implementation of other node functionality.
 
 #ifdef DEBUG
@@ -47,12 +32,51 @@ void AstNode::Print(Isolate* isolate) {
 }
 
 
-void AstNode::PrettyPrint(Isolate* isolate) {
-  PrettyPrinter::PrintOut(isolate, this);
-}
-
 #endif  // DEBUG
 
+#define RETURN_NODE(Node) \
+  case k##Node:           \
+    return static_cast<Node*>(this);
+
+IterationStatement* AstNode::AsIterationStatement() {
+  switch (node_type()) {
+    ITERATION_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+BreakableStatement* AstNode::AsBreakableStatement() {
+  switch (node_type()) {
+    BREAKABLE_NODE_LIST(RETURN_NODE);
+    ITERATION_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+MaterializedLiteral* AstNode::AsMaterializedLiteral() {
+  switch (node_type()) {
+    LITERAL_NODE_LIST(RETURN_NODE);
+    default:
+      return nullptr;
+  }
+}
+
+#undef RETURN_NODE
+
+InitializationFlag Declaration::initialization() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->initialization();
+    DECLARATION_NODE_LIST(GENERATE_CASE);
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return kNeedsInitialization;
+  }
+}
 
 bool Expression::IsSmiLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsSmi();
@@ -63,14 +87,24 @@ bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
+bool Expression::IsPropertyName() const {
+  return IsLiteral() && AsLiteral()->IsPropertyName();
+}
 
 bool Expression::IsNullLiteral() const {
-  return IsLiteral() && AsLiteral()->value()->IsNull();
+  if (!IsLiteral()) return false;
+  Handle<Object> value = AsLiteral()->value();
+  return !value->IsSmi() &&
+         value->IsNull(HeapObject::cast(*value)->GetIsolate());
 }
 
 bool Expression::IsUndefinedLiteral() const {
-  if (IsLiteral() && AsLiteral()->value()->IsUndefined()) {
-    return true;
+  if (IsLiteral()) {
+    Handle<Object> value = AsLiteral()->value();
+    if (!value->IsSmi() &&
+        value->IsUndefined(HeapObject::cast(*value)->GetIsolate())) {
+      return true;
+    }
   }
 
   const VariableProxy* var_proxy = AsVariableProxy();
@@ -82,16 +116,68 @@ bool Expression::IsUndefinedLiteral() const {
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
+bool Expression::ToBooleanIsTrue() const {
+  return IsLiteral() && AsLiteral()->ToBooleanIsTrue();
+}
+
+bool Expression::ToBooleanIsFalse() const {
+  return IsLiteral() && AsLiteral()->ToBooleanIsFalse();
+}
+
+bool Expression::IsValidReferenceExpression() const {
+  // We don't want expressions wrapped inside RewritableExpression to be
+  // considered as valid reference expressions, as they will be rewritten
+  // to something (most probably involving a do expression).
+  if (IsRewritableExpression()) return false;
+  return IsProperty() ||
+         (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
+}
 
 bool Expression::IsValidReferenceExpressionOrThis() const {
   return IsValidReferenceExpression() ||
          (IsVariableProxy() && AsVariableProxy()->is_this());
 }
 
+bool Expression::IsAnonymousFunctionDefinition() const {
+  return (IsFunctionLiteral() &&
+          AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
+         (IsClassLiteral() &&
+          AsClassLiteral()->IsAnonymousFunctionDefinition());
+}
+
+void Expression::MarkTail() {
+  if (IsConditional()) {
+    AsConditional()->MarkTail();
+  } else if (IsCall()) {
+    AsCall()->MarkTail();
+  } else if (IsBinaryOperation()) {
+    AsBinaryOperation()->MarkTail();
+  }
+}
+
+bool Statement::IsJump() const {
+  switch (node_type()) {
+#define JUMP_NODE_LIST(V) \
+  V(Block)                \
+  V(ExpressionStatement)  \
+  V(ContinueStatement)    \
+  V(BreakStatement)       \
+  V(ReturnStatement)      \
+  V(IfStatement)
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->IsJump();
+    JUMP_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+#undef JUMP_NODE_LIST
+    default:
+      return false;
+  }
+}
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
                              int end_position)
-    : Expression(zone, start_position),
+    : Expression(zone, start_position, kVariableProxy),
       bit_field_(IsThisField::encode(var->is_this()) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
@@ -100,17 +186,15 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int start_position,
   BindTo(var);
 }
 
-
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
                              Variable::Kind variable_kind, int start_position,
                              int end_position)
-    : Expression(zone, start_position),
+    : Expression(zone, start_position, kVariableProxy),
       bit_field_(IsThisField::encode(variable_kind == Variable::THIS) |
                  IsAssignedField::encode(false) |
                  IsResolvedField::encode(false)),
       raw_name_(name),
       end_position_(end_position) {}
-
 
 void VariableProxy::BindTo(Variable* var) {
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
@@ -126,17 +210,17 @@ void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
-    if (var()->IsUnallocated()) {
+    if (var()->IsUnallocated() || var()->mode() == DYNAMIC_GLOBAL) {
       ZoneHashMap::Entry* entry = cache->Get(var());
       if (entry != NULL) {
         variable_feedback_slot_ = FeedbackVectorSlot(
             static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
         return;
       }
-    }
-    variable_feedback_slot_ = spec->AddLoadICSlot();
-    if (var()->IsUnallocated()) {
+      variable_feedback_slot_ = spec->AddLoadGlobalICSlot(var()->name());
       cache->Put(var(), variable_feedback_slot_);
+    } else {
+      variable_feedback_slot_ = spec->AddLoadICSlot();
     }
   }
 }
@@ -164,17 +248,15 @@ void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
   for_in_feedback_slot_ = spec->AddGeneralSlot();
 }
 
-
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos)
-    : Expression(zone, pos),
+    : Expression(zone, pos, kAssignment),
       bit_field_(
           IsUninitializedField::encode(false) | KeyTypeField::encode(ELEMENT) |
           StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op)),
       target_(target),
       value_(value),
       binary_operation_(NULL) {}
-
 
 void Assignment::AssignFeedbackVectorSlots(Isolate* isolate,
                                            FeedbackVectorSpec* spec,
@@ -396,7 +478,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     if (property->is_computed_name()) continue;
     if (property->kind() == ObjectLiteral::Property::PROTOTYPE) continue;
     Literal* literal = property->key()->AsLiteral();
-    DCHECK(!literal->value()->IsNull());
+    DCHECK(!literal->IsNullLiteral());
 
     // If there is an existing entry do not emit a store unless the previous
     // entry was also an accessor.
@@ -466,11 +548,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // (value->IsNumber()).
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
-        (value->IsNumber() || value->IsUninitialized())) {
+        (value->IsNumber() || value->IsUninitialized(isolate))) {
       may_store_doubles_ = true;
     }
 
-    is_simple = is_simple && !value->IsUninitialized();
+    is_simple = is_simple && !value->IsUninitialized(isolate);
 
     // Keep track of the number of elements in the object literal and
     // the largest element index.  If the largest element index is
@@ -538,7 +620,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       continue;
     }
 
-    if (boilerplate_value->IsUninitialized()) {
+    if (boilerplate_value->IsUninitialized(isolate)) {
       boilerplate_value = handle(Smi::FromInt(0), isolate);
       is_simple = false;
     }
@@ -715,27 +797,77 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 
 
 // ----------------------------------------------------------------------------
-// Inlining support
-
-bool Declaration::IsInlineable() const {
-  return proxy()->var()->IsStackAllocated();
-}
-
-bool FunctionDeclaration::IsInlineable() const {
-  return false;
-}
-
-
-// ----------------------------------------------------------------------------
 // Recording of type feedback
 
 // TODO(rossberg): all RecordTypeFeedback functions should disappear
 // once we use the common type field in the AST consistently.
 
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
-  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
+  if (IsUnaryOperation()) {
+    AsUnaryOperation()->RecordToBooleanTypeFeedback(oracle);
+  } else if (IsBinaryOperation()) {
+    AsBinaryOperation()->RecordToBooleanTypeFeedback(oracle);
+  } else {
+    set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
+  }
 }
 
+SmallMapList* Expression::GetReceiverTypes() {
+  switch (node_type()) {
+#define NODE_LIST(V)    \
+  PROPERTY_NODE_LIST(V) \
+  V(Call)
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<Node*>(this)->GetReceiverTypes();
+    NODE_LIST(GENERATE_CASE)
+#undef NODE_LIST
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
+
+KeyedAccessStoreMode Expression::GetStoreMode() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->GetStoreMode();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return STANDARD_STORE;
+  }
+}
+
+IcCheckType Expression::GetKeyType() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->GetKeyType();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return PROPERTY;
+  }
+}
+
+bool Expression::IsMonomorphic() const {
+  switch (node_type()) {
+#define GENERATE_CASE(Node) \
+  case k##Node:             \
+    return static_cast<const Node*>(this)->IsMonomorphic();
+    PROPERTY_NODE_LIST(GENERATE_CASE)
+    CALL_NODE_LIST(GENERATE_CASE)
+#undef GENERATE_CASE
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
 
 bool Call::IsUsingCallFeedbackICSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
@@ -793,36 +925,6 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
 
 
 // ----------------------------------------------------------------------------
-// Implementation of AstVisitor
-
-void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    Visit(declarations->at(i));
-  }
-}
-
-
-void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
-  for (int i = 0; i < statements->length(); i++) {
-    Statement* stmt = statements->at(i);
-    Visit(stmt);
-    if (stmt->IsJump()) break;
-  }
-}
-
-
-void AstVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
-  for (int i = 0; i < expressions->length(); i++) {
-    // The variable statement visiting code may pass NULL expressions
-    // to this code. Maybe this should be handled by introducing an
-    // undefined expression or literal?  Revisit this code if this
-    // changes
-    Expression* expression = expressions->at(i);
-    if (expression != NULL) Visit(expression);
-  }
-}
-
-// ----------------------------------------------------------------------------
 // Implementation of AstTraversalVisitor
 
 #define RECURSE(call)               \
@@ -869,10 +971,6 @@ void AstTraversalVisitor::VisitVariableDeclaration(VariableDeclaration* decl) {}
 void AstTraversalVisitor::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   RECURSE(Visit(decl->fun()));
 }
-
-void AstTraversalVisitor::VisitImportDeclaration(ImportDeclaration* decl) {}
-
-void AstTraversalVisitor::VisitExportDeclaration(ExportDeclaration* decl) {}
 
 void AstTraversalVisitor::VisitBlock(Block* stmt) {
   RECURSE(VisitStatements(stmt->statements()));
@@ -1127,7 +1225,7 @@ void AstTraversalVisitor::VisitRewritableExpression(
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos)
-    : Expression(zone, pos),
+    : Expression(zone, pos, kCaseClause),
       label_(label),
       statements_(statements),
       compare_type_(Type::None()) {}

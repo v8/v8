@@ -116,9 +116,7 @@ class InterpreterState {
       InstructionOperand source = FromKey(it->first);
       InstructionOperand destination = FromKey(it->second);
       MoveOperands mo(source, destination);
-      PrintableMoveOperands pmo = {
-          RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-          &mo};
+      PrintableMoveOperands pmo = {RegisterConfiguration::Turbofan(), &mo};
       os << pmo;
     }
     return os;
@@ -167,8 +165,10 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   ParallelMove* Create(int size) {
     ParallelMove* parallel_move = new (main_zone()) ParallelMove(main_zone());
     std::set<InstructionOperand, CompareOperandModuloType> seen;
+    MachineRepresentation rep = RandomRepresentation();
     for (int i = 0; i < size; ++i) {
-      MoveOperands mo(CreateRandomOperand(true), CreateRandomOperand(false));
+      MoveOperands mo(CreateRandomOperand(true, rep),
+                      CreateRandomOperand(false, rep));
       if (!mo.IsRedundant() && seen.find(mo.destination()) == seen.end()) {
         parallel_move->AddMove(mo.source(), mo.destination());
         seen.insert(mo.destination());
@@ -179,52 +179,54 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
  private:
   MachineRepresentation RandomRepresentation() {
-    int index = rng_->NextInt(3);
+    int index = rng_->NextInt(5);
     switch (index) {
       case 0:
         return MachineRepresentation::kWord32;
       case 1:
         return MachineRepresentation::kWord64;
       case 2:
+        return MachineRepresentation::kFloat32;
+      case 3:
+        return MachineRepresentation::kFloat64;
+      case 4:
         return MachineRepresentation::kTagged;
     }
     UNREACHABLE();
     return MachineRepresentation::kNone;
   }
 
-  MachineRepresentation RandomDoubleRepresentation() {
-    int index = rng_->NextInt(2);
-    if (index == 0) return MachineRepresentation::kFloat64;
-    return MachineRepresentation::kFloat32;
-  }
+  InstructionOperand CreateRandomOperand(bool is_source,
+                                         MachineRepresentation rep) {
+    auto conf = RegisterConfiguration::Turbofan();
+    auto GetRegisterCode = [&conf](MachineRepresentation rep, int index) {
+      switch (rep) {
+        case MachineRepresentation::kFloat32:
+        case MachineRepresentation::kFloat64:
+          return conf->RegisterConfiguration::GetAllocatableDoubleCode(index);
+          break;
 
-  InstructionOperand CreateRandomOperand(bool is_source) {
+        default:
+          return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
+          break;
+      }
+      UNREACHABLE();
+      return static_cast<int>(Register::kCode_no_reg);
+    };
     int index = rng_->NextInt(7);
     // destination can't be Constant.
-    switch (rng_->NextInt(is_source ? 7 : 6)) {
+    switch (rng_->NextInt(is_source ? 5 : 4)) {
       case 0:
-        return AllocatedOperand(LocationOperand::STACK_SLOT,
-                                RandomRepresentation(), index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT, rep, index);
       case 1:
-        return AllocatedOperand(LocationOperand::STACK_SLOT,
-                                RandomDoubleRepresentation(), index);
+        return AllocatedOperand(LocationOperand::REGISTER, rep, index);
       case 2:
-        return AllocatedOperand(LocationOperand::REGISTER,
-                                RandomRepresentation(), index);
+        return ExplicitOperand(LocationOperand::REGISTER, rep,
+                               GetRegisterCode(rep, 1));
       case 3:
-        return AllocatedOperand(LocationOperand::REGISTER,
-                                RandomDoubleRepresentation(), index);
+        return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
+                               GetRegisterCode(rep, index));
       case 4:
-        return ExplicitOperand(
-            LocationOperand::REGISTER, RandomRepresentation(),
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->GetAllocatableGeneralCode(1));
-      case 5:
-        return ExplicitOperand(
-            LocationOperand::STACK_SLOT, RandomRepresentation(),
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-                ->GetAllocatableGeneralCode(index));
-      case 6:
         return ConstantOperand(index);
     }
     UNREACHABLE();

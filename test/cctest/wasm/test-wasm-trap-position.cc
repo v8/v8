@@ -38,10 +38,10 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Isolate* isolate, Handle<Object> exc,
+void CheckExceptionInfos(Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
-  CHECK(Object::IsErrorObject(isolate, exc));
+  CHECK(exc->IsJSError());
 
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
@@ -88,12 +88,12 @@ TEST(Unreachable) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
+  // The column is 1-based, so add 1 to the actual byte offset.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 1},  // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},  // --
       {"callFn", 1, 24}                                     // --
   };
-  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
-                      expected_exceptions);
+  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
 
 // Trigger a trap for loading from out-of-bounds.
@@ -129,12 +129,11 @@ TEST(IllegalLoad) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // Line number is 1-based, with 0 == kNoLineNumberInfo.
+  // The column is 1-based, so add 1 to the actual byte offset.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 6},    // --
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 7},    // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 3},  // --
       {"callFn", 1, 24}                                       // --
   };
-  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
-                      expected_exceptions);
+  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

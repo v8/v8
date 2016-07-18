@@ -69,6 +69,10 @@ namespace internal {
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
 
+#define SIMD128_REGISTERS(V)                              \
+  V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
+  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15)
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13)               \
@@ -118,8 +122,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -147,6 +149,8 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const Register no_reg = {Register::kCode_no_reg};
 
+static const bool kSimpleFPAliasing = false;
+
 // Single word VFP register.
 struct SwVfpRegister {
   enum Code {
@@ -161,8 +165,6 @@ struct SwVfpRegister {
 
   static const int kSizeInBytes = 4;
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < 32; }
   bool is(SwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -208,8 +210,6 @@ struct DwVfpRegister {
   //  d15: scratch register.
   static const int kSizeInBytes = 8;
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
   bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -1437,10 +1437,6 @@ class Assembler : public AssemblerBase {
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);
 
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
-
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
   void instr_at_put(int pos, Instr instr) {
@@ -1680,8 +1676,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

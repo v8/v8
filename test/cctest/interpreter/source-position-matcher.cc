@@ -87,10 +87,10 @@ bool SourcePositionMatcher::Match(Handle<BytecodeArray> original_bytecode,
 
     StripUnneededExpressionPositions(original_bytecode,
                                      &original_expression_entries,
-                                     original.bytecode_offset());
+                                     original.code_offset());
     StripUnneededExpressionPositions(optimized_bytecode,
                                      &optimized_expression_entries,
-                                     optimized.bytecode_offset());
+                                     optimized.code_offset());
 
     if (!CompareExpressionPositions(&original_expression_entries,
                                     &optimized_expression_entries)) {
@@ -103,15 +103,15 @@ bool SourcePositionMatcher::Match(Handle<BytecodeArray> original_bytecode,
       return false;
     }
 
-    if (original.bytecode_offset() < last_original_bytecode_offset) {
+    if (original.code_offset() < last_original_bytecode_offset) {
       return false;
     }
-    last_original_bytecode_offset = original.bytecode_offset();
+    last_original_bytecode_offset = original.code_offset();
 
-    if (optimized.bytecode_offset() < last_optimized_bytecode_offset) {
+    if (optimized.code_offset() < last_optimized_bytecode_offset) {
       return false;
     }
-    last_optimized_bytecode_offset = optimized.bytecode_offset();
+    last_optimized_bytecode_offset = optimized.code_offset();
 
     // TODO(oth): Can we compare statement positions are semantically
     // equivalent? e.g. before a bytecode that has debugger observable
@@ -170,9 +170,9 @@ void SourcePositionMatcher::StripUnneededExpressionPositions(
           !expression_positions->at(i).is_statement);
     int bytecode_end = (i == expression_positions->size() - 1)
                            ? next_statement_bytecode_offset
-                           : expression_positions->at(i + 1).bytecode_offset;
+                           : expression_positions->at(i + 1).code_offset;
     if (ExpressionPositionIsNeeded(bytecode_array,
-                                   expression_positions->at(i).bytecode_offset,
+                                   expression_positions->at(i).code_offset,
                                    bytecode_end)) {
       expression_positions->at(j++) = expression_positions->at(i);
     }
@@ -213,8 +213,7 @@ void SourcePositionMatcher::MoveToNextStatement(
     if (iterator->is_statement()) {
       break;
     }
-    positions->push_back({iterator->bytecode_offset(),
-                          iterator->source_position(),
+    positions->push_back({iterator->code_offset(), iterator->source_position(),
                           iterator->is_statement()});
     iterator->Advance();
   }

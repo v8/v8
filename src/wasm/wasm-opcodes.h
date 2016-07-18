@@ -116,9 +116,10 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32StoreMem, 0x35, f_if)        \
   V(F64StoreMem, 0x36, d_id)
 
+#define FOREACH_SIMPLE_MEM_OPCODE(V) V(GrowMemory, 0x39, i_i)
+
 // Load memory expressions.
 #define FOREACH_MISC_MEM_OPCODE(V) \
-  V(GrowMemory, 0x39, i_i)         \
   V(MemorySize, 0x3b, i_v)
 
 // Expressions with signatures.
@@ -405,16 +406,21 @@ const WasmCodePosition kNoCodePosition = -1;
   V(S128Xor, 0xe578, s_ss)             \
   V(S128Not, 0xe579, s_s)
 
+// For enabling JIT functionality
+#define FOREACH_JIT_OPCODE(V) V(JITSingleFunction, 0xf0, _)
+
 // All opcodes.
 #define FOREACH_OPCODE(V)        \
   FOREACH_CONTROL_OPCODE(V)      \
   FOREACH_MISC_OPCODE(V)         \
   FOREACH_SIMPLE_OPCODE(V)       \
+  FOREACH_SIMPLE_MEM_OPCODE(V)   \
   FOREACH_STORE_MEM_OPCODE(V)    \
   FOREACH_LOAD_MEM_OPCODE(V)     \
   FOREACH_MISC_MEM_OPCODE(V)     \
   FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  FOREACH_SIMD_OPCODE(V)
+  FOREACH_SIMD_OPCODE(V)         \
+  FOREACH_JIT_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -459,23 +465,30 @@ const WasmCodePosition kNoCodePosition = -1;
   V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
+#define FOREACH_PREFIX(V) V(Simd, 0xe5)
+
 enum WasmOpcode {
 // Declare expression opcodes.
 #define DECLARE_NAMED_ENUM(name, opcode, sig) kExpr##name = opcode,
   FOREACH_OPCODE(DECLARE_NAMED_ENUM)
 #undef DECLARE_NAMED_ENUM
+#define DECLARE_PREFIX(name, opcode) k##name##Prefix = opcode,
+      FOREACH_PREFIX(DECLARE_PREFIX)
+#undef DECLARE_PREFIX
 };
 
 // The reason for a trap.
 #define FOREACH_WASM_TRAPREASON(V) \
-  V(TrapUnreachable)          \
-  V(TrapMemOutOfBounds)       \
-  V(TrapDivByZero)            \
-  V(TrapDivUnrepresentable)   \
-  V(TrapRemByZero)            \
-  V(TrapFloatUnrepresentable) \
-  V(TrapFuncInvalid)          \
-  V(TrapFuncSigMismatch)
+  V(TrapUnreachable)               \
+  V(TrapMemOutOfBounds)            \
+  V(TrapDivByZero)                 \
+  V(TrapDivUnrepresentable)        \
+  V(TrapRemByZero)                 \
+  V(TrapFloatUnrepresentable)      \
+  V(TrapFuncInvalid)               \
+  V(TrapFuncSigMismatch)           \
+  V(TrapMemAllocationFail)         \
+  V(TrapInvalidIndex)
 
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,

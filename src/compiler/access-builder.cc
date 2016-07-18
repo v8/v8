@@ -152,10 +152,13 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSGeneratorObjectInput() {
-  FieldAccess access = {
-      kTaggedBase, JSGeneratorObject::kInputOffset, Handle<Name>(),
-      Type::Any(), MachineType::AnyTagged(),        kFullWriteBarrier};
+FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kInputOrDebugPosOffset,
+                        Handle<Name>(),
+                        Type::Any(),
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
   return access;
 }
 
@@ -366,9 +369,9 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {
-      kTaggedBase,      Name::kHashFieldOffset, Handle<Name>(),
-      Type::Internal(), MachineType::Pointer(), kNoWriteBarrier};
+  FieldAccess access = {kTaggedBase,           Name::kHashFieldOffset,
+                        Handle<Name>(),        Type::Internal(),
+                        MachineType::Uint32(), kNoWriteBarrier};
   return access;
 }
 

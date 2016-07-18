@@ -113,3 +113,17 @@ function TestPrototype() {
   assertSame(generator_prototype, Object.getPrototypeOf(g()));
 }
 TestPrototype();
+
+
+function TestComputedPropertyNames() {
+  function* f1() { return {[yield]: 42} }
+  var g1 = f1();
+  g1.next();
+  assertEquals(42, g1.next('a').value.a);
+
+  function* f2() { return {['a']: yield} }
+  var g2 = f2();
+  g2.next();
+  assertEquals(42, g2.next(42).value.a);
+}
+TestComputedPropertyNames();

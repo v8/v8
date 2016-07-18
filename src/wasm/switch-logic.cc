@@ -34,7 +34,7 @@ CaseNode* OrderCases(ZoneVector<int>* cases, Zone* zone) {
   }
   std::sort(cases->begin(), cases->end());
   ZoneVector<size_t> table_breaks(zone);
-  for (size_t i = 1; i < cases->size(); i++) {
+  for (size_t i = 1; i < cases->size(); ++i) {
     if (cases->at(i) - cases->at(i - 1) > max_distance) {
       table_breaks.push_back(i);
     }
@@ -42,7 +42,7 @@ CaseNode* OrderCases(ZoneVector<int>* cases, Zone* zone) {
   table_breaks.push_back(cases->size());
   ZoneVector<CaseNode*> nodes(zone);
   size_t curr_pos = 0;
-  for (size_t i = 0; i < table_breaks.size(); i++) {
+  for (size_t i = 0; i < table_breaks.size(); ++i) {
     size_t break_pos = table_breaks[i];
     if (break_pos - curr_pos >= min_size) {
       int begin = cases->at(curr_pos);

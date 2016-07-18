@@ -14,6 +14,7 @@ namespace internal {
                                                                                \
   V(k32BitValueInRegisterIsNotZeroExtended,                                    \
     "32 bit value in register is not zero-extended")                           \
+  V(kAllocatingNonEmptyPackedArray, "Allocating non-empty packed array")       \
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kArgumentsObjectValueInATestContext,                                       \
@@ -72,7 +73,6 @@ namespace internal {
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
   V(kExpectingAlignmentForCopyBytes, "Expecting alignment for CopyBytes")      \
-  V(kExportDeclaration, "Export declaration")                                  \
   V(kExternalStringExpectedButNotFound,                                        \
     "External string expected, but not found")                                 \
   V(kForInStatementWithNonLocalEachVariable,                                   \
@@ -89,7 +89,6 @@ namespace internal {
   V(kGraphBuildingFailed, "Optimized graph construction failed")               \
   V(kHeapNumberMapRegisterClobbered, "HeapNumberMap register clobbered")       \
   V(kHydrogenFilter, "Optimization disabled by filter")                        \
-  V(kImportDeclaration, "Import declaration")                                  \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
@@ -267,8 +266,7 @@ namespace internal {
   V(kWrongArgumentCountForInvokeIntrinsic,                                     \
     "Wrong number of arguments for intrinsic")                                 \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
-    "Should not directly enter OSR-compiled function")                         \
-  V(kYield, "Yield")
+    "Should not directly enter OSR-compiled function")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum BailoutReason {

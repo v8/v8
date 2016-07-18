@@ -153,12 +153,13 @@ double array_max(double a[], size_t n) {
 
 }  // namespace
 
-Type* OperationTyper::AddRanger(RangeType* lhs, RangeType* rhs) {
+Type* OperationTyper::AddRanger(double lhs_min, double lhs_max, double rhs_min,
+                                double rhs_max) {
   double results[4];
-  results[0] = lhs->Min() + rhs->Min();
-  results[1] = lhs->Min() + rhs->Max();
-  results[2] = lhs->Max() + rhs->Min();
-  results[3] = lhs->Max() + rhs->Max();
+  results[0] = lhs_min + rhs_min;
+  results[1] = lhs_min + rhs_max;
+  results[2] = lhs_max + rhs_min;
+  results[3] = lhs_max + rhs_max;
   // Since none of the inputs can be -0, the result cannot be -0 either.
   // However, it can be nan (the sum of two infinities of opposite sign).
   // On the other hand, if none of the "results" above is nan, then the actual
@@ -233,6 +234,36 @@ Type* OperationTyper::ModulusRanger(RangeType* lhs, RangeType* rhs) {
   return result;
 }
 
+Type* OperationTyper::MultiplyRanger(Type* lhs, Type* rhs) {
+  double results[4];
+  double lmin = lhs->AsRange()->Min();
+  double lmax = lhs->AsRange()->Max();
+  double rmin = rhs->AsRange()->Min();
+  double rmax = rhs->AsRange()->Max();
+  results[0] = lmin * rmin;
+  results[1] = lmin * rmax;
+  results[2] = lmax * rmin;
+  results[3] = lmax * rmax;
+  // If the result may be nan, we give up on calculating a precise type,
+  // because
+  // the discontinuity makes it too complicated.  Note that even if none of
+  // the
+  // "results" above is nan, the actual result may still be, so we have to do
+  // a
+  // different check:
+  bool maybe_nan = (lhs->Maybe(cache_.kSingletonZero) &&
+                    (rmin == -V8_INFINITY || rmax == +V8_INFINITY)) ||
+                   (rhs->Maybe(cache_.kSingletonZero) &&
+                    (lmin == -V8_INFINITY || lmax == +V8_INFINITY));
+  if (maybe_nan) return cache_.kIntegerOrMinusZeroOrNaN;  // Giving up.
+  bool maybe_minuszero = (lhs->Maybe(cache_.kSingletonZero) && rmin < 0) ||
+                         (rhs->Maybe(cache_.kSingletonZero) && lmin < 0);
+  Type* range =
+      Type::Range(array_min(results, 4), array_max(results, 4), zone());
+  return maybe_minuszero ? Type::Union(range, Type::MinusZero(), zone())
+                         : range;
+}
+
 Type* OperationTyper::ToNumber(Type* type) {
   if (type->Is(Type::Number())) return type;
   if (type->Is(Type::NullOrUndefined())) {
@@ -254,23 +285,39 @@ Type* OperationTyper::ToNumber(Type* type) {
   return Type::Number();
 }
 
-Type* OperationTyper::NumericAdd(Type* lhs, Type* rhs) {
+Type* OperationTyper::NumberAdd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  lhs = Rangify(lhs);
-  rhs = Rangify(rhs);
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  if (lhs->IsRange() && rhs->IsRange()) {
-    return AddRanger(lhs->AsRange(), rhs->AsRange());
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
   }
-  // TODO(neis): Deal with numeric bitsets here and elsewhere.
-  return Type::Number();
+
+  // We can give more precise types for integers.
+  if (!lhs->Is(cache_.kIntegerOrMinusZeroOrNaN) ||
+      !rhs->Is(cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Type::Number();
+  }
+  Type* int_lhs = Type::Intersect(lhs, cache_.kInteger, zone());
+  Type* int_rhs = Type::Intersect(rhs, cache_.kInteger, zone());
+  Type* result =
+      AddRanger(int_lhs->Min(), int_lhs->Max(), int_rhs->Min(), int_rhs->Max());
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
+    result = Type::Union(result, Type::NaN(), zone());
+  }
+  if (lhs->Maybe(Type::MinusZero()) && rhs->Maybe(Type::MinusZero())) {
+    result = Type::Union(result, Type::MinusZero(), zone());
+  }
+  return result;
 }
 
-Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {
+Type* OperationTyper::NumberSubtract(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
 
   lhs = Rangify(lhs);
   rhs = Rangify(rhs);
@@ -280,6 +327,92 @@ Type* OperationTyper::NumericSubtract(Type* lhs, Type* rhs) {
   }
   // TODO(neis): Deal with numeric bitsets here and elsewhere.
   return Type::Number();
+}
+
+Type* OperationTyper::NumberMultiply(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
+  lhs = Rangify(lhs);
+  rhs = Rangify(rhs);
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+  if (lhs->IsRange() && rhs->IsRange()) {
+    return MultiplyRanger(lhs, rhs);
+  }
+  return Type::Number();
+}
+
+Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+  // Division is tricky, so all we do is try ruling out nan.
+  bool maybe_nan =
+      lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
+      ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
+       (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
+  return maybe_nan ? Type::Number() : Type::OrderedNumber();
+}
+
+Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
+  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
+
+  if (lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
+      lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) {
+    // Result maybe NaN.
+    return Type::Number();
+  }
+
+  lhs = Rangify(lhs);
+  rhs = Rangify(rhs);
+  if (lhs->IsRange() && rhs->IsRange()) {
+    return ModulusRanger(lhs->AsRange(), rhs->AsRange());
+  }
+  return Type::OrderedNumber();
+}
+
+Type* OperationTyper::NumberAbs(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+
+  if (!type->IsInhabited()) {
+    return Type::None();
+  }
+
+  bool const maybe_nan = type->Maybe(Type::NaN());
+  bool const maybe_minuszero = type->Maybe(Type::MinusZero());
+  type = Type::Intersect(type, Type::PlainNumber(), zone());
+  double const max = type->Max();
+  double const min = type->Min();
+  if (min < 0) {
+    if (type->Is(cache_.kInteger)) {
+      type = Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), zone());
+    } else {
+      type = Type::PlainNumber();
+    }
+  }
+  if (maybe_minuszero) {
+    type = Type::Union(type, cache_.kSingletonZero, zone());
+  }
+  if (maybe_nan) {
+    type = Type::Union(type, Type::NaN(), zone());
+  }
+  return type;
 }
 
 Type* OperationTyper::ToPrimitive(Type* type) {
@@ -320,6 +453,11 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
 Type* OperationTyper::TypeJSAdd(Type* lhs, Type* rhs) {
   lhs = ToPrimitive(lhs);
   rhs = ToPrimitive(rhs);
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) {
+    return Type::None();
+  }
+
   if (lhs->Maybe(Type::String()) || rhs->Maybe(Type::String())) {
     if (lhs->Is(Type::String()) || rhs->Is(Type::String())) {
       return Type::String();
@@ -329,11 +467,11 @@ Type* OperationTyper::TypeJSAdd(Type* lhs, Type* rhs) {
   }
   lhs = ToNumber(lhs);
   rhs = ToNumber(rhs);
-  return NumericAdd(lhs, rhs);
+  return NumberAdd(lhs, rhs);
 }
 
 Type* OperationTyper::TypeJSSubtract(Type* lhs, Type* rhs) {
-  return NumericSubtract(ToNumber(lhs), ToNumber(rhs));
+  return NumberSubtract(ToNumber(lhs), ToNumber(rhs));
 }
 
 }  // namespace compiler

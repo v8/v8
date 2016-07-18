@@ -4,8 +4,8 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/ic/stub-cache.h"
-#include "src/interface-descriptors.h"
 #include "src/isolate.h"
+#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -14,251 +14,8 @@ namespace internal {
 using compiler::FunctionTester;
 using compiler::Node;
 
-class ZoneHolder {
- public:
-  explicit ZoneHolder(Isolate* isolate) : zone_(isolate->allocator()) {}
-  Zone* zone() { return &zone_; }
-
- private:
-  Zone zone_;
-};
-
-// Inherit from ZoneHolder in order to create a zone that can be passed to
-// CodeStubAssembler base class constructor.
-class CodeStubAssemblerTester : private ZoneHolder, public CodeStubAssembler {
- public:
-  // Test generating code for a stub.
-  CodeStubAssemblerTester(Isolate* isolate,
-                          const CallInterfaceDescriptor& descriptor)
-      : ZoneHolder(isolate),
-        CodeStubAssembler(isolate, ZoneHolder::zone(), descriptor,
-                          Code::ComputeFlags(Code::STUB), "test"),
-        scope_(isolate) {}
-
-  // Test generating code for a JS function (e.g. builtins).
-  CodeStubAssemblerTester(Isolate* isolate, int parameter_count)
-      : ZoneHolder(isolate),
-        CodeStubAssembler(isolate, ZoneHolder::zone(), parameter_count,
-                          Code::ComputeFlags(Code::FUNCTION), "test"),
-        scope_(isolate) {}
-
-  // This constructor is intended to be used for creating code objects with
-  // specific flags.
-  CodeStubAssemblerTester(Isolate* isolate, Code::Flags flags)
-      : ZoneHolder(isolate),
-        CodeStubAssembler(isolate, ZoneHolder::zone(), 0, flags, "test"),
-        scope_(isolate) {}
-
-  Handle<Code> GenerateCodeCloseAndEscape() {
-    return scope_.CloseAndEscape(GenerateCode());
-  }
-
- private:
-  HandleScope scope_;
-  LocalContext context_;
-};
-
-TEST(SimpleSmiReturn) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  m.Return(m.SmiTag(m.Int32Constant(37)));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(37, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SimpleIntPtrReturn) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  int test;
-  m.Return(m.IntPtrConstant(reinterpret_cast<intptr_t>(&test)));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<intptr_t>(&test),
-           reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
-}
-
-TEST(SimpleDoubleReturn) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  m.Return(m.NumberConstant(0.5));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0.5, Handle<HeapNumber>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SimpleCallRuntime1Arg) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(0));
-  m.Return(m.CallRuntime(Runtime::kNumberToSmi, context, b));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SimpleTailCallRuntime1Arg) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(0));
-  m.TailCallRuntime(Runtime::kNumberToSmi, context, b);
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SimpleCallRuntime2Arg) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = m.SmiTag(m.Int32Constant(2));
-  Node* b = m.SmiTag(m.Int32Constant(4));
-  m.Return(m.CallRuntime(Runtime::kMathPow, context, a, b));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SimpleTailCallRuntime2Arg) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = m.SmiTag(m.Int32Constant(2));
-  Node* b = m.SmiTag(m.Int32Constant(4));
-  m.TailCallRuntime(Runtime::kMathPow, context, a, b);
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(VariableMerge1) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  m.Branch(m.Int32Constant(1), &l1, &l2);
-  m.Bind(&l1);
-  CHECK_EQ(var1.value(), temp);
-  m.Goto(&merge);
-  m.Bind(&l2);
-  CHECK_EQ(var1.value(), temp);
-  m.Goto(&merge);
-  m.Bind(&merge);
-  CHECK_EQ(var1.value(), temp);
-}
-
-TEST(VariableMerge2) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  m.Branch(m.Int32Constant(1), &l1, &l2);
-  m.Bind(&l1);
-  CHECK_EQ(var1.value(), temp);
-  m.Goto(&merge);
-  m.Bind(&l2);
-  Node* temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
-  CHECK_EQ(var1.value(), temp2);
-  m.Goto(&merge);
-  m.Bind(&merge);
-  CHECK_NE(var1.value(), temp);
-}
-
-TEST(VariableMerge3) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Variable var2(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  var2.Bind(temp);
-  m.Branch(m.Int32Constant(1), &l1, &l2);
-  m.Bind(&l1);
-  CHECK_EQ(var1.value(), temp);
-  m.Goto(&merge);
-  m.Bind(&l2);
-  Node* temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
-  CHECK_EQ(var1.value(), temp2);
-  m.Goto(&merge);
-  m.Bind(&merge);
-  CHECK_NE(var1.value(), temp);
-  CHECK_NE(var1.value(), temp2);
-  CHECK_EQ(var2.value(), temp);
-}
-
-TEST(VariableMergeBindFirst) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  m.Branch(m.Int32Constant(1), &l1, &l2);
-  m.Bind(&l1);
-  CHECK_EQ(var1.value(), temp);
-  m.Goto(&merge);
-  m.Bind(&merge);
-  CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
-  m.Goto(&end);
-  m.Bind(&l2);
-  Node* temp2 = m.Int32Constant(2);
-  var1.Bind(temp2);
-  CHECK_EQ(var1.value(), temp2);
-  m.Goto(&merge);
-  m.Bind(&end);
-  CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
-}
-
-TEST(VariableMergeSwitch) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
-  int32_t values[] = {1, 2};
-  Node* temp = m.Int32Constant(0);
-  var1.Bind(temp);
-  m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
-  m.Bind(&l1);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
-  m.Bind(&l2);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
-  m.Bind(&default_label);
-  DCHECK_EQ(temp, var1.value());
-  m.Return(temp);
-}
+typedef compiler::CodeAssemblerTesterImpl<CodeStubAssembler>
+    CodeStubAssemblerTester;
 
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -301,16 +58,12 @@ TEST(LoadInstanceType) {
            Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
-namespace {
-
-class TestBitField : public BitField<unsigned, 3, 3> {};
-
-}  // namespace
-
 TEST(BitFieldDecode) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
+
+  class TestBitField : public BitField<unsigned, 3, 3> {};
   m.Return(m.SmiTag(m.BitFieldDecode<TestBitField>(m.Int32Constant(0x2f))));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
@@ -321,103 +74,31 @@ TEST(BitFieldDecode) {
   CHECK_EQ(5, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
-namespace {
-
-Handle<JSFunction> CreateFunctionFromCode(int parameter_count_with_receiver,
-                                          Handle<Code> code) {
-  Isolate* isolate = code->GetIsolate();
-  Handle<String> name = isolate->factory()->InternalizeUtf8String("test");
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunctionWithoutPrototype(name, code);
-  function->shared()->set_internal_formal_parameter_count(
-      parameter_count_with_receiver - 1);  // Implicit undefined receiver.
-  return function;
-}
-
-}  // namespace
-
 TEST(JSFunction) {
   const int kNumParams = 3;  // Receiver, left, right.
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeStubAssemblerTester m(isolate, kNumParams);
-  m.Return(m.SmiTag(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
-                               m.SmiToWord32(m.Parameter(2)))));
+  m.Return(m.SmiFromWord32(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
+                                      m.SmiToWord32(m.Parameter(2)))));
+
   Handle<Code> code = m.GenerateCode();
-  Handle<JSFunction> function = CreateFunctionFromCode(kNumParams, code);
-  Handle<Object> args[] = {Handle<Smi>(Smi::FromInt(23), isolate),
-                           Handle<Smi>(Smi::FromInt(34), isolate)};
-  MaybeHandle<Object> result =
-      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
-                      arraysize(args), args);
+  FunctionTester ft(code, kNumParams);
+
+  MaybeHandle<Object> result = ft.Call(isolate->factory()->undefined_value(),
+                                       handle(Smi::FromInt(23), isolate),
+                                       handle(Smi::FromInt(34), isolate));
   CHECK_EQ(57, Handle<Smi>::cast(result.ToHandleChecked())->value());
-}
-
-TEST(SplitEdgeBranchMerge) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Label l1(&m), merge(&m);
-  m.Branch(m.Int32Constant(1), &l1, &merge);
-  m.Bind(&l1);
-  m.Goto(&merge);
-  m.Bind(&merge);
-  USE(m.GenerateCode());
-}
-
-TEST(SplitEdgeSwitchMerge) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
-  int32_t values[] = {1, 2};
-  m.Branch(m.Int32Constant(1), &l3, &l1);
-  m.Bind(&l3);
-  m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
-  m.Bind(&l1);
-  m.Goto(&l2);
-  m.Bind(&l2);
-  m.Goto(&default_label);
-  m.Bind(&default_label);
-  USE(m.GenerateCode());
-}
-
-TEST(TestToConstant) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeStubAssemblerTester m(isolate, descriptor);
-  int32_t value32;
-  int64_t value64;
-  Node* a = m.Int32Constant(5);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
-
-  a = m.Int64Constant(static_cast<int64_t>(1) << 32);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
-
-  a = m.Int64Constant(13);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
-
-  a = m.UndefinedConstant();
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
-
-  a = m.UndefinedConstant();
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
 }
 
 TEST(ComputeIntegerHash) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int param_count = 2;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams);
   m.Return(m.SmiFromWord32(m.ComputeIntegerHash(
       m.SmiToWord32(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Handle<Smi> hash_seed = isolate->factory()->hash_seed();
 
@@ -440,8 +121,8 @@ TEST(TryToName) {
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int param_count = 3;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 3;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kKeyIsIndex, kKeyIsUnique, kBailout };
   {
@@ -481,7 +162,7 @@ TEST(TryToName) {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_index(Smi::FromInt(kKeyIsIndex), isolate);
   Handle<Object> expect_unique(Smi::FromInt(kKeyIsUnique), isolate);
@@ -539,8 +220,8 @@ void TestNameDictionaryLookup() {
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int param_count = 4;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 4;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound };
   {
@@ -551,15 +232,15 @@ void TestNameDictionaryLookup() {
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_entry(&m, MachineRepresentation::kWord32);
+    Variable var_name_index(&m, MachineRepresentation::kWord32);
 
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
-                                       &var_entry, &if_not_found);
+                                       &var_name_index, &if_not_found);
     m.Bind(&if_found);
     m.GotoUnless(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
-    m.Branch(m.Word32Equal(m.SmiToWord32(expected_arg), var_entry.value()),
+    m.Branch(m.Word32Equal(m.SmiToWord32(expected_arg), var_name_index.value()),
              &passed, &failed);
 
     m.Bind(&if_not_found);
@@ -575,7 +256,7 @@ void TestNameDictionaryLookup() {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
@@ -603,10 +284,12 @@ void TestNameDictionaryLookup() {
 
   for (size_t i = 0; i < arraysize(keys); i++) {
     int entry = dictionary->FindEntry(keys[i]);
+    int name_index =
+        Dictionary::EntryToIndex(entry) + Dictionary::kEntryKeyIndex;
     CHECK_NE(Dictionary::kNotFound, entry);
 
-    Handle<Object> expected_entry(Smi::FromInt(entry), isolate);
-    ft.CheckTrue(dictionary, keys[i], expect_found, expected_entry);
+    Handle<Object> expected_name_index(Smi::FromInt(name_index), isolate);
+    ft.CheckTrue(dictionary, keys[i], expect_found, expected_name_index);
   }
 
   Handle<Name> non_existing_keys[] = {
@@ -643,8 +326,8 @@ void TestNumberDictionaryLookup() {
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int param_count = 4;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 4;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound };
   {
@@ -679,7 +362,7 @@ void TestNumberDictionaryLookup() {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
@@ -737,20 +420,51 @@ namespace {
 
 void AddProperties(Handle<JSObject> object, Handle<Name> names[],
                    size_t count) {
-  Handle<Object> value(Smi::FromInt(42), object->GetIsolate());
+  Isolate* isolate = object->GetIsolate();
   for (size_t i = 0; i < count; i++) {
+    Handle<Object> value(Smi::FromInt(static_cast<int>(42 + i)), isolate);
     JSObject::AddProperty(object, names[i], value, NONE);
+  }
+}
+
+Handle<AccessorPair> CreateAccessorPair(FunctionTester* ft,
+                                        const char* getter_body,
+                                        const char* setter_body) {
+  Handle<AccessorPair> pair = ft->isolate->factory()->NewAccessorPair();
+  if (getter_body) {
+    pair->set_getter(*ft->NewFunction(getter_body));
+  }
+  if (setter_body) {
+    pair->set_setter(*ft->NewFunction(setter_body));
+  }
+  return pair;
+}
+
+void AddProperties(Handle<JSObject> object, Handle<Name> names[],
+                   size_t names_count, Handle<Object> values[],
+                   size_t values_count, int seed = 0) {
+  Isolate* isolate = object->GetIsolate();
+  for (size_t i = 0; i < names_count; i++) {
+    Handle<Object> value = values[(seed + i) % values_count];
+    if (value->IsAccessorPair()) {
+      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
+      Handle<Object> getter(pair->getter(), isolate);
+      Handle<Object> setter(pair->setter(), isolate);
+      JSObject::DefineAccessor(object, names[i], getter, setter, NONE).Check();
+    } else {
+      JSObject::AddProperty(object, names[i], value, NONE);
+    }
   }
 }
 
 }  // namespace
 
-TEST(TryLookupProperty) {
+TEST(TryHasOwnProperty) {
   typedef CodeStubAssembler::Label Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int param_count = 4;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 4;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound, kBailout };
   {
@@ -764,7 +478,7 @@ TEST(TryLookupProperty) {
     Node* map = m.LoadMap(object);
     Node* instance_type = m.LoadMapInstanceType(map);
 
-    m.TryLookupProperty(object, map, instance_type, unique_name, &if_found,
+    m.TryHasOwnProperty(object, map, instance_type, unique_name, &if_found,
                         &if_not_found, &if_bailout);
 
     m.Bind(&if_found);
@@ -789,13 +503,17 @@ TEST(TryLookupProperty) {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
   Factory* factory = isolate->factory();
+
+  Handle<Name> deleted_property_name =
+      factory->InternalizeUtf8String("deleted");
+
   Handle<Name> names[] = {
       factory->InternalizeUtf8String("a"),
       factory->InternalizeUtf8String("bb"),
@@ -811,25 +529,59 @@ TEST(TryLookupProperty) {
   std::vector<Handle<JSObject>> objects;
 
   {
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
-    Handle<JSObject> object = factory->NewJSObject(function);
+    // Fast object, no inobject properties.
+    int inobject_properties = 0;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
     CHECK(!object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
+    // Fast object, all inobject properties.
+    int inobject_properties = arraysize(names) * 2;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    AddProperties(object, names, arraysize(names));
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Fast object, half inobject properties.
+    int inobject_properties = arraysize(names) / 2;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    AddProperties(object, names, arraysize(names));
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Dictionary mode object.
     Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names));
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
+
+    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+              .FromJust());
+
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
     CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
   }
 
   {
+    // Global object.
     Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
@@ -837,6 +589,11 @@ TEST(TryLookupProperty) {
     function->initial_map()->set_dictionary_map(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
+
+    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+              .FromJust());
+
     CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
     CHECK(object->map()->is_dictionary_map());
     objects.push_back(object);
@@ -854,17 +611,20 @@ TEST(TryLookupProperty) {
 
   {
     Handle<Name> non_existing_names[] = {
+        factory->NewSymbol(),
         factory->InternalizeUtf8String("ne_a"),
         factory->InternalizeUtf8String("ne_bb"),
+        factory->NewPrivateSymbol(),
         factory->InternalizeUtf8String("ne_ccc"),
         factory->InternalizeUtf8String("ne_dddd"),
+        deleted_property_name,
     };
     for (Handle<JSObject> object : objects) {
       for (size_t key_index = 0; key_index < arraysize(non_existing_names);
            key_index++) {
-        Handle<Name> key = non_existing_names[key_index];
-        CHECK(!JSReceiver::HasProperty(object, key).FromJust());
-        ft.CheckTrue(object, key, expect_not_found);
+        Handle<Name> name = non_existing_names[key_index];
+        CHECK(!JSReceiver::HasProperty(object, name).FromJust());
+        ft.CheckTrue(object, name, expect_not_found);
       }
     }
   }
@@ -883,6 +643,215 @@ TEST(TryLookupProperty) {
   }
 }
 
+TEST(TryGetOwnProperty) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams);
+
+  Handle<Symbol> not_found_symbol = factory->NewSymbol();
+  Handle<Symbol> bailout_symbol = factory->NewSymbol();
+  {
+    Node* object = m.Parameter(0);
+    Node* unique_name = m.Parameter(1);
+    Node* context = m.Parameter(kNumParams + 2);
+
+    Variable var_value(&m, MachineRepresentation::kTagged);
+    Label if_found(&m), if_not_found(&m), if_bailout(&m);
+
+    Node* map = m.LoadMap(object);
+    Node* instance_type = m.LoadMapInstanceType(map);
+
+    m.TryGetOwnProperty(context, object, object, map, instance_type,
+                        unique_name, &if_found, &var_value, &if_not_found,
+                        &if_bailout);
+
+    m.Bind(&if_found);
+    m.Return(var_value.value());
+
+    m.Bind(&if_not_found);
+    m.Return(m.HeapConstant(not_found_symbol));
+
+    m.Bind(&if_bailout);
+    m.Return(m.HeapConstant(bailout_symbol));
+  }
+
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<Name> deleted_property_name =
+      factory->InternalizeUtf8String("deleted");
+
+  Handle<Name> names[] = {
+      factory->InternalizeUtf8String("bb"),
+      factory->NewSymbol(),
+      factory->InternalizeUtf8String("a"),
+      factory->InternalizeUtf8String("ccc"),
+      factory->InternalizeUtf8String("esajefe"),
+      factory->NewPrivateSymbol(),
+      factory->InternalizeUtf8String("eeeee"),
+      factory->InternalizeUtf8String("p1"),
+      factory->InternalizeUtf8String("acshw23e"),
+      factory->InternalizeUtf8String(""),
+      factory->InternalizeUtf8String("dddd"),
+      factory->NewPrivateSymbol(),
+      factory->InternalizeUtf8String("name"),
+      factory->InternalizeUtf8String("p2"),
+      factory->InternalizeUtf8String("p3"),
+      factory->InternalizeUtf8String("p4"),
+      factory->NewPrivateSymbol(),
+  };
+  Handle<Object> values[] = {
+      factory->NewFunction(factory->empty_string()),
+      factory->NewSymbol(),
+      factory->InternalizeUtf8String("a"),
+      CreateAccessorPair(&ft, "() => 188;", "() => 199;"),
+      factory->NewFunction(factory->InternalizeUtf8String("bb")),
+      factory->InternalizeUtf8String("ccc"),
+      CreateAccessorPair(&ft, "() => 88;", nullptr),
+      handle(Smi::FromInt(1), isolate),
+      factory->InternalizeUtf8String(""),
+      CreateAccessorPair(&ft, nullptr, "() => 99;"),
+      factory->NewHeapNumber(4.2),
+      handle(Smi::FromInt(153), isolate),
+      factory->NewJSObject(factory->NewFunction(factory->empty_string())),
+      factory->NewPrivateSymbol(),
+  };
+  STATIC_ASSERT(arraysize(values) < arraysize(names));
+
+  base::RandomNumberGenerator rand_gen(FLAG_random_seed);
+
+  std::vector<Handle<JSObject>> objects;
+
+  {
+    // Fast object, no inobject properties.
+    int inobject_properties = 0;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    AddProperties(object, names, arraysize(names), values, arraysize(values),
+                  rand_gen.NextInt());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Fast object, all inobject properties.
+    int inobject_properties = arraysize(names) * 2;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    AddProperties(object, names, arraysize(names), values, arraysize(values),
+                  rand_gen.NextInt());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Fast object, half inobject properties.
+    int inobject_properties = arraysize(names) / 2;
+    Handle<Map> map = Map::Create(isolate, inobject_properties);
+    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    AddProperties(object, names, arraysize(names), values, arraysize(values),
+                  rand_gen.NextInt());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
+    CHECK(!object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Dictionary mode object.
+    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSObject> object = factory->NewJSObject(function);
+    AddProperties(object, names, arraysize(names), values, arraysize(values),
+                  rand_gen.NextInt());
+    JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
+
+    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+              .FromJust());
+
+    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  {
+    // Global object.
+    Handle<JSGlobalObject> object = isolate->global_object();
+    AddProperties(object, names, arraysize(names), values, arraysize(values),
+                  rand_gen.NextInt());
+
+    JSObject::AddProperty(object, deleted_property_name, object, NONE);
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+              .FromJust());
+
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
+    CHECK(object->map()->is_dictionary_map());
+    objects.push_back(object);
+  }
+
+  // TODO(ishell): test proxy and interceptors when they are supported.
+
+  {
+    for (Handle<JSObject> object : objects) {
+      for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
+        Handle<Name> name = names[name_index];
+        Handle<Object> expected_value =
+            JSReceiver::GetProperty(object, name).ToHandleChecked();
+        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
+        CHECK(expected_value->SameValue(*value));
+      }
+    }
+  }
+
+  {
+    Handle<Name> non_existing_names[] = {
+        factory->NewSymbol(),
+        factory->InternalizeUtf8String("ne_a"),
+        factory->InternalizeUtf8String("ne_bb"),
+        factory->NewPrivateSymbol(),
+        factory->InternalizeUtf8String("ne_ccc"),
+        factory->InternalizeUtf8String("ne_dddd"),
+        deleted_property_name,
+    };
+    for (Handle<JSObject> object : objects) {
+      for (size_t key_index = 0; key_index < arraysize(non_existing_names);
+           key_index++) {
+        Handle<Name> name = non_existing_names[key_index];
+        Handle<Object> expected_value =
+            JSReceiver::GetProperty(object, name).ToHandleChecked();
+        CHECK(expected_value->IsUndefined(isolate));
+        Handle<Object> value = ft.Call(object, name).ToHandleChecked();
+        CHECK_EQ(*not_found_symbol, *value);
+      }
+    }
+  }
+
+  {
+    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
+    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
+    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    // Proxies are not supported yet.
+    CHECK_EQ(*bailout_symbol, *value);
+  }
+
+  {
+    Handle<JSObject> object = isolate->global_proxy();
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
+    // Global proxies are not supported yet.
+    Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
+    CHECK_EQ(*bailout_symbol, *value);
+  }
+}
+
 namespace {
 
 void AddElement(Handle<JSObject> object, uint32_t index, Handle<Object> value,
@@ -896,8 +865,8 @@ TEST(TryLookupElement) {
   typedef CodeStubAssembler::Label Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
 
-  const int param_count = 4;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 3;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   enum Result { kFound, kNotFound, kBailout };
   {
@@ -936,7 +905,7 @@ TEST(TryLookupElement) {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
   Handle<Object> smi0(Smi::FromInt(0), isolate);
@@ -1137,8 +1106,8 @@ namespace {
 void TestStubCacheOffsetCalculation(StubCache::Table table,
                                     Code::Kind handler_kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int param_count = 2;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 2;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
   Code::Flags code_flags =
       Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(handler_kind));
@@ -1157,7 +1126,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table,
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   Factory* factory = isolate->factory();
   Handle<Name> names[] = {
@@ -1244,13 +1213,14 @@ TEST(TryProbeStubCache) {
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int param_count = 3;
-  CodeStubAssemblerTester m(isolate, param_count);
+  const int kNumParams = 3;
+  CodeStubAssemblerTester m(isolate, kNumParams);
 
+  Code::Kind ic_kind = Code::LOAD_IC;
   Code::Flags flags_to_query =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(Code::LOAD_IC));
+      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
 
-  StubCache stub_cache(isolate);
+  StubCache stub_cache(isolate, ic_kind);
   stub_cache.Clear();
 
   {
@@ -1263,8 +1233,8 @@ TEST(TryProbeStubCache) {
     Variable var_handler(&m, MachineRepresentation::kTagged);
     Label if_handler(&m), if_miss(&m);
 
-    m.TryProbeStubCache(&stub_cache, flags_to_query, receiver, name,
-                        &if_handler, &var_handler, &if_miss);
+    m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
+                        &if_miss);
     m.Bind(&if_handler);
     m.BranchIfWordEqual(expected_handler, var_handler.value(), &passed,
                         &failed);
@@ -1281,7 +1251,7 @@ TEST(TryProbeStubCache) {
   }
 
   Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, param_count);
+  FunctionTester ft(code, kNumParams);
 
   std::vector<Handle<Name>> names;
   std::vector<Handle<JSObject>> receivers;

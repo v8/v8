@@ -30,6 +30,7 @@
 
 from collections import OrderedDict
 import itertools
+import json
 import multiprocessing
 import optparse
 import os
@@ -174,8 +175,6 @@ SUPPORTED_ARCHS = ["android_arm",
                    "mipsel",
                    "mips64",
                    "mips64el",
-                   "nacl_ia32",
-                   "nacl_x64",
                    "s390",
                    "s390x",
                    "ppc",
@@ -193,8 +192,6 @@ SLOW_ARCHS = ["android_arm",
               "mipsel",
               "mips64",
               "mips64el",
-              "nacl_ia32",
-              "nacl_x64",
               "s390",
               "s390x",
               "x87",
@@ -278,7 +275,7 @@ def BuildOptions():
                     default=(utils.GuessOS() != "linux"),
                     dest="no_network", action="store_true")
   result.add_option("--no-presubmit", "--nopresubmit",
-                    help='Skip presubmit checks',
+                    help='Skip presubmit checks (deprecated)',
                     default=False, dest="no_presubmit", action="store_true")
   result.add_option("--no-snap", "--nosnap",
                     help='Test a build compiled without snapshot.',
@@ -434,6 +431,34 @@ def ProcessOptions(options):
   global EXHAUSTIVE_VARIANTS
   global VARIANTS
 
+  # First try to auto-detect configurations based on the build if GN was
+  # used. This can't be overridden by cmd-line arguments.
+  options.auto_detect = False
+  build_config_path = os.path.join(
+      BASE_DIR, options.outdir, "v8_build_config.json")
+  if os.path.exists(build_config_path):
+    try:
+      with open(build_config_path) as f:
+        build_config = json.load(f)
+    except Exception:
+      print ("%s exists but contains invalid json. Is your build up-to-date?" %
+             build_config_path)
+      return False
+    options.auto_detect = True
+
+    options.arch_and_mode = None
+    options.arch = build_config["v8_target_cpu"]
+    if options.arch == 'x86':
+      # TODO(machenbach): Transform all to x86 eventually.
+      options.arch = 'ia32'
+    options.asan = build_config["is_asan"]
+    options.dcheck_always_on = build_config["dcheck_always_on"]
+    options.mode = 'debug' if build_config["is_debug"] else 'release'
+    options.msan = build_config["is_msan"]
+    options.no_i18n = not build_config["v8_enable_i18n_support"]
+    options.no_snap = not build_config["v8_use_snapshot"]
+    options.tsan = build_config["is_tsan"]
+
   # Architecture and mode related stuff.
   if options.arch_and_mode:
     options.arch_and_mode = [arch_and_mode.split(".")
@@ -461,11 +486,7 @@ def ProcessOptions(options):
   # Special processing of other options, sorted alphabetically.
 
   if options.buildbot:
-    # Buildbots run presubmit tests as a separate step.
-    options.no_presubmit = True
     options.no_network = True
-  if options.download_data_only:
-    options.no_presubmit = True
   if options.command_prefix:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
@@ -607,10 +628,6 @@ def Main():
     print ' '.join(sys.argv)
 
   exit_code = 0
-  if not options.no_presubmit:
-    print ">>> running presubmit tests"
-    exit_code = subprocess.call(
-        [sys.executable, join(BASE_DIR, "tools", "presubmit.py")])
 
   suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
 
@@ -667,6 +684,10 @@ def Execute(arch, mode, args, options, suites):
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
       mode = BuildbotToV8Mode(mode)
+    elif options.auto_detect:
+      # If an output dir with a build was passed, test directly in that
+      # directory.
+      shell_dir = os.path.join(BASE_DIR, options.outdir)
     else:
       shell_dir = os.path.join(
           BASE_DIR,
@@ -712,6 +733,8 @@ def Execute(arch, mode, args, options, suites):
                         sancov_dir=options.sancov_dir)
 
   # TODO(all): Combine "simulator" and "simulator_run".
+  # TODO(machenbach): In GN we can derive simulator run from
+  # target_arch != v8_target_arch in the dumped build config.
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
                'ppc', 'ppc64'] and \

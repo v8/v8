@@ -15,10 +15,10 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> key) {
-  if (object->IsUndefined(isolate) || object->IsNull()) {
+MaybeHandle<Object> Runtime::GetObjectProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    bool should_throw_reference_error) {
+  if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
@@ -30,7 +30,12 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
       LookupIterator::PropertyOrElement(isolate, object, key, &success);
   if (!success) return MaybeHandle<Object>();
 
-  return Object::GetProperty(&it);
+  MaybeHandle<Object> result = Object::GetProperty(&it);
+  if (!result.is_null() && should_throw_reference_error && !it.IsFound()) {
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, key), Object);
+  }
+  return result;
 }
 
 static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
@@ -196,7 +201,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
         key_is_array_index
             ? index < static_cast<uint32_t>(String::cast(*object)->length())
             : key->Equals(isolate->heap()->length_string()));
-  } else if (object->IsNull() || object->IsUndefined(isolate)) {
+  } else if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
@@ -209,7 +214,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                Handle<Object> value,
                                                LanguageMode language_mode) {
-  if (object->IsUndefined(isolate) || object->IsNull()) {
+  if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
@@ -265,46 +270,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(properties, 1);
   // Conservative upper limit to prevent fuzz tests from going OOM.
-  RUNTIME_ASSERT(properties <= 100000);
+  if (properties > 100000) return isolate->ThrowIllegalOperation();
   if (object->HasFastProperties() && !object->IsJSGlobalProxy()) {
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties,
                                   "OptimizeForAdding");
   }
   return *object;
-}
-
-
-RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(slot, 0);
-
-  // Go up context chain to the script context.
-  Handle<Context> script_context(isolate->context()->script_context(), isolate);
-  DCHECK(script_context->IsScriptContext());
-  DCHECK(script_context->get(slot)->IsPropertyCell());
-
-  // Lookup the named property on the global object.
-  Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
-  Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
-  Handle<JSGlobalObject> global_object(script_context->global_object(),
-                                       isolate);
-  LookupIterator it(global_object, name, global_object, LookupIterator::OWN);
-
-  // Switch to fast mode only if there is a data property and it's not on
-  // a hidden prototype.
-  if (it.state() == LookupIterator::DATA &&
-      it.GetHolder<Object>().is_identical_to(global_object)) {
-    // Now update the cell in the script context.
-    Handle<PropertyCell> cell = it.GetPropertyCell();
-    script_context->set(slot, *cell);
-  } else {
-    // This is not a fast case, so keep this access in a slow mode.
-    // Store empty_property_cell here to release the outdated property cell.
-    script_context->set(slot, isolate->heap()->empty_property_cell());
-  }
-
-  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
 
 
@@ -377,6 +348,46 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
                            Runtime::GetObjectProperty(isolate, object, key));
 }
 
+RUNTIME_FUNCTION(Runtime_GetGlobal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_SMI_ARG_CHECKED(slot, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(typeof_mode_value, 2);
+  TypeofMode typeof_mode = static_cast<TypeofMode>(typeof_mode_value);
+  bool should_throw_reference_error = typeof_mode == NOT_INSIDE_TYPEOF;
+
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot);
+  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
+            vector->GetKind(vector_slot));
+  Handle<String> name(vector->GetName(vector_slot), isolate);
+  DCHECK_NE(*name, *isolate->factory()->empty_string());
+
+  Handle<JSGlobalObject> global = isolate->global_object();
+
+  Handle<ScriptContextTable> script_contexts(
+      global->native_context()->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        script_contexts, lookup_result.context_index);
+    Handle<Object> result =
+        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+    if (*result == *isolate->factory()->the_hole_value()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+    return *result;
+  }
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Runtime::GetObjectProperty(isolate, global, name,
+                                 should_throw_reference_error));
+  return *result;
+}
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
@@ -389,7 +400,6 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   RETURN_RESULT_OR_FAILURE(
       isolate, KeyedGetObjectProperty(isolate, receiver_obj, key_obj));
 }
-
 
 RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
@@ -469,8 +479,7 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode_arg, 3);
-  LanguageMode language_mode = language_mode_arg;
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -537,21 +546,6 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(maybe.FromJust());
-}
-
-
-RUNTIME_FUNCTION(Runtime_PropertyIsEnumerable) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-
-  Maybe<PropertyAttributes> maybe =
-      JSReceiver::GetOwnPropertyAttributes(object, key);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
-  if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
-  return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
 }
 
 
@@ -672,7 +666,7 @@ RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
 }
 
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
-  return obj->IsUndefined(isolate) || obj->IsCallable() || obj->IsNull();
+  return obj->IsUndefined(isolate) || obj->IsCallable() || obj->IsNull(isolate);
 }
 
 
@@ -686,7 +680,7 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CHECK(!obj->IsNull());
+  CHECK(!obj->IsNull(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
   CHECK(IsValidAccessor(isolate, getter));
@@ -709,7 +703,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
   CONVERT_SMI_ARG_CHECKED(set_function_name, 4);
 
-  if (FLAG_harmony_function_name && set_function_name) {
+  if (set_function_name) {
     DCHECK(value->IsJSFunction());
     JSFunction::SetName(Handle<JSFunction>::cast(value), name,
                         isolate->factory()->empty_string());
@@ -734,6 +728,15 @@ RUNTIME_FUNCTION(Runtime_GetDataProperty) {
   return *JSReceiver::GetDataProperty(object, name);
 }
 
+RUNTIME_FUNCTION(Runtime_GetConstructorName) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+
+  CHECK(!object->IsUndefined(isolate) && !object->IsNull(isolate));
+  Handle<JSReceiver> recv = Object::ToObject(isolate, object).ToHandleChecked();
+  return *JSReceiver::GetConstructorName(recv);
+}
 
 RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   SealHandleScope shs(isolate);
@@ -778,8 +781,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (FLAG_harmony_function_name &&
-      String::cast(getter->shared()->name())->length() == 0) {
+  if (String::cast(getter->shared()->name())->length() == 0) {
     JSFunction::SetName(getter, name, isolate->factory()->get_string());
   }
 
@@ -799,8 +801,7 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (FLAG_harmony_function_name &&
-      String::cast(setter->shared()->name())->length() == 0) {
+  if (String::cast(setter->shared()->name())->length() == 0) {
     JSFunction::SetName(setter, name, isolate->factory()->set_string());
   }
 
@@ -835,16 +836,6 @@ RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
 }
-
-
-RUNTIME_FUNCTION(Runtime_ToPrimitive_String) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kString));
-}
-
 
 RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);

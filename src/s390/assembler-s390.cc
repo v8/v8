@@ -228,31 +228,20 @@ uint32_t RelocInfo::wasm_memory_size_reference() {
       reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
 }
 
-void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
-  if (IsWasmMemoryReference(rmode_)) {
-    Address updated_memory_reference;
-    DCHECK(old_base <= wasm_memory_reference() &&
-           wasm_memory_reference() < old_base + old_size);
-    updated_memory_reference = new_base + (wasm_memory_reference() - old_base);
-    DCHECK(new_base <= updated_memory_reference &&
-           updated_memory_reference < new_base + new_size);
-    Assembler::set_target_address_at(
-        isolate_, pc_, host_, updated_memory_reference, icache_flush_mode);
-  } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t updated_size_reference;
-    DCHECK(wasm_memory_size_reference() <= old_size);
-    updated_size_reference =
-        new_size + (wasm_memory_size_reference() - old_size);
-    DCHECK(updated_size_reference <= new_size);
-    Assembler::set_target_address_at(
-        isolate_, pc_, host_, reinterpret_cast<Address>(updated_size_reference),
-        icache_flush_mode);
-  } else {
-    UNREACHABLE();
-  }
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+}
+
+void RelocInfo::unchecked_update_wasm_memory_size(uint32_t size,
+                                                  ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_,
+                                   reinterpret_cast<Address>(size), flush_mode);
 }
 
 // -----------------------------------------------------------------------------
@@ -265,7 +254,6 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -293,8 +281,7 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset) {
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      code_targets_(100),
-      positions_recorder_(this) {
+      code_targets_(100) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_bound_pos_ = 0;
@@ -311,6 +298,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
+  desc->unwinding_info_size = 0;
+  desc->unwinding_info = nullptr;
 }
 
 void Assembler::Align(int m) {
@@ -2504,7 +2493,6 @@ void Assembler::srdl(Register r1, const Operand& opnd) {
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
-  positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
 
   int32_t target_index = emit_code_target(target, rmode, ast_id);
@@ -3090,8 +3078,6 @@ void Assembler::EmitRelocations() {
 
     reloc_info_writer.Write(&rinfo);
   }
-
-  reloc_info_writer.Finish();
 }
 
 }  // namespace internal

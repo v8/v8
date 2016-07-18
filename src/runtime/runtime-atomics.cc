@@ -12,7 +12,7 @@
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
-// https://github.com/lars-t-hansen/ecmascript_sharedmem
+// https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
 namespace internal {

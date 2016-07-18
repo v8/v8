@@ -925,25 +925,28 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
-    int linenum =
-        message->GetLineNumber(isolate->GetCurrentContext()).FromJust();
+    Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
+    int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
-    // Print line of source code.
-    v8::String::Utf8Value sourceline(
-        message->GetSourceLine(isolate->GetCurrentContext()).ToLocalChecked());
-    const char* sourceline_string = ToCString(sourceline);
-    printf("%s\n", sourceline_string);
-    // Print wavy underline (GetUnderline is deprecated).
-    int start =
-        message->GetStartColumn(isolate->GetCurrentContext()).FromJust();
-    for (int i = 0; i < start; i++) {
-      printf(" ");
+    Local<String> sourceline;
+    if (message->GetSourceLine(isolate->GetCurrentContext())
+            .ToLocal(&sourceline)) {
+      // Print line of source code.
+      v8::String::Utf8Value sourcelinevalue(sourceline);
+      const char* sourceline_string = ToCString(sourcelinevalue);
+      printf("%s\n", sourceline_string);
+      // Print wavy underline (GetUnderline is deprecated).
+      int start =
+          message->GetStartColumn(isolate->GetCurrentContext()).FromJust();
+      for (int i = 0; i < start; i++) {
+        printf(" ");
+      }
+      int end = message->GetEndColumn(isolate->GetCurrentContext()).FromJust();
+      for (int i = start; i < end; i++) {
+        printf("^");
+      }
+      printf("\n");
     }
-    int end = message->GetEndColumn(isolate->GetCurrentContext()).FromJust();
-    for (int i = start; i < end; i++) {
-      printf("^");
-    }
-    printf("\n");
     Local<Value> stack_trace_string;
     if (try_catch->StackTrace(isolate->GetCurrentContext())
             .ToLocal(&stack_trace_string) &&
@@ -1085,8 +1088,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   Local<Function> fun = Local<Function>::New(isolate, stringify_function_);
   Local<Value> argv[1] = {value};
   v8::TryCatch try_catch(isolate);
-  MaybeLocal<Value> result =
-      fun->Call(context, Undefined(isolate), 1, argv).ToLocalChecked();
+  MaybeLocal<Value> result = fun->Call(context, Undefined(isolate), 1, argv);
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
 }
@@ -1132,6 +1134,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Version));
+  global_template->Set(
+      Symbol::GetToStringTag(isolate),
+      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
+          .ToLocalChecked());
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);

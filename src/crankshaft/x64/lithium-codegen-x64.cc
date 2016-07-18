@@ -66,6 +66,9 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   DCHECK(is_done());
   code->set_stack_slots(GetTotalFrameSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
+  Handle<ByteArray> source_positions =
+      source_position_table_builder_.ToSourcePositionTable();
+  code->set_source_position_table(*source_positions);
   PopulateDeoptimizationData(code);
 }
 
@@ -178,10 +181,10 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ Push(info()->scope()->GetScopeInfo(info()->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
-    } else if (slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), slots);
+    } else if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
+      FastNewFunctionContextStub stub(isolate(), slots);
       __ CallStub(&stub);
-      // Result of FastNewContextStub is always in new space.
+      // Result of FastNewFunctionContextStub is always in new space.
       need_write_barrier = false;
     } else {
       __ Push(rdi);
@@ -832,13 +835,6 @@ void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
                                             Safepoint::DeoptMode deopt_mode) {
   RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments, deopt_mode);
-}
-
-
-void LCodeGen::RecordAndWritePosition(int position) {
-  if (position == RelocInfo::kNoPosition) return;
-  masm()->positions_recorder()->RecordPosition(position);
-  masm()->positions_recorder()->WriteRecordedPositions();
 }
 
 
@@ -2560,14 +2556,11 @@ void LCodeGen::EmitVectorStoreICRegisters(T* instr) {
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
-  DCHECK(ToRegister(instr->global_object())
-             .is(LoadDescriptor::ReceiverRegister()));
   DCHECK(ToRegister(instr->result()).is(rax));
 
-  __ Move(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   Handle<Code> ic =
-      CodeFactory::LoadICInOptimizedCode(isolate(), instr->typeof_mode())
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), instr->typeof_mode())
           .code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -2683,8 +2676,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   __ Move(LoadDescriptor::NameRegister(), instr->name());
   EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
-  Handle<Code> ic =
-      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_INSIDE_TYPEOF).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3165,6 +3157,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
   __ Push(instr->hydrogen()->pairs());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
+  __ Push(instr->hydrogen()->feedback_vector());
   CallRuntime(Runtime::kDeclareGlobals, instr);
 }
 
@@ -3599,17 +3592,26 @@ void LCodeGen::DoPower(LPower* instr) {
   }
 }
 
-
-void LCodeGen::DoMathExp(LMathExp* instr) {
-  XMMRegister input = ToDoubleRegister(instr->value());
-  XMMRegister result = ToDoubleRegister(instr->result());
-  XMMRegister temp0 = double_scratch0();
-  Register temp1 = ToRegister(instr->temp1());
-  Register temp2 = ToRegister(instr->temp2());
-
-  MathExpGenerator::EmitMathExp(masm(), input, result, temp0, temp1, temp2);
+void LCodeGen::DoMathCos(LMathCos* instr) {
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_cos_function(isolate()), 1);
 }
 
+void LCodeGen::DoMathExp(LMathExp* instr) {
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_exp_function(isolate()), 1);
+}
+
+void LCodeGen::DoMathSin(LMathSin* instr) {
+  DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
+  DCHECK(ToDoubleRegister(instr->result()).is(xmm0));
+  __ PrepareCallCFunction(1);
+  __ CallCFunction(ExternalReference::ieee754_sin_function(isolate()), 1);
+}
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
   DCHECK(ToDoubleRegister(instr->value()).is(xmm0));
@@ -3638,7 +3640,9 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
 #endif
   if (FLAG_code_comments) {
     if (actual.is_reg()) {
-      Comment(";;; PrepareForTailCall, actual: %s {", actual.reg().ToString());
+      Comment(";;; PrepareForTailCall, actual: %s {",
+              RegisterConfiguration::Crankshaft()->GetGeneralRegisterName(
+                  actual.reg().code()));
     } else {
       Comment(";;; PrepareForTailCall, actual: %d {", actual.immediate());
     }
@@ -4296,8 +4300,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     DCHECK(ToRegister(instr->context()).is(rsi));
     PushSafepointRegistersScope scope(this);
     __ Move(rbx, to_map);
-    bool is_js_array = from_map->instance_type() == JS_ARRAY_TYPE;
-    TransitionElementsKindStub stub(isolate(), from_kind, to_kind, is_js_array);
+    TransitionElementsKindStub stub(isolate(), from_kind, to_kind);
     __ CallStub(&stub);
     RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
   }
@@ -4553,13 +4556,10 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
     // Preserve the value of all registers.
     PushSafepointRegistersScope scope(this);
-
-    // NumberTagIU uses the context from the frame, rather than
-    // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
-    // The corresponding HChange instructions are added in a phase that does
-    // not have easy access to the local context.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    // Reset the context register.
+    if (!reg.is(rsi)) {
+      __ Set(rsi, 0);
+    }
     __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
@@ -4609,12 +4609,10 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   {
     PushSafepointRegistersScope scope(this);
-    // NumberTagD uses the context from the frame, rather than
-    // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kAllocateHeapNumber.
-    // The corresponding HChange instructions are added in a phase that does
-    // not have easy access to the local context.
-    __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    // Reset the context register.
+    if (!reg.is(rsi)) {
+      __ Move(rsi, 0);
+    }
     __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
@@ -5074,29 +5072,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   __ ClampUint8(input_reg);
 
   __ bind(&done);
-}
-
-
-void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
-  XMMRegister value_reg = ToDoubleRegister(instr->value());
-  Register result_reg = ToRegister(instr->result());
-  if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ Movq(result_reg, value_reg);
-    __ shrq(result_reg, Immediate(32));
-  } else {
-    __ Movd(result_reg, value_reg);
-  }
-}
-
-
-void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
-  Register hi_reg = ToRegister(instr->hi());
-  Register lo_reg = ToRegister(instr->lo());
-  XMMRegister result_reg = ToDoubleRegister(instr->result());
-  __ movl(kScratchRegister, hi_reg);
-  __ shlq(kScratchRegister, Immediate(32));
-  __ orq(kScratchRegister, lo_reg);
-  __ Movq(result_reg, kScratchRegister);
 }
 
 

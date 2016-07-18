@@ -14,7 +14,7 @@
 #include "src/elements.h"
 #include "src/frames.h"
 #include "src/isolate.h"
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 #include "src/objects.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/runtime-profiler.h"
@@ -45,7 +45,6 @@ void V8::TearDown() {
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
-  ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
   sampler::Sampler::TearDown();

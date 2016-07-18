@@ -18,16 +18,15 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdrGlobal), U8(0), U8(1), R(0),
-                B(LdaConstant), U8(1),
+  /*   39 S> */ B(LdrGlobal), U8(1), R(0),
+                B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
   InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
@@ -44,16 +43,15 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
   /*   28 E> */ B(StackCheck),
-  /*   51 S> */ B(LdrGlobal), U8(0), U8(1), R(0),
+  /*   51 S> */ B(LdrGlobal), U8(1), R(0),
                 B(LdaSmi), U8(1),
                 B(DeletePropertyStrict), R(0),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
 ]
 handlers: [
 ]

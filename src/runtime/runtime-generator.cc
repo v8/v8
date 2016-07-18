@@ -40,7 +40,6 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   return *generator;
 }
 
-
 RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 1);
@@ -53,9 +52,7 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   DCHECK(frame->function()->shared()->is_compiled());
   DCHECK(!frame->function()->IsOptimized());
 
-  if (generator_object->function()->shared()->is_async()) {
-    isolate->debug()->RecordAsyncFunction(generator_object);
-  }
+  isolate->debug()->RecordAsyncFunction(generator_object);
 
   // The caller should have saved the context and continuation already.
   DCHECK_EQ(generator_object->context(), Context::cast(frame->context()));
@@ -93,8 +90,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorClose) {
   return isolate->heap()->undefined_value();
 }
 
-
-// Returns function of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -103,8 +98,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
   return generator->function();
 }
 
-
-// Returns receiver of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -113,17 +106,14 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
   return generator->receiver();
 }
 
-
-// Returns input of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetInput) {
+RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
-  return generator->input();
+  return generator->input_or_debug_pos();
 }
 
-// Returns resume mode of generator activation.
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -131,7 +121,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
 
   return Smi::FromInt(generator->resume_mode());
 }
-
 
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
   HandleScope scope(isolate);
@@ -141,20 +130,13 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
   return Smi::FromInt(generator->continuation());
 }
 
-
 RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
 
   if (!generator->is_suspended()) return isolate->heap()->undefined_value();
-
-  if (generator->function()->shared()->HasBytecodeArray()) UNIMPLEMENTED();
-
-  Handle<Code> code(generator->function()->code(), isolate);
-  int offset = generator->continuation();
-  CHECK(0 <= offset && offset < code->instruction_size());
-  return Smi::FromInt(code->SourcePosition(offset));
+  return Smi::FromInt(generator->source_position());
 }
 
 }  // namespace internal

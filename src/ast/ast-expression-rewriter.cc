@@ -64,18 +64,6 @@ void AstExpressionRewriter::VisitFunctionDeclaration(
 }
 
 
-void AstExpressionRewriter::VisitImportDeclaration(ImportDeclaration* node) {
-  // Not visiting `proxy_`.
-  NOTHING();
-}
-
-
-void AstExpressionRewriter::VisitExportDeclaration(ExportDeclaration* node) {
-  // Not visiting `proxy_`.
-  NOTHING();
-}
-
-
 void AstExpressionRewriter::VisitBlock(Block* node) {
   VisitStatements(node->statements());
 }

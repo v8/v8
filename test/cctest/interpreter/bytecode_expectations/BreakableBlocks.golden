@@ -19,13 +19,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   56 S> */ B(LdaSmi), U8(1),
-                B(Add), R(0),
+  /*   56 S> */ B(AddSmi), U8(1), R(0),
                 B(Star), R(0),
   /*   69 S> */ B(Jump), U8(2),
   /*   97 S> */ B(Ldar), R(0),
@@ -114,7 +113,7 @@ bytecodes: [
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
-                B(CreateClosure), U8(1), U8(0),
+                B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(10),
   /*   53 E> */ B(StaContextSlot), R(context), U8(4),
@@ -168,7 +167,7 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaTheHole),
                 B(StaContextSlot), R(context), U8(4),
-                B(CreateClosure), U8(1), U8(0),
+                B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   76 S> */ B(LdaSmi), U8(2),
   /*   76 E> */ B(StaContextSlot), R(context), U8(4),

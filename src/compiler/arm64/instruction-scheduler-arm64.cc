@@ -131,6 +131,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float64InsertHighWord32:
     case kArm64Float64MoveU64:
     case kArm64U64MoveFloat64:
+    case kArm64Float64SilenceNaN:
       return kNoOpcodeFlags;
 
     case kArm64TestAndBranch32:

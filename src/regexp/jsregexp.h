@@ -196,6 +196,8 @@ class RegExpImpl {
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
+  static void SetIrregexpCaptureNameMap(FixedArray* re,
+                                        Handle<FixedArray> value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
@@ -1530,6 +1532,7 @@ struct RegExpCompileData {
   RegExpNode* node;
   bool simple;
   bool contains_anchor;
+  Handle<FixedArray> capture_name_map;
   Handle<String> error;
   int capture_count;
 };

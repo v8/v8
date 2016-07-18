@@ -117,8 +117,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -184,6 +182,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm15)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
   V(xmm0)                               \
@@ -202,6 +201,8 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm13)                              \
   V(xmm14)
 
+static const bool kSimpleFPAliasing = true;
+
 struct XMMRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
@@ -218,8 +219,6 @@ struct XMMRegister {
     return result;
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
   bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -1154,6 +1153,7 @@ class Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
 
   void punpckldq(XMMRegister dst, XMMRegister src);
+  void punpckldq(XMMRegister dst, const Operand& src);
   void punpckhdq(XMMRegister dst, XMMRegister src);
 
   // SSE 4.1 instruction
@@ -1195,8 +1195,6 @@ class Assembler : public AssemblerBase {
   void pmulld(XMMRegister dst, const Operand& src);
   void pmuludq(XMMRegister dst, XMMRegister src);
   void pmuludq(XMMRegister dst, const Operand& src);
-  void punpackldq(XMMRegister dst, XMMRegister src);
-  void punpackldq(XMMRegister dst, const Operand& src);
   void psrldq(XMMRegister dst, uint8_t shift);
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void cvtps2dq(XMMRegister dst, XMMRegister src);
@@ -1533,6 +1531,13 @@ class Assembler : public AssemblerBase {
   void vss(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
   void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
+  void vmovups(XMMRegister dst, XMMRegister src) { vps(0x10, dst, xmm0, src); }
+  void vmovups(XMMRegister dst, const Operand& src) {
+    vps(0x11, dst, xmm0, src);
+  }
+  void vmovups(const Operand& dst, XMMRegister src) {
+    vps(0x11, dst, xmm0, src);
+  }
   void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
   void vmovmskpd(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
@@ -1541,6 +1546,7 @@ class Assembler : public AssemblerBase {
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
+  void vps(byte op, const Operand& dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
@@ -1754,10 +1760,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dq(data); }
   void dq(Label* label);
-
-  AssemblerPositionsRecorder* positions_recorder() {
-    return &positions_recorder_;
-  }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -2250,9 +2252,6 @@ class Assembler : public AssemblerBase {
   std::deque<int> internal_reference_positions_;
 
   List< Handle<Code> > code_targets_;
-
-  AssemblerPositionsRecorder positions_recorder_;
-  friend class AssemblerPositionsRecorder;
 };
 
 

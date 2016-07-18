@@ -30,13 +30,9 @@ const Register LoadWithVectorDescriptor::VectorRegister() { return ebx; }
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return eax; }
+const Register StoreDescriptor::SlotRegister() { return edi; }
 
-
-const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return edi; }
-
-
-const Register VectorStoreICDescriptor::VectorRegister() { return ebx; }
-
+const Register StoreWithVectorDescriptor::VectorRegister() { return ebx; }
 
 const Register VectorStoreTransitionDescriptor::SlotRegister() {
   return no_reg;
@@ -50,9 +46,6 @@ const Register VectorStoreTransitionDescriptor::MapRegister() { return edi; }
 
 
 const Register StoreTransitionDescriptor::MapRegister() { return ebx; }
-
-
-const Register LoadGlobalViaContextDescriptor::SlotRegister() { return ebx; }
 
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return ebx; }
@@ -83,8 +76,7 @@ void FastNewClosureDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-
-void FastNewContextDescriptor::InitializePlatformSpecific(
+void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {edi};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
@@ -273,19 +265,14 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-void ArrayConstructorDescriptor::InitializePlatformSpecific(
+void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // stack param count needs (constructor pointer, and single argument)
+  // register state
+  // eax -- number of arguments
+  // edi -- function
+  // ebx -- allocation site with elements kind
   Register registers[] = {edi, ebx, eax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void InternalArrayConstructorDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // stack param count needs (constructor pointer, and single argument)
-  Register registers[] = {edi, eax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
 void VarArgFunctionDescriptor::InitializePlatformSpecific(

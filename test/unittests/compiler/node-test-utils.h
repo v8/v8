@@ -212,6 +212,11 @@ Matcher<Node*> IsSpeculativeNumberSubtract(
     const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
     const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsSpeculativeNumberShiftLeft(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberMultiply(const Matcher<Node*>& lhs_matcher,
@@ -224,11 +229,38 @@ Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberAbs(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAcos(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAcosh(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAsin(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAsinh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberAtanh(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberAtan2(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberCbrt(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberCeil(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberClz32(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberCos(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberCosh(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberExp(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberExpm1(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberFloor(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberFround(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog1p(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberLog10(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberLog2(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberPow(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberSign(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberSin(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberSinh(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberSqrt(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberTan(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberTanh(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberTrunc(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsStringFromCharCode(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
@@ -311,6 +343,8 @@ Matcher<Node*> IsWord64Sar(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32AddWithOverflow(const Matcher<Node*>& lhs_matcher,
+                                      const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32SubWithOverflow(const Matcher<Node*>& lhs_matcher,
                                       const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32Add(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
@@ -407,9 +441,6 @@ Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsStackSlot();
-Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
-                           const Matcher<Node*>& value_matcher,
-                           const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

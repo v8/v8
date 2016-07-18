@@ -6,8 +6,7 @@
 
 #include "src/factory.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/isolate-inl.h"
 #include "src/objects.h"
 
 #include "src/base/platform/platform.h"
@@ -29,11 +28,10 @@ std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code) {
 }
 
 void ErrorThrower::Error(const char* format, ...) {
-  // only report the first error.
-  if (error_ || isolate_->has_pending_exception()) return;
-  error_ = true;
-  char buffer[256];
+  // Only report the first error.
+  if (error()) return;
 
+  char buffer[256];
   va_list arguments;
   va_start(arguments, format);
   base::OS::VSNPrintF(buffer, 255, format, arguments);
@@ -45,8 +43,13 @@ void ErrorThrower::Error(const char* format, ...) {
   }
   str << buffer;
 
-  isolate_->ScheduleThrow(
-      *isolate_->factory()->NewStringFromAsciiChecked(str.str().c_str()));
+  message_ = isolate_->factory()->NewStringFromAsciiChecked(str.str().c_str());
+}
+
+ErrorThrower::~ErrorThrower() {
+  if (error() && !isolate_->has_pending_exception()) {
+    isolate_->ScheduleThrow(*message_);
+  }
 }
 }  // namespace wasm
 }  // namespace internal

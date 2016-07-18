@@ -29,18 +29,15 @@ const Register LoadWithVectorDescriptor::VectorRegister() { return r5; }
 const Register StoreDescriptor::ReceiverRegister() { return r3; }
 const Register StoreDescriptor::NameRegister() { return r4; }
 const Register StoreDescriptor::ValueRegister() { return r2; }
+const Register StoreDescriptor::SlotRegister() { return r6; }
 
-const Register VectorStoreICTrampolineDescriptor::SlotRegister() { return r6; }
-
-const Register VectorStoreICDescriptor::VectorRegister() { return r5; }
+const Register StoreWithVectorDescriptor::VectorRegister() { return r5; }
 
 const Register VectorStoreTransitionDescriptor::SlotRegister() { return r6; }
 const Register VectorStoreTransitionDescriptor::VectorRegister() { return r5; }
 const Register VectorStoreTransitionDescriptor::MapRegister() { return r7; }
 
 const Register StoreTransitionDescriptor::MapRegister() { return r5; }
-
-const Register LoadGlobalViaContextDescriptor::SlotRegister() { return r4; }
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r4; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r2; }
@@ -66,7 +63,7 @@ void FastNewClosureDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void FastNewContextDescriptor::InitializePlatformSpecific(
+void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {r3};
   data->InitializePlatformSpecific(arraysize(registers), registers);

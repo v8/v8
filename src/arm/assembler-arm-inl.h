@@ -46,9 +46,9 @@
 namespace v8 {
 namespace internal {
 
-
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(VFP3); }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 int DoubleRegister::NumRegisters() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
@@ -138,6 +138,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

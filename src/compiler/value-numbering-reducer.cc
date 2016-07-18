@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "src/base/functional.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 
 namespace v8 {
@@ -41,10 +42,12 @@ bool Equals(Node* a, Node* b) {
 
 }  // namespace
 
-
-ValueNumberingReducer::ValueNumberingReducer(Zone* zone)
-    : entries_(nullptr), capacity_(0), size_(0), zone_(zone) {}
-
+ValueNumberingReducer::ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone)
+    : entries_(nullptr),
+      capacity_(0),
+      size_(0),
+      temp_zone_(temp_zone),
+      graph_zone_(graph_zone) {}
 
 ValueNumberingReducer::~ValueNumberingReducer() {}
 
@@ -58,7 +61,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
     DCHECK(capacity_ == 0);
     // Allocate the initial entries and insert the first entry.
     capacity_ = kInitialCapacity;
-    entries_ = zone()->NewArray<Node*>(kInitialCapacity);
+    entries_ = temp_zone()->NewArray<Node*>(kInitialCapacity);
     memset(entries_, 0, sizeof(*entries_) * kInitialCapacity);
     entries_[hash & (kInitialCapacity - 1)] = node;
     size_ = 1;
@@ -123,6 +126,16 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       continue;
     }
     if (Equals(entry, node)) {
+      // Make sure the replacement has at least as good type as the original
+      // node.
+      if (NodeProperties::IsTyped(entry) && NodeProperties::IsTyped(node)) {
+        Type* entry_type = NodeProperties::GetType(entry);
+        Type* node_type = NodeProperties::GetType(node);
+        if (!entry_type->Is(node_type)) {
+          NodeProperties::SetType(
+              entry, Type::Intersect(entry_type, node_type, graph_zone()));
+        }
+      }
       return Replace(entry);
     }
   }
@@ -135,7 +148,7 @@ void ValueNumberingReducer::Grow() {
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
   capacity_ *= kCapacityToSizeRatio;
-  entries_ = zone()->NewArray<Node*>(capacity_);
+  entries_ = temp_zone()->NewArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;
   size_t const mask = capacity_ - 1;

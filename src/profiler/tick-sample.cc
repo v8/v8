@@ -4,16 +4,17 @@
 
 #include "src/profiler/tick-sample.h"
 
+#include "include/v8-profiler.h"
 #include "src/frames-inl.h"
+#include "src/msan.h"
+#include "src/simulator.h"
 #include "src/vm-state-inl.h"
 
-
 namespace v8 {
-namespace internal {
 
 namespace {
 
-bool IsSamePage(byte* ptr1, byte* ptr2) {
+bool IsSamePage(i::byte* ptr1, i::byte* ptr2) {
   const uint32_t kPageSize = 4096;
   uintptr_t mask = ~static_cast<uintptr_t>(kPageSize - 1);
   return (reinterpret_cast<uintptr_t>(ptr1) & mask) ==
@@ -22,13 +23,13 @@ bool IsSamePage(byte* ptr1, byte* ptr2) {
 
 // Check if the code at specified address could potentially be a
 // frame setup code.
-bool IsNoFrameRegion(Address address) {
+bool IsNoFrameRegion(i::Address address) {
   struct Pattern {
     int bytes_count;
-    byte bytes[8];
+    i::byte bytes[8];
     int offsets[4];
   };
-  byte* pc = reinterpret_cast<byte*>(address);
+  i::byte* pc = reinterpret_cast<i::byte*>(address);
   static Pattern patterns[] = {
 #if V8_HOST_ARCH_IA32
     // push %ebp
@@ -79,61 +80,60 @@ bool IsNoFrameRegion(Address address) {
 //
 // StackTracer implementation
 //
-DISABLE_ASAN void TickSample::Init(Isolate* isolate,
-                                   const v8::RegisterState& regs,
+DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
+                                   const RegisterState& regs,
                                    RecordCEntryFrame record_c_entry_frame,
                                    bool update_stats) {
-  timestamp = base::TimeTicks::HighResolutionNow();
   this->update_stats = update_stats;
 
   SampleInfo info;
-  if (GetStackSample(isolate, regs, record_c_entry_frame,
-                     reinterpret_cast<void**>(&stack[0]), kMaxFramesCount,
-                     &info)) {
+  if (GetStackSample(v8_isolate, const_cast<RegisterState&>(regs),
+                     record_c_entry_frame, reinterpret_cast<void**>(&stack[0]),
+                     kMaxFramesCount, &info)) {
     state = info.vm_state;
-    pc = static_cast<Address>(regs.pc);
+    pc = regs.pc;
     frames_count = static_cast<unsigned>(info.frames_count);
     has_external_callback = info.external_callback_entry != nullptr;
     if (has_external_callback) {
-      external_callback_entry =
-          static_cast<Address>(info.external_callback_entry);
+      external_callback_entry = info.external_callback_entry;
     } else if (frames_count) {
       // sp register may point at an arbitrary place in memory, make
       // sure MSAN doesn't complain about it.
-      MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(Address));
+      MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(void*));
       // Sample potential return address value for frameless invocation of
       // stubs (we'll figure out later, if this value makes sense).
-      tos = Memory::Address_at(reinterpret_cast<Address>(regs.sp));
+      tos = i::Memory::Address_at(reinterpret_cast<i::Address>(regs.sp));
     } else {
       tos = nullptr;
     }
   } else {
     // It is executing JS but failed to collect a stack trace.
     // Mark the sample as spoiled.
-    timestamp = base::TimeTicks();
     pc = nullptr;
   }
 }
 
-bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
+bool TickSample::GetStackSample(Isolate* v8_isolate, const RegisterState& regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
                                 v8::SampleInfo* sample_info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
   if (sample_info->vm_state == GC) return true;
 
-  Address js_entry_sp = isolate->js_entry_sp();
-  if (js_entry_sp == 0) return true;  // Not executing JS now.
+  i::Address js_entry_sp = isolate->js_entry_sp();
+  if (js_entry_sp == nullptr) return true;  // Not executing JS now.
+  DCHECK(regs.sp);
 
-  if (regs.pc && IsNoFrameRegion(static_cast<Address>(regs.pc))) {
+  if (regs.pc && IsNoFrameRegion(static_cast<i::Address>(regs.pc))) {
     // Can't collect stack.
     return false;
   }
 
-  ExternalCallbackScope* scope = isolate->external_callback_scope();
-  Address handler = Isolate::handler(isolate->thread_local_top());
+  i::ExternalCallbackScope* scope = isolate->external_callback_scope();
+  i::Address handler = i::Isolate::handler(isolate->thread_local_top());
   // If there is a handler on top of the external callback scope then
   // we have already entrered JavaScript again and the external callback
   // is not the top function.
@@ -142,36 +142,56 @@ bool TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
         *scope->callback_entrypoint_address();
   }
 
-  SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
-                            reinterpret_cast<Address>(regs.sp), js_entry_sp);
+  i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs.fp),
+                               reinterpret_cast<i::Address>(regs.sp),
+                               js_entry_sp);
+
+  // If at this point iterator does not see any frames,
+  // is usually means something is wrong with the FP,
+  // e.g. it is used as a general purpose register in the function.
+  // Bailout.
+  if (it.done()) return false;
+
   size_t i = 0;
-  if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
-      it.top_frame_type() == StackFrame::EXIT) {
+  if (record_c_entry_frame == kIncludeCEntryFrame &&
+      (it.top_frame_type() == internal::StackFrame::EXIT ||
+       it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
     frames[i++] = isolate->c_function();
   }
-  while (!it.done() && i < frames_limit) {
-    if (it.frame()->is_interpreted()) {
-      // For interpreted frames use the bytecode array pointer as the pc.
-      InterpretedFrame* frame = static_cast<InterpretedFrame*>(it.frame());
-      // Since the sampler can interrupt execution at any point the
-      // bytecode_array might be garbage, so don't dereference it.
-      Address bytecode_array =
-          reinterpret_cast<Address>(frame->GetBytecodeArray()) - kHeapObjectTag;
-      frames[i++] = bytecode_array + BytecodeArray::kHeaderSize +
-                    frame->GetBytecodeOffset();
-    } else {
+  for (; !it.done() && i < frames_limit; it.Advance()) {
+    if (!it.frame()->is_interpreted()) {
       frames[i++] = it.frame()->pc();
+      continue;
     }
-    it.Advance();
+    // For interpreted frames use the bytecode array pointer as the pc.
+    i::InterpretedFrame* frame = static_cast<i::InterpretedFrame*>(it.frame());
+    // Since the sampler can interrupt execution at any point the
+    // bytecode_array might be garbage, so don't dereference it.
+    i::Address bytecode_array =
+        reinterpret_cast<i::Address>(frame->GetBytecodeArray()) -
+        i::kHeapObjectTag;
+    frames[i++] = bytecode_array + i::BytecodeArray::kHeaderSize +
+                  frame->GetBytecodeOffset();
   }
   sample_info->frames_count = i;
   return true;
 }
 
+namespace internal {
+
+void TickSample::Init(Isolate* isolate, const v8::RegisterState& state,
+                      RecordCEntryFrame record_c_entry_frame,
+                      bool update_stats) {
+  v8::TickSample::Init(reinterpret_cast<v8::Isolate*>(isolate), state,
+                       record_c_entry_frame, update_stats);
+  if (pc == nullptr) return;
+  timestamp = base::TimeTicks::HighResolutionNow();
+}
+
 #if defined(USE_SIMULATOR)
 bool SimulatorHelper::FillRegisters(Isolate* isolate,
                                     v8::RegisterState* state) {
-  Simulator *simulator = isolate->thread_local_top()->simulator_;
+  Simulator* simulator = isolate->thread_local_top()->simulator_;
   // Check if there is active simulator.
   if (simulator == NULL) return false;
 #if V8_TARGET_ARCH_ARM
@@ -179,8 +199,8 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
     state->pc = reinterpret_cast<Address>(simulator->get_pc());
   }
   state->sp = reinterpret_cast<Address>(simulator->get_register(Simulator::sp));
-  state->fp = reinterpret_cast<Address>(simulator->get_register(
-      Simulator::r11));
+  state->fp =
+      reinterpret_cast<Address>(simulator->get_register(Simulator::r11));
 #elif V8_TARGET_ARCH_ARM64
   state->pc = reinterpret_cast<Address>(simulator->pc());
   state->sp = reinterpret_cast<Address>(simulator->sp());

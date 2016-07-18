@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function testCallFFI(func, check) {
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addSignature(kSig_i_dd);
+  var sig_index = builder.addType(kSig_i_dd);
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([

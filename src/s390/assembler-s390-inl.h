@@ -47,6 +47,8 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
+
 void RelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
@@ -177,6 +179,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 

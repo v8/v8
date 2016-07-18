@@ -26,12 +26,6 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
-#define UNALIGNED_ACCESS_OK 1
-#else
-#define UNALIGNED_ACCESS_OK 0
-#endif
-
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {
@@ -46,7 +40,8 @@ class Decoder {
 
   virtual ~Decoder() {}
 
-  inline bool check(const byte* base, int offset, int length, const char* msg) {
+  inline bool check(const byte* base, unsigned offset, unsigned length,
+                    const char* msg) {
     DCHECK_GE(base, start_);
     if ((base + offset + length) > limit_) {
       error(base, base + offset, "%s", msg);
@@ -56,37 +51,38 @@ class Decoder {
   }
 
   // Reads a single 8-bit byte, reporting an error if out of bounds.
-  inline uint8_t checked_read_u8(const byte* base, int offset,
+  inline uint8_t checked_read_u8(const byte* base, unsigned offset,
                                  const char* msg = "expected 1 byte") {
     return check(base, offset, 1, msg) ? base[offset] : 0;
   }
 
   // Reads 16-bit word, reporting an error if out of bounds.
-  inline uint16_t checked_read_u16(const byte* base, int offset,
+  inline uint16_t checked_read_u16(const byte* base, unsigned offset,
                                    const char* msg = "expected 2 bytes") {
     return check(base, offset, 2, msg) ? read_u16(base + offset) : 0;
   }
 
   // Reads 32-bit word, reporting an error if out of bounds.
-  inline uint32_t checked_read_u32(const byte* base, int offset,
+  inline uint32_t checked_read_u32(const byte* base, unsigned offset,
                                    const char* msg = "expected 4 bytes") {
     return check(base, offset, 4, msg) ? read_u32(base + offset) : 0;
   }
 
   // Reads 64-bit word, reporting an error if out of bounds.
-  inline uint64_t checked_read_u64(const byte* base, int offset,
+  inline uint64_t checked_read_u64(const byte* base, unsigned offset,
                                    const char* msg = "expected 8 bytes") {
     return check(base, offset, 8, msg) ? read_u64(base + offset) : 0;
   }
 
   // Reads a variable-length unsigned integer (little endian).
-  uint32_t checked_read_u32v(const byte* base, int offset, int* length,
+  uint32_t checked_read_u32v(const byte* base, unsigned offset,
+                             unsigned* length,
                              const char* msg = "expected LEB32") {
     return checked_read_leb<uint32_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
-  int32_t checked_read_i32v(const byte* base, int offset, int* length,
+  int32_t checked_read_i32v(const byte* base, unsigned offset, unsigned* length,
                             const char* msg = "expected SLEB32") {
     uint32_t result =
         checked_read_leb<uint32_t, true>(base, offset, length, msg);
@@ -100,13 +96,14 @@ class Decoder {
   }
 
   // Reads a variable-length unsigned integer (little endian).
-  uint64_t checked_read_u64v(const byte* base, int offset, int* length,
+  uint64_t checked_read_u64v(const byte* base, unsigned offset,
+                             unsigned* length,
                              const char* msg = "expected LEB64") {
     return checked_read_leb<uint64_t, false>(base, offset, length, msg);
   }
 
   // Reads a variable-length signed integer (little endian).
-  int64_t checked_read_i64v(const byte* base, int offset, int* length,
+  int64_t checked_read_i64v(const byte* base, unsigned offset, unsigned* length,
                             const char* msg = "expected SLEB64") {
     uint64_t result =
         checked_read_leb<uint64_t, true>(base, offset, length, msg);
@@ -122,47 +119,19 @@ class Decoder {
   // Reads a single 16-bit unsigned integer (little endian).
   inline uint16_t read_u16(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 2) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint16_t*>(ptr);
-#else
-    uint16_t b0 = ptr[0];
-    uint16_t b1 = ptr[1];
-    return (b1 << 8) | b0;
-#endif
+    return ReadLittleEndianValue<uint16_t>(ptr);
   }
 
   // Reads a single 32-bit unsigned integer (little endian).
   inline uint32_t read_u32(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 4) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint32_t*>(ptr);
-#else
-    uint32_t b0 = ptr[0];
-    uint32_t b1 = ptr[1];
-    uint32_t b2 = ptr[2];
-    uint32_t b3 = ptr[3];
-    return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-#endif
+    return ReadLittleEndianValue<uint32_t>(ptr);
   }
 
   // Reads a single 64-bit unsigned integer (little endian).
   inline uint64_t read_u64(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 8) <= end_);
-#if V8_TARGET_LITTLE_ENDIAN && UNALIGNED_ACCESS_OK
-    return *reinterpret_cast<const uint64_t*>(ptr);
-#else
-    uint32_t b0 = ptr[0];
-    uint32_t b1 = ptr[1];
-    uint32_t b2 = ptr[2];
-    uint32_t b3 = ptr[3];
-    uint32_t low = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-    uint32_t b4 = ptr[4];
-    uint32_t b5 = ptr[5];
-    uint32_t b6 = ptr[6];
-    uint32_t b7 = ptr[7];
-    uint64_t high = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
-    return (high << 32) | low;
-#endif
+    return ReadLittleEndianValue<uint64_t>(ptr);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
@@ -204,10 +173,9 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(int* length, const char* name = nullptr) {
+  uint32_t consume_u32v(const char* name = nullptr) {
     TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
           name ? name : "varint");
-
     if (checkAvailable(1)) {
       const byte* pos = pc_;
       const byte* end = pc_ + 5;
@@ -224,10 +192,10 @@ class Decoder {
         shift += 7;
       }
 
-      *length = static_cast<int>(pc_ - pos);
+      int length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
         error(pc_ - 1, "varint too large");
-      } else if (*length == 0) {
+      } else if (length == 0) {
         error(pc_, "varint of length 0");
       } else {
         TRACE("= %u\n", result);
@@ -316,7 +284,7 @@ class Decoder {
     } else {
       result.error_code = kSuccess;
     }
-    result.val = val;
+    result.val = std::move(val);
     return result;
   }
 
@@ -350,7 +318,7 @@ class Decoder {
 
  private:
   template <typename IntType, bool is_signed>
-  IntType checked_read_leb(const byte* base, int offset, int* length,
+  IntType checked_read_leb(const byte* base, unsigned offset, unsigned* length,
                            const char* msg) {
     if (!check(base, offset, 1, msg)) {
       *length = 0;
@@ -371,7 +339,7 @@ class Decoder {
       shift += 7;
     }
     DCHECK_LE(ptr - (base + offset), kMaxLength);
-    *length = static_cast<int>(ptr - (base + offset));
+    *length = static_cast<unsigned>(ptr - (base + offset));
     if (ptr == end) {
       // Check there are no bits set beyond the bitwidth of {IntType}.
       const int kExtraBits = (1 + kMaxLength * 7) - (sizeof(IntType) * 8);

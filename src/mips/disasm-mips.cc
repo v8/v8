@@ -1264,11 +1264,30 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          UNREACHABLE();
+        case SEB: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seb     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
           break;
+        }
+        case SEH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seh     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case WSBH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "wsbh    'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {

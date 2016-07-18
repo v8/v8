@@ -33,9 +33,6 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
-    'public_api': {
-      'filepath': 'include/',
-    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -69,9 +66,6 @@
   },
 
   'WATCHLISTS': {
-    'public_api': [
-      'phajdan.jr@chromium.org',
-    ],
     'snapshot': [
       'yangguo@chromium.org',
     ],

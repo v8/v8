@@ -246,11 +246,12 @@ void BytecodeRegisterOptimizer::Write(BytecodeNode* node) {
   }
 
   if (Bytecodes::IsJump(node->bytecode()) ||
-      node->bytecode() == Bytecode::kDebugger) {
-    // The debugger can manipulate locals and parameters, flush
-    // everything before handing over to it. Similarly, all state must
-    // be flushed before emitting a jump due to how bytecode offsets
-    // for jumps are evaluated.
+      node->bytecode() == Bytecode::kDebugger ||
+      node->bytecode() == Bytecode::kSuspendGenerator) {
+    // All state must be flushed before emitting
+    // - a jump (due to how bytecode offsets for jumps are evaluated),
+    // - a call to the debugger (as it can manipulate locals and parameters),
+    // - a generator suspend (as this involves saving all registers).
     FlushState();
   }
 
@@ -311,7 +312,9 @@ void BytecodeRegisterOptimizer::WriteToNextStage(BytecodeNode* node) const {
 
 void BytecodeRegisterOptimizer::WriteToNextStage(
     BytecodeNode* node, const BytecodeSourceInfo& source_info) const {
-  node->source_info().Update(source_info);
+  if (source_info.is_valid()) {
+    node->source_info().Clone(source_info);
+  }
   next_stage_->Write(node);
 }
 
@@ -413,8 +416,9 @@ void BytecodeRegisterOptimizer::RegisterTransfer(
 
 void BytecodeRegisterOptimizer::EmitNopForSourceInfo(
     const BytecodeSourceInfo& source_info) const {
+  DCHECK(source_info.is_valid());
   BytecodeNode nop(Bytecode::kNop);
-  nop.source_info().Update(source_info);
+  nop.source_info().Clone(source_info);
   WriteToNextStage(&nop);
 }
 
@@ -500,35 +504,32 @@ void BytecodeRegisterOptimizer::PrepareRegisterOperands(
   // For each output register about to be clobbered, materialize an
   // equivalent if it exists. Put each register in it's own equivalence set.
   //
-  int register_operand_bitmap =
-      Bytecodes::GetRegisterOperandBitmap(node->bytecode());
+  const uint32_t* operands = node->operands();
+  int operand_count = node->operand_count();
   const OperandType* operand_types =
       Bytecodes::GetOperandTypes(node->bytecode());
-  uint32_t* operands = node->operands();
-  for (int i = 0; register_operand_bitmap != 0;
-       ++i, register_operand_bitmap >>= 1) {
-    if ((register_operand_bitmap & 1) == 0) {
-      continue;
-    }
-    OperandType operand_type = operand_types[i];
-    int count = 0;
+  for (int i = 0; i < operand_count; ++i) {
+    int count;
+    // operand_types is terminated by OperandType::kNone so this does not
+    // go out of bounds.
     if (operand_types[i + 1] == OperandType::kRegCount) {
       count = static_cast<int>(operands[i + 1]);
-      if (count == 0) {
-        continue;
-      }
     } else {
-      count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
+      count = Bytecodes::GetNumberOfRegistersRepresentedBy(operand_types[i]);
+    }
+
+    if (count == 0) {
+      continue;
     }
 
     Register reg = Register::FromOperand(static_cast<int32_t>(operands[i]));
-    if (Bytecodes::IsRegisterInputOperandType(operand_type)) {
+    if (Bytecodes::IsRegisterInputOperandType(operand_types[i])) {
       if (count == 1) {
         PrepareRegisterInputOperand(node, reg, i);
       } else if (count > 1) {
         PrepareRegisterRangeInputOperand(reg, count);
       }
-    } else if (Bytecodes::IsRegisterOutputOperandType(operand_type)) {
+    } else if (Bytecodes::IsRegisterOutputOperandType(operand_types[i])) {
       PrepareRegisterRangeOutputOperand(reg, count);
     }
   }

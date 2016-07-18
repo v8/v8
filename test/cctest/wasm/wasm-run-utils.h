@@ -84,7 +84,6 @@ class TestingModule : public ModuleEnv {
     module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    linker = nullptr;
     origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }
@@ -96,7 +95,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
-  byte* AddMemory(size_t size) {
+  byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
@@ -107,7 +106,7 @@ class TestingModule : public ModuleEnv {
   }
 
   template <typename T>
-  T* AddMemoryElems(size_t count) {
+  T* AddMemoryElems(uint32_t count) {
     AddMemory(count * sizeof(T));
     return raw_mem_start<T>();
   }
@@ -140,14 +139,22 @@ class TestingModule : public ModuleEnv {
   template <typename T>
   T raw_mem_at(int i) {
     DCHECK(instance->mem_start);
-    return reinterpret_cast<T*>(instance->mem_start)[i];
+    return ReadMemory(&(reinterpret_cast<T*>(instance->mem_start)[i]));
   }
 
   template <typename T>
   T raw_val_at(int i) {
-    T val;
-    memcpy(&val, reinterpret_cast<void*>(instance->mem_start + i), sizeof(T));
-    return val;
+    return ReadMemory(reinterpret_cast<T*>(instance->mem_start + i));
+  }
+
+  template <typename T>
+  void WriteMemory(T* p, T val) {
+    WriteLittleEndianValue<T>(p, val);
+  }
+
+  template <typename T>
+  T ReadMemory(T* p) {
+    return ReadLittleEndianValue<T>(p);
   }
 
   // Zero-initialize the memory.
@@ -187,10 +194,9 @@ class TestingModule : public ModuleEnv {
     Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(CompileRun(source))));
     uint32_t index = AddFunction(sig, Handle<Code>::null());
-    WasmName module_name = ArrayVector("test");
-    WasmName function_name;
-    Handle<Code> code = CompileWasmToJSWrapper(isolate_, this, jsfunc, sig,
-                                               module_name, function_name);
+    Handle<Code> code =
+        CompileWasmToJSWrapper(isolate_, jsfunc, sig, index,
+                               Handle<String>::null(), Handle<String>::null());
     instance->function_code[index] = code;
     return index;
   }
@@ -201,8 +207,13 @@ class TestingModule : public ModuleEnv {
     Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
-    return compiler::CompileJSToWasmWrapper(isolate_, this, name, code,
-                                            module_object, index);
+    Handle<Code> ret_code =
+        compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
+    Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
+        isolate_, ret_code, name,
+        static_cast<int>(this->module->functions[index].sig->parameter_count()),
+        module_object);
+    return ret;
   }
 
   void SetFunctionCode(uint32_t index, Handle<Code> code) {
@@ -230,6 +241,7 @@ class TestingModule : public ModuleEnv {
                                     *instance->function_code[function_index]);
     }
   }
+
   WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
 
   WasmInterpreter* interpreter() { return interpreter_; }
@@ -261,7 +273,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(zone, jsgraph, sig, source_position_table);
-  TreeResult result =
+  DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
     ptrdiff_t pc = result.error_pc - result.start;

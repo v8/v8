@@ -9,7 +9,7 @@
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
 #include "src/base/macros.h"
-#include "src/builtins.h"
+#include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
@@ -74,6 +74,11 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOp(InterpreterAssembler* assembler);
 
+  // Generates code to perform the binary operation via |Generator| using
+  // an immediate value rather the accumulator as the rhs operand.
+  template <class Generator>
+  void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
+
   // Generates code to perform the unary operation via |callable|.
   void DoUnaryOp(Callable callable, InterpreterAssembler* assembler);
 
@@ -94,7 +99,7 @@ class Interpreter {
   // Generates code to perform a keyed property store via |ic|.
   void DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler);
 
-  // Generates code to perform a JS call.
+  // Generates code to perform a JS call that collects type feedback.
   void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
 
   // Generates code to perform a runtime call.

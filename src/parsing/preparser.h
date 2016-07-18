@@ -308,7 +308,7 @@ class PreParserExpression {
   void set_index(int index) {}  // For YieldExpressions
   void set_should_eager_compile() {}
 
-  int position() const { return RelocInfo::kNoPosition; }
+  int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
 
  private:
@@ -696,8 +696,8 @@ class PreParserFactory {
     return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
-                               PreParserExpression expression,
-                               int pos) {
+                               PreParserExpression expression, int pos,
+                               Yield::OnException on_exception) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewConditional(PreParserExpression condition,
@@ -1158,15 +1158,14 @@ class PreParserTraits {
     return PreParserExpression::This();
   }
 
-  static PreParserExpression SuperPropertyReference(Scope* scope,
-                                                    PreParserFactory* factory,
-                                                    int pos) {
+  static PreParserExpression NewSuperPropertyReference(
+      Scope* scope, PreParserFactory* factory, int pos) {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpression SuperCallReference(Scope* scope,
-                                                PreParserFactory* factory,
-                                                int pos) {
+  static PreParserExpression NewSuperCallReference(Scope* scope,
+                                                   PreParserFactory* factory,
+                                                   int pos) {
     return PreParserExpression::SuperCallReference();
   }
 

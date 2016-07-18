@@ -225,10 +225,14 @@ TEST(SpecializeJSFunction_ToConstant_uninit) {
     FunctionTester T(
         "(function() { if (false) { var x = 1; } function inc(a)"
         " { return x; } return inc; })()");  // x is undefined!
-
-    CHECK(T.Call(T.Val(0.0), T.Val(0.0)).ToHandleChecked()->IsUndefined());
-    CHECK(T.Call(T.Val(2.0), T.Val(0.0)).ToHandleChecked()->IsUndefined());
-    CHECK(T.Call(T.Val(-2.1), T.Val(0.0)).ToHandleChecked()->IsUndefined());
+    i::Isolate* isolate = CcTest::i_isolate();
+    CHECK(
+        T.Call(T.Val(0.0), T.Val(0.0)).ToHandleChecked()->IsUndefined(isolate));
+    CHECK(
+        T.Call(T.Val(2.0), T.Val(0.0)).ToHandleChecked()->IsUndefined(isolate));
+    CHECK(T.Call(T.Val(-2.1), T.Val(0.0))
+              .ToHandleChecked()
+              ->IsUndefined(isolate));
   }
 
   {

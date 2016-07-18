@@ -91,7 +91,7 @@ var debug = false;
         .addBody([kExprGetLocal,
                   0, kExprGetLocal, 1, kExprGetLocal, 2, kExprCallIndirect, kArity2, 0])
         .exportAs("main");
-    module.appendToFunctionTable([0]);
+    module.appendToTable([0]);
 
     var instance = module.instantiate();
     assertEquals(44, instance.exports.main(0, 11, 33));

@@ -5,7 +5,9 @@
 #include "src/interpreter/bytecode-array-builder.h"
 
 #include "src/compiler.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
+#include "src/interpreter/bytecode-dead-code-optimizer.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
@@ -15,10 +17,10 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
-                                           int parameter_count,
-                                           int context_count, int locals_count,
-                                           FunctionLiteral* literal)
+BytecodeArrayBuilder::BytecodeArrayBuilder(
+    Isolate* isolate, Zone* zone, int parameter_count, int context_count,
+    int locals_count, FunctionLiteral* literal,
+    SourcePositionTableBuilder::RecordingMode source_position_mode)
     : isolate_(isolate),
       zone_(zone),
       bytecode_generated_(false),
@@ -29,11 +31,16 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
       local_register_count_(locals_count),
       context_register_count_(context_count),
       temporary_allocator_(zone, fixed_register_count()),
-      bytecode_array_writer_(isolate, zone, &constant_array_builder_),
+      bytecode_array_writer_(isolate, zone, &constant_array_builder_,
+                             source_position_mode),
       pipeline_(&bytecode_array_writer_) {
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
+
+  if (FLAG_ignition_deadcode) {
+    pipeline_ = new (zone) BytecodeDeadCodeOptimizer(pipeline_);
+  }
 
   if (FLAG_ignition_peephole) {
     pipeline_ = new (zone)
@@ -47,7 +54,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
 
   return_position_ =
       literal ? std::max(literal->start_position(), literal->end_position() - 1)
-              : RelocInfo::kNoPosition;
+              : kNoSourcePosition;
 }
 
 Register BytecodeArrayBuilder::first_context_register() const {
@@ -99,7 +106,7 @@ void BytecodeArrayBuilder::AttachSourceInfo(BytecodeNode* node) {
     // information if it is used.
     if (latest_source_info_.is_statement() ||
         ExpressionPositionIsNeeded(node->bytecode())) {
-      node->source_info() = latest_source_info_;
+      node->source_info().Clone(latest_source_info_);
       latest_source_info_.set_invalid();
     }
   }
@@ -233,13 +240,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
-    const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int feedback_slot,
+                                                       TypeofMode typeof_mode) {
   // TODO(rmcilroy): Potentially store typeof information in an
   // operand rather than having extra bytecodes.
   Bytecode bytecode = BytecodeForLoadGlobal(typeof_mode);
-  size_t name_index = GetConstantPoolEntry(name);
-  Output(bytecode, UnsignedOperand(name_index), UnsignedOperand(feedback_slot));
+  Output(bytecode, UnsignedOperand(feedback_slot));
   return *this;
 }
 
@@ -318,10 +324,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, PretenureFlag tenured) {
+    Handle<SharedFunctionInfo> shared_info, int flags) {
   size_t entry = GetConstantPoolEntry(shared_info);
   Output(Bytecode::kCreateClosure, UnsignedOperand(entry),
-         UnsignedOperand(static_cast<size_t>(tenured)));
+         UnsignedOperand(flags));
   return *this;
 }
 
@@ -439,10 +445,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
-  if (position != RelocInfo::kNoPosition) {
-    // We need to attach a non-breakable source position to a stack check,
-    // so we simply add it as expression position.
-    latest_source_info_ = {position, false};
+  if (position != kNoSourcePosition) {
+    // We need to attach a non-breakable source position to a stack
+    // check, so we simply add it as expression position. There can be
+    // a prior statement position from constructs like:
+    //
+    //    do var x;  while (false);
+    //
+    // A Nop could be inserted for empty statements, but since no code
+    // is associated with these positions, instead we force the stack
+    // check's expression position which eliminates the empty
+    // statement's position.
+    latest_source_info_.ForceExpressionPosition(position);
   }
   Output(Bytecode::kStackCheck);
   return *this;
@@ -573,11 +587,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
-  Bytecode bytecode = IntrinsicsHelper::IsSupported(function_id)
-                          ? Bytecode::kInvokeIntrinsic
-                          : Bytecode::kCallRuntime;
-  Output(bytecode, static_cast<uint16_t>(function_id),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count));
+  Bytecode bytecode;
+  uint32_t id;
+  if (IntrinsicsHelper::IsSupported(function_id)) {
+    bytecode = Bytecode::kInvokeIntrinsic;
+    id = static_cast<uint32_t>(IntrinsicsHelper::FromRuntimeId(function_id));
+  } else {
+    bytecode = Bytecode::kCallRuntime;
+    id = static_cast<uint32_t>(function_id);
+  }
+  Output(bytecode, id, RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
 }
 
@@ -614,32 +633,27 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 }
 
 void BytecodeArrayBuilder::SetReturnPosition() {
-  if (return_position_ == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({return_position_, true});
+  if (return_position_ == kNoSourcePosition) return;
+  latest_source_info_.MakeStatementPosition(return_position_);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
-  if (stmt->position() == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({stmt->position(), true});
+  if (stmt->position() == kNoSourcePosition) return;
+  latest_source_info_.MakeStatementPosition(stmt->position());
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
-  if (latest_source_info_.is_expression()) {
+  if (expr->position() == kNoSourcePosition) return;
+  if (!latest_source_info_.is_statement()) {
     // Ensure the current expression position is overwritten with the
     // latest value.
-    //
-    // TODO(oth): Clean-up BytecodeSourceInfo to have three states and
-    // simplify the update logic, taking care to ensure position
-    // information is not lost.
-    latest_source_info_.set_invalid();
+    latest_source_info_.MakeExpressionPosition(expr->position());
   }
-  latest_source_info_.Update({expr->position(), false});
 }
 
 void BytecodeArrayBuilder::SetExpressionAsStatementPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
-  latest_source_info_.Update({expr->position(), true});
+  if (expr->position() == kNoSourcePosition) return;
+  latest_source_info_.MakeStatementPosition(expr->position());
 }
 
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
@@ -691,6 +705,7 @@ bool BytecodeArrayBuilder::OperandsAreValid(
         break;
       }
       case OperandType::kFlag8:
+      case OperandType::kIntrinsicId:
         if (Bytecodes::SizeForUnsignedOperand(operands[i]) >
             OperandSize::kByte) {
           return false;

@@ -244,7 +244,7 @@ class MacroAssembler: public Assembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(int argc, bool save_doubles);
+  void EnterExitFrame(int argc, bool save_doubles, StackFrame::Type frame_type);
 
   void EnterApiExitFrame(int argc);
 
@@ -775,7 +775,8 @@ class MacroAssembler: public Assembler {
   void CallCFunction(Register function, int num_arguments);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& ext);
+  void JumpToExternalReference(const ExternalReference& ext,
+                               bool builtin_exit_frame = false);
 
   // ---------------------------------------------------------------------------
   // Utilities
@@ -910,6 +911,9 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
   // Expects object in eax and returns map with validated enum cache
   // in eax.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
@@ -951,7 +955,7 @@ class MacroAssembler: public Assembler {
                       Label::Distance done_distance,
                       const CallWrapper& call_wrapper);
 
-  void EnterExitFramePrologue();
+  void EnterExitFramePrologue(StackFrame::Type frame_type);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue(bool restore_context);

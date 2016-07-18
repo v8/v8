@@ -171,9 +171,13 @@ class Serializer : public SerializerDeserializer {
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject* object);
 
-  // Returns true if the object was successfully serialized.
-  bool SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
-                            WhereToPoint where_to_point, int skip);
+  // Returns true if the object was successfully serialized as hot object.
+  bool SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
+                          WhereToPoint where_to_point, int skip);
+
+  // Returns true if the object was successfully serialized as back reference.
+  bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
+                              WhereToPoint where_to_point, int skip);
 
   inline void FlushSkip(int skip) {
     if (skip != 0) {

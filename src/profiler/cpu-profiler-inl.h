@@ -50,17 +50,6 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-TickSample* CpuProfiler::StartTickSample() {
-  if (is_profiling_) return processor_->StartTickSample();
-  return NULL;
-}
-
-
-void CpuProfiler::FinishTickSample() {
-  processor_->FinishTickSample();
-}
-
-
 TickSample* ProfilerEventsProcessor::StartTickSample() {
   void* address = ticks_buffer_.StartEnqueue();
   if (address == NULL) return NULL;

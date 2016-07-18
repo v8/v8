@@ -120,12 +120,6 @@ void MacroAssembler::Call(Address target,
   //  blx   ip
   //                      @ return address
 
-  // Statement positions are expected to be recorded when the target
-  // address is loaded. The mov method will automatically record
-  // positions when pc is the target, since this is not the case here
-  // we have to do it explicitly.
-  positions_recorder()->WriteRecordedPositions();
-
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 
@@ -246,19 +240,7 @@ void MacroAssembler::Push(Handle<Object> handle) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
-  AllowDeferredHandleDereference smi_check;
-  if (value->IsSmi()) {
-    mov(dst, Operand(value));
-  } else {
-    DCHECK(value->IsHeapObject());
-    if (isolate()->heap()->InNewSpace(*value)) {
-      Handle<Cell> cell = isolate()->factory()->NewCell(value);
-      mov(dst, Operand(cell));
-      ldr(dst, FieldMemOperand(dst, Cell::kValueOffset));
-    } else {
-      mov(dst, Operand(value));
-    }
-  }
+  mov(dst, Operand(value));
 }
 
 
@@ -868,8 +850,7 @@ MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   // Number of d-regs not known at snapshot time.
   DCHECK(!serializer_enabled());
   // General purpose registers are pushed last on the stack.
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   int doubles_size = config->num_allocatable_double_registers() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
@@ -1023,13 +1004,11 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
                           const Register scratch) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  static const DoubleRepresentation zero(0.0);
-  DoubleRepresentation value_rep(imm);
+  int64_t imm_bits = bit_cast<int64_t>(imm);
   // Handle special values first.
-  if (value_rep == zero) {
+  if (imm_bits == bit_cast<int64_t>(0.0)) {
     vmov(dst, kDoubleRegZero);
-  } else if (value_rep == minus_zero) {
+  } else if (imm_bits == bit_cast<int64_t>(-0.0)) {
     vneg(dst, kDoubleRegZero);
   } else {
     vmov(dst, imm, scratch);
@@ -1305,13 +1284,29 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type) {
   return frame_ends;
 }
 
+void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Push(lr, fp, context, target);
+  add(fp, sp, Operand(2 * kPointerSize));
+  Push(argc);
+}
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Pop(argc);
+  Pop(lr, fp, context, target);
+}
+
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
+                                    StackFrame::Type frame_type) {
+  DCHECK(frame_type == StackFrame::EXIT ||
+         frame_type == StackFrame::BUILTIN_EXIT);
+
   // Set up the frame structure on the stack.
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
-  mov(ip, Operand(Smi::FromInt(StackFrame::EXIT)));
+  mov(ip, Operand(Smi::FromInt(frame_type)));
   PushCommonFrame(ip);
   // Reserve room for saved entry sp and code object.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
@@ -1579,12 +1574,13 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
                                              const ParameterCount& expected,
                                              const ParameterCount& actual) {
   Label skip_flooding;
-  ExternalReference step_in_enabled =
-      ExternalReference::debug_step_in_enabled_address(isolate());
-  mov(r4, Operand(step_in_enabled));
-  ldrb(r4, MemOperand(r4));
-  cmp(r4, Operand(0));
-  b(eq, &skip_flooding);
+  ExternalReference last_step_action =
+      ExternalReference::debug_last_step_action_address(isolate());
+  STATIC_ASSERT(StepFrame > StepIn);
+  mov(r4, Operand(last_step_action));
+  ldrsb(r4, MemOperand(r4));
+  cmp(r4, Operand(StepIn));
+  b(lt, &skip_flooding);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -2870,17 +2866,17 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-
-void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
+                                             bool builtin_exit_frame) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   DCHECK((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
 #endif
   mov(r1, Operand(builtin));
-  CEntryStub stub(isolate(), 1);
+  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                  builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
-
 
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
@@ -3844,7 +3840,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
     Label* no_memento_found) {
   Label map_check;
   Label top_check;
-  ExternalReference new_space_allocation_top =
+  ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
   const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
@@ -3854,7 +3850,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
   add(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
-  eor(scratch_reg, scratch_reg, Operand(new_space_allocation_top));
+  mov(ip, Operand(new_space_allocation_top_adr));
+  ldr(ip, MemOperand(ip));
+  eor(scratch_reg, scratch_reg, Operand(ip));
   tst(scratch_reg, Operand(~Page::kPageAlignmentMask));
   b(eq, &top_check);
   // The object is on a different page than allocation top. Bail out if the
@@ -3870,7 +3868,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
   // we are below top.
   bind(&top_check);
   add(scratch_reg, receiver_reg, Operand(kMementoEndOffset));
-  cmp(scratch_reg, Operand(new_space_allocation_top));
+  mov(ip, Operand(new_space_allocation_top_adr));
+  ldr(ip, MemOperand(ip));
+  cmp(scratch_reg, ip);
   b(gt, no_memento_found);
   // Memento map check.
   bind(&map_check);
@@ -3892,8 +3892,7 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   if (reg5.is_valid()) regs |= reg5.bit();
   if (reg6.is_valid()) regs |= reg6.bit();
 
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     Register candidate = Register::from_code(code);

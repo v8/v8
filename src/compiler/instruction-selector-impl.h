@@ -68,9 +68,8 @@ class OperandGenerator {
     return ConstantOperand(virtual_register);
   }
 
-  InstructionOperand DefineAsLocation(Node* node, LinkageLocation location,
-                                      MachineRepresentation rep) {
-    return Define(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  InstructionOperand DefineAsLocation(Node* node, LinkageLocation location) {
+    return Define(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
   InstructionOperand DefineAsDualLocation(Node* node,
@@ -140,24 +139,30 @@ class OperandGenerator {
     }
   }
 
+  InstructionOperand UseImmediate(int immediate) {
+    return sequence()->AddImmediate(Constant(immediate));
+  }
+
   InstructionOperand UseImmediate(Node* node) {
     return sequence()->AddImmediate(ToConstant(node));
   }
 
-  InstructionOperand UseLocation(Node* node, LinkageLocation location,
-                                 MachineRepresentation rep) {
-    return Use(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  InstructionOperand UseNegatedImmediate(Node* node) {
+    return sequence()->AddImmediate(ToNegatedConstant(node));
+  }
+
+  InstructionOperand UseLocation(Node* node, LinkageLocation location) {
+    return Use(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
   // Used to force gap moves from the from_location to the to_location
   // immediately before an instruction.
   InstructionOperand UsePointerLocation(LinkageLocation to_location,
                                         LinkageLocation from_location) {
-    MachineRepresentation rep = MachineType::PointerRepresentation();
     UnallocatedOperand casted_from_operand =
-        UnallocatedOperand::cast(TempLocation(from_location, rep));
+        UnallocatedOperand::cast(TempLocation(from_location));
     selector_->Emit(kArchNop, casted_from_operand);
-    return ToUnallocatedOperand(to_location, rep,
+    return ToUnallocatedOperand(to_location,
                                 casted_from_operand.virtual_register());
   }
 
@@ -185,10 +190,8 @@ class OperandGenerator {
     return sequence()->AddImmediate(Constant(imm));
   }
 
-  InstructionOperand TempLocation(LinkageLocation location,
-                                  MachineRepresentation rep) {
-    return ToUnallocatedOperand(location, rep,
-                                sequence()->NextVirtualRegister());
+  InstructionOperand TempLocation(LinkageLocation location) {
+    return ToUnallocatedOperand(location, sequence()->NextVirtualRegister());
   }
 
   InstructionOperand Label(BasicBlock* block) {
@@ -230,6 +233,19 @@ class OperandGenerator {
     return Constant(static_cast<int32_t>(0));
   }
 
+  static Constant ToNegatedConstant(const Node* node) {
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+        return Constant(-OpParameter<int32_t>(node));
+      case IrOpcode::kInt64Constant:
+        return Constant(-OpParameter<int64_t>(node));
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return Constant(static_cast<int32_t>(0));
+  }
+
   UnallocatedOperand Define(Node* node, UnallocatedOperand operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_EQ(operand.virtual_register(), GetVReg(node));
@@ -257,7 +273,6 @@ class OperandGenerator {
   }
 
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
-                                          MachineRepresentation rep,
                                           int virtual_register) {
     if (location.IsAnyRegister()) {
       // any machine register.
@@ -275,7 +290,7 @@ class OperandGenerator {
                                 location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    if (IsFloatingPoint(rep)) {
+    if (IsFloatingPoint(location.GetType().representation())) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                 location.AsRegister(), virtual_register);
     }
@@ -353,6 +368,8 @@ class FlagsContinuation final {
     DCHECK(!IsNone());
     condition_ = CommuteFlagsCondition(condition_);
   }
+
+  void Overwrite(FlagsCondition condition) { condition_ = condition; }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
     bool negate = condition_ == kEqual;

@@ -356,7 +356,6 @@ MaybeHandle<Context> NodeProperties::GetSpecializationNativeContext(
       case IrOpcode::kJSCreateBlockContext:
       case IrOpcode::kJSCreateCatchContext:
       case IrOpcode::kJSCreateFunctionContext:
-      case IrOpcode::kJSCreateModuleContext:
       case IrOpcode::kJSCreateScriptContext:
       case IrOpcode::kJSCreateWithContext: {
         // Skip over the intermediate contexts, we're only interested in the

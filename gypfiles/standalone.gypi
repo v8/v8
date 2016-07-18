@@ -33,6 +33,7 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
+    'force_dynamic_crt%': 0,
     'clang_xcode%': 0,
     # Track where uninitialized memory originates from. From fastest to
     # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
@@ -169,7 +170,7 @@
         # are using a custom toolchain and need to control -B in ldflags.
         # Do not use 32-bit gold on 32-bit hosts as it runs out address space
         # for component=static_library builds.
-        ['(OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="ia32" and host_arch=="x64"))', {
+        ['((OS=="linux" or OS=="android") and (target_arch=="x64" or target_arch=="arm" or (target_arch=="ia32" and host_arch=="x64"))) or (OS=="linux" and target_arch=="mipsel")', {
           'linux_use_bundled_gold%': 1,
         }, {
           'linux_use_bundled_gold%': 0,
@@ -986,10 +987,6 @@
                   # Don't warn about the "struct foo f = {0};" initialization
                   # pattern.
                   '-Wno-missing-field-initializers',
-
-                  # Many files use intrinsics without including this header.
-                  # TODO(hans): Fix those files, or move this to sub-GYPs.
-                  '/FIIntrin.h',
 
                   # TODO(hans): Make this list shorter eventually, http://crbug.com/504657
                   '-Qunused-arguments',  # http://crbug.com/504658

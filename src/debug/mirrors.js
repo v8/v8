@@ -15,12 +15,10 @@ var JSONStringify = global.JSON.stringify;
 var MakeError;
 var MapEntries;
 var MapIteratorNext;
-var MathMin = global.Math.min;
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
 var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
 var SetIteratorNext;
 var SetValues;
-var SymbolToString;
 
 utils.Import(function(from) {
   ErrorToString = from.ErrorToString;
@@ -29,7 +27,6 @@ utils.Import(function(from) {
   MapIteratorNext = from.MapIteratorNext;
   SetIteratorNext = from.SetIteratorNext;
   SetValues = from.SetValues;
-  SymbolToString = from.SymbolToString;
 });
 
 // ----------------------------------------------------------------------------
@@ -122,7 +119,7 @@ function ObjectIsPromise(value) {
 /**
  * Returns the mirror for a specified value or object.
  *
- * @param {value or Object} value the value or object to retreive the mirror for
+ * @param {value or Object} value the value or object to retrieve the mirror for
  * @param {boolean} transient indicate whether this object is transient and
  *    should not be added to the mirror cache. The default is not transient.
  * @returns {Mirror} the mirror reflects the passed value or object
@@ -687,12 +684,12 @@ inherits(SymbolMirror, ValueMirror);
 
 
 SymbolMirror.prototype.description = function() {
-  return %SymbolDescription(%_ValueOf(this.value_));
+  return %SymbolDescription(%ValueOf(this.value_));
 }
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_Call(SymbolToString, this.value_);
+  return %SymbolDescriptiveString(%ValueOf(this.value_));
 }
 
 
@@ -788,7 +785,7 @@ ObjectMirror.prototype.internalProperties = function() {
 
 
 ObjectMirror.prototype.property = function(name) {
-  var details = %DebugGetPropertyDetails(this.value_, TO_NAME(name));
+  var details = %DebugGetPropertyDetails(this.value_, name);
   if (details) {
     return new PropertyMirror(this, name, details);
   }
@@ -1087,6 +1084,11 @@ UnresolvedFunctionMirror.prototype.protoObject = function() {
 
 
 UnresolvedFunctionMirror.prototype.name = function() {
+  return this.value_;
+};
+
+
+UnresolvedFunctionMirror.prototype.debugName = function() {
   return this.value_;
 };
 
@@ -1497,6 +1499,12 @@ PropertyMirror.prototype.name = function() {
 };
 
 
+PropertyMirror.prototype.toText = function() {
+  if (IS_SYMBOL(this.name_)) return %SymbolDescriptiveString(this.name_);
+  return this.name_;
+};
+
+
 PropertyMirror.prototype.isIndexed = function() {
   for (var i = 0; i < this.name_.length; i++) {
     if (this.name_[i] < '0' || '9' < this.name_[i]) {
@@ -1620,13 +1628,14 @@ InternalPropertyMirror.prototype.value = function() {
 var kFrameDetailsFrameIdIndex = 0;
 var kFrameDetailsReceiverIndex = 1;
 var kFrameDetailsFunctionIndex = 2;
-var kFrameDetailsArgumentCountIndex = 3;
-var kFrameDetailsLocalCountIndex = 4;
-var kFrameDetailsSourcePositionIndex = 5;
-var kFrameDetailsConstructCallIndex = 6;
-var kFrameDetailsAtReturnIndex = 7;
-var kFrameDetailsFlagsIndex = 8;
-var kFrameDetailsFirstDynamicIndex = 9;
+var kFrameDetailsScriptIndex = 3;
+var kFrameDetailsArgumentCountIndex = 4;
+var kFrameDetailsLocalCountIndex = 5;
+var kFrameDetailsSourcePositionIndex = 6;
+var kFrameDetailsConstructCallIndex = 7;
+var kFrameDetailsAtReturnIndex = 8;
+var kFrameDetailsFlagsIndex = 9;
+var kFrameDetailsFirstDynamicIndex = 10;
 
 var kFrameDetailsNameIndex = 0;
 var kFrameDetailsValueIndex = 1;
@@ -1643,12 +1652,13 @@ var kFrameDetailsFlagInlinedFrameIndexMask = 7 << 2;
  *     0: Id
  *     1: Receiver
  *     2: Function
- *     3: Argument count
- *     4: Local count
- *     5: Source position
- *     6: Construct call
- *     7: Is at return
- *     8: Flags (debugger frame, optimized frame, inlined frame index)
+ *     3: Script
+ *     4: Argument count
+ *     5: Local count
+ *     6: Source position
+ *     7: Construct call
+ *     8: Is at return
+ *     9: Flags (debugger frame, optimized frame, inlined frame index)
  *     Arguments name, value
  *     Locals name, value
  *     Return value if any
@@ -1677,6 +1687,12 @@ FrameDetails.prototype.receiver = function() {
 FrameDetails.prototype.func = function() {
   %CheckExecutionState(this.break_id_);
   return this.details_[kFrameDetailsFunctionIndex];
+};
+
+
+FrameDetails.prototype.script = function() {
+  %CheckExecutionState(this.break_id_);
+  return this.details_[kFrameDetailsScriptIndex];
 };
 
 
@@ -2024,10 +2040,10 @@ FrameMirror.prototype.invocationText = function() {
         if (display_receiver) {
           result += '.';
         }
-        result += property.name();
+        result += property.toText();
       } else {
         result += '[';
-        result += property.name();
+        result += property.toText();
         result += ']';
       }
       // Also known as - if the name in the function doesn't match the name
@@ -2326,6 +2342,7 @@ ScriptMirror.prototype.source = function() {
 
 
 ScriptMirror.prototype.setSource = function(source) {
+  if (!IS_STRING(source)) throw MakeError(kDebugger, "Source is not a string");
   %DebugSetScriptSource(this.script_, source);
 };
 

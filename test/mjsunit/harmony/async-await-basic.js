@@ -70,6 +70,15 @@ function assertEqualsAsync(expected, run, msg) {
 assertEquals(undefined, this.AsyncFunction);
 let AsyncFunction = (async function() {}).constructor;
 
+// The AsyncFunction Constructor is the %AsyncFunction% intrinsic object and
+// is a subclass of Function.
+// (https://tc39.github.io/ecmascript-asyncawait/#async-function-constructor)
+assertEquals(Object.getPrototypeOf(AsyncFunction), Function);
+assertEquals(Object.getPrototypeOf(AsyncFunction.prototype),
+             Function.prototype);
+assertTrue(async function() {} instanceof Function);
+
+
 // Let functionPrototype be the intrinsic object %AsyncFunctionPrototype%.
 async function asyncFunctionForProto() {}
 assertEquals(AsyncFunction.prototype,
@@ -343,8 +352,20 @@ assertEquals("async function () {}", async function() {}.toString());
 assertEquals("async x => x", (async x => x).toString());
 assertEquals("async x => { return x }", (async x => { return x }).toString());
 class AsyncMethod { async foo() { } }
-assertEquals("async foo() { }", Function.prototype.toString.call(AsyncMethod.prototype.foo));
-assertEquals("async foo() { }", Function.prototype.toString.call({async foo() { }}.foo));
+assertEquals("async foo() { }",
+             Function.prototype.toString.call(AsyncMethod.prototype.foo));
+assertEquals("async foo() { }",
+             Function.prototype.toString.call({async foo() { }}.foo));
 
 // Async functions are not constructible
 assertThrows(() => class extends (async function() {}) {}, TypeError);
+
+// Regress v8:5148
+assertEqualsAsync("1", () => (async({ a = NaN }) => a)({ a: "1" }));
+assertEqualsAsync(
+    "10", () => (async(foo, { a = NaN }) => foo + a)("1", { a: "0" }));
+assertEqualsAsync("2", () => (async({ a = "2" }) => a)({ a: undefined }));
+assertEqualsAsync(
+    "20", () => (async(foo, { a = "0" }) => foo + a)("2", { a: undefined }));
+assertThrows(() => eval("async({ foo = 1 })"), SyntaxError);
+assertThrows(() => eval("async(a, { foo = 1 })"), SyntaxError);

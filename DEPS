@@ -8,19 +8,19 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "ea70305807f935b36a930586aa08c66bfc6fbf8d",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "e609d4bcabeef6b140c6326caea53c5b6dbec72a",
   "v8/tools/gyp":
-    Var("git_url") + "/external/gyp.git" + "@" + "bce1c7793010574d88d7915e2d55395213ac63d1",
+    Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "ffa4b6704cf5cc9fec9485731f24a05b2ba94bca",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "b5ecbb29a26532f72ef482569b223d5a51fd50bf",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "099f1da55bfe8caa12266371a7eb983698fb1d87",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "55638fe5c31652a808f059027b99b08bafd15fb7",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "54b8455be9505c2cb0cf5c26bb86739c236471aa",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "649b5791b19e4ed3df0c5542b23950d34ca8f3e7",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "6aa2ae44b604e6feec721bec77208210142dd4f5",
   "v8/tools/swarming_client":
-    Var('git_url') + '/external/swarming.client.git' + '@' + "df6e95e7669883c8fe9ef956c69a544154701a49",
+    Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -31,15 +31,15 @@ deps = {
     Var("git_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
   "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "baf493985cb9ea7cdbd0d68704860a8156de9556",
   "v8/test/test262/data":
-    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "9c45e2ac684bae64614d8eb55789cae97323a7e7",
+    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "88bc7fe7586f161201c5f14f55c9c489f82b1b67",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "7f07c3fce21f45df52cf39f0f52277d19b7e3573",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "0b50729d487ec853d8f7c762c81cb2ad2785e674",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "5b5f2f60b78198eaef25d442ac60f823142a8a6e",
+      Var("git_url") + "/android_tools.git" + "@" + "20a4bd598cf3ba8434311156ce94c110a0024fe7",
   },
   "win": {
     "v8/third_party/cygwin":

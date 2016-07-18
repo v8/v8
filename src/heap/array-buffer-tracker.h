@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <map>
+#include <unordered_map>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -30,8 +30,8 @@ class ArrayBufferTracker : public AllStatic {
 
   // Register/unregister a new JSArrayBuffer |buffer| for tracking. Guards all
   // access to the tracker by taking the page lock for the corresponding page.
-  static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
-  static void Unregister(Heap* heap, JSArrayBuffer* buffer);
+  inline static void RegisterNew(Heap* heap, JSArrayBuffer* buffer);
+  inline static void Unregister(Heap* heap, JSArrayBuffer* buffer);
 
   // Frees all backing store pointers for dead JSArrayBuffers in new space.
   // Does not take any locks and can only be called during Scavenge.
@@ -59,8 +59,8 @@ class ArrayBufferTracker : public AllStatic {
 // Never use directly but instead always call through |ArrayBufferTracker|.
 class LocalArrayBufferTracker {
  public:
-  typedef std::pair<void*, size_t> Value;
   typedef JSArrayBuffer* Key;
+  typedef size_t Value;
 
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
@@ -68,8 +68,8 @@ class LocalArrayBufferTracker {
   explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
   ~LocalArrayBufferTracker();
 
-  void Add(Key key, const Value& value);
-  Value Remove(Key key);
+  inline void Add(Key key, const Value& value);
+  inline Value Remove(Key key);
 
   // Frees up array buffers determined by |free_mode|.
   template <FreeMode free_mode>
@@ -81,7 +81,7 @@ class LocalArrayBufferTracker {
   // Callback should be of type:
   //   CallbackResult fn(JSArrayBuffer* buffer, JSArrayBuffer** new_buffer);
   template <typename Callback>
-  inline void Process(Callback callback);
+  void Process(Callback callback);
 
   bool IsEmpty() { return array_buffers_.empty(); }
 
@@ -90,12 +90,10 @@ class LocalArrayBufferTracker {
   }
 
  private:
-  // TODO(mlippautz): Switch to unordered_map once it is supported on all
-  // platforms.
-  typedef std::map<Key, Value> TrackingMap;
+  typedef std::unordered_map<Key, Value> TrackingData;
 
   Heap* heap_;
-  TrackingMap array_buffers_;
+  TrackingData array_buffers_;
 };
 
 }  // namespace internal

@@ -47,8 +47,8 @@ var Node = {
     var inputWidth = this.inputs.length * NODE_INPUT_WIDTH;
     return Math.max(inputWidth, this.width);
   },
-  getLabel: function() {
-    return this.label;
+  getTitle: function() {
+    return this.title;
   },
   getDisplayLabel: function() {
     var result = this.id + ":" + this.label;

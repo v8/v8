@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 // Tests of sampler functionalities.
 
-#include "src/libsampler/v8-sampler.h"
+#include "src/libsampler/sampler.h"
 
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"

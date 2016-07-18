@@ -1422,6 +1422,20 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (f0byte == 0x10 || f0byte == 0x11) {
+            data += 2;
+            // movups xmm, xmm/m128
+            // movups xmm/m128, xmm
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movups ");
+            if (f0byte == 0x11) {
+              data += PrintRightXMMOperand(data);
+              AppendToBuffer(",%s", NameOfXMMRegister(regop));
+            } else {
+              AppendToBuffer("%s,", NameOfXMMRegister(regop));
+              data += PrintRightXMMOperand(data);
+            }
           } else if (f0byte == 0x2e) {
             data += 2;
             int mod, regop, rm;
@@ -1622,11 +1636,19 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         while (*data == 0x66) data++;
         if (*data == 0xf && data[1] == 0x1f) {
           AppendToBuffer("nop");  // 0x66 prefix
-        } else if (*data == 0x90) {
-          AppendToBuffer("nop");  // 0x66 prefix
-        } else if (*data == 0x8B) {
+        } else if (*data == 0x39) {
           data++;
-          data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
+          data += PrintOperands("cmpw", OPER_REG_OP_ORDER, data);
+        } else if (*data == 0x3B) {
+          data++;
+          data += PrintOperands("cmpw", REG_OPER_OP_ORDER, data);
+        } else if (*data == 0x81) {
+          data++;
+          AppendToBuffer("cmpw ");
+          data += PrintRightOperand(data);
+          int imm = *reinterpret_cast<int16_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 2;
         } else if (*data == 0x87) {
           data++;
           int mod, regop, rm;
@@ -1640,6 +1662,11 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("mov_w ");
           data += PrintRightOperand(data);
           AppendToBuffer(",%s", NameOfCPURegister(regop));
+        } else if (*data == 0x8B) {
+          data++;
+          data += PrintOperands("mov_w", REG_OPER_OP_ORDER, data);
+        } else if (*data == 0x90) {
+          AppendToBuffer("nop");  // 0x66 prefix
         } else if (*data == 0xC7) {
           data++;
           AppendToBuffer("%s ", "mov_w");

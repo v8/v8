@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_SOURCE_POSITION_H_
 #define V8_COMPILER_SOURCE_POSITION_H_
 
-#include "src/assembler.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ class SourcePosition final {
   int raw() const { return raw_; }
 
  private:
-  static const int kUnknownPosition = RelocInfo::kNoPosition;
+  static const int kUnknownPosition = kNoSourcePosition;
   int raw_;
 };
 

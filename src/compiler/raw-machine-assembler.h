@@ -255,6 +255,9 @@ class RawMachineAssembler {
   Node* Int32MulHigh(Node* a, Node* b) {
     return AddNode(machine()->Int32MulHigh(), a, b);
   }
+  Node* Int32MulWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int32MulWithOverflow(), a, b);
+  }
   Node* Int32Div(Node* a, Node* b) {
     return AddNode(machine()->Int32Div(), a, b);
   }
@@ -460,13 +463,32 @@ class RawMachineAssembler {
   }
   Node* Float64Abs(Node* a) { return AddNode(machine()->Float64Abs(), a); }
   Node* Float64Neg(Node* a) { return Float64Sub(Float64Constant(-0.0), a); }
+  Node* Float64Acos(Node* a) { return AddNode(machine()->Float64Acos(), a); }
+  Node* Float64Acosh(Node* a) { return AddNode(machine()->Float64Acosh(), a); }
+  Node* Float64Asin(Node* a) { return AddNode(machine()->Float64Asin(), a); }
+  Node* Float64Asinh(Node* a) { return AddNode(machine()->Float64Asinh(), a); }
   Node* Float64Atan(Node* a) { return AddNode(machine()->Float64Atan(), a); }
+  Node* Float64Atanh(Node* a) { return AddNode(machine()->Float64Atanh(), a); }
   Node* Float64Atan2(Node* a, Node* b) {
     return AddNode(machine()->Float64Atan2(), a, b);
   }
+  Node* Float64Cbrt(Node* a) { return AddNode(machine()->Float64Cbrt(), a); }
+  Node* Float64Cos(Node* a) { return AddNode(machine()->Float64Cos(), a); }
+  Node* Float64Cosh(Node* a) { return AddNode(machine()->Float64Cosh(), a); }
+  Node* Float64Exp(Node* a) { return AddNode(machine()->Float64Exp(), a); }
+  Node* Float64Expm1(Node* a) { return AddNode(machine()->Float64Expm1(), a); }
   Node* Float64Log(Node* a) { return AddNode(machine()->Float64Log(), a); }
   Node* Float64Log1p(Node* a) { return AddNode(machine()->Float64Log1p(), a); }
+  Node* Float64Log10(Node* a) { return AddNode(machine()->Float64Log10(), a); }
+  Node* Float64Log2(Node* a) { return AddNode(machine()->Float64Log2(), a); }
+  Node* Float64Pow(Node* a, Node* b) {
+    return AddNode(machine()->Float64Pow(), a, b);
+  }
+  Node* Float64Sin(Node* a) { return AddNode(machine()->Float64Sin(), a); }
+  Node* Float64Sinh(Node* a) { return AddNode(machine()->Float64Sinh(), a); }
   Node* Float64Sqrt(Node* a) { return AddNode(machine()->Float64Sqrt(), a); }
+  Node* Float64Tan(Node* a) { return AddNode(machine()->Float64Tan(), a); }
+  Node* Float64Tanh(Node* a) { return AddNode(machine()->Float64Tanh(), a); }
   Node* Float64Equal(Node* a, Node* b) {
     return AddNode(machine()->Float64Equal(), a, b);
   }
@@ -687,6 +709,9 @@ class RawMachineAssembler {
   // Tail call to a runtime function with four arguments.
   Node* TailCallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
                          Node* arg3, Node* arg4, Node* context);
+  // Tail call to a runtime function with five arguments.
+  Node* TailCallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* arg3, Node* arg4, Node* arg5, Node* context);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
@@ -743,10 +768,7 @@ class RawMachineAssembler {
   BasicBlock* CurrentBlock();
 
   Schedule* schedule() { return schedule_; }
-  size_t parameter_count() const { return machine_sig()->parameter_count(); }
-  const MachineSignature* machine_sig() const {
-    return call_descriptor_->GetMachineSignature();
-  }
+  size_t parameter_count() const { return call_descriptor_->ParameterCount(); }
 
   Isolate* isolate_;
   Graph* graph_;

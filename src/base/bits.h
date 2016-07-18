@@ -238,6 +238,10 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 #endif
 }
 
+// SignedMulOverflow32(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
 
 // SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and
@@ -258,6 +262,10 @@ inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
   return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
 }
 
+// SignedMulOverflow64(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val);
 
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and
 // |rhs|, extracts the most significant 32 bits of the result, and returns

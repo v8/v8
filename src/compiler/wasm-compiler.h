@@ -22,6 +22,7 @@ class JSGraph;
 class Graph;
 class Operator;
 class SourcePositionTable;
+class MachineOperatorBuilder;
 }  // namespace compiler
 
 namespace wasm {
@@ -29,7 +30,7 @@ namespace wasm {
 struct ModuleEnv;
 struct WasmFunction;
 class ErrorThrower;
-struct Tree;
+struct DecodeStruct;
 
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
@@ -72,26 +73,26 @@ class WasmCompilationUnit final {
   CompilationInfo info_;
   base::SmartPointer<CompilationJob> job_;
   uint32_t index_;
-  wasm::Result<wasm::Tree*> graph_construction_result_;
+  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_;
 };
 
 // Wraps a JS function, producing a code object that can be called from WASM.
-Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+Handle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                     Handle<JSFunction> function,
-                                    wasm::FunctionSig* sig,
-                                    wasm::WasmName module_name,
-                                    wasm::WasmName function_name);
+                                    wasm::FunctionSig* sig, uint32_t index,
+                                    Handle<String> import_module,
+                                    MaybeHandle<String> import_function);
 
-// Wraps a given wasm code object, producing a JSFunction that can be called
-// from JavaScript.
-Handle<JSFunction> CompileJSToWasmWrapper(
-    Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
-    Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index);
+// Wraps a given wasm code object, producing a code object.
+Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
+                                    Handle<Code> wasm_code, uint32_t index);
 
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
 class WasmTrapHelper;
+enum class Conversion { kNone, kOpaque, kInt32, kFloat32, kFloat64 };
+typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
@@ -120,11 +121,13 @@ class WasmGraphBuilder {
   Node* Phi(wasm::LocalType type, unsigned count, Node** vals, Node* control);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* NumberConstant(int32_t value);
+  Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
   Node* HeapConstant(Handle<HeapObject> value);
+  Node* DefaultS128Value();
   Node* Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
@@ -151,6 +154,9 @@ class WasmGraphBuilder {
                    wasm::WasmCodePosition position);
   Node* CallIndirect(uint32_t index, Node** args,
                      wasm::WasmCodePosition position);
+  Node* JITSingleFunction(Node* base, Node* length, Node* index,
+                          uint32_t sig_index, wasm::FunctionSig* sig,
+                          wasm::WasmCodePosition position);
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSFunction> function,
                             wasm::FunctionSig* sig);
@@ -159,6 +165,8 @@ class WasmGraphBuilder {
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
   Node* FunctionTable();
+  Node* ChangeToRuntimeCall(Node* node, Runtime::FunctionId function_id,
+                            Signature<Conversion>* signature);
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -190,6 +198,10 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
+  Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
+
+  bool has_simd_ops() { return has_simd_ops_; }
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
@@ -211,6 +223,7 @@ class WasmGraphBuilder {
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* source_position_table_ = nullptr;
+  bool has_simd_ops_ = false;
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }
@@ -233,6 +246,9 @@ class WasmGraphBuilder {
                                     int stride, int current);
   Node* BuildUnalignedStore(MachineType memtype, Node* index, uint32_t offset,
                             uint32_t alignment, Node* val);
+
+  Node* BuildChangeEndianness(Node* node, MachineType type,
+                              wasm::LocalType wasmtype = wasm::kAstStmt);
 
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
@@ -275,13 +291,6 @@ class WasmGraphBuilder {
 
   Node* BuildF64Acos(Node* input);
   Node* BuildF64Asin(Node* input);
-  Node* BuildF64Atan(Node* input);
-  Node* BuildF64Cos(Node* input);
-  Node* BuildF64Sin(Node* input);
-  Node* BuildF64Tan(Node* input);
-  Node* BuildF64Exp(Node* input);
-  Node* BuildF64Pow(Node* left, Node* right);
-  Node* BuildF64Atan2(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
 
   Node* BuildIntToFloatConversionInstruction(
@@ -318,11 +327,13 @@ class WasmGraphBuilder {
   Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
                                 Node* control);
   Node* BuildChangeInt32ToTagged(Node* value);
+  Node* BuildChangeTaggedToInt32(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);
   Node* BuildChangeTaggedToFloat64(Node* value);
 
   Node* BuildChangeInt32ToSmi(Node* value);
   Node* BuildChangeSmiToInt32(Node* value);
+  Node* BuildChangeUint32ToSmi(Node* value);
   Node* BuildChangeSmiToFloat64(Node* value);
   Node* BuildTestNotSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
@@ -330,6 +341,7 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
+  Node* BuildGrowMemory(Node* input);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
@@ -348,6 +360,9 @@ class WasmGraphBuilder {
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
+
+  // Simd helper functions
+  MachineOperatorBuilder* simd();
 };
 }  // namespace compiler
 }  // namespace internal

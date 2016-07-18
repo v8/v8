@@ -339,7 +339,8 @@ class MacroAssembler: public Assembler {
   //
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false);
+  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
   // memory (not GCed) on the stack accessible via StackSpaceOperand.
@@ -927,7 +928,6 @@ class MacroAssembler: public Assembler {
     AllowDeferredHandleDereference using_raw_address;
     DCHECK(!RelocInfo::IsNone(rmode));
     DCHECK(value->IsHeapObject());
-    DCHECK(!isolate()->heap()->InNewSpace(*value));
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
@@ -983,8 +983,14 @@ class MacroAssembler: public Assembler {
   void Movq(Register dst, XMMRegister src);
 
   void Movaps(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, const Operand& src);
+  void Movups(const Operand& dst, XMMRegister src);
   void Movapd(XMMRegister dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
+
+  void Xorps(XMMRegister dst, XMMRegister src);
+  void Xorps(XMMRegister dst, const Operand& src);
 
   void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
@@ -1469,7 +1475,8 @@ class MacroAssembler: public Assembler {
   void TailCallRuntime(Runtime::FunctionId fid);
 
   // Jump to a runtime routines
-  void JumpToExternalReference(const ExternalReference& ext);
+  void JumpToExternalReference(const ExternalReference& ext,
+                               bool builtin_exit_frame = false);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
@@ -1574,6 +1581,9 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
   // Expects object in rax and returns map with validated enum cache
   // in rax.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
@@ -1634,7 +1644,7 @@ class MacroAssembler: public Assembler {
                       Label::Distance near_jump,
                       const CallWrapper& call_wrapper);
 
-  void EnterExitFramePrologue(bool save_rax);
+  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
 
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.

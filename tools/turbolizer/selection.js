@@ -27,20 +27,29 @@ Selection.prototype.clear = function() {
 
 count = 0;
 
-Selection.prototype.select = function(s, selected) {
+Selection.prototype.select = function(s, isSelected) {
   var handler = this.handler;
-  if (this.selection.has(s) && !selected) {
-    handler.select([s], false);
-    this.selection.delete(s);
-    return;
+  if (!(Symbol.iterator in Object(s))) { s = [s]; }
+  if (isSelected) {
+    let first = true;
+    for (let i of s) {
+      if (first) {
+        this.selectionBase = i;
+        this.lastSelection = i;
+        first = false;
+      }
+      this.selection.add(i);
+    }
+  } else {
+    let unselectSet = new Set();
+    for (let i of s) {
+      if (this.selection.has(i)) {
+        unselectSet.add(i);
+        this.selection.delete(i);
+      }
+    }
   }
-
-  if (selected) {
-    this.selection.add(s);
-    this.selectionBase = s;
-    this.lastSelection = s;
-    handler.select(this.selection, selected);
-  }
+  handler.select(this.selection, isSelected);
 }
 
 

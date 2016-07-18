@@ -15,6 +15,8 @@ var ArrayJoin;
 var Bool16x8ToString;
 var Bool32x4ToString;
 var Bool8x16ToString;
+var callSiteConstructorSymbol =
+    utils.ImportNow("call_site_constructor_symbol");
 var callSiteReceiverSymbol =
     utils.ImportNow("call_site_receiver_symbol");
 var callSiteFunctionSymbol =
@@ -41,7 +43,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
 var StringIndexOf;
-var SymbolToString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var Uint16x8ToString;
 var Uint32x4ToString;
@@ -58,7 +59,6 @@ utils.Import(function(from) {
   Int8x16ToString = from.Int8x16ToString;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringIndexOf = from.StringIndexOf;
-  SymbolToString = from.SymbolToString;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
   Uint8x16ToString = from.Uint8x16ToString;
@@ -115,7 +115,7 @@ function NoSideEffectsToString(obj) {
     }
     return str;
   }
-  if (IS_SYMBOL(obj)) return %_Call(SymbolToString, obj);
+  if (IS_SYMBOL(obj)) return %SymbolDescriptiveString(obj);
   if (IS_SIMD_VALUE(obj)) {
     switch (typeof(obj)) {
       case 'float32x4': return %_Call(Float32x4ToString, obj);
@@ -302,8 +302,11 @@ function CheckCallSite(obj, name) {
 
 function CallSiteGetThis() {
   CheckCallSite(this, "getThis");
-  return GET_PRIVATE(this, callSiteStrictSymbol)
-      ? UNDEFINED : GET_PRIVATE(this, callSiteReceiverSymbol);
+  if (GET_PRIVATE(this, callSiteStrictSymbol)) {
+    return UNDEFINED;
+  }
+  var recv = GET_PRIVATE(this, callSiteReceiverSymbol);
+  return (recv == callSiteConstructorSymbol) ? UNDEFINED : recv;
 }
 
 function CallSiteGetFunction() {
@@ -596,12 +599,7 @@ function FormatStackTrace(obj, raw_stack) {
 function GetTypeName(receiver, requireConstructor) {
   if (IS_NULL_OR_UNDEFINED(receiver)) return null;
   if (IS_PROXY(receiver)) return "Proxy";
-
-  var constructor = %GetDataProperty(TO_OBJECT(receiver), "constructor");
-  if (!IS_FUNCTION(constructor)) {
-    return requireConstructor ? null : %_Call(NoSideEffectsToString, receiver);
-  }
-  return %FunctionGetName(constructor);
+  return %GetConstructorName(receiver);
 }
 
 

@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 '''
-Usage: runtime-call-stats.py [-h] <command> ...
+Usage: callstats.py [-h] <command> ...
 
 Optional arguments:
   -h, --help  show this help message and exit

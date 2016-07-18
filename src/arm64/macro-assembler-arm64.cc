@@ -1425,14 +1425,7 @@ void MacroAssembler::LoadTrueFalseRoots(Register true_root,
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    Mov(result, Operand(cell));
-    Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
-  } else {
-    Mov(result, Operand(object));
-  }
+  Mov(result, Operand(object));
 }
 
 
@@ -1536,7 +1529,7 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
                                                      Label* no_memento_found) {
   Label map_check;
   Label top_check;
-  ExternalReference new_space_allocation_top =
+  ExternalReference new_space_allocation_top_adr =
       ExternalReference::new_space_allocation_top_address(isolate());
   const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
   const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
@@ -1546,7 +1539,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   Add(scratch1, receiver, kMementoEndOffset);
   // If the object is in new space, we need to check whether it is on the same
   // page as the current top.
-  Eor(scratch2, scratch1, new_space_allocation_top);
+  Mov(scratch2, new_space_allocation_top_adr);
+  Ldr(scratch2, MemOperand(scratch2));
+  Eor(scratch2, scratch1, scratch2);
   Tst(scratch2, ~Page::kPageAlignmentMask);
   B(eq, &top_check);
   // The object is on a different page than allocation top. Bail out if the
@@ -1560,7 +1555,9 @@ void MacroAssembler::TestJSArrayForAllocationMemento(Register receiver,
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
   bind(&top_check);
-  Cmp(scratch1, new_space_allocation_top);
+  Mov(scratch2, new_space_allocation_top_adr);
+  Ldr(scratch2, MemOperand(scratch2));
+  Cmp(scratch1, scratch2);
   B(gt, no_memento_found);
   // Memento map check.
   bind(&map_check);
@@ -1762,13 +1759,13 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   CallStub(&stub);
 }
 
-
-void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
+                                             bool builtin_exit_frame) {
   Mov(x1, builtin);
-  CEntryStub stub(isolate(), 1);
+  CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                  builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
-
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   const Runtime::Function* function = Runtime::FunctionForId(fid);
@@ -1967,9 +1964,6 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
   Label start_call;
   Bind(&start_call);
 #endif
-  // Statement positions are expected to be recorded when the target
-  // address is loaded.
-  positions_recorder()->WriteRecordedPositions();
 
   // Addresses always have 64 bits, so we shouldn't encounter NONE32.
   DCHECK(rmode != RelocInfo::NONE32);
@@ -2492,11 +2486,12 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
                                              const ParameterCount& expected,
                                              const ParameterCount& actual) {
   Label skip_flooding;
-  ExternalReference step_in_enabled =
-      ExternalReference::debug_step_in_enabled_address(isolate());
-  Mov(x4, Operand(step_in_enabled));
-  ldrb(x4, MemOperand(x4));
-  CompareAndBranch(x4, Operand(0), eq, &skip_flooding);
+  ExternalReference last_step_action =
+      ExternalReference::debug_last_step_action_address(isolate());
+  STATIC_ASSERT(StepFrame > StepIn);
+  Mov(x4, Operand(last_step_action));
+  Ldrsb(x4, MemOperand(x4));
+  CompareAndBranch(x4, Operand(StepIn), lt, &skip_flooding);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -2828,16 +2823,30 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
   }
 }
 
+void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Push(lr, fp, context, target);
+  add(fp, jssp, Operand(2 * kPointerSize));
+  Push(argc);
+}
 
-void MacroAssembler::EnterExitFrame(bool save_doubles,
-                                    const Register& scratch,
-                                    int extra_space) {
+void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Pop(argc);
+  Pop(target, context, fp, lr);
+}
+
+void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
+                                    int extra_space,
+                                    StackFrame::Type frame_type) {
   DCHECK(jssp.Is(StackPointer()));
+  DCHECK(frame_type == StackFrame::EXIT ||
+         frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the new stack frame.
   Push(lr, fp);
   Mov(fp, StackPointer());
-  Mov(scratch, Smi::FromInt(StackFrame::EXIT));
+  Mov(scratch, Smi::FromInt(frame_type));
   Push(scratch);
   Push(xzr);
   Mov(scratch, Operand(CodeObject()));
@@ -4127,16 +4136,14 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
   PushCPURegList(CPURegList(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
-          ->allocatable_double_codes_mask()));
+      RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask()));
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   PopCPURegList(CPURegList(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
-          ->allocatable_double_codes_mask()));
+      RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask()));
   PopSafepointRegisters();
 }
 

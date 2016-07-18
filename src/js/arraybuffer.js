@@ -16,6 +16,7 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var SpeciesConstructor;
+var speciesSymbol = utils.ImportNow("species_symbol");
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
@@ -25,14 +26,6 @@ utils.Import(function(from) {
 });
 
 // -------------------------------------------------------------------
-
-function ArrayBufferGetByteLen() {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'ArrayBuffer.prototype.byteLength', this);
-  }
-  return %_ArrayBufferGetByteLength(this);
-}
 
 // ES6 Draft 15.13.5.5.3
 function ArrayBufferSlice(start, end) {
@@ -84,8 +77,12 @@ function ArrayBufferSlice(start, end) {
   return result;
 }
 
-utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
-                    ArrayBufferGetByteLen);
+
+function ArrayBufferSpecies() {
+  return this;
+}
+
+utils.InstallGetter(GlobalArrayBuffer, speciesSymbol, ArrayBufferSpecies);
 
 utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice

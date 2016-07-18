@@ -320,7 +320,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
   CHECK(f->IsOptimized());
-  CHECK(f->shared()->has_deoptimization_support());
+  // If the baseline code is bytecode, then it will not have deoptimization
+  // support. has_deoptimization_support() check is only required if the
+  // baseline code is from fullcodegen.
+  CHECK(f->shared()->has_deoptimization_support() || i::FLAG_ignition);
   object = f->feedback_vector()->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());

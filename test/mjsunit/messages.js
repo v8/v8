@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony
-// Flags: --harmony-simd --harmony-instanceof
+// Flags: --harmony-simd
 
 function test(f, expected, type) {
   try {

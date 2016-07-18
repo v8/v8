@@ -292,15 +292,19 @@ RUNTIME_FUNCTION(Runtime_SubString) {
     CONVERT_SMI_ARG_CHECKED(to_number, 2);
     start = from_number;
     end = to_number;
-  } else {
+  } else if (args[1]->IsNumber() && args[2]->IsNumber()) {
     CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
     CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
     start = FastD2IChecked(from_number);
     end = FastD2IChecked(to_number);
+  } else {
+    return isolate->ThrowIllegalOperation();
   }
-  RUNTIME_ASSERT(end >= start);
-  RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= string->length());
+  // The following condition is intentionally robust because the SubStringStub
+  // delegates here and we test this in cctest/test-strings/RobustSubStringStub.
+  if (end < start || start < 0 || end > string->length()) {
+    return isolate->ThrowIllegalOperation();
+  }
   isolate->counters()->sub_string_runtime()->Increment();
 
   return *isolate->factory()->NewSubString(string, start, end);
@@ -1056,7 +1060,7 @@ MUST_USE_RESULT static Object* ConvertCase(
   }
 
   Object* answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException() || answer->IsString()) return answer;
+  if (answer->IsException(isolate) || answer->IsString()) return answer;
 
   DCHECK(answer->IsSmi());
   length = Smi::cast(answer)->value();

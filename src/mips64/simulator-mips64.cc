@@ -3977,12 +3977,57 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           alu_out = static_cast<int64_t>(static_cast<int32_t>(output));
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          alu_out = 0x12345678;
-          UNREACHABLE();
+        case SEB: {
+          uint8_t input = static_cast<uint8_t>(rt());
+          uint32_t output = input;
+          uint32_t mask = 0x00000080;
+
+          // Extending sign
+          if (mask & input) {
+            output |= 0xFFFFFF00;
+          }
+
+          alu_out = static_cast<int32_t>(output);
           break;
+        }
+        case SEH: {
+          uint16_t input = static_cast<uint16_t>(rt());
+          uint32_t output = input;
+          uint32_t mask = 0x00008000;
+
+          // Extending sign
+          if (mask & input) {
+            output |= 0xFFFF0000;
+          }
+
+          alu_out = static_cast<int32_t>(output);
+          break;
+        }
+        case WSBH: {
+          uint32_t input = static_cast<uint32_t>(rt());
+          uint64_t output = 0;
+
+          uint32_t mask = 0xFF000000;
+          for (int i = 0; i < 4; i++) {
+            uint32_t tmp = mask & input;
+            if (i % 2 == 0) {
+              tmp = tmp >> 8;
+            } else {
+              tmp = tmp << 8;
+            }
+            output = output | tmp;
+            mask = mask >> 8;
+          }
+          mask = 0x80000000;
+
+          // Extending sign
+          if (mask & output) {
+            output |= 0xFFFFFFFF00000000;
+          }
+
+          alu_out = static_cast<int64_t>(output);
+          break;
+        }
         default: {
           const uint8_t bp2 = get_instr()->Bp2Value();
           sa >>= kBp2Bits;
@@ -4041,11 +4086,47 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           }
           break;
         }
-        case DSBH:
-        case DSHD:
-          alu_out = 0x12345678;
-          UNREACHABLE();
+        case DSBH: {
+          uint64_t input = static_cast<uint64_t>(rt());
+          uint64_t output = 0;
+
+          uint64_t mask = 0xFF00000000000000;
+          for (int i = 0; i < 8; i++) {
+            uint64_t tmp = mask & input;
+            if (i % 2 == 0)
+              tmp = tmp >> 8;
+            else
+              tmp = tmp << 8;
+
+            output = output | tmp;
+            mask = mask >> 8;
+          }
+
+          alu_out = static_cast<int64_t>(output);
           break;
+        }
+        case DSHD: {
+          uint64_t input = static_cast<uint64_t>(rt());
+          uint64_t output = 0;
+
+          uint64_t mask = 0xFFFF000000000000;
+          for (int i = 0; i < 4; i++) {
+            uint64_t tmp = mask & input;
+            if (i == 0)
+              tmp = tmp >> 48;
+            else if (i == 1)
+              tmp = tmp >> 16;
+            else if (i == 2)
+              tmp = tmp << 16;
+            else
+              tmp = tmp << 48;
+            output = output | tmp;
+            mask = mask >> 16;
+          }
+
+          alu_out = static_cast<int64_t>(output);
+          break;
+        }
         default: {
           const uint8_t bp3 = get_instr()->Bp3Value();
           sa >>= kBp3Bits;
@@ -4095,31 +4176,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
       DecodeTypeRegisterSPECIAL2();
       break;
     case SPECIAL3:
-      switch (instr->FunctionFieldRaw()) {
-        case BSHFL: {
-          int32_t saVal = sa();
-          saVal >>= kBp2Bits;
-          switch (saVal) {
-            case ALIGN: {
-              DecodeTypeRegisterSPECIAL3();
-              break;
-            }
-          }
-        }
-        case DBSHFL: {
-          int32_t saVal = sa();
-          saVal >>= kBp2Bits;
-          switch (saVal) {
-            case DALIGN: {
-              DecodeTypeRegisterSPECIAL3();
-              break;
-            }
-          }
-        }
-        default:
-          DecodeTypeRegisterSPECIAL3();
-          break;
-      }
+      DecodeTypeRegisterSPECIAL3();
       break;
     // Unimplemented opcodes raised an error in the configuration step before,
     // so we can use the default here to set the destination register in common

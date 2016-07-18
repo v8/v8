@@ -87,7 +87,7 @@ void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
 }
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
-  for (size_t i = 0; i < code_size; i++) {
+  for (size_t i = 0; i < code_size; ++i) {
     body_.push_back(code[i]);
   }
 }
@@ -129,7 +129,7 @@ void WasmFunctionBuilder::SetExported() { exported_ = true; }
 void WasmFunctionBuilder::SetName(const char* name, int name_length) {
   name_.clear();
   if (name_length > 0) {
-    for (int i = 0; i < name_length; i++) {
+    for (int i = 0; i < name_length; ++i) {
       name_.push_back(*(name + i));
     }
   }
@@ -165,7 +165,7 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
 WasmDataSegmentEncoder::WasmDataSegmentEncoder(Zone* zone, const byte* data,
                                                uint32_t size, uint32_t dest)
     : data_(zone), dest_(dest) {
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; ++i) {
     data_.push_back(data[i]);
   }
 }

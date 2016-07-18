@@ -369,7 +369,11 @@ std::ostream& operator<<(std::ostream& os, const Node& n) {
     os << "(";
     for (int i = 0; i < n.InputCount(); ++i) {
       if (i != 0) os << ", ";
-      os << n.InputAt(i)->id();
+      if (n.InputAt(i)) {
+        os << n.InputAt(i)->id();
+      } else {
+        os << "null";
+      }
     }
     os << ")";
   }

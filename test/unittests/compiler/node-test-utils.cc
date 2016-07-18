@@ -1343,32 +1343,6 @@ class IsStackSlotMatcher final : public NodeMatcher {
   const Matcher<MachineRepresentation> rep_matcher_;
 };
 
-class IsTypeGuardMatcher final : public NodeMatcher {
- public:
-  IsTypeGuardMatcher(const Matcher<Type*>& type_matcher,
-                     const Matcher<Node*>& value_matcher,
-                     const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kTypeGuard),
-        type_matcher_(type_matcher),
-        value_matcher_(value_matcher),
-        control_matcher_(control_matcher) {}
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<Type*>(node->op()), "type",
-                                 type_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
-                                 "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node, 0),
-                                 "control", control_matcher_, listener));
-  }
-
- private:
-  const Matcher<Type*> type_matcher_;
-  const Matcher<Node*> value_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
 class IsToNumberMatcher final : public NodeMatcher {
  public:
   IsToNumberMatcher(const Matcher<Node*>& base_matcher,
@@ -2049,13 +2023,6 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsTypeGuard(const Matcher<Type*>& type_matcher,
-                           const Matcher<Node*>& value_matcher,
-                           const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(
-      new IsTypeGuardMatcher(type_matcher, value_matcher, control_matcher));
-}
-
 Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
                                 const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher) {
@@ -2080,6 +2047,16 @@ Matcher<Node*> IsSpeculativeNumberSubtract(
     const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsSpeculativeBinopMatcher(
       IrOpcode::kSpeculativeNumberSubtract, hint_matcher, lhs_matcher,
+      rhs_matcher, effect_matcher, control_matcher));
+}
+
+Matcher<Node*> IsSpeculativeNumberShiftLeft(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsSpeculativeBinopMatcher(
+      IrOpcode::kSpeculativeNumberShiftLeft, hint_matcher, lhs_matcher,
       rhs_matcher, effect_matcher, control_matcher));
 }
 
@@ -2251,6 +2228,7 @@ IS_BINOP_MATCHER(NumberShiftRight)
 IS_BINOP_MATCHER(NumberShiftRightLogical)
 IS_BINOP_MATCHER(NumberImul)
 IS_BINOP_MATCHER(NumberAtan2)
+IS_BINOP_MATCHER(NumberPow)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Or)
 IS_BINOP_MATCHER(Word32Xor)
@@ -2265,6 +2243,7 @@ IS_BINOP_MATCHER(Word64Sar)
 IS_BINOP_MATCHER(Word64Shl)
 IS_BINOP_MATCHER(Word64Equal)
 IS_BINOP_MATCHER(Int32AddWithOverflow)
+IS_BINOP_MATCHER(Int32SubWithOverflow)
 IS_BINOP_MATCHER(Int32Add)
 IS_BINOP_MATCHER(Int32Sub)
 IS_BINOP_MATCHER(Int32Mul)
@@ -2310,9 +2289,34 @@ IS_UNOP_MATCHER(Float64RoundTruncate)
 IS_UNOP_MATCHER(Float64RoundTiesAway)
 IS_UNOP_MATCHER(Float64ExtractLowWord32)
 IS_UNOP_MATCHER(Float64ExtractHighWord32)
+IS_UNOP_MATCHER(NumberAbs)
+IS_UNOP_MATCHER(NumberAcos)
+IS_UNOP_MATCHER(NumberAcosh)
+IS_UNOP_MATCHER(NumberAsin)
+IS_UNOP_MATCHER(NumberAsinh)
 IS_UNOP_MATCHER(NumberAtan)
+IS_UNOP_MATCHER(NumberAtanh)
+IS_UNOP_MATCHER(NumberCeil)
+IS_UNOP_MATCHER(NumberClz32)
+IS_UNOP_MATCHER(NumberCbrt)
+IS_UNOP_MATCHER(NumberCos)
+IS_UNOP_MATCHER(NumberCosh)
+IS_UNOP_MATCHER(NumberExp)
+IS_UNOP_MATCHER(NumberExpm1)
+IS_UNOP_MATCHER(NumberFloor)
+IS_UNOP_MATCHER(NumberFround)
 IS_UNOP_MATCHER(NumberLog)
 IS_UNOP_MATCHER(NumberLog1p)
+IS_UNOP_MATCHER(NumberLog10)
+IS_UNOP_MATCHER(NumberLog2)
+IS_UNOP_MATCHER(NumberRound)
+IS_UNOP_MATCHER(NumberSign)
+IS_UNOP_MATCHER(NumberSin)
+IS_UNOP_MATCHER(NumberSinh)
+IS_UNOP_MATCHER(NumberSqrt)
+IS_UNOP_MATCHER(NumberTan)
+IS_UNOP_MATCHER(NumberTanh)
+IS_UNOP_MATCHER(NumberTrunc)
 IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(PlainPrimitiveToNumber)

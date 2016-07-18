@@ -96,11 +96,11 @@ void RunWithProfiler(void (*test)()) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::String> profile_name = v8_str("my_profile1");
-  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
-
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
   cpu_profiler->StartProfiling(profile_name);
   (*test)();
   reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
+  cpu_profiler->Dispose();
 }
 
 
@@ -13351,7 +13351,7 @@ THREADED_TEST(ObjectProtoToString) {
   value =
       context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object global]")).FromJust());
+        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
 
   // Check ordinary object
   Local<Value> object =
@@ -13397,7 +13397,7 @@ TEST(ObjectProtoToStringES6) {
   value =
       context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object global]")).FromJust());
+        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
 
   // Check ordinary object
   Local<Value> object = CompileRun("new Object()");
@@ -14853,8 +14853,7 @@ THREADED_TEST(ExternalAllocatedMemory) {
            isolate->AdjustAmountOfExternalAllocatedMemory(kSize));
   CHECK_EQ(baseline,
            isolate->AdjustAmountOfExternalAllocatedMemory(-kSize));
-  const int64_t kTriggerGCSize =
-      v8::internal::Internals::kExternalAllocationLimit + 1;
+  const int64_t kTriggerGCSize = i::kExternalAllocationLimit + 1;
   CHECK_EQ(baseline + kTriggerGCSize,
            isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize));
   CHECK_EQ(baseline,
@@ -14866,8 +14865,7 @@ TEST(Regress51719) {
   i::FLAG_incremental_marking = false;
   CcTest::InitializeVM();
 
-  const int64_t kTriggerGCSize =
-      v8::internal::Internals::kExternalAllocationLimit + 1;
+  const int64_t kTriggerGCSize = i::kExternalAllocationLimit + 1;
   v8::Isolate* isolate = CcTest::isolate();
   isolate->AdjustAmountOfExternalAllocatedMemory(kTriggerGCSize);
 }
@@ -16997,40 +16995,6 @@ TEST(CaptureStackTraceForUncaughtException) {
   CHECK_EQ(1, report_count);
 }
 
-
-TEST(GetStackTraceForUncaughtExceptionFromSimpleStackTrace) {
-  report_count = 0;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  // Create an Error object first.
-  CompileRunWithOrigin(
-      "function foo() {\n"
-      "e=new Error('err');\n"
-      "};\n"
-      "function bar() {\n"
-      "  foo();\n"
-      "};\n"
-      "var e;",
-      "origin");
-  v8::Local<v8::Object> global = env->Global();
-  Local<Value> trouble =
-      global->Get(env.local(), v8_str("bar")).ToLocalChecked();
-  CHECK(trouble->IsFunction());
-  Function::Cast(*trouble)->Call(env.local(), global, 0, NULL).ToLocalChecked();
-
-  // Enable capturing detailed stack trace late, and throw the exception.
-  // The detailed stack trace should be extracted from the simple stack.
-  isolate->AddMessageListener(StackTraceForUncaughtExceptionListener);
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
-  CompileRunWithOrigin("throw e", "origin");
-  isolate->SetCaptureStackTraceForUncaughtExceptions(false);
-  isolate->RemoveMessageListeners(StackTraceForUncaughtExceptionListener);
-  CHECK_EQ(1, report_count);
-}
-
-
 TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -18544,7 +18508,6 @@ THREADED_TEST(FunctionGetInferredName) {
 
 
 THREADED_TEST(FunctionGetDebugName) {
-  i::FLAG_harmony_function_name = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   const char* code =
@@ -20079,7 +20042,6 @@ TEST(PersistentHandleInNewSpaceVisitor) {
 
 
 TEST(RegExp) {
-  i::FLAG_harmony_unicode_regexps = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -20480,6 +20442,7 @@ TEST(HasOwnProperty) {
         HasOwnPropertyNamedPropertyGetter));
     Local<Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("42")).FromJust());
+    CHECK(!instance->HasOwnProperty(env.local(), 42).FromJust());
     CHECK(instance->HasOwnProperty(env.local(), v8_str("foo")).FromJust());
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("bar")).FromJust());
   }
@@ -20489,7 +20452,9 @@ TEST(HasOwnProperty) {
         HasOwnPropertyIndexedPropertyGetter));
     Local<Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
     CHECK(instance->HasOwnProperty(env.local(), v8_str("42")).FromJust());
+    CHECK(instance->HasOwnProperty(env.local(), 42).FromJust());
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("43")).FromJust());
+    CHECK(!instance->HasOwnProperty(env.local(), 43).FromJust());
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("foo")).FromJust());
   }
   { // Check named query interceptors.
@@ -20506,7 +20471,9 @@ TEST(HasOwnProperty) {
         0, 0, HasOwnPropertyIndexedPropertyQuery));
     Local<Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
     CHECK(instance->HasOwnProperty(env.local(), v8_str("42")).FromJust());
+    CHECK(instance->HasOwnProperty(env.local(), 42).FromJust());
     CHECK(!instance->HasOwnProperty(env.local(), v8_str("41")).FromJust());
+    CHECK(!instance->HasOwnProperty(env.local(), 41).FromJust());
   }
   { // Check callbacks.
     Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
@@ -22386,7 +22353,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
   CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
   CheckCorrectThrow("%HasProperty('x', other)");
-  CheckCorrectThrow("%PropertyIsEnumerable(other, 'x')");
+  CheckCorrectThrow("Object.prototype.propertyIsEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
                         "other, 'x', null, null, 1)");
@@ -25070,7 +25037,7 @@ TEST(FutexInterruption) {
   CompileRun(
       "var ab = new SharedArrayBuffer(4);"
       "var i32a = new Int32Array(ab);"
-      "Atomics.futexWait(i32a, 0, 0);");
+      "Atomics.wait(i32a, 0, 0);");
   CHECK(try_catch.HasTerminated());
   timeout_thread.Join();
 }
@@ -25346,4 +25313,33 @@ TEST(PrivateForApiIsNumber) {
 
   // Shouldn't crash.
   v8::Private::ForApi(isolate, v8_str("42"));
+}
+
+THREADED_TEST(ImmutableProto) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->InstanceTemplate()->SetImmutableProto();
+
+  Local<v8::Object> object = templ->GetFunction(context.local())
+                                 .ToLocalChecked()
+                                 ->NewInstance(context.local())
+                                 .ToLocalChecked();
+
+  // Look up the prototype
+  Local<v8::Value> original_proto =
+      object->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+
+  // Setting the prototype (e.g., to null) throws
+  CHECK(object->SetPrototype(context.local(), v8::Null(isolate)).IsNothing());
+
+  // The original prototype is still there
+  Local<Value> new_proto =
+      object->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
+  CHECK(new_proto->IsObject());
+  CHECK(new_proto.As<v8::Object>()
+            ->Equals(context.local(), original_proto)
+            .FromJust());
 }

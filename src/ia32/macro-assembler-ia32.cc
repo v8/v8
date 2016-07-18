@@ -1130,8 +1130,27 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   leave();
 }
 
+void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Push(ebp);
+  Move(ebp, esp);
+  Push(context);
+  Push(target);
+  Push(argc);
+}
 
-void MacroAssembler::EnterExitFramePrologue() {
+void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
+                                       Register argc) {
+  Pop(argc);
+  Pop(target);
+  Pop(context);
+  leave();
+}
+
+void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
+  DCHECK(frame_type == StackFrame::EXIT ||
+         frame_type == StackFrame::BUILTIN_EXIT);
+
   // Set up the frame structure on the stack.
   DCHECK_EQ(+2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(+1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -1140,7 +1159,7 @@ void MacroAssembler::EnterExitFramePrologue() {
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
-  push(Immediate(Smi::FromInt(StackFrame::EXIT)));
+  push(Immediate(Smi::FromInt(frame_type)));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
@@ -1182,9 +1201,9 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
 }
 
-
-void MacroAssembler::EnterExitFrame(int argc, bool save_doubles) {
-  EnterExitFramePrologue();
+void MacroAssembler::EnterExitFrame(int argc, bool save_doubles,
+                                    StackFrame::Type frame_type) {
+  EnterExitFramePrologue(frame_type);
 
   // Set up argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
@@ -1197,7 +1216,7 @@ void MacroAssembler::EnterExitFrame(int argc, bool save_doubles) {
 
 
 void MacroAssembler::EnterApiExitFrame(int argc) {
-  EnterExitFramePrologue();
+  EnterExitFramePrologue(StackFrame::EXIT);
   EnterExitFrameEpilogue(argc, false);
 }
 
@@ -2201,11 +2220,12 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-
-void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
+                                             bool builtin_exit_frame) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
-  CEntryStub ces(isolate(), 1);
+  CEntryStub ces(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
+                 builtin_exit_frame);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
@@ -2362,10 +2382,11 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
                                              const ParameterCount& expected,
                                              const ParameterCount& actual) {
   Label skip_flooding;
-  ExternalReference step_in_enabled =
-      ExternalReference::debug_step_in_enabled_address(isolate());
-  cmpb(Operand::StaticVariable(step_in_enabled), Immediate(0));
-  j(equal, &skip_flooding);
+  ExternalReference last_step_action =
+      ExternalReference::debug_last_step_action_address(isolate());
+  STATIC_ASSERT(StepFrame > StepIn);
+  cmpb(Operand::StaticVariable(last_step_action), Immediate(StepIn));
+  j(less, &skip_flooding);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -2594,37 +2615,15 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 void MacroAssembler::LoadHeapObject(Register result,
                                     Handle<HeapObject> object) {
-  AllowDeferredHandleDereference embedding_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    mov(result, Operand::ForCell(cell));
-  } else {
-    mov(result, object);
-  }
+  mov(result, object);
 }
 
 
 void MacroAssembler::CmpHeapObject(Register reg, Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    cmp(reg, Operand::ForCell(cell));
-  } else {
-    cmp(reg, object);
-  }
+  cmp(reg, object);
 }
 
-
-void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
-  AllowDeferredHandleDereference using_raw_address;
-  if (isolate()->heap()->InNewSpace(*object)) {
-    Handle<Cell> cell = isolate()->factory()->NewCell(object);
-    push(Operand::ForCell(cell));
-  } else {
-    Push(object);
-  }
-}
-
+void MacroAssembler::PushHeapObject(Handle<HeapObject> object) { Push(object); }
 
 void MacroAssembler::CmpWeakValue(Register value, Handle<WeakCell> cell,
                                   Register scratch) {
@@ -2678,7 +2677,7 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Move(Register dst, const Immediate& x) {
-  if (x.is_zero()) {
+  if (x.is_zero() && RelocInfo::IsNone(x.rmode_)) {
     xor_(dst, dst);  // Shorter than mov of 32-bit immediate 0.
   } else {
     mov(dst, x);

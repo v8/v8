@@ -15,14 +15,15 @@ group("gn_all") {
     # These items don't compile for Android on Mac.
     deps += [
       "cctest:cctest",
+      "cctest:generate-bytecode-expectations",
       "unittests:unittests",
     ]
   }
 
   if (v8_test_isolation_mode != "noop") {
     deps += [
-      ":bot_default_run",
       ":benchmarks_run",
+      ":bot_default_run",
       ":default_run",
       ":mozilla_run",
       ":simdjs_run",
@@ -53,7 +54,7 @@ group("default_tests") {
 
 v8_isolate_run("bot_default") {
   deps = [
-    ":default_tests", 
+    ":default_tests",
     ":webkit_run",
   ]
 
@@ -130,8 +131,8 @@ v8_isolate_run("fuzzer") {
     "..:v8_simple_json_fuzzer",
     "..:v8_simple_parser_fuzzer",
     "..:v8_simple_regexp_fuzzer",
-    "..:v8_simple_wasm_fuzzer",
     "..:v8_simple_wasm_asmjs_fuzzer",
+    "..:v8_simple_wasm_fuzzer",
   ]
 
   isolate = "fuzzer/fuzzer.isolate"

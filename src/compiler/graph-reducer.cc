@@ -168,6 +168,10 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 
 
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
+  if (FLAG_trace_turbo_reduction) {
+    OFStream os(stdout);
+    os << "- Replacing " << *node << " with " << *replacement << std::endl;
+  }
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {

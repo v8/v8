@@ -176,10 +176,10 @@ void FullCodeGenerator::Generate() {
       if (info->scope()->new_target_var() != nullptr) {
         __ push(edx);  // Preserve new target.
       }
-      if (slots <= FastNewContextStub::kMaximumSlots) {
-        FastNewContextStub stub(isolate(), slots);
+      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
+        FastNewFunctionContextStub stub(isolate(), slots);
         __ CallStub(&stub);
-        // Result of FastNewContextStub is always in new space.
+        // Result of FastNewFunctionContextStub is always in new space.
         need_write_barrier = false;
       } else {
         __ push(edi);
@@ -490,11 +490,12 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
                                           true,
                                           true_label_,
                                           false_label_);
-  DCHECK(lit->IsNull() || lit->IsUndefined(isolate()) ||
+  DCHECK(lit->IsNull(isolate()) || lit->IsUndefined(isolate()) ||
          !lit->IsUndetectable());
-  if (lit->IsUndefined(isolate()) || lit->IsNull() || lit->IsFalse()) {
+  if (lit->IsUndefined(isolate()) || lit->IsNull(isolate()) ||
+      lit->IsFalse(isolate())) {
     if (false_label_ != fall_through_) __ jmp(false_label_);
-  } else if (lit->IsTrue() || lit->IsJSObject()) {
+  } else if (lit->IsTrue(isolate()) || lit->IsJSObject()) {
     if (true_label_ != fall_through_) __ jmp(true_label_);
   } else if (lit->IsString()) {
     if (String::cast(*lit)->length() == 0) {
@@ -719,12 +720,14 @@ void FullCodeGenerator::VisitVariableDeclaration(
   bool hole_init = mode == LET || mode == CONST;
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
-    case VariableLocation::UNALLOCATED:
+    case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
-      globals_->Add(variable->name(), zone());
+      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       globals_->Add(isolate()->factory()->undefined_value(), zone());
       break;
-
+    }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
       if (hole_init) {
@@ -747,14 +750,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
 
     case VariableLocation::LOOKUP: {
       Comment cmnt(masm_, "[ VariableDeclaration");
-      __ push(Immediate(variable->name()));
-      // VariableDeclaration nodes are always introduced in one of four modes.
-      DCHECK(IsDeclaredVariableMode(mode));
+      DCHECK_EQ(VAR, mode);
       DCHECK(!hole_init);
-      __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
-      __ push(
-          Immediate(Smi::FromInt(variable->DeclarationPropertyAttributes())));
-      __ CallRuntime(Runtime::kDeclareLookupSlot);
+      __ push(Immediate(variable->name()));
+      __ CallRuntime(Runtime::kDeclareEvalVar);
       PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       break;
     }
@@ -769,7 +768,9 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   switch (variable->location()) {
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
-      globals_->Add(variable->name(), zone());
+      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       Handle<SharedFunctionInfo> function =
           Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
       // Check for stack-overflow exception.
@@ -807,8 +808,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       Comment cmnt(masm_, "[ FunctionDeclaration");
       PushOperand(variable->name());
       VisitForStackValue(declaration->fun());
-      PushOperand(Smi::FromInt(variable->DeclarationPropertyAttributes()));
-      CallRuntimeWithOperands(Runtime::kDeclareLookupSlot);
+      CallRuntimeWithOperands(Runtime::kDeclareEvalFunction);
       PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
       break;
     }
@@ -820,15 +820,9 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ Push(pairs);
   __ Push(Smi::FromInt(DeclareGlobalsFlags()));
+  __ EmitLoadTypeFeedbackVector(eax);
+  __ Push(eax);
   __ CallRuntime(Runtime::kDeclareGlobals);
-  // Return value is ignored.
-}
-
-
-void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
-  // Call the runtime to declare the modules.
-  __ Push(descriptions);
-  __ CallRuntime(Runtime::kDeclareModules);
   // Return value is ignored.
 }
 
@@ -1220,17 +1214,14 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
 
 void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
                                                TypeofMode typeof_mode) {
+#ifdef DEBUG
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  __ mov(LoadDescriptor::ReceiverRegister(), NativeContextOperand());
-  __ mov(LoadDescriptor::ReceiverRegister(),
-         ContextOperand(LoadDescriptor::ReceiverRegister(),
-                        Context::EXTENSION_INDEX));
-  __ mov(LoadDescriptor::NameRegister(), var->name());
-  __ mov(LoadDescriptor::SlotRegister(),
+#endif
+  __ mov(LoadGlobalDescriptor::SlotRegister(),
          Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
-  CallLoadIC(typeof_mode);
+  CallLoadGlobalIC(typeof_mode);
 }
 
 
@@ -1296,18 +1287,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       break;
     }
   }
-}
-
-
-void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  Comment cmnt(masm_, "[ RegExpLiteral");
-  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ Move(eax, Immediate(Smi::FromInt(expr->literal_index())));
-  __ Move(ecx, Immediate(expr->pattern()));
-  __ Move(edx, Immediate(Smi::FromInt(expr->flags())));
-  FastCloneRegExpStub stub(isolate());
-  __ CallStub(&stub);
-  context()->Plug(eax);
 }
 
 
@@ -1485,6 +1464,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             PushOperand(Smi::FromInt(NONE));
             PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
             CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
+            PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
+                                   BailoutState::NO_REGISTERS);
           } else {
             DropOperands(3);
           }
@@ -1760,7 +1741,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   // When we arrive here, eax holds the generator object.
   __ RecordGeneratorContinuation();
   __ mov(ebx, FieldOperand(eax, JSGeneratorObject::kResumeModeOffset));
-  __ mov(eax, FieldOperand(eax, JSGeneratorObject::kInputOffset));
+  __ mov(eax, FieldOperand(eax, JSGeneratorObject::kInputOrDebugPosOffset));
   STATIC_ASSERT(JSGeneratorObject::kNext < JSGeneratorObject::kReturn);
   STATIC_ASSERT(JSGeneratorObject::kThrow > JSGeneratorObject::kReturn);
   __ cmp(ebx, Immediate(Smi::FromInt(JSGeneratorObject::kReturn)));
@@ -1771,7 +1752,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
   EmitUnwindAndReturn();
 
   __ bind(&exception);
-  __ CallRuntime(Runtime::kThrow);
+  __ CallRuntime(expr->rethrow_on_exception() ? Runtime::kReThrow
+                                              : Runtime::kThrow);
 
   __ bind(&suspend);
   OperandStackDepthIncrement(1);  // Not popped on this path.
@@ -2766,25 +2748,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));  // Load the object.
-
-  Label done;
-  // If the object is a smi return the object.
-  __ JumpIfSmi(eax, &done, Label::kNear);
-  // If the object is not a value type, return the object.
-  __ CmpObjectType(eax, JS_VALUE_TYPE, ebx);
-  __ j(not_equal, &done, Label::kNear);
-  __ mov(eax, FieldOperand(eax, JSValue::kValueOffset));
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);
@@ -3224,6 +3187,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Convert old value into a number.
   __ Call(isolate()->builtins()->ToNumber(), RelocInfo::CODE_TARGET);
+  RestoreContext();
   PrepareForBailoutForId(expr->ToNumberId(), BailoutState::TOS_REGISTER);
 
   // Save result for postfix expressions.
@@ -3308,6 +3272,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
     case NAMED_SUPER_PROPERTY: {
       EmitNamedSuperPropertyStore(prop);
+      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();
@@ -3319,6 +3284,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
     case KEYED_SUPER_PROPERTY: {
       EmitKeyedSuperPropertyStore(prop);
+      PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();

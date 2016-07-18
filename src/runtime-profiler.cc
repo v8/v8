@@ -21,7 +21,7 @@ namespace internal {
 
 // Number of times a function has to be seen on the stack before it is
 // compiled for baseline.
-static const int kProfilerTicksBeforeBaseline = 2;
+static const int kProfilerTicksBeforeBaseline = 1;
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;

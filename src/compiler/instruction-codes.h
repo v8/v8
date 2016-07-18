@@ -89,10 +89,27 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(AtomicStoreWord8)                     \
   V(AtomicStoreWord16)                    \
   V(AtomicStoreWord32)                    \
+  V(Ieee754Float64Acos)                   \
+  V(Ieee754Float64Acosh)                  \
+  V(Ieee754Float64Asin)                   \
+  V(Ieee754Float64Asinh)                  \
   V(Ieee754Float64Atan)                   \
+  V(Ieee754Float64Atanh)                  \
   V(Ieee754Float64Atan2)                  \
+  V(Ieee754Float64Cbrt)                   \
+  V(Ieee754Float64Cos)                    \
+  V(Ieee754Float64Cosh)                   \
+  V(Ieee754Float64Exp)                    \
+  V(Ieee754Float64Expm1)                  \
   V(Ieee754Float64Log)                    \
-  V(Ieee754Float64Log1p)
+  V(Ieee754Float64Log1p)                  \
+  V(Ieee754Float64Log10)                  \
+  V(Ieee754Float64Log2)                   \
+  V(Ieee754Float64Pow)                    \
+  V(Ieee754Float64Sin)                    \
+  V(Ieee754Float64Sinh)                   \
+  V(Ieee754Float64Tan)                    \
+  V(Ieee754Float64Tanh)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \
@@ -161,7 +178,9 @@ enum FlagsCondition {
   kUnorderedEqual,
   kUnorderedNotEqual,
   kOverflow,
-  kNotOverflow
+  kNotOverflow,
+  kPositiveOrZero,
+  kNegative
 };
 
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {

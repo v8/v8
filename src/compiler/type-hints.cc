@@ -16,8 +16,8 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
       return os << "SignedSmall";
     case BinaryOperationHints::kSigned32:
       return os << "Signed32";
-    case BinaryOperationHints::kNumberOrUndefined:
-      return os << "NumberOrUndefined";
+    case BinaryOperationHints::kNumberOrOddball:
+      return os << "NumberOrOddball";
     case BinaryOperationHints::kString:
       return os << "String";
     case BinaryOperationHints::kAny:
@@ -27,11 +27,39 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHints::Hint hint) {
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, BinaryOperationHints hints) {
   return os << hints.left() << "*" << hints.right() << "->" << hints.result();
 }
 
+std::ostream& operator<<(std::ostream& os, CompareOperationHints::Hint hint) {
+  switch (hint) {
+    case CompareOperationHints::kNone:
+      return os << "None";
+    case CompareOperationHints::kBoolean:
+      return os << "Boolean";
+    case CompareOperationHints::kSignedSmall:
+      return os << "SignedSmall";
+    case CompareOperationHints::kNumberOrOddball:
+      return os << "NumberOrOddball";
+    case CompareOperationHints::kString:
+      return os << "String";
+    case CompareOperationHints::kInternalizedString:
+      return os << "InternalizedString";
+    case CompareOperationHints::kUniqueName:
+      return os << "UniqueName";
+    case CompareOperationHints::kReceiver:
+      return os << "Receiver";
+    case CompareOperationHints::kAny:
+      return os << "Any";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, CompareOperationHints hints) {
+  return os << hints.left() << "*" << hints.right() << " (" << hints.combined()
+            << ")";
+}
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   switch (hint) {
@@ -62,7 +90,6 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
   if (hints == ToBooleanHint::kAny) return os << "Any";
   if (hints == ToBooleanHint::kNone) return os << "None";
@@ -85,10 +112,10 @@ bool BinaryOperationHints::Is(Hint h1, Hint h2) {
     case kNone:
       return true;
     case kSignedSmall:
-      return h2 == kSigned32 || h2 == kNumberOrUndefined || h2 == kAny;
+      return h2 == kSigned32 || h2 == kNumberOrOddball || h2 == kAny;
     case kSigned32:
-      return h2 == kNumberOrUndefined || h2 == kAny;
-    case kNumberOrUndefined:
+      return h2 == kNumberOrOddball || h2 == kAny;
+    case kNumberOrOddball:
       return h2 == kAny;
     case kString:
       return h2 == kAny;

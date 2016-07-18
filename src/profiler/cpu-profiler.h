@@ -5,14 +5,18 @@
 #ifndef V8_PROFILER_CPU_PROFILER_H_
 #define V8_PROFILER_CPU_PROFILER_H_
 
+#include <memory>
+
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
-#include "src/libsampler/v8-sampler.h"
+#include "src/isolate.h"
+#include "src/libsampler/sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
+#include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
 
 namespace v8 {
@@ -82,6 +86,8 @@ class CodeDeoptEventRecord : public CodeEventRecord {
   const char* deopt_reason;
   SourcePosition position;
   int deopt_id;
+  void* pc;
+  int fp_to_sp_delta;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -127,8 +133,7 @@ class CodeEventsContainer {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public base::Thread {
  public:
-  ProfilerEventsProcessor(ProfileGenerator* generator,
-                          sampler::Sampler* sampler,
+  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
                           base::TimeDelta period);
   virtual ~ProfilerEventsProcessor();
 
@@ -154,6 +159,8 @@ class ProfilerEventsProcessor : public base::Thread {
   void* operator new(size_t size);
   void operator delete(void* ptr);
 
+  sampler::Sampler* sampler() { return sampler_.get(); }
+
  private:
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -166,7 +173,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SampleProcessingResult ProcessOneSample();
 
   ProfileGenerator* generator_;
-  sampler::Sampler* sampler_;
+  std::unique_ptr<sampler::Sampler> sampler_;
   base::Atomic32 running_;
   const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
@@ -180,21 +187,11 @@ class ProfilerEventsProcessor : public base::Thread {
   unsigned last_processed_code_event_id_;
 };
 
-#define PROFILE(IsolateGetter, Call)                                       \
-  do {                                                                     \
-    Isolate* the_isolate = (IsolateGetter);                                \
-    v8::internal::Logger* logger = the_isolate->logger();                  \
-    if (logger->is_logging_code_events() || the_isolate->is_profiling()) { \
-      logger->Call;                                                        \
-    }                                                                      \
-  } while (false)
-
-class CpuProfiler : public CodeEventListener {
+class CpuProfiler : public CodeEventObserver {
  public:
   explicit CpuProfiler(Isolate* isolate);
 
-  CpuProfiler(Isolate* isolate,
-              CpuProfilesCollection* test_collection,
+  CpuProfiler(Isolate* isolate, CpuProfilesCollection* profiles,
               ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
@@ -211,38 +208,12 @@ class CpuProfiler : public CodeEventListener {
   void DeleteAllProfiles();
   void DeleteProfile(CpuProfile* profile);
 
-  // Invoked from stack sampler (thread or signal handler.)
-  inline TickSample* StartTickSample();
-  inline void FinishTickSample();
-
-  // Must be called via PROFILE macro, otherwise will crash when
-  // profiling is not enabled.
-  void CallbackEvent(Name* name, Address entry_point) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       const char* comment) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       Name* name) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* script_name) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       SharedFunctionInfo* shared, Name* script_name, int line,
-                       int column) override;
-  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
-                       int args_count) override;
-  void CodeMovingGCEvent() override {}
-  void CodeMoveEvent(AbstractCode* from, Address to) override;
-  void CodeDisableOptEvent(AbstractCode* code,
-                           SharedFunctionInfo* shared) override;
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
-  void GetterCallbackEvent(Name* name, Address entry_point) override;
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
-  void SetterCallbackEvent(Name* name, Address entry_point) override;
-  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
 
   bool is_profiling() const { return is_profiling_; }
 
-  ProfileGenerator* generator() const { return generator_; }
-  ProfilerEventsProcessor* processor() const { return processor_; }
+  ProfileGenerator* generator() const { return generator_.get(); }
+  ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
 
  private:
@@ -251,15 +222,12 @@ class CpuProfiler : public CodeEventListener {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
-  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
-  void RecordDeoptInlinedFrames(CodeEntry* entry, AbstractCode* abstract_code);
-  Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
-  Isolate* isolate_;
+  Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
-  CpuProfilesCollection* profiles_;
-  ProfileGenerator* generator_;
-  ProfilerEventsProcessor* processor_;
+  std::unique_ptr<CpuProfilesCollection> profiles_;
+  std::unique_ptr<ProfileGenerator> generator_;
+  std::unique_ptr<ProfilerEventsProcessor> processor_;
   bool saved_is_logging_;
   bool is_profiling_;
 

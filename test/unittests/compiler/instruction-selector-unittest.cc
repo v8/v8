@@ -45,9 +45,8 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    PrintableInstructionSequence printable = {
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-        &sequence};
+    PrintableInstructionSequence printable = {RegisterConfiguration::Turbofan(),
+                                              &sequence};
     out << "=== Code sequence after instruction selection ===" << std::endl
         << printable;
   }
@@ -333,7 +332,8 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
   Node* p2 = m2.Parameter(0);
   m2.Return(m2.AddNode(
       m2.machine()->Load(MachineType::Int32()), p2, m2.Int32Constant(0),
-      m2.AddNode(m2.common()->BeginRegion(), m2.graph()->start())));
+      m2.AddNode(m2.common()->BeginRegion(RegionObservability::kObservable),
+                 m2.graph()->start())));
   Stream s2 = m2.Build(kAllInstructions);
   EXPECT_LE(3U, s1.size());
   ASSERT_EQ(s1.size(), s2.size());
@@ -480,7 +480,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined());
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
   EXPECT_EQ(MachineType::AnyTagged(),
             desc_before->GetType(0));  // function is always
                                        // tagged/any.

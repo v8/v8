@@ -8,6 +8,7 @@
 #include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
@@ -34,6 +35,9 @@ class LCodeGenBase BASE_EMBEDDED {
   Zone* zone() const { return zone_; }
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const;
+  SourcePositionTableBuilder* source_position_table_builder() {
+    return &source_position_table_builder_;
+  }
 
   void PRINTF_FORMAT(2, 3) Comment(const char* format, ...);
   void DeoptComment(const Deoptimizer::DeoptInfo& deopt_info);
@@ -45,7 +49,7 @@ class LCodeGenBase BASE_EMBEDDED {
   virtual void GenerateBodyInstructionPost(LInstruction* instr) {}
 
   virtual void EnsureSpaceForLazyDeopt(int space_needed) = 0;
-  virtual void RecordAndWritePosition(int position) = 0;
+  void RecordAndWritePosition(int position);
 
   int GetNextEmittedBlock() const;
 
@@ -85,6 +89,7 @@ class LCodeGenBase BASE_EMBEDDED {
   int inlined_function_count_;
   int last_lazy_deopt_pc_;
   int osr_pc_offset_;
+  SourcePositionTableBuilder source_position_table_builder_;
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_generating() const { return status_ == GENERATING; }

@@ -23,10 +23,12 @@ enum class MachineRepresentation : uint8_t {
   kWord32,
   kWord64,
   kFloat32,
-  kFloat64,
-  kSimd128,
+  kFloat64,  // must follow kFloat32
+  kSimd128,  // must follow kFloat64
   kTagged
 };
+
+const char* MachineReprToString(MachineRepresentation);
 
 enum class MachineSemantic : uint8_t {
   kNone,

@@ -362,14 +362,25 @@ TEST_F(CommonOperatorTest, NumberConstant) {
 
 
 TEST_F(CommonOperatorTest, BeginRegion) {
-  const Operator* op = common()->BeginRegion();
-  EXPECT_EQ(1, op->EffectInputCount());
-  EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
-  EXPECT_EQ(0, op->ControlOutputCount());
-  EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ValueOutputCount());
+  {
+    const Operator* op =
+        common()->BeginRegion(RegionObservability::kObservable);
+    EXPECT_EQ(1, op->EffectInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(1, op->EffectOutputCount());
+    EXPECT_EQ(0, op->ValueOutputCount());
+  }
+  {
+    const Operator* op =
+        common()->BeginRegion(RegionObservability::kNotObservable);
+    EXPECT_EQ(1, op->EffectInputCount());
+    EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(1, op->EffectOutputCount());
+    EXPECT_EQ(0, op->ValueOutputCount());
+  }
 }
-
 
 TEST_F(CommonOperatorTest, FinishRegion) {
   const Operator* op = common()->FinishRegion();
@@ -379,6 +390,19 @@ TEST_F(CommonOperatorTest, FinishRegion) {
   EXPECT_EQ(0, op->ControlOutputCount());
   EXPECT_EQ(1, op->EffectOutputCount());
   EXPECT_EQ(1, op->ValueOutputCount());
+}
+
+TEST_F(CommonOperatorTest, Projection) {
+  TRACED_FORRANGE(size_t, index, 0, 3) {
+    const Operator* op = common()->Projection(index);
+    EXPECT_EQ(index, ProjectionIndexOf(op));
+    EXPECT_EQ(1, op->ValueInputCount());
+    EXPECT_EQ(1, op->ControlInputCount());
+    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, op->ControlOutputCount());
+    EXPECT_EQ(0, op->EffectOutputCount());
+    EXPECT_EQ(1, op->ValueOutputCount());
+  }
 }
 
 }  // namespace compiler

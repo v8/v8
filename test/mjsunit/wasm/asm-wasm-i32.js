@@ -67,13 +67,13 @@ function i32_mul(a, b) {
 function i32_div(a, b) {
   a = a | 0;
   b = b | 0;
-  return (a / b) | 0;
+  return ((a | 0) / (b | 0)) | 0;
 }
 
 function i32_mod(a, b) {
   a = a | 0;
   b = b | 0;
-  return (a % b) | 0;
+  return ((a | 0) % (b | 0)) | 0;
 }
 
 function i32_and(a, b) {

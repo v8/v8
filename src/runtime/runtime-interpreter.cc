@@ -9,6 +9,9 @@
 #include "src/arguments.h"
 #include "src/frames-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-decoder.h"
+#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
@@ -117,8 +120,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
     const uint8_t* bytecode_address = base_address + offset;
     os << " -> " << static_cast<const void*>(bytecode_address) << " @ "
        << std::setw(4) << offset << " : ";
-    interpreter::Bytecodes::Decode(os, bytecode_address,
-                                   bytecode_array->parameter_count());
+    interpreter::BytecodeDecoder::Decode(os, bytecode_address,
+                                         bytecode_array->parameter_count());
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(os, true, bytecode_iterator, accumulator);

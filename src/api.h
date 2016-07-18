@@ -184,6 +184,7 @@ class Utils {
     if (!condition) Utils::ReportApiFailure(location, message);
     return condition;
   }
+  static void ReportOOMFailure(const char* location, bool is_heap_oom);
 
   static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
   static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
@@ -281,7 +282,9 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
   template<class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    DCHECK(obj.is_null() || !obj->IsTheHole());
+    DCHECK(obj.is_null() ||
+           (obj->IsSmi() ||
+            !obj->IsTheHole(i::HeapObject::cast(*obj)->GetIsolate())));
     return Local<To>(reinterpret_cast<To*>(obj.location()));
   }
 

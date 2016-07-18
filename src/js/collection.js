@@ -14,15 +14,16 @@ var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
-var IntRandom;
+var MathRandom;
 var MakeTypeError;
 var MapIterator;
 var NumberIsNaN;
 var SetIterator;
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  IntRandom = from.IntRandom;
+  MathRandom = from.MathRandom;
   MakeTypeError = from.MakeTypeError;
   MapIterator = from.MapIterator;
   NumberIsNaN = from.NumberIsNaN;
@@ -112,7 +113,7 @@ function GetExistingHash(key) {
 function GetHash(key) {
   var hash = GetExistingHash(key);
   if (IS_UNDEFINED(hash)) {
-    hash = IntRandom() | 0;
+    hash = (MathRandom() * 0x40000000) | 0;
     if (hash === 0) hash = 1;
     SET_PRIVATE(key, hashCodeSymbol, hash);
   }
@@ -255,6 +256,12 @@ function SetForEach(f, receiver) {
   }
 }
 
+
+function SetSpecies() {
+  return this;
+}
+
+
 // -------------------------------------------------------------------
 
 %SetCode(GlobalSet, SetConstructor);
@@ -265,6 +272,8 @@ function SetForEach(f, receiver) {
                   DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
+
+utils.InstallGetter(GlobalSet, speciesSymbol, SetSpecies);
 
 // Set up the non-enumerable functions on the Set prototype object.
 utils.InstallGetter(GlobalSet.prototype, "size", SetGetSize);
@@ -435,6 +444,11 @@ function MapForEach(f, receiver) {
   }
 }
 
+
+function MapSpecies() {
+  return this;
+}
+
 // -------------------------------------------------------------------
 
 %SetCode(GlobalMap, MapConstructor);
@@ -445,6 +459,8 @@ function MapForEach(f, receiver) {
     GlobalMap.prototype, toStringTagSymbol, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
+
+utils.InstallGetter(GlobalMap, speciesSymbol, MapSpecies);
 
 // Set up the non-enumerable functions on the Map prototype object.
 utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);

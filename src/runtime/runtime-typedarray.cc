@@ -127,7 +127,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
     CHECK(byte_offset <= array_buffer_byte_length);
     CHECK(array_buffer_byte_length - byte_offset >= byte_length);
   } else {
-    CHECK(maybe_buffer->IsNull());
+    CHECK(maybe_buffer->IsNull(isolate));
   }
 
   CHECK(byte_length % element_size == 0);
@@ -150,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   holder->set_byte_offset(*byte_offset_object);
   holder->set_byte_length(*byte_length_object);
 
-  if (!maybe_buffer->IsNull()) {
+  if (!maybe_buffer->IsNull(isolate)) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
     holder->set_buffer(*buffer);
 

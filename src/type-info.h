@@ -18,6 +18,7 @@ namespace internal {
 // Forward declarations.
 class SmallMapList;
 class FeedbackNexus;
+class StubCache;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
@@ -95,10 +96,12 @@ class TypeFeedbackOracle: public ZoneObject {
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
-                            Code::Flags flags, SmallMapList* types);
-  void CollectReceiverTypes(FeedbackNexus* nexus, Handle<Name> name,
-                            Code::Flags flags, SmallMapList* types);
+  void CollectReceiverTypes(StubCache* stub_cache, FeedbackVectorSlot slot,
+                            Handle<Name> name, Code::Flags flags,
+                            SmallMapList* types);
+  void CollectReceiverTypes(StubCache* stub_cache, FeedbackNexus* nexus,
+                            Handle<Name> name, Code::Flags flags,
+                            SmallMapList* types);
 
   // Returns true if there is at least one string map and if
   // all maps are string maps.

@@ -189,9 +189,9 @@ TEST(FastAccessorOrReturnNull) {
   // CheckFlagSetOrReturnNull:
   CompileRun(FN_WARMUP("maskcheck", "return obj.maskcheck"));
   obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xf0));
-  ExpectInt32("maskcheck()", 42);
-  obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xfe));
   ExpectNull("maskcheck()");
+  obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xfe));
+  ExpectInt32("maskcheck()", 42);
 }
 
 
@@ -212,9 +212,9 @@ TEST(FastAccessorControlFlowWithLabels) {
     auto label = builder->MakeLabel();
     auto val = builder->LoadInternalField(builder->GetReceiver(), 0);
     builder->CheckNotZeroOrJump(val, label);
-    builder->ReturnValue(builder->IntegerConstant(0));
-    builder->SetLabel(label);
     builder->ReturnValue(builder->IntegerConstant(1));
+    builder->SetLabel(label);
+    builder->ReturnValue(builder->IntegerConstant(0));
     foo->SetAccessorProperty(v8_str("isnull"),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
@@ -262,9 +262,9 @@ TEST(FastAccessorLoad) {
     auto val = builder->LoadValue(
         builder->LoadInternalField(builder->GetReceiver(), 0), intval_offset);
     builder->CheckNotZeroOrJump(val, label);
-    builder->ReturnValue(builder->IntegerConstant(0));
-    builder->SetLabel(label);
     builder->ReturnValue(builder->IntegerConstant(1));
+    builder->SetLabel(label);
+    builder->ReturnValue(builder->IntegerConstant(0));
     foo->SetAccessorProperty(v8_str("nonzero"),
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
