@@ -492,7 +492,7 @@
     },
 
     'simulate_arm': {
-      'gn_args': 'target_cpu="ia32" v8_target_cpu="arm"',
+      'gn_args': 'target_cpu="x86" v8_target_cpu="arm"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=arm',
     },
 
@@ -502,7 +502,7 @@
     },
 
     'simulate_mipsel': {
-      'gn_args': 'target_cpu="ia32" v8_target_cpu="mipsel"',
+      'gn_args': 'target_cpu="x86" v8_target_cpu="mipsel"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=mipsel',
     },
 
@@ -512,7 +512,7 @@
     },
 
     'simulate_ppc': {
-      'gn_args': 'target_cpu="ia32" v8_target_cpu="ppc"',
+      'gn_args': 'target_cpu="x86" v8_target_cpu="ppc"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=ppc',
     },
 
@@ -522,7 +522,7 @@
     },
 
     'simulate_s390': {
-      'gn_args': 'target_cpu="ia32" v8_target_cpu="s390"',
+      'gn_args': 'target_cpu="x86" v8_target_cpu="s390"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=s390',
     },
 
@@ -532,7 +532,7 @@
     },
 
     'simulate_x87': {
-      'gn_args': 'target_cpu="ia32" v8_target_cpu="x87"',
+      'gn_args': 'target_cpu="x86" v8_target_cpu="x87"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=x87',
     },
 
