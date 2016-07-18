@@ -13823,14 +13823,14 @@ Code* Code::GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity) {
 void Code::PrintDeoptLocation(FILE* out, Address pc) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
   class SourcePosition pos = info.position;
-  if (info.deopt_reason != Deoptimizer::kNoReason || !pos.IsUnknown()) {
+  if (info.deopt_reason != DeoptimizeReason::kNoReason || !pos.IsUnknown()) {
     if (FLAG_hydrogen_track_positions) {
       PrintF(out, "            ;;; deoptimize at %d_%d: %s\n",
              pos.inlining_id(), pos.position(),
-             Deoptimizer::GetDeoptReason(info.deopt_reason));
+             DeoptimizeReasonToString(info.deopt_reason));
     } else {
       PrintF(out, "            ;;; deoptimize at %d: %s\n", pos.raw(),
-             Deoptimizer::GetDeoptReason(info.deopt_reason));
+             DeoptimizeReasonToString(info.deopt_reason));
     }
   }
 }

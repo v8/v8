@@ -1835,6 +1835,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, 0, deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }

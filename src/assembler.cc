@@ -774,8 +774,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (rmode_ == DEOPT_POSITION) {
     os << "  (" << data() << ")";
   } else if (rmode_ == DEOPT_REASON) {
-    os << "  (" << Deoptimizer::GetDeoptReason(
-                       static_cast<Deoptimizer::DeoptReason>(data_)) << ")";
+    os << "  ("
+       << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_)) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
     os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
@@ -1860,11 +1860,12 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 // Platform specific but identical code for all the platforms.
 
-void Assembler::RecordDeoptReason(const int reason, int raw_position, int id) {
+void Assembler::RecordDeoptReason(DeoptimizeReason reason, int raw_position,
+                                  int id) {
   if (FLAG_trace_deopt || isolate()->is_profiling()) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::DEOPT_POSITION, raw_position);
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
     RecordRelocInfo(RelocInfo::DEOPT_ID, id);
   }
 }

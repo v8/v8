@@ -154,7 +154,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->frame_state());
+                             cont->reason(), cont->frame_state());
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -1498,7 +1498,7 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right,
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
                              cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
@@ -1741,14 +1741,14 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForDeoptimize(kNotEqual, node->InputAt(1));
+  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
   VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
-  FlagsContinuation cont =
-      FlagsContinuation::ForDeoptimize(kEqual, node->InputAt(1));
+  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
   VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 

@@ -2736,19 +2736,9 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 }
 
 
-const char* Deoptimizer::GetDeoptReason(DeoptReason deopt_reason) {
-  DCHECK(deopt_reason < kLastDeoptReason);
-#define DEOPT_MESSAGES_TEXTS(C, T) T,
-  static const char* deopt_messages_[] = {
-      DEOPT_MESSAGES_LIST(DEOPT_MESSAGES_TEXTS)};
-#undef DEOPT_MESSAGES_TEXTS
-  return deopt_messages_[deopt_reason];
-}
-
-
 Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   SourcePosition last_position = SourcePosition::Unknown();
-  Deoptimizer::DeoptReason last_reason = Deoptimizer::kNoReason;
+  DeoptimizeReason last_reason = DeoptimizeReason::kNoReason;
   int last_deopt_id = Deoptimizer::DeoptInfo::kNoDeoptId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
@@ -2765,10 +2755,10 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
       last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
-      last_reason = static_cast<Deoptimizer::DeoptReason>(info->data());
+      last_reason = static_cast<DeoptimizeReason>(info->data());
     }
   }
-  return DeoptInfo(SourcePosition::Unknown(), Deoptimizer::kNoReason, -1);
+  return DeoptInfo(SourcePosition::Unknown(), DeoptimizeReason::kNoReason, -1);
 }
 
 

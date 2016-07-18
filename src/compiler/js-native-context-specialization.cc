@@ -399,7 +399,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (nexus.IsUninitialized()) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      return ReduceSoftDeoptimize(node);
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     }
     return NoChange();
   }
@@ -411,7 +413,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   } else if (receiver_maps.length() == 0) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      return ReduceSoftDeoptimize(node);
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     }
     return NoChange();
   }
@@ -830,7 +834,9 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   if (nexus.IsUninitialized()) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      return ReduceSoftDeoptimize(node);
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
     }
     return NoChange();
   }
@@ -842,7 +848,9 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   } else if (receiver_maps.length() == 0) {
     if ((flags() & kDeoptimizationEnabled) &&
         (flags() & kBailoutOnUninitialized)) {
-      return ReduceSoftDeoptimize(node);
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
     }
     return NoChange();
   }
@@ -880,14 +888,14 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
                              language_mode, store_mode);
 }
 
-
-Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(Node* node) {
+Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
+    Node* node, DeoptimizeReason reason) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::FindFrameStateBefore(node);
   Node* deoptimize =
-      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kSoft), frame_state,
-                       effect, control);
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kSoft, reason),
+                       frame_state, effect, control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
   Revisit(graph()->end());

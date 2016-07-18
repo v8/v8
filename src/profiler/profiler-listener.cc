@@ -155,7 +155,7 @@ void ProfilerListener::CodeDeoptEvent(Code* code, Address pc,
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   rec->start = code->address();
-  rec->deopt_reason = Deoptimizer::GetDeoptReason(info.deopt_reason);
+  rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->position = info.position;
   rec->deopt_id = info.deopt_id;
   rec->pc = reinterpret_cast<void*>(pc);

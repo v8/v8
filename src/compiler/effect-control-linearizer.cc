@@ -1002,8 +1002,9 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
   Node* limit = node->InputAt(1);
 
   Node* check = graph()->NewNode(machine()->Uint32LessThan(), index, limit);
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kOutOfBounds), check,
+      frame_state, effect, control);
 
   return ValueEffectControl(index, effect, control);
 }
@@ -1028,8 +1029,9 @@ EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state,
                          value, efalse0, if_false0);
     Node* check1 = graph()->NewNode(machine()->WordEqual(), value_map,
                                     jsgraph()->HeapNumberMapConstant());
-    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeUnless(), check1,
-                                           frame_state, efalse0, if_false0);
+    if_false0 = efalse0 = graph()->NewNode(
+        common()->DeoptimizeUnless(DeoptimizeReason::kNotAHeapNumber), check1,
+        frame_state, efalse0, if_false0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
@@ -1043,8 +1045,9 @@ EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
                                       Node* effect, Node* control) {
   Node* value = node->InputAt(0);
 
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), value,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNoReason),
+                       value, frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1055,8 +1058,9 @@ EffectControlLinearizer::LowerCheckTaggedPointer(Node* node, Node* frame_state,
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check,
+                       frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1067,8 +1071,9 @@ EffectControlLinearizer::LowerCheckTaggedSigned(Node* node, Node* frame_state,
   Node* value = node->InputAt(0);
 
   Node* check = ObjectIsSmi(value);
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNotASmi),
+                       check, frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1083,8 +1088,9 @@ EffectControlLinearizer::LowerCheckedInt32Add(Node* node, Node* frame_state,
       graph()->NewNode(machine()->Int32AddWithOverflow(), lhs, rhs, control);
 
   Node* check = graph()->NewNode(common()->Projection(1), value, control);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kOverflow),
+                       check, frame_state, effect, control);
 
   value = graph()->NewNode(common()->Projection(0), value, control);
 
@@ -1101,8 +1107,9 @@ EffectControlLinearizer::LowerCheckedInt32Sub(Node* node, Node* frame_state,
       graph()->NewNode(machine()->Int32SubWithOverflow(), lhs, rhs, control);
 
   Node* check = graph()->NewNode(common()->Projection(1), value, control);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kOverflow),
+                       check, frame_state, effect, control);
 
   value = graph()->NewNode(common()->Projection(0), value, control);
 
@@ -1138,13 +1145,15 @@ EffectControlLinearizer::LowerCheckedInt32Div(Node* node, Node* frame_state,
   {
     // Check if {rhs} is zero.
     Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                           frame_state, efalse0, if_false0);
+    if_false0 = efalse0 = graph()->NewNode(
+        common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check,
+        frame_state, efalse0, if_false0);
 
     // Check if {lhs} is zero, as that would produce minus zero.
     check = graph()->NewNode(machine()->Word32Equal(), lhs, zero);
-    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                           frame_state, efalse0, if_false0);
+    if_false0 = efalse0 =
+        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                         check, frame_state, efalse0, if_false0);
 
     // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
     // to return -kMinInt, which is not representable.
@@ -1157,8 +1166,9 @@ EffectControlLinearizer::LowerCheckedInt32Div(Node* node, Node* frame_state,
     {
       // Check if {rhs} is -1.
       Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, minusone);
-      if_true1 = etrue1 = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                           frame_state, etrue1, if_true1);
+      if_true1 = etrue1 =
+          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kOverflow),
+                           check, frame_state, etrue1, if_true1);
     }
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
@@ -1182,8 +1192,9 @@ EffectControlLinearizer::LowerCheckedInt32Div(Node* node, Node* frame_state,
   Node* check =
       graph()->NewNode(machine()->Word32Equal(), lhs,
                        graph()->NewNode(machine()->Int32Mul(), rhs, value));
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kLostPrecision), check,
+      frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1200,8 +1211,9 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
 
   // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check,
+      frame_state, effect, control);
 
   // Check if {lhs} is positive or zero.
   Node* check0 = graph()->NewNode(machine()->Int32LessThanOrEqual(), zero, lhs);
@@ -1231,8 +1243,9 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
     {
       // Check if {rhs} is -1.
       Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, minusone);
-      if_true1 = etrue1 = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                           frame_state, etrue1, if_true1);
+      if_true1 = etrue1 =
+          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                           check, frame_state, etrue1, if_true1);
     }
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
@@ -1248,8 +1261,9 @@ EffectControlLinearizer::LowerCheckedInt32Mod(Node* node, Node* frame_state,
     // Check if the result is zero, because in that case we'd have to return
     // -0 here since we always take the signe of the {lhs} which is negative.
     Node* check = graph()->NewNode(machine()->Word32Equal(), vfalse0, zero);
-    if_false0 = efalse0 = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                           frame_state, efalse0, if_false0);
+    if_false0 = efalse0 =
+        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                         check, frame_state, efalse0, if_false0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
@@ -1271,8 +1285,9 @@ EffectControlLinearizer::LowerCheckedUint32Div(Node* node, Node* frame_state,
 
   // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check,
+      frame_state, effect, control);
 
   // Perform the actual unsigned integer division.
   Node* value = graph()->NewNode(machine()->Uint32Div(), lhs, rhs, control);
@@ -1280,8 +1295,9 @@ EffectControlLinearizer::LowerCheckedUint32Div(Node* node, Node* frame_state,
   // Check if the remainder is non-zero.
   check = graph()->NewNode(machine()->Word32Equal(), lhs,
                            graph()->NewNode(machine()->Int32Mul(), rhs, value));
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kLostPrecision), check,
+      frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1296,8 +1312,9 @@ EffectControlLinearizer::LowerCheckedUint32Mod(Node* node, Node* frame_state,
 
   // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
   Node* check = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeIf(DeoptimizeReason::kDivisionByZero), check,
+      frame_state, effect, control);
 
   // Perform the actual unsigned integer modulus.
   Node* value = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, control);
@@ -1316,8 +1333,9 @@ EffectControlLinearizer::LowerCheckedInt32Mul(Node* node, Node* frame_state,
       graph()->NewNode(machine()->Int32MulWithOverflow(), lhs, rhs, control);
 
   Node* check = graph()->NewNode(common()->Projection(1), projection, control);
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kOverflow),
+                       check, frame_state, effect, control);
 
   Node* value = graph()->NewNode(common()->Projection(0), projection, control);
 
@@ -1332,8 +1350,9 @@ EffectControlLinearizer::LowerCheckedInt32Mul(Node* node, Node* frame_state,
     Node* or_inputs = graph()->NewNode(machine()->Word32Or(), lhs, rhs);
     Node* check_or =
         graph()->NewNode(machine()->Int32LessThan(), or_inputs, zero);
-    if_zero = e_if_zero = graph()->NewNode(common()->DeoptimizeIf(), check_or,
-                                           frame_state, e_if_zero, if_zero);
+    if_zero = e_if_zero =
+        graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                         check_or, frame_state, e_if_zero, if_zero);
   }
 
   Node* if_not_zero = graph()->NewNode(common()->IfFalse(), branch_zero);
@@ -1355,8 +1374,9 @@ EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
   Node* max_int = jsgraph()->Int32Constant(std::numeric_limits<int32_t>::max());
   Node* is_safe =
       graph()->NewNode(machine()->Uint32LessThanOrEqual(), value, max_int);
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), is_safe,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kLostPrecision), is_safe,
+      frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1370,8 +1390,9 @@ EffectControlLinearizer::BuildCheckedFloat64ToInt32(Node* value,
   Node* check_same = graph()->NewNode(
       machine()->Float64Equal(), value,
       graph()->NewNode(machine()->ChangeInt32ToFloat64(), value32));
-  control = effect = graph()->NewNode(common()->DeoptimizeUnless(), check_same,
-                                      frame_state, effect, control);
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kLostPrecisionOrNaN),
+      check_same, frame_state, effect, control);
 
   // Check if {value} is -0.
   Node* check_zero = graph()->NewNode(machine()->Word32Equal(), value32,
@@ -1388,8 +1409,9 @@ EffectControlLinearizer::BuildCheckedFloat64ToInt32(Node* value,
       graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
       jsgraph()->Int32Constant(0));
 
-  Node* deopt_minus_zero = graph()->NewNode(
-      common()->DeoptimizeIf(), check_negative, frame_state, effect, if_zero);
+  Node* deopt_minus_zero =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kMinusZero),
+                       check_negative, frame_state, effect, if_zero);
 
   Node* merge =
       graph()->NewNode(common()->Merge(2), deopt_minus_zero, if_notzero);
@@ -1437,8 +1459,9 @@ EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
                          value, efalse, if_false);
     Node* check = graph()->NewNode(machine()->WordEqual(), value_map,
                                    jsgraph()->HeapNumberMapConstant());
-    if_false = efalse = graph()->NewNode(common()->DeoptimizeUnless(), check,
-                                         frame_state, efalse, if_false);
+    if_false = efalse = graph()->NewNode(
+        common()->DeoptimizeUnless(DeoptimizeReason::kNotAHeapNumber), check,
+        frame_state, efalse, if_false);
     vfalse = efalse = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
         efalse, if_false);
@@ -1482,8 +1505,9 @@ EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
       graph()->NewNode(machine()->Word32Equal(), instance_type,
                        jsgraph()->Int32Constant(ODDBALL_TYPE));
   if_false = efalse =
-      graph()->NewNode(common()->DeoptimizeUnless(), check_oddball, frame_state,
-                       efalse, if_false);
+      graph()->NewNode(common()->DeoptimizeUnless(
+                           DeoptimizeReason::kNotAHeapNumberUndefinedBoolean),
+                       check_oddball, frame_state, efalse, if_false);
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -1882,8 +1906,9 @@ EffectControlLinearizer::LowerCheckFloat64Hole(Node* node, Node* frame_state,
       machine()->Word32Equal(),
       graph()->NewNode(machine()->Float64ExtractHighWord32(), value),
       jsgraph()->Int32Constant(kHoleNanUpper32));
-  control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                      frame_state, effect, control);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kHole), check,
+                       frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1902,8 +1927,9 @@ EffectControlLinearizer::LowerCheckTaggedHole(Node* node, Node* frame_state,
           check, jsgraph()->UndefinedConstant(), value);
       break;
     case CheckTaggedHoleMode::kNeverReturnHole:
-      control = effect = graph()->NewNode(common()->DeoptimizeIf(), check,
-                                          frame_state, effect, control);
+      control = effect =
+          graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kHole),
+                           check, frame_state, effect, control);
       break;
   }
 

@@ -783,6 +783,8 @@
         'debug/debug.h',
         'debug/liveedit.cc',
         'debug/liveedit.h',
+        'deoptimize-reason.cc',
+        'deoptimize-reason.h',
         'deoptimizer.cc',
         'deoptimizer.h',
         'disasm.h',

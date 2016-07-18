@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/deoptimize-reason.h"
 
 namespace v8 {
 namespace internal {
@@ -77,7 +78,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               LanguageMode language_mode,
                               Node* index = nullptr);
 
-  Reduction ReduceSoftDeoptimize(Node* node);
+  Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.

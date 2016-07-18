@@ -836,22 +836,16 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
   representations_[virtual_register] = rep;
 }
 
-
-InstructionSequence::StateId InstructionSequence::AddFrameStateDescriptor(
-    FrameStateDescriptor* descriptor) {
+int InstructionSequence::AddDeoptimizationEntry(
+    FrameStateDescriptor* descriptor, DeoptimizeReason reason) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
-  deoptimization_entries_.push_back(descriptor);
-  return StateId::FromInt(deoptimization_id);
+  deoptimization_entries_.push_back(DeoptimizationEntry(descriptor, reason));
+  return deoptimization_id;
 }
 
-FrameStateDescriptor* InstructionSequence::GetFrameStateDescriptor(
-    InstructionSequence::StateId state_id) {
-  return deoptimization_entries_[state_id.ToInt()];
-}
-
-
-int InstructionSequence::GetFrameStateDescriptorCount() {
-  return static_cast<int>(deoptimization_entries_.size());
+DeoptimizationEntry const& InstructionSequence::GetDeoptimizationEntry(
+    int state_id) {
+  return deoptimization_entries_[state_id];
 }
 
 

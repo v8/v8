@@ -174,10 +174,10 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         out.AddFormatted("    ;; debug: deopt position '%d'",
                          static_cast<int>(relocinfo.data()));
       } else if (rmode == RelocInfo::DEOPT_REASON) {
-        Deoptimizer::DeoptReason reason =
-            static_cast<Deoptimizer::DeoptReason>(relocinfo.data());
+        DeoptimizeReason reason =
+            static_cast<DeoptimizeReason>(relocinfo.data());
         out.AddFormatted("    ;; debug: deopt reason '%s'",
-                         Deoptimizer::GetDeoptReason(reason));
+                         DeoptimizeReasonToString(reason));
       } else if (rmode == RelocInfo::DEOPT_ID) {
         out.AddFormatted("    ;; debug: deopt index %d",
                          static_cast<int>(relocinfo.data()));

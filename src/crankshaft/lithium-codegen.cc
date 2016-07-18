@@ -372,7 +372,7 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
-    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason, int deopt_id) {
+    LInstruction* instr, DeoptimizeReason deopt_reason, int deopt_id) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
                                     deopt_reason, deopt_id);
   return deopt_info;

@@ -2016,6 +2016,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, 0, deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }

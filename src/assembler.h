@@ -37,6 +37,7 @@
 
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/deoptimize-reason.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/register-configuration.h"

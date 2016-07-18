@@ -1106,8 +1106,7 @@ void HGraphBuilder::IfBuilder::Else() {
   did_else_ = true;
 }
 
-
-void HGraphBuilder::IfBuilder::Deopt(Deoptimizer::DeoptReason reason) {
+void HGraphBuilder::IfBuilder::Deopt(DeoptimizeReason reason) {
   DCHECK(did_then_);
   builder()->Add<HDeoptimize>(reason, Deoptimizer::EAGER);
   AddMergeAtJoinBlock(true);
@@ -1513,9 +1512,7 @@ HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
   return Add<HCheckHeapObject>(obj);
 }
 
-
-void HGraphBuilder::FinishExitWithHardDeoptimization(
-    Deoptimizer::DeoptReason reason) {
+void HGraphBuilder::FinishExitWithHardDeoptimization(DeoptimizeReason reason) {
   Add<HDeoptimize>(reason, Deoptimizer::EAGER);
   FinishExitCurrentBlock(New<HAbnormalExit>());
 }
@@ -1833,7 +1830,7 @@ void HGraphBuilder::BuildNonGlobalObjectCheck(HValue* receiver) {
   IfBuilder if_global_object(this);
   if_global_object.If<HCompareNumericAndBranch>(instance_type, global_type,
                                                 Token::EQ);
-  if_global_object.ThenDeopt(Deoptimizer::kReceiverWasAGlobalObject);
+  if_global_object.ThenDeopt(DeoptimizeReason::kReceiverWasAGlobalObject);
   if_global_object.End();
 }
 
@@ -2183,7 +2180,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   if_objectissmi.Else();
   {
     if (type->Is(Type::SignedSmall())) {
-      if_objectissmi.Deopt(Deoptimizer::kExpectedSmi);
+      if_objectissmi.Deopt(DeoptimizeReason::kExpectedSmi);
     } else {
       // Check if the object is a heap number.
       IfBuilder if_objectisnumber(this);
@@ -2239,7 +2236,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
       if_objectisnumber.Else();
       {
         if (type->Is(Type::Number())) {
-          if_objectisnumber.Deopt(Deoptimizer::kExpectedHeapNumber);
+          if_objectisnumber.Deopt(DeoptimizeReason::kExpectedHeapNumber);
         }
       }
       if_objectisnumber.JoinContinuation(&found);
@@ -2332,7 +2329,7 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
           constructor_function_index,
           Add<HConstant>(Map::kNoConstructorFunctionIndex), Token::EQ);
       constructor_function_index_is_invalid.ThenDeopt(
-          Deoptimizer::kUndefinedOrNullInToObject);
+          DeoptimizeReason::kUndefinedOrNullInToObject);
       constructor_function_index_is_invalid.End();
 
       // Use the global constructor function.
@@ -2840,7 +2837,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       HInstruction* result = AddElementAccess(
           backing_store, key, val, bounds_check, checked_object->ActualValue(),
           elements_kind, access_type);
-      negative_checker.ElseDeopt(Deoptimizer::kNegativeKeyEncountered);
+      negative_checker.ElseDeopt(DeoptimizeReason::kNegativeKeyEncountered);
       negative_checker.End();
       length_checker.End();
       return result;
@@ -5272,7 +5269,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   if_undefined_or_null.Or();
   if_undefined_or_null.If<HCompareObjectEqAndBranch>(
       enumerable, graph()->GetConstantNull());
-  if_undefined_or_null.ThenDeopt(Deoptimizer::kUndefinedOrNullInForIn);
+  if_undefined_or_null.ThenDeopt(DeoptimizeReason::kUndefinedOrNullInForIn);
   if_undefined_or_null.End();
   BuildForInBody(stmt, each_var, enumerable);
 }
@@ -6684,7 +6681,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   // use a generic IC.
   if (count == maps->length() && FLAG_deoptimize_uncommon_cases) {
     FinishExitWithHardDeoptimization(
-        Deoptimizer::kUnknownMapInPolymorphicAccess);
+        DeoptimizeReason::kUnknownMapInPolymorphicAccess);
   } else {
     HInstruction* instr =
         BuildNamedGeneric(access_type, expr, slot, object, name, value);
@@ -6870,7 +6867,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
       if (value->IsConstant()) {
         HConstant* c_value = HConstant::cast(value);
         if (!constant.is_identical_to(c_value->handle(isolate()))) {
-          Add<HDeoptimize>(Deoptimizer::kConstantGlobalVariableAssignment,
+          Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
                            Deoptimizer::EAGER);
         }
       } else {
@@ -6883,7 +6880,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
         }
         builder.Then();
         builder.Else();
-        Add<HDeoptimize>(Deoptimizer::kConstantGlobalVariableAssignment,
+        Add<HDeoptimize>(DeoptimizeReason::kConstantGlobalVariableAssignment,
                          Deoptimizer::EAGER);
         builder.End();
       }
@@ -7232,7 +7229,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     HValue* object, Handle<Name> name, HValue* value, bool is_uninitialized) {
   if (is_uninitialized) {
     Add<HDeoptimize>(
-        Deoptimizer::kInsufficientTypeFeedbackForGenericNamedAccess,
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess,
         Deoptimizer::SOFT);
   }
   if (access_type == LOAD) {
@@ -7590,7 +7587,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   // Deopt if none of the cases matched.
   NoObservableSideEffectsScope scope(this);
   FinishExitWithHardDeoptimization(
-      Deoptimizer::kUnknownMapInPolymorphicElementAccess);
+      DeoptimizeReason::kUnknownMapInPolymorphicElementAccess);
   set_current_block(join);
   return access_type == STORE ? val : Pop();
 }
@@ -7707,13 +7704,15 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     if (access_type == STORE) {
       if (expr->IsAssignment() &&
           expr->AsAssignment()->HasNoTypeInformation()) {
-        Add<HDeoptimize>(Deoptimizer::kInsufficientTypeFeedbackForKeyedStore,
-                         Deoptimizer::SOFT);
+        Add<HDeoptimize>(
+            DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess,
+            Deoptimizer::SOFT);
       }
     } else {
       if (expr->AsProperty()->HasNoTypeInformation()) {
-        Add<HDeoptimize>(Deoptimizer::kInsufficientTypeFeedbackForKeyedLoad,
-                         Deoptimizer::SOFT);
+        Add<HDeoptimize>(
+            DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess,
+            Deoptimizer::SOFT);
       }
     }
     instr = AddInstruction(
@@ -8190,7 +8189,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (ordered_functions == maps->length() && FLAG_deoptimize_uncommon_cases) {
-    FinishExitWithHardDeoptimization(Deoptimizer::kUnknownMapInPolymorphicCall);
+    FinishExitWithHardDeoptimization(
+        DeoptimizeReason::kUnknownMapInPolymorphicCall);
   } else {
     Property* prop = expr->expression()->AsProperty();
     HInstruction* function =
@@ -9800,7 +9800,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // We have to use EAGER deoptimization here because Deoptimizer::SOFT
         // gets ignored by the always-opt flag, which leads to incorrect code.
         Add<HDeoptimize>(
-            Deoptimizer::kInsufficientTypeFeedbackForCallWithArguments,
+            DeoptimizeReason::kInsufficientTypeFeedbackForCallWithArguments,
             Deoptimizer::EAGER);
         arguments_flag = ARGUMENTS_FAKED;
       }
@@ -11038,7 +11038,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
 
   if (!left_type->IsInhabited()) {
     Add<HDeoptimize>(
-        Deoptimizer::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
+        DeoptimizeReason::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
         Deoptimizer::SOFT);
     left_type = Type::Any();
     left_rep = RepresentationFor(left_type);
@@ -11047,7 +11047,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
 
   if (!right_type->IsInhabited()) {
     Add<HDeoptimize>(
-        Deoptimizer::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
+        DeoptimizeReason::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
         Deoptimizer::SOFT);
     right_type = Type::Any();
     right_rep = RepresentationFor(right_type);
@@ -11231,7 +11231,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
           IfBuilder if_same(this);
           if_same.If<HCompareNumericAndBranch>(right, fixed_right, Token::EQ);
           if_same.Then();
-          if_same.ElseDeopt(Deoptimizer::kUnexpectedRHSOfBinaryOperation);
+          if_same.ElseDeopt(DeoptimizeReason::kUnexpectedRHSOfBinaryOperation);
           right = fixed_right;
         }
         instr = AddUncasted<HMod>(left, right);
@@ -11603,7 +11603,8 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
   // soft deoptimize when there is no type feedback.
   if (!combined_type->IsInhabited()) {
     Add<HDeoptimize>(
-        Deoptimizer::kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,
+        DeoptimizeReason::
+            kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,
         Deoptimizer::SOFT);
     combined_type = left_type = right_type = Type::Any();
   }
@@ -11620,8 +11621,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
            HConstant::cast(left)->HasNumberValue()) ||
           (right->IsConstant() &&
            HConstant::cast(right)->HasNumberValue())) {
-        Add<HDeoptimize>(Deoptimizer::kTypeMismatchBetweenFeedbackAndConstant,
-                         Deoptimizer::SOFT);
+        Add<HDeoptimize>(
+            DeoptimizeReason::kTypeMismatchBetweenFeedbackAndConstant,
+            Deoptimizer::SOFT);
         // The caller expects a branch instruction, so make it happy.
         return New<HBranch>(graph()->GetConstantTrue());
       }
@@ -11703,8 +11705,9 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
          !HConstant::cast(left)->HasInternalizedStringValue()) ||
         (right->IsConstant() &&
          !HConstant::cast(right)->HasInternalizedStringValue())) {
-      Add<HDeoptimize>(Deoptimizer::kTypeMismatchBetweenFeedbackAndConstant,
-                       Deoptimizer::SOFT);
+      Add<HDeoptimize>(
+          DeoptimizeReason::kTypeMismatchBetweenFeedbackAndConstant,
+          Deoptimizer::SOFT);
       // The caller expects a branch instruction, so make it happy.
       return New<HBranch>(graph()->GetConstantTrue());
     }

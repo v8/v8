@@ -325,13 +325,14 @@ class FlagsContinuation final {
 
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
+                                         DeoptimizeReason reason,
                                          Node* frame_state) {
-    return FlagsContinuation(kFlags_deoptimize, condition, frame_state);
+    return FlagsContinuation(condition, reason, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
   static FlagsContinuation ForSet(FlagsCondition condition, Node* result) {
-    return FlagsContinuation(kFlags_set, condition, result);
+    return FlagsContinuation(condition, result);
   }
 
   bool IsNone() const { return mode_ == kFlags_none; }
@@ -341,6 +342,10 @@ class FlagsContinuation final {
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
+  }
+  DeoptimizeReason reason() const {
+    DCHECK(IsDeoptimize());
+    return reason_;
   }
   Node* frame_state() const {
     DCHECK(IsDeoptimize());
@@ -387,16 +392,24 @@ class FlagsContinuation final {
   }
 
  private:
-  FlagsContinuation(FlagsMode mode, FlagsCondition condition,
-                    Node* frame_state_or_result)
-      : mode_(mode),
+  FlagsContinuation(FlagsCondition condition, DeoptimizeReason reason,
+                    Node* frame_state)
+      : mode_(kFlags_deoptimize),
         condition_(condition),
-        frame_state_or_result_(frame_state_or_result) {
-    DCHECK_NOT_NULL(frame_state_or_result);
+        reason_(reason),
+        frame_state_or_result_(frame_state) {
+    DCHECK_NOT_NULL(frame_state);
+  }
+  FlagsContinuation(FlagsCondition condition, Node* result)
+      : mode_(kFlags_set),
+        condition_(condition),
+        frame_state_or_result_(result) {
+    DCHECK_NOT_NULL(result);
   }
 
   FlagsMode const mode_;
   FlagsCondition condition_;
+  DeoptimizeReason reason_;      // Only value if mode_ == kFlags_deoptimize
   Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch.

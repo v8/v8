@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/compiler/frame-states.h"
+#include "src/deoptimize-reason.h"
 #include "src/machine-type.h"
 #include "src/zone-containers.h"
 
@@ -42,6 +43,8 @@ std::ostream& operator<<(std::ostream&, BranchHint);
 
 BranchHint BranchHintOf(const Operator* const);
 
+// Deoptimize reason for Deoptimize, DeoptimizeIf and DeoptimizeUnless.
+DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
 
 // Deoptimize bailout kind.
 enum class DeoptimizeKind : uint8_t { kEager, kSoft };
@@ -50,8 +53,28 @@ size_t hash_value(DeoptimizeKind kind);
 
 std::ostream& operator<<(std::ostream&, DeoptimizeKind);
 
-DeoptimizeKind DeoptimizeKindOf(const Operator* const);
+// Parameters for the {Deoptimize} operator.
+class DeoptimizeParameters final {
+ public:
+  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason)
+      : kind_(kind), reason_(reason) {}
 
+  DeoptimizeKind kind() const { return kind_; }
+  DeoptimizeReason reason() const { return reason_; }
+
+ private:
+  DeoptimizeKind const kind_;
+  DeoptimizeReason const reason_;
+};
+
+bool operator==(DeoptimizeParameters, DeoptimizeParameters);
+bool operator!=(DeoptimizeParameters, DeoptimizeParameters);
+
+size_t hast_value(DeoptimizeParameters p);
+
+std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
+
+DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
 
 // Prediction whether throw-site is surrounded by any local catch-scope.
 enum class IfExceptionHint { kLocallyUncaught, kLocallyCaught };
@@ -170,9 +193,9 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind);
-  const Operator* DeoptimizeIf();
-  const Operator* DeoptimizeUnless();
+  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
+  const Operator* DeoptimizeIf(DeoptimizeReason reason);
+  const Operator* DeoptimizeUnless(DeoptimizeReason reason);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 

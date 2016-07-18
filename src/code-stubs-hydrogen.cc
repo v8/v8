@@ -207,7 +207,7 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
     IfBuilder builder(this);
     builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
     builder.Then();
-    builder.ElseDeopt(Deoptimizer::kForcedDeoptToRuntime);
+    builder.ElseDeopt(DeoptimizeReason::kForcedDeoptToRuntime);
     return undefined;
   }
 
@@ -447,7 +447,8 @@ HValue* CodeStubGraphBuilder<FastCloneRegExpStub>::BuildCodeStub() {
     }
     Push(result);
   }
-  if_notundefined.ElseDeopt(Deoptimizer::kUninitializedBoilerplateInFastClone);
+  if_notundefined.ElseDeopt(
+      DeoptimizeReason::kUninitializedBoilerplateInFastClone);
   if_notundefined.End();
 
   return Pop();
@@ -526,7 +527,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   if_fixed_cow.End();
   zero_capacity.End();
 
-  checker.ElseDeopt(Deoptimizer::kUninitializedBoilerplateLiterals);
+  checker.ElseDeopt(DeoptimizeReason::kUninitializedBoilerplateLiterals);
   checker.End();
 
   return environment()->Pop();
@@ -699,7 +700,7 @@ HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
         can_store.IfNot<HCompareMap>(argument,
                                      isolate()->factory()->heap_number_map());
       }
-      can_store.ThenDeopt(Deoptimizer::kFastPathFailed);
+      can_store.ThenDeopt(DeoptimizeReason::kFastPathFailed);
       can_store.End();
     }
     builder.EndBody();
@@ -750,7 +751,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(
         bits, Add<HConstant>(1 << Map::kIsExtensible), Token::NE);
-    check.ThenDeopt(Deoptimizer::kFastPathFailed);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     check.End();
   }
 
@@ -763,7 +764,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    check.ThenDeopt(Deoptimizer::kFastPathFailed);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     check.End();
   }
 
@@ -781,7 +782,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, details, mask);
     IfBuilder readonly(this);
     readonly.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    readonly.ThenDeopt(Deoptimizer::kFastPathFailed);
+    readonly.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     readonly.End();
   }
 
@@ -809,14 +810,14 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     check_instance_type.If<HCompareNumericAndBranch>(
         instance_type, Add<HConstant>(LAST_CUSTOM_ELEMENTS_RECEIVER),
         Token::LTE);
-    check_instance_type.ThenDeopt(Deoptimizer::kFastPathFailed);
+    check_instance_type.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     check_instance_type.End();
 
     HValue* elements = Add<HLoadNamedField>(
         prototype, nullptr, HObjectAccess::ForElementsPointer());
     IfBuilder no_elements(this);
     no_elements.IfNot<HCompareObjectEqAndBranch>(elements, empty);
-    no_elements.ThenDeopt(Deoptimizer::kFastPathFailed);
+    no_elements.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     no_elements.End();
 
     environment()->Push(prototype_map);
@@ -866,7 +867,7 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
                                               FAST_HOLEY_DOUBLE_ELEMENTS);
         environment()->Push(new_length);
       }
-      has_double_elements.ElseDeopt(Deoptimizer::kFastPathFailed);
+      has_double_elements.ElseDeopt(DeoptimizeReason::kFastPathFailed);
       has_double_elements.End();
     }
     has_object_elements.End();
@@ -898,7 +899,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
     IfBuilder check(this);
     check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
-    check.ThenDeopt(Deoptimizer::kFastPathFailed);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     check.End();
   }
 
@@ -914,7 +915,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     IfBuilder range(this);
     range.If<HCompareNumericAndBranch>(descriptors_length,
                                        graph()->GetConstant1(), Token::LTE);
-    range.ThenDeopt(Deoptimizer::kFastPathFailed);
+    range.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     range.End();
 
     // Verify .length.
@@ -991,7 +992,7 @@ HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
     IfBuilder equal_prototype(this);
     equal_prototype.IfNot<HCompareObjectEqAndBranch>(prototype,
                                                      expected_prototype);
-    equal_prototype.ThenDeopt(Deoptimizer::kFastPathFailed);
+    equal_prototype.ThenDeopt(DeoptimizeReason::kFastPathFailed);
     equal_prototype.End();
   }
 
@@ -1181,7 +1182,7 @@ HValue* CodeStubGraphBuilderBase::UnmappedCase(HValue* elements, HValue* key,
       Add<HStoreKeyed>(backing_store, key, value, nullptr, FAST_HOLEY_ELEMENTS);
     }
   }
-  in_unmapped_range.ElseDeopt(Deoptimizer::kOutsideOfRange);
+  in_unmapped_range.ElseDeopt(DeoptimizeReason::kOutsideOfRange);
   in_unmapped_range.End();
   return result;
 }
@@ -1222,7 +1223,7 @@ HValue* CodeStubGraphBuilderBase::EmitKeyedSloppyArguments(HValue* receiver,
   IfBuilder positive_smi(this);
   positive_smi.If<HCompareNumericAndBranch>(key, graph()->GetConstant0(),
                                             Token::LT);
-  positive_smi.ThenDeopt(Deoptimizer::kKeyIsNegative);
+  positive_smi.ThenDeopt(DeoptimizeReason::kKeyIsNegative);
   positive_smi.End();
 
   HValue* constant_two = Add<HConstant>(2);
@@ -1807,7 +1808,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
         Add<HLoadNamedField>(global, nullptr, HObjectAccess::ForMap());
     IfBuilder map_check(this);
     map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
-    map_check.ThenDeopt(Deoptimizer::kUnknownMap);
+    map_check.ThenDeopt(DeoptimizeReason::kUnknownMap);
     map_check.End();
   }
 
@@ -1830,14 +1831,14 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
     builder.ElseDeopt(
-        Deoptimizer::kUnexpectedCellContentsInConstantGlobalStore);
+        DeoptimizeReason::kUnexpectedCellContentsInConstantGlobalStore);
     builder.End();
   } else {
     IfBuilder builder(this);
     HValue* hole_value = graph()->GetConstantHole();
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
-    builder.Deopt(Deoptimizer::kUnexpectedCellContentsInGlobalStore);
+    builder.Deopt(DeoptimizeReason::kUnexpectedCellContentsInGlobalStore);
     builder.Else();
     // When dealing with constant types, the type may be allowed to change, as
     // long as optimized code remains valid.
@@ -1860,7 +1861,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
               Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
           IfBuilder map_check(this);
           map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
-          map_check.ThenDeopt(Deoptimizer::kUnknownMap);
+          map_check.ThenDeopt(DeoptimizeReason::kUnknownMap);
           map_check.End();
           access = access.WithRepresentation(Representation::HeapObject());
           break;
@@ -1889,7 +1890,7 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>(Deoptimizer::kTracingElementsTransitions,
+    Add<HDeoptimize>(DeoptimizeReason::kTracingElementsTransitions,
                      Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
@@ -2084,12 +2085,12 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     BuildElementsKindLimitCheck(&kind_if, bit_field2,
                                 SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
     // Non-strict elements are not handled.
-    Add<HDeoptimize>(Deoptimizer::kNonStrictElementsInKeyedLoadGenericStub,
+    Add<HDeoptimize>(DeoptimizeReason::kNonStrictElementsInKeyedLoadGenericStub,
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
 
     kind_if.ElseDeopt(
-        Deoptimizer::kElementsKindUnhandledInKeyedLoadGenericStub);
+        DeoptimizeReason::kElementsKindUnhandledInKeyedLoadGenericStub);
 
     kind_if.End();
   }

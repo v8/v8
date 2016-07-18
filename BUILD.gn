@@ -1166,6 +1166,8 @@ v8_source_set("v8_base") {
     "src/debug/debug.h",
     "src/debug/liveedit.cc",
     "src/debug/liveedit.h",
+    "src/deoptimize-reason.cc",
+    "src/deoptimize-reason.h",
     "src/deoptimizer.cc",
     "src/deoptimizer.h",
     "src/disasm.h",

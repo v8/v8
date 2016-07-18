@@ -202,8 +202,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
-  FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
-                                                size_t frame_state_offset);
+  DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
+                                                    size_t frame_state_offset);
+  DeoptimizeReason GetDeoptimizationReason(int deoptimization_id) const;
   int BuildTranslation(Instruction* instr, int pc_offset,
                        size_t frame_state_offset,
                        OutputFrameStateCombine state_combine);
@@ -227,21 +228,25 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // ===========================================================================
 
-  struct DeoptimizationState : ZoneObject {
+  class DeoptimizationState final : public ZoneObject {
    public:
+    DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset,
+                        DeoptimizeReason reason)
+        : bailout_id_(bailout_id),
+          translation_id_(translation_id),
+          pc_offset_(pc_offset),
+          reason_(reason) {}
+
     BailoutId bailout_id() const { return bailout_id_; }
     int translation_id() const { return translation_id_; }
     int pc_offset() const { return pc_offset_; }
-
-    DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset)
-        : bailout_id_(bailout_id),
-          translation_id_(translation_id),
-          pc_offset_(pc_offset) {}
+    DeoptimizeReason reason() const { return reason_; }
 
    private:
     BailoutId bailout_id_;
     int translation_id_;
     int pc_offset_;
+    DeoptimizeReason reason_;
   };
 
   struct HandlerInfo {

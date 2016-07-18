@@ -616,7 +616,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     // code address).
     size_t frame_state_offset = 1;
     FrameStateDescriptor* descriptor =
-        GetFrameStateDescriptor(instr, frame_state_offset);
+        GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = masm()->pc_offset();
     int deopt_state_id = BuildTranslation(instr, pc_offset, frame_state_offset,
                                           descriptor->state_combine());
@@ -653,15 +653,19 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
   return result;
 }
 
-
-FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
+DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
     Instruction* instr, size_t frame_state_offset) {
   InstructionOperandConverter i(this, instr);
-  InstructionSequence::StateId state_id =
-      InstructionSequence::StateId::FromInt(i.InputInt32(frame_state_offset));
-  return code()->GetFrameStateDescriptor(state_id);
+  int const state_id = i.InputInt32(frame_state_offset);
+  return code()->GetDeoptimizationEntry(state_id);
 }
 
+DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
+    int deoptimization_id) const {
+  size_t const index = static_cast<size_t>(deoptimization_id);
+  DCHECK_LT(index, deoptimization_states_.size());
+  return deoptimization_states_[index]->reason();
+}
 
 void CodeGenerator::TranslateStateValueDescriptor(
     StateValueDescriptor* desc, Translation* translation,
@@ -780,8 +784,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
                                     size_t frame_state_offset,
                                     OutputFrameStateCombine state_combine) {
-  FrameStateDescriptor* descriptor =
-      GetFrameStateDescriptor(instr, frame_state_offset);
+  DeoptimizationEntry const& entry =
+      GetDeoptimizationEntry(instr, frame_state_offset);
+  FrameStateDescriptor* const descriptor = entry.descriptor();
   frame_state_offset++;
 
   Translation translation(
@@ -794,7 +799,8 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 
   deoptimization_states_.push_back(new (zone()) DeoptimizationState(
-      descriptor->bailout_id(), translation.index(), pc_offset));
+      descriptor->bailout_id(), translation.index(), pc_offset,
+      entry.reason()));
 
   return deoptimization_id;
 }
