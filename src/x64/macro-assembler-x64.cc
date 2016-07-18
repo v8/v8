@@ -2877,7 +2877,7 @@ void MacroAssembler::Movmskpd(Register dst, XMMRegister src) {
 void MacroAssembler::Xorps(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
-    vxorps(dst, kScratchDoubleReg, src);
+    vxorps(dst, dst, src);
   } else {
     xorps(dst, src);
   }
@@ -2886,7 +2886,7 @@ void MacroAssembler::Xorps(XMMRegister dst, XMMRegister src) {
 void MacroAssembler::Xorps(XMMRegister dst, const Operand& src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
-    vxorps(dst, kScratchDoubleReg, src);
+    vxorps(dst, dst, src);
   } else {
     xorps(dst, src);
   }
