@@ -2650,6 +2650,9 @@ void LinearScanAllocator::AllocateRegisters() {
     for (TopLevelLiveRange* current : data()->fixed_double_live_ranges()) {
       if (current != nullptr) AddToInactive(current);
     }
+    for (TopLevelLiveRange* current : data()->fixed_simd128_live_ranges()) {
+      if (current != nullptr) AddToInactive(current);
+    }
   }
 
   while (!unhandled_live_ranges().empty()) {
