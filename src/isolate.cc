@@ -403,6 +403,8 @@ class StackTraceHelper {
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 Handle<Object> caller) {
+  DisallowJavascriptExecution no_js(this);
+
   // Get stack trace limit.
   Handle<JSObject> error = error_function();
   Handle<String> stackTraceLimit =
@@ -738,6 +740,7 @@ int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
 
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
+  DisallowJavascriptExecution no_js(this);
   CaptureStackTraceHelper helper(this, options);
 
   // Ensure no negative values.
@@ -921,6 +924,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
 
 Object* Isolate::StackOverflow() {
+  DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
   // At this point we cannot create an Error object using its javascript
   // constructor.  Instead, we copy the pre-constructed boilerplate and

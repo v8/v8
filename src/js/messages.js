@@ -246,6 +246,7 @@ function ScriptLocationFromPosition(position,
  * deprecated //@ sourceURL comment otherwise.
  */
 function ScriptNameOrSourceURL() {
+  // Keep in sync with Script::GetNameOrSourceURL.
   if (this.source_url) return this.source_url;
   return this.name;
 }
