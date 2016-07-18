@@ -1070,7 +1070,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   Callable callable = CodeFactory::ToObject(isolate());
   __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
-  PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::NO_REGISTERS);
+  PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
   PushFunctionArgumentForContextAllocation();
   CallRuntimeWithOperands(Runtime::kPushWithContext);
