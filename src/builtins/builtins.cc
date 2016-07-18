@@ -6,7 +6,6 @@
 
 #include "src/api-arguments.h"
 #include "src/api-natives.h"
-#include "src/api.h"
 #include "src/base/ieee754.h"
 #include "src/base/once.h"
 #include "src/bootstrapper.h"
@@ -387,6 +386,254 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
   assembler->Bind(&call_runtime);
   assembler->Return(assembler->CallRuntime(Runtime::kObjectHasOwnProperty,
                                            context, object, key));
+}
+
+namespace {  // anonymous namespace for ObjectProtoToString()
+
+void IsString(CodeStubAssembler* assembler, compiler::Node* object,
+              CodeStubAssembler::Label* if_string,
+              CodeStubAssembler::Label* if_notstring) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Label if_notsmi(assembler);
+  assembler->Branch(assembler->WordIsSmi(object), if_notstring, &if_notsmi);
+
+  assembler->Bind(&if_notsmi);
+  {
+    Node* instance_type = assembler->LoadInstanceType(object);
+
+    assembler->Branch(
+        assembler->Int32LessThan(
+            instance_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+        if_string, if_notstring);
+  }
+}
+
+void ReturnToStringFormat(CodeStubAssembler* assembler, compiler::Node* context,
+                          compiler::Node* string) {
+  typedef compiler::Node Node;
+
+  Node* lhs = assembler->HeapConstant(
+      assembler->factory()->NewStringFromStaticChars("[object "));
+  Node* rhs = assembler->HeapConstant(
+      assembler->factory()->NewStringFromStaticChars("]"));
+
+  Callable callable = CodeFactory::StringAdd(
+      assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+
+  assembler->Return(assembler->CallStub(
+      callable, context, assembler->CallStub(callable, context, lhs, string),
+      rhs));
+}
+
+void ReturnIfPrimitive(CodeStubAssembler* assembler,
+                       compiler::Node* instance_type,
+                       CodeStubAssembler::Label* return_string,
+                       CodeStubAssembler::Label* return_boolean,
+                       CodeStubAssembler::Label* return_number) {
+  assembler->GotoIf(
+      assembler->Int32LessThan(instance_type,
+                               assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      return_string);
+
+  assembler->GotoIf(assembler->Word32Equal(
+                        instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
+                    return_boolean);
+
+  assembler->GotoIf(
+      assembler->Word32Equal(instance_type,
+                             assembler->Int32Constant(HEAP_NUMBER_TYPE)),
+      return_number);
+}
+
+}  // namespace
+
+// ES6 section 19.1.3.6 Object.prototype.toString
+void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label return_undefined(assembler, Label::kDeferred),
+      return_null(assembler, Label::kDeferred),
+      return_arguments(assembler, Label::kDeferred), return_array(assembler),
+      return_api(assembler, Label::kDeferred), return_object(assembler),
+      return_regexp(assembler), return_function(assembler),
+      return_error(assembler), return_date(assembler), return_string(assembler),
+      return_boolean(assembler), return_jsvalue(assembler),
+      return_jsproxy(assembler, Label::kDeferred), return_number(assembler);
+
+  Label if_isproxy(assembler, Label::kDeferred);
+
+  Label checkstringtag(assembler);
+  Label if_tostringtag(assembler), if_notostringtag(assembler);
+
+  Node* receiver = assembler->Parameter(0);
+  Node* context = assembler->Parameter(3);
+
+  assembler->GotoIf(
+      assembler->Word32Equal(receiver, assembler->UndefinedConstant()),
+      &return_undefined);
+
+  assembler->GotoIf(assembler->Word32Equal(receiver, assembler->NullConstant()),
+                    &return_null);
+
+  assembler->GotoIf(assembler->WordIsSmi(receiver), &return_number);
+
+  Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
+  ReturnIfPrimitive(assembler, receiver_instance_type, &return_string,
+                    &return_boolean, &return_number);
+
+  // for proxies, check IsArray before getting @@toStringTag
+  Variable var_proxy_is_array(assembler, MachineRepresentation::kTagged);
+  var_proxy_is_array.Bind(assembler->BooleanConstant(false));
+
+  assembler->Branch(
+      assembler->Word32Equal(receiver_instance_type,
+                             assembler->Int32Constant(JS_PROXY_TYPE)),
+      &if_isproxy, &checkstringtag);
+
+  assembler->Bind(&if_isproxy);
+  {
+    // This can throw
+    var_proxy_is_array.Bind(
+        assembler->CallRuntime(Runtime::kArrayIsArray, context, receiver));
+    assembler->Goto(&checkstringtag);
+  }
+
+  assembler->Bind(&checkstringtag);
+  {
+    Node* to_string_tag_symbol = assembler->HeapConstant(
+        assembler->isolate()->factory()->to_string_tag_symbol());
+
+    GetPropertyStub stub(assembler->isolate());
+    Callable get_property =
+        Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+    Node* to_string_tag_value = assembler->CallStub(
+        get_property, context, receiver, to_string_tag_symbol);
+
+    IsString(assembler, to_string_tag_value, &if_tostringtag,
+             &if_notostringtag);
+
+    assembler->Bind(&if_tostringtag);
+    ReturnToStringFormat(assembler, context, to_string_tag_value);
+  }
+  assembler->Bind(&if_notostringtag);
+  {
+    size_t const kNumCases = 11;
+    Label* case_labels[kNumCases];
+    int32_t case_values[kNumCases];
+    case_labels[0] = &return_api;
+    case_values[0] = JS_API_OBJECT_TYPE;
+    case_labels[1] = &return_api;
+    case_values[1] = JS_SPECIAL_API_OBJECT_TYPE;
+    case_labels[2] = &return_arguments;
+    case_values[2] = JS_ARGUMENTS_TYPE;
+    case_labels[3] = &return_array;
+    case_values[3] = JS_ARRAY_TYPE;
+    case_labels[4] = &return_function;
+    case_values[4] = JS_BOUND_FUNCTION_TYPE;
+    case_labels[5] = &return_function;
+    case_values[5] = JS_FUNCTION_TYPE;
+    case_labels[6] = &return_error;
+    case_values[6] = JS_ERROR_TYPE;
+    case_labels[7] = &return_date;
+    case_values[7] = JS_DATE_TYPE;
+    case_labels[8] = &return_regexp;
+    case_values[8] = JS_REGEXP_TYPE;
+    case_labels[9] = &return_jsvalue;
+    case_values[9] = JS_VALUE_TYPE;
+    case_labels[10] = &return_jsproxy;
+    case_values[10] = JS_PROXY_TYPE;
+
+    assembler->Switch(receiver_instance_type, &return_object, case_values,
+                      case_labels, arraysize(case_values));
+
+    assembler->Bind(&return_undefined);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->undefined_to_string()));
+
+    assembler->Bind(&return_null);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->null_to_string()));
+
+    assembler->Bind(&return_number);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->number_to_string()));
+
+    assembler->Bind(&return_string);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->string_to_string()));
+
+    assembler->Bind(&return_boolean);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->boolean_to_string()));
+
+    assembler->Bind(&return_arguments);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->arguments_to_string()));
+
+    assembler->Bind(&return_array);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->array_to_string()));
+
+    assembler->Bind(&return_function);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->function_to_string()));
+
+    assembler->Bind(&return_error);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->error_to_string()));
+
+    assembler->Bind(&return_date);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->date_to_string()));
+
+    assembler->Bind(&return_regexp);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->regexp_to_string()));
+
+    assembler->Bind(&return_api);
+    {
+      Node* class_name =
+          assembler->CallRuntime(Runtime::kClassOf, context, receiver);
+      ReturnToStringFormat(assembler, context, class_name);
+    }
+
+    assembler->Bind(&return_jsvalue);
+    {
+      Node* value = assembler->LoadJSValueValue(receiver);
+      assembler->GotoIf(assembler->WordIsSmi(value), &return_number);
+
+      ReturnIfPrimitive(assembler, assembler->LoadInstanceType(value),
+                        &return_string, &return_boolean, &return_number);
+      assembler->Goto(&return_object);
+    }
+
+    assembler->Bind(&return_jsproxy);
+    {
+      assembler->GotoIf(assembler->WordEqual(var_proxy_is_array.value(),
+                                             assembler->BooleanConstant(true)),
+                        &return_array);
+
+      Node* map = assembler->LoadMap(receiver);
+
+      // Return object if the proxy {receiver} is not callable.
+      assembler->Branch(
+          assembler->Word32Equal(
+              assembler->Word32And(
+                  assembler->LoadMapBitField(map),
+                  assembler->Int32Constant(1 << Map::kIsCallable)),
+              assembler->Int32Constant(0)),
+          &return_object, &return_function);
+    }
+
+    // Default
+    assembler->Bind(&return_object);
+    assembler->Return(assembler->HeapConstant(
+        assembler->isolate()->factory()->object_to_string()));
+  }
 }
 
 namespace {
@@ -4891,14 +5138,6 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
   if (!maybe.IsJust()) return isolate->heap()->exception();
   if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
   return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
-}
-
-// ES6 section 19.1.3.6 Object.prototype.toString
-BUILTIN(ObjectProtoToString) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           Object::ObjectProtoToString(isolate, object));
 }
 
 // -----------------------------------------------------------------------------

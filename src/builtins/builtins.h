@@ -331,8 +331,8 @@ namespace internal {
   CPP(ObjectLookupGetter)                                                   \
   CPP(ObjectLookupSetter)                                                   \
   CPP(ObjectPreventExtensions)                                              \
+  TFJ(ObjectProtoToString, 1)                                               \
   CPP(ObjectPrototypePropertyIsEnumerable)                                  \
-  CPP(ObjectProtoToString)                                                  \
   CPP(ObjectSeal)                                                           \
   CPP(ObjectValues)                                                         \
   /* Proxy */                                                               \
@@ -719,6 +719,9 @@ class Builtins {
 
   // ES6 section 19.1.3.2 Object.prototype.hasOwnProperty
   static void Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler);
+
+  // ES6 section 19.1.3.6 Object.prototype.toString ()
+  static void Generate_ObjectProtoToString(CodeStubAssembler* assembler);
 
   // ES6 section 22.1.2.2 Array.isArray
   static void Generate_ArrayIsArray(CodeStubAssembler* assembler);
