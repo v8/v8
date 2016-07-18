@@ -249,6 +249,7 @@ const AstConsString* AstValueFactory::NewConsString(
   // This Vector will be valid as long as the Collector is alive (meaning that
   // the AstRawString will not be moved).
   AstConsString* new_string = new (zone_) AstConsString(left, right);
+  CHECK(new_string != nullptr);
   strings_.Add(new_string);
   if (isolate_) {
     new_string->Internalize(isolate_);
@@ -276,7 +277,7 @@ void AstValueFactory::Internalize(Isolate* isolate) {
 
 const AstValue* AstValueFactory::NewString(const AstRawString* string) {
   AstValue* value = new (zone_) AstValue(string);
-  DCHECK(string != NULL);
+  CHECK(string != nullptr);
   if (isolate_) {
     value->Internalize(isolate_);
   }
@@ -368,6 +369,7 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
     memcpy(new_literal_bytes, literal_bytes.start(), length);
     AstRawString* new_string = new (zone_) AstRawString(
         is_one_byte, Vector<const byte>(new_literal_bytes, length), hash);
+    CHECK(new_string != nullptr);
     entry->key = new_string;
     strings_.Add(new_string);
     if (isolate_) {
