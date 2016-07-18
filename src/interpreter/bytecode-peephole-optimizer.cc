@@ -1,4 +1,4 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,21 @@ Handle<BytecodeArray> BytecodePeepholeOptimizer::ToBytecodeArray(
 }
 
 // override
+void BytecodePeepholeOptimizer::Write(BytecodeNode* node) {
+  node = OptimizeAndEmitLast(node);
+  if (node != nullptr) {
+    SetLast(node);
+  }
+}
+
+// override
+void BytecodePeepholeOptimizer::WriteJump(BytecodeNode* node,
+                                          BytecodeLabel* label) {
+  node = OptimizeAndEmitLast(node);
+  next_stage_->WriteJump(node, label);
+}
+
+// override
 void BytecodePeepholeOptimizer::BindLabel(BytecodeLabel* label) {
   Flush();
   next_stage_->BindLabel(label);
@@ -37,29 +52,14 @@ void BytecodePeepholeOptimizer::BindLabel(BytecodeLabel* label) {
 // override
 void BytecodePeepholeOptimizer::BindLabel(const BytecodeLabel& target,
                                           BytecodeLabel* label) {
-  // There is no need to flush here, it will have been flushed when
-  // |target| was bound.
+  // There is no need to flush here, it will have been flushed when |target|
+  // was bound.
   next_stage_->BindLabel(target, label);
 }
 
-// override
-void BytecodePeepholeOptimizer::WriteJump(BytecodeNode* node,
-                                          BytecodeLabel* label) {
-  // Handlers for jump bytecodes do not emit |node| as WriteJump()
-  // requires the |label| and having a label argument in all action
-  // handlers results in dead work in the non-jump case.
-  ApplyPeepholeAction(node);
-  next_stage()->WriteJump(node, label);
-}
-
-// override
-void BytecodePeepholeOptimizer::Write(BytecodeNode* node) {
-  // Handlers for non-jump bytecodes run to completion emitting
-  // bytecode to next stage as appropriate.
-  ApplyPeepholeAction(node);
-}
-
 void BytecodePeepholeOptimizer::Flush() {
+  // TODO(oth/rmcilroy): We could check CanElideLast() here to potentially
+  // eliminate last rather than writing it.
   if (LastIsValid()) {
     next_stage_->Write(&last_);
     InvalidateLast();
@@ -75,11 +75,6 @@ bool BytecodePeepholeOptimizer::LastIsValid() const {
 }
 
 void BytecodePeepholeOptimizer::SetLast(const BytecodeNode* const node) {
-  // An action shouldn't leave a NOP as last bytecode unless it has
-  // source position information. NOP without source information can
-  // always be elided.
-  DCHECK(node->bytecode() != Bytecode::kNop || node->source_info().is_valid());
-
   last_.Clone(node);
 }
 
@@ -89,6 +84,51 @@ Handle<Object> BytecodePeepholeOptimizer::GetConstantForIndexOperand(
   DCHECK_EQ(Bytecodes::GetOperandType(node->bytecode(), 0), OperandType::kIdx);
   uint32_t index_operand = node->operand(0);
   return constant_array_builder_->At(index_operand);
+}
+
+bool BytecodePeepholeOptimizer::LastBytecodePutsNameInAccumulator() const {
+  DCHECK(LastIsValid());
+  return (last_.bytecode() == Bytecode::kTypeOf ||
+          last_.bytecode() == Bytecode::kToName ||
+          (last_.bytecode() == Bytecode::kLdaConstant &&
+           GetConstantForIndexOperand(&last_, 0)->IsName()));
+}
+
+void BytecodePeepholeOptimizer::TryToRemoveLastExpressionPosition(
+    const BytecodeNode* const current) {
+  if (current->source_info().is_valid() &&
+      last_.source_info().is_expression() &&
+      Bytecodes::IsWithoutExternalSideEffects(last_.bytecode())) {
+    // The last bytecode has been marked as expression. It has no
+    // external effects so can't throw and the current bytecode is a
+    // source position. Remove the expression position on the last
+    // bytecode to open up potential peephole optimizations and to
+    // save the memory and perf cost of storing the unneeded
+    // expression position.
+    last_.source_info().set_invalid();
+  }
+}
+
+bool BytecodePeepholeOptimizer::CanElideCurrent(
+    const BytecodeNode* const current) const {
+  if (Bytecodes::IsLdarOrStar(last_.bytecode()) &&
+      Bytecodes::IsLdarOrStar(current->bytecode()) &&
+      current->operand(0) == last_.operand(0)) {
+    // Ldar and Star make the accumulator and register hold equivalent
+    // values. Only the first bytecode is needed if there's a sequence
+    // of back-to-back Ldar and Star bytecodes with the same operand.
+    return true;
+  } else if (current->bytecode() == Bytecode::kToName &&
+             LastBytecodePutsNameInAccumulator()) {
+    // If the previous bytecode ensured a name was in the accumulator,
+    // the type coercion ToName() can be elided.
+    return true;
+  } else {
+    // Additional candidates for eliding current:
+    // (i) current is Nop.
+    // (ii) ToNumber if the last puts a number in the accumulator.
+    return false;
+  }
 }
 
 bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
@@ -113,13 +153,17 @@ bool BytecodePeepholeOptimizer::CanElideLastBasedOnSourcePosition(
   // source position information is applied to the current node
   // updating it if necessary.
   //
-  // The last bytecode could be elided for the MAYBE cases if the last
+  // The last bytecode can be elided for the MAYBE cases if the last
   // bytecode is known not to throw. If it throws, the system would
   // not have correct stack trace information. The appropriate check
-  // for this would be Bytecodes::IsWithoutExternalSideEffects(). By
-  // default, the upstream bytecode generator filters out unneeded
-  // expression position information so there is neglible benefit to
-  // handling MAYBE specially. Hence MAYBE is treated the same as NO.
+  // for this would be Bytecodes::IsWithoutExternalSideEffects(),
+  // which is checked in
+  // BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes() to
+  // keep the check here simple.
+  //
+  // In rare cases, bytecode generation produces consecutive bytecodes
+  // with the same expression positions. In principle, the latter of
+  // these can be elided, but would make this function more expensive.
   //
   return (!last_.source_info().is_valid() ||
           !current->source_info().is_valid());
@@ -145,21 +189,13 @@ void TransformLdaStarToLdrLdar(Bytecode new_bytecode, BytecodeNode* const last,
   current->set_bytecode(Bytecode::kLdar, current->operand(0));
 }
 
-void TransformLdaSmiBinaryOpToBinaryOpWithSmi(Bytecode new_bytecode,
-                                              BytecodeNode* const last,
-                                              BytecodeNode* const current) {
-  DCHECK_EQ(last->bytecode(), Bytecode::kLdaSmi);
-  current->set_bytecode(new_bytecode, last->operand(0), current->operand(0));
-  if (last->source_info().is_valid()) {
-    current->source_info().Clone(last->source_info());
-  }
-}
-
-void TransformLdaZeroBinaryOpToBinaryOpWithZero(Bytecode new_bytecode,
-                                                BytecodeNode* const last,
-                                                BytecodeNode* const current) {
-  DCHECK_EQ(last->bytecode(), Bytecode::kLdaZero);
-  current->set_bytecode(new_bytecode, 0, current->operand(0));
+void TransformToBinaryOpWithSmiOnRhs(Bytecode new_bytecode,
+                                     BytecodeNode* const last,
+                                     BytecodeNode* const current) {
+  DCHECK(Bytecodes::IsLdaSmiOrLdaZero(last->bytecode()));
+  uint32_t imm_operand =
+      last->bytecode() == Bytecode::kLdaSmi ? last->operand(0) : 0;
+  current->set_bytecode(new_bytecode, imm_operand, current->operand(0));
   if (last->source_info().is_valid()) {
     current->source_info().Clone(last->source_info());
   }
@@ -167,198 +203,171 @@ void TransformLdaZeroBinaryOpToBinaryOpWithZero(Bytecode new_bytecode,
 
 }  // namespace
 
-void BytecodePeepholeOptimizer::DefaultAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  next_stage()->Write(last());
-  SetLast(node);
-}
-
-void BytecodePeepholeOptimizer::UpdateLastAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(!LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  SetLast(node);
-}
-
-void BytecodePeepholeOptimizer::UpdateLastIfSourceInfoPresentAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(!LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (node->source_info().is_valid()) {
-    SetLast(node);
-  }
-}
-
-void BytecodePeepholeOptimizer::ElideCurrentAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (node->source_info().is_valid()) {
-    // Preserve the source information by replacing the node bytecode
-    // with a no op bytecode.
-    node->set_bytecode(Bytecode::kNop);
-    DefaultAction(node);
-  } else {
-    // Nothing to do, keep last and wait for next bytecode to pair with it.
-  }
-}
-
-void BytecodePeepholeOptimizer::ElideCurrentIfOperand0MatchesAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (last()->operand(0) == node->operand(0)) {
-    ElideCurrentAction(node);
-  } else {
-    DefaultAction(node);
-  }
-}
-
-void BytecodePeepholeOptimizer::ElideCurrentIfLoadingNameConstantAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK_EQ(last()->bytecode(), Bytecode::kLdaConstant);
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (GetConstantForIndexOperand(last(), 0)->IsName()) {
-    ElideCurrentAction(node);
-  } else {
-    DefaultAction(node);
-  }
-}
-
-void BytecodePeepholeOptimizer::ElideLastAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (CanElideLastBasedOnSourcePosition(node)) {
-    if (last()->source_info().is_valid()) {
-      // |node| can not have a valid source position if the source
-      // position of last() is valid (per rules in
-      // CanElideLastBasedOnSourcePosition()).
-      node->source_info().Clone(last()->source_info());
+bool BytecodePeepholeOptimizer::TransformLastAndCurrentBytecodes(
+    BytecodeNode* const current) {
+  if (current->bytecode() == Bytecode::kStar &&
+      !current->source_info().is_statement()) {
+    // Note: If the Star is tagged with a statement position, we can't
+    // perform this transform as the store to the register will
+    // have the wrong ordering for stepping in the debugger.
+    switch (last_.bytecode()) {
+      case Bytecode::kLdaNamedProperty:
+        TransformLdaStarToLdrLdar(Bytecode::kLdrNamedProperty, &last_, current);
+        return true;
+      case Bytecode::kLdaKeyedProperty:
+        TransformLdaStarToLdrLdar(Bytecode::kLdrKeyedProperty, &last_, current);
+        return true;
+      case Bytecode::kLdaGlobal:
+        TransformLdaStarToLdrLdar(Bytecode::kLdrGlobal, &last_, current);
+        return true;
+      case Bytecode::kLdaContextSlot:
+        TransformLdaStarToLdrLdar(Bytecode::kLdrContextSlot, &last_, current);
+        return true;
+      case Bytecode::kLdaUndefined:
+        TransformLdaStarToLdrLdar(Bytecode::kLdrUndefined, &last_, current);
+        return true;
+      default:
+        break;
     }
-    SetLast(node);
+  } else if (Bytecodes::IsLdaSmiOrLdaZero(last_.bytecode()) &&
+             (!last_.source_info().is_valid() ||
+              !current->source_info().is_valid())) {
+    switch (current->bytecode()) {
+      case Bytecode::kAdd:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kAddSmi, &last_, current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kSub:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kSubSmi, &last_, current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kBitwiseOr:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kBitwiseOrSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kBitwiseAnd:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kBitwiseAndSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kShiftLeft:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kShiftLeftSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      case Bytecode::kShiftRight:
+        TransformToBinaryOpWithSmiOnRhs(Bytecode::kShiftRightSmi, &last_,
+                                        current);
+        InvalidateLast();
+        return true;
+      default:
+        break;
+    }
+  }
+
+  return false;
+}
+
+bool BytecodePeepholeOptimizer::RemoveToBooleanFromJump(
+    BytecodeNode* const current) {
+  bool can_remove = Bytecodes::IsJumpIfToBoolean(current->bytecode()) &&
+                    Bytecodes::WritesBooleanToAccumulator(last_.bytecode());
+  if (can_remove) {
+    // Conditional jumps with boolean conditions are emiitted in
+    // ToBoolean form by the bytecode array builder,
+    // i.e. JumpIfToBooleanTrue rather JumpIfTrue. The ToBoolean
+    // element can be removed if the previous bytecode put a boolean
+    // value in the accumulator.
+    Bytecode jump = Bytecodes::GetJumpWithoutToBoolean(current->bytecode());
+    current->set_bytecode(jump, current->operand(0));
+  }
+  return can_remove;
+}
+
+bool BytecodePeepholeOptimizer::RemoveToBooleanFromLogicalNot(
+    BytecodeNode* const current) {
+  bool can_remove = current->bytecode() == Bytecode::kToBooleanLogicalNot &&
+                    Bytecodes::WritesBooleanToAccumulator(last_.bytecode());
+  if (can_remove) {
+    // Logical-nots are emitted in ToBoolean form by the bytecode array
+    // builder, The ToBoolean element can be removed if the previous bytecode
+    // put a boolean value in the accumulator.
+    current->set_bytecode(Bytecode::kLogicalNot);
+  }
+  return can_remove;
+}
+
+bool BytecodePeepholeOptimizer::TransformCurrentBytecode(
+    BytecodeNode* const current) {
+  return RemoveToBooleanFromJump(current) ||
+         RemoveToBooleanFromLogicalNot(current);
+}
+
+bool BytecodePeepholeOptimizer::CanElideLast(
+    const BytecodeNode* const current) const {
+  if (last_.bytecode() == Bytecode::kNop) {
+    // Nop are placeholders for holding source position information.
+    return true;
+  } else if (Bytecodes::IsAccumulatorLoadWithoutEffects(current->bytecode()) &&
+             Bytecodes::IsAccumulatorLoadWithoutEffects(last_.bytecode())) {
+    // The accumulator is invisible to the debugger. If there is a sequence of
+    // consecutive accumulator loads (that don't have side effects) then only
+    // the final load is potentially visible.
+    return true;
+  } else if (Bytecodes::GetAccumulatorUse(current->bytecode()) ==
+                 AccumulatorUse::kWrite &&
+             Bytecodes::IsAccumulatorLoadWithoutEffects(last_.bytecode())) {
+    // The current instruction clobbers the accumulator without reading it. The
+    // load in the last instruction can be elided as it has no effect.
+    return true;
   } else {
-    DefaultAction(node);
+    return false;
   }
 }
 
-void BytecodePeepholeOptimizer::ChangeBytecodeAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  node->set_bytecode(action_data->bytecode);
-  DefaultAction(node);
-}
-
-void BytecodePeepholeOptimizer::TransformLdaStarToLdrLdarAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (!node->source_info().is_statement()) {
-    TransformLdaStarToLdrLdar(action_data->bytecode, last(), node);
+BytecodeNode* BytecodePeepholeOptimizer::Optimize(BytecodeNode* current) {
+  TryToRemoveLastExpressionPosition(current);
+  if (TransformCurrentBytecode(current) ||
+      TransformLastAndCurrentBytecodes(current)) {
+    return current;
   }
-  DefaultAction(node);
-}
 
-void BytecodePeepholeOptimizer::TransformLdaSmiBinaryOpToBinaryOpWithSmiAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (!node->source_info().is_valid() || !last()->source_info().is_valid()) {
-    // Fused last and current into current.
-    TransformLdaSmiBinaryOpToBinaryOpWithSmi(action_data->bytecode, last(),
-                                             node);
-    SetLast(node);
-  } else {
-    DefaultAction(node);
+  if (CanElideCurrent(current)) {
+    if (current->source_info().is_valid()) {
+      // Preserve the source information by replacing the current bytecode
+      // with a no op bytecode.
+      current->set_bytecode(Bytecode::kNop);
+    } else {
+      current = nullptr;
+    }
+    return current;
   }
-}
 
-void BytecodePeepholeOptimizer::
-    TransformLdaZeroBinaryOpToBinaryOpWithZeroAction(
-        BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-  if (!node->source_info().is_valid() || !last()->source_info().is_valid()) {
-    // Fused last and current into current.
-    TransformLdaZeroBinaryOpToBinaryOpWithZero(action_data->bytecode, last(),
-                                               node);
-    SetLast(node);
-  } else {
-    DefaultAction(node);
+  if (CanElideLast(current) && CanElideLastBasedOnSourcePosition(current)) {
+    if (last_.source_info().is_valid()) {
+      // Current can not be valid per CanElideLastBasedOnSourcePosition().
+      current->source_info().Clone(last_.source_info());
+    }
+    InvalidateLast();
+    return current;
   }
+
+  return current;
 }
 
-void BytecodePeepholeOptimizer::DefaultJumpAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-
-  next_stage()->Write(last());
-  InvalidateLast();
-}
-
-void BytecodePeepholeOptimizer::UpdateLastJumpAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(!LastIsValid());
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-}
-
-void BytecodePeepholeOptimizer::ChangeJumpBytecodeAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-
-  next_stage()->Write(last());
-  InvalidateLast();
-  node->set_bytecode(action_data->bytecode, node->operand(0));
-}
-
-void BytecodePeepholeOptimizer::ElideLastBeforeJumpAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK(LastIsValid());
-  DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK(CanElideLastBasedOnSourcePosition(node));
-
-  if (!node->source_info().is_valid()) {
-    node->source_info().Clone(last()->source_info());
-  } else {
-    next_stage()->Write(last());
+BytecodeNode* BytecodePeepholeOptimizer::OptimizeAndEmitLast(
+    BytecodeNode* current) {
+  // Attempt optimization if there is an earlier node to optimize with.
+  if (LastIsValid()) {
+    current = Optimize(current);
+    // Only output the last node if it wasn't invalidated by the optimization.
+    if (LastIsValid()) {
+      next_stage_->Write(&last_);
+      InvalidateLast();
+    }
   }
-  InvalidateLast();
-}
-
-void BytecodePeepholeOptimizer::ApplyPeepholeAction(BytecodeNode* const node) {
-  // A single table is used for looking up peephole optimization
-  // matches as it is observed to have better performance. This is
-  // inspite of the fact that jump bytecodes and non-jump bytecodes
-  // have different processing logic, in particular a jump bytecode
-  // always needs to emit the jump via WriteJump().
-  const PeepholeActionAndData* const action_data =
-      PeepholeActionTable::Lookup(last()->bytecode(), node->bytecode());
-  switch (action_data->action) {
-#define CASE(Action)              \
-  case PeepholeAction::k##Action: \
-    Action(node, action_data);    \
-    break;
-    PEEPHOLE_ACTION_LIST(CASE)
-#undef CASE
-    default:
-      UNREACHABLE();
-      break;
-  }
+  return current;
 }
 
 }  // namespace interpreter
