@@ -33,7 +33,6 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'force_dynamic_crt%': 0,
     'clang_xcode%': 0,
     # Track where uninitialized memory originates from. From fastest to
     # slowest: 0 - no tracking, 1 - track only the initial allocation site, 2
