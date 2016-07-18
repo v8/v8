@@ -4,6 +4,7 @@
 
 #include "src/factory.h"
 
+#include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
@@ -2393,6 +2394,122 @@ Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
   }
   UNREACHABLE();
   return Handle<String>::null();
+}
+
+Handle<Map> Factory::CreateSloppyFunctionMap(FunctionMode function_mode) {
+  Handle<Map> map = NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  SetFunctionInstanceDescriptor(map, function_mode);
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_callable();
+  return map;
+}
+
+void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
+                                            FunctionMode function_mode) {
+  int size = IsFunctionModeWithPrototype(function_mode) ? 5 : 4;
+  Map::EnsureDescriptorSlack(map, size);
+
+  PropertyAttributes ro_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes roc_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+
+  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
+  Handle<AccessorInfo> length =
+      Accessors::FunctionLengthInfo(isolate(), roc_attribs);
+  {  // Add length.
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                 length, roc_attribs);
+    map->AppendDescriptor(&d);
+  }
+
+  STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
+  Handle<AccessorInfo> name =
+      Accessors::FunctionNameInfo(isolate(), ro_attribs);
+  {  // Add name.
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                 roc_attribs);
+    map->AppendDescriptor(&d);
+  }
+  Handle<AccessorInfo> args =
+      Accessors::FunctionArgumentsInfo(isolate(), ro_attribs);
+  {  // Add arguments.
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(args->name())), args,
+                                 ro_attribs);
+    map->AppendDescriptor(&d);
+  }
+  Handle<AccessorInfo> caller =
+      Accessors::FunctionCallerInfo(isolate(), ro_attribs);
+  {  // Add caller.
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(caller->name())),
+                                 caller, ro_attribs);
+    map->AppendDescriptor(&d);
+  }
+  if (IsFunctionModeWithPrototype(function_mode)) {
+    if (function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE) {
+      ro_attribs = static_cast<PropertyAttributes>(ro_attribs & ~READ_ONLY);
+    }
+    Handle<AccessorInfo> prototype =
+        Accessors::FunctionPrototypeInfo(isolate(), ro_attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, ro_attribs);
+    map->AppendDescriptor(&d);
+  }
+}
+
+Handle<Map> Factory::CreateStrictFunctionMap(
+    FunctionMode function_mode, Handle<JSFunction> empty_function) {
+  Handle<Map> map = NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
+  SetStrictFunctionInstanceDescriptor(map, function_mode);
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
+  map->set_is_callable();
+  Map::SetPrototype(map, empty_function);
+  return map;
+}
+
+void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
+                                                  FunctionMode function_mode) {
+  int size = IsFunctionModeWithPrototype(function_mode) ? 3 : 2;
+  Map::EnsureDescriptorSlack(map, size);
+
+  PropertyAttributes rw_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+  PropertyAttributes ro_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes roc_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+
+  DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
+         function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
+         function_mode == FUNCTION_WITHOUT_PROTOTYPE);
+  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
+  {  // Add length.
+    Handle<AccessorInfo> length =
+        Accessors::FunctionLengthInfo(isolate(), roc_attribs);
+    AccessorConstantDescriptor d(handle(Name::cast(length->name())), length,
+                                 roc_attribs);
+    map->AppendDescriptor(&d);
+  }
+
+  STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
+  {  // Add name.
+    Handle<AccessorInfo> name =
+        Accessors::FunctionNameInfo(isolate(), roc_attribs);
+    AccessorConstantDescriptor d(handle(Name::cast(name->name())), name,
+                                 roc_attribs);
+    map->AppendDescriptor(&d);
+  }
+  if (IsFunctionModeWithPrototype(function_mode)) {
+    // Add prototype.
+    PropertyAttributes attribs =
+        function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ? rw_attribs
+                                                           : ro_attribs;
+    Handle<AccessorInfo> prototype =
+        Accessors::FunctionPrototypeInfo(isolate(), attribs);
+    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                                 prototype, attribs);
+    map->AppendDescriptor(&d);
+  }
 }
 
 }  // namespace internal
