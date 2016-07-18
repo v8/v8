@@ -303,8 +303,16 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* const value = node->InputAt(0);
-  Node* const effect = node->InputAt(1);
-  Node* const control = node->InputAt(2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  bool changed = false;
+  if (effect->opcode() == IrOpcode::kCheckpoint) {
+    // Any {Return} node can never be used to insert a deoptimization point,
+    // hence checkpoints can be cut out of the effect chain flowing into it.
+    effect = NodeProperties::GetEffectInput(effect);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    changed = true;
+  }
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
       effect->opcode() == IrOpcode::kEffectPhi &&
@@ -329,7 +337,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     Replace(control, dead());
     return Replace(dead());
   }
-  return NoChange();
+  return changed ? Changed(node) : NoChange();
 }
 
 
