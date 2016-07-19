@@ -60,8 +60,24 @@ static void NativePropertyAccessor(
   info.GetReturnValue().Set(v8_num(123));
 }
 
+const char* kWatermarkProperty = "watermark";
+
 }  // anonymous namespace
 
+void CheckImplicitParameters(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  CHECK_NOT_NULL(isolate);
+
+  auto context = isolate->GetCurrentContext();
+  CHECK(!context.IsEmpty());
+
+  // The context must point to the same isolate, this should be enough to
+  // validate the context, mainly to prevent having a random object instead.
+  CHECK_EQ(isolate, context->GetIsolate());
+  CHECK(info.Data()->IsUndefined());
+
+  CHECK(info.Holder()->Has(context, v8_str(kWatermarkProperty)).FromJust());
+}
 
 // Build a simple "fast accessor" and verify that it is being called.
 TEST(FastAccessor) {
@@ -300,16 +316,19 @@ TEST(FastAccessorLoad) {
 }
 
 void ApiCallbackInt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   info.GetReturnValue().Set(12345);
 }
 
 const char* kApiCallbackStringValue =
     "Hello World! Bizarro C++ world, actually.";
 void ApiCallbackString(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   info.GetReturnValue().Set(v8_str(kApiCallbackStringValue));
 }
 
 void ApiCallbackParam(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CheckImplicitParameters(info);
   CHECK_EQ(1, info.Length());
   CHECK(info[0]->IsNumber());
   info.GetReturnValue().Set(info[0]);
@@ -347,6 +366,9 @@ TEST(FastAccessorCallback) {
                              v8::FunctionTemplate::NewWithFastHandler(
                                  isolate, NativePropertyAccessor, builder));
   }
+
+  // Add dummy property to validate the holder.
+  foo->Set(isolate, kWatermarkProperty, v8::Undefined(isolate));
 
   // Create an instance.
   v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
