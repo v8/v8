@@ -299,7 +299,13 @@ Type* OperationTyper::NumberAdd(Type* lhs, Type* rhs) {
     return Type::Number();
   }
   Type* int_lhs = Type::Intersect(lhs, cache_.kInteger, zone());
+  if (lhs->Maybe(Type::MinusZero())) {
+    int_lhs = Type::Union(int_lhs, cache_.kSingletonZero, zone());
+  }
   Type* int_rhs = Type::Intersect(rhs, cache_.kInteger, zone());
+  if (rhs->Maybe(Type::MinusZero())) {
+    int_rhs = Type::Union(int_rhs, cache_.kSingletonZero, zone());
+  }
   Type* result =
       AddRanger(int_lhs->Min(), int_lhs->Max(), int_rhs->Min(), int_rhs->Max());
   if (lhs->Maybe(Type::NaN()) || rhs->Maybe(Type::NaN())) {
