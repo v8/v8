@@ -1533,10 +1533,10 @@ class Assembler : public AssemblerBase {
   void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
   void vmovups(XMMRegister dst, XMMRegister src) { vps(0x10, dst, xmm0, src); }
   void vmovups(XMMRegister dst, const Operand& src) {
-    vps(0x11, dst, xmm0, src);
+    vps(0x10, dst, xmm0, src);
   }
   void vmovups(const Operand& dst, XMMRegister src) {
-    vps(0x11, dst, xmm0, src);
+    vps(0x11, src, xmm0, dst);
   }
   void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
   void vmovmskpd(Register dst, XMMRegister src) {
@@ -1546,7 +1546,6 @@ class Assembler : public AssemblerBase {
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
-  void vps(byte op, const Operand& dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, const Operand& src2);
 
