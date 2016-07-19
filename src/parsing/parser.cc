@@ -329,21 +329,20 @@ class TargetScope BASE_EMBEDDED {
 // thus it must never be used where only a single statement
 // is correct (e.g. an if statement branch w/o braces)!
 
-#define CHECK_OK  ok);   \
-  if (!*ok) return NULL; \
+#define CHECK_OK  ok);      \
+  if (!*ok) return nullptr; \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-// Used in functions where the return type is not ExpressionT.
-#define CHECK_OK_CUSTOM(x) ok); \
-  if (!*ok) return this->x();   \
+#define CHECK_OK_VOID  ok); \
+  if (!*ok) return;         \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
 #define CHECK_FAILED /**/); \
-  if (failed_) return NULL;  \
+  if (failed_) return nullptr;  \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
@@ -1222,8 +1221,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 }
 
 
-void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
-                                 bool* ok) {
+void Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
+                                bool* ok) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
@@ -1242,7 +1241,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
     }
 
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement* stat = ParseStatementListItem(CHECK_OK);
+    Statement* stat = ParseStatementListItem(CHECK_OK_VOID);
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1276,7 +1275,7 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
                 token_loc, MessageTemplate::kIllegalLanguageModeDirective,
                 string);
             *ok = false;
-            return nullptr;
+            return;
           }
           // Because declarations in strict eval code don't leak into the scope
           // of the eval call, it is likely that functions declared in strict
@@ -1307,8 +1306,6 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
 
     body->Add(stat, zone());
   }
-
-  return 0;
 }
 
 
@@ -1366,7 +1363,7 @@ Statement* Parser::ParseModuleItem(bool* ok) {
 }
 
 
-void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
+void Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
   // ecma262/#prod-Module
   // Module :
   //    ModuleBody?
@@ -1377,12 +1374,11 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
 
   DCHECK(scope()->is_module_scope());
   while (peek() != Token::EOS) {
-    Statement* stat = ParseModuleItem(CHECK_OK);
+    Statement* stat = ParseModuleItem(CHECK_OK_VOID);
     if (stat && !stat->IsEmpty()) {
       body->Add(stat, zone());
     }
   }
-  return nullptr;
 }
 
 
@@ -1395,10 +1391,10 @@ const AstRawString* Parser::ParseModuleSpecifier(bool* ok) {
 }
 
 
-void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
-                                ZoneList<Scanner::Location>* export_locations,
-                                ZoneList<const AstRawString*>* local_names,
-                                Scanner::Location* reserved_loc, bool* ok) {
+void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
+                               ZoneList<Scanner::Location>* export_locations,
+                               ZoneList<const AstRawString*>* local_names,
+                               Scanner::Location* reserved_loc, bool* ok) {
   // ExportClause :
   //   '{' '}'
   //   '{' ExportsList '}'
@@ -1412,7 +1408,7 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
 
-  Expect(Token::LBRACE, CHECK_OK);
+  Expect(Token::LBRACE, CHECK_OK_VOID);
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
@@ -1422,10 +1418,10 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
         !Token::IsIdentifier(name_tok, STRICT, false, parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParseIdentifierName(CHECK_OK);
+    const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
     const AstRawString* export_name = NULL;
     if (CheckContextualKeyword(CStrVector("as"))) {
-      export_name = ParseIdentifierName(CHECK_OK);
+      export_name = ParseIdentifierName(CHECK_OK_VOID);
     }
     if (export_name == NULL) {
       export_name = local_name;
@@ -1434,12 +1430,10 @@ void* Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     local_names->Add(local_name, zone());
     export_locations->Add(scanner()->location(), zone());
     if (peek() == Token::RBRACE) break;
-    Expect(Token::COMMA, CHECK_OK);
+    Expect(Token::COMMA, CHECK_OK_VOID);
   }
 
-  Expect(Token::RBRACE, CHECK_OK);
-
-  return nullptr;
+  Expect(Token::RBRACE, CHECK_OK_VOID);
 }
 
 
@@ -1496,7 +1490,7 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
 }
 
 
-void* Parser::ParseImportDeclaration(bool* ok) {
+void Parser::ParseImportDeclaration(bool* ok) {
   // ImportDeclaration :
   //   'import' ImportClause 'from' ModuleSpecifier ';'
   //   'import' ModuleSpecifier ';'
@@ -1512,16 +1506,16 @@ void* Parser::ParseImportDeclaration(bool* ok) {
   //   '*' 'as' ImportedBinding
 
   int pos = peek_position();
-  Expect(Token::IMPORT, CHECK_OK);
+  Expect(Token::IMPORT, CHECK_OK_VOID);
 
   Token::Value tok = peek();
 
   // 'import' ModuleSpecifier ';'
   if (tok == Token::STRING) {
-    const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-    ExpectSemicolon(CHECK_OK);
+    const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
+    ExpectSemicolon(CHECK_OK_VOID);
     module()->AddEmptyImport(module_specifier, scanner()->location(), zone());
-    return nullptr;
+    return;
   }
 
   // Parse ImportedDefaultBinding if present.
@@ -1529,9 +1523,9 @@ void* Parser::ParseImportDeclaration(bool* ok) {
   Scanner::Location import_default_binding_loc;
   if (tok != Token::MUL && tok != Token::LBRACE) {
     import_default_binding =
-        ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+        ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
     import_default_binding_loc = scanner()->location();
-    DeclareImport(import_default_binding, pos, CHECK_OK);
+    DeclareImport(import_default_binding, pos, CHECK_OK_VOID);
   }
 
   // Parse NameSpaceImport or NamedImports if present.
@@ -1542,27 +1536,27 @@ void* Parser::ParseImportDeclaration(bool* ok) {
     switch (peek()) {
       case Token::MUL: {
         Consume(Token::MUL);
-        ExpectContextualKeyword(CStrVector("as"), CHECK_OK);
+        ExpectContextualKeyword(CStrVector("as"), CHECK_OK_VOID);
         module_namespace_binding =
-            ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+            ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK_VOID);
         module_namespace_binding_loc = scanner()->location();
         break;
       }
 
       case Token::LBRACE:
-        named_imports = ParseNamedImports(pos, CHECK_OK);
+        named_imports = ParseNamedImports(pos, CHECK_OK_VOID);
         break;
 
       default:
         *ok = false;
         ReportUnexpectedToken(scanner()->current_token());
-        return nullptr;
+        return;
     }
   }
 
-  ExpectContextualKeyword(CStrVector("from"), CHECK_OK);
-  const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
+  ExpectContextualKeyword(CStrVector("from"), CHECK_OK_VOID);
+  const AstRawString* module_specifier = ParseModuleSpecifier(CHECK_OK_VOID);
+  ExpectSemicolon(CHECK_OK_VOID);
 
   // Now that we have all the information, we can make the appropriate
   // declarations.
@@ -1582,7 +1576,7 @@ void* Parser::ParseImportDeclaration(bool* ok) {
     module()->AddImport(ast_value_factory()->default_string(),
                         import_default_binding, module_specifier,
                         import_default_binding_loc, zone());
-    // DeclareImport(import_default_binding, pos, CHECK_OK);
+    // DeclareImport(import_default_binding, pos, CHECK_OK_VOID);
   }
 
   if (named_imports != nullptr) {
@@ -1593,12 +1587,10 @@ void* Parser::ParseImportDeclaration(bool* ok) {
         const NamedImport* import = named_imports->at(i);
         module()->AddImport(import->import_name, import->local_name,
                             module_specifier, import->location, zone());
-        // DeclareImport(import->local_name, pos, CHECK_OK);
+        // DeclareImport(import->local_name, pos, CHECK_OK_VOID);
       }
     }
   }
-
-  return nullptr;
 }
 
 
@@ -1934,13 +1926,12 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
 }
 
 
-void* Parser::DeclareImport(const AstRawString* local_name, int pos, bool* ok) {
+void Parser::DeclareImport(const AstRawString* local_name, int pos, bool* ok) {
   DCHECK_NOT_NULL(local_name);
   VariableProxy* proxy = NewUnresolved(local_name, IMPORT);
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, IMPORT, scope(), pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
-  return nullptr;
+  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK_VOID);
 }
 
 
@@ -4114,7 +4105,7 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     Expression* right = binop->right();
     int comma_pos = binop->position();
     ParseArrowFunctionFormalParameters(parameters, left, comma_pos,
-                                       CHECK_OK_CUSTOM(Void));
+                                       CHECK_OK_VOID);
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -4193,12 +4184,12 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
 
   Expression* return_value = nullptr;
   if (body_type == FunctionBody::Normal) {
-    ParseStatementList(inner_body, Token::RBRACE, CHECK_OK_CUSTOM(Void));
+    ParseStatementList(inner_body, Token::RBRACE, CHECK_OK_VOID);
     return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
   } else {
     return_value =
-        ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_CUSTOM(Void));
-    ParserTraits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(Void));
+        ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_VOID);
+    ParserTraits::RewriteNonPattern(classifier, CHECK_OK_VOID);
   }
 
   return_value = BuildPromiseResolve(return_value, return_value->position());
@@ -4235,7 +4226,7 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
   if (expr->IsEmptyParentheses()) return;
 
   ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
-                                     CHECK_OK_CUSTOM(Void));
+                                     CHECK_OK_VOID);
 
   if (parameters->Arity() > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -4558,7 +4549,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
       scanner()->SeekForward(entry.end_pos() - 1);
 
       scope()->set_end_position(entry.end_pos());
-      Expect(Token::RBRACE, CHECK_OK_CUSTOM(Void));
+      Expect(Token::RBRACE, CHECK_OK_VOID);
       total_preparse_skipped_ += scope()->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
@@ -4591,7 +4582,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     return;
   }
   scope()->set_end_position(logger.end());
-  Expect(Token::RBRACE, CHECK_OK_CUSTOM(Void));
+  Expect(Token::RBRACE, CHECK_OK_VOID);
   total_preparse_skipped_ += scope()->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
@@ -5882,7 +5873,7 @@ class NonPatternRewriter : public AstExpressionRewriter {
 
 
 void Parser::RewriteNonPattern(ExpressionClassifier* classifier, bool* ok) {
-  ValidateExpression(classifier, CHECK_OK_CUSTOM(Void));
+  ValidateExpression(classifier, CHECK_OK_VOID);
   auto non_patterns_to_rewrite = function_state_->non_patterns_to_rewrite();
   int begin = classifier->GetNonPatternBegin();
   int end = non_patterns_to_rewrite->length();
@@ -7084,7 +7075,7 @@ void Parser::Print(AstNode* node) {
 #endif  // DEBUG
 
 #undef CHECK_OK
-#undef CHECK_OK_CUSTOM
+#undef CHECK_OK_VOID
 #undef CHECK_FAILED
 
 }  // namespace internal

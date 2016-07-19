@@ -475,9 +475,6 @@ class ParserTraits {
                        const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
 
-  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
-  static void Void() {}
-
   // "null" return type creators.
   static const AstRawString* EmptyIdentifier() {
     return NULL;
@@ -765,18 +762,18 @@ class Parser : public ParserBase<ParserTraits> {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  void* ParseStatementList(ZoneList<Statement*>* body, int end_token, bool* ok);
+  void ParseStatementList(ZoneList<Statement*>* body, int end_token, bool* ok);
   Statement* ParseStatementListItem(bool* ok);
-  void* ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
+  void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   const AstRawString* ParseModuleSpecifier(bool* ok);
-  void* ParseImportDeclaration(bool* ok);
+  void ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
-  void* ParseExportClause(ZoneList<const AstRawString*>* export_names,
-                          ZoneList<Scanner::Location>* export_locations,
-                          ZoneList<const AstRawString*>* local_names,
-                          Scanner::Location* reserved_loc, bool* ok);
+  void ParseExportClause(ZoneList<const AstRawString*>* export_names,
+                         ZoneList<Scanner::Location>* export_locations,
+                         ZoneList<const AstRawString*>* local_names,
+                         Scanner::Location* reserved_loc, bool* ok);
   struct NamedImport : public ZoneObject {
     const AstRawString* import_name;
     const AstRawString* local_name;
@@ -1041,7 +1038,7 @@ class Parser : public ParserBase<ParserTraits> {
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind, bool resolve,
                     bool* ok, Scope* declaration_scope = nullptr);
-  void* DeclareImport(const AstRawString* local_name, int pos, bool* ok);
+  void DeclareImport(const AstRawString* local_name, int pos, bool* ok);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label, bool* ok);
