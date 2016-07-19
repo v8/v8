@@ -3407,8 +3407,8 @@ class AstNodeFactory final BASE_EMBEDDED {
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
       int position) {
-    return new (parser_zone_) FunctionLiteral(
-        parser_zone_, name, ast_value_factory_, scope, body,
+    return new (local_zone_) FunctionLiteral(
+        local_zone_, name, ast_value_factory_, scope, body,
         materialized_literal_count, expected_property_count, parameter_count,
         function_type, has_duplicate_parameters, eager_compile_hint, kind,
         position, true);

@@ -166,6 +166,27 @@ int ParseData::FunctionsSize() {
   return static_cast<int>(Data()[PreparseDataConstants::kFunctionsSizeOffset]);
 }
 
+// Helper for putting parts of the parse results into a temporary zone when
+// parsing inner function bodies.
+class DiscardableZoneScope {
+ public:
+  DiscardableZoneScope(Parser* parser, Zone* temp_zone, bool use_temp_zone)
+      : ast_node_factory_scope_(parser->factory(), temp_zone, use_temp_zone),
+        fni_(parser->ast_value_factory_, temp_zone),
+        parser_(parser),
+        prev_fni_(parser->fni_) {
+    if (use_temp_zone) {
+      parser_->fni_ = &fni_;
+    }
+  }
+  ~DiscardableZoneScope() { parser_->fni_ = prev_fni_; }
+
+ private:
+  AstNodeFactory::BodyScope ast_node_factory_scope_;
+  FuncNameInferrer fni_;
+  Parser* parser_;
+  FuncNameInferrer* prev_fni_;
+};
 
 void Parser::SetCachedData(ParseInfo* info) {
   if (compile_options_ == ScriptCompiler::kNoCompileOptions) {
@@ -4421,7 +4442,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           function_type == FunctionLiteral::kDeclaration &&
           eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
           !(FLAG_validate_asm && scope->asm_function());
-      // Open a new BodyScope, which sets our AstNodeFactory to allocate in the
+      // Open a new zone scope, which sets our AstNodeFactory to allocate in the
       // new temporary zone if the preconditions are satisfied, and ensures that
       // the previous zone is always restored after parsing the body.
       // For the purpose of scope analysis, some ZoneObjects allocated by the
@@ -4430,8 +4451,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // parser-persistent zone (see parser_zone_ in AstNodeFactory).
       {
         Zone temp_zone(zone()->allocator());
-        AstNodeFactory::BodyScope inner(factory(), &temp_zone, use_temp_zone);
-
+        DiscardableZoneScope(this, &temp_zone, use_temp_zone);
         body = ParseEagerFunctionBody(function_name, pos, formals, kind,
                                       function_type, CHECK_OK);
       }
