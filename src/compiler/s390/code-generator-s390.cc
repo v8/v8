@@ -1631,7 +1631,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Float32ToInt32: {
       bool check_conversion = (i.OutputCount() > 1);
       __ ConvertFloat32ToInt32(i.InputDoubleRegister(0), i.OutputRegister(0),
-                               kScratchDoubleReg);
+                               kScratchDoubleReg, kRoundToZero);
       if (check_conversion) {
         Label conversion_done;
         __ LoadImmP(i.OutputRegister(1), Operand::Zero());

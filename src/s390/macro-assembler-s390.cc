@@ -656,12 +656,12 @@ void MacroAssembler::ConvertUnsignedIntToDouble(Register src,
 }
 
 void MacroAssembler::ConvertIntToFloat(Register src, DoubleRegister dst) {
-  cefbr(dst, src);
+  cefbr(Condition(4), dst, src);
 }
 
 void MacroAssembler::ConvertUnsignedIntToFloat(Register src,
                                                DoubleRegister dst) {
-  celfbr(Condition(0), Condition(0), dst, src);
+  celfbr(Condition(4), Condition(0), dst, src);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -760,7 +760,7 @@ void MacroAssembler::ConvertFloat32ToInt32(const DoubleRegister double_input,
       m = Condition(5);
       break;
     case kRoundToNearest:
-      UNIMPLEMENTED();
+      m = Condition(4);
       break;
     case kRoundToPlusInf:
       m = Condition(6);
@@ -773,6 +773,10 @@ void MacroAssembler::ConvertFloat32ToInt32(const DoubleRegister double_input,
       break;
   }
   cfebr(m, dst, double_input);
+  Label done;
+  b(Condition(0xe), &done, Label::kNear);  // special case
+  LoadImmP(dst, Operand::Zero());
+  bind(&done);
   ldgr(double_dst, dst);
 }
 
@@ -798,6 +802,10 @@ void MacroAssembler::ConvertFloat32ToUnsignedInt32(
       break;
   }
   clfebr(m, Condition(0), dst, double_input);
+  Label done;
+  b(Condition(0xe), &done, Label::kNear);  // special case
+  LoadImmP(dst, Operand::Zero());
+  bind(&done);
   ldgr(double_dst, dst);
 }
 

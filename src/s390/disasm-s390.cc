@@ -913,6 +913,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case CEFBR:
       Format(instr, "cefbr\t'f5,'m2,'r6");
       break;
+    case CELFBR:
+      Format(instr, "celfbr\t'f5,'m2,'r6");
+      break;
     case CGEBR:
       Format(instr, "cgebr\t'r5,'m2,'f6");
       break;
@@ -936,6 +939,12 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     case CLFDBR:
       Format(instr, "clfdbr\t'r5,'m2,'f6");
+      break;
+    case CLFEBR:
+      Format(instr, "clfebr\t'r5,'m2,'f6");
+      break;
+    case CLGEBR:
+      Format(instr, "clgebr\t'r5,'m2,'f6");
       break;
     case CLGDBR:
       Format(instr, "clgdbr\t'r5,'m2,'f6");

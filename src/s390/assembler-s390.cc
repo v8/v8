@@ -1406,7 +1406,6 @@ void Assembler::rrfe_form(Opcode op, Condition m3, Condition m4, Register r1,
 RX_FORM_EMIT(bc, BC)
 RR_FORM_EMIT(bctr, BCTR)
 RXE_FORM_EMIT(ceb, CEB)
-RRE_FORM_EMIT(cefbr, CEFBR)
 SS1_FORM_EMIT(ed, ED)
 RX_FORM_EMIT(ex, EX)
 RRE_FORM_EMIT(flogr, FLOGR)
@@ -2888,10 +2887,8 @@ void Assembler::celgbr(Condition m3, Condition m4, DoubleRegister r1,
 // Convert from Fixed Logical (F32<-32)
 void Assembler::celfbr(Condition m3, Condition m4, DoubleRegister r1,
                        Register r2) {
-  DCHECK_EQ(m3, Condition(0));
   DCHECK_EQ(m4, Condition(0));
-  rrfe_form(CELFBR, Condition(0), Condition(0), Register::from_code(r1.code()),
-            r2);
+  rrfe_form(CELFBR, m3, Condition(0), Register::from_code(r1.code()), r2);
 }
 
 // Convert from Fixed Logical (L<-64)
@@ -2911,8 +2908,8 @@ void Assembler::cdlfbr(Condition m3, Condition m4, DoubleRegister r1,
 }
 
 // Convert from Fixed point (S<-32)
-void Assembler::cefbr(DoubleRegister r1, Register r2) {
-  rre_form(CEFBR, Register::from_code(r1.code()), r2);
+void Assembler::cefbr(Condition m3, DoubleRegister r1, Register r2) {
+  rrfe_form(CEFBR, m3, Condition(0), Register::from_code(r1.code()), r2);
 }
 
 // Convert to Fixed point (32<-S)
