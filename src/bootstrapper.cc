@@ -332,15 +332,6 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
   return scope.CloseAndEscape(global_proxy);
 }
 
-static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
-  // object.__proto__ = proto;
-  Handle<Map> old_map = Handle<Map>(object->map());
-  Handle<Map> new_map = Map::Copy(old_map, "SetObjectPrototype");
-  Map::SetPrototype(new_map, proto, FAST_PROTOTYPE);
-  JSObject::MigrateToMap(object, new_map);
-}
-
-
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
   env->GetIsolate()->counters()->errors_thrown_per_context()->AddSample(
     env->GetErrorsThrown());
@@ -348,7 +339,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Factory* factory = env->GetIsolate()->factory();
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
-  SetObjectPrototype(global_proxy, factory->null_value());
+  JSObject::ForceSetPrototype(global_proxy, factory->null_value());
   global_proxy->map()->SetConstructor(*factory->null_value());
   if (FLAG_track_detached_contexts) {
     env->GetIsolate()->AddDetachedContext(env);
@@ -662,10 +653,10 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   native_context()->set_initial_generator_prototype(
       *generator_object_prototype);
-  SetObjectPrototype(generator_object_prototype, iterator_prototype);
+  JSObject::ForceSetPrototype(generator_object_prototype, iterator_prototype);
   Handle<JSObject> generator_function_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SetObjectPrototype(generator_function_prototype, empty);
+  JSObject::ForceSetPrototype(generator_function_prototype, empty);
 
   JSObject::AddProperty(
       generator_function_prototype, factory()->to_string_tag_symbol(),
@@ -724,7 +715,7 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
   // %AsyncFunctionPrototype% intrinsic
   Handle<JSObject> async_function_prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SetObjectPrototype(async_function_prototype, empty);
+  JSObject::ForceSetPrototype(async_function_prototype, empty);
 
   JSObject::AddProperty(async_function_prototype,
                         factory()->to_string_tag_symbol(),
@@ -2381,8 +2372,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         isolate, generator_function_function,
         Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
 
-    SetObjectPrototype(generator_function_function,
-                       isolate->function_function());
+    JSObject::ForceSetPrototype(generator_function_function,
+                                isolate->function_function());
     JSObject::AddProperty(
         generator_function_prototype, factory->constructor_string(),
         generator_function_function,
@@ -2397,7 +2388,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   {  // -- S e t I t e r a t o r
     Handle<JSObject> set_iterator_prototype =
         isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
-    SetObjectPrototype(set_iterator_prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(set_iterator_prototype, iterator_prototype);
     Handle<JSFunction> set_iterator_function = InstallFunction(
         container, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
         set_iterator_prototype, Builtins::kIllegal);
@@ -2407,7 +2398,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   {  // -- M a p I t e r a t o r
     Handle<JSObject> map_iterator_prototype =
         isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
-    SetObjectPrototype(map_iterator_prototype, iterator_prototype);
+    JSObject::ForceSetPrototype(map_iterator_prototype, iterator_prototype);
     Handle<JSFunction> map_iterator_function = InstallFunction(
         container, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
         map_iterator_prototype, Builtins::kIllegal);
@@ -2576,8 +2567,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       async_function_constructor->shared()->set_length(1);
       InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
                                        Context::ASYNC_FUNCTION_FUNCTION_INDEX);
-      SetObjectPrototype(async_function_constructor,
-                         isolate->function_function());
+      JSObject::ForceSetPrototype(async_function_constructor,
+                                  isolate->function_function());
 
       JSObject::AddProperty(
           async_function_prototype, factory->constructor_string(),
@@ -3561,7 +3552,7 @@ bool Genesis::ConfigureGlobalObjects(
     }
   }
 
-  SetObjectPrototype(global_proxy, global_object);
+  JSObject::ForceSetPrototype(global_proxy, global_object);
 
   native_context()->set_initial_array_prototype(
       JSArray::cast(native_context()->array_function()->prototype()));
@@ -3715,7 +3706,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Object> proto(from->map()->prototype(), isolate());
-  SetObjectPrototype(to, proto);
+  JSObject::ForceSetPrototype(to, proto);
 }
 
 
@@ -3932,7 +3923,7 @@ Genesis::Genesis(Isolate* isolate,
   global_proxy->set_native_context(*factory()->null_value());
 
   // DetachGlobal.
-  SetObjectPrototype(global_proxy, factory()->null_value());
+  JSObject::ForceSetPrototype(global_proxy, factory()->null_value());
 
   global_proxy_ = global_proxy;
 }
