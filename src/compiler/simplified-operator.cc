@@ -241,6 +241,26 @@ CheckTaggedHoleMode CheckTaggedHoleModeOf(const Operator* op) {
   return OpParameter<CheckTaggedHoleMode>(op);
 }
 
+size_t hash_value(ElementsTransition transition) {
+  return static_cast<uint8_t>(transition);
+}
+
+std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
+  switch (transition) {
+    case ElementsTransition::kFastTransition:
+      return os << "fast-transition";
+    case ElementsTransition::kSlowTransition:
+      return os << "slow-transition";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+ElementsTransition ElementsTransitionOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kTransitionElementsKind, op->opcode());
+  return OpParameter<ElementsTransition>(op);
+}
+
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
@@ -514,6 +534,16 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
                                Operator::kCommutative | Operator::kPure,
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
+}
+
+const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
+    ElementsTransition transition) {
+  return new (zone()) Operator1<ElementsTransition>(  // --
+      IrOpcode::kTransitionElementsKind,              // opcode
+      Operator::kNoDeopt | Operator::kNoThrow,        // flags
+      "TransitionElementsKind",                       // name
+      3, 1, 1, 0, 1, 0,                               // counts
+      transition);                                    // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {

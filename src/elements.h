@@ -110,6 +110,8 @@ class ElementsAccessor {
                                            KeyAccumulator* accumulator,
                                            AddKeyConversion convert) = 0;
 
+  virtual void TransitionElementsKind(Handle<JSObject> object,
+                                      Handle<Map> map) = 0;
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
 

@@ -488,7 +488,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::FindFrameStateBefore(node);
@@ -525,12 +524,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                        receiver, effect, control);
 
-  // Load the {receiver} map. The resulting effect is the dominating effect for
-  // all (polymorphic) branches.
-  Node* receiver_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-
   // Generate code for the various different element access patterns.
   Node* fallthrough_control = control;
   for (size_t j = 0; j < access_infos.size(); ++j) {
@@ -538,8 +531,28 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* this_receiver = receiver;
     Node* this_value = value;
     Node* this_index = index;
-    Node* this_effect;
-    Node* this_control;
+    Node* this_effect = effect;
+    Node* this_control = fallthrough_control;
+
+    // Perform possible elements kind transitions.
+    for (auto transition : access_info.transitions()) {
+      Handle<Map> const transition_source = transition.first;
+      Handle<Map> const transition_target = transition.second;
+      this_effect = graph()->NewNode(
+          simplified()->TransitionElementsKind(
+              IsSimpleMapChangeTransition(transition_source->elements_kind(),
+                                          transition_target->elements_kind())
+                  ? ElementsTransition::kFastTransition
+                  : ElementsTransition::kSlowTransition),
+          receiver, jsgraph()->HeapConstant(transition_source),
+          jsgraph()->HeapConstant(transition_target), this_effect,
+          this_control);
+    }
+
+    // Load the {receiver} map.
+    Node* receiver_map = this_effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, this_effect, this_control);
 
     // Perform map check on {receiver}.
     Type* receiver_type = access_info.receiver_type();
@@ -547,7 +560,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     {
       ZoneVector<Node*> this_controls(zone());
       ZoneVector<Node*> this_effects(zone());
-      size_t num_transitions = access_info.transitions().size();
       int num_classes = access_info.receiver_type()->NumClasses();
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
@@ -556,16 +568,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
                              receiver_map, jsgraph()->Constant(map));
-        if (--num_classes == 0 && num_transitions == 0 &&
-            j == access_infos.size() - 1) {
+        if (--num_classes == 0 && j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a conditional
           // eager deoptimization exit here.
           // TODO(turbofan): This is ugly as hell! We should probably introduce
           // macro-ish operators for property access that encapsulate this whole
           // mess.
-          check = graph()->NewNode(simplified()->CheckIf(), check, effect,
-                                   fallthrough_control);
-          this_controls.push_back(fallthrough_control);
+          check = graph()->NewNode(simplified()->CheckIf(), check, this_effect,
+                                   this_control);
+          this_controls.push_back(this_control);
           this_effects.push_back(check);
           fallthrough_control = nullptr;
         } else {
@@ -576,57 +587,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
         }
         if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
-      }
-
-      // Generate possible elements kind transitions.
-      for (auto transition : access_info.transitions()) {
-        DCHECK_LT(0u, num_transitions);
-        Handle<Map> transition_source = transition.first;
-        Handle<Map> transition_target = transition.second;
-        Node* transition_control;
-        Node* transition_effect = effect;
-
-        // Check if {receiver} has the specified {transition_source} map.
-        Node* check = graph()->NewNode(
-            simplified()->ReferenceEqual(Type::Any()), receiver_map,
-            jsgraph()->HeapConstant(transition_source));
-        if (--num_transitions == 0 && j == access_infos.size() - 1) {
-          transition_effect =
-              graph()->NewNode(simplified()->CheckIf(), check,
-                               transition_effect, fallthrough_control);
-          transition_control = fallthrough_control;
-          fallthrough_control = nullptr;
-        } else {
-          Node* branch =
-              graph()->NewNode(common()->Branch(), check, fallthrough_control);
-          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-          transition_control = graph()->NewNode(common()->IfTrue(), branch);
-        }
-
-        // Migrate {receiver} from {transition_source} to {transition_target}.
-        if (IsSimpleMapChangeTransition(transition_source->elements_kind(),
-                                        transition_target->elements_kind())) {
-          // In-place migration, just store the {transition_target} map.
-          transition_effect = graph()->NewNode(
-              simplified()->StoreField(AccessBuilder::ForMap()), receiver,
-              jsgraph()->HeapConstant(transition_target), transition_effect,
-              transition_control);
-        } else {
-          // Instance migration, let the stub deal with the {receiver}.
-          TransitionElementsKindStub stub(isolate(),
-                                          transition_source->elements_kind(),
-                                          transition_target->elements_kind());
-          CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-              isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 0,
-              CallDescriptor::kNeedsFrameState, node->op()->properties());
-          transition_effect = graph()->NewNode(
-              common()->Call(desc), jsgraph()->HeapConstant(stub.GetCode()),
-              receiver, jsgraph()->HeapConstant(transition_target), context,
-              frame_state, transition_effect, transition_control);
-        }
-
-        this_controls.push_back(transition_control);
-        this_effects.push_back(transition_effect);
       }
 
       // Create single chokepoint for the control.
@@ -642,15 +602,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         this_effect =
             graph()->NewNode(common()->EffectPhi(this_control_count),
                              this_control_count + 1, &this_effects.front());
-      }
 
-      // TODO(turbofan): The effect/control linearization will not find a
-      // FrameState after the StoreField or Call that is generated for the
-      // elements kind transition above. This is because those operators
-      // don't have the kNoWrite flag on it, even though they are not
-      // observable by JavaScript.
-      this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
-                                     this_effect, this_control);
+        // TODO(turbofan): The effect/control linearization will not find a
+        // FrameState after the StoreField or Call that is generated for the
+        // elements kind transition above. This is because those operators
+        // don't have the kNoWrite flag on it, even though they are not
+        // observable by JavaScript.
+        this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
+                                       this_effect, this_control);
+      }
     }
 
     // Certain stores need a prototype chain check because shape changes

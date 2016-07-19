@@ -706,6 +706,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kPlainPrimitiveToFloat64:
       state = LowerPlainPrimitiveToFloat64(node, *effect, *control);
       break;
+    case IrOpcode::kTransitionElementsKind:
+      state = LowerTransitionElementsKind(node, *effect, *control);
+      break;
     default:
       return false;
   }
@@ -2119,6 +2122,65 @@ EffectControlLinearizer::LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
                            vtrue0, vfalse0, control);
   return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerTransitionElementsKind(Node* node, Node* effect,
+                                                     Node* control) {
+  ElementsTransition const transition = ElementsTransitionOf(node->op());
+  Node* object = node->InputAt(0);
+  Node* source_map = node->InputAt(1);
+  Node* target_map = node->InputAt(2);
+
+  // Load the current map of {object}.
+  Node* object_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), object,
+                       effect, control);
+
+  // Check if {object_map} is the same as {source_map}.
+  Node* check =
+      graph()->NewNode(machine()->WordEqual(), object_map, source_map);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  // Migrate the {object} from {source_map} to {target_map}.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  {
+    switch (transition) {
+      case ElementsTransition::kFastTransition: {
+        // In-place migration of {object}, just store the {target_map}.
+        etrue =
+            graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                             object, target_map, etrue, if_true);
+        break;
+      }
+      case ElementsTransition::kSlowTransition: {
+        // Instance migration, call out to the runtime for {object}.
+        Operator::Properties properties =
+            Operator::kNoDeopt | Operator::kNoThrow;
+        Runtime::FunctionId id = Runtime::kTransitionElementsKind;
+        CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+            graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
+        etrue = graph()->NewNode(
+            common()->Call(desc), jsgraph()->CEntryStubConstant(1), object,
+            target_map,
+            jsgraph()->ExternalConstant(ExternalReference(id, isolate())),
+            jsgraph()->Int32Constant(2), jsgraph()->NoContextConstant(), etrue,
+            if_true);
+        break;
+      }
+    }
+  }
+
+  // Nothing to do if the {object} doesn't have the {source_map}.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+  return ValueEffectControl(nullptr, effect, control);
 }
 
 Factory* EffectControlLinearizer::factory() const {

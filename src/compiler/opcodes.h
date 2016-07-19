@@ -281,7 +281,8 @@
   V(ObjectIsReceiver)                 \
   V(ObjectIsSmi)                      \
   V(ObjectIsString)                   \
-  V(ObjectIsUndetectable)
+  V(ObjectIsUndetectable)             \
+  V(TransitionElementsKind)
 
 #define SIMPLIFIED_OP_LIST(V)      \
   SIMPLIFIED_CHANGE_OP_LIST(V)     \

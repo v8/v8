@@ -2131,6 +2131,10 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kTransitionElementsKind: {
+        VisitInputs(node);
+        return SetOutput(node, MachineRepresentation::kNone);
+      }
 
       //------------------------------------------------------------------
       // Machine-level operators.

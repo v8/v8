@@ -140,7 +140,15 @@ std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
 
-Type* TypeOf(const Operator* op) WARN_UNUSED_RESULT;
+// A descriptor for elements kind transitions.
+enum class ElementsTransition : uint8_t {
+  kFastTransition,  // simple transition, just updating the map.
+  kSlowTransition   // full transition, round-trip to the runtime.
+};
+
+std::ostream& operator<<(std::ostream&, ElementsTransition);
+
+ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
 
 BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op);
 
@@ -287,6 +295,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
+
+  // transition-elements-kind object, from-map, to-map
+  const Operator* TransitionElementsKind(ElementsTransition transition);
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 

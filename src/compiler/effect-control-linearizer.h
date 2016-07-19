@@ -122,6 +122,8 @@ class EffectControlLinearizer {
                                                  Node* control);
   ValueEffectControl LowerPlainPrimitiveToFloat64(Node* node, Node* effect,
                                                   Node* control);
+  ValueEffectControl LowerTransitionElementsKind(Node* node, Node* effect,
+                                                 Node* control);
 
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);
