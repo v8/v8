@@ -150,7 +150,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_SXTH:
         return Operand(InputRegister64(index), SXTH);
       case kMode_Operand2_R_SXTW:
-        return Operand(InputRegister32(index), SXTW);
+        return Operand(InputRegister64(index), SXTW);
       case kMode_MRI:
       case kMode_MRR:
         break;
@@ -1271,17 +1271,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Rbit(i.OutputRegister32(), i.InputRegister32(0));
       break;
     case kArm64Cmp:
-      if (AddressingModeField::decode(opcode) == kMode_Operand2_R_SXTW) {
-        __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand2_32(1));
-      } else {
-        __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand(1));
-      }
+      __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;
     case kArm64Cmp32:
       __ Cmp(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Cmn:
-      __ Cmn(i.InputOrZeroRegister64(0), i.InputOperand(1));
+      __ Cmn(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;
     case kArm64Cmn32:
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
