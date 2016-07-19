@@ -475,6 +475,9 @@ class ParserTraits {
                        const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError);
 
+  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
+  static void Void() {}
+
   // "null" return type creators.
   static const AstRawString* EmptyIdentifier() {
     return NULL;

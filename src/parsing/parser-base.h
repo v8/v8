@@ -119,6 +119,28 @@ struct FormalParametersBase {
 };
 
 
+// ----------------------------------------------------------------------------
+// The CHECK_OK macro is a convenient macro to enforce error
+// handling for functions that may fail (by returning !*ok).
+//
+// CAUTION: This macro appends extra statements after a call,
+// thus it must never be used where only a single statement
+// is correct (e.g. an if statement branch w/o braces)!
+
+#define CHECK_OK  ok);                      \
+  if (!*ok) return this->EmptyExpression(); \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+// Used in functions where the return type is not ExpressionT.
+#define CHECK_OK_CUSTOM(x) ok); \
+  if (!*ok) return this->x();   \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+
 // Common base class shared between parser and pre-parser. Traits encapsulate
 // the differences between Parser and PreParser:
 
@@ -670,6 +692,9 @@ class ParserBase : public Traits {
     Expect(Token::SEMICOLON, ok);
   }
 
+  // A dummy function, just useful as an argument to CHECK_OK_CUSTOM.
+  static void Void() {}
+
   bool is_any_identifier(Token::Value token) {
     return token == Token::IDENTIFIER || token == Token::ENUM ||
            token == Token::AWAIT || token == Token::ASYNC ||
@@ -695,8 +720,7 @@ class ParserBase : public Traits {
                           const char* full_name, int pos, bool* ok);
 
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
-    Expect(Token::IDENTIFIER, ok);
-    if (!*ok) return;
+    Expect(Token::IDENTIFIER, CHECK_OK_CUSTOM(Void));
     if (!scanner()->is_literal_contextual_keyword(keyword)) {
       ReportUnexpectedToken(scanner()->current_token());
       *ok = false;
@@ -1311,14 +1335,12 @@ template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     AllowRestrictedIdentifiers allow_restricted_identifiers, bool* ok) {
   ExpressionClassifier classifier(this);
-  auto result = ParseAndClassifyIdentifier(&classifier, ok);
-  if (!*ok) return Traits::EmptyIdentifier();
+  auto result =
+      ParseAndClassifyIdentifier(&classifier, CHECK_OK_CUSTOM(EmptyIdentifier));
 
   if (allow_restricted_identifiers == kDontAllowRestrictedIdentifiers) {
-    ValidateAssignmentPattern(&classifier, ok);
-    if (!*ok) return Traits::EmptyIdentifier();
-    ValidateBindingPattern(&classifier, ok);
-    if (!*ok) return Traits::EmptyIdentifier();
+    ValidateAssignmentPattern(&classifier, CHECK_OK_CUSTOM(EmptyIdentifier));
+    ValidateBindingPattern(&classifier, CHECK_OK_CUSTOM(EmptyIdentifier));
   }
 
   return result;
@@ -1467,19 +1489,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
-
-#define CHECK_OK  ok); \
-  if (!*ok) return this->EmptyExpression(); \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
-
-// Used in functions where the return type is not ExpressionT.
-#define CHECK_OK_CUSTOM(x) ok); \
-  if (!*ok) return this->x(); \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
@@ -3084,8 +3093,7 @@ void ParserBase<Traits>::ExpectMetaProperty(Vector<const char> property_name,
                                             const char* full_name, int pos,
                                             bool* ok) {
   Consume(Token::PERIOD);
-  ExpectContextualKeyword(property_name, ok);
-  if (!*ok) return;
+  ExpectContextualKeyword(property_name, CHECK_OK_CUSTOM(Void));
   if (scanner()->literal_contains_escapes()) {
     Traits::ReportMessageAt(
         Scanner::Location(pos, scanner()->location().end_pos),
@@ -3194,27 +3202,23 @@ void ParserBase<Traits>::ParseFormalParameter(
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
 
-  ExpressionT pattern = ParsePrimaryExpression(classifier, ok);
-  if (!*ok) return;
-
-  ValidateBindingPattern(classifier, ok);
-  if (!*ok) return;
+  ExpressionT pattern =
+      ParsePrimaryExpression(classifier, CHECK_OK_CUSTOM(Void));
+  ValidateBindingPattern(classifier, CHECK_OK_CUSTOM(Void));
 
   if (!Traits::IsIdentifier(pattern)) {
     parameters->is_simple = false;
-    ValidateFormalParameterInitializer(classifier, ok);
-    if (!*ok) return;
+    ValidateFormalParameterInitializer(classifier, CHECK_OK_CUSTOM(Void));
     classifier->RecordNonSimpleParameter();
   }
 
   ExpressionT initializer = Traits::EmptyExpression();
   if (!is_rest && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
-    initializer = ParseAssignmentExpression(true, &init_classifier, ok);
-    if (!*ok) return;
-    Traits::RewriteNonPattern(&init_classifier, ok);
-    ValidateFormalParameterInitializer(&init_classifier, ok);
-    if (!*ok) return;
+    initializer = ParseAssignmentExpression(true, &init_classifier,
+                                            CHECK_OK_CUSTOM(Void));
+    Traits::RewriteNonPattern(&init_classifier, CHECK_OK_CUSTOM(Void));
+    ValidateFormalParameterInitializer(&init_classifier, CHECK_OK_CUSTOM(Void));
     parameters->is_simple = false;
     init_classifier.Discard();
     classifier->RecordNonSimpleParameter();
@@ -3251,8 +3255,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
         return;
       }
       parameters->has_rest = Check(Token::ELLIPSIS);
-      ParseFormalParameter(parameters, classifier, ok);
-      if (!*ok) return;
+      ParseFormalParameter(parameters, classifier, CHECK_OK_CUSTOM(Void));
 
       if (parameters->has_rest) {
         parameters->is_simple = false;

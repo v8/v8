@@ -314,8 +314,15 @@ class TargetScope BASE_EMBEDDED {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-#define CHECK_FAILED  /**/);   \
-  if (failed_) return NULL; \
+// Used in functions where the return type is not ExpressionT.
+#define CHECK_OK_CUSTOM(x) ok); \
+  if (!*ok) return this->x();   \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+#define CHECK_FAILED /**/); \
+  if (failed_) return NULL;  \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
@@ -3876,8 +3883,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode = ForEachStatement::ENUMERATE;
 
-      bool is_for_each = CheckInOrOf(&mode, ok);
-      if (!*ok) return nullptr;
+      bool is_for_each = CheckInOrOf(&mode, CHECK_OK);
       bool is_destructuring = is_for_each && (expression->IsArrayLiteral() ||
                                               expression->IsObjectLiteral());
 
@@ -4089,8 +4095,8 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
     Expression* left = binop->left();
     Expression* right = binop->right();
     int comma_pos = binop->position();
-    ParseArrowFunctionFormalParameters(parameters, left, comma_pos, ok);
-    if (!*ok) return;
+    ParseArrowFunctionFormalParameters(parameters, left, comma_pos,
+                                       CHECK_OK_CUSTOM(Void));
     // LHS of comma expression should be unparenthesized.
     expr = right;
   }
@@ -4169,14 +4175,12 @@ void Parser::DesugarAsyncFunctionBody(const AstRawString* function_name,
 
   Expression* return_value = nullptr;
   if (body_type == FunctionBody::Normal) {
-    ParseStatementList(inner_body, Token::RBRACE, ok);
-    if (!*ok) return;
+    ParseStatementList(inner_body, Token::RBRACE, CHECK_OK_CUSTOM(Void));
     return_value = factory()->NewUndefinedLiteral(kNoSourcePosition);
   } else {
-    return_value = ParseAssignmentExpression(accept_IN, classifier, ok);
-    if (!*ok) return;
-    ParserTraits::RewriteNonPattern(classifier, ok);
-    if (!*ok) return;
+    return_value =
+        ParseAssignmentExpression(accept_IN, classifier, CHECK_OK_CUSTOM(Void));
+    ParserTraits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(Void));
   }
 
   return_value = BuildPromiseResolve(return_value, return_value->position());
@@ -4212,8 +4216,8 @@ void ParserTraits::ParseArrowFunctionFormalParameterList(
     Scanner::Location* duplicate_loc, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
-  ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos, ok);
-  if (!*ok) return;
+  ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
+                                     CHECK_OK_CUSTOM(Void));
 
   if (parameters->Arity() > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -4537,10 +4541,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
       scanner()->SeekForward(entry.end_pos() - 1);
 
       scope_->set_end_position(entry.end_pos());
-      Expect(Token::RBRACE, ok);
-      if (!*ok) {
-        return;
-      }
+      Expect(Token::RBRACE, CHECK_OK_CUSTOM(Void));
       total_preparse_skipped_ += scope_->end_position() - function_block_pos;
       *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
@@ -4573,10 +4574,7 @@ void Parser::SkipLazyFunctionBody(int* materialized_literal_count,
     return;
   }
   scope_->set_end_position(logger.end());
-  Expect(Token::RBRACE, ok);
-  if (!*ok) {
-    return;
-  }
+  Expect(Token::RBRACE, CHECK_OK_CUSTOM(Void));
   total_preparse_skipped_ += scope_->end_position() - function_block_pos;
   *materialized_literal_count = logger.literals();
   *expected_property_count = logger.properties();
@@ -5865,8 +5863,7 @@ class NonPatternRewriter : public AstExpressionRewriter {
 
 
 void Parser::RewriteNonPattern(ExpressionClassifier* classifier, bool* ok) {
-  ValidateExpression(classifier, ok);
-  if (!*ok) return;
+  ValidateExpression(classifier, CHECK_OK_CUSTOM(Void));
   auto non_patterns_to_rewrite = function_state_->non_patterns_to_rewrite();
   int begin = classifier->GetNonPatternBegin();
   int end = non_patterns_to_rewrite->length();
@@ -7066,6 +7063,10 @@ void Parser::Print(AstNode* node) {
   node->Print(Isolate::Current());
 }
 #endif  // DEBUG
+
+#undef CHECK_OK
+#undef CHECK_OK_CUSTOM
+#undef CHECK_FAILED
 
 }  // namespace internal
 }  // namespace v8

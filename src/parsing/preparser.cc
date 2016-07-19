@@ -20,6 +20,27 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// The CHECK_OK macro is a convenient macro to enforce error
+// handling for functions that may fail (by returning !*ok).
+//
+// CAUTION: This macro appends extra statements after a call,
+// thus it must never be used where only a single statement
+// is correct (e.g. an if statement branch w/o braces)!
+
+#define CHECK_OK  ok);                   \
+  if (!*ok) return Statement::Default(); \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
+// Used in functions where the return type is not ExpressionT.
+#define CHECK_OK_CUSTOM(x) ok); \
+  if (!*ok) return this->x();   \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       MessageTemplate::Template message,
                                       const char* arg,
@@ -226,8 +247,7 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
     }
     bool starts_with_identifier = peek() == Token::IDENTIFIER;
     Scanner::Location token_loc = scanner()->peek_location();
-    Statement statement = ParseStatementListItem(ok);
-    if (!*ok) return;
+    Statement statement = ParseStatementListItem(CHECK_OK_CUSTOM(Void));
 
     if (directive_prologue) {
       bool use_strict_found = statement.IsUseStrictLiteral();
@@ -267,12 +287,6 @@ void PreParser::ParseStatementList(int end_token, bool* ok,
   }
 }
 
-
-#define CHECK_OK  ok);                   \
-  if (!*ok) return Statement::Default();  \
-  ((void)0
-#define DUMMY )  // to make indentation work
-#undef DUMMY
 
 PreParser::Statement PreParser::ParseStatement(
     AllowLabelledFunctionStatement allow_function, bool* ok) {
@@ -918,8 +932,7 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       ExpressionClassifier classifier(this);
       Expression lhs = ParseExpression(false, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
-      bool is_for_each = CheckInOrOf(&mode, ok);
-      if (!*ok) return Statement::Default();
+      bool is_for_each = CheckInOrOf(&mode, CHECK_OK);
       bool is_destructuring = is_for_each &&
                               (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
 
@@ -1078,6 +1091,7 @@ PreParser::Statement PreParser::ParseDebuggerStatement(bool* ok) {
 }
 
 
+// Redefinition of CHECK_OK for parsing expressions.
 #undef CHECK_OK
 #define CHECK_OK  ok);                     \
   if (!*ok) return Expression::Default();  \
@@ -1301,14 +1315,14 @@ void PreParserTraits::ParseAsyncArrowSingleExpressionBody(
   Scope* scope = pre_parser_->scope_;
   scope->ForceContextAllocation();
 
-  PreParserExpression return_value =
-      pre_parser_->ParseAssignmentExpression(accept_IN, classifier, ok);
-  if (!*ok) return;
+  PreParserExpression return_value = pre_parser_->ParseAssignmentExpression(
+      accept_IN, classifier, CHECK_OK_CUSTOM(Void));
 
   body->Add(PreParserStatement::ExpressionStatement(return_value), zone());
 }
 
 #undef CHECK_OK
+#undef CHECK_OK_CUSTOM
 
 
 }  // namespace internal
