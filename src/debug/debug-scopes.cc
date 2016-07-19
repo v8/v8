@@ -97,6 +97,9 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       DCHECK(scope_info->scope_type() == EVAL_SCOPE);
       info->set_eval();
       info->set_context(Handle<Context>(function->context()));
+      // Language mode may be inherited from the eval caller.
+      // Retrieve it from shared function info.
+      info->set_language_mode(shared_info->language_mode());
     }
   } else {
     // Inner function.
