@@ -4521,6 +4521,15 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Context> context);
 
   /**
+   * Similar to Context::NewRemoteContext, this creates an instance that
+   * isn't backed by an actual object.
+   *
+   * The InstanceTemplate of this FunctionTemplate must have access checks with
+   * handlers installed.
+   */
+  V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewRemoteInstance();
+
+  /**
    * Set the call-handler callback for a FunctionTemplate.  This
    * callback is called whenever the function created from this
    * FunctionTemplate is called.

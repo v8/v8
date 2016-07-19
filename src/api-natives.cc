@@ -486,6 +486,35 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
   return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
 }
 
+MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
+    Handle<ObjectTemplateInfo> data) {
+  Isolate* isolate = data->GetIsolate();
+  InvokeScope invoke_scope(isolate);
+
+  Handle<FunctionTemplateInfo> constructor(
+      FunctionTemplateInfo::cast(data->constructor()));
+  Handle<SharedFunctionInfo> shared =
+      FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate, constructor);
+  Handle<Map> initial_map = isolate->factory()->CreateSloppyFunctionMap(
+      FUNCTION_WITH_WRITEABLE_PROTOTYPE);
+  Handle<JSFunction> object_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          initial_map, shared, isolate->factory()->undefined_value());
+  Handle<Map> object_map = isolate->factory()->NewMap(
+      JS_SPECIAL_API_OBJECT_TYPE,
+      JSObject::kHeaderSize + data->internal_field_count() * kPointerSize,
+      FAST_HOLEY_SMI_ELEMENTS);
+  JSFunction::SetInitialMap(object_function, object_map,
+                            isolate->factory()->null_value());
+  object_map->set_is_access_check_needed(true);
+  object_map->set_is_callable();
+  object_map->set_is_constructor(true);
+
+  Handle<JSObject> object = isolate->factory()->NewJSObject(object_function);
+  JSObject::ForceSetPrototype(object, isolate->factory()->null_value());
+
+  return object;
+}
 
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,

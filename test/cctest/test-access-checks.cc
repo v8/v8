@@ -181,6 +181,10 @@ void CheckCrossContextAccess(v8::Isolate* isolate,
                "[\"7\",\"cross_context_int\"]");
 }
 
+void Ctor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(info.IsConstructCall());
+}
+
 }  // namespace
 
 TEST(AccessCheckWithInterceptor) {
@@ -275,4 +279,27 @@ TEST(NewRemoteContext) {
 
     CheckCanRunScriptInContext(isolate, context5);
   }
+}
+
+TEST(NewRemoteInstance) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> tmpl =
+      v8::FunctionTemplate::New(isolate, Ctor);
+  v8::Local<v8::ObjectTemplate> instance = tmpl->InstanceTemplate();
+  instance->SetAccessCheckCallbackAndHandler(
+      AccessCheck,
+      v8::NamedPropertyHandlerConfiguration(
+          NamedGetter, NamedSetter, NamedQuery, NamedDeleter, NamedEnumerator),
+      v8::IndexedPropertyHandlerConfiguration(IndexedGetter, IndexedSetter,
+                                              IndexedQuery, IndexedDeleter,
+                                              IndexedEnumerator));
+  tmpl->SetNativeDataProperty(
+      v8_str("all_can_read"), Return42, nullptr, v8::Local<v8::Value>(),
+      v8::None, v8::Local<v8::AccessorSignature>(), v8::ALL_CAN_READ);
+
+  v8::Local<v8::Object> obj = tmpl->NewRemoteInstance().ToLocalChecked();
+
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  CheckCrossContextAccess(isolate, context, obj);
 }

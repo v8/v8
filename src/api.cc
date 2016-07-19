@@ -5953,6 +5953,32 @@ Local<v8::Function> FunctionTemplate::GetFunction() {
   RETURN_TO_LOCAL_UNCHECKED(GetFunction(context), Function);
 }
 
+MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  LOG_API(isolate, FunctionTemplate, NewRemoteInstance);
+  i::HandleScope scope(isolate);
+  i::Handle<i::FunctionTemplateInfo> constructor =
+      EnsureConstructor(isolate, *InstanceTemplate());
+  Utils::ApiCheck(constructor->needs_access_check(),
+                  "v8::FunctionTemplate::NewRemoteInstance",
+                  "InstanceTemplate needs to have access checks enabled.");
+  i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
+      i::AccessCheckInfo::cast(constructor->access_check_info()), isolate);
+  Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
+                  "v8::FunctionTemplate::NewRemoteInstance",
+                  "InstanceTemplate needs to have access check handlers.");
+  i::Handle<i::JSObject> object;
+  if (!i::ApiNatives::InstantiateRemoteObject(
+           Utils::OpenHandle(*InstanceTemplate()))
+           .ToHandle(&object)) {
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(true);
+    }
+    return MaybeLocal<Object>();
+  }
+  return Utils::ToLocal(scope.CloseAndEscape(object));
+}
 
 bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   auto self = Utils::OpenHandle(this);
