@@ -134,6 +134,12 @@
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [PASS, NO_IGNITION],
 
+  # TODO(mythria,4780): Related to type feedback support for constructor.
+  'test-feedback-vector/VectorConstructCounts': [PASS, NO_IGNITION],
+  'test-heap/WeakFunctionInConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [PASS, NO_IGNITION],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [PASS, NO_IGNITION],
+
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [PASS, NO_IGNITION],
 
@@ -409,6 +415,12 @@
 
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
+
+  # TODO(mythria,4780): Related to type feedback support for constructor.
+  'test-feedback-vector/VectorConstructCounts': [FAIL],
+  'test-heap/WeakFunctionInConstructor': [FAIL],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
 
   # TODO(mythria,4680): Lack of code-ageing in interpreter.
   'test-heap/Regress169209': [FAIL],

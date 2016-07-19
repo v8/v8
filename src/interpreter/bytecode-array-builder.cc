@@ -569,15 +569,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,
-                                                size_t arg_count,
-                                                int feedback_slot_id) {
+                                                size_t arg_count) {
   if (!first_arg.is_valid()) {
     DCHECK_EQ(0u, arg_count);
     first_arg = Register(0);
   }
   Output(Bytecode::kNew, RegisterOperand(constructor),
-         RegisterOperand(first_arg), UnsignedOperand(arg_count),
-         UnsignedOperand(feedback_slot_id));
+         RegisterOperand(first_arg), UnsignedOperand(arg_count));
   return *this;
 }
 

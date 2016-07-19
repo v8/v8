@@ -165,8 +165,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
 
   // Emit new.
-  builder.New(reg, reg, 0, 1);
-  builder.New(wide, wide, 0, 1);
+  builder.New(reg, reg, 0);
+  builder.New(wide, wide, 0);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg)
@@ -456,7 +456,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
           // Ensure temporaries are used so not optimized away by the
           // register optimizer.
           builder.New(Register(locals + contexts), Register(locals + contexts),
-                      static_cast<size_t>(temps), 0);
+                      static_cast<size_t>(temps));
         }
         builder.Return();
 

@@ -467,7 +467,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
   Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
   GotoIf(is_feedback_unavailable, &call);
 
-  // The checks. First, does function match the recorded monomorphic target?
+  // The checks. First, does rdi match the recorded monomorphic target?
   Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValue(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
@@ -546,7 +546,6 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       StoreFixedArrayElement(type_feedback_vector, call_count_slot,
                              SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
 
-      // TODO(mythria): Inline the weak cell creation/registration.
       CreateWeakCellStub weak_cell_stub(isolate());
       CallStub(weak_cell_stub.GetCallInterfaceDescriptor(),
                HeapConstant(weak_cell_stub.GetCode()), context,
@@ -604,150 +603,11 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
 
 Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
                                           Node* new_target, Node* first_arg,
-                                          Node* arg_count, Node* slot_id,
-                                          Node* type_feedback_vector) {
-  Label call_construct(this), js_function(this), end(this);
-  Variable return_value(this, MachineRepresentation::kTagged);
-
-  // Slot id of 0 is used to indicate no typefeedback is available.
-  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
-  Node* is_feedback_unavailable = Word32Equal(slot_id, Int32Constant(0));
-  GotoIf(is_feedback_unavailable, &call_construct);
-
-  // Check that the constructor is not a smi.
-  Node* is_smi = WordIsSmi(constructor);
-  GotoIf(is_smi, &call_construct);
-
-  // Check that constructor is a JSFunction.
-  Node* instance_type = LoadInstanceType(constructor);
-  Node* is_js_function =
-      WordEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-  BranchIf(is_js_function, &js_function, &call_construct);
-
-  Bind(&js_function);
-  // Cache the called function in a feedback vector slot.  Cache states
-  // are uninitialized, monomorphic (indicated by a JSFunction), and
-  // megamorphic.
-  // TODO(mythria/v8:5210): Check if it is better to mark extra_checks as a
-  // deferred block so that call_construct_function will be scheduled just
-  // after increment_count and in the fast path we can reduce one branch in the
-  // fast path.
-  Label increment_count(this), extra_checks(this),
-      call_construct_function(this);
-
-  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* feedback_value = LoadWeakCellValue(feedback_element);
-  Node* is_monomorphic = WordEqual(constructor, feedback_value);
-  BranchIf(is_monomorphic, &increment_count, &extra_checks);
-
-  Bind(&increment_count);
-  {
-    // Increment the call count.
-    Comment("increment call count");
-    Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-    Node* call_count =
-        LoadFixedArrayElement(type_feedback_vector, call_count_slot);
-    Node* new_count = SmiAdd(call_count, SmiTag(Int32Constant(1)));
-    // Count is Smi, so we don't need a write barrier.
-    StoreFixedArrayElement(type_feedback_vector, call_count_slot, new_count,
-                           SKIP_WRITE_BARRIER);
-    Goto(&call_construct_function);
-  }
-
-  Bind(&extra_checks);
-  {
-    Label mark_megamorphic(this), initialize(this),
-        check_weak_cell_cleared(this);
-    // Check if it is a megamorphic target
-    Comment("check if megamorphic");
-    Node* is_megamorphic = WordEqual(
-        feedback_element,
-        HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-    GotoIf(is_megamorphic, &call_construct_function);
-
-    // Check if it is uninitialized.
-    Comment("check if uninitialized");
-    Node* is_uninitialized = WordEqual(
-        feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
-    BranchIf(is_uninitialized, &initialize, &check_weak_cell_cleared);
-
-    Bind(&check_weak_cell_cleared);
-    {
-      Comment("check if weak cell");
-      Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
-                                     LoadRoot(Heap::kWeakCellMapRootIndex));
-      GotoUnless(is_weak_cell, &mark_megamorphic);
-
-      // If the weak cell is cleared, we have a new chance to become
-      // monomorphic.
-      Comment("check if weak cell is not cleared");
-      Node* is_smi = WordIsSmi(feedback_value);
-      BranchIf(is_smi, &initialize, &mark_megamorphic);
-    }
-
-    Bind(&initialize);
-    {
-      // Check that it is not the Array() function.
-      Comment("check it is not Array()");
-      Node* context_slot =
-          LoadFixedArrayElement(LoadNativeContext(context),
-                                Int32Constant(Context::ARRAY_FUNCTION_INDEX));
-      Node* is_array_function = WordEqual(context_slot, constructor);
-      GotoIf(is_array_function, &mark_megamorphic);
-
-      Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-      // Count is Smi, so we don't need a write barrier.
-      StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                             SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
-
-      // TODO(mythria): Inline the weak cell creation/registration.
-      CreateWeakCellStub weak_cell_stub(isolate());
-      CallStub(weak_cell_stub.GetCallInterfaceDescriptor(),
-               HeapConstant(weak_cell_stub.GetCode()), context,
-               type_feedback_vector, SmiTag(slot_id), constructor);
-      Goto(&call_construct_function);
-    }
-
-    Bind(&mark_megamorphic);
-    {
-      // MegamorphicSentinel is an immortal immovable object so no write-barrier
-      // is needed.
-      Comment("transition to megamorphic");
-      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
-      StoreFixedArrayElement(
-          type_feedback_vector, slot_id,
-          HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())),
-          SKIP_WRITE_BARRIER);
-      Goto(&call_construct_function);
-    }
-  }
-
-  Bind(&call_construct_function);
-  {
-    // TODO(mythria): Get allocation site feedback if available. Currently
-    // we do not collect  allocation site feedback.
-    Comment("call using callConstructFunction");
-    Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kJSFunction);
-    return_value.Bind(CallStub(callable_function.descriptor(),
-                               HeapConstant(callable_function.code()), context,
-                               arg_count, new_target, constructor, first_arg));
-    Goto(&end);
-  }
-
-  Bind(&call_construct);
-  {
-    Comment("call using callConstruct builtin");
-    Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kAny);
-    Node* code_target = HeapConstant(callable.code());
-    return_value.Bind(CallStub(callable.descriptor(), code_target, context,
-                               arg_count, new_target, constructor, first_arg));
-    Goto(&end);
-  }
-
-  Bind(&end);
-  return return_value.value();
+                                          Node* arg_count) {
+  Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(isolate());
+  Node* code_target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), code_target, context, arg_count,
+                  new_target, constructor, first_arg);
 }
 
 Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
