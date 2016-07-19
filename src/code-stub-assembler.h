@@ -99,6 +99,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Check that the value is a positive smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
 
+  void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
+                        Label* if_false) {
+    BranchIf(SmiEqual(a, b), if_true, if_false);
+  }
+
   void BranchIfSmiLessThan(compiler::Node* a, compiler::Node* b, Label* if_true,
                            Label* if_false) {
     BranchIf(SmiLessThan(a, b), if_true, if_false);
@@ -113,6 +118,11 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                             Label* if_false) {
     BranchIfFloat64Equal(value, value, if_false, if_true);
   }
+
+  // Branches to {if_true} if ToBoolean applied to {value} yields true,
+  // otherwise goes to {if_false}.
+  void BranchIfToBooleanIsTrue(compiler::Node* value, Label* if_true,
+                               Label* if_false);
 
   // Load value from current frame by given offset in bytes.
   compiler::Node* LoadFromFrame(int offset,

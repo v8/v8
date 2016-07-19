@@ -1941,7 +1941,6 @@ void Oddball::set_to_number_raw(double value) {
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
-ACCESSORS(Oddball, to_boolean, Oddball, kToBooleanOffset)
 ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
 

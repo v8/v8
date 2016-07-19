@@ -163,6 +163,7 @@ namespace internal {
   DBG(FrameDropper_LiveEdit)                                                 \
                                                                              \
   /* Type conversions */                                                     \
+  TFS(ToBoolean, BUILTIN, kNoExtraICState, TypeConversion)                   \
   TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)  \
   TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)  \
   TFS(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState,             \

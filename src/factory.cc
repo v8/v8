@@ -115,11 +115,10 @@ Factory::NewSloppyBlockWithEvalContextExtension(
 }
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
-                                    Handle<Object> to_number, bool to_boolean,
+                                    Handle<Object> to_number,
                                     const char* type_of, byte kind) {
   Handle<Oddball> oddball = New<Oddball>(map, OLD_SPACE);
-  Oddball::Initialize(isolate(), oddball, to_string, to_number, to_boolean,
-                      type_of, kind);
+  Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
   return oddball;
 }
 

@@ -143,16 +143,6 @@ class Interpreter {
   compiler::Node* BuildLoadKeyedProperty(Callable ic,
                                          InterpreterAssembler* assembler);
 
-  // Generates code to perform logical-not on boolean |value| and returns the
-  // result.
-  compiler::Node* BuildLogicalNot(compiler::Node* value,
-                                  InterpreterAssembler* assembler);
-
-  // Generates code to convert |value| to a boolean and returns the
-  // result.
-  compiler::Node* BuildToBoolean(compiler::Node* value,
-                                 InterpreterAssembler* assembler);
-
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
   // Get dispatch table index of bytecode.

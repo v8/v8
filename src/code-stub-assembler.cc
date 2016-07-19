@@ -605,6 +605,79 @@ Node* CodeStubAssembler::InnerAllocate(Node* previous, int offset) {
   return InnerAllocate(previous, IntPtrConstant(offset));
 }
 
+void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
+                                                Label* if_false) {
+  Label if_valueissmi(this), if_valueisnotsmi(this), if_valueisstring(this),
+      if_valueisheapnumber(this), if_valueisother(this);
+
+  // Fast check for Boolean {value}s (common case).
+  GotoIf(WordEqual(value, BooleanConstant(true)), if_true);
+  GotoIf(WordEqual(value, BooleanConstant(false)), if_false);
+
+  // Check if {value} is a Smi or a HeapObject.
+  Branch(WordIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
+
+  Bind(&if_valueissmi);
+  {
+    // The {value} is a Smi, only need to check against zero.
+    BranchIfSmiEqual(value, SmiConstant(0), if_false, if_true);
+  }
+
+  Bind(&if_valueisnotsmi);
+  {
+    // The {value} is a HeapObject, load its map.
+    Node* value_map = LoadMap(value);
+
+    // Load the {value}s instance type.
+    Node* value_instance_type = LoadMapInstanceType(value_map);
+
+    // Dispatch based on the instance type; we distinguish all String instance
+    // types, the HeapNumber type and everything else.
+    GotoIf(Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
+           &if_valueisheapnumber);
+    Branch(
+        Int32LessThan(value_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+        &if_valueisstring, &if_valueisother);
+
+    Bind(&if_valueisstring);
+    {
+      // Load the string length field of the {value}.
+      Node* value_length = LoadObjectField(value, String::kLengthOffset);
+
+      // Check if the {value} is the empty string.
+      BranchIfSmiEqual(value_length, SmiConstant(0), if_false, if_true);
+    }
+
+    Bind(&if_valueisheapnumber);
+    {
+      // Load the floating point value of {value}.
+      Node* value_value = LoadObjectField(value, HeapNumber::kValueOffset,
+                                          MachineType::Float64());
+
+      // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
+      Node* zero = Float64Constant(0.0);
+      GotoIf(Float64LessThan(zero, value_value), if_true);
+      BranchIfFloat64LessThan(value_value, zero, if_true, if_false);
+    }
+
+    Bind(&if_valueisother);
+    {
+      // Load the bit field from the {value}s map. The {value} is now either
+      // Null or Undefined, which have the undetectable bit set (so we always
+      // return false for those), or a Symbol or Simd128Value, whose maps never
+      // have the undetectable bit set (so we always return true for those), or
+      // a JSReceiver, which may or may not have the undetectable bit set.
+      Node* value_map_bitfield = LoadMapBitField(value_map);
+      Node* value_map_undetectable = Word32And(
+          value_map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
+
+      // Check if the {value} is undetectable.
+      BranchIfWord32Equal(value_map_undetectable, Int32Constant(0), if_true,
+                          if_false);
+    }
+  }
+}
+
 compiler::Node* CodeStubAssembler::LoadFromFrame(int offset, MachineType rep) {
   Node* frame_pointer = LoadFramePointer();
   return Load(rep, frame_pointer, IntPtrConstant(offset));

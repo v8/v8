@@ -5270,6 +5270,23 @@ void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   }
 }
 
+// ES6 section 7.1.2 ToBoolean ( argument )
+void Builtins::Generate_ToBoolean(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* value = assembler->Parameter(0);
+
+  Label return_true(assembler), return_false(assembler);
+  assembler->BranchIfToBooleanIsTrue(value, &return_true, &return_false);
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+}
+
 void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateStoreSlow(masm);
 }

@@ -133,7 +133,6 @@ namespace internal {
   V(StringLessThanOrEqual)                  \
   V(StringGreaterThan)                      \
   V(StringGreaterThanOrEqual)               \
-  V(ToBoolean)                              \
   V(ToInteger)                              \
   V(ToLength)                               \
   V(HasProperty)                            \
@@ -931,14 +930,6 @@ class StringGreaterThanOrEqualStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Compare);
   DEFINE_TURBOFAN_CODE_STUB(StringGreaterThanOrEqual, TurboFanCodeStub);
-};
-
-class ToBooleanStub final : public TurboFanCodeStub {
- public:
-  explicit ToBooleanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(ToBoolean, TurboFanCodeStub);
 };
 
 class ToIntegerStub final : public TurboFanCodeStub {

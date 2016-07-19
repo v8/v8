@@ -145,8 +145,8 @@ Callable CodeFactory::GetProperty(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToBoolean(Isolate* isolate) {
-  ToBooleanStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+  return Callable(isolate->builtins()->ToBoolean(),
+                  TypeConversionDescriptor(isolate));
 }
 
 

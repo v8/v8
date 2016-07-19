@@ -1052,14 +1052,39 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
   DoUnaryOp<DecStub>(assembler);
 }
 
-Node* Interpreter::BuildToBoolean(Node* value,
-                                  InterpreterAssembler* assembler) {
-  Node* context = __ GetContext();
-  return ToBooleanStub::Generate(assembler, value, context);
+// LogicalNot
+//
+// Perform logical-not on the accumulator, first casting the
+// accumulator to a boolean value if required.
+// ToBooleanLogicalNot
+void Interpreter::DoToBooleanLogicalNot(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Variable result(assembler, MachineRepresentation::kTagged);
+  Label if_true(assembler), if_false(assembler), end(assembler);
+  Node* true_value = __ BooleanConstant(true);
+  Node* false_value = __ BooleanConstant(false);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    result.Bind(false_value);
+    __ Goto(&end);
+  }
+  __ Bind(&if_false);
+  {
+    result.Bind(true_value);
+    __ Goto(&end);
+  }
+  __ Bind(&end);
+  __ SetAccumulator(result.value());
+  __ Dispatch();
 }
 
-Node* Interpreter::BuildLogicalNot(Node* value,
-                                   InterpreterAssembler* assembler) {
+// LogicalNot
+//
+// Perform logical-not on the accumulator, which must already be a boolean
+// value.
+void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
   Variable result(assembler, MachineRepresentation::kTagged);
   Label if_true(assembler), if_false(assembler), end(assembler);
   Node* true_value = __ BooleanConstant(true);
@@ -1080,30 +1105,7 @@ Node* Interpreter::BuildLogicalNot(Node* value,
     __ Goto(&end);
   }
   __ Bind(&end);
-  return result.value();
-}
-
-// LogicalNot
-//
-// Perform logical-not on the accumulator, first casting the
-// accumulator to a boolean value if required.
-// ToBooleanLogicalNot
-void Interpreter::DoToBooleanLogicalNot(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(value, assembler);
-  Node* result = BuildLogicalNot(to_boolean_value, assembler);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// LogicalNot
-//
-// Perform logical-not on the accumulator, which must already be a boolean
-// value.
-void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
-  Node* value = __ GetAccumulator();
-  Node* result = BuildLogicalNot(value, assembler);
-  __ SetAccumulator(result);
+  __ SetAccumulator(result.value());
   __ Dispatch();
 }
 
@@ -1438,11 +1440,14 @@ void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandImm(0);
-  Node* true_value = __ BooleanConstant(true);
-  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Jump(relative_jump);
+  __ Bind(&if_false);
+  __ Dispatch();
 }
 
 // JumpIfToBooleanTrueConstant <idx>
@@ -1452,13 +1457,16 @@ void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanTrueConstant(
     InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
-  Node* true_value = __ BooleanConstant(true);
-  __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Jump(relative_jump);
+  __ Bind(&if_false);
+  __ Dispatch();
 }
 
 // JumpIfToBooleanFalse <imm>
@@ -1466,11 +1474,14 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandImm(0);
-  Node* false_value = __ BooleanConstant(false);
-  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Dispatch();
+  __ Bind(&if_false);
+  __ Jump(relative_jump);
 }
 
 // JumpIfToBooleanFalseConstant <idx>
@@ -1480,13 +1491,16 @@ void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanFalseConstant(
     InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* to_boolean_value = BuildToBoolean(accumulator, assembler);
+  Node* value = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
-  Node* false_value = __ BooleanConstant(false);
-  __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
+  Label if_true(assembler), if_false(assembler);
+  __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  __ Bind(&if_true);
+  __ Dispatch();
+  __ Bind(&if_false);
+  __ Jump(relative_jump);
 }
 
 // JumpIfNull <imm>
