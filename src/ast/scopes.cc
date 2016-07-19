@@ -320,16 +320,19 @@ void Scope::Initialize() {
     // Declare 'arguments' variable which exists in all non arrow functions.
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
-    variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
-                       Variable::ARGUMENTS, kCreatedInitialized);
+    arguments_ =
+        variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
+                           Variable::ARGUMENTS, kCreatedInitialized);
 
-    variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
-                       Variable::NORMAL, kCreatedInitialized);
+    new_target_ =
+        variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
+                           Variable::NORMAL, kCreatedInitialized);
 
     if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
         IsAccessorFunction(function_kind_)) {
-      variables_.Declare(this, ast_value_factory_->this_function_string(),
-                         CONST, Variable::NORMAL, kCreatedInitialized);
+      this_function_ =
+          variables_.Declare(this, ast_value_factory_->this_function_string(),
+                             CONST, Variable::NORMAL, kCreatedInitialized);
     }
   }
 }
@@ -1332,14 +1335,11 @@ void Scope::AllocateHeapSlot(Variable* var) {
 
 void Scope::AllocateParameterLocals(Isolate* isolate) {
   DCHECK(is_function_scope());
-  Variable* arguments = LookupLocal(ast_value_factory_->arguments_string());
-  // Functions have 'arguments' declared implicitly in all non arrow functions.
-  DCHECK(arguments != nullptr || is_arrow_scope());
 
   bool uses_sloppy_arguments = false;
 
-  if (arguments != nullptr && MustAllocate(arguments) &&
-      !HasArgumentsParameter(isolate)) {
+  // Functions have 'arguments' declared implicitly in all non arrow functions.
+  if (arguments_ != nullptr) {
     // 'arguments' is used. Unless there is also a parameter called
     // 'arguments', we must be conservative and allocate all parameters to
     // the context assuming they will be captured by the arguments object.
@@ -1348,21 +1348,25 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
     // that specific parameter value and cannot be used to access the
     // parameters, which is why we don't need to allocate an arguments
     // object in that case.
+    if (MustAllocate(arguments_) && !HasArgumentsParameter(isolate)) {
+      // In strict mode 'arguments' does not alias formal parameters.
+      // Therefore in strict mode we allocate parameters as if 'arguments'
+      // were not used.
+      // If the parameter list is not simple, arguments isn't sloppy either.
+      uses_sloppy_arguments =
+          is_sloppy(language_mode()) && has_simple_parameters();
+    } else {
+      // 'arguments' is unused. Tell the code generator that it does not need to
+      // allocate the arguments object by nulling out arguments_.
+      arguments_ = nullptr;
+    }
 
-    // We are using 'arguments'. Tell the code generator that is needs to
-    // allocate the arguments object by setting 'arguments_'.
-    arguments_ = arguments;
-
-    // In strict mode 'arguments' does not alias formal parameters.
-    // Therefore in strict mode we allocate parameters as if 'arguments'
-    // were not used.
-    // If the parameter list is not simple, arguments isn't sloppy either.
-    uses_sloppy_arguments =
-        is_sloppy(language_mode()) && has_simple_parameters();
+  } else {
+    DCHECK(is_arrow_scope());
   }
 
   if (rest_parameter_ && !MustAllocate(rest_parameter_)) {
-    rest_parameter_ = NULL;
+    rest_parameter_ = nullptr;
   }
 
   // The same parameter may occur multiple times in the parameters_ list.
@@ -1484,16 +1488,12 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
     AllocateNonParameterLocal(isolate, rest_parameter_);
   }
 
-  Variable* new_target_var =
-      LookupLocal(ast_value_factory_->new_target_string());
-  if (new_target_var != nullptr && MustAllocate(new_target_var)) {
-    new_target_ = new_target_var;
+  if (new_target_ != nullptr && !MustAllocate(new_target_)) {
+    new_target_ = nullptr;
   }
 
-  Variable* this_function_var =
-      LookupLocal(ast_value_factory_->this_function_string());
-  if (this_function_var != nullptr && MustAllocate(this_function_var)) {
-    this_function_ = this_function_var;
+  if (this_function_ != nullptr && !MustAllocate(this_function_)) {
+    this_function_ = nullptr;
   }
 }
 
