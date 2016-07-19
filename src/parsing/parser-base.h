@@ -201,10 +201,10 @@ class ParserBase : public Traits {
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              ParserRecorder* log, typename Traits::Type::Parser this_object)
       : Traits(this_object),
-        scope_(NULL),
-        function_state_(NULL),
+        scope_state_(nullptr),
+        function_state_(nullptr),
         extension_(extension),
-        fni_(NULL),
+        fni_(nullptr),
         ast_value_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -272,21 +272,34 @@ class ParserBase : public Traits {
   class ObjectLiteralCheckerBase;
 
   // ---------------------------------------------------------------------------
-  // FunctionState and BlockState together implement the parser's scope stack.
-  // The parser's current scope is in scope_. BlockState and FunctionState
-  // constructors push on the scope stack and the destructors pop. They are also
-  // used to hold the parser's per-function and per-block state.
-  class BlockState BASE_EMBEDDED {
+  // ScopeState and its subclasses implement the parser's scope stack.
+  // ScopeState keeps track of the current scope, and the outer ScopeState. The
+  // parser's scope_state_ points to the top ScopeState. ScopeState's
+  // constructor push on the scope stack and the destructors pop. BlockState and
+  // FunctionState are used to hold additional per-block and per-function state.
+  class ScopeState BASE_EMBEDDED {
    public:
-    BlockState(Scope** scope_stack, Scope* scope)
-        : scope_stack_(scope_stack), outer_scope_(*scope_stack) {
-      *scope_stack_ = scope;
+    V8_INLINE Scope* scope() const { return scope_; }
+
+   protected:
+    ScopeState(ScopeState** scope_stack, Scope* scope)
+        : scope_stack_(scope_stack), outer_scope_(*scope_stack), scope_(scope) {
+      *scope_stack = this;
     }
-    ~BlockState() { *scope_stack_ = outer_scope_; }
+    ~ScopeState() { *scope_stack_ = outer_scope_; }
+
+    Zone* zone() const { return scope_->zone(); }
 
    private:
-    Scope** scope_stack_;
-    Scope* outer_scope_;
+    ScopeState** scope_stack_;
+    ScopeState* outer_scope_;
+    Scope* scope_;
+  };
+
+  class BlockState final : public ScopeState {
+   public:
+    BlockState(ScopeState** scope_stack, Scope* scope)
+        : ScopeState(scope_stack, scope) {}
   };
 
   struct DestructuringAssignment {
@@ -356,10 +369,10 @@ class ParserBase : public Traits {
     kInsideForInOfBody,
   };
 
-  class FunctionState BASE_EMBEDDED {
+  class FunctionState final : public ScopeState {
    public:
-    FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
-                  Scope* scope, FunctionKind kind,
+    FunctionState(FunctionState** function_state_stack,
+                  ScopeState** scope_stack, Scope* scope, FunctionKind kind,
                   typename Traits::Type::Factory* factory);
     ~FunctionState();
 
@@ -458,13 +471,11 @@ class ParserBase : public Traits {
 
    private:
     void AddDestructuringAssignment(DestructuringAssignment pair) {
-      destructuring_assignments_to_rewrite_.Add(pair, (*scope_stack_)->zone());
+      destructuring_assignments_to_rewrite_.Add(pair, this->zone());
     }
 
-    V8_INLINE Scope* scope() { return *scope_stack_; }
-
     void AddNonPatternForRewriting(ExpressionT expr, bool* ok) {
-      non_patterns_to_rewrite_.Add(expr, (*scope_stack_)->zone());
+      non_patterns_to_rewrite_.Add(expr, this->zone());
       if (non_patterns_to_rewrite_.length() >=
           std::numeric_limits<uint16_t>::max())
         *ok = false;
@@ -495,8 +506,6 @@ class ParserBase : public Traits {
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
-    Scope** scope_stack_;
-    Scope* outer_scope_;
 
     ZoneList<DestructuringAssignment> destructuring_assignments_to_rewrite_;
     TailCallExpressionList tail_call_expressions_;
@@ -815,7 +824,7 @@ class ParserBase : public Traits {
     return function_state_->factory();
   }
 
-  LanguageMode language_mode() { return scope_->language_mode(); }
+  LanguageMode language_mode() { return scope()->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
   bool is_async_function() const {
     return function_state_->is_async_function();
@@ -1191,7 +1200,10 @@ class ParserBase : public Traits {
     bool has_seen_constructor_;
   };
 
-  Scope* scope_;                   // Scope stack.
+  ModuleDescriptor* module() const { return scope()->module(); }
+  Scope* scope() const { return scope_state_->scope(); }
+
+  ScopeState* scope_state_;        // Scope stack.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
@@ -1221,9 +1233,10 @@ class ParserBase : public Traits {
 
 template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
-    FunctionState** function_state_stack, Scope** scope_stack, Scope* scope,
-    FunctionKind kind, typename Traits::Type::Factory* factory)
-    : next_materialized_literal_index_(0),
+    FunctionState** function_state_stack, ScopeState** scope_stack,
+    Scope* scope, FunctionKind kind, typename Traits::Type::Factory* factory)
+    : ScopeState(scope_stack, scope),
+      next_materialized_literal_index_(0),
       expected_property_count_(0),
       this_location_(Scanner::Location::invalid()),
       return_location_(Scanner::Location::invalid()),
@@ -1232,8 +1245,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
       generator_object_variable_(NULL),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
-      scope_stack_(scope_stack),
-      outer_scope_(*scope_stack),
       destructuring_assignments_to_rewrite_(16, scope->zone()),
       tail_call_expressions_(scope->zone()),
       return_expr_context_(ReturnExprContext::kInsideValidBlock),
@@ -1242,7 +1253,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
       factory_(factory),
       next_function_is_parenthesized_(false),
       this_function_is_parenthesized_(false) {
-  *scope_stack_ = scope;
   *function_state_stack = this;
   if (outer_function_state_) {
     this_function_is_parenthesized_ =
@@ -1254,7 +1264,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
 
 template <class Traits>
 ParserBase<Traits>::FunctionState::~FunctionState() {
-  *scope_stack_ = outer_scope_;
   *function_state_stack_ = outer_function_state_;
 }
 
@@ -1370,7 +1379,7 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
       }
     }
     if (this->IsArguments(name)) {
-      scope_->RecordArgumentsUsage();
+      scope()->RecordArgumentsUsage();
       classifier->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
       if (is_strict(language_mode())) {
@@ -1438,7 +1447,7 @@ ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
+  if (this->IsArguments(name)) scope()->RecordArgumentsUsage();
   return name;
 }
 
@@ -1458,7 +1467,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   }
 
   IdentifierT name = this->GetSymbol(scanner());
-  if (this->IsArguments(name)) scope_->RecordArgumentsUsage();
+  if (this->IsArguments(name)) scope()->RecordArgumentsUsage();
   return name;
 }
 
@@ -1516,7 +1525,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::THIS: {
       BindingPatternUnexpectedToken(classifier);
       Consume(Token::THIS);
-      return this->ThisExpression(scope_, factory(), beg_pos);
+      return this->ThisExpression(scope(), factory(), beg_pos);
     }
 
     case Token::NULL_LITERAL:
@@ -1549,7 +1558,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(classifier, CHECK_OK);
       return this->ExpressionFromIdentifier(
-          name, beg_pos, scanner()->location().end_pos, scope_, factory());
+          name, beg_pos, scanner()->location().end_pos, scope(), factory());
     }
 
     case Token::STRING: {
@@ -1975,7 +1984,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
         }
       }
       ExpressionT lhs = this->ExpressionFromIdentifier(
-          *name, next_beg_pos, next_end_pos, scope_, factory());
+          *name, next_beg_pos, next_end_pos, scope(), factory());
       CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
       if (peek() == Token::ASSIGN) {
@@ -2282,7 +2291,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     IdentifierT name =
         ParseAndClassifyIdentifier(&arrow_formals_classifier, CHECK_OK);
     expression = this->ExpressionFromIdentifier(
-        name, position(), scanner()->location().end_pos, scope_, factory());
+        name, position(), scanner()->location().end_pos, scope(), factory());
   }
 
   if (peek() == Token::ARROW) {
@@ -2298,13 +2307,13 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     ValidateFormalParameterInitializer(&arrow_formals_classifier, ok);
 
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
-    Scope* scope = this->NewScope(scope_, FUNCTION_SCOPE,
+    Scope* scope = this->NewScope(this->scope(), FUNCTION_SCOPE,
                                   is_async ? FunctionKind::kAsyncArrowFunction
                                            : FunctionKind::kArrowFunction);
     // Because the arrow's parameters were parsed in the outer scope, any
     // usage flags that might have been triggered there need to be copied
     // to the arrow scope.
-    scope_->PropagateUsageFlagsToScope(scope);
+    this->scope()->PropagateUsageFlagsToScope(scope);
     FormalParametersT parameters(scope);
     if (!arrow_formals_classifier.is_simple_parameter_list()) {
       scope->SetHasNonSimpleParameters();
@@ -2726,7 +2735,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
             MessageTemplate::kAwaitBindingIdentifier);
 
         return this->ExpressionFromIdentifier(
-            name, beg_pos, scanner()->location().end_pos, scope_, factory());
+            name, beg_pos, scanner()->location().end_pos, scope(), factory());
       }
       default:
         break;
@@ -2871,7 +2880,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        this->CheckPossibleEvalCall(result, scope_);
+        this->CheckPossibleEvalCall(result, scope());
 
         bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
@@ -2884,7 +2893,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
         // Explicit calls to the super constructor using super() perform an
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
-          ExpressionT this_expr = this->ThisExpression(scope_, factory(), pos);
+          ExpressionT this_expr = this->ThisExpression(scope(), factory(), pos);
           result =
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
@@ -3022,7 +3031,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         return this->EmptyExpression();
       }
 
-      return this->FunctionSentExpression(scope_, factory(), pos);
+      return this->FunctionSentExpression(scope(), factory(), pos);
     }
 
     bool is_generator = Check(Token::MUL);
@@ -3065,13 +3074,13 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   Expect(Token::SUPER, CHECK_OK);
   int pos = position();
 
-  Scope* scope = scope_->ReceiverScope();
+  Scope* scope = this->scope()->ReceiverScope();
   FunctionKind kind = scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
     if (peek() == Token::PERIOD || peek() == Token::LBRACK) {
       scope->RecordSuperPropertyUsage();
-      return this->NewSuperPropertyReference(scope_, factory(), pos);
+      return this->NewSuperPropertyReference(this->scope(), factory(), pos);
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
@@ -3079,7 +3088,7 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       function_state_->set_super_location(scanner()->location());
-      return this->NewSuperCallReference(scope_, factory(), pos);
+      return this->NewSuperCallReference(this->scope(), factory(), pos);
     }
   }
 
@@ -3108,14 +3117,14 @@ ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
   ExpectMetaProperty(CStrVector("target"), "new.target", pos, CHECK_OK);
 
-  if (!scope_->ReceiverScope()->is_function_scope()) {
+  if (!scope()->ReceiverScope()->is_function_scope()) {
     ReportMessageAt(scanner()->location(),
                     MessageTemplate::kUnexpectedNewTarget);
     *ok = false;
     return this->EmptyExpression();
   }
 
-  return this->NewTargetExpression(scope_, factory(), pos);
+  return this->NewTargetExpression(scope(), factory(), pos);
 }
 
 template <class Traits>
@@ -3357,7 +3366,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
   FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
   {
     typename Traits::Type::Factory function_factory(ast_value_factory());
-    FunctionState function_state(&function_state_, &scope_,
+    FunctionState function_state(&function_state_, &scope_state_,
                                  formal_parameters.scope, arrow_kind,
                                  &function_factory);
 
@@ -3372,7 +3381,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       // Multiple statement body
       Consume(Token::LBRACE);
       bool is_lazily_parsed =
-          (mode() == PARSE_LAZILY && scope_->AllowsLazyParsing());
+          (mode() == PARSE_LAZILY && scope()->AllowsLazyParsing());
       if (is_lazily_parsed) {
         body = this->NewStatementList(0, zone());
         this->SkipLazyFunctionBody(&materialized_literal_count,

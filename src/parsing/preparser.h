@@ -1037,7 +1037,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // during parsing.
   PreParseResult PreParseProgram(int* materialized_literals = 0,
                                  bool is_module = false) {
-    Scope* scope = NewScope(scope_, SCRIPT_SCOPE);
+    DCHECK_NULL(scope_state_);
+    Scope* scope = NewScope(nullptr, SCRIPT_SCOPE);
 
     // ModuleDeclarationInstantiation for Source Text Module Records creates a
     // new Module Environment Record whose outer lexical environment record is
@@ -1046,9 +1047,9 @@ class PreParser : public ParserBase<PreParserTraits> {
       scope = NewScope(scope, MODULE_SCOPE);
     }
 
-    PreParserFactory factory(NULL);
-    FunctionState top_scope(&function_state_, &scope_, scope, kNormalFunction,
-                            &factory);
+    PreParserFactory factory(nullptr);
+    FunctionState top_scope(&function_state_, &scope_state_, scope,
+                            kNormalFunction, &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;
@@ -1056,7 +1057,7 @@ class PreParser : public ParserBase<PreParserTraits> {
     if (stack_overflow()) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner()->current_token());
-    } else if (is_strict(scope_->language_mode())) {
+    } else if (is_strict(this->scope()->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
       CheckDecimalLiteralWithLeadingZero(use_counts_, start_position,
@@ -1245,11 +1246,11 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
-  Scope* inner_scope = scope_;
-  if (!parameters.is_simple) inner_scope = NewScope(scope_, BLOCK_SCOPE);
+  Scope* inner_scope = scope();
+  if (!parameters.is_simple) inner_scope = NewScope(scope(), BLOCK_SCOPE);
 
   {
-    BlockState block_state(&scope_, inner_scope);
+    BlockState block_state(&scope_state_, inner_scope);
     ParseStatementList(Token::RBRACE, ok);
     if (!*ok) return PreParserStatementList();
   }
