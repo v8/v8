@@ -5648,9 +5648,16 @@ void MacroAssembler::MulBranchOvf(Register dst, Register left, Register right,
   DCHECK(!scratch.is(left));
   DCHECK(!scratch.is(right));
 
-  Mul(overflow_dst, dst, left, right);
-  sra(scratch, dst, 31);
-  xor_(overflow_dst, overflow_dst, scratch);
+  if (IsMipsArchVariant(kMips32r6) && dst.is(right)) {
+    mov(scratch, right);
+    Mul(overflow_dst, dst, left, scratch);
+    sra(scratch, dst, 31);
+    xor_(overflow_dst, overflow_dst, scratch);
+  } else {
+    Mul(overflow_dst, dst, left, right);
+    sra(scratch, dst, 31);
+    xor_(overflow_dst, overflow_dst, scratch);
+  }
 
   BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
 }
