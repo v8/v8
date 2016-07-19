@@ -2042,23 +2042,42 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Move(dst, src);
     } else {
       DCHECK(destination->IsFPStackSlot());
-      __ sdc1(src, g.ToMemOperand(destination));
+      MachineRepresentation rep =
+          LocationOperand::cast(source)->representation();
+      if (rep == MachineRepresentation::kFloat64) {
+        __ sdc1(src, g.ToMemOperand(destination));
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ swc1(src, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        UNREACHABLE();
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (destination->IsFPRegister()) {
-      LocationOperand* op = LocationOperand::cast(source);
-      if (op->representation() == MachineRepresentation::kFloat64) {
+      if (rep == MachineRepresentation::kFloat64) {
         __ ldc1(g.ToDoubleRegister(destination), src);
-      } else {
-        DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+      } else if (rep == MachineRepresentation::kFloat32) {
         __ lwc1(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        UNREACHABLE();
       }
     } else {
       FPURegister temp = kScratchDoubleReg;
-      __ ldc1(temp, src);
-      __ sdc1(temp, g.ToMemOperand(destination));
+      if (rep == MachineRepresentation::kFloat64) {
+        __ ldc1(temp, src);
+        __ sdc1(temp, g.ToMemOperand(destination));
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ lwc1(temp, src);
+        __ swc1(temp, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        UNREACHABLE();
+      }
     }
   } else {
     UNREACHABLE();
@@ -2108,24 +2127,46 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ ldc1(src, dst);
-      __ sdc1(temp, dst);
+      MachineRepresentation rep =
+          LocationOperand::cast(source)->representation();
+      if (rep == MachineRepresentation::kFloat64) {
+        __ Move(temp, src);
+        __ ldc1(src, dst);
+        __ sdc1(temp, dst);
+      } else if (rep == MachineRepresentation::kFloat32) {
+        __ Move(temp, src);
+        __ lwc1(src, dst);
+        __ swc1(temp, dst);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+        UNREACHABLE();
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
     FPURegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rm(), src0.offset() + kIntSize);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
-    __ ldc1(temp_1, dst0);  // Save destination in temp_1.
-    __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
-    __ sw(temp_0, dst0);
-    __ lw(temp_0, src1);
-    __ sw(temp_0, dst1);
-    __ sdc1(temp_1, src0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      MemOperand src1(src0.rm(), src0.offset() + kIntSize);
+      MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
+      __ ldc1(temp_1, dst0);  // Save destination in temp_1.
+      __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ sw(temp_0, dst0);
+      __ lw(temp_0, src1);
+      __ sw(temp_0, dst1);
+      __ sdc1(temp_1, src0);
+    } else if (rep == MachineRepresentation::kFloat32) {
+      __ lwc1(temp_1, dst0);  // Save destination in temp_1.
+      __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ sw(temp_0, dst0);
+      __ swc1(temp_1, src0);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
+      UNREACHABLE();
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();
