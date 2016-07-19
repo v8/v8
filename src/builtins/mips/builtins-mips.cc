@@ -1198,7 +1198,8 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   // -- a0 : argument count (not including receiver)
   // -- a3 : new target
@@ -1223,8 +1224,16 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   __ bind(&loop_check);
   __ Branch(&loop_header, gt, a2, Operand(t0));
 
-  // Call the constructor with a0, a1, and a3 unmodified.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  if (construct_type == CallableType::kJSFunction) {
+    // TODO(mythria): Change this when allocation site feedback is available.
+    // ConstructFunction initializes allocation site to undefined.
+    __ Jump(masm->isolate()->builtins()->ConstructFunction(),
+            RelocInfo::CODE_TARGET);
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+    // Call the constructor with a0, a1, and a3 unmodified.
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

@@ -758,7 +758,8 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 }
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
+    MacroAssembler* masm, CallableType construct_type) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target
@@ -790,8 +791,17 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // Re-push return address.
   __ Push(ecx);
 
-  // Call the constructor with unmodified eax, edi, ebi values.
-  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  if (construct_type == CallableType::kJSFunction) {
+    // TODO(mythria): Change this when allocation site feedback is available.
+    // ConstructFunction initializes allocation site to undefined.
+    __ Jump(masm->isolate()->builtins()->ConstructFunction(),
+            RelocInfo::CODE_TARGET);
+  } else {
+    DCHECK_EQ(construct_type, CallableType::kAny);
+
+    // Call the constructor with unmodified eax, edi, ebi values.
+    __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
+  }
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {

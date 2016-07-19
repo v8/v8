@@ -127,7 +127,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 105
+bytecode array length: 106
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -147,7 +147,7 @@ bytecodes: [
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
   /*  118 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
-  /*  118 E> */ B(New), R(2), R(3), U8(1),
+  /*  118 E> */ B(New), R(2), R(3), U8(1), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
@@ -195,7 +195,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 101
+bytecode array length: 102
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -213,7 +213,7 @@ bytecodes: [
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
   /*  117 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
-  /*  117 E> */ B(New), R(2), R(0), U8(0),
+  /*  117 E> */ B(New), R(2), R(0), U8(0), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
