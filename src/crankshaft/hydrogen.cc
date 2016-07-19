@@ -9072,15 +9072,15 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
 
       Drop(args_count_no_receiver);
-      HValue* receiver = Pop();
-      Drop(1);  // Function.
       HValue* result;
+      HValue* receiver = Pop();
+      HValue* checked_object = AddCheckMap(receiver, receiver_map);
+      HValue* length = Add<HLoadNamedField>(
+          receiver, checked_object, HObjectAccess::ForArrayLength(kind));
 
+      Drop(1);  // Function.
       {
         NoObservableSideEffectsScope scope(this);
-
-        HValue* length = Add<HLoadNamedField>(
-            receiver, nullptr, HObjectAccess::ForArrayLength(kind));
 
         IfBuilder if_lengthiszero(this);
         HValue* lengthiszero = if_lengthiszero.If<HCompareNumericAndBranch>(
