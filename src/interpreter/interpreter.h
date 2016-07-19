@@ -143,6 +143,15 @@ class Interpreter {
   compiler::Node* BuildLoadKeyedProperty(Callable ic,
                                          InterpreterAssembler* assembler);
 
+  // Generates code to prepare the result for ForInPrepare. Cache data
+  // are placed into the consecutive series of registers starting at
+  // |output_register|.
+  void BuildForInPrepareResult(compiler::Node* output_register,
+                               compiler::Node* cache_type,
+                               compiler::Node* cache_array,
+                               compiler::Node* cache_length,
+                               InterpreterAssembler* assembler);
+
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
   // Get dispatch table index of bytecode.

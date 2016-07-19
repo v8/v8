@@ -1840,6 +1840,17 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
 
+void Interpreter::BuildForInPrepareResult(Node* output_register,
+                                          Node* cache_type, Node* cache_array,
+                                          Node* cache_length,
+                                          InterpreterAssembler* assembler) {
+  __ StoreRegister(cache_type, output_register);
+  output_register = __ NextRegister(output_register);
+  __ StoreRegister(cache_array, output_register);
+  output_register = __ NextRegister(output_register);
+  __ StoreRegister(cache_length, output_register);
+}
+
 // ForInPrepare <cache_info_triple>
 //
 // Returns state for for..in loop execution based on the object in the
@@ -1849,17 +1860,92 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   Node* object = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result_triple = __ CallRuntime(Runtime::kForInPrepare, context, object);
+  Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
 
-  // Set output registers:
-  //   0 == cache_type, 1 == cache_array, 2 == cache_length
-  Node* output_register = __ BytecodeOperandReg(0);
-  for (int i = 0; i < 3; i++) {
-    Node* cache_info = __ Projection(i, result_triple);
-    __ StoreRegister(cache_info, output_register);
-    output_register = __ NextRegister(output_register);
+  Label test_if_null(assembler), test_if_undefined(assembler),
+      nothing_to_iterate(assembler, Label::kDeferred),
+      convert_to_receiver(assembler, Label::kDeferred),
+      already_receiver(assembler), check_enum_cache(assembler);
+
+  Variable receiver(assembler, MachineRepresentation::kTagged);
+
+  // Test if object is already a receiver, no conversion necessary if so.
+  Node* instance_type = __ LoadInstanceType(object);
+  Node* first_receiver_type = __ Int32Constant(FIRST_JS_RECEIVER_TYPE);
+  __ BranchIfInt32GreaterThanOrEqual(instance_type, first_receiver_type,
+                                     &already_receiver, &test_if_null);
+
+  __ Bind(&test_if_null);
+  {
+    __ BranchIfWordEqual(object, assembler->NullConstant(), &nothing_to_iterate,
+                         &test_if_undefined);
   }
-  __ Dispatch();
+
+  __ Bind(&test_if_undefined);
+  {
+    __ BranchIfWordEqual(object, assembler->UndefinedConstant(),
+                         &nothing_to_iterate, &convert_to_receiver);
+  }
+
+  __ Bind(&convert_to_receiver);
+  {
+    Callable callable = CodeFactory::ToObject(assembler->isolate());
+    Node* target = __ HeapConstant(callable.code());
+    Node* result = __ CallStub(callable.descriptor(), target, context, object);
+    receiver.Bind(result);
+    __ Goto(&check_enum_cache);
+  }
+
+  __ Bind(&already_receiver);
+  {
+    receiver.Bind(object);
+    __ Goto(&check_enum_cache);
+  }
+
+  Label use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
+  __ Bind(&check_enum_cache);
+  { __ CheckEnumCache(receiver.value(), &use_enum_cache, &use_runtime); }
+
+  __ Bind(&use_enum_cache);
+  {
+    // The enum cache is valid.  Load the map of the object being
+    // iterated over and use the cache for the iteration.
+    Node* cache_type = __ LoadMap(receiver.value());
+    Node* cache_length = __ EnumLength(cache_type);
+    __ GotoIf(assembler->WordEqual(cache_length, zero_smi),
+              &nothing_to_iterate);
+    Node* descriptors = __ LoadMapDescriptors(cache_type);
+    Node* cache_offset =
+        __ LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+    Node* cache_array = __ LoadObjectField(
+        cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+    Node* output_register = __ BytecodeOperandReg(0);
+    BuildForInPrepareResult(output_register, cache_type, cache_array,
+                            cache_length, assembler);
+    __ Dispatch();
+  }
+
+  __ Bind(&use_runtime);
+  {
+    Node* result_triple =
+        __ CallRuntime(Runtime::kForInPrepare, context, object);
+    Node* cache_type = __ Projection(0, result_triple);
+    Node* cache_array = __ Projection(1, result_triple);
+    Node* cache_length = __ Projection(2, result_triple);
+    Node* output_register = __ BytecodeOperandReg(0);
+    BuildForInPrepareResult(output_register, cache_type, cache_array,
+                            cache_length, assembler);
+    __ Dispatch();
+  }
+
+  __ Bind(&nothing_to_iterate);
+  {
+    // Receiver is null or undefined or descriptors are zero length.
+    Node* output_register = __ BytecodeOperandReg(0);
+    BuildForInPrepareResult(output_register, zero_smi, zero_smi, zero_smi,
+                            assembler);
+    __ Dispatch();
+  }
 }
 
 // ForInNext <receiver> <index> <cache_info_pair>
@@ -1882,8 +1968,7 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(assembler), if_slow(assembler, Label::kDeferred);
   Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
-  Node* condition = __ WordEqual(receiver_map, cache_type);
-  __ BranchIf(condition, &if_fast, &if_slow);
+  __ BranchIfWordEqual(receiver_map, cache_type, &if_fast, &if_slow);
   __ Bind(&if_fast);
   {
     // Enum cache in use for {receiver}, the {key} is definitely valid.

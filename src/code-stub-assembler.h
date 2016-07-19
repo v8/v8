@@ -474,6 +474,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
 
+  // Get the enumerable length from |map| and return the result as a Smi.
+  compiler::Node* EnumLength(compiler::Node* map);
+
+  // Check the cache validity for |receiver|. Branch to |use_cache| if
+  // the cache is valid, otherwise branch to |use_runtime|.
+  void CheckEnumCache(compiler::Node* receiver,
+                      CodeStubAssembler::Label* use_cache,
+                      CodeStubAssembler::Label* use_runtime);
+
  private:
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,
