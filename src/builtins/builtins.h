@@ -287,6 +287,11 @@ namespace internal {
   CPP(DatePrototypeToJson)                                                   \
   CPP(DateUTC)                                                               \
                                                                              \
+  /* Error */                                                                \
+  CPP(ErrorConstructor)                                                      \
+  CPP(ErrorCaptureStackTrace)                                                \
+  CPP(ErrorPrototypeToString)                                                \
+                                                                             \
   /* Function */                                                             \
   CPP(FunctionConstructor)                                                   \
   ASM(FunctionPrototypeApply)                                                \

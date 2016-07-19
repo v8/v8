@@ -365,26 +365,6 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   return *result;
 }
 
-// Collect the raw data for a stack trace.  Returns an array of 4
-// element segments each containing a receiver, function, code and
-// native code offset.
-RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, error_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, caller, 1);
-
-  if (!isolate->bootstrapper()->IsActive()) {
-    // Optionally capture a more detailed stack trace for the message.
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, isolate->CaptureAndSetDetailedStackTrace(error_object));
-    // Capture a simple stack trace for the stack property.
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, isolate->CaptureAndSetSimpleStackTrace(error_object, caller));
-  }
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_MessageGetStartPosition) {
   SealHandleScope shs(isolate);

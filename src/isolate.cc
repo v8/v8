@@ -329,12 +329,34 @@ static Handle<FixedArray> MaybeGrow(Isolate* isolate,
 }
 
 class StackTraceHelper {
+ private:
+  enum FrameSkipMode {
+    SKIP_FIRST,
+    SKIP_UNTIL_SEEN,
+    SKIP_NONE,
+  };
+
  public:
   StackTraceHelper(Isolate* isolate, Handle<Object> caller)
       : isolate_(isolate), caller_(caller) {
-    // If the caller parameter is a function we skip frames until we're
-    // under it before starting to collect.
-    seen_caller_ = !caller->IsJSFunction();
+    // The caller parameter can be used to skip a specific set of frames in the
+    // stack trace. It can be:
+    // * null, when called from a standard error constructor. We unconditionally
+    //   skip the top frame, which is always a builtin-exit frame for the error
+    //   constructor builtin.
+    // * a JSFunction, when called by the user from Error.captureStackTrace().
+    //   We skip each frame until encountering the caller function.
+    // * For any other value, all frames are included in the trace.
+    if (caller_.is_null()) {
+      mode_ = SKIP_FIRST;
+      skip_next_frame_ = true;
+    } else if (caller_->IsJSFunction()) {
+      mode_ = SKIP_UNTIL_SEEN;
+      skip_next_frame_ = true;
+    } else {
+      mode_ = SKIP_NONE;
+      skip_next_frame_ = false;
+    }
     encountered_strict_function_ = false;
     sloppy_frames_ = 0;
   }
@@ -356,26 +378,34 @@ class StackTraceHelper {
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
   bool IsVisibleInStackTrace(JSFunction* fun) {
-    return IsAfterCaller(fun) && IsNotInNativeScript(fun) &&
+    return ShouldIncludeFrame(fun) && IsNotInNativeScript(fun) &&
            IsInSameSecurityContext(fun);
   }
 
   int sloppy_frames() const { return sloppy_frames_; }
 
  private:
-  // The caller is the error constructor that asked
-  // for the stack trace to be collected.  The first time a construct
-  // call to this function is encountered it is skipped.  The seen_caller
-  // in/out parameter is used to remember if the caller has been seen
-  // yet.
-  bool IsAfterCaller(JSFunction* fun) {
-    if ((fun == *caller_) && !(seen_caller_)) {
-      seen_caller_ = true;
-      return false;
+  // This mechanism excludes a number of uninteresting frames from the stack
+  // trace. This can be be the first frame (which will be a builtin-exit frame
+  // for the error constructor builtin) or every frame until encountering a
+  // user-specified function.
+  bool ShouldIncludeFrame(JSFunction* fun) {
+    switch (mode_) {
+      case SKIP_NONE:
+        return true;
+      case SKIP_FIRST:
+        if (!skip_next_frame_) return true;
+        skip_next_frame_ = false;
+        return false;
+      case SKIP_UNTIL_SEEN:
+        if (skip_next_frame_ && (fun == *caller_)) {
+          skip_next_frame_ = false;
+          return false;
+        }
+        return !skip_next_frame_;
     }
-    // Skip all frames until we've seen the caller.
-    if (!seen_caller_) return false;
-    return true;
+    UNREACHABLE();
+    return false;
   }
 
   bool IsNotInNativeScript(JSFunction* fun) {
@@ -394,9 +424,11 @@ class StackTraceHelper {
   }
 
   Isolate* isolate_;
-  Handle<Object> caller_;
 
-  bool seen_caller_;
+  FrameSkipMode mode_;
+  Handle<Object> caller_;
+  bool skip_next_frame_;
+
   int sloppy_frames_;
   bool encountered_strict_function_;
 };
@@ -531,8 +563,9 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
+    // TODO(jgruber): Set back to STRICT once we have eagerly formatted traces.
     RETURN_ON_EXCEPTION(
-        this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
+        this, JSReceiver::SetProperty(error_object, key, stack_trace, SLOPPY),
         JSReceiver);
   }
   return error_object;
@@ -543,8 +576,9 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
+  // TODO(jgruber): Set back to STRICT once we have eagerly formatted traces.
   RETURN_ON_EXCEPTION(
-      this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
+      this, JSReceiver::SetProperty(error_object, key, stack_trace, SLOPPY),
       JSReceiver);
   return error_object;
 }

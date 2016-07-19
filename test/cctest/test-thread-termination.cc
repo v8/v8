@@ -517,8 +517,7 @@ TEST(ErrorObjectAfterTermination) {
   v8::Context::Scope context_scope(context);
   isolate->TerminateExecution();
   v8::Local<v8::Value> error = v8::Exception::Error(v8_str("error"));
-  // TODO(yangguo): crbug/403509. Check for empty handle instead.
-  CHECK(error->IsUndefined());
+  CHECK(error->IsNativeError());
 }
 
 

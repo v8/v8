@@ -75,9 +75,9 @@ try {
 function testErrorPrototype(prototype) {
   var object = {};
   object.__proto__ = prototype;
-  object.stack = "123";  // Overwriting stack property fails.
-  assertEquals(prototype.stack, object.stack);
-  assertTrue("123" != prototype.stack);
+  object.stack = "123";  // Overwriting stack property succeeds.
+  assertTrue(prototype.stack != object.stack);
+  assertEquals("123", object.stack);
 }
 
 try {
