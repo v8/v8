@@ -73,18 +73,17 @@ class CodeEntry {
 
   void set_deopt_info(const char* deopt_reason, SourcePosition position,
                       int deopt_id) {
-    DCHECK(deopt_position_.IsUnknown());
+    DCHECK(!has_deopt_info());
     deopt_reason_ = deopt_reason;
     deopt_position_ = position;
     deopt_id_ = deopt_id;
   }
   CpuProfileDeoptInfo GetDeoptInfo();
-  const char* deopt_reason() const { return deopt_reason_; }
-  SourcePosition deopt_position() const { return deopt_position_; }
-  bool has_deopt_info() const { return !deopt_position_.IsUnknown(); }
+  bool has_deopt_info() const { return deopt_id_ != kNoDeoptimizationId; }
   void clear_deopt_info() {
     deopt_reason_ = kNoDeoptReason;
     deopt_position_ = SourcePosition::Unknown();
+    deopt_id_ = kNoDeoptimizationId;
   }
 
   void FillFunctionInfo(SharedFunctionInfo* shared);

@@ -103,10 +103,8 @@
   'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
 
   # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
 
   ############################################################################
   # Slow tests.
@@ -160,6 +158,10 @@
   # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
   'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
+
+  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
+  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_IGNITION],
+  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_IGNITION],
 
   # BUG(4680): Ignition doesn't support allocation sites currently.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_IGNITION],
@@ -434,6 +436,10 @@
 
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
+
+  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
+  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
+  'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
 
   # BUG(4680): Ignition doesn't support allocation sites currently.
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],

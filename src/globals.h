@@ -296,6 +296,9 @@ inline LanguageMode construct_language_mode(bool strict_bit) {
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;
 
+// This constant is used to indicate missing deoptimization information.
+const int kNoDeoptimizationId = -1;
+
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
 
