@@ -2297,6 +2297,9 @@ bool Isolate::Init(Deserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
+  if (create_heap_objects) {
+    heap_.CreateFixedStubs();
+  }
 
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);

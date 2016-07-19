@@ -2699,6 +2699,19 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
 }
 
 // static
+void Builtins::Generate_Abort(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edx    : message_id as Smi
+  //  -- esp[0] : return address
+  // -----------------------------------
+  __ PopReturnAddressTo(ecx);
+  __ Push(edx);
+  __ PushReturnAddressFrom(ecx);
+  __ Move(esi, Smi::FromInt(0));
+  __ TailCallRuntime(Runtime::kAbort);
+}
+
+// static
 void Builtins::Generate_StringToNumber(MacroAssembler* masm) {
   // The StringToNumber stub takes one argument in eax.
   __ AssertString(eax);

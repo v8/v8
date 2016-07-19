@@ -48,6 +48,7 @@ namespace internal {
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                      \
+  ASM(Abort)                                                                 \
   /* Handlers */                                                             \
   ASM(KeyedLoadIC_Miss)                                                      \
   ASM(KeyedStoreIC_Miss)                                                     \
