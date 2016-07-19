@@ -42,13 +42,21 @@ class BytecodeDispatchesReportTest(unittest.TestCase):
       ('b',   5)
     ])
 
-  def test_find_top_dispatch_sources(self):
-    top_dispatch_sources = bdr.find_top_dispatch_sources({
-      "a": {"a": 10, "b":  8, "c":  7},
+  def test_find_top_dispatch_sources_and_destinations(self):
+    d = {
+      "a": {"a":  4, "b":  2, "c":  4},
       "b": {"a":  1, "c":  4},
-      "c": {"a": 42, "b": 12, "c": 99}
-    }, "b", 10)
-    self.assertListEqual(top_dispatch_sources, [
-      ("c", 12),
-      ("a",  8)
+      "c": {"a": 40, "b": 10, "c": 50}
+    }
+    top_sources, top_dests = bdr.find_top_dispatch_sources_and_destinations(
+      d, "b", 10, False)
+    self.assertListEqual(top_sources, [
+      ("c", 10, 0.1),
+      ("a", 2, 0.2)
+    ])
+    top_sources, top_dests = bdr.find_top_dispatch_sources_and_destinations(
+      d, "b", 10, True)
+    self.assertListEqual(top_sources, [
+      ("a", 2, 0.2),
+      ("c", 10, 0.1)
     ])
