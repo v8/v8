@@ -2800,6 +2800,17 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
 }
 
 // static
+void Builtins::Generate_Abort(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r4 : message_id as Smi
+  //  -- lr : return address
+  // -----------------------------------
+  __ push(r4);
+  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ TailCallRuntime(Runtime::kAbort);
+}
+
+// static
 void Builtins::Generate_StringToNumber(MacroAssembler* masm) {
   // The StringToNumber stub takes one argument in r3.
   __ AssertString(r3);
