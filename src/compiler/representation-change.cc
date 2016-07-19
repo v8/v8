@@ -340,6 +340,8 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       // low 32 bits (so we can pick uint32 safely).
       op = machine()->ChangeUint32ToFloat64();
     }
+  } else if (output_rep == MachineRepresentation::kBit) {
+    op = machine()->ChangeUint32ToFloat64();
   } else if (output_rep == MachineRepresentation::kTagged) {
     if (output_type->Is(Type::Undefined())) {
       return jsgraph()->Float64Constant(

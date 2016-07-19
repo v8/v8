@@ -657,10 +657,6 @@ TEST(TypeErrors) {
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(MachineRepresentation::kFloat64, Type::None(),
                    MachineRepresentation::kBit);
-  r.CheckTypeError(MachineRepresentation::kBit, Type::None(),
-                   MachineRepresentation::kFloat64);
-  r.CheckTypeError(MachineRepresentation::kBit, Type::Boolean(),
-                   MachineRepresentation::kFloat64);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(MachineRepresentation::kFloat32, Type::None(),
