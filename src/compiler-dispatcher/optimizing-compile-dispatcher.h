@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OPTIMIZING_COMPILE_DISPATCHER_H_
-#define V8_OPTIMIZING_COMPILE_DISPATCHER_H_
+#ifndef V8_COMPILER_DISPATCHER_OPTIMIZING_COMPILE_DISPATCHER_H_
+#define V8_COMPILER_DISPATCHER_OPTIMIZING_COMPILE_DISPATCHER_H_
 
 #include <queue>
 
@@ -99,4 +99,4 @@ class OptimizingCompileDispatcher {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OPTIMIZING_COMPILE_DISPATCHER_H_
+#endif  // V8_COMPILER_DISPATCHER_OPTIMIZING_COMPILE_DISPATCHER_H_

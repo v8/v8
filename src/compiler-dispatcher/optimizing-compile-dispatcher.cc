@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/optimizing-compile-dispatcher.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
 #include "src/full-codegen/full-codegen.h"
@@ -28,7 +28,6 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
 }
 
 }  // namespace
-
 
 class OptimizingCompileDispatcher::CompileTask : public v8::Task {
  public:
@@ -76,7 +75,6 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
-
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
 #ifdef DEBUG
   {
@@ -120,7 +118,6 @@ void OptimizingCompileDispatcher::CompileNext(CompilationJob* job) {
   isolate_->stack_guard()->RequestInstallCode();
 }
 
-
 void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   for (;;) {
     CompilationJob* job = NULL;
@@ -135,7 +132,6 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   }
 }
 
-
 void OptimizingCompileDispatcher::Flush() {
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
@@ -149,7 +145,6 @@ void OptimizingCompileDispatcher::Flush() {
     PrintF("  ** Flushed concurrent recompilation queues.\n");
   }
 }
-
 
 void OptimizingCompileDispatcher::Stop() {
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
@@ -169,7 +164,6 @@ void OptimizingCompileDispatcher::Stop() {
     FlushOutputQueue(false);
   }
 }
-
 
 void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
@@ -214,7 +208,6 @@ void OptimizingCompileDispatcher::QueueForOptimization(CompilationJob* job) {
   }
 }
 
-
 void OptimizingCompileDispatcher::Unblock() {
   while (blocked_jobs_ > 0) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -222,7 +215,6 @@ void OptimizingCompileDispatcher::Unblock() {
     blocked_jobs_--;
   }
 }
-
 
 }  // namespace internal
 }  // namespace v8

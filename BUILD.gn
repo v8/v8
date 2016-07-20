@@ -650,9 +650,13 @@ action("run_mksnapshot") {
 action("run_mkpeephole") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  deps = [ ":mkpeephole($v8_snapshot_toolchain)" ]
+  deps = [
+    ":mkpeephole($v8_snapshot_toolchain)",
+  ]
 
-  outputs = [ v8_generated_peephole_source ]
+  outputs = [
+    v8_generated_peephole_source,
+  ]
 
   sources = []
 
@@ -915,6 +919,8 @@ v8_source_set("v8_base") {
     "src/compilation-dependencies.h",
     "src/compilation-statistics.cc",
     "src/compilation-statistics.h",
+    "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
+    "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
     "src/compiler.cc",
     "src/compiler.h",
     "src/compiler/access-builder.cc",
@@ -1407,8 +1413,6 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
-    "src/optimizing-compile-dispatcher.cc",
-    "src/optimizing-compile-dispatcher.h",
     "src/ostreams.cc",
     "src/ostreams.h",
     "src/parsing/expression-classifier.h",
