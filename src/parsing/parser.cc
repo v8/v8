@@ -939,7 +939,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   {
     // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
     // context, which will have the "this" binding for script scopes.
-    Scope* scope = NewScope(nullptr, SCRIPT_SCOPE);
+    Scope* scope = NewScriptScope();
     info->set_script_scope(scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
@@ -1103,7 +1103,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = NewScope(nullptr, SCRIPT_SCOPE);
+    Scope* scope = NewScriptScope();
     info->set_script_scope(scope);
     if (!info->context().is_null()) {
       // Ok to use Isolate here, since lazy function parsing is only done in the

@@ -615,9 +615,16 @@ class ParserBase : public Traits {
     Mode old_mode_;
   };
 
+  Scope* NewScriptScope() {
+    return new (zone()) Scope(zone(), nullptr, SCRIPT_SCOPE, kNormalFunction);
+  }
+
   Scope* NewScope(Scope* parent, ScopeType scope_type) {
-    // Must always pass the function kind for FUNCTION_SCOPE.
-    DCHECK(scope_type != FUNCTION_SCOPE);
+    // Must always use the specific constructors for the blacklisted scope
+    // types.
+    DCHECK_NE(FUNCTION_SCOPE, scope_type);
+    DCHECK_NE(SCRIPT_SCOPE, scope_type);
+    DCHECK_NOT_NULL(parent);
     Scope* result =
         new (zone()) Scope(zone(), parent, scope_type, kNormalFunction);
     if (scope_type == MODULE_SCOPE) result->DeclareThis(ast_value_factory());

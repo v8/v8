@@ -131,7 +131,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   use_counts_ = use_counts;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   DCHECK_NULL(scope_state_);
-  Scope* top_scope = NewScope(nullptr, SCRIPT_SCOPE);
+  Scope* top_scope = NewScriptScope();
   PreParserFactory top_factory(nullptr);
   FunctionState top_state(&function_state_, &scope_state_, top_scope,
                           kNormalFunction, &top_factory);
