@@ -56,12 +56,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
     DisableSelfOptimization();
   }
   void DisableCrankshaft(BailoutReason reason) {
-    if (FLAG_turbo_shipping) {
-      properties_.flags() |= AstProperties::kDontCrankshaft;
-    } else {
-      dont_optimize_reason_ = reason;
-      DisableSelfOptimization();
-    }
+    properties_.flags() |= AstProperties::kDontCrankshaft;
   }
 
   template <typename Node>
