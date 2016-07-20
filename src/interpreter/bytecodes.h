@@ -532,6 +532,10 @@ class Bytecodes final {
   // Returns true if |operand_type| represents a register used as an output.
   static bool IsRegisterOutputOperandType(OperandType operand_type);
 
+  // Returns true if the handler for |bytecode| should look ahead and inline a
+  // dispatch to a Star bytecode.
+  static bool IsStarLookahead(Bytecode bytecode, OperandScale operand_scale);
+
   // Returns the number of registers represented by a register operand. For
   // instance, a RegPair represents two registers.
   static int GetNumberOfRegistersRepresentedBy(OperandType operand_type);

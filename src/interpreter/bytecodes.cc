@@ -572,6 +572,33 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
 }
 
 // static
+bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
+  if (operand_scale == OperandScale::kSingle) {
+    switch (bytecode) {
+      case Bytecode::kLdaZero:
+      case Bytecode::kLdaSmi:
+      case Bytecode::kLdaNull:
+      case Bytecode::kLdaTheHole:
+      case Bytecode::kLdaConstant:
+      case Bytecode::kAdd:
+      case Bytecode::kSub:
+      case Bytecode::kMul:
+      case Bytecode::kAddSmi:
+      case Bytecode::kSubSmi:
+      case Bytecode::kInc:
+      case Bytecode::kDec:
+      case Bytecode::kTypeOf:
+      case Bytecode::kCall:
+      case Bytecode::kNew:
+        return true;
+      default:
+        return false;
+    }
+  }
+  return false;
+}
+
+// static
 int Bytecodes::GetNumberOfRegistersRepresentedBy(OperandType operand_type) {
   switch (operand_type) {
     case OperandType::kMaybeReg:

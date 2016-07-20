@@ -332,6 +332,32 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
         IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
         IsWordShl(target_bytecode_matcher, IsIntPtrConstant(kPointerSizeLog2)));
 
+    if (interpreter::Bytecodes::IsStarLookahead(bytecode, operand_scale)) {
+      Matcher<Node*> after_lookahead_offset =
+          IsIntPtrAdd(next_bytecode_offset_matcher,
+                      IsIntPtrConstant(interpreter::Bytecodes::Size(
+                          Bytecode::kStar, operand_scale)));
+      next_bytecode_offset_matcher =
+          IsPhi(MachineType::PointerRepresentation(),
+                next_bytecode_offset_matcher, after_lookahead_offset, _);
+      Matcher<Node*> after_lookahead_bytecode = m.IsLoad(
+          MachineType::Uint8(),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          after_lookahead_offset);
+      if (kPointerSize == 8) {
+        after_lookahead_bytecode =
+            IsChangeUint32ToUint64(after_lookahead_bytecode);
+      }
+      target_bytecode_matcher =
+          IsPhi(MachineRepresentation::kWord8, target_bytecode_matcher,
+                after_lookahead_bytecode, _);
+      code_target_matcher = m.IsLoad(
+          MachineType::Pointer(),
+          IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
+          IsWordShl(target_bytecode_matcher,
+                    IsIntPtrConstant(kPointerSizeLog2)));
+    }
+
     EXPECT_THAT(
         tail_call_node,
         IsTailCall(
@@ -351,6 +377,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
   int jump_offsets[] = {-9710, -77, 0, +3, +97109};
   TRACED_FOREACH(int, jump_offset, jump_offsets) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+      if (!interpreter::Bytecodes::IsJump(bytecode)) return;
+
       InterpreterAssemblerForTest m(this, bytecode);
       Node* tail_call_node = m.Jump(m.IntPtrConstant(jump_offset));
 

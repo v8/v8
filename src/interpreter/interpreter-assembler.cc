@@ -31,6 +31,7 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
                         Bytecodes::ReturnCount(bytecode)),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
+      bytecode_offset_(this, MachineType::PointerRepresentation()),
       interpreted_frame_pointer_(this, MachineType::PointerRepresentation()),
       accumulator_(this, MachineRepresentation::kTagged),
       accumulator_use_(AccumulatorUse::kNone),
@@ -39,6 +40,8 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       stack_pointer_before_call_(nullptr) {
   accumulator_.Bind(
       Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
+  bytecode_offset_.Bind(
+      Parameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -83,7 +86,7 @@ void InterpreterAssembler::SetContext(Node* value) {
 }
 
 Node* InterpreterAssembler::BytecodeOffset() {
-  return Parameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter);
+  return bytecode_offset_.value();
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
@@ -659,17 +662,30 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
                       new_budget.value());
 }
 
+Node* InterpreterAssembler::Advance() {
+  return Advance(Bytecodes::Size(bytecode_, operand_scale_));
+}
+
 Node* InterpreterAssembler::Advance(int delta) {
-  return IntPtrAdd(BytecodeOffset(), IntPtrConstant(delta));
+  return Advance(IntPtrConstant(delta));
 }
 
 Node* InterpreterAssembler::Advance(Node* delta) {
-  return IntPtrAdd(BytecodeOffset(), delta);
+  if (FLAG_trace_ignition) {
+    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
+  }
+  Node* next_offset = IntPtrAdd(BytecodeOffset(), delta);
+  bytecode_offset_.Bind(next_offset);
+  return next_offset;
 }
 
 Node* InterpreterAssembler::Jump(Node* delta) {
+  DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
+
   UpdateInterruptBudget(delta);
-  return DispatchTo(Advance(delta));
+  Node* new_bytecode_offset = Advance(delta);
+  Node* target_bytecode = LoadBytecode(new_bytecode_offset);
+  return DispatchToBytecode(target_bytecode, new_bytecode_offset);
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
@@ -691,17 +707,66 @@ void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
   JumpConditional(WordNotEqual(lhs, rhs), delta);
 }
 
-Node* InterpreterAssembler::Dispatch() {
-  return DispatchTo(Advance(Bytecodes::Size(bytecode_, operand_scale_)));
+Node* InterpreterAssembler::LoadBytecode(compiler::Node* bytecode_offset) {
+  Node* bytecode =
+      Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(), bytecode_offset);
+  if (kPointerSize == 8) {
+    bytecode = ChangeUint32ToUint64(bytecode);
+  }
+  return bytecode;
 }
 
-Node* InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
-  Node* target_bytecode = Load(
-      MachineType::Uint8(), BytecodeArrayTaggedPointer(), new_bytecode_offset);
-  if (kPointerSize == 8) {
-    target_bytecode = ChangeUint32ToUint64(target_bytecode);
-  }
+Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
+  Label do_inline_star(this), done(this);
 
+  Variable var_bytecode(this, MachineRepresentation::kWord8);
+  var_bytecode.Bind(target_bytecode);
+
+  Node* star_bytecode = IntPtrConstant(static_cast<int>(Bytecode::kStar));
+  Node* is_star = WordEqual(target_bytecode, star_bytecode);
+  BranchIf(is_star, &do_inline_star, &done);
+
+  Bind(&do_inline_star);
+  {
+    InlineStar();
+    var_bytecode.Bind(LoadBytecode(BytecodeOffset()));
+    Goto(&done);
+  }
+  Bind(&done);
+  return var_bytecode.value();
+}
+
+void InterpreterAssembler::InlineStar() {
+  Bytecode previous_bytecode = bytecode_;
+  AccumulatorUse previous_acc_use = accumulator_use_;
+
+  bytecode_ = Bytecode::kStar;
+  accumulator_use_ = AccumulatorUse::kNone;
+
+  if (FLAG_trace_ignition) {
+    TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
+  }
+  StoreRegister(GetAccumulator(), BytecodeOperandReg(0));
+
+  DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+
+  Advance();
+  bytecode_ = previous_bytecode;
+  accumulator_use_ = previous_acc_use;
+}
+
+Node* InterpreterAssembler::Dispatch() {
+  Node* target_offset = Advance();
+  Node* target_bytecode = LoadBytecode(target_offset);
+
+  if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
+    target_bytecode = StarDispatchLookahead(target_bytecode);
+  }
+  return DispatchToBytecode(target_bytecode, BytecodeOffset());
+}
+
+Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
+                                               Node* new_bytecode_offset) {
   if (FLAG_trace_ignition_dispatches) {
     TraceBytecodeDispatch(target_bytecode);
   }
@@ -722,10 +787,6 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset) {
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
-  }
-
   InterpreterDispatchDescriptor descriptor(isolate());
   Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
                   BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
@@ -741,11 +802,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   //   Indices 256-511 correspond to bytecodes with operand_scale == 1
   //   Indices 512-767 correspond to bytecodes with operand_scale == 2
   Node* next_bytecode_offset = Advance(1);
-  Node* next_bytecode = Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-                             next_bytecode_offset);
-  if (kPointerSize == 8) {
-    next_bytecode = ChangeUint32ToUint64(next_bytecode);
-  }
+  Node* next_bytecode = LoadBytecode(next_bytecode_offset);
 
   if (FLAG_trace_ignition_dispatches) {
     TraceBytecodeDispatch(next_bytecode);

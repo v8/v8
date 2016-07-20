@@ -1662,6 +1662,7 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
         __ CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
                        literal_index, constant_elements, flags);
     __ SetAccumulator(result);
+    // TODO(klaasb) build a single dispatch once the call is inlined
     __ Dispatch();
   }
 }

@@ -231,13 +231,30 @@ class InterpreterAssembler : public CodeStubAssembler {
   // JumpIfWordNotEqual.
   void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
 
-  // Returns BytecodeOffset() advanced by delta bytecodes. Note: this does not
-  // update BytecodeOffset() itself.
+  // Updates and returns BytecodeOffset() advanced by the current bytecode's
+  // size. Traces the exit of the current bytecode.
+  compiler::Node* Advance();
+
+  // Updates and returns BytecodeOffset() advanced by delta bytecodes.
+  // Traces the exit of the current bytecode.
   compiler::Node* Advance(int delta);
   compiler::Node* Advance(compiler::Node* delta);
 
-  // Starts next instruction dispatch at |new_bytecode_offset|.
-  compiler::Node* DispatchTo(compiler::Node* new_bytecode_offset);
+  // Load the bytecode at |bytecode_offset|.
+  compiler::Node* LoadBytecode(compiler::Node* bytecode_offset);
+
+  // Look ahead for Star and inline it in a branch. Returns a new target
+  // bytecode node for dispatch.
+  compiler::Node* StarDispatchLookahead(compiler::Node* target_bytecode);
+
+  // Build code for Star at the current BytecodeOffset() and Advance() to the
+  // next dispatch offset.
+  void InlineStar();
+
+  // Dispatch to |target_bytecode| at |new_bytecode_offset|.
+  // |target_bytecode| should be equivalent to loading from the offset.
+  compiler::Node* DispatchToBytecode(compiler::Node* target_bytecode,
+                                     compiler::Node* new_bytecode_offset);
 
   // Dispatch to the bytecode handler with code offset |handler|.
   compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler,
@@ -251,6 +268,7 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
+  CodeStubAssembler::Variable bytecode_offset_;
   CodeStubAssembler::Variable interpreted_frame_pointer_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
