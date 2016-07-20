@@ -265,7 +265,6 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
     Node* phi_false = graph->NewNode(phi->op(), input_count + 1, inputs);
     if (phi->UseCount() == 0) {
       DCHECK_EQ(phi->opcode(), IrOpcode::kEffectPhi);
-      DCHECK_EQ(input_count, block->SuccessorCount());
     } else {
       for (Edge edge : phi->use_edges()) {
         Node* control = NodeProperties::GetControlInput(edge.from());
@@ -616,6 +615,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeTaggedToFloat64:
       state = LowerChangeTaggedToFloat64(node, *effect, *control);
       break;
+    case IrOpcode::kTruncateTaggedToBit:
+      state = LowerTruncateTaggedToBit(node, *effect, *control);
+      break;
     case IrOpcode::kTruncateTaggedToFloat64:
       state = LowerTruncateTaggedToFloat64(node, *effect, *control);
       break;
@@ -890,6 +892,157 @@ EffectControlLinearizer::LowerChangeTaggedToBit(Node* node, Node* effect,
   Node* value = node->InputAt(0);
   value = graph()->NewNode(machine()->WordEqual(), value,
                            jsgraph()->TrueConstant());
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
+                                                  Node* control) {
+  Node* value = node->InputAt(0);
+  Node* one = jsgraph()->Int32Constant(1);
+  Node* zero = jsgraph()->Int32Constant(0);
+  Node* fzero = jsgraph()->Float64Constant(0.0);
+
+  // Collect effect/control/value triples.
+  int count = 0;
+  Node* values[7];
+  Node* effects[7];
+  Node* controls[6];
+
+  // Check if {value} is a Smi.
+  Node* check_smi = ObjectIsSmi(value);
+  Node* branch_smi = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                      check_smi, control);
+
+  // If {value} is a Smi, then we only need to check that it's not zero.
+  Node* if_smi = graph()->NewNode(common()->IfTrue(), branch_smi);
+  Node* esmi = effect;
+  {
+    controls[count] = if_smi;
+    effects[count] = esmi;
+    values[count] =
+        graph()->NewNode(machine()->Word32Equal(),
+                         graph()->NewNode(machine()->WordEqual(), value,
+                                          jsgraph()->ZeroConstant()),
+                         zero);
+    count++;
+  }
+  control = graph()->NewNode(common()->IfFalse(), branch_smi);
+
+  // Load the map instance type of {value}.
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  // Check if {value} is an Oddball.
+  Node* check_oddball =
+      graph()->NewNode(machine()->Word32Equal(), value_instance_type,
+                       jsgraph()->Int32Constant(ODDBALL_TYPE));
+  Node* branch_oddball = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check_oddball, control);
+
+  // The only Oddball {value} that is trueish is true itself.
+  Node* if_oddball = graph()->NewNode(common()->IfTrue(), branch_oddball);
+  Node* eoddball = effect;
+  {
+    controls[count] = if_oddball;
+    effects[count] = eoddball;
+    values[count] = graph()->NewNode(machine()->WordEqual(), value,
+                                     jsgraph()->TrueConstant());
+    count++;
+  }
+  control = graph()->NewNode(common()->IfFalse(), branch_oddball);
+
+  // Check if {value} is a String.
+  Node* check_string =
+      graph()->NewNode(machine()->Int32LessThan(), value_instance_type,
+                       jsgraph()->Int32Constant(FIRST_NONSTRING_TYPE));
+  Node* branch_string =
+      graph()->NewNode(common()->Branch(), check_string, control);
+
+  // For String {value}, we need to check that the length is not zero.
+  Node* if_string = graph()->NewNode(common()->IfTrue(), branch_string);
+  Node* estring = effect;
+  {
+    // Load the {value} length.
+    Node* value_length = estring = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForStringLength()), value,
+        estring, if_string);
+
+    controls[count] = if_string;
+    effects[count] = estring;
+    values[count] =
+        graph()->NewNode(machine()->Word32Equal(),
+                         graph()->NewNode(machine()->WordEqual(), value_length,
+                                          jsgraph()->ZeroConstant()),
+                         zero);
+    count++;
+  }
+  control = graph()->NewNode(common()->IfFalse(), branch_string);
+
+  // Check if {value} is a HeapNumber.
+  Node* check_heapnumber =
+      graph()->NewNode(machine()->Word32Equal(), value_instance_type,
+                       jsgraph()->Int32Constant(HEAP_NUMBER_TYPE));
+  Node* branch_heapnumber =
+      graph()->NewNode(common()->Branch(), check_heapnumber, control);
+
+  // For HeapNumber {value}, just check that its value is not 0.0, -0.0 or NaN.
+  Node* if_heapnumber = graph()->NewNode(common()->IfTrue(), branch_heapnumber);
+  Node* eheapnumber = effect;
+  {
+    // Load the raw value of {value}.
+    Node* value_value = eheapnumber = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
+        eheapnumber, if_heapnumber);
+
+    // Check if {value} is either less than 0.0 or greater than 0.0.
+    Node* check =
+        graph()->NewNode(machine()->Float64LessThan(), fzero, value_value);
+    Node* branch = graph()->NewNode(common()->Branch(), check, if_heapnumber);
+
+    controls[count] = graph()->NewNode(common()->IfTrue(), branch);
+    effects[count] = eheapnumber;
+    values[count] = one;
+    count++;
+
+    controls[count] = graph()->NewNode(common()->IfFalse(), branch);
+    effects[count] = eheapnumber;
+    values[count] =
+        graph()->NewNode(machine()->Float64LessThan(), value_value, fzero);
+    count++;
+  }
+  control = graph()->NewNode(common()->IfFalse(), branch_heapnumber);
+
+  // The {value} is either a JSReceiver, a Symbol or some Simd128Value. In
+  // those cases we can just the undetectable bit on the map, which will only
+  // be set for certain JSReceivers, i.e. document.all.
+  {
+    // Load the {value} map bit field.
+    Node* value_map_bitfield = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapBitField()), value_map,
+        effect, control);
+
+    controls[count] = control;
+    effects[count] = effect;
+    values[count] = graph()->NewNode(
+        machine()->Word32Equal(),
+        graph()->NewNode(machine()->Word32And(), value_map_bitfield,
+                         jsgraph()->Int32Constant(1 << Map::kIsUndetectable)),
+        zero);
+    count++;
+  }
+
+  // Merge the different controls.
+  control = graph()->NewNode(common()->Merge(count), count, controls);
+  effects[count] = control;
+  effect = graph()->NewNode(common()->EffectPhi(count), count + 1, effects);
+  values[count] = control;
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, count),
+                           count + 1, values);
+
   return ValueEffectControl(value, effect, control);
 }
 

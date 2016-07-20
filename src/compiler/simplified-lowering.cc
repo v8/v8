@@ -1212,6 +1212,18 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       // JavaScript operators.
       //------------------------------------------------------------------
+      case IrOpcode::kJSToBoolean: {
+        if (truncation.TruncatesToBool()) {
+          ProcessInput(node, 0, UseInfo::Bool());
+          ProcessInput(node, 1, UseInfo::None());
+          SetOutput(node, MachineRepresentation::kBit);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitInputs(node);
+          SetOutput(node, MachineRepresentation::kTagged);
+        }
+        return;
+      }
       case IrOpcode::kJSToNumber: {
         VisitInputs(node);
         // TODO(bmeurer): Optimize somewhat based on input type?

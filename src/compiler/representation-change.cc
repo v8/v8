@@ -482,18 +482,30 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
-      DCHECK(value.is_identical_to(factory()->true_value()) ||
-             value.is_identical_to(factory()->false_value()));
-      return jsgraph()->Int32Constant(
-          value.is_identical_to(factory()->true_value()) ? 1 : 0);
+      return jsgraph()->Int32Constant(value->BooleanValue() ? 1 : 0);
     }
     default:
       break;
   }
   // Select the correct X -> Bit operator.
   const Operator* op;
-  if (output_rep == MachineRepresentation::kTagged) {
-    op = simplified()->ChangeTaggedToBit();
+  if (IsWord(output_rep)) {
+    return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                       jsgraph()->Int32Constant(0));
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node = jsgraph()->graph()->NewNode(machine()->Float32Abs(), node);
+    return jsgraph()->graph()->NewNode(machine()->Float32LessThan(),
+                                       jsgraph()->Float32Constant(0.0), node);
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    node = jsgraph()->graph()->NewNode(machine()->Float64Abs(), node);
+    return jsgraph()->graph()->NewNode(machine()->Float64LessThan(),
+                                       jsgraph()->Float64Constant(0.0), node);
+  } else if (output_rep == MachineRepresentation::kTagged) {
+    if (output_type->Is(Type::Boolean())) {
+      op = simplified()->ChangeTaggedToBit();
+    } else {
+      op = simplified()->TruncateTaggedToBit();
+    }
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kBit);

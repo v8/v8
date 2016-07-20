@@ -28,6 +28,9 @@ class Truncation final {
   }
 
   // Queries.
+  bool TruncatesToBool() const {
+    return LessGeneral(kind_, TruncationKind::kBool);
+  }
   bool TruncatesToWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
