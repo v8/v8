@@ -1770,7 +1770,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
 Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
                                         uint32_t mask) {
   return Word32Shr(Word32And(word32, Int32Constant(mask)),
-                   Int32Constant(shift));
+                   static_cast<int>(shift));
 }
 
 void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {

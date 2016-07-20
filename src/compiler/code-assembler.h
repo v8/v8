@@ -285,6 +285,7 @@ class CodeAssembler {
 
   Node* WordShl(Node* value, int shift);
   Node* WordShr(Node* value, int shift);
+  Node* Word32Shr(Node* value, int shift);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name) Node* name(Node* a);
