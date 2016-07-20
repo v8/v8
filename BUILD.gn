@@ -873,7 +873,6 @@ v8_source_set("v8_base") {
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
     "src/builtins/builtins-array.cc",
-    "src/builtins/builtins-error.cc",
     "src/builtins/builtins-utils.h",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",

@@ -7,5 +7,5 @@ try {
   var p = new Proxy({}, o);
   Error.captureStackTrace(p);
 } catch(e) {
-  assertEquals("invalid_argument", e.message);
+  assertEquals("Cannot pass private property name to proxy trap", e.message);
 }

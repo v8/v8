@@ -487,7 +487,6 @@
         'bootstrapper.cc',
         'bootstrapper.h',
         'builtins/builtins-array.cc',
-        'builtins/builtins-error.cc',
         'builtins/builtins-utils.h',
         'builtins/builtins.cc',
         'builtins/builtins.h',

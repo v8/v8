@@ -307,6 +307,7 @@ namespace internal {
   F(AllocateInTargetSpace, 2, 1)                    \
   F(AllocateSeqOneByteString, 1, 1)                 \
   F(AllocateSeqTwoByteString, 1, 1)                 \
+  F(CollectStackTrace, 2, 1)                        \
   F(MessageGetStartPosition, 1, 1)                  \
   F(MessageGetScript, 1, 1)                         \
   F(FormatMessageString, 4, 1)                      \

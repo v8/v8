@@ -966,71 +966,6 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
   isolate->native_context()->set(context_index, *function);
 }
 
-static void InstallError(Isolate* isolate, Handle<JSObject> global,
-                         Handle<String> name, int context_index) {
-  Factory* factory = isolate->factory();
-
-  Handle<JSFunction> error_fun =
-      InstallFunction(global, name, JS_ERROR_TYPE, JSObject::kHeaderSize,
-                      isolate->initial_object_prototype(),
-                      Builtins::kErrorConstructor, DONT_ENUM);
-  error_fun->shared()->set_instance_class_name(*factory->Error_string());
-  error_fun->shared()->DontAdaptArguments();
-  error_fun->shared()->set_construct_stub(
-      *isolate->builtins()->ErrorConstructor());
-  error_fun->shared()->set_length(1);
-  error_fun->shared()->set_native(true);
-
-  if (context_index == Context::ERROR_FUNCTION_INDEX) {
-    Handle<JSFunction> capture_stack_trace_fun =
-        SimpleInstallFunction(error_fun, "captureStackTrace",
-                              Builtins::kErrorCaptureStackTrace, 2, false);
-    capture_stack_trace_fun->shared()->set_native(true);
-  }
-
-  InstallWithIntrinsicDefaultProto(isolate, error_fun, context_index);
-
-  {
-    Handle<JSObject> prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
-
-    JSObject::AddProperty(prototype, factory->name_string(), name, DONT_ENUM);
-    JSObject::AddProperty(prototype, factory->message_string(),
-                          factory->empty_string(), DONT_ENUM);
-    JSObject::AddProperty(prototype, factory->constructor_string(), error_fun,
-                          DONT_ENUM);
-
-    Handle<JSFunction> to_string_fun =
-        SimpleInstallFunction(prototype, factory->toString_string(),
-                              Builtins::kErrorPrototypeToString, 0, true);
-    to_string_fun->shared()->set_native(true);
-
-    if (context_index != Context::ERROR_FUNCTION_INDEX) {
-      Handle<JSFunction> global_error = isolate->error_function();
-      CHECK(JSReceiver::SetPrototype(error_fun, global_error, false,
-                                     Object::THROW_ON_ERROR)
-                .FromMaybe(false));
-      CHECK(JSReceiver::SetPrototype(prototype,
-                                     handle(global_error->prototype(), isolate),
-                                     false, Object::THROW_ON_ERROR)
-                .FromMaybe(false));
-    }
-
-    Accessors::FunctionSetPrototype(error_fun, prototype).Assert();
-  }
-
-  Handle<Map> initial_map(error_fun->initial_map());
-  Map::EnsureDescriptorSlack(initial_map, 1);
-
-  PropertyAttributes attribs = DONT_ENUM;
-  Handle<AccessorInfo> error_stack =
-      Accessors::ErrorStackInfo(isolate, attribs);
-  {
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(error_stack->name())),
-                                 error_stack, attribs);
-    initial_map->AppendDescriptor(&d);
-  }
-}
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
@@ -1574,38 +1509,59 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- E r r o r
-    InstallError(isolate, global, factory->Error_string(),
-                 Context::ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> error_fun = InstallFunction(
+        global, "Error", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, error_fun,
+                                     Context::ERROR_FUNCTION_INDEX);
   }
 
   {  // -- E v a l E r r o r
-    InstallError(isolate, global, factory->EvalError_string(),
-                 Context::EVAL_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> eval_error_fun = InstallFunction(
+        global, "EvalError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, eval_error_fun,
+                                     Context::EVAL_ERROR_FUNCTION_INDEX);
   }
 
   {  // -- R a n g e E r r o r
-    InstallError(isolate, global, factory->RangeError_string(),
-                 Context::RANGE_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> range_error_fun = InstallFunction(
+        global, "RangeError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, range_error_fun,
+                                     Context::RANGE_ERROR_FUNCTION_INDEX);
   }
 
   {  // -- R e f e r e n c e E r r o r
-    InstallError(isolate, global, factory->ReferenceError_string(),
-                 Context::REFERENCE_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> reference_error_fun = InstallFunction(
+        global, "ReferenceError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, reference_error_fun,
+                                     Context::REFERENCE_ERROR_FUNCTION_INDEX);
   }
 
   {  // -- S y n t a x E r r o r
-    InstallError(isolate, global, factory->SyntaxError_string(),
-                 Context::SYNTAX_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> syntax_error_fun = InstallFunction(
+        global, "SyntaxError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, syntax_error_fun,
+                                     Context::SYNTAX_ERROR_FUNCTION_INDEX);
   }
 
   {  // -- T y p e E r r o r
-    InstallError(isolate, global, factory->TypeError_string(),
-                 Context::TYPE_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> type_error_fun = InstallFunction(
+        global, "TypeError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, type_error_fun,
+                                     Context::TYPE_ERROR_FUNCTION_INDEX);
   }
 
   {  // -- U R I E r r o r
-    InstallError(isolate, global, factory->URIError_string(),
-                 Context::URI_ERROR_FUNCTION_INDEX);
+    Handle<JSFunction> uri_error_fun = InstallFunction(
+        global, "URIError", JS_ERROR_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, uri_error_fun,
+                                     Context::URI_ERROR_FUNCTION_INDEX);
   }
 
   // Initialize the embedder data slot.
