@@ -124,7 +124,7 @@ class Scope: public ZoneObject {
   // to the passed-in scope.
   void PropagateUsageFlagsToScope(Scope* other);
 
-  Zone* zone() const { return zone_; }
+  Zone* zone() const { return variables_.zone(); }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -612,9 +612,9 @@ class Scope: public ZoneObject {
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
 
   // The scope type.
-  ScopeType scope_type_;
+  const ScopeType scope_type_;
   // If the scope is a function scope, this is the function kind.
-  FunctionKind function_kind_;
+  const FunctionKind function_kind_;
 
   // Debugging support.
   const AstRawString* scope_name_;
@@ -815,7 +815,7 @@ class Scope: public ZoneObject {
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
-      inner_scopes_.Add(inner_scope, zone_);
+      inner_scopes_.Add(inner_scope, zone());
       inner_scope->outer_scope_ = this;
     }
   }
@@ -830,11 +830,7 @@ class Scope: public ZoneObject {
     }
   }
 
-  void SetDefaults(ScopeType type, Scope* outer_scope,
-                   Handle<ScopeInfo> scope_info,
-                   FunctionKind function_kind = kNormalFunction);
-
-  Zone* zone_;
+  void SetDefaults();
 
   PendingCompilationErrorHandler pending_error_handler_;
 };

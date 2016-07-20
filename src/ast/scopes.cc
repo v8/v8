@@ -84,38 +84,53 @@ void SloppyBlockFunctionMap::Declare(const AstRawString* name,
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
              FunctionKind function_kind)
-    : inner_scopes_(4, zone),
+    : outer_scope_(outer_scope),
+      inner_scopes_(4, zone),
+      scope_type_(scope_type),
+      function_kind_(function_kind),
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
-      unresolved_(nullptr),
       decls_(4, zone),
       module_descriptor_(scope_type == MODULE_SCOPE ? new (zone)
                                                           ModuleDescriptor(zone)
                                                     : NULL),
       sloppy_block_function_map_(zone),
-      already_resolved_(false),
-      zone_(zone) {
-  SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null(),
-              function_kind);
+      already_resolved_(false) {
+  SetDefaults();
+  if (outer_scope != nullptr) {
+    asm_function_ = outer_scope_->asm_module_;
+    // Inherit the language mode from the parent scope unless we're a module
+    // scope.
+    if (!is_module_scope()) language_mode_ = outer_scope->language_mode_;
+    force_context_allocation_ =
+        !is_function_scope() && outer_scope->has_forced_context_allocation();
+  }
+
   // The outermost scope must be a script scope.
-  DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != NULL);
+  DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != nullptr);
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
              Handle<ScopeInfo> scope_info)
-    : inner_scopes_(4, zone),
+    : outer_scope_(nullptr),
+      inner_scopes_(4, zone),
+      scope_type_(scope_type),
+      function_kind_(scope_info.is_null() ? kNormalFunction
+                                          : scope_info->function_kind()),
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
-      unresolved_(nullptr),
       decls_(4, zone),
-      module_descriptor_(NULL),
+      module_descriptor_(nullptr),
       sloppy_block_function_map_(zone),
       already_resolved_(true),
-      zone_(zone) {
-  SetDefaults(scope_type, NULL, scope_info);
+      scope_info_(scope_info) {
+  SetDefaults();
   if (!scope_info.is_null()) {
+    scope_calls_eval_ = scope_info->CallsEval();
+    language_mode_ = scope_info->language_mode();
+    is_declaration_scope_ = scope_info->is_declaration_scope();
     num_heap_slots_ = scope_info_->ContextLength();
   }
   // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
@@ -126,17 +141,18 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
 
 Scope::Scope(Zone* zone, Scope* inner_scope,
              const AstRawString* catch_variable_name)
-    : inner_scopes_(1, zone),
+    : outer_scope_(nullptr),
+      inner_scopes_(1, zone),
+      scope_type_(CATCH_SCOPE),
+      function_kind_(kNormalFunction),
       variables_(zone),
       temps_(0, zone),
       params_(0, zone),
-      unresolved_(nullptr),
       decls_(0, zone),
-      module_descriptor_(NULL),
+      module_descriptor_(nullptr),
       sloppy_block_function_map_(zone),
-      already_resolved_(true),
-      zone_(zone) {
-  SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
+      already_resolved_(true) {
+  SetDefaults();
   AddInnerScope(inner_scope);
   ++num_var_;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
@@ -148,16 +164,11 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
   AllocateHeapSlot(variable);
 }
 
-
-void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
-                        Handle<ScopeInfo> scope_info,
-                        FunctionKind function_kind) {
-  outer_scope_ = outer_scope;
-  scope_type_ = scope_type;
+void Scope::SetDefaults() {
   is_declaration_scope_ =
       is_eval_scope() || is_function_scope() ||
       is_module_scope() || is_script_scope();
-  function_kind_ = function_kind;
+  unresolved_ = nullptr;
   scope_name_ = nullptr;
   dynamics_ = nullptr;
   receiver_ = nullptr;
@@ -171,18 +182,13 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   asm_module_ = false;
-  asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
-  // Inherit the language mode from the parent scope.
-  language_mode_ =
-      is_module_scope()
-          ? STRICT
-          : (outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY);
+  asm_function_ = false;
+  language_mode_ = is_module_scope() ? STRICT : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
   scope_nonlinear_ = false;
   force_eager_compilation_ = false;
-  force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
-      ? outer_scope->has_forced_context_allocation() : false;
+  force_context_allocation_ = false;
   num_var_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
@@ -191,16 +197,9 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   has_simple_parameters_ = true;
   rest_parameter_ = NULL;
   rest_index_ = -1;
-  scope_info_ = scope_info;
   start_position_ = kNoSourcePosition;
   end_position_ = kNoSourcePosition;
   is_hidden_ = false;
-  if (!scope_info.is_null()) {
-    scope_calls_eval_ = scope_info->CallsEval();
-    language_mode_ = scope_info->language_mode();
-    is_declaration_scope_ = scope_info->is_declaration_scope();
-    function_kind_ = scope_info->function_kind();
-  }
 }
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
