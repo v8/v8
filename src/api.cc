@@ -8245,12 +8245,6 @@ bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
 }
 
 
-bool Debug::SetDebugEventListener(EventCallback that, Local<Value> data) {
-  return SetDebugEventListener(
-      reinterpret_cast<Isolate*>(i::Isolate::Current()), that, data);
-}
-
-
 void Debug::DebugBreak(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
 }
@@ -8273,11 +8267,6 @@ void Debug::SetMessageHandler(Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);
   i_isolate->debug()->SetMessageHandler(handler);
-}
-
-
-void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
-  SetMessageHandler(reinterpret_cast<Isolate*>(i::Isolate::Current()), handler);
 }
 
 
@@ -8310,13 +8299,6 @@ MaybeLocal<Value> Debug::Call(Local<Context> context,
 }
 
 
-Local<Value> Debug::Call(v8::Local<v8::Function> fun,
-                         v8::Local<v8::Value> data) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(*fun));
-  RETURN_TO_LOCAL_UNCHECKED(Call(context, fun, data), Value);
-}
-
-
 MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
                                    v8::Local<v8::Value> obj) {
   PREPARE_FOR_EXECUTION(context, Debug, GetMirror, Value);
@@ -8338,18 +8320,8 @@ MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
 }
 
 
-Local<Value> Debug::GetMirror(v8::Local<v8::Value> obj) {
-  RETURN_TO_LOCAL_UNCHECKED(GetMirror(Local<Context>(), obj), Value);
-}
-
-
 void Debug::ProcessDebugMessages(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->debug()->ProcessDebugMessages(true);
-}
-
-
-void Debug::ProcessDebugMessages() {
-  ProcessDebugMessages(reinterpret_cast<Isolate*>(i::Isolate::Current()));
 }
 
 
@@ -8359,10 +8331,6 @@ Local<Context> Debug::GetDebugContext(Isolate* isolate) {
   return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
 }
 
-
-Local<Context> Debug::GetDebugContext() {
-  return GetDebugContext(reinterpret_cast<Isolate*>(i::Isolate::Current()));
-}
 
 MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
