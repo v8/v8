@@ -619,7 +619,14 @@ class ParserBase : public Traits {
     return new (zone()) Scope(zone(), nullptr, SCRIPT_SCOPE, kNormalFunction);
   }
 
-  Scope* NewScope(Scope* parent, ScopeType scope_type) {
+  Scope* NewScope(ScopeType scope_type) {
+    return NewScopeWithParent(scope(), scope_type);
+  }
+
+  // This constructor should only be used when absolutely necessary. Most scopes
+  // should automatically use scope() as parent, and be fine with
+  // NewScope(ScopeType) above.
+  Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type) {
     // Must always use the specific constructors for the blacklisted scope
     // types.
     DCHECK_NE(FUNCTION_SCOPE, scope_type);

@@ -1046,7 +1046,7 @@ class PreParser : public ParserBase<PreParserTraits> {
     // new Module Environment Record whose outer lexical environment record is
     // the global scope.
     if (is_module) {
-      scope = NewScope(scope, MODULE_SCOPE);
+      scope = NewScopeWithParent(scope, MODULE_SCOPE);
     }
 
     PreParserFactory factory(nullptr);
@@ -1249,7 +1249,7 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
   ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
   Scope* inner_scope = scope();
-  if (!parameters.is_simple) inner_scope = NewScope(scope(), BLOCK_SCOPE);
+  if (!parameters.is_simple) inner_scope = NewScope(BLOCK_SCOPE);
 
   {
     BlockState block_state(&scope_state_, inner_scope);

@@ -542,8 +542,9 @@ class ParserTraits {
       ZoneList<Statement*>* body, bool accept_IN,
       Type::ExpressionClassifier* classifier, int pos, bool* ok);
 
-  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type);
+  V8_INLINE Scope* NewScope(ScopeType scope_type);
   V8_INLINE Scope* NewFunctionScope(FunctionKind kind);
+  V8_INLINE Scope* NewScopeWithParent(Scope* parent, ScopeType scope_type);
 
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
                                     Expression* pattern,
@@ -1143,8 +1144,12 @@ bool ParserTraits::IsFutureStrictReserved(
   return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
-Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type) {
-  return parser_->NewScope(parent_scope, scope_type);
+Scope* ParserTraits::NewScopeWithParent(Scope* parent, ScopeType scope_type) {
+  return parser_->NewScopeWithParent(parent, scope_type);
+}
+
+Scope* ParserTraits::NewScope(ScopeType scope_type) {
+  return parser_->NewScope(scope_type);
 }
 
 Scope* ParserTraits::NewFunctionScope(FunctionKind kind) {

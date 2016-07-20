@@ -957,9 +957,9 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       if (!scope->is_script_scope() || is_strict(info->language_mode())) {
         parsing_mode = PARSE_EAGERLY;
       }
-      scope = NewScope(scope, EVAL_SCOPE);
+      scope = NewScopeWithParent(scope, EVAL_SCOPE);
     } else if (info->is_module()) {
-      scope = NewScope(scope, MODULE_SCOPE);
+      scope = NewScopeWithParent(scope, MODULE_SCOPE);
     }
 
     scope->set_start_position(0);
@@ -2294,7 +2294,7 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels,
 
   // Construct block expecting 16 statements.
   Block* body = factory()->NewBlock(labels, 16, false, kNoSourcePosition);
-  Scope* block_scope = NewScope(scope(), BLOCK_SCOPE);
+  Scope* block_scope = NewScope(BLOCK_SCOPE);
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK);
@@ -2833,7 +2833,7 @@ Statement* Parser::ParseWithStatement(ZoneList<const AstRawString*>* labels,
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  Scope* with_scope = NewScope(scope(), WITH_SCOPE);
+  Scope* with_scope = NewScope(WITH_SCOPE);
   Statement* body;
   {
     BlockState block_state(&scope_state_, with_scope);
@@ -2918,7 +2918,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
       zone());
 
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-  Scope* cases_scope = NewScope(scope(), BLOCK_SCOPE);
+  Scope* cases_scope = NewScope(BLOCK_SCOPE);
   cases_scope->SetNonlinear();
 
   SwitchStatement* switch_statement =
@@ -3010,7 +3010,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Consume(Token::CATCH);
 
     Expect(Token::LPAREN, CHECK_OK);
-    catch_scope = NewScope(scope(), CATCH_SCOPE);
+    catch_scope = NewScope(CATCH_SCOPE);
     catch_scope->set_start_position(scanner()->location().beg_pos);
 
     {
@@ -3023,7 +3023,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
       // Create a block scope to hold any lexical declarations created
       // as part of destructuring the catch parameter.
-      Scope* block_scope = NewScope(scope(), BLOCK_SCOPE);
+      Scope* block_scope = NewScope(BLOCK_SCOPE);
       block_scope->set_start_position(scanner()->location().beg_pos);
       {
         BlockState block_state(&scope_state_, block_scope);
@@ -3650,7 +3650,7 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
     }
     // Make a block around the statement for a lexical binding
     // is introduced by a FunctionDeclaration.
-    Scope* body_scope = NewScope(scope(), BLOCK_SCOPE);
+    Scope* body_scope = NewScope(BLOCK_SCOPE);
     body_scope->set_start_position(scanner()->location().beg_pos);
     BlockState block_state(&scope_state_, body_scope);
     Block* block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
@@ -3671,7 +3671,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   bool bound_names_are_lexical = false;
 
   // Create an in-between scope for let-bound iteration variables.
-  Scope* for_scope = NewScope(scope(), BLOCK_SCOPE);
+  Scope* for_scope = NewScope(BLOCK_SCOPE);
 
   BlockState block_state(&scope_state_, for_scope);
   Expect(Token::FOR, CHECK_OK);
@@ -3776,7 +3776,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         Expect(Token::RPAREN, CHECK_OK);
 
-        Scope* body_scope = NewScope(scope(), BLOCK_SCOPE);
+        Scope* body_scope = NewScope(BLOCK_SCOPE);
         body_scope->set_start_position(scanner()->location().beg_pos);
 
         Block* body_block =
@@ -3959,7 +3959,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope();
   if (bound_names_are_lexical && bound_names.length() > 0) {
-    inner_scope = NewScope(for_scope, BLOCK_SCOPE);
+    inner_scope = NewScopeWithParent(for_scope, BLOCK_SCOPE);
     inner_scope->set_start_position(scanner()->location().beg_pos);
   }
   {
@@ -4707,7 +4707,7 @@ Block* Parser::BuildParameterInitializationBlock(
     Scope* param_scope = scope();
     Block* param_block = init_block;
     if (!parameter.is_simple() && scope()->calls_sloppy_eval()) {
-      param_scope = NewScope(scope(), BLOCK_SCOPE);
+      param_scope = NewScope(BLOCK_SCOPE);
       param_scope->set_is_declaration_scope();
       param_scope->set_start_position(descriptor.initialization_pos);
       param_scope->set_end_position(parameter.initializer_end_position);
@@ -4745,7 +4745,7 @@ Block* Parser::BuildParameterInitializationBlock(
 Block* Parser::BuildRejectPromiseOnException(Block* block) {
   // try { <block> } catch (error) { return Promise.reject(error); }
   Block* try_block = block;
-  Scope* catch_scope = NewScope(scope(), CATCH_SCOPE);
+  Scope* catch_scope = NewScope(CATCH_SCOPE);
   catch_scope->set_is_hidden();
   Variable* catch_variable =
       catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
@@ -4817,7 +4817,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   Scope* inner_scope = scope();
   Block* inner_block = nullptr;
   if (!parameters.is_simple) {
-    inner_scope = NewScope(scope(), BLOCK_SCOPE);
+    inner_scope = NewScope(BLOCK_SCOPE);
     inner_scope->set_is_declaration_scope();
     inner_scope->set_start_position(scanner()->location().beg_pos);
     inner_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
@@ -5017,7 +5017,7 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     return NULL;
   }
 
-  Scope* block_scope = NewScope(scope(), BLOCK_SCOPE);
+  Scope* block_scope = NewScope(BLOCK_SCOPE);
   BlockState block_state(&scope_state_, block_scope);
   RaiseLanguageMode(STRICT);
   scope()->SetScopeName(name);
@@ -6511,7 +6511,7 @@ Expression* ParserTraits::RewriteYieldStar(
     Block* catch_block = factory->NewBlock(nullptr, 1, false, nopos);
     catch_block->statements()->Add(set_mode_throw, zone);
 
-    Scope* catch_scope = NewScope(scope, CATCH_SCOPE);
+    Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
     catch_scope->set_is_hidden();
     const AstRawString* name = avfactory->dot_catch_string();
     Variable* catch_variable =
@@ -6810,7 +6810,7 @@ void ParserTraits::FinalizeIteratorUse(Variable* completion,
   // }
   Statement* try_catch;
   {
-    Scope* catch_scope = parser_->NewScope(scope, CATCH_SCOPE);
+    Scope* catch_scope = parser_->NewScopeWithParent(scope, CATCH_SCOPE);
     Variable* catch_variable =
         catch_scope->DeclareLocal(avfactory->dot_catch_string(), VAR,
                                   kCreatedInitialized, Variable::NORMAL);
@@ -6922,7 +6922,7 @@ void ParserTraits::BuildIteratorCloseForCompletion(
 
     Block* catch_block = factory->NewBlock(nullptr, 0, false, nopos);
 
-    Scope* catch_scope = NewScope(scope, CATCH_SCOPE);
+    Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
     Variable* catch_variable = catch_scope->DeclareLocal(
         avfactory->dot_catch_string(), VAR, kCreatedInitialized,
         Variable::NORMAL);
