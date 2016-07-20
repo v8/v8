@@ -184,7 +184,7 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       } else if (output_type->Is(Type::Unsigned32())) {
         uint32_t value = static_cast<uint32_t>(OpParameter<int32_t>(node));
         return jsgraph()->Constant(static_cast<double>(value));
-      } else if (output_rep == MachineRepresentation::kBit) {
+      } else if (output_type->Is(Type::Boolean())) {
         return OpParameter<int32_t>(node) == 0 ? jsgraph()->FalseConstant()
                                                : jsgraph()->TrueConstant();
       } else {
@@ -201,7 +201,12 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   // Select the correct X -> Tagged operator.
   const Operator* op;
   if (output_rep == MachineRepresentation::kBit) {
-    op = simplified()->ChangeBitToTagged();
+    if (output_type->Is(Type::Boolean())) {
+      op = simplified()->ChangeBitToTagged();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTagged);
+    }
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed31())) {
       op = simplified()->ChangeInt31ToTaggedSigned();

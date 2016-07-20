@@ -1136,8 +1136,7 @@ TEST(InsertBasicChanges) {
 
 static void CheckChangesAroundBinop(TestingGraph* t, const Operator* op,
                                     IrOpcode::Value input_change,
-                                    IrOpcode::Value output_change,
-                                    Type* type = Type::Any()) {
+                                    IrOpcode::Value output_change, Type* type) {
   Node* binop =
       op->ControlInputCount() == 0
           ? t->graph()->NewNode(op, t->p0, t->p1)
@@ -1180,7 +1179,7 @@ TEST(InsertChangesAroundInt32Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToTagged, Type::Boolean());
   }
 }
 
@@ -1193,7 +1192,7 @@ TEST(InsertChangesAroundUint32Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToUint32,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToTagged, Type::Boolean());
   }
 }
 
@@ -1223,7 +1222,7 @@ TEST(InsertChangesAroundFloat64Cmp) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToFloat64,
-                            IrOpcode::kChangeBitToTagged);
+                            IrOpcode::kChangeBitToTagged, Type::Boolean());
   }
 }
 
