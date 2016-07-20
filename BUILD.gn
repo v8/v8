@@ -31,9 +31,6 @@ declare_args() {
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
 
-  # Support for backtrace_symbols on linux.
-  v8_enable_backtrace = false
-
   # Sets -dENABLE_DISASSEMBLER.
   v8_enable_disassembler = false
 

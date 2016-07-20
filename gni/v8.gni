@@ -16,6 +16,9 @@ declare_args() {
   # Turns on compiler optimizations in V8 in Debug build.
   v8_optimized_debug = true
 
+  # Support for backtrace_symbols on linux.
+  v8_enable_backtrace = ""
+
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
   v8_use_snapshot = true
@@ -29,6 +32,10 @@ if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # a snapshot is used and if we're not on ios.
   v8_use_external_startup_data = v8_use_snapshot && !is_ios
+}
+
+if (v8_enable_backtrace == "") {
+  v8_enable_backtrace = is_debug && !v8_optimized_debug
 }
 
 ###############################################################################
@@ -61,6 +68,11 @@ if (is_debug && !v8_optimized_debug) {
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
+
+if (is_posix && v8_enable_backtrace) {
+  v8_remove_configs += [ "//build/config/gcc:symbol_visibility_hidden" ]
+  v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }
 
 # All templates should be kept in sync.
