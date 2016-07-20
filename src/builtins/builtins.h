@@ -401,6 +401,7 @@ namespace internal {
   CPP(NumberPrototypeToString)                                               \
   /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                    \
   TFJ(NumberPrototypeValueOf, 1)                                             \
+                                                                             \
   /* Object */                                                               \
   CPP(ObjectAssign)                                                          \
   CPP(ObjectCreate)                                                          \
@@ -574,6 +575,10 @@ class Builtins {
 
   static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
                                ExitFrameType exit_frame_type);
+
+  static MaybeHandle<JSFunction> CompileString(Handle<Context> context,
+                                               Handle<String> source,
+                                               ParseRestriction restriction);
 
  private:
   Builtins();
