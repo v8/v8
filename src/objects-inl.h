@@ -5204,7 +5204,6 @@ Code::Flags Code::ComputeFlags(Kind kind, ExtraICState extra_ic_state,
   // TODO(ishell): remove ICStateField.
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind) |
-                      ICStateField::encode(MONOMORPHIC) |
                       ExtraICStateField::encode(extra_ic_state) |
                       CacheHolderField::encode(holder);
   return static_cast<Flags>(bits);

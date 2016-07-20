@@ -17,7 +17,8 @@ namespace internal {
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        Code::Flags flags, StubCache::Table table,
                        Register receiver, Register name,
-                       // Number of the cache entry, not scaled.
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
                        Register offset_scratch) {
   ExternalReference key_offset(stub_cache->key_reference(table));
@@ -45,7 +46,7 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 
   // Calculate the base address of the entry.
   __ li(base_addr, Operand(key_offset));
-  __ Lsa(base_addr, base_addr, offset_scratch, kPointerSizeLog2);
+  __ Addu(base_addr, base_addr, offset_scratch);
 
   // Check that the key in the entry matches the name.
   __ lw(at, MemOperand(base_addr, 0));
@@ -134,23 +135,19 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ lw(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ lw(at, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Addu(scratch, scratch, at);
-  uint32_t mask = kPrimaryTableSize - 1;
-  // We shift out the last two bits because they are not part of the hash and
-  // they are always 01 for maps.
-  __ srl(scratch, scratch, kCacheIndexShift);
-  __ Xor(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
-  __ And(scratch, scratch, Operand(mask));
+  __ Xor(scratch, scratch, Operand(flags));
+  __ And(scratch, scratch,
+         Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
   ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
              extra2, extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ srl(at, name, kCacheIndexShift);
-  __ Subu(scratch, scratch, at);
-  uint32_t mask2 = kSecondaryTableSize - 1;
-  __ Addu(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
-  __ And(scratch, scratch, Operand(mask2));
+  __ Subu(scratch, scratch, name);
+  __ Addu(scratch, scratch, Operand(flags));
+  __ And(scratch, scratch,
+         Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
   ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,

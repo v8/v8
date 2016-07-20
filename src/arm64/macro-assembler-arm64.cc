@@ -2955,7 +2955,7 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch1, value);
     Mov(scratch2, ExternalReference(counter));
-    Str(scratch1, MemOperand(scratch2));
+    Str(scratch1.W(), MemOperand(scratch2));
   }
 }
 
@@ -2965,9 +2965,9 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
   DCHECK(value != 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch2, ExternalReference(counter));
-    Ldr(scratch1, MemOperand(scratch2));
-    Add(scratch1, scratch1, value);
-    Str(scratch1, MemOperand(scratch2));
+    Ldr(scratch1.W(), MemOperand(scratch2));
+    Add(scratch1.W(), scratch1.W(), value);
+    Str(scratch1.W(), MemOperand(scratch2));
   }
 }
 

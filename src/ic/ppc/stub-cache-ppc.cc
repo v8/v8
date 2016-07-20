@@ -17,7 +17,8 @@ namespace internal {
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        Code::Flags flags, StubCache::Table table,
                        Register receiver, Register name,
-                       // Number of the cache entry, not scaled.
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
                        Register offset_scratch) {
   ExternalReference key_offset(stub_cache->key_reference(table));

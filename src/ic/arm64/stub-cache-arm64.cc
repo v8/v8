@@ -24,8 +24,11 @@ namespace internal {
 // 'receiver', 'name' and 'offset' registers are preserved on miss.
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        Code::Flags flags, StubCache::Table table,
-                       Register receiver, Register name, Register offset,
-                       Register scratch, Register scratch2, Register scratch3) {
+                       Register receiver, Register name,
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
+                       Register offset, Register scratch, Register scratch2,
+                       Register scratch3) {
   // Some code below relies on the fact that the Entry struct contains
   // 3 pointers (name, code, map).
   STATIC_ASSERT(sizeof(StubCache::Entry) == (3 * kPointerSize));
@@ -48,7 +51,9 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 
   // Calculate the base address of the entry.
   __ Mov(scratch, key_offset);
-  __ Add(scratch, scratch, Operand(scratch3, LSL, kPointerSizeLog2));
+  __ Add(
+      scratch, scratch,
+      Operand(scratch3, LSL, kPointerSizeLog2 - StubCache::kCacheIndexShift));
 
   // Check that the key in the entry matches the name.
   __ Ldr(scratch2, MemOperand(scratch));
@@ -128,22 +133,22 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ JumpIfSmi(receiver, &miss);
 
   // Compute the hash for primary table.
-  __ Ldr(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
+  __ Ldr(scratch.W(), FieldMemOperand(name, Name::kHashFieldOffset));
   __ Ldr(extra, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Add(scratch, scratch, extra);
   __ Eor(scratch, scratch, flags);
-  // We shift out the last two bits because they are not part of the hash.
-  __ Ubfx(scratch, scratch, kCacheIndexShift,
-          CountTrailingZeros(kPrimaryTableSize, 64));
+  __ And(scratch, scratch,
+         Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
   ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
              extra2, extra3);
 
   // Primary miss: Compute hash for secondary table.
-  __ Sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
-  __ Add(scratch, scratch, flags >> kCacheIndexShift);
-  __ And(scratch, scratch, kSecondaryTableSize - 1);
+  __ Sub(scratch, scratch, Operand(name));
+  __ Add(scratch, scratch, Operand(flags));
+  __ And(scratch, scratch,
+         Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
   ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,

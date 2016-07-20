@@ -17,7 +17,8 @@ namespace internal {
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        Code::Flags flags, StubCache::Table table,
                        Register receiver, Register name,
-                       // Number of the cache entry, not scaled.
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
                        Register offset_scratch) {
   ExternalReference key_offset(stub_cache->key_reference(table));
@@ -44,8 +45,7 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   __ add(offset_scratch, offset, Operand(offset, LSL, 1));
 
   // Calculate the base address of the entry.
-  __ mov(base_addr, Operand(key_offset));
-  __ add(base_addr, base_addr, Operand(offset_scratch, LSL, kPointerSizeLog2));
+  __ add(base_addr, offset_scratch, Operand(key_offset));
 
   // Check that the key in the entry matches the name.
   __ ldr(ip, MemOperand(base_addr, 0));
@@ -140,25 +140,19 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ ldr(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
-  uint32_t mask = kPrimaryTableSize - 1;
-  // We shift out the last two bits because they are not part of the hash and
-  // they are always 01 for maps.
-  __ mov(scratch, Operand(scratch, LSR, kCacheIndexShift));
-  // Mask down the eor argument to the minimum to keep the immediate
-  // ARM-encodable.
-  __ eor(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
-  // Prefer and_ to ubfx here because ubfx takes 2 cycles.
-  __ and_(scratch, scratch, Operand(mask));
+  __ eor(scratch, scratch, Operand(flags));
+  __ mov(ip, Operand(kPrimaryTableSize - 1));
+  __ and_(scratch, scratch, Operand(ip, LSL, kCacheIndexShift));
 
   // Probe the primary table.
   ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
              extra2, extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
-  uint32_t mask2 = kSecondaryTableSize - 1;
-  __ add(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
-  __ and_(scratch, scratch, Operand(mask2));
+  __ sub(scratch, scratch, Operand(name));
+  __ add(scratch, scratch, Operand(flags));
+  __ mov(ip, Operand(kSecondaryTableSize - 1));
+  __ and_(scratch, scratch, Operand(ip, LSL, kCacheIndexShift));
 
   // Probe the secondary table.
   ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,

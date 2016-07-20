@@ -41,6 +41,7 @@
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
 #include "src/base/smart-pointers.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
@@ -21456,18 +21457,23 @@ const char* kMegamorphicTestProgram =
     "}\n"
     "function fooify(obj) { obj.foo(); };\n"
     "var objs = [];\n"
-    "for (var i = 0; i < 6; i++) {\n"
+    "for (var i = 0; i < 50; i++) {\n"
     "  var Class = CreateClass('Class' + i);\n"
     "  var obj = new Class();\n"
     "  objs.push(obj);\n"
     "}\n"
-    "for (var i = 0; i < 10000; i++) {\n"
+    "for (var i = 0; i < 1000; i++) {\n"
     "  for (var obj of objs) {\n"
     "    fooify(obj);\n"
     "  }\n"
     "}\n";
 
-void StubCacheHelper(bool primary) {
+void TestStubCache(bool primary) {
+  // The test does not work with interpreter because bytecode handlers taken
+  // from the snapshot already refer to ICs with disabled counters and there
+  // is no way to trigger bytecode handlers recompilation.
+  if (i::FLAG_ignition) return;
+
   i::FLAG_native_code_counters = true;
   if (primary) {
     i::FLAG_test_primary_stub_cache = true;
@@ -21480,13 +21486,30 @@ void StubCacheHelper(bool primary) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  if (!i_isolate->snapshot_available()) {
-    // The test is valid only for no-snapshot mode.
+  {
     v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
     v8::HandleScope scope(isolate);
+
+    {
+      // Enforce recompilation of IC stubs that access megamorphic stub cache
+      // to respect enabled native code counters and stub cache test flags.
+      i::CodeStub::Major code_stub_keys[] = {
+          i::CodeStub::LoadIC,       i::CodeStub::LoadICTrampoline,
+          i::CodeStub::LoadICTF,     i::CodeStub::LoadICTrampolineTF,
+          i::CodeStub::KeyedLoadIC,  i::CodeStub::KeyedLoadICTrampoline,
+          i::CodeStub::StoreIC,      i::CodeStub::StoreICTrampoline,
+          i::CodeStub::KeyedStoreIC, i::CodeStub::KeyedStoreICTrampoline,
+      };
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::Heap* heap = i_isolate->heap();
+      i::Handle<i::UnseededNumberDictionary> dict(heap->code_stubs());
+      for (size_t i = 0; i < arraysize(code_stub_keys); i++) {
+        dict = i::UnseededNumberDictionary::DeleteKey(dict, code_stub_keys[i]);
+      }
+      heap->SetRootCodeStubs(*dict);
+    }
 
     int initial_probes = probes_counter;
     int initial_misses = misses_counter;
@@ -21495,25 +21518,44 @@ void StubCacheHelper(bool primary) {
     int probes = probes_counter - initial_probes;
     int misses = misses_counter - initial_misses;
     int updates = updates_counter - initial_updates;
-    const int kClassesCount = 6;
-    // Check that updates and misses counts are bounded.
+    const int kClassesCount = 50;
+    const int kIterationsCount = 1000;
     CHECK_LE(kClassesCount, updates);
-    CHECK_LT(updates, kClassesCount * 3);
+    // Check that updates and misses counts are bounded.
+    // If there are too many updates then most likely the stub cache does not
+    // work properly.
+    CHECK_LE(updates, kClassesCount * 2);
     CHECK_LE(1, misses);
-    CHECK_LT(misses, kClassesCount * 2);
+    CHECK_LE(misses, kClassesCount * 2);
     // 2 is for PREMONOMORPHIC and MONOMORPHIC states,
     // 4 is for POLYMORPHIC states,
     // and all the others probes are for MEGAMORPHIC state.
-    CHECK_EQ(10000 * kClassesCount - 2 - 4, probes);
+    CHECK_EQ(kIterationsCount * kClassesCount - 2 - 4, probes);
   }
   isolate->Dispose();
 }
 
 }  // namespace
 
-UNINITIALIZED_TEST(PrimaryStubCache) { StubCacheHelper(true); }
+UNINITIALIZED_TEST(PrimaryStubCache) {
+  i::FLAG_tf_load_ic_stub = false;
+  TestStubCache(true);
+}
 
-UNINITIALIZED_TEST(SecondaryStubCache) { StubCacheHelper(false); }
+UNINITIALIZED_TEST(SecondaryStubCache) {
+  i::FLAG_tf_load_ic_stub = false;
+  TestStubCache(false);
+}
+
+UNINITIALIZED_TEST(PrimaryStubCacheTF) {
+  i::FLAG_tf_load_ic_stub = true;
+  TestStubCache(true);
+}
+
+UNINITIALIZED_TEST(SecondaryStubCacheTF) {
+  i::FLAG_tf_load_ic_stub = true;
+  TestStubCache(false);
+}
 
 #endif  // ENABLE_DISASSEMBLER
 
