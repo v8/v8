@@ -117,8 +117,10 @@ class PreParserIdentifier {
 
 class PreParserExpression {
  public:
+  PreParserExpression() : code_(TypeField::encode(kExpression)) {}
+
   static PreParserExpression Default() {
-    return PreParserExpression(TypeField::encode(kExpression));
+    return PreParserExpression();
   }
 
   static PreParserExpression Spread(PreParserExpression expression) {

@@ -1702,7 +1702,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ExpressionT result = this->EmptyExpression();
+  ExpressionT result;
   {
     ExpressionClassifier binding_classifier(this);
     result = this->ParseAssignmentExpression(accept_IN, &binding_classifier,
@@ -1773,7 +1773,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
   int first_spread_index = -1;
   Expect(Token::LBRACK, CHECK_OK);
   while (peek() != Token::RBRACK) {
-    ExpressionT elem = this->EmptyExpression();
+    ExpressionT elem;
     if (peek() == Token::COMMA) {
       elem = this->GetLiteralTheHole(peek_position(), factory());
     } else if (peek() == Token::ELLIPSIS) {
@@ -1905,7 +1905,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
     ExpressionClassifier* classifier, IdentifierT* name, bool* ok) {
   DCHECK(!in_class || IsStaticMethod(method_kind) ||
          has_seen_constructor != nullptr);
-  ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
   bool is_await = false;
@@ -1945,7 +1944,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       }
       Consume(Token::COLON);
       int beg_pos = peek_position();
-      value = this->ParseAssignmentExpression(
+      ExpressionT value = this->ParseAssignmentExpression(
           true, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       CheckDestructuringElement(value, classifier, beg_pos,
                                 scanner()->location().end_pos);
@@ -1987,6 +1986,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
           *name, next_beg_pos, next_end_pos, scope(), factory());
       CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
+      ExpressionT value;
       if (peek() == Token::ASSIGN) {
         Consume(Token::ASSIGN);
         ExpressionClassifier rhs_classifier(this);
@@ -2049,7 +2049,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
                          : FunctionKind::kBaseConstructor;
     }
 
-    value = this->ParseFunctionLiteral(
+    ExpressionT value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         kNoSourcePosition, FunctionLiteral::kAccessorOrMethod, language_mode(),
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -2459,6 +2459,7 @@ ParserBase<Traits>::ParseYieldExpression(bool accept_IN,
   Expect(Token::YIELD, CHECK_OK);
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
+  // The following initialization is necessary.
   ExpressionT expression = Traits::EmptyExpression();
   bool delegating = false;  // yield*
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
@@ -2961,7 +2962,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     ArrowFormalParametersUnexpectedToken(classifier);
     Consume(Token::NEW);
     int new_pos = position();
-    ExpressionT result = this->EmptyExpression();
+    ExpressionT result;
     if (peek() == Token::SUPER) {
       const bool is_new = true;
       result = ParseSuperExpression(is_new, classifier, CHECK_OK);
@@ -3010,7 +3011,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
   // caller.
 
   // Parse the initial primary or function expression.
-  ExpressionT result = this->EmptyExpression();
+  ExpressionT result;
   if (peek() == Token::FUNCTION) {
     BindingPatternUnexpectedToken(classifier);
     ArrowFormalParametersUnexpectedToken(classifier);
