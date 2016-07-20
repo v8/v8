@@ -38,28 +38,28 @@ if (v8_use_external_startup_data == "") {
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different
 # subdirectories.
-path_prefix = get_path_info("../", "abspath")
+v8_path_prefix = get_path_info("../", "abspath")
 
 # Common configs to remove or add in all v8 targets.
-remove_configs = [ "//build/config/compiler:chromium_code" ]
-add_configs = [
+v8_remove_configs = [ "//build/config/compiler:chromium_code" ]
+v8_add_configs = [
   "//build/config/compiler:no_chromium_code",
-  path_prefix + ":features",
-  path_prefix + ":toolchain",
+  v8_path_prefix + ":features",
+  v8_path_prefix + ":toolchain",
 ]
 
 if (is_debug && !v8_optimized_debug) {
-  remove_configs += [ "//build/config/compiler:default_optimization" ]
-  add_configs += [ "//build/config/compiler:no_optimize" ]
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  v8_add_configs += [ "//build/config/compiler:no_optimize" ]
 } else {
-  remove_configs += [ "//build/config/compiler:default_optimization" ]
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
   if (is_posix && !is_android && !is_nacl && !using_sanitizer) {
-    add_configs += [ "//build/config/compiler:optimize_speed" ]
+    v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
-    add_configs += [ "//build/config/compiler:optimize_max" ]
+    v8_add_configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
 
@@ -68,8 +68,8 @@ template("v8_source_set") {
   source_set(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
-    configs -= remove_configs
-    configs += add_configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
 
@@ -77,8 +77,8 @@ template("v8_executable") {
   executable(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
-    configs -= remove_configs
-    configs += add_configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
     if (is_linux) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
@@ -90,7 +90,7 @@ template("v8_component") {
   component(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
-    configs -= remove_configs
-    configs += add_configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
