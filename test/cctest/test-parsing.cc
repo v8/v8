@@ -3361,10 +3361,10 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::Scope* script_scope =
-      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
+      new (&zone) i::Scope(&zone, nullptr, i::SCRIPT_SCOPE);
   script_scope->Initialize();
-  i::Scope* s =
-      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
+  i::Scope* s = i::Scope::DeserializeScopeChain(isolate, &zone, context,
+                                                script_scope, &avf);
   CHECK(s != script_scope);
   CHECK(name != NULL);
 
@@ -3409,10 +3409,10 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   avf.Internalize(isolate);
 
   i::Scope* script_scope =
-      new (&zone) i::Scope(&zone, NULL, i::SCRIPT_SCOPE, &avf);
+      new (&zone) i::Scope(&zone, nullptr, i::SCRIPT_SCOPE);
   script_scope->Initialize();
-  i::Scope* s =
-      i::Scope::DeserializeScopeChain(isolate, &zone, context, script_scope);
+  i::Scope* s = i::Scope::DeserializeScopeChain(isolate, &zone, context,
+                                                script_scope, &avf);
   CHECK(s != script_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
 

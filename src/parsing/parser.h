@@ -542,8 +542,8 @@ class ParserTraits {
       ZoneList<Statement*>* body, bool accept_IN,
       Type::ExpressionClassifier* classifier, int pos, bool* ok);
 
-  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
-                            FunctionKind kind = kNormalFunction);
+  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type);
+  V8_INLINE Scope* NewFunctionScope(Scope* parent_scope, FunctionKind kind);
 
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
                                     Expression* pattern,
@@ -1143,12 +1143,13 @@ bool ParserTraits::IsFutureStrictReserved(
   return parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
 }
 
-
-Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type,
-                              FunctionKind kind) {
-  return parser_->NewScope(parent_scope, scope_type, kind);
+Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type) {
+  return parser_->NewScope(parent_scope, scope_type);
 }
 
+Scope* ParserTraits::NewFunctionScope(Scope* parent_scope, FunctionKind kind) {
+  return parser_->NewFunctionScope(parent_scope, kind);
+}
 
 const AstRawString* ParserTraits::EmptyIdentifierString() {
   return parser_->ast_value_factory()->empty_string();

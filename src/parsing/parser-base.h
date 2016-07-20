@@ -618,14 +618,21 @@ class ParserBase : public Traits {
   Scope* NewScope(Scope* parent, ScopeType scope_type) {
     // Must always pass the function kind for FUNCTION_SCOPE.
     DCHECK(scope_type != FUNCTION_SCOPE);
-    return NewScope(parent, scope_type, kNormalFunction);
+    Scope* result =
+        new (zone()) Scope(zone(), parent, scope_type, kNormalFunction);
+    result->Initialize();
+    if (scope_type == MODULE_SCOPE) result->DeclareThis(ast_value_factory());
+    return result;
   }
 
-  Scope* NewScope(Scope* parent, ScopeType scope_type, FunctionKind kind) {
+  Scope* NewFunctionScope(Scope* parent, FunctionKind kind) {
     DCHECK(ast_value_factory());
-    Scope* result = new (zone())
-        Scope(zone(), parent, scope_type, ast_value_factory(), kind);
+    Scope* result = new (zone()) Scope(zone(), parent, FUNCTION_SCOPE, kind);
     result->Initialize();
+    if (!IsArrowFunction(kind)) {
+      result->DeclareThis(ast_value_factory());
+      result->DeclareDefaultFunctionVariables(ast_value_factory());
+    }
     return result;
   }
 
@@ -2307,9 +2314,9 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     ValidateFormalParameterInitializer(&arrow_formals_classifier, ok);
 
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
-    Scope* scope = this->NewScope(this->scope(), FUNCTION_SCOPE,
-                                  is_async ? FunctionKind::kAsyncArrowFunction
-                                           : FunctionKind::kArrowFunction);
+    Scope* scope = this->NewFunctionScope(
+        this->scope(), is_async ? FunctionKind::kAsyncArrowFunction
+                                : FunctionKind::kArrowFunction);
     // Because the arrow's parameters were parsed in the outer scope, any
     // usage flags that might have been triggered there need to be copied
     // to the arrow scope.

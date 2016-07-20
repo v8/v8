@@ -90,7 +90,6 @@ class Scope: public ZoneObject {
   // Construction
 
   Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-        AstValueFactory* value_factory,
         FunctionKind function_kind = kNormalFunction);
 
   // Compute top scope and allocate variables. For lazy compilation the top
@@ -99,7 +98,8 @@ class Scope: public ZoneObject {
   static bool Analyze(ParseInfo* info);
 
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                      Context* context, Scope* script_scope);
+                                      Context* context, Scope* script_scope,
+                                      AstValueFactory* ast_value_factory);
 
   // The scope name is only used for printing/debugging.
   void SetScopeName(const AstRawString* scope_name) {
@@ -107,6 +107,8 @@ class Scope: public ZoneObject {
   }
 
   void Initialize();
+  void DeclareThis(AstValueFactory* ast_value_factory);
+  void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
@@ -801,11 +803,11 @@ class Scope: public ZoneObject {
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, Scope* inner_scope, ScopeType type,
-        Handle<ScopeInfo> scope_info, AstValueFactory* value_factory);
+        Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Zone* zone, Scope* inner_scope, const AstRawString* catch_variable_name,
-        AstValueFactory* value_factory);
+  Scope(Zone* zone, Scope* inner_scope,
+        const AstRawString* catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
@@ -828,7 +830,6 @@ class Scope: public ZoneObject {
                    Handle<ScopeInfo> scope_info,
                    FunctionKind function_kind = kNormalFunction);
 
-  AstValueFactory* ast_value_factory_;
   Zone* zone_;
 
   PendingCompilationErrorHandler pending_error_handler_;

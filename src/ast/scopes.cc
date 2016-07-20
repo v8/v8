@@ -83,7 +83,7 @@ void SloppyBlockFunctionMap::Declare(const AstRawString* name,
 // Implementation of Scope
 
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-             AstValueFactory* ast_value_factory, FunctionKind function_kind)
+             FunctionKind function_kind)
     : inner_scopes_(4, zone),
       variables_(zone),
       temps_(4, zone),
@@ -95,7 +95,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                                                     : NULL),
       sloppy_block_function_map_(zone),
       already_resolved_(false),
-      ast_value_factory_(ast_value_factory),
       zone_(zone) {
   SetDefaults(scope_type, outer_scope, Handle<ScopeInfo>::null(),
               function_kind);
@@ -104,7 +103,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
-             Handle<ScopeInfo> scope_info, AstValueFactory* value_factory)
+             Handle<ScopeInfo> scope_info)
     : inner_scopes_(4, zone),
       variables_(zone),
       temps_(4, zone),
@@ -114,7 +113,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
       module_descriptor_(NULL),
       sloppy_block_function_map_(zone),
       already_resolved_(true),
-      ast_value_factory_(value_factory),
       zone_(zone) {
   SetDefaults(scope_type, NULL, scope_info);
   if (!scope_info.is_null()) {
@@ -127,8 +125,7 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope,
-             const AstRawString* catch_variable_name,
-             AstValueFactory* value_factory)
+             const AstRawString* catch_variable_name)
     : inner_scopes_(1, zone),
       variables_(zone),
       temps_(0, zone),
@@ -138,7 +135,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope,
       module_descriptor_(NULL),
       sloppy_block_function_map_(zone),
       already_resolved_(true),
-      ast_value_factory_(value_factory),
       zone_(zone) {
   SetDefaults(CATCH_SCOPE, NULL, Handle<ScopeInfo>::null());
   AddInnerScope(inner_scope);
@@ -162,7 +158,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
       is_eval_scope() || is_function_scope() ||
       is_module_scope() || is_script_scope();
   function_kind_ = function_kind;
-  scope_name_ = ast_value_factory_->empty_string();
+  scope_name_ = nullptr;
   dynamics_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -206,9 +202,9 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   }
 }
 
-
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                    Context* context, Scope* script_scope) {
+                                    Context* context, Scope* script_scope,
+                                    AstValueFactory* ast_value_factory) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
@@ -216,8 +212,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     if (context->IsWithContext() || context->IsDebugEvaluateContext()) {
       // For scope analysis, debug-evaluate is equivalent to a with scope.
       Scope* with_scope = new (zone)
-          Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null(),
-                script_scope->ast_value_factory_);
+          Scope(zone, current_scope, WITH_SCOPE, Handle<ScopeInfo>::null());
       current_scope = with_scope;
       // All the inner scopes are inside a with.
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
@@ -226,27 +221,23 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else if (context->IsScriptContext()) {
       ScopeInfo* scope_info = context->scope_info();
       current_scope = new (zone) Scope(zone, current_scope, SCRIPT_SCOPE,
-                                       Handle<ScopeInfo>(scope_info),
-                                       script_scope->ast_value_factory_);
+                                       Handle<ScopeInfo>(scope_info));
     } else if (context->IsFunctionContext()) {
       ScopeInfo* scope_info = context->closure()->shared()->scope_info();
       current_scope = new (zone) Scope(zone, current_scope, FUNCTION_SCOPE,
-                                       Handle<ScopeInfo>(scope_info),
-                                       script_scope->ast_value_factory_);
+                                       Handle<ScopeInfo>(scope_info));
       if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
       if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
     } else if (context->IsBlockContext()) {
       ScopeInfo* scope_info = context->scope_info();
-      current_scope = new (zone)
-          Scope(zone, current_scope, BLOCK_SCOPE, Handle<ScopeInfo>(scope_info),
-                script_scope->ast_value_factory_);
+      current_scope = new (zone) Scope(zone, current_scope, BLOCK_SCOPE,
+                                       Handle<ScopeInfo>(scope_info));
     } else {
       DCHECK(context->IsCatchContext());
       String* name = context->catch_name();
-      current_scope = new (zone) Scope(
-          zone, current_scope,
-          script_scope->ast_value_factory_->GetString(Handle<String>(name)),
-          script_scope->ast_value_factory_);
+      current_scope =
+          new (zone) Scope(zone, current_scope,
+                           ast_value_factory->GetString(handle(name, isolate)));
     }
     if (innermost_scope == NULL) innermost_scope = current_scope;
     context = context->previous();
@@ -297,43 +288,47 @@ bool Scope::Analyze(ParseInfo* info) {
 
 void Scope::Initialize() {
   DCHECK(!already_resolved());
-
-  // Add this scope as a new inner scope of the outer scope.
-  if (outer_scope_ != NULL) {
+  if (outer_scope_ == nullptr) {
+    scope_inside_with_ = is_with_scope();
+  } else {
     outer_scope_->inner_scopes_.Add(this, zone());
     scope_inside_with_ = outer_scope_->scope_inside_with_ || is_with_scope();
-  } else {
-    scope_inside_with_ = is_with_scope();
   }
+}
 
-  // Declare convenience variables and the receiver.
-  if (is_declaration_scope() && has_this_declaration()) {
-    bool subclass_constructor = IsSubclassConstructor(function_kind_);
-    Variable* var = variables_.Declare(
-        this, ast_value_factory_->this_string(),
-        subclass_constructor ? CONST : VAR, Variable::THIS,
-        subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
-    receiver_ = var;
-  }
+void Scope::DeclareThis(AstValueFactory* ast_value_factory) {
+  DCHECK(!already_resolved());
+  DCHECK(is_declaration_scope());
+  DCHECK(has_this_declaration());
 
-  if (is_function_scope() && !is_arrow_scope()) {
-    // Declare 'arguments' variable which exists in all non arrow functions.
-    // Note that it might never be accessed, in which case it won't be
-    // allocated during variable allocation.
-    arguments_ =
-        variables_.Declare(this, ast_value_factory_->arguments_string(), VAR,
-                           Variable::ARGUMENTS, kCreatedInitialized);
+  bool subclass_constructor = IsSubclassConstructor(function_kind_);
+  Variable* var = variables_.Declare(
+      this, ast_value_factory->this_string(),
+      subclass_constructor ? CONST : VAR, Variable::THIS,
+      subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
+  receiver_ = var;
+}
 
-    new_target_ =
-        variables_.Declare(this, ast_value_factory_->new_target_string(), CONST,
-                           Variable::NORMAL, kCreatedInitialized);
+void Scope::DeclareDefaultFunctionVariables(
+    AstValueFactory* ast_value_factory) {
+  DCHECK(is_function_scope());
+  DCHECK(!is_arrow_scope());
+  // Declare 'arguments' variable which exists in all non arrow functions.
+  // Note that it might never be accessed, in which case it won't be
+  // allocated during variable allocation.
+  arguments_ =
+      variables_.Declare(this, ast_value_factory->arguments_string(), VAR,
+                         Variable::ARGUMENTS, kCreatedInitialized);
 
-    if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
-        IsAccessorFunction(function_kind_)) {
-      this_function_ =
-          variables_.Declare(this, ast_value_factory_->this_function_string(),
-                             CONST, Variable::NORMAL, kCreatedInitialized);
-    }
+  new_target_ =
+      variables_.Declare(this, ast_value_factory->new_target_string(), CONST,
+                         Variable::NORMAL, kCreatedInitialized);
+
+  if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
+      IsAccessorFunction(function_kind_)) {
+    this_function_ =
+        variables_.Declare(this, ast_value_factory->this_function_string(),
+                           CONST, Variable::NORMAL, kCreatedInitialized);
   }
 }
 

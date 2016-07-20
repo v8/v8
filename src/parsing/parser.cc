@@ -210,7 +210,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
-  Scope* function_scope = NewScope(scope, FUNCTION_SCOPE, kind);
+  Scope* function_scope = NewFunctionScope(scope, kind);
   SetLanguageMode(function_scope,
                   static_cast<LanguageMode>(language_mode | STRICT));
   // Set start and end position to the same value
@@ -943,7 +943,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     info->set_script_scope(scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
-                                           *info->context(), scope);
+                                           *info->context(), scope,
+                                           ast_value_factory());
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
       // string table to internalize strings and values right after they're
@@ -1109,7 +1110,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       // main thread.
       DCHECK(parsing_on_main_thread_);
       scope = Scope::DeserializeScopeChain(isolate, zone(), *info->context(),
-                                           scope);
+                                           scope, ast_value_factory());
     }
     original_scope_ = scope;
     AstNodeFactory function_factory(ast_value_factory());
@@ -1138,7 +1139,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       Scope* scope =
-          NewScope(this->scope(), FUNCTION_SCOPE, FunctionKind::kArrowFunction);
+          NewFunctionScope(this->scope(), FunctionKind::kArrowFunction);
 
       // These two bits only need to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
@@ -4293,7 +4294,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
-  Scope* scope = NewScope(this->scope(), FUNCTION_SCOPE, kind);
+  Scope* scope = NewFunctionScope(this->scope(), kind);
   SetLanguageMode(scope, language_mode);
   ZoneList<Statement*>* body = NULL;
   int arity = -1;

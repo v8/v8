@@ -136,7 +136,7 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   FunctionState top_state(&function_state_, &scope_state_, top_scope,
                           kNormalFunction, &top_factory);
   scope()->SetLanguageMode(language_mode);
-  Scope* function_scope = NewScope(scope(), FUNCTION_SCOPE, kind);
+  Scope* function_scope = NewFunctionScope(scope(), kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
   PreParserFactory function_factory(nullptr);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
@@ -1111,7 +1111,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parse function body.
   bool outer_is_script_scope = scope()->is_script_scope();
-  Scope* function_scope = NewScope(scope(), FUNCTION_SCOPE, kind);
+  Scope* function_scope = NewFunctionScope(scope(), kind);
   function_scope->SetLanguageMode(language_mode);
   PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
