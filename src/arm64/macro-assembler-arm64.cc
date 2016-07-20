@@ -4653,18 +4653,16 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.
     NoUseRealAbortsScope no_real_aborts(this);
 
-    // Check if Abort() has already been initialized.
-    DCHECK(isolate()->builtins()->Abort()->IsHeapObject());
-
-    Move(x1, Smi::FromInt(static_cast<int>(reason)));
+    Mov(x0, Smi::FromInt(reason));
+    Push(x0);
 
     if (!has_frame_) {
       // We don't actually want to generate a pile of code for this, so just
       // claim there is a stack frame, without generating one.
       FrameScope scope(this, StackFrame::NONE);
-      Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
+      CallRuntime(Runtime::kAbort);
     } else {
-      Call(isolate()->builtins()->Abort(), RelocInfo::CODE_TARGET);
+      CallRuntime(Runtime::kAbort);
     }
   } else {
     // Load the string to pass to Printf.
