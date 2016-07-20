@@ -232,9 +232,9 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       bool is_duplicate;
       bool is_rest = true;
       bool is_optional = false;
-      Variable* constructor_args =
-          function_scope->DeclareParameter(constructor_args_name, TEMPORARY,
-                                           is_optional, is_rest, &is_duplicate);
+      Variable* constructor_args = function_scope->DeclareParameter(
+          constructor_args_name, TEMPORARY, is_optional, is_rest, &is_duplicate,
+          ast_value_factory());
 
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());

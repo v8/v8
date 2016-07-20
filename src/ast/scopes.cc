@@ -168,6 +168,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   scope_inside_with_ = false;
   scope_calls_eval_ = false;
   scope_uses_arguments_ = false;
+  has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   asm_module_ = false;
   asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
@@ -481,10 +482,10 @@ Variable* Scope::Lookup(const AstRawString* name) {
   return NULL;
 }
 
-
-Variable* Scope::DeclareParameter(
-    const AstRawString* name, VariableMode mode,
-    bool is_optional, bool is_rest, bool* is_duplicate) {
+Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode,
+                                  bool is_optional, bool is_rest,
+                                  bool* is_duplicate,
+                                  AstValueFactory* ast_value_factory) {
   DCHECK(!already_resolved());
   DCHECK(is_function_scope());
   DCHECK(!is_optional || !is_rest);
@@ -506,6 +507,9 @@ Variable* Scope::DeclareParameter(
     rest_index_ = num_parameters();
   }
   params_.Add(var, zone());
+  if (name == ast_value_factory->arguments_string()) {
+    has_arguments_parameter_ = true;
+  }
   return var;
 }
 
@@ -705,7 +709,6 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
   }
 }
 
-
 bool Scope::AllocateVariables(ParseInfo* info, AstNodeFactory* factory) {
   // 1) Propagate scope information.
   bool outer_scope_calls_sloppy_eval = false;
@@ -720,7 +723,7 @@ bool Scope::AllocateVariables(ParseInfo* info, AstNodeFactory* factory) {
   if (!ResolveVariablesRecursively(info, factory)) return false;
 
   // 3) Allocate variables.
-  AllocateVariablesRecursively(info->isolate());
+  AllocateVariablesRecursively(info->ast_value_factory());
 
   return true;
 }
@@ -1303,17 +1306,6 @@ bool Scope::MustAllocateInContext(Variable* var) {
 }
 
 
-bool Scope::HasArgumentsParameter(Isolate* isolate) {
-  for (int i = 0; i < params_.length(); i++) {
-    if (params_[i]->name().is_identical_to(
-            isolate->factory()->arguments_string())) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 void Scope::AllocateStackSlot(Variable* var) {
   if (is_block_scope()) {
     outer_scope()->DeclarationScope()->AllocateStackSlot(var);
@@ -1327,8 +1319,7 @@ void Scope::AllocateHeapSlot(Variable* var) {
   var->AllocateTo(VariableLocation::CONTEXT, num_heap_slots_++);
 }
 
-
-void Scope::AllocateParameterLocals(Isolate* isolate) {
+void Scope::AllocateParameterLocals() {
   DCHECK(is_function_scope());
 
   bool uses_sloppy_arguments = false;
@@ -1343,7 +1334,7 @@ void Scope::AllocateParameterLocals(Isolate* isolate) {
     // that specific parameter value and cannot be used to access the
     // parameters, which is why we don't need to allocate an arguments
     // object in that case.
-    if (MustAllocate(arguments_) && !HasArgumentsParameter(isolate)) {
+    if (MustAllocate(arguments_) && !has_arguments_parameter_) {
       // In strict mode 'arguments' does not alias formal parameters.
       // Therefore in strict mode we allocate parameters as if 'arguments'
       // were not used.
@@ -1412,10 +1403,10 @@ void Scope::AllocateReceiver() {
   AllocateParameter(receiver(), -1);
 }
 
-
-void Scope::AllocateNonParameterLocal(Isolate* isolate, Variable* var) {
+void Scope::AllocateNonParameterLocal(Variable* var,
+                                      AstValueFactory* ast_value_factory) {
   DCHECK(var->scope() == this);
-  DCHECK(!var->IsVariable(isolate->factory()->dot_result_string()) ||
+  DCHECK(var->raw_name() != ast_value_factory->dot_result_string() ||
          !var->IsStackLocal());
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
@@ -1426,10 +1417,10 @@ void Scope::AllocateNonParameterLocal(Isolate* isolate, Variable* var) {
   }
 }
 
-
-void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
+void Scope::AllocateDeclaredGlobal(Variable* var,
+                                   AstValueFactory* ast_value_factory) {
   DCHECK(var->scope() == this);
-  DCHECK(!var->IsVariable(isolate->factory()->dot_result_string()) ||
+  DCHECK(var->raw_name() != ast_value_factory->dot_result_string() ||
          !var->IsStackLocal());
   if (var->IsUnallocated()) {
     if (var->IsStaticGlobalObjectProperty()) {
@@ -1444,12 +1435,12 @@ void Scope::AllocateDeclaredGlobal(Isolate* isolate, Variable* var) {
   }
 }
 
-
-void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
+void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(
+    AstValueFactory* ast_value_factory) {
   // All variables that have no rewrite yet are non-parameter locals.
   for (int i = 0; i < temps_.length(); i++) {
     if (temps_[i] == nullptr) continue;
-    AllocateNonParameterLocal(isolate, temps_[i]);
+    AllocateNonParameterLocal(temps_[i], ast_value_factory);
   }
 
   ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
@@ -1462,12 +1453,12 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   vars.Sort(VarAndOrder::Compare);
   int var_count = vars.length();
   for (int i = 0; i < var_count; i++) {
-    AllocateNonParameterLocal(isolate, vars[i].var());
+    AllocateNonParameterLocal(vars[i].var(), ast_value_factory);
   }
 
   if (FLAG_global_var_shortcuts) {
     for (int i = 0; i < var_count; i++) {
-      AllocateDeclaredGlobal(isolate, vars[i].var());
+      AllocateDeclaredGlobal(vars[i].var(), ast_value_factory);
     }
   }
 
@@ -1476,11 +1467,11 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != nullptr) {
-    AllocateNonParameterLocal(isolate, function_->proxy()->var());
+    AllocateNonParameterLocal(function_->proxy()->var(), ast_value_factory);
   }
 
   if (rest_parameter_ != nullptr) {
-    AllocateNonParameterLocal(isolate, rest_parameter_);
+    AllocateNonParameterLocal(rest_parameter_, ast_value_factory);
   }
 
   if (new_target_ != nullptr && !MustAllocate(new_target_)) {
@@ -1492,14 +1483,13 @@ void Scope::AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate) {
   }
 }
 
-
-void Scope::AllocateVariablesRecursively(Isolate* isolate) {
+void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
   if (!already_resolved()) {
     num_stack_slots_ = 0;
   }
   // Allocate variables for inner scopes.
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->AllocateVariablesRecursively(isolate);
+    inner_scopes_[i]->AllocateVariablesRecursively(ast_value_factory);
   }
 
   // If scope is already resolved, we still need to allocate
@@ -1510,9 +1500,9 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
 
   // Allocate variables for this scope.
   // Parameters must be allocated first, if any.
-  if (is_function_scope()) AllocateParameterLocals(isolate);
+  if (is_function_scope()) AllocateParameterLocals();
   if (has_this_declaration()) AllocateReceiver();
-  AllocateNonParameterLocalsAndDeclaredGlobals(isolate);
+  AllocateNonParameterLocalsAndDeclaredGlobals(ast_value_factory);
 
   // Force allocation of a context for this scope if necessary. For a 'with'
   // scope and for a function scope that makes an 'eval' call we need a context,

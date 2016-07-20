@@ -1275,8 +1275,9 @@ void ParserTraits::DeclareFormalParameter(
   auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
   if (!is_simple) scope->SetHasNonSimpleParameters();
   bool is_optional = parameter.initializer != nullptr;
-  Variable* var = scope->DeclareParameter(
-      name, mode, is_optional, parameter.is_rest, &is_duplicate);
+  Variable* var =
+      scope->DeclareParameter(name, mode, is_optional, parameter.is_rest,
+                              &is_duplicate, parser_->ast_value_factory());
   if (is_duplicate) {
     classifier->RecordDuplicateFormalParameterError(
         parser_->scanner()->location());

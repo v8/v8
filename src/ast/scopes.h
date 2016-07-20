@@ -157,9 +157,9 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  Variable* DeclareParameter(
-      const AstRawString* name, VariableMode mode,
-      bool is_optional, bool is_rest, bool* is_duplicate);
+  Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
+                             bool is_optional, bool is_rest, bool* is_duplicate,
+                             AstValueFactory* ast_value_factory);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -665,6 +665,8 @@ class Scope: public ZoneObject {
   bool scope_uses_arguments_;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_;
+  // This scope has a parameter called "arguments".
+  bool has_arguments_parameter_;
   // This scope contains an "use asm" annotation.
   bool asm_module_;
   // This scope's outer context is an asm module.
@@ -777,16 +779,18 @@ class Scope: public ZoneObject {
   // Predicates.
   bool MustAllocate(Variable* var);
   bool MustAllocateInContext(Variable* var);
-  bool HasArgumentsParameter(Isolate* isolate);
 
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
   void AllocateHeapSlot(Variable* var);
-  void AllocateParameterLocals(Isolate* isolate);
-  void AllocateNonParameterLocal(Isolate* isolate, Variable* var);
-  void AllocateDeclaredGlobal(Isolate* isolate, Variable* var);
-  void AllocateNonParameterLocalsAndDeclaredGlobals(Isolate* isolate);
-  void AllocateVariablesRecursively(Isolate* isolate);
+  void AllocateParameterLocals();
+  void AllocateNonParameterLocal(Variable* var,
+                                 AstValueFactory* ast_value_factory);
+  void AllocateDeclaredGlobal(Variable* var,
+                              AstValueFactory* ast_value_factory);
+  void AllocateNonParameterLocalsAndDeclaredGlobals(
+      AstValueFactory* ast_value_factory);
+  void AllocateVariablesRecursively(AstValueFactory* ast_value_factory);
   void AllocateParameter(Variable* var, int index);
   void AllocateReceiver();
 
