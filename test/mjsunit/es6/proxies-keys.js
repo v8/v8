@@ -48,3 +48,31 @@ assertEquals(["target"], Object.keys(proxy2));
   assertEquals(["1","2"], Object.getOwnPropertyNames(p));
   assertEquals([symbol], Object.getOwnPropertySymbols(p));
 })();
+
+(function testNoProxyTraps() {
+  var test_sym = Symbol("sym1");
+  var test_sym2 = Symbol("sym2");
+  var target = {
+    one: 1,
+    two: 2,
+    [test_sym]: 4,
+    0: 0,
+  };
+  Object.defineProperty(
+      target, "non-enum",
+      { enumerable: false, value: "nope", configurable: true, writable: true });
+  target.__proto__ = {
+    target_proto: 3,
+    1: 1,
+    [test_sym2]: 5
+  };
+  Object.defineProperty(
+      target.__proto__, "non-enum2",
+      { enumerable: false, value: "nope", configurable: true, writable: true });
+  var proxy = new Proxy(target, {});
+
+  assertEquals(["0", "one", "two"], Object.keys(proxy));
+  assertEquals(["0", "one", "two", "non-enum"],
+               Object.getOwnPropertyNames(proxy));
+  assertEquals([test_sym], Object.getOwnPropertySymbols(proxy));
+})();
