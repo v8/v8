@@ -261,15 +261,13 @@ Handle<Object> CallSite::GetMethodName() {
 
   Handle<JSObject> obj = Handle<JSObject>::cast(receiver);
   Handle<Object> function_name(fun_->shared()->name(), isolate_);
-  if (function_name->IsName()) {
-    Handle<Name> name = Handle<Name>::cast(function_name);
+  if (function_name->IsString()) {
+    Handle<String> name = Handle<String>::cast(function_name);
     // ES2015 gives getters and setters name prefixes which must
     // be stripped to find the property name.
-    Handle<String> name_string = Handle<String>::cast(name);
-    if (name_string->IsUtf8EqualTo(CStrVector("get "), true) ||
-        name_string->IsUtf8EqualTo(CStrVector("set "), true)) {
-      name = isolate_->factory()->NewProperSubString(name_string, 4,
-                                                     name_string->length());
+    if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
+        name->IsUtf8EqualTo(CStrVector("set "), true)) {
+      name = isolate_->factory()->NewProperSubString(name, 4, name->length());
     }
     if (CheckMethodName(isolate_, obj, name, fun_,
                         LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
