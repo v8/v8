@@ -106,7 +106,6 @@ class Scope: public ZoneObject {
     scope_name_ = scope_name;
   }
 
-  void Initialize();
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
 

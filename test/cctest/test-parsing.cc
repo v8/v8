@@ -3362,7 +3362,6 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   CHECK(str->IsInternalizedString());
   i::Scope* script_scope =
       new (&zone) i::Scope(&zone, nullptr, i::SCRIPT_SCOPE);
-  script_scope->Initialize();
   i::Scope* s = i::Scope::DeserializeScopeChain(isolate, &zone, context,
                                                 script_scope, &avf);
   CHECK(s != script_scope);
@@ -3410,7 +3409,6 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   i::Scope* script_scope =
       new (&zone) i::Scope(&zone, nullptr, i::SCRIPT_SCOPE);
-  script_scope->Initialize();
   i::Scope* s = i::Scope::DeserializeScopeChain(isolate, &zone, context,
                                                 script_scope, &avf);
   CHECK(s != script_scope);

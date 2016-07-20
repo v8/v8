@@ -98,17 +98,20 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
       sloppy_block_function_map_(zone),
       already_resolved_(false) {
   SetDefaults();
-  if (outer_scope != nullptr) {
+  if (outer_scope == nullptr) {
+    // If the outer scope is null, this cannot be a with scope. The outermost
+    // scope must be a script scope.
+    DCHECK_EQ(SCRIPT_SCOPE, scope_type);
+  } else {
     asm_function_ = outer_scope_->asm_module_;
     // Inherit the language mode from the parent scope unless we're a module
     // scope.
     if (!is_module_scope()) language_mode_ = outer_scope->language_mode_;
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
+    outer_scope_->inner_scopes_.Add(this, zone);
+    scope_inside_with_ = outer_scope_->scope_inside_with_ || is_with_scope();
   }
-
-  // The outermost scope must be a script scope.
-  DCHECK(scope_type == SCRIPT_SCOPE || outer_scope != nullptr);
 }
 
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
@@ -283,17 +286,6 @@ bool Scope::Analyze(ParseInfo* info) {
 
   info->set_scope(scope);
   return true;
-}
-
-
-void Scope::Initialize() {
-  DCHECK(!already_resolved());
-  if (outer_scope_ == nullptr) {
-    scope_inside_with_ = is_with_scope();
-  } else {
-    outer_scope_->inner_scopes_.Add(this, zone());
-    scope_inside_with_ = outer_scope_->scope_inside_with_ || is_with_scope();
-  }
 }
 
 void Scope::DeclareThis(AstValueFactory* ast_value_factory) {

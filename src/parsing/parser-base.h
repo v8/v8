@@ -620,7 +620,6 @@ class ParserBase : public Traits {
     DCHECK(scope_type != FUNCTION_SCOPE);
     Scope* result =
         new (zone()) Scope(zone(), parent, scope_type, kNormalFunction);
-    result->Initialize();
     if (scope_type == MODULE_SCOPE) result->DeclareThis(ast_value_factory());
     return result;
   }
@@ -628,7 +627,6 @@ class ParserBase : public Traits {
   Scope* NewFunctionScope(FunctionKind kind) {
     DCHECK(ast_value_factory());
     Scope* result = new (zone()) Scope(zone(), scope(), FUNCTION_SCOPE, kind);
-    result->Initialize();
     if (!IsArrowFunction(kind)) {
       result->DeclareThis(ast_value_factory());
       result->DeclareDefaultFunctionVariables(ast_value_factory());
