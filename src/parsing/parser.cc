@@ -200,8 +200,8 @@ void Parser::SetCachedData(ParseInfo* info) {
 }
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
-                                            bool call_super, Scope* scope,
-                                            int pos, int end_pos,
+                                            bool call_super, int pos,
+                                            int end_pos,
                                             LanguageMode language_mode) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
@@ -210,7 +210,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
-  Scope* function_scope = NewFunctionScope(scope, kind);
+  Scope* function_scope = NewFunctionScope(kind);
   SetLanguageMode(function_scope,
                   static_cast<LanguageMode>(language_mode | STRICT));
   // Set start and end position to the same value
@@ -1138,8 +1138,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       }
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
-      Scope* scope =
-          NewFunctionScope(this->scope(), FunctionKind::kArrowFunction);
+      Scope* scope = NewFunctionScope(FunctionKind::kArrowFunction);
 
       // These two bits only need to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
@@ -1197,8 +1196,9 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         }
       }
     } else if (shared_info->is_default_constructor()) {
+      DCHECK_EQ(this->scope(), scope);
       result = DefaultConstructor(
-          raw_name, IsSubclassConstructor(shared_info->kind()), scope,
+          raw_name, IsSubclassConstructor(shared_info->kind()),
           shared_info->start_position(), shared_info->end_position(),
           shared_info->language_mode());
     } else {
@@ -4294,7 +4294,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
-  Scope* scope = NewFunctionScope(this->scope(), kind);
+  Scope* scope = NewFunctionScope(kind);
   SetLanguageMode(scope, language_mode);
   ZoneList<Statement*>* body = NULL;
   int arity = -1;
@@ -5091,8 +5091,9 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   int end_pos = scanner()->location().end_pos;
 
   if (constructor == NULL) {
-    constructor = DefaultConstructor(name, has_extends, block_scope, pos,
-                                     end_pos, block_scope->language_mode());
+    DCHECK_EQ(this->scope(), block_scope);
+    constructor = DefaultConstructor(name, has_extends, pos, end_pos,
+                                     block_scope->language_mode());
   }
 
   // Note that we do not finalize this block scope because it is
