@@ -609,8 +609,7 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
     case wasm::kExprF64Max:
       return BuildF64Max(left, right);
     case wasm::kExprF64Pow:
-      op = m->Float64Pow();
-      break;
+      return BuildF64Pow(left, right);
     case wasm::kExprF64Atan2:
       op = m->Float64Atan2();
       break;
@@ -1488,6 +1487,13 @@ Node* WasmGraphBuilder::BuildF64Asin(Node* input) {
   ExternalReference ref =
       ExternalReference::f64_asin_wrapper_function(jsgraph()->isolate());
   return BuildCFuncInstruction(ref, type, input);
+}
+
+Node* WasmGraphBuilder::BuildF64Pow(Node* left, Node* right) {
+  MachineType type = MachineType::Float64();
+  ExternalReference ref =
+      ExternalReference::wasm_float64_pow(jsgraph()->isolate());
+  return BuildCFuncInstruction(ref, type, left, right);
 }
 
 Node* WasmGraphBuilder::BuildF64Mod(Node* left, Node* right) {

@@ -200,7 +200,7 @@
   'wasm/asm-wasm-switch': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
-  'wasm/embenchen/*': [PASS, ['arch == arm64', SKIP], ['ignition == True', SKIP]],
+  'wasm/embenchen/*': [PASS, ['ignition == True', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],

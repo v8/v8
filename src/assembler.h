@@ -928,6 +928,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_word64_ctz(Isolate* isolate);
   static ExternalReference wasm_word32_popcnt(Isolate* isolate);
   static ExternalReference wasm_word64_popcnt(Isolate* isolate);
+  static ExternalReference wasm_float64_pow(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);

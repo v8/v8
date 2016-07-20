@@ -1156,6 +1156,11 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
+}
+
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
                    modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));

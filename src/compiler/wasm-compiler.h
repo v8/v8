@@ -291,6 +291,7 @@ class WasmGraphBuilder {
 
   Node* BuildF64Acos(Node* input);
   Node* BuildF64Asin(Node* input);
+  Node* BuildF64Pow(Node* left, Node* right);
   Node* BuildF64Mod(Node* left, Node* right);
 
   Node* BuildIntToFloatConversionInstruction(
