@@ -366,3 +366,17 @@ my_error = new Error();
 var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;
 Object.defineProperty(fake_error, 'stack', { get: stolen_getter });
 assertEquals(undefined, fake_error.stack);
+
+// Check that overwriting the stack property during stack trace formatting
+// does not crash.
+error = new Error();
+error.__defineGetter__("name", function() { error.stack = "abc"; });
+assertEquals("abc", error.stack);
+
+error = new Error();
+error.__defineGetter__("name", function() { delete error.stack; });
+assertEquals(undefined, error.stack);
+
+// Check that repeated trace collection does not crash.
+error = new Error();
+Error.captureStackTrace(error);

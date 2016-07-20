@@ -142,6 +142,7 @@ void Builtins::Generate_GeneratorPrototypeThrow(CodeStubAssembler* assembler) {
 }
 
 // -----------------------------------------------------------------------------
+
 //
 
 namespace {

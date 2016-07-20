@@ -30,9 +30,14 @@ var callSiteWasmObjectSymbol =
 var callSiteWasmFunctionIndexSymbol =
     utils.ImportNow("call_site_wasm_func_index_symbol");
 var Float32x4ToString;
-var formattedStackTraceSymbol =
-    utils.ImportNow("formatted_stack_trace_symbol");
 var GlobalObject = global.Object;
+var GlobalError = global.Error;
+var GlobalEvalError = global.EvalError;
+var GlobalRangeError = global.RangeError;
+var GlobalReferenceError = global.ReferenceError;
+var GlobalSyntaxError = global.SyntaxError;
+var GlobalTypeError = global.TypeError;
+var GlobalURIError = global.URIError;
 var Int16x8ToString;
 var Int32x4ToString;
 var Int8x16ToString;
@@ -66,13 +71,6 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
-var GlobalError;
-var GlobalTypeError;
-var GlobalRangeError;
-var GlobalURIError;
-var GlobalSyntaxError;
-var GlobalReferenceError;
-var GlobalEvalError;
 
 
 function NoSideEffectsObjectToString() {
@@ -603,92 +601,6 @@ function GetTypeName(receiver, requireConstructor) {
   return %GetConstructorName(receiver);
 }
 
-
-// Format the stack trace if not yet done, and return it.
-// Cache the formatted stack trace on the holder.
-var StackTraceGetter = function() {
-  var formatted_stack_trace = UNDEFINED;
-  var holder = this;
-  while (holder) {
-    var formatted_stack_trace =
-      GET_PRIVATE(holder, formattedStackTraceSymbol);
-    if (IS_UNDEFINED(formatted_stack_trace)) {
-      // No formatted stack trace available.
-      var stack_trace = GET_PRIVATE(holder, stackTraceSymbol);
-      if (IS_UNDEFINED(stack_trace)) {
-        // Neither formatted nor structured stack trace available.
-        // Look further up the prototype chain.
-        holder = %object_get_prototype_of(holder);
-        continue;
-      }
-      formatted_stack_trace = FormatStackTrace(holder, stack_trace);
-      SET_PRIVATE(holder, stackTraceSymbol, UNDEFINED);
-      SET_PRIVATE(holder, formattedStackTraceSymbol, formatted_stack_trace);
-    }
-    return formatted_stack_trace;
-  }
-  return UNDEFINED;
-};
-
-
-// If the receiver equals the holder, set the formatted stack trace that the
-// getter returns.
-var StackTraceSetter = function(v) {
-  if (IsErrorObject(this)) {
-    SET_PRIVATE(this, stackTraceSymbol, UNDEFINED);
-    SET_PRIVATE(this, formattedStackTraceSymbol, v);
-  }
-};
-
-
-// Use a dummy function since we do not actually want to capture a stack trace
-// when constructing the initial Error prototytpes.
-var captureStackTrace = function() {};
-
-
-// Set up special error type constructors.
-function SetUpError(error_function) {
-  %FunctionSetInstanceClassName(error_function, 'Error');
-  var name = error_function.name;
-  var prototype = new GlobalObject();
-  if (name !== 'Error') {
-    %InternalSetPrototype(error_function, GlobalError);
-    %InternalSetPrototype(prototype, GlobalError.prototype);
-  }
-  %FunctionSetPrototype(error_function, prototype);
-
-  %AddNamedProperty(error_function.prototype, 'name', name, DONT_ENUM);
-  %AddNamedProperty(error_function.prototype, 'message', '', DONT_ENUM);
-  %AddNamedProperty(
-      error_function.prototype, 'constructor', error_function, DONT_ENUM);
-
-  %SetCode(error_function, function(m) {
-    if (IS_UNDEFINED(new.target)) return new error_function(m);
-
-    try { captureStackTrace(this, error_function); } catch (e) { }
-    // Define all the expected properties directly on the error
-    // object. This avoids going through getters and setters defined
-    // on prototype objects.
-    if (!IS_UNDEFINED(m)) {
-      %AddNamedProperty(this, 'message', TO_STRING(m), DONT_ENUM);
-    }
-  });
-
-  %SetNativeFlag(error_function);
-  return error_function;
-};
-
-GlobalError = SetUpError(global.Error);
-GlobalEvalError = SetUpError(global.EvalError);
-GlobalRangeError = SetUpError(global.RangeError);
-GlobalReferenceError = SetUpError(global.ReferenceError);
-GlobalSyntaxError = SetUpError(global.SyntaxError);
-GlobalTypeError = SetUpError(global.TypeError);
-GlobalURIError = SetUpError(global.URIError);
-
-utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
-                       ['toString', ErrorToString]);
-
 function ErrorToString() {
   if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
@@ -728,21 +640,9 @@ function MakeURIError() {
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
 var StackOverflowBoilerplate = MakeRangeError(kStackOverflow);
-utils.InstallGetterSetter(StackOverflowBoilerplate, 'stack',
-                          StackTraceGetter, StackTraceSetter)
-
-// Define actual captureStackTrace function after everything has been set up.
-captureStackTrace = function captureStackTrace(obj, cons_opt) {
-  // Define accessors first, as this may fail and throw.
-  %object_define_property(obj, 'stack', { get: StackTraceGetter,
-                                          set: StackTraceSetter,
-                                          configurable: true });
-  %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
-};
-
-GlobalError.captureStackTrace = captureStackTrace;
 
 %InstallToContext([
+  "error_format_stack_trace", FormatStackTrace,
   "get_stack_trace_line_fun", GetStackTraceLine,
   "make_error_function", MakeGenericError,
   "make_range_error", MakeRangeError,

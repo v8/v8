@@ -491,6 +491,7 @@
         'builtins/builtins-boolean.cc',
         'builtins/builtins-dataview.cc',
         'builtins/builtins-date.cc',
+        'builtins/builtins-error.cc',
         'builtins/builtins-function.cc',
         'builtins/builtins-global.cc',
         'builtins/builtins-internal.cc',

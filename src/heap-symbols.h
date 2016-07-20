@@ -59,6 +59,7 @@
   V(enumerable_string, "enumerable")                               \
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
+  V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
   V(float32x4_string, "float32x4")                                 \
   V(Float32x4_string, "Float32x4")                                 \
@@ -92,6 +93,7 @@
   V(length_string, "length")                                       \
   V(line_string, "line")                                           \
   V(Map_string, "Map")                                             \
+  V(message_string, "message")                                     \
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
   V(name_string, "name")                                           \
@@ -114,6 +116,8 @@
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \
   V(query_colon_string, "(?:)")                                    \
+  V(RangeError_string, "RangeError")                               \
+  V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
   V(script_string, "script")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
@@ -129,12 +133,14 @@
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(SyntaxError_string, "SyntaxError")                             \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
   V(timed_out, "timed-out")                                        \
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
+  V(TypeError_string, "TypeError")                                 \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
   V(uint32x4_string, "uint32x4")                                   \
@@ -143,6 +149,7 @@
   V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
+  V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
   V(value_string, "value")                                         \
@@ -168,7 +175,6 @@
   V(error_end_pos_symbol)                   \
   V(error_script_symbol)                    \
   V(error_start_pos_symbol)                 \
-  V(formatted_stack_trace_symbol)           \
   V(frozen_symbol)                          \
   V(hash_code_symbol)                       \
   V(home_object_symbol)                     \
