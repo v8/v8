@@ -84,6 +84,11 @@ class Compiler : public AllStatic {
       Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
+  // Create a (bound) function for a String source within a context for eval.
+  MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
+      Handle<Context> context, Handle<String> source,
+      ParseRestriction restriction);
+
   // Create a shared function info object for a String source within a context.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
       Handle<String> source, Handle<Object> script_name, int line_offset,

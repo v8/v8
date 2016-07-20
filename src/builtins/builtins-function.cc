@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/compiler.h"
 #include "src/string-builder.h"
 
 namespace v8 {
@@ -102,11 +103,11 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // come from here.
   Handle<JSFunction> function;
   {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, function,
-        Builtins::CompileString(handle(target->native_context(), isolate),
-                                source, ONLY_SINGLE_FUNCTION_LITERAL),
-        Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
+                               Compiler::GetFunctionFromString(
+                                   handle(target->native_context(), isolate),
+                                   source, ONLY_SINGLE_FUNCTION_LITERAL),
+                               Object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,

@@ -581,10 +581,6 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
                                ExitFrameType exit_frame_type);
 
-  static MaybeHandle<JSFunction> CompileString(Handle<Context> context,
-                                               Handle<String> source,
-                                               ParseRestriction restriction);
-
  private:
   Builtins();
 
