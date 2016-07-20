@@ -946,8 +946,6 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
-    case IrOpcode::kTruncateTaggedToBit:
-      break;
 
     case IrOpcode::kCheckBounds:
       CheckValueInputIs(node, 0, Type::Any());

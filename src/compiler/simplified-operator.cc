@@ -344,7 +344,6 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(ChangeBitToTagged, Operator::kNoProperties, 1)         \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1)    \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1)   \
-  V(TruncateTaggedToBit, Operator::kNoProperties, 1)       \
   V(ObjectIsCallable, Operator::kNoProperties, 1)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1)            \
   V(ObjectIsReceiver, Operator::kNoProperties, 1)          \

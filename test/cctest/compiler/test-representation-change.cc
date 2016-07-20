@@ -644,7 +644,23 @@ TEST(Nops) {
 TEST(TypeErrors) {
   RepresentationChangerTester r;
 
+  // Wordish cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(MachineRepresentation::kWord8, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord16, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
+                   MachineRepresentation::kBit);
+
   // Floats cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(MachineRepresentation::kFloat64, Type::None(),
+                   MachineRepresentation::kBit);
+
+  // Floats cannot be implicitly converted to/from comparison conditions.
+  r.CheckTypeError(MachineRepresentation::kFloat32, Type::None(),
+                   MachineRepresentation::kBit);
   r.CheckTypeError(MachineRepresentation::kBit, Type::None(),
                    MachineRepresentation::kFloat32);
   r.CheckTypeError(MachineRepresentation::kBit, Type::Boolean(),
