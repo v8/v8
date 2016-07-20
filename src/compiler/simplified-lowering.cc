@@ -487,6 +487,12 @@ class RepresentationSelector {
         }
         return false;
     }
+    // We need to guarantee that the feedback type is a subtype of the upper
+    // bound. Naively that should hold, but weakening can actually produce
+    // a bigger type if we are unlucky with ordering of phi typing. To be
+    // really sure, just intersect the upper bound with the feedback type.
+    new_type = Type::Intersect(GetUpperBound(node), new_type, graph_zone());
+
     if (type != nullptr && new_type->Is(type)) return false;
     GetInfo(node)->set_feedback_type(new_type);
     if (FLAG_trace_representation) {
