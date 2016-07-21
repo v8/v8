@@ -697,10 +697,10 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent.is(r2));
-  const DwVfpRegister double_base = d0;
-  const DwVfpRegister double_exponent = d1;
-  const DwVfpRegister double_result = d2;
-  const DwVfpRegister double_scratch = d3;
+  const LowDwVfpRegister double_base = d0;
+  const LowDwVfpRegister double_exponent = d1;
+  const LowDwVfpRegister double_result = d2;
+  const LowDwVfpRegister double_scratch = d3;
   const SwVfpRegister single_scratch = s6;
   const Register scratch = r9;
   const Register scratch2 = r4;
@@ -715,14 +715,9 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   }
 
   if (exponent_type() != INTEGER) {
-    Label int_exponent_convert;
     // Detect integer exponents stored as double.
-    __ vcvt_u32_f64(single_scratch, double_exponent);
-    // We do not check for NaN or Infinity here because comparing numbers on
-    // ARM correctly distinguishes NaNs.  We end up calling the built-in.
-    __ vcvt_f64_u32(double_scratch, single_scratch);
-    __ VFPCompareAndSetFlags(double_scratch, double_exponent);
-    __ b(eq, &int_exponent_convert);
+    __ TryDoubleToInt32Exact(scratch, double_exponent, double_scratch);
+    __ b(eq, &int_exponent);
 
     __ push(lr);
     {
@@ -734,11 +729,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     }
     __ pop(lr);
     __ MovFromFloatResult(double_result);
-    __ jmp(&done);
-
-    __ bind(&int_exponent_convert);
-    __ vcvt_u32_f64(single_scratch, double_exponent);
-    __ vmov(scratch, single_scratch);
+    __ b(&done);
   }
 
   // Calculate power with integer exponent.
@@ -756,12 +747,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand::Zero());
-  __ mov(scratch2, Operand::Zero(), LeaveCC, mi);
-  __ sub(scratch, scratch2, scratch, LeaveCC, mi);
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, mi);
 
   Label while_true;
   __ bind(&while_true);
-  __ mov(scratch, Operand(scratch, ASR, 1), SetCC);
+  __ mov(scratch, Operand(scratch, LSR, 1), SetCC);
   __ vmul(double_result, double_result, double_scratch, cs);
   __ vmul(double_scratch, double_scratch, double_scratch, ne);
   __ b(ne, &while_true);
