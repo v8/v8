@@ -33,21 +33,11 @@ declare_args() {
   v8_snapshot_toolchain = ""
 }
 
-# TODO(GYP): Fill in any missing host/target combinations.
+# TODO(GYP): For now we only support 32-bit little-endian target builds from an
+# x64 Linux host. Eventually we need to support all of the host/target
+# configurations v8 runs on.
 if (v8_snapshot_toolchain == "") {
-  if (v8_current_cpu == v8_target_cpu && current_cpu == target_cpu) {
-    # Args that are specified by the user can end up having the same
-    # effect as args that are specified in a toolchain; for example,
-    # building on linux x64 with v8_target_cpu == "arm64" will use
-    # the //build/toolchain/linux:clang_x64 toolchain, but have the
-    # same effect as if you specified
-    #
-    #   custom_toolchain="//build/toolchain/linux:clang_x64_v8_arm64"
-    #
-    # As a result, if we didn't take that into account we could
-    # accidentally end up building two identical copies of v8.
-    v8_snapshot_toolchain = default_toolchain
-  } else if (host_cpu == "x64" && host_os == "linux") {
+  if (host_cpu == "x64" && host_os == "linux") {
     if (current_cpu == "arm" || current_cpu == "mipsel" ||
         current_cpu == "x86") {
       _snapshot_cpu = "x86"
