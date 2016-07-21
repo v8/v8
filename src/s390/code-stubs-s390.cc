@@ -776,7 +776,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ beq(&no_carry, Label::kNear);
   __ mdbr(double_result, double_scratch);
   __ bind(&no_carry);
-  __ ShiftRightArithP(scratch, scratch, Operand(1));
+  __ ShiftRightP(scratch, scratch, Operand(1));
+  __ LoadAndTestP(scratch, scratch);
   __ beq(&loop_end, Label::kNear);
   __ mdbr(double_scratch, double_scratch);
   __ b(&while_true);

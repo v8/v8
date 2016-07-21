@@ -805,7 +805,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ beq(&no_carry, cr0);
   __ fmul(double_result, double_result, double_scratch);
   __ bind(&no_carry);
-  __ ShiftRightArithImm(scratch, scratch, 1, SetRC);
+  __ ShiftRightImm(scratch, scratch, Operand(1), SetRC);
   __ beq(&loop_end, cr0);
   __ fmul(double_scratch, double_scratch, double_scratch);
   __ b(&while_true);
