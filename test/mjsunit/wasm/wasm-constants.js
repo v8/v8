@@ -70,6 +70,7 @@ var kArity0 = 0;
 var kArity1 = 1;
 var kArity2 = 2;
 var kArity3 = 3;
+var kArity4 = 4;
 var kWasmFunctionTypeForm = 0x40;
 
 var section_names = [
