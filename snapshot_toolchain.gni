@@ -43,7 +43,7 @@ if (v8_snapshot_toolchain == "") {
       _snapshot_cpu = "x86"
     } else {
       assert(current_cpu == "arm64" || current_cpu == "x64" ||
-                 current_cpu == "mipsel64",
+                 current_cpu == "mips64el",
              "Need environment for this arch: $current_cpu")
       _snapshot_cpu = "x64"
     }
