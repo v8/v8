@@ -177,6 +177,8 @@ TEST(PrimitiveReturnStatements) {
       "return +127;\n",
 
       "return -128;\n",
+
+      "return 2.0;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

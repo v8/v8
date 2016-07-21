@@ -1094,13 +1094,9 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
 
 Handle<Object> Factory::NewNumber(double value,
                                   PretenureFlag pretenure) {
-  // We need to distinguish the minus zero value and this cannot be
-  // done after conversion to int. Doing this by comparing bit
-  // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) return NewHeapNumber(-0.0, IMMUTABLE, pretenure);
-
-  int int_value = FastD2IChecked(value);
-  if (value == int_value && Smi::IsValid(int_value)) {
+  // Materialize as a SMI if possible
+  int32_t int_value;
+  if (DoubleToSmiInteger(value, &int_value)) {
     return handle(Smi::FromInt(int_value), isolate());
   }
 

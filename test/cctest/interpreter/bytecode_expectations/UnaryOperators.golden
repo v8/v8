@@ -150,11 +150,12 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(LdaSmi), U8(1),
+  /*   46 S> */ B(LdaConstant), U8(0),
                 B(Mul), R(0),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
+  1,
 ]
 handlers: [
 ]

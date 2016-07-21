@@ -147,26 +147,25 @@ char* DoubleToExponentialCString(double value, int f);
 char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
 
-
 static inline bool IsMinusZero(double value) {
   return bit_cast<int64_t>(value) == bit_cast<int64_t>(-0.0);
 }
 
+// Returns true if value can be converted to a SMI, and returns the resulting
+// integer value of the SMI in |smi_int_value|.
+inline bool DoubleToSmiInteger(double value, int* smi_int_value);
 
 inline bool IsSmiDouble(double value);
-
 
 // Integer32 is an integer that can be represented as a signed 32-bit
 // integer. It has to be in the range [-2^31, 2^31 - 1].
 // We also have to check for negative 0 as it is not an Integer32.
 inline bool IsInt32Double(double value);
 
-
 // UInteger32 is an integer that can be represented as an unsigned 32-bit
 // integer. It has to be in the range [0, 2^32 - 1].
 // We also have to check for negative 0 as it is not a UInteger32.
 inline bool IsUint32Double(double value);
-
 
 // Convert from Number object to C integer.
 inline int32_t NumberToInt32(Object* number);

@@ -146,10 +146,8 @@ class AstValue : public ZoneObject {
   bool ContainsDot() const { return type_ == NUMBER_WITH_DOT; }
 
   const AstRawString* AsString() const {
-    if (type_ == STRING)
-      return string_;
-    UNREACHABLE();
-    return 0;
+    CHECK_EQ(STRING, type_);
+    return string_;
   }
 
   double AsNumber() const {
@@ -161,6 +159,11 @@ class AstValue : public ZoneObject {
     return 0;
   }
 
+  Smi* AsSmi() const {
+    CHECK_EQ(SMI, type_);
+    return Smi::FromInt(smi_);
+  }
+
   bool EqualsString(const AstRawString* string) const {
     return type_ == STRING && string_ == string;
   }
@@ -169,7 +172,12 @@ class AstValue : public ZoneObject {
 
   bool BooleanValue() const;
 
+  bool IsSmi() const { return type_ == SMI; }
+  bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
+  bool IsTrue() const { return type_ == BOOLEAN && bool_; }
+  bool IsUndefined() const { return type_ == UNDEFINED; }
   bool IsTheHole() const { return type_ == THE_HOLE; }
+  bool IsNull() const { return type_ == NULL_TYPE; }
 
   void Internalize(Isolate* isolate);
 
@@ -204,10 +212,17 @@ class AstValue : public ZoneObject {
   explicit AstValue(double n, bool with_dot) {
     if (with_dot) {
       type_ = NUMBER_WITH_DOT;
+      number_ = n;
     } else {
-      type_ = NUMBER;
+      int int_value;
+      if (DoubleToSmiInteger(n, &int_value)) {
+        type_ = SMI;
+        smi_ = int_value;
+      } else {
+        type_ = NUMBER;
+        number_ = n;
+      }
     }
-    number_ = n;
   }
 
   AstValue(Type t, int i) : type_(t) {

@@ -97,6 +97,13 @@ int32_t DoubleToInt32(double x) {
   }
 }
 
+bool DoubleToSmiInteger(double value, int* smi_int_value) {
+  if (IsMinusZero(value)) return false;
+  int i = FastD2IChecked(value);
+  if (value != i || !Smi::IsValid(i)) return false;
+  *smi_int_value = i;
+  return true;
+}
 
 bool IsSmiDouble(double value) {
   return !IsMinusZero(value) && value >= Smi::kMinValue &&

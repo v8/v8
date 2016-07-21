@@ -549,7 +549,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
       generator_state_() {
-  InitializeAstVisitor(isolate());
+  InitializeAstVisitor(isolate()->stack_guard()->real_climit());
 }
 
 Handle<BytecodeArray> BytecodeGenerator::MakeBytecode() {
@@ -1484,21 +1484,21 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (!execution_result()->IsEffect()) {
-    Handle<Object> value = expr->value();
-    if (value->IsSmi()) {
-      builder()->LoadLiteral(Smi::cast(*value));
-    } else if (value->IsUndefined(isolate())) {
+    const AstValue* raw_value = expr->raw_value();
+    if (raw_value->IsSmi()) {
+      builder()->LoadLiteral(raw_value->AsSmi());
+    } else if (raw_value->IsUndefined()) {
       builder()->LoadUndefined();
-    } else if (value->IsTrue(isolate())) {
+    } else if (raw_value->IsTrue()) {
       builder()->LoadTrue();
-    } else if (value->IsFalse(isolate())) {
+    } else if (raw_value->IsFalse()) {
       builder()->LoadFalse();
-    } else if (value->IsNull(isolate())) {
+    } else if (raw_value->IsNull()) {
       builder()->LoadNull();
-    } else if (value->IsTheHole(isolate())) {
+    } else if (raw_value->IsTheHole()) {
       builder()->LoadTheHole();
     } else {
-      builder()->LoadLiteral(value);
+      builder()->LoadLiteral(raw_value->value());
     }
     execution_result()->SetResultInAccumulator();
   }
@@ -2861,6 +2861,8 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
+  // TODO(rmcilroy): Special case "x * 1.0" and "x * -1" which are generated for
+  // +x and -x by the parser.
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
   builder()->BinaryOperation(expr->op(), lhs);
