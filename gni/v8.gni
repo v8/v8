@@ -35,7 +35,7 @@ if (v8_use_external_startup_data == "") {
 }
 
 if (v8_enable_backtrace == "") {
-  v8_enable_backtrace = is_debug && !v8_optimized_debug
+  v8_enable_backtrace = is_debug
 }
 
 ###############################################################################
