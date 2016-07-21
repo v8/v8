@@ -1082,10 +1082,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(r0, r1);  // Compare to the array length.
   __ b(hs, loop_statement.break_label());
 
-  // Get the current entry of the array into register r3.
+  // Get the current entry of the array into register r0.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r3, MemOperand::PointerAddressFromSmiKey(r2, r0));
+  __ ldr(r0, MemOperand::PointerAddressFromSmiKey(r2, r0));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register r2.
@@ -1101,26 +1101,24 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(r0);
+  __ EmitLoadTypeFeedbackVector(r3);
   __ mov(r2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ str(r2, FieldMemOperand(r0, FixedArray::OffsetOfElementAt(vector_index)));
+  __ str(r2, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(vector_index)));
 
-  // Convert the entry to a string or (smi) 0 if it isn't a property
-  // any more. If the property has been removed while iterating, we
-  // just skip it.
-  __ push(r1);  // Enumerable.
-  __ push(r3);  // Current entry.
-  __ CallRuntime(Runtime::kForInFilter);
+  // r0 contains the key. The receiver in r1 is the second argument to the
+  // ForInFilterStub. ForInFilter returns undefined if the receiver doesn't
+  // have the key or returns the name-converted key.
+  ForInFilterStub filter_stub(isolate());
+  __ CallStub(&filter_stub);
+  RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
-  __ mov(r3, Operand(r0));
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, ip);
+  __ CompareRoot(result_register(), Heap::kUndefinedValueRootIndex);
   __ b(eq, loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
-  // entry in register r3.
+  // entry in register r0.
   __ bind(&update_each);
-  __ mov(result_register(), r3);
+
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());

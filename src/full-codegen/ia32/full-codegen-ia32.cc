@@ -1013,9 +1013,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(eax, Operand(esp, 1 * kPointerSize));  // Compare to the array length.
   __ j(above_equal, loop_statement.break_label());
 
-  // Get the current entry of the array into register ebx.
+  // Get the current entry of the array into register eax.
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
-  __ mov(ebx, FieldOperand(ebx, eax, times_2, FixedArray::kHeaderSize));
+  __ mov(eax, FieldOperand(ebx, eax, times_2, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register edx.
@@ -1024,8 +1024,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Check if the expected map still matches that of the enumerable.
   // If not, we may have to filter the key.
   Label update_each;
-  __ mov(ecx, Operand(esp, 4 * kPointerSize));
-  __ cmp(edx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(ebx, Operand(esp, 4 * kPointerSize));
+  __ cmp(edx, FieldOperand(ebx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
 
   // We need to filter the key, record slow-path here.
@@ -1034,21 +1034,19 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(FieldOperand(edx, FixedArray::OffsetOfElementAt(vector_index)),
          Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
 
-  // Convert the entry to a string or null if it isn't a property
-  // anymore. If the property has been removed while iterating, we
-  // just skip it.
-  __ push(ecx);  // Enumerable.
-  __ push(ebx);  // Current entry.
-  __ CallRuntime(Runtime::kForInFilter);
+  // eax contains the key.  The receiver in ebx is the second argument to the
+  // ForInFilterStub.  ForInFilter returns undefined if the receiver doesn't
+  // have the key or returns the name-converted key.
+  ForInFilterStub filter_stub(isolate());
+  __ CallStub(&filter_stub);
+  RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
-  __ cmp(eax, isolate()->factory()->undefined_value());
-  __ j(equal, loop_statement.continue_label());
-  __ mov(ebx, eax);
+  __ JumpIfRoot(result_register(), Heap::kUndefinedValueRootIndex,
+                loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
-  // entry in register ebx.
+  // entry in register eax.
   __ bind(&update_each);
-  __ mov(result_register(), ebx);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());

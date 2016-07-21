@@ -1764,9 +1764,13 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   {
     // Filter the {key} to check if it's still a valid property of the
     // {receiver} (does the ToName conversion implicitly).
+    Callable const callable = CodeFactory::ForInFilter(isolate());
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState);
     vfalse0 = efalse0 = graph()->NewNode(
-        javascript()->CallRuntime(Runtime::kForInFilter), receiver, key,
-        context, frame_state, effect, if_false0);
+        common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
+        receiver, context, frame_state, effect, if_false0);
     if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
   }
 

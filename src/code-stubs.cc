@@ -4174,11 +4174,11 @@ void TypeofStub::GenerateAheadOfTime(Isolate* isolate) {
   stub.GetCode();
 }
 
-// static
-compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
-                                          compiler::Node* key,
-                                          compiler::Node* object,
-                                          compiler::Node* context) {
+namespace {
+
+compiler::Node* GenerateHasProperty(
+    CodeStubAssembler* assembler, compiler::Node* object, compiler::Node* key,
+    compiler::Node* context, Runtime::FunctionId fallback_runtime_function_id) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -4223,13 +4223,63 @@ compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&call_runtime);
   {
-    result.Bind(
-        assembler->CallRuntime(Runtime::kHasProperty, context, key, object));
+    result.Bind(assembler->CallRuntime(fallback_runtime_function_id, context,
+                                       object, key));
     assembler->Goto(&end);
   }
 
   assembler->Bind(&end);
   return result.value();
+}
+
+}  // namespace
+
+// static
+compiler::Node* HasPropertyStub::Generate(CodeStubAssembler* assembler,
+                                          compiler::Node* key,
+                                          compiler::Node* object,
+                                          compiler::Node* context) {
+  return GenerateHasProperty(assembler, object, key, context,
+                             Runtime::kHasProperty);
+}
+
+// static
+compiler::Node* ForInFilterStub::Generate(CodeStubAssembler* assembler,
+                                          compiler::Node* key,
+                                          compiler::Node* object,
+                                          compiler::Node* context) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Label return_undefined(assembler, Label::kDeferred),
+      return_to_name(assembler), end(assembler);
+
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+
+  Node* has_property = GenerateHasProperty(assembler, object, key, context,
+                                           Runtime::kForInHasProperty);
+
+  assembler->Branch(
+      assembler->WordEqual(has_property, assembler->BooleanConstant(true)),
+      &return_to_name, &return_undefined);
+
+  assembler->Bind(&return_to_name);
+  {
+    // TODO(cbruni): inline ToName here.
+    Callable callable = CodeFactory::ToName(assembler->isolate());
+    var_result.Bind(assembler->CallStub(callable, context, key));
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&return_undefined);
+  {
+    var_result.Bind(assembler->UndefinedConstant());
+    assembler->Goto(&end);
+  }
+
+  assembler->Bind(&end);
+  return var_result.value();
 }
 
 void GetPropertyStub::GenerateAssembly(CodeStubAssembler* assembler) const {

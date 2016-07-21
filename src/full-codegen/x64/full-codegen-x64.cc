@@ -1036,13 +1036,11 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmpp(rax, Operand(rsp, 1 * kPointerSize));  // Compare to the array length.
   __ j(above_equal, loop_statement.break_label());
 
-  // Get the current entry of the array into register rbx.
+  // Get the current entry of the array into register rax.
   __ movp(rbx, Operand(rsp, 2 * kPointerSize));
   SmiIndex index = masm()->SmiToIndex(rax, rax, kPointerSizeLog2);
-  __ movp(rbx, FieldOperand(rbx,
-                            index.reg,
-                            index.scale,
-                            FixedArray::kHeaderSize));
+  __ movp(rax,
+          FieldOperand(rbx, index.reg, index.scale, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register rdx.
@@ -1051,8 +1049,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Check if the expected map still matches that of the enumerable.
   // If not, we may have to filter the key.
   Label update_each;
-  __ movp(rcx, Operand(rsp, 4 * kPointerSize));
-  __ cmpp(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movp(rbx, Operand(rsp, 4 * kPointerSize));
+  __ cmpp(rdx, FieldOperand(rbx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
 
   // We need to filter the key, record slow-path here.
@@ -1061,21 +1059,19 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Move(FieldOperand(rdx, FixedArray::OffsetOfElementAt(vector_index)),
           TypeFeedbackVector::MegamorphicSentinel(isolate()));
 
-  // Convert the entry to a string or null if it isn't a property
-  // anymore. If the property has been removed while iterating, we
-  // just skip it.
-  __ Push(rcx);  // Enumerable.
-  __ Push(rbx);  // Current entry.
-  __ CallRuntime(Runtime::kForInFilter);
+  // rax contains the key. The receiver in rbx is the second argument to the
+  // ForInFilterStub. ForInFilter returns undefined if the receiver doesn't
+  // have the key or returns the name-converted key.
+  ForInFilterStub has_stub(isolate());
+  __ CallStub(&has_stub);
+  RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(equal, loop_statement.continue_label());
-  __ movp(rbx, rax);
+  __ JumpIfRoot(result_register(), Heap::kUndefinedValueRootIndex,
+                loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
-  // entry in register rbx.
+  // entry in register rax.
   __ bind(&update_each);
-  __ movp(result_register(), rbx);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());

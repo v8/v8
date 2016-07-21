@@ -1073,13 +1073,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Cmp(x0, x1);  // Compare to the array length.
   __ B(hs, loop_statement.break_label());
 
-  // Get the current entry of the array into register r3.
+  // Get the current entry of the array into register x0.
   __ Peek(x10, 2 * kXRegSize);
   __ Add(x10, x10, Operand::UntagSmiAndScale(x0, kPointerSizeLog2));
-  __ Ldr(x3, MemOperand(x10, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Ldr(x0, MemOperand(x10, FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Get the expected map from the stack or a smi in the
-  // permanent slow case into register x10.
+  // permanent slow case into register x2.
   __ Peek(x2, 3 * kXRegSize);
 
   // Check if the expected map still matches that of the enumerable.
@@ -1092,24 +1092,23 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(x0);
+  __ EmitLoadTypeFeedbackVector(x3);
   __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ Str(x10, FieldMemOperand(x0, FixedArray::OffsetOfElementAt(vector_index)));
+  __ Str(x10, FieldMemOperand(x3, FixedArray::OffsetOfElementAt(vector_index)));
 
-  // Convert the entry to a string or (smi) 0 if it isn't a property
-  // any more. If the property has been removed while iterating, we
-  // just skip it.
-  __ Push(x1, x3);
-  __ CallRuntime(Runtime::kForInFilter);
+  // x0 contains the key. The receiver in x1 is the second argument to the
+  // ForInFilterStub. ForInFilter returns undefined if the receiver doesn't
+  // have the key or returns the name-converted key.
+  ForInFilterStub filter_stub(isolate());
+  __ CallStub(&filter_stub);
+  RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
-  __ Mov(x3, x0);
-  __ JumpIfRoot(x0, Heap::kUndefinedValueRootIndex,
-                loop_statement.continue_label());
+  __ CompareRoot(result_register(), Heap::kUndefinedValueRootIndex);
+  __ B(eq, loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
-  // entry in register x3.
+  // entry in register x0.
   __ Bind(&update_each);
-  __ Mov(result_register(), x3);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());

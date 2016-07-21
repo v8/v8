@@ -1083,7 +1083,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Daddu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ SmiScale(a4, a0, kPointerSizeLog2);
   __ daddu(a4, a2, a4);  // Array base + scaled (smi) index.
-  __ ld(a3, MemOperand(a4));  // Current entry.
+  __ ld(result_register(), MemOperand(a4));  // Current entry.
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register a2.
@@ -1098,24 +1098,25 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(a0);
+  __ EmitLoadTypeFeedbackVector(a3);
   __ li(a2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ sd(a2, FieldMemOperand(a0, FixedArray::OffsetOfElementAt(vector_index)));
+  __ sd(a2, FieldMemOperand(a3, FixedArray::OffsetOfElementAt(vector_index)));
 
-  // Convert the entry to a string or (smi) 0 if it isn't a property
-  // any more. If the property has been removed while iterating, we
-  // just skip it.
-  __ Push(a1, a3);  // Enumerable and current entry.
-  __ CallRuntime(Runtime::kForInFilter);
+  __ mov(a0, result_register());
+  // a0 contains the key. The receiver in a1 is the second argument to the
+  // ForInFilterStub. ForInFilter returns undefined if the receiver doesn't
+  // have the key or returns the name-converted key.
+  ForInFilterStub filter_stub(isolate());
+  __ CallStub(&filter_stub);
+  RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
-  __ mov(a3, result_register());
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(loop_statement.continue_label(), eq, a3, Operand(at));
+  __ Branch(loop_statement.continue_label(), eq, result_register(),
+            Operand(at));
 
   // Update the 'each' property or variable from the possibly filtered
-  // entry in register a3.
+  // entry in the result_register.
   __ bind(&update_each);
-  __ mov(result_register(), a3);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
     EmitAssignment(stmt->each(), stmt->EachFeedbackSlot());

@@ -5399,10 +5399,12 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     }
     set_current_block(if_slow);
     {
-      // Check if key is still valid for enumerable.
-      Add<HPushArguments>(enumerable, key);
-      Runtime::FunctionId function_id = Runtime::kForInFilter;
-      Push(Add<HCallRuntime>(Runtime::FunctionForId(function_id), 2));
+      ForInFilterStub stub(isolate());
+      HValue* values[] = {context(), key, enumerable};
+      HConstant* stub_value = Add<HConstant>(stub.GetCode());
+      Push(Add<HCallWithDescriptor>(stub_value, 0,
+                                    stub.GetCallInterfaceDescriptor(),
+                                    ArrayVector(values)));
       Add<HSimulate>(stmt->FilterId());
       FinishCurrentBlock(New<HCompareObjectEqAndBranch>(
           Top(), graph()->GetConstantUndefined(), if_slow_skip, if_slow_pass));

@@ -571,6 +571,12 @@ Callable CodeFactory::HasProperty(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ForInFilter(Isolate* isolate) {
+  ForInFilterStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
                                                  TailCallMode tail_call_mode,
                                                  CallableType function_type) {

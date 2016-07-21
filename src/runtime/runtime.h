@@ -199,6 +199,7 @@ namespace internal {
   F(ForInDone, 2, 1)                \
   F(ForInEnumerate, 1, 1)           \
   F(ForInFilter, 2, 1)              \
+  F(ForInHasProperty, 2, 1)         \
   F(ForInNext, 4, 1)                \
   F(ForInStep, 1, 1)
 
