@@ -820,10 +820,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Move(double_result, 1.0);
 
   // Get absolute value of exponent.
-  Label positive_exponent;
+  Label positive_exponent, bail_out;
   __ Branch(&positive_exponent, ge, scratch, Operand(zero_reg));
   __ Dsubu(scratch, zero_reg, scratch);
+  // Check when Dsubu overflows and we get negative result
+  // (happens only when input is MIN_INT).
+  __ Branch(&bail_out, gt, zero_reg, Operand(scratch));
   __ bind(&positive_exponent);
+  __ Assert(ge, kUnexpectedNegativeValue, scratch, Operand(zero_reg));
 
   Label while_true, no_carry, loop_end;
   __ bind(&while_true);
@@ -856,6 +860,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ cvt_d_w(double_exponent, single_scratch);
 
   // Returning or bailing out.
+  __ bind(&bail_out);
   __ push(ra);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
