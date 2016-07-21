@@ -116,7 +116,6 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
   uint16_t localIndex = f->AddLocal(kAstI32);
   ExportAsMain(f);
   byte code[] = {WASM_BLOCK(
-      2,
       WASM_WHILE(
           WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I32V_3(kCheckSize)),
           WASM_IF_ELSE(
@@ -140,11 +139,11 @@ TEST(Run_WasmModule_CallMain_recursive) {
   uint16_t localIndex = f->AddLocal(kAstI32);
   ExportAsMain(f);
   byte code[] = {WASM_BLOCK(
-      2, WASM_SET_LOCAL(localIndex,
-                        WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
+      WASM_SET_LOCAL(localIndex,
+                     WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
       WASM_IF_ELSE(WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I8(5)),
-                   WASM_BLOCK(2, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
-                                                WASM_INC_LOCAL(localIndex)),
+                   WASM_BLOCK(WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
+                                             WASM_INC_LOCAL(localIndex)),
                               WASM_BRV(1, WASM_CALL_FUNCTION0(0))),
                    WASM_BRV(0, WASM_I8(55))))};
   f->EmitCode(code, sizeof(code));

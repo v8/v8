@@ -65,9 +65,9 @@
 #define DEPTH_0 0
 #define DEPTH_1 1
 
-#define WASM_BLOCK(count, ...) kExprBlock, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK(...) kExprBlock, __VA_ARGS__, kExprEnd
 #define WASM_INFINITE_LOOP kExprLoop, kExprBr, ARITY_0, DEPTH_0, kExprEnd
-#define WASM_LOOP(count, ...) kExprLoop, __VA_ARGS__, kExprEnd
+#define WASM_LOOP(...) kExprLoop, __VA_ARGS__, kExprEnd
 #define WASM_IF(cond, tstmt) cond, kExprIf, tstmt, kExprEnd
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, tstmt, kExprElse, fstmt, kExprEnd
