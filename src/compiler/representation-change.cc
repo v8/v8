@@ -278,7 +278,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     } else if (output_type->Is(Type::Unsigned32()) ||
-               truncation.TruncatesToWord32()) {
+               truncation.IsUsedAsWord32()) {
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
 
@@ -340,7 +340,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type->Is(Type::Unsigned32()) ||
-               use_info.truncation().TruncatesToWord32()) {
+               use_info.truncation().IsUsedAsWord32()) {
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
       op = machine()->ChangeUint32ToFloat64();
@@ -415,7 +415,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (use_info.truncation().TruncatesToWord32()) {
+    } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
@@ -426,7 +426,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (use_info.truncation().TruncatesToWord32()) {
+    } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
@@ -438,7 +438,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->ChangeTaggedToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
-    } else if (use_info.truncation().TruncatesToWord32()) {
+    } else if (use_info.truncation().IsUsedAsWord32()) {
       op = simplified()->TruncateTaggedToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32();
@@ -543,7 +543,7 @@ Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (truncation.IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
     } else if (check == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
@@ -554,7 +554,7 @@ Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (truncation.IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
     } else if (check == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedFloat64ToInt32();
@@ -566,7 +566,7 @@ Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
       op = simplified()->ChangeTaggedToUint32();
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
-    } else if (truncation.TruncatesToWord32()) {
+    } else if (truncation.IsUsedAsWord32()) {
       op = simplified()->TruncateTaggedToWord32();
     } else if (check == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32();
