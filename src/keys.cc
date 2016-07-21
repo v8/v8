@@ -117,7 +117,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
       MAYBE_RETURN(found, MaybeHandle<FixedArray>());
       if (!found.FromJust()) continue;
       if (!desc.enumerable()) {
-        accumulator->AddShadowKey(key);
+        accumulator->AddShadowingKey(key);
         continue;
       }
     }
@@ -166,6 +166,9 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate_, object, kStartAtReceiver, end);
        !iter.IsAtEnd();) {
+    // Start the shadow checks only after the first prototype has added
+    // shadowing keys.
+    if (HasShadowingKeys()) skip_shadow_check_ = false;
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
@@ -190,21 +193,23 @@ Maybe<bool> KeyAccumulator::CollectKeys(Handle<JSReceiver> receiver,
   return Just(true);
 }
 
+bool KeyAccumulator::HasShadowingKeys() { return !shadowing_keys_.is_null(); }
+
 bool KeyAccumulator::IsShadowed(Handle<Object> key) {
-  if (shadowed_keys_.is_null()) return false;
-  return shadowed_keys_->Has(isolate_, key);
+  if (!HasShadowingKeys() || skip_shadow_check_) return false;
+  return shadowing_keys_->Has(isolate_, key);
 }
 
-void KeyAccumulator::AddShadowKey(Object* key) {
+void KeyAccumulator::AddShadowingKey(Object* key) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
-  AddShadowKey(handle(key, isolate_));
+  AddShadowingKey(handle(key, isolate_));
 }
-void KeyAccumulator::AddShadowKey(Handle<Object> key) {
+void KeyAccumulator::AddShadowingKey(Handle<Object> key) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
-  if (shadowed_keys_.is_null()) {
-    shadowed_keys_ = ObjectHashSet::New(isolate_, 16);
+  if (shadowing_keys_.is_null()) {
+    shadowing_keys_ = ObjectHashSet::New(isolate_, 16);
   }
-  shadowed_keys_ = ObjectHashSet::Add(shadowed_keys_, key);
+  shadowing_keys_ = ObjectHashSet::Add(shadowing_keys_, key);
 }
 
 namespace {
@@ -548,7 +553,7 @@ int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
     if (key->FilterKey(keys->filter())) continue;
 
     if (is_shadowing_key) {
-      keys->AddShadowKey(key);
+      keys->AddShadowingKey(key);
     } else {
       keys->AddKey(key, DO_NOT_CONVERT);
     }
@@ -590,7 +595,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
           PropertyDetails details = descs->GetDetails(i);
           if (!details.IsDontEnum()) continue;
           Object* key = descs->GetKey(i);
-          this->AddShadowKey(key);
+          this->AddShadowingKey(key);
         }
       }
     } else if (object->IsJSGlobalObject()) {

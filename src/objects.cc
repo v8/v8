@@ -17537,7 +17537,7 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(
     }
     if (dictionary->IsDeleted(i)) continue;
     if (is_shadowing_key) {
-      accumulator->AddShadowKey(key);
+      accumulator->AddShadowingKey(key);
       continue;
     } else {
       storage->set(properties, Smi::FromInt(i));
@@ -17577,7 +17577,7 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
       if (raw_dict->IsDeleted(i)) continue;
       PropertyDetails details = raw_dict->DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
-        keys->AddShadowKey(k);
+        keys->AddShadowingKey(k);
         continue;
       }
       if (filter & ONLY_ALL_CAN_READ) {

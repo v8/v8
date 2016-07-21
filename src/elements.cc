@@ -1375,7 +1375,7 @@ class DictionaryElementsAccessor
       if (!dictionary->IsKey(isolate, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
-        keys->AddShadowKey(raw_key);
+        keys->AddShadowingKey(raw_key);
         continue;
       }
       elements->set(insertion_index, raw_key);
