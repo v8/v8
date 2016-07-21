@@ -31,15 +31,15 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }
 
 }  // namespace
+
+// static
 MaybeHandle<FixedArray> KeyAccumulator::GetKeys(
     Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
     GetKeysConversion keys_conversion, bool filter_proxy_keys, bool is_for_in) {
   Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate, mode, filter);
+  FastKeyAccumulator accumulator(isolate, object, mode, filter);
   accumulator.set_filter_proxy_keys(filter_proxy_keys);
   accumulator.set_is_for_in(is_for_in);
-  MAYBE_RETURN(accumulator.CollectKeys(object, object),
-               MaybeHandle<FixedArray>());
   return accumulator.GetKeys(keys_conversion);
 }
 
