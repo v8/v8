@@ -132,15 +132,13 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   DCHECK_NULL(scope_state_);
   Scope* top_scope = NewScriptScope();
-  PreParserFactory top_factory(nullptr);
   FunctionState top_state(&function_state_, &scope_state_, top_scope,
-                          kNormalFunction, &top_factory);
+                          kNormalFunction);
   scope()->SetLanguageMode(language_mode);
   Scope* function_scope = NewFunctionScope(kind);
   if (!has_simple_parameters) function_scope->SetHasNonSimpleParameters();
-  PreParserFactory function_factory(nullptr);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
-                               kind, &function_factory);
+                               kind);
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
   bool ok = true;
   int start_position = peek_position();
@@ -1113,9 +1111,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   bool outer_is_script_scope = scope()->is_script_scope();
   Scope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  PreParserFactory factory(NULL);
   FunctionState function_state(&function_state_, &scope_state_, function_scope,
-                               kind, &factory);
+                               kind);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
 

@@ -1049,9 +1049,8 @@ class PreParser : public ParserBase<PreParserTraits> {
       scope = NewScopeWithParent(scope, MODULE_SCOPE);
     }
 
-    PreParserFactory factory(nullptr);
     FunctionState top_scope(&function_state_, &scope_state_, scope,
-                            kNormalFunction, &factory);
+                            kNormalFunction);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;

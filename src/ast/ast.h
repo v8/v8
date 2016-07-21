@@ -3069,11 +3069,21 @@ class AstTraversalVisitor : public AstVisitor<AstTraversalVisitor> {
 class AstNodeFactory final BASE_EMBEDDED {
  public:
   explicit AstNodeFactory(AstValueFactory* ast_value_factory)
-      : local_zone_(ast_value_factory->zone()),
-        parser_zone_(ast_value_factory->zone()),
-        ast_value_factory_(ast_value_factory) {}
+      : local_zone_(nullptr),
+        parser_zone_(nullptr),
+        ast_value_factory_(ast_value_factory) {
+    if (ast_value_factory != nullptr) {
+      local_zone_ = ast_value_factory->zone();
+      parser_zone_ = ast_value_factory->zone();
+    }
+  }
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
+  void set_ast_value_factory(AstValueFactory* ast_value_factory) {
+    ast_value_factory_ = ast_value_factory;
+    local_zone_ = ast_value_factory->zone();
+    parser_zone_ = ast_value_factory->zone();
+  }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode, Scope* scope,

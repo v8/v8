@@ -219,9 +219,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   ZoneList<Statement*>* body = NULL;
 
   {
-    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_state_,
-                                 function_scope, kind, &function_factory);
+                                 function_scope, kind);
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
@@ -851,6 +850,7 @@ Parser::Parser(ParseInfo* info)
     info->set_ast_value_factory(new AstValueFactory(zone(), info->hash_seed()));
     info->set_ast_value_factory_owned();
     ast_value_factory_ = info->ast_value_factory();
+    ast_node_factory_.set_ast_value_factory(ast_value_factory_);
   }
 }
 
@@ -966,9 +966,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     // Enter 'scope' with the given parsing mode.
     ParsingModeScope parsing_mode_scope(this, parsing_mode);
-    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_state_, scope,
-                                 kNormalFunction, &function_factory);
+                                 kNormalFunction);
 
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -1113,9 +1112,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
                                            scope, ast_value_factory());
     }
     original_scope_ = scope;
-    AstNodeFactory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_state_, scope,
-                                 shared_info->kind(), &function_factory);
+                                 shared_info->kind());
     DCHECK(is_sloppy(scope->language_mode()) ||
            is_strict(info->language_mode()));
     DCHECK(info->language_mode() == shared_info->language_mode());
@@ -4307,9 +4305,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Parse function.
   {
-    AstNodeFactory function_factory(ast_value_factory());
-    FunctionState function_state(&function_state_, &scope_state_, scope, kind,
-                                 &function_factory);
+    FunctionState function_state(&function_state_, &scope_state_, scope, kind);
     this->scope()->SetScopeName(function_name);
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
 

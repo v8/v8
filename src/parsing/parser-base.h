@@ -206,6 +206,7 @@ class ParserBase : public Traits {
         extension_(extension),
         fni_(nullptr),
         ast_value_factory_(ast_value_factory),
+        ast_node_factory_(ast_value_factory),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
         parsing_module_(false),
@@ -372,8 +373,7 @@ class ParserBase : public Traits {
   class FunctionState final : public ScopeState {
    public:
     FunctionState(FunctionState** function_state_stack,
-                  ScopeState** scope_stack, Scope* scope, FunctionKind kind,
-                  typename Traits::Type::Factory* factory);
+                  ScopeState** scope_stack, Scope* scope, FunctionKind kind);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {
@@ -420,8 +420,6 @@ class ParserBase : public Traits {
         const {
       return generator_object_variable_;
     }
-
-    typename Traits::Type::Factory* factory() { return factory_; }
 
     const ZoneList<DestructuringAssignment>&
         destructuring_assignments_to_rewrite() const {
@@ -513,8 +511,6 @@ class ParserBase : public Traits {
     ZoneList<ExpressionT> non_patterns_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
-
-    typename Traits::Type::Factory* factory_;
 
     // If true, the next (and immediately following) function literal is
     // preceded by a parenthesis.
@@ -839,9 +835,7 @@ class ParserBase : public Traits {
     return Token::Precedence(token);
   }
 
-  typename Traits::Type::Factory* factory() {
-    return function_state_->factory();
-  }
+  typename Traits::Type::Factory* factory() { return &ast_node_factory_; }
 
   LanguageMode language_mode() { return scope()->language_mode(); }
   bool is_generator() const { return function_state_->is_generator(); }
@@ -1227,6 +1221,7 @@ class ParserBase : public Traits {
   v8::Extension* extension_;
   FuncNameInferrer* fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
+  typename Traits::Type::Factory ast_node_factory_;
   ParserRecorder* log_;
   Mode mode_;
   bool parsing_module_;
@@ -1253,7 +1248,7 @@ class ParserBase : public Traits {
 template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack, ScopeState** scope_stack,
-    Scope* scope, FunctionKind kind, typename Traits::Type::Factory* factory)
+    Scope* scope, FunctionKind kind)
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
@@ -1269,7 +1264,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
       return_expr_context_(ReturnExprContext::kInsideValidBlock),
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
-      factory_(factory),
       next_function_is_parenthesized_(false),
       this_function_is_parenthesized_(false) {
   *function_state_stack = this;
@@ -3385,10 +3379,8 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
 
   FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
   {
-    typename Traits::Type::Factory function_factory(ast_value_factory());
     FunctionState function_state(&function_state_, &scope_state_,
-                                 formal_parameters.scope, arrow_kind,
-                                 &function_factory);
+                                 formal_parameters.scope, arrow_kind);
 
     function_state.SkipMaterializedLiterals(
         formal_parameters.materialized_literals_count);
