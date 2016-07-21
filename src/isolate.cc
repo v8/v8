@@ -329,16 +329,9 @@ static Handle<FixedArray> MaybeGrow(Isolate* isolate,
 }
 
 class StackTraceHelper {
- private:
-  enum FrameSkipMode {
-    SKIP_FIRST,
-    SKIP_UNTIL_SEEN,
-    SKIP_NONE,
-  };
-
  public:
-  StackTraceHelper(Isolate* isolate, Handle<Object> caller)
-      : isolate_(isolate), caller_(caller) {
+  StackTraceHelper(Isolate* isolate, FrameSkipMode mode, Handle<Object> caller)
+      : isolate_(isolate), mode_(mode), caller_(caller) {
     // The caller parameter can be used to skip a specific set of frames in the
     // stack trace. It can be:
     // * null, when called from a standard error constructor. We unconditionally
@@ -347,15 +340,18 @@ class StackTraceHelper {
     // * a JSFunction, when called by the user from Error.captureStackTrace().
     //   We skip each frame until encountering the caller function.
     // * For any other value, all frames are included in the trace.
-    if (caller_.is_null()) {
-      mode_ = SKIP_FIRST;
-      skip_next_frame_ = true;
-    } else if (caller_->IsJSFunction()) {
-      mode_ = SKIP_UNTIL_SEEN;
-      skip_next_frame_ = true;
-    } else {
-      mode_ = SKIP_NONE;
-      skip_next_frame_ = false;
+    switch (mode_) {
+      case SKIP_FIRST:
+        DCHECK(caller_.is_null());
+        skip_next_frame_ = true;
+        break;
+      case SKIP_UNTIL_SEEN:
+        DCHECK(caller_->IsJSFunction());
+        skip_next_frame_ = true;
+        break;
+      case SKIP_NONE:
+        skip_next_frame_ = false;
+        break;
     }
     encountered_strict_function_ = false;
     sloppy_frames_ = 0;
@@ -425,8 +421,8 @@ class StackTraceHelper {
 
   Isolate* isolate_;
 
-  FrameSkipMode mode_;
-  Handle<Object> caller_;
+  const FrameSkipMode mode_;
+  const Handle<Object> caller_;
   bool skip_next_frame_;
 
   int sloppy_frames_;
@@ -434,6 +430,7 @@ class StackTraceHelper {
 };
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
+                                                FrameSkipMode mode,
                                                 Handle<Object> caller) {
   DisallowJavascriptExecution no_js(this);
 
@@ -452,7 +449,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   Handle<FixedArray> elements =
       factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
 
-  StackTraceHelper helper(this, caller);
+  StackTraceHelper helper(this, mode, caller);
 
   // First element is reserved to store the number of sloppy frames.
   int cursor = 1;
@@ -572,10 +569,12 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
-    Handle<JSReceiver> error_object, Handle<Object> caller) {
+    Handle<JSReceiver> error_object, FrameSkipMode mode,
+    Handle<Object> caller) {
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
+  Handle<Object> stack_trace =
+      CaptureSimpleStackTrace(error_object, mode, caller);
   // TODO(jgruber): Set back to STRICT once we have eagerly formatted traces.
   RETURN_ON_EXCEPTION(
       this, JSReceiver::SetProperty(error_object, key, stack_trace, SLOPPY),
@@ -960,20 +959,14 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 Object* Isolate::StackOverflow() {
   DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
-  // At this point we cannot create an Error object using its javascript
-  // constructor.  Instead, we copy the pre-constructed boilerplate and
-  // attach the stack trace as a hidden property.
+
+  Handle<JSFunction> fun = range_error_function();
+  Handle<Object> msg = factory()->NewStringFromAsciiChecked(
+      MessageTemplate::TemplateString(MessageTemplate::kStackOverflow));
   Handle<Object> exception;
-  if (bootstrapper()->IsActive()) {
-    // There is no boilerplate to use during bootstrapping.
-    exception = factory()->NewStringFromAsciiChecked(
-        MessageTemplate::TemplateString(MessageTemplate::kStackOverflow));
-  } else {
-    Handle<JSObject> boilerplate = stack_overflow_boilerplate();
-    Handle<JSObject> copy = factory()->CopyJSObject(boilerplate);
-    CaptureAndSetSimpleStackTrace(copy, factory()->undefined_value());
-    exception = copy;
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      this, exception, ConstructError(this, fun, fun, msg, SKIP_NONE, true));
+
   Throw(*exception, nullptr);
 
 #ifdef VERIFY_HEAP

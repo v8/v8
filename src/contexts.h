@@ -133,7 +133,6 @@ enum BindingFlags {
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                              \
   V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                        \
   V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                              \
-  V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate) \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)         \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)             \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)
