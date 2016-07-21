@@ -408,7 +408,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
 
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   LookupIterator it(obj, name);
