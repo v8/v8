@@ -441,7 +441,7 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
       info->literal()->feedback_vector_spec()));
 }
 
-bool ShouldUseIgnition(CompilationInfo* info) {
+bool UseIgnition(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
 
   // When requesting debug code as a replacement for existing code, we provide
@@ -489,7 +489,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
       return true;
     }
   }
-  if (FLAG_ignition && ShouldUseIgnition(info)) {
+  if (FLAG_ignition && UseIgnition(info)) {
     success = interpreter::Interpreter::MakeBytecode(info);
   } else {
     success = FullCodeGenerator::MakeCode(info);
@@ -801,11 +801,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
-  if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
-    if (!Compiler::EnsureBytecode(info)) {
-      if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-      return MaybeHandle<Code>();
-    }
+  if (FLAG_turbo_from_bytecode && use_turbofan &&
+      info->shared_info()->HasBytecodeArray()) {
     info->MarkAsOptimizeFromBytecode();
   }
 
@@ -1347,16 +1344,6 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   return infos;
 }
 
-bool Compiler::EnsureBytecode(CompilationInfo* info) {
-  DCHECK(ShouldUseIgnition(info));
-  if (!info->shared_info()->HasBytecodeArray()) {
-    DCHECK(!info->shared_info()->is_compiled());
-    if (GetUnoptimizedCode(info).is_null()) return false;
-  }
-  DCHECK(info->shared_info()->HasBytecodeArray());
-  return true;
-}
-
 // TODO(turbofan): In the future, unoptimized code with deopt support could
 // be generated lazily once deopt is triggered.
 bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
@@ -1416,20 +1403,6 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
                               &unoptimized);
   }
   return true;
-}
-
-// static
-Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
-  Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  if (shared->code()->is_interpreter_trampoline_builtin()) {
-    if (FLAG_turbo_from_bytecode && UseTurboFan(shared)) {
-      return OPTIMIZED;
-    } else {
-      return BASELINE;
-    }
-  } else {
-    return OPTIMIZED;
-  }
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(

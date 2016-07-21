@@ -26,7 +26,6 @@ class RuntimeProfiler {
  private:
   void MaybeOptimizeFullCodegen(JSFunction* function, int frame_count,
                                 bool frame_optimized);
-  void MaybeBaselineIgnition(JSFunction* function);
   void MaybeOptimizeIgnition(JSFunction* function);
   void Optimize(JSFunction* function, const char* reason);
   void Baseline(JSFunction* function, const char* reason);

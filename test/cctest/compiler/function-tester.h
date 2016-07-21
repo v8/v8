@@ -208,9 +208,7 @@ class FunctionTester : public InitializedHandleScope {
     CompilationInfo info(&parse_info, function);
     info.MarkAsDeoptimizationEnabled();
 
-    if (!FLAG_turbo_from_bytecode) {
-      CHECK(Parser::ParseStatic(info.parse_info()));
-    }
+    CHECK(Parser::ParseStatic(info.parse_info()));
     info.SetOptimizing();
     if (flags_ & CompilationInfo::kFunctionContextSpecializing) {
       info.MarkAsFunctionContextSpecializing();
@@ -218,8 +216,7 @@ class FunctionTester : public InitializedHandleScope {
     if (flags_ & CompilationInfo::kInliningEnabled) {
       info.MarkAsInliningEnabled();
     }
-    if (FLAG_turbo_from_bytecode) {
-      CHECK(Compiler::EnsureBytecode(&info));
+    if (FLAG_turbo_from_bytecode && function->shared()->HasBytecodeArray()) {
       info.MarkAsOptimizeFromBytecode();
     } else {
       CHECK(Compiler::Analyze(info.parse_info()));
