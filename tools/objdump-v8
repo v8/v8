@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os.path
 import re
 import subprocess
 import sys
@@ -50,17 +51,21 @@ def format_line(line):
 
 def is_comment(line):
   stripped = line.strip()
-  return stripped.startswith("--") or stripped.startswith(";;;")
+  return stripped.startswith("--") or stripped.startswith(";;")
 
 def main():
   filename = sys.argv[-1]
   match = re.match(r"/tmp/perf-(.*)\.map", filename)
   if match:
     start, end = get_address_bounds()
-    codefile = "code-" + match.group(1) + "-1.asm"
-    with open(codefile, "r") as code:
+    process_codefile = "code-" + match.group(1) + "-1.asm"
+    if os.path.exists(process_codefile):
+      codefile = open(process_codefile, "r")
+    else:
+      codefile = open("code.asm", "r")
+    with codefile:
       printing = False
-      for line in code:
+      for line in codefile:
         if line.startswith("0x"):
           addr = int(line.split()[0], 0)
           if start <= addr <= end:
