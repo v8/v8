@@ -178,7 +178,6 @@ class BreakLocation {
 
     RelocIterator reloc_iterator_;
     SourcePositionTableIterator source_position_iterator_;
-    int start_position_;
     DISALLOW_COPY_AND_ASSIGN(CodeIterator);
   };
 
@@ -200,7 +199,6 @@ class BreakLocation {
 
     SourcePositionTableIterator source_position_iterator_;
     BreakLocatorType break_locator_type_;
-    int start_position_;
     DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
   };
 

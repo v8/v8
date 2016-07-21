@@ -472,13 +472,6 @@ Debug.setListener = function(listener, opt_data) {
 };
 
 
-Debug.breakLocations = function(f, opt_position_aligment) {
-  if (!IS_FUNCTION(f)) throw MakeTypeError(kDebuggerType);
-  var position_aligment = IS_UNDEFINED(opt_position_aligment)
-      ? Debug.BreakPositionAlignment.Statement : opt_position_aligment;
-  return %GetBreakLocations(f, position_aligment);
-};
-
 // Returns a Script object. If the parameter is a function the return value
 // is the script in which the function is defined. If the parameter is a string
 // the return value is the script for which the script name has that string
@@ -588,10 +581,9 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (%FunctionIsAPIFunction(func)) {
     throw MakeError(kDebugger, 'Cannot set break point in native code.');
   }
-  // Find source position relative to start of the function
-  var break_position =
+  // Find source position.
+  var source_position =
       this.findFunctionSourceLocation(func, opt_line, opt_column).position;
-  var source_position = break_position - this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
   // Break in builtin JavaScript code is not supported.
@@ -601,8 +593,6 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   // If the script for the function has a name convert this to a script break
   // point.
   if (script && script.id) {
-    // Adjust the source position to be script relative.
-    source_position += %FunctionGetScriptSourcePosition(func);
     // Find line and column for the position in the script and set a script
     // break point from that.
     var location = script.locationFromPosition(source_position, false);
@@ -614,7 +604,6 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
     var break_point = MakeBreakPoint(source_position);
     var actual_position =
         %SetFunctionBreakPoint(func, source_position, break_point);
-    actual_position += this.sourcePosition(func);
     var actual_location = script.locationFromPosition(actual_position, true);
     break_point.actual_location = { line: actual_location.line,
                                     column: actual_location.column,
@@ -829,8 +818,10 @@ Debug.isBreakOnUncaughtException = function() {
 Debug.showBreakPoints = function(f, full, opt_position_alignment) {
   if (!IS_FUNCTION(f)) throw MakeError(kDebuggerType);
   var source = full ? this.scriptSource(f) : this.source(f);
-  var offset = full ? this.sourcePosition(f) : 0;
-  var locations = this.breakLocations(f, opt_position_alignment);
+  var offset = full ? 0 : this.sourcePosition(f);
+  var position_alignment = IS_UNDEFINED(opt_position_alignment)
+      ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
+  var locations = %GetBreakLocations(f, position_alignment);
   if (!locations) return source;
   locations.sort(function(x, y) { return x - y; });
   var result = "";
