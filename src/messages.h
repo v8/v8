@@ -71,21 +71,6 @@ class CallSite {
   uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
 };
 
-// Determines how stack trace collection skips frames.
-enum FrameSkipMode {
-  // Unconditionally skips the first frame. Used e.g. when the Error constructor
-  // is called, in which case the first frame is always a BUILTIN_EXIT frame.
-  SKIP_FIRST,
-  // Skip all frames until a specified caller function is seen.
-  SKIP_UNTIL_SEEN,
-  SKIP_NONE,
-};
-
-MaybeHandle<Object> ConstructError(Isolate* isolate, Handle<JSFunction> target,
-                                   Handle<Object> new_target,
-                                   Handle<Object> message, FrameSkipMode mode,
-                                   bool suppress_detailed_trace);
-
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \

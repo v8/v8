@@ -637,6 +637,10 @@ function MakeURIError() {
   return MakeGenericError(GlobalURIError, kURIMalformed);
 }
 
+// Boilerplate for exceptions for stack overflows. Used from
+// Isolate::StackOverflow().
+var StackOverflowBoilerplate = MakeRangeError(kStackOverflow);
+
 %InstallToContext([
   "error_format_stack_trace", FormatStackTrace,
   "get_stack_trace_line_fun", GetStackTraceLine,
@@ -647,6 +651,7 @@ function MakeURIError() {
   "message_get_line_number", GetLineNumber,
   "message_get_source_line", GetSourceLine,
   "no_side_effects_to_string_fun", NoSideEffectsToString,
+  "stack_overflow_boilerplate", StackOverflowBoilerplate,
 ]);
 
 utils.Export(function(to) {

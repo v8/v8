@@ -696,13 +696,12 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
-                                         FrameSkipMode mode,
                                          Handle<Object> caller);
   MaybeHandle<JSReceiver> CaptureAndSetDetailedStackTrace(
       Handle<JSReceiver> error_object);
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
-      Handle<JSReceiver> error_object, FrameSkipMode mode,
-      Handle<Object> caller);
+      Handle<JSReceiver> error_object,
+      Handle<Object> caller = Handle<Object>());
   Handle<JSArray> GetDetailedStackTrace(Handle<JSObject> error_object);
 
   // Returns if the given context may access the given global object. If

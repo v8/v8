@@ -7,7 +7,6 @@
 
 #include "src/accessors.h"
 #include "src/bootstrapper.h"
-#include "src/messages.h"
 #include "src/property-descriptor.h"
 #include "src/string-builder.h"
 
@@ -17,11 +16,53 @@ namespace internal {
 // ES6 section 19.5.1.1 Error ( message )
 BUILTIN(ErrorConstructor) {
   HandleScope scope(isolate);
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      ConstructError(isolate, args.target<JSFunction>(),
-                     Handle<Object>::cast(args.new_target()),
-                     args.atOrUndefined(isolate, 1), SKIP_FIRST, false));
+
+  // 1. If NewTarget is undefined, let newTarget be the active function object,
+  // else let newTarget be NewTarget.
+
+  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSReceiver> new_target;
+  if (args.new_target()->IsJSReceiver()) {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  } else {
+    new_target = target;
+  }
+
+  // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%ErrorPrototype%",
+  //    « [[ErrorData]] »).
+  Handle<JSObject> err;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, err,
+                                     JSObject::New(target, new_target));
+
+  // 3. If message is not undefined, then
+  //  a. Let msg be ? ToString(message).
+  //  b. Let msgDesc be the PropertyDescriptor{[[Value]]: msg, [[Writable]]:
+  //     true, [[Enumerable]]: false, [[Configurable]]: true}.
+  //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
+  // 4. Return O.
+
+  Handle<Object> msg = args.atOrUndefined(isolate, 1);
+  if (!msg->IsUndefined(isolate)) {
+    Handle<String> msg_string;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, msg_string,
+                                       Object::ToString(isolate, msg));
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSObject::SetOwnPropertyIgnoreAttributes(
+            err, isolate->factory()->message_string(), msg_string, DONT_ENUM));
+  }
+
+  // Capture the stack trace unless we're setting up.
+  if (!isolate->bootstrapper()->IsActive()) {
+    // Optionally capture a more detailed stack trace for the message.
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                isolate->CaptureAndSetDetailedStackTrace(err));
+    // Capture a simple stack trace for the stack property.
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                isolate->CaptureAndSetSimpleStackTrace(err));
+  }
+
+  return *err;
 }
 
 // static
@@ -34,7 +75,6 @@ BUILTIN(ErrorCaptureStackTrace) {
   }
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
-  FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_NONE;
 
   // TODO(jgruber): Eagerly format the stack trace and remove accessors.h
   // include.
@@ -96,7 +136,7 @@ BUILTIN(ErrorCaptureStackTrace) {
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               isolate->CaptureAndSetDetailedStackTrace(object));
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, isolate->CaptureAndSetSimpleStackTrace(object, mode, caller));
+      isolate, isolate->CaptureAndSetSimpleStackTrace(object, caller));
 
   return *isolate->factory()->undefined_value();
 }

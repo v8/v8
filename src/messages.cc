@@ -5,7 +5,6 @@
 #include "src/messages.h"
 
 #include "src/api.h"
-#include "src/bootstrapper.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
@@ -446,52 +445,6 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
   return builder.Finish();
 }
 
-MaybeHandle<Object> ConstructError(Isolate* isolate, Handle<JSFunction> target,
-                                   Handle<Object> new_target,
-                                   Handle<Object> message, FrameSkipMode mode,
-                                   bool suppress_detailed_trace) {
-  // 1. If NewTarget is undefined, let newTarget be the active function object,
-  // else let newTarget be NewTarget.
-
-  Handle<JSReceiver> new_target_recv =
-      new_target->IsJSReceiver() ? Handle<JSReceiver>::cast(new_target)
-                                 : Handle<JSReceiver>::cast(target);
-
-  // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%ErrorPrototype%",
-  //    « [[ErrorData]] »).
-  Handle<JSObject> err;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, err,
-                             JSObject::New(target, new_target_recv), Object);
-
-  // 3. If message is not undefined, then
-  //  a. Let msg be ? ToString(message).
-  //  b. Let msgDesc be the PropertyDescriptor{[[Value]]: msg, [[Writable]]:
-  //     true, [[Enumerable]]: false, [[Configurable]]: true}.
-  //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
-  // 4. Return O.
-
-  if (!message->IsUndefined(isolate)) {
-    Handle<String> msg_string;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
-                               Object::ToString(isolate, message), Object);
-    RETURN_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                     err, isolate->factory()->message_string(),
-                                     msg_string, DONT_ENUM),
-                        Object);
-  }
-
-  // Optionally capture a more detailed stack trace for the message.
-  if (!suppress_detailed_trace) {
-    RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetDetailedStackTrace(err),
-                        Object);
-  }
-  // Capture a simple stack trace for the stack property.
-  RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetSimpleStackTrace(
-                                   err, mode, Handle<Object>()),
-                      Object);
-
-  return err;
-}
 
 }  // namespace internal
 }  // namespace v8
