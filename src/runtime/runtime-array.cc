@@ -87,7 +87,7 @@ RUNTIME_FUNCTION(Runtime_FixedArraySet) {
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Map, to_map, 1);
   ElementsKind to_kind = to_map->elements_kind();
   ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(object, to_map);
