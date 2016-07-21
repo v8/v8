@@ -390,10 +390,10 @@ struct CommonOperatorGlobalCache final {
   template <int kEffectInputCount>
   struct EffectPhiOperator final : public Operator {
     EffectPhiOperator()
-        : Operator(                                   // --
-              IrOpcode::kEffectPhi, Operator::kPure,  // opcode
-              "EffectPhi",                            // name
-              0, kEffectInputCount, 1, 0, 1, 0) {}    // counts
+        : Operator(                                      // --
+              IrOpcode::kEffectPhi, Operator::kKontrol,  // opcode
+              "EffectPhi",                               // name
+              0, kEffectInputCount, 1, 0, 1, 0) {}       // counts
   };
 #define CACHED_EFFECT_PHI(input_count) \
   EffectPhiOperator<input_count> kEffectPhi##input_count##Operator;
@@ -827,10 +827,10 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       break;
   }
   // Uncached.
-  return new (zone()) Operator(               // --
-      IrOpcode::kEffectPhi, Operator::kPure,  // opcode
-      "EffectPhi",                            // name
-      0, effect_input_count, 1, 0, 1, 0);     // counts
+  return new (zone()) Operator(                  // --
+      IrOpcode::kEffectPhi, Operator::kKontrol,  // opcode
+      "EffectPhi",                               // name
+      0, effect_input_count, 1, 0, 1, 0);        // counts
 }
 
 const Operator* CommonOperatorBuilder::BeginRegion(

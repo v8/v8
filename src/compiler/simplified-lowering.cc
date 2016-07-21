@@ -761,15 +761,28 @@ class RepresentationSelector {
   // values {kTypeAny}.
   void VisitInputs(Node* node) {
     int tagged_count = node->op()->ValueInputCount() +
-                       OperatorProperties::GetContextInputCount(node->op());
-    // Visit value and context inputs as tagged.
+                       OperatorProperties::GetContextInputCount(node->op()) +
+                       OperatorProperties::GetFrameStateInputCount(node->op());
+    // Visit value, context and frame state inputs as tagged.
     for (int i = 0; i < tagged_count; i++) {
       ProcessInput(node, i, UseInfo::AnyTagged());
     }
-    // Only enqueue other inputs (framestates, effects, control).
+    // Only enqueue other inputs (effects, control).
     for (int i = tagged_count; i < node->InputCount(); i++) {
       EnqueueInput(node, i);
     }
+  }
+
+  // Helper for an unused node.
+  void VisitUnused(Node* node) {
+    int value_count = node->op()->ValueInputCount() +
+                      OperatorProperties::GetContextInputCount(node->op()) +
+                      OperatorProperties::GetFrameStateInputCount(node->op());
+    for (int i = 0; i < value_count; i++) {
+      ProcessInput(node, i, UseInfo::None());
+    }
+    ProcessRemainingInputs(node, value_count);
+    if (lower()) Kill(node);
   }
 
   // Helper for binops of the R x L -> O variety.
@@ -934,18 +947,20 @@ class RepresentationSelector {
   void VisitCall(Node* node, SimplifiedLowering* lowering) {
     const CallDescriptor* desc = CallDescriptorOf(node->op());
     int params = static_cast<int>(desc->ParameterCount());
+    int value_input_count = node->op()->ValueInputCount();
     // Propagate representation information from call descriptor.
-    for (int i = 0; i < node->InputCount(); i++) {
+    for (int i = 0; i < value_input_count; i++) {
       if (i == 0) {
         // The target of the call.
-        ProcessInput(node, i, UseInfo::None());
+        ProcessInput(node, i, UseInfo::Any());
       } else if ((i - 1) < params) {
         ProcessInput(node, i, TruncatingUseInfoFromRepresentation(
                                   desc->GetInputType(i).representation()));
       } else {
-        ProcessInput(node, i, UseInfo::None());
+        ProcessInput(node, i, UseInfo::AnyTagged());
       }
     }
+    ProcessRemainingInputs(node, value_input_count);
 
     if (desc->ReturnCount() > 0) {
       SetOutput(node, desc->GetReturnType(0).representation());
@@ -1109,6 +1124,7 @@ class RepresentationSelector {
 
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
+    if (truncation.IsUnused()) return VisitUnused(node);
     if (BothInputsAre(node, type_cache_.kSigned32OrMinusZero) &&
         NodeProperties::GetType(node)->Is(Type::Signed32())) {
       // int32 + int32 = int32   ==>   signed Int32Add/Sub
@@ -1166,11 +1182,21 @@ class RepresentationSelector {
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
                  SimplifiedLowering* lowering) {
+    // Unconditionally eliminate unused pure nodes (only relevant if there's
+    // a pure operation in between two effectful ones, where the last one
+    // is unused).
+    if (node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
+      return VisitUnused(node);
+    }
     switch (node->opcode()) {
       //------------------------------------------------------------------
       // Common operators.
       //------------------------------------------------------------------
       case IrOpcode::kStart:
+        // We use Start as a terminator for the frame state chain, so even
+        // tho Start doesn't really produce a value, we have to say Tagged
+        // here, otherwise the input conversion will fail.
+        return VisitLeaf(node, MachineRepresentation::kTagged);
       case IrOpcode::kDead:
         return VisitLeaf(node, MachineRepresentation::kNone);
       case IrOpcode::kParameter: {
@@ -1284,6 +1310,7 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberLessThan:
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       case IrOpcode::kSpeculativeNumberEqual: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         // Number comparisons reduce to integer comparisons for integer inputs.
         if (TypeOf(node->InputAt(0))->Is(Type::Unsigned32()) &&
             TypeOf(node->InputAt(1))->Is(Type::Unsigned32())) {
@@ -1338,6 +1365,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberMultiply: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         if (BothInputsAre(node, Type::Integral32()) &&
             (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
              NodeProperties::GetType(node)->Is(Type::Unsigned32()) ||
@@ -1412,6 +1440,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberDivide: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop(node);
@@ -1517,6 +1546,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberModulus: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Mod
           VisitWord32TruncatingBinop(node);
@@ -1630,6 +1660,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeNumberShiftLeft: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         if (BothInputsAre(node, Type::NumberOrOddball())) {
           Type* rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
@@ -1941,8 +1972,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kLoadField: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         FieldAccess access = FieldAccessOf(node->op());
-        MachineRepresentation representation =
+        MachineRepresentation const representation =
             access.machine_type.representation();
         // If we are loading from a Smi field and truncate the result to Word32,
         // we can instead just load the high word on 64-bit architectures, which
@@ -1989,6 +2021,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kLoadBuffer: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         BufferAccess access = BufferAccessOf(node->op());
         ProcessInput(node, 0, UseInfo::PointerInt());        // buffer
         ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
@@ -2035,11 +2068,11 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kLoadElement: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         ElementAccess access = ElementAccessOf(node->op());
-        ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
-        ProcessRemainingInputs(node, 2);
-        SetOutput(node, access.machine_type.representation());
+        VisitBinop(node, UseInfoForBasePointer(access),
+                    UseInfo::TruncatingWord32(),
+                    access.machine_type.representation());
         return;
       }
       case IrOpcode::kStoreElement: {
@@ -2112,6 +2145,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckFloat64Hole: {
+        if (truncation.IsUnused()) return VisitUnused(node);
         CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
         ProcessInput(node, 0, UseInfo::TruncatingFloat64());
         ProcessRemainingInputs(node, 1);
@@ -2346,6 +2380,27 @@ class RepresentationSelector {
     replacements_.push_back(replacement);
 
     node->NullAllInputs();  // Node is now dead.
+  }
+
+  void Kill(Node* node) {
+    TRACE("killing #%d:%s\n", node->id(), node->op()->mnemonic());
+
+    if (node->op()->EffectInputCount() == 1) {
+      DCHECK_LT(0, node->op()->ControlInputCount());
+      // Disconnect the node from effect and control chains.
+      Node* control = NodeProperties::GetControlInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      ReplaceEffectControlUses(node, effect, control);
+    } else {
+      DCHECK_EQ(0, node->op()->ControlInputCount());
+      DCHECK_EQ(0, node->op()->EffectInputCount());
+      DCHECK_EQ(0, node->op()->ControlOutputCount());
+      DCHECK_EQ(0, node->op()->EffectOutputCount());
+    }
+
+    node->ReplaceUses(jsgraph_->Dead());
+
+    node->NullAllInputs();  // The {node} is now dead.
   }
 
   void PrintOutputInfo(NodeInfo* info) {
