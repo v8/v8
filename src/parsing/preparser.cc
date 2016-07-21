@@ -748,7 +748,6 @@ PreParser::Statement PreParser::ParseReturnStatement(bool* ok) {
   // reporting any errors on it, because of the way errors are
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
-  function_state_->set_return_location(scanner()->location());
 
   // An ECMAScript program is considered syntactically incorrect if it
   // contains a return statement that is not within the body of a

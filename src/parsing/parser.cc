@@ -2721,7 +2721,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
   Scanner::Location loc = scanner()->location();
-  function_state_->set_return_location(loc);
 
   Token::Value tok = peek();
   Statement* result;

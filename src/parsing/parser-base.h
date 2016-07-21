@@ -390,19 +390,6 @@ class ParserBase : public Traits {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
-    Scanner::Location this_location() const { return this_location_; }
-    Scanner::Location super_location() const { return super_location_; }
-    Scanner::Location return_location() const { return return_location_; }
-    void set_this_location(Scanner::Location location) {
-      this_location_ = location;
-    }
-    void set_super_location(Scanner::Location location) {
-      super_location_ = location;
-    }
-    void set_return_location(Scanner::Location location) {
-      return_location_ = location;
-    }
-
     bool is_generator() const { return IsGeneratorFunction(kind_); }
     bool is_async_function() const { return IsAsyncFunction(kind_); }
     bool is_resumable() const { return is_generator() || is_async_function(); }
@@ -486,15 +473,6 @@ class ParserBase : public Traits {
 
     // Properties count estimation.
     int expected_property_count_;
-
-    // Location of most recent use of 'this' (invalid if none).
-    Scanner::Location this_location_;
-
-    // Location of most recent 'return' statement (invalid if none).
-    Scanner::Location return_location_;
-
-    // Location of call to the "super" constructor (invalid if none).
-    Scanner::Location super_location_;
 
     FunctionKind kind_;
     // For generators, this variable may hold the generator object. It variable
@@ -1252,9 +1230,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
-      this_location_(Scanner::Location::invalid()),
-      return_location_(Scanner::Location::invalid()),
-      super_location_(Scanner::Location::invalid()),
       kind_(kind),
       generator_object_variable_(NULL),
       function_state_stack_(function_state_stack),
@@ -3101,7 +3076,6 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
     if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
-      function_state_->set_super_location(scanner()->location());
       return this->NewSuperCallReference(this->scope(), factory(), pos);
     }
   }
@@ -3375,7 +3349,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
   int num_parameters = formal_parameters.scope->num_parameters();
   int materialized_literal_count = -1;
   int expected_property_count = -1;
-  Scanner::Location super_loc;
 
   FunctionKind arrow_kind = is_async ? kAsyncArrowFunction : kArrowFunction;
   {
@@ -3439,7 +3412,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       expected_property_count = function_state.expected_property_count();
       this->MarkCollectedTailCallExpressions();
     }
-    super_loc = function_state.super_location();
 
     formal_parameters.scope->set_end_position(scanner()->location().end_pos);
 
@@ -3471,7 +3443,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
 
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
-  if (super_loc.IsValid()) function_state_->set_super_location(super_loc);
 
   if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
 
