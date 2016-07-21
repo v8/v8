@@ -247,7 +247,7 @@ void WasmModuleBuilder::MarkStartFunction(uint32_t index) {
   start_function_index_ = index;
 }
 
-uint32_t WasmModuleBuilder::AddGlobal(MachineType type, bool exported) {
+uint32_t WasmModuleBuilder::AddGlobal(LocalType type, bool exported) {
   globals_.push_back(std::make_pair(type, exported));
   return static_cast<uint32_t>(globals_.size() - 1);
 }
@@ -286,7 +286,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
 
     for (auto global : globals_) {
       buffer.write_u32v(0);  // Length of the global name.
-      buffer.write_u8(WasmOpcodes::MemTypeCodeFor(global.first));
+      buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(global.first));
       buffer.write_u8(global.second);
     }
     FixupSection(buffer, start);

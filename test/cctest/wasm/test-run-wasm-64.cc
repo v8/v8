@@ -1368,7 +1368,7 @@ WASM_EXEC_TEST(I64Global) {
   REQUIRE(I64And);
   REQUIRE(DepthFirst);
   TestingModule module(execution_mode);
-  int64_t* global = module.AddGlobal<int64_t>(MachineType::Int64());
+  int64_t* global = module.AddGlobal<int64_t>(kAstI64);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, B2(WASM_STORE_GLOBAL(

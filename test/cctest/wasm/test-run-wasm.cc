@@ -1858,7 +1858,7 @@ WASM_EXEC_TEST(Int32LoadInt16_zeroext) {
 
 WASM_EXEC_TEST(Int32Global) {
   TestingModule module(execution_mode);
-  int32_t* global = module.AddGlobal<int32_t>(MachineType::Int32());
+  int32_t* global = module.AddGlobal<int32_t>(kAstI32);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, WASM_STORE_GLOBAL(
@@ -1875,9 +1875,9 @@ WASM_EXEC_TEST(Int32Global) {
 WASM_EXEC_TEST(Int32Globals_DontAlias) {
   const int kNumGlobals = 3;
   TestingModule module(execution_mode);
-  int32_t* globals[] = {module.AddGlobal<int32_t>(MachineType::Int32()),
-                        module.AddGlobal<int32_t>(MachineType::Int32()),
-                        module.AddGlobal<int32_t>(MachineType::Int32())};
+  int32_t* globals[] = {module.AddGlobal<int32_t>(kAstI32),
+                        module.AddGlobal<int32_t>(kAstI32),
+                        module.AddGlobal<int32_t>(kAstI32)};
 
   for (int g = 0; g < kNumGlobals; ++g) {
     // global = global + p0
@@ -1902,7 +1902,7 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
 
 WASM_EXEC_TEST(Float32Global) {
   TestingModule module(execution_mode);
-  float* global = module.AddGlobal<float>(MachineType::Float32());
+  float* global = module.AddGlobal<float>(kAstF32);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, B2(WASM_STORE_GLOBAL(
@@ -1920,7 +1920,7 @@ WASM_EXEC_TEST(Float32Global) {
 
 WASM_EXEC_TEST(Float64Global) {
   TestingModule module(execution_mode);
-  double* global = module.AddGlobal<double>(MachineType::Float64());
+  double* global = module.AddGlobal<double>(kAstF64);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, B2(WASM_STORE_GLOBAL(
@@ -1938,32 +1938,24 @@ WASM_EXEC_TEST(Float64Global) {
 
 WASM_EXEC_TEST(MixedGlobals) {
   TestingModule module(execution_mode);
-  int32_t* unused = module.AddGlobal<int32_t>(MachineType::Int32());
+  int32_t* unused = module.AddGlobal<int32_t>(kAstI32);
   byte* memory = module.AddMemory(32);
 
-  int8_t* var_int8 = module.AddGlobal<int8_t>(MachineType::Int8());
-  uint8_t* var_uint8 = module.AddGlobal<uint8_t>(MachineType::Uint8());
-  int16_t* var_int16 = module.AddGlobal<int16_t>(MachineType::Int16());
-  uint16_t* var_uint16 = module.AddGlobal<uint16_t>(MachineType::Uint16());
-  int32_t* var_int32 = module.AddGlobal<int32_t>(MachineType::Int32());
-  uint32_t* var_uint32 = module.AddGlobal<uint32_t>(MachineType::Uint32());
-  float* var_float = module.AddGlobal<float>(MachineType::Float32());
-  double* var_double = module.AddGlobal<double>(MachineType::Float64());
+  int32_t* var_int32 = module.AddGlobal<int32_t>(kAstI32);
+  uint32_t* var_uint32 = module.AddGlobal<uint32_t>(kAstI32);
+  float* var_float = module.AddGlobal<float>(kAstF32);
+  double* var_double = module.AddGlobal<double>(kAstF64);
 
   WasmRunner<int32_t> r(&module, MachineType::Int32());
 
   BUILD(
       r,
       WASM_BLOCK(
-          WASM_STORE_GLOBAL(1, WASM_LOAD_MEM(MachineType::Int8(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(2, WASM_LOAD_MEM(MachineType::Uint8(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(3, WASM_LOAD_MEM(MachineType::Int16(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(4, WASM_LOAD_MEM(MachineType::Uint16(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(5, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(6, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(7,
+          WASM_STORE_GLOBAL(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
+          WASM_STORE_GLOBAL(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
+          WASM_STORE_GLOBAL(3,
                             WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(8,
+          WASM_STORE_GLOBAL(4,
                             WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
           WASM_ZERO));
 
@@ -1977,10 +1969,6 @@ WASM_EXEC_TEST(MixedGlobals) {
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK(static_cast<int8_t>(0xaa) == *var_int8);
-  CHECK(static_cast<uint8_t>(0xaa) == *var_uint8);
-  CHECK(static_cast<int16_t>(0xccaa) == *var_int16);
-  CHECK(static_cast<uint16_t>(0xccaa) == *var_uint16);
   CHECK(static_cast<int32_t>(0xee55ccaa) == *var_int32);
   CHECK(static_cast<uint32_t>(0xee55ccaa) == *var_uint32);
   CHECK(bit_cast<float>(0xee55ccaa) == *var_float);

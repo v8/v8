@@ -1154,8 +1154,8 @@ class TestModuleEnv : public ModuleEnv {
     instance = nullptr;
     module = &mod;
   }
-  byte AddGlobal(MachineType mem_type) {
-    mod.globals.push_back({0, 0, mem_type, 0, false});
+  byte AddGlobal(LocalType type) {
+    mod.globals.push_back({0, 0, type, 0, false});
     CHECK(mod.globals.size() <= 127);
     return static_cast<byte>(mod.globals.size() - 1);
   }
@@ -1345,26 +1345,10 @@ TEST_F(AstDecoderTest, Int32Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(MachineType::Int8());
-  module_env.AddGlobal(MachineType::Uint8());
-  module_env.AddGlobal(MachineType::Int16());
-  module_env.AddGlobal(MachineType::Uint16());
-  module_env.AddGlobal(MachineType::Int32());
-  module_env.AddGlobal(MachineType::Uint32());
+  module_env.AddGlobal(kAstI32);
 
   EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(1));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(2));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(3));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(4));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(5));
-
   EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(1, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(2, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(3, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(4, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(5, WASM_GET_LOCAL(0)));
 }
 
 TEST_F(AstDecoderTest, Int32Globals_fail) {
@@ -1372,10 +1356,10 @@ TEST_F(AstDecoderTest, Int32Globals_fail) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(MachineType::Int64());
-  module_env.AddGlobal(MachineType::Uint64());
-  module_env.AddGlobal(MachineType::Float32());
-  module_env.AddGlobal(MachineType::Float64());
+  module_env.AddGlobal(kAstI64);
+  module_env.AddGlobal(kAstI64);
+  module_env.AddGlobal(kAstF32);
+  module_env.AddGlobal(kAstF64);
 
   EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(0));
   EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(1));
@@ -1393,8 +1377,8 @@ TEST_F(AstDecoderTest, Int64Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(MachineType::Int64());
-  module_env.AddGlobal(MachineType::Uint64());
+  module_env.AddGlobal(kAstI64);
+  module_env.AddGlobal(kAstI64);
 
   EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
   EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(1));
@@ -1408,7 +1392,7 @@ TEST_F(AstDecoderTest, Float32Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(MachineType::Float32());
+  module_env.AddGlobal(kAstF32);
 
   EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
   EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
@@ -1419,7 +1403,7 @@ TEST_F(AstDecoderTest, Float64Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(MachineType::Float64());
+  module_env.AddGlobal(kAstF64);
 
   EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
   EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
@@ -1428,13 +1412,13 @@ TEST_F(AstDecoderTest, Float64Globals) {
 TEST_F(AstDecoderTest, AllLoadGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalType local_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(machineTypes); j++) {
-      MachineType mem_type = machineTypes[j];
+    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
+      LocalType global_type = kLocalTypes[j];
       FunctionSig sig(1, 0, &local_type);
       TestModuleEnv module_env;
       module = &module_env;
-      module_env.AddGlobal(mem_type);
-      if (local_type == WasmOpcodes::LocalTypeFor(mem_type)) {
+      module_env.AddGlobal(global_type);
+      if (local_type == global_type) {
         EXPECT_VERIFIES_INLINE(&sig, WASM_LOAD_GLOBAL(0));
       } else {
         EXPECT_FAILURE_INLINE(&sig, WASM_LOAD_GLOBAL(0));
@@ -1446,13 +1430,13 @@ TEST_F(AstDecoderTest, AllLoadGlobalCombinations) {
 TEST_F(AstDecoderTest, AllStoreGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalType local_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(machineTypes); j++) {
-      MachineType mem_type = machineTypes[j];
+    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
+      LocalType global_type = kLocalTypes[j];
       FunctionSig sig(0, 1, &local_type);
       TestModuleEnv module_env;
       module = &module_env;
-      module_env.AddGlobal(mem_type);
-      if (local_type == WasmOpcodes::LocalTypeFor(mem_type)) {
+      module_env.AddGlobal(global_type);
+      if (local_type == global_type) {
         EXPECT_VERIFIES_INLINE(&sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
       } else {
         EXPECT_FAILURE_INLINE(&sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));

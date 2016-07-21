@@ -112,8 +112,8 @@ class TestingModule : public ModuleEnv {
   }
 
   template <typename T>
-  T* AddGlobal(MachineType mem_type) {
-    const WasmGlobal* global = AddGlobal(mem_type);
+  T* AddGlobal(LocalType type) {
+    const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(instance->globals_start + global->offset);
   }
 
@@ -257,10 +257,10 @@ class TestingModule : public ModuleEnv {
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
   WasmInterpreter* interpreter_;
 
-  const WasmGlobal* AddGlobal(MachineType mem_type) {
-    byte size = WasmOpcodes::MemSize(mem_type);
+  const WasmGlobal* AddGlobal(LocalType type) {
+    byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module_.globals.push_back({0, 0, mem_type, global_offset, false});
+    module_.globals.push_back({0, 0, type, global_offset, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);

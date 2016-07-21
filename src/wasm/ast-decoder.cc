@@ -114,8 +114,7 @@ class WasmDecoder : public Decoder {
   inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
     ModuleEnv* m = module_;
     if (m && m->module && operand.index < m->module->globals.size()) {
-      operand.machine_type = m->module->globals[operand.index].type;
-      operand.type = WasmOpcodes::LocalTypeFor(operand.machine_type);
+      operand.type = m->module->globals[operand.index].type;
       return true;
     }
     error(pc, pc + 1, "invalid global index");

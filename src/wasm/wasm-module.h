@@ -138,7 +138,7 @@ struct WasmExport {
 struct WasmGlobal {
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
   uint32_t name_length;  // length in bytes of the global name.
-  MachineType type;      // type of the global.
+  LocalType type;        // type of the global.
   uint32_t offset;       // offset from beginning of globals area.
   bool exported;         // true if this global is exported.
 };
@@ -293,7 +293,7 @@ struct ModuleEnv {
   bool IsValidImport(uint32_t index) {
     return module && index < module->import_table.size();
   }
-  MachineType GetGlobalType(uint32_t index) {
+  LocalType GetGlobalType(uint32_t index) {
     DCHECK(IsValidGlobal(index));
     return module->globals[index].type;
   }

@@ -1407,31 +1407,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          MachineType type = global->type;
+          LocalType type = global->type;
           WasmVal val;
-          if (type == MachineType::Int8()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<int8_t*>(ptr)));
-          } else if (type == MachineType::Uint8()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<uint8_t*>(ptr)));
-          } else if (type == MachineType::Int16()) {
-            val =
-                WasmVal(static_cast<int32_t>(*reinterpret_cast<int16_t*>(ptr)));
-          } else if (type == MachineType::Uint16()) {
-            val = WasmVal(
-                static_cast<int32_t>(*reinterpret_cast<uint16_t*>(ptr)));
-          } else if (type == MachineType::Int32()) {
+          if (type == kAstI32) {
             val = WasmVal(*reinterpret_cast<int32_t*>(ptr));
-          } else if (type == MachineType::Uint32()) {
-            val = WasmVal(*reinterpret_cast<uint32_t*>(ptr));
-          } else if (type == MachineType::Int64()) {
+          } else if (type == kAstI64) {
             val = WasmVal(*reinterpret_cast<int64_t*>(ptr));
-          } else if (type == MachineType::Uint64()) {
-            val = WasmVal(*reinterpret_cast<uint64_t*>(ptr));
-          } else if (type == MachineType::Float32()) {
+          } else if (type == kAstF32) {
             val = WasmVal(*reinterpret_cast<float*>(ptr));
-          } else if (type == MachineType::Float64()) {
+          } else if (type == kAstF64) {
             val = WasmVal(*reinterpret_cast<double*>(ptr));
           } else {
             UNREACHABLE();
@@ -1444,31 +1428,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          MachineType type = global->type;
+          LocalType type = global->type;
           WasmVal val = Pop();
-          if (type == MachineType::Int8()) {
-            *reinterpret_cast<int8_t*>(ptr) =
-                static_cast<int8_t>(val.to<int32_t>());
-          } else if (type == MachineType::Uint8()) {
-            *reinterpret_cast<uint8_t*>(ptr) =
-                static_cast<uint8_t>(val.to<uint32_t>());
-          } else if (type == MachineType::Int16()) {
-            *reinterpret_cast<int16_t*>(ptr) =
-                static_cast<int16_t>(val.to<int32_t>());
-          } else if (type == MachineType::Uint16()) {
-            *reinterpret_cast<uint16_t*>(ptr) =
-                static_cast<uint16_t>(val.to<uint32_t>());
-          } else if (type == MachineType::Int32()) {
+          if (type == kAstI32) {
             *reinterpret_cast<int32_t*>(ptr) = val.to<int32_t>();
-          } else if (type == MachineType::Uint32()) {
-            *reinterpret_cast<uint32_t*>(ptr) = val.to<uint32_t>();
-          } else if (type == MachineType::Int64()) {
+          } else if (type == kAstI64) {
             *reinterpret_cast<int64_t*>(ptr) = val.to<int64_t>();
-          } else if (type == MachineType::Uint64()) {
-            *reinterpret_cast<uint64_t*>(ptr) = val.to<uint64_t>();
-          } else if (type == MachineType::Float32()) {
+          } else if (type == kAstF32) {
             *reinterpret_cast<float*>(ptr) = val.to<float>();
-          } else if (type == MachineType::Float64()) {
+          } else if (type == kAstF64) {
             *reinterpret_cast<double*>(ptr) = val.to<double>();
           } else {
             UNREACHABLE();

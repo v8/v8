@@ -170,7 +170,7 @@ class WasmModuleBuilder : public ZoneObject {
 
   // Building methods.
   uint32_t AddFunction();
-  uint32_t AddGlobal(MachineType type, bool exported);
+  uint32_t AddGlobal(LocalType type, bool exported);
   WasmFunctionBuilder* FunctionAt(size_t index);
   void AddDataSegment(WasmDataSegmentEncoder* data);
   uint32_t AddSignature(FunctionSig* sig);
@@ -195,7 +195,7 @@ class WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmDataSegmentEncoder*> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
-  ZoneVector<std::pair<MachineType, bool>> globals_;
+  ZoneVector<std::pair<LocalType, bool>> globals_;
   SignatureMap signature_map_;
   int start_function_index_;
 };

@@ -79,13 +79,11 @@ struct ImmF64Operand {
 struct GlobalIndexOperand {
   uint32_t index;
   LocalType type;
-  MachineType machine_type;
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->checked_read_u32v(pc, 1, &length, "global index");
     type = kAstStmt;
-    machine_type = MachineType::None();
   }
 };
 

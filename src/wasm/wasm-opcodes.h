@@ -22,21 +22,6 @@ enum LocalTypeCode {
   kLocalS128 = 5
 };
 
-// Binary encoding of memory types.
-enum MemTypeCode {
-  kMemI8 = 0,
-  kMemU8 = 1,
-  kMemI16 = 2,
-  kMemU16 = 3,
-  kMemI32 = 4,
-  kMemU32 = 5,
-  kMemI64 = 6,
-  kMemU64 = 7,
-  kMemF32 = 8,
-  kMemF64 = 9,
-  kMemS128 = 10
-};
-
 // We reuse the internal machine type to represent WebAssembly AST types.
 // A typedef improves readability without adding a whole new type system.
 typedef MachineRepresentation LocalType;
@@ -528,35 +513,6 @@ class WasmOpcodes {
       default:
         UNREACHABLE();
         return kLocalVoid;
-    }
-  }
-
-  static MemTypeCode MemTypeCodeFor(MachineType type) {
-    if (type == MachineType::Int8()) {
-      return kMemI8;
-    } else if (type == MachineType::Uint8()) {
-      return kMemU8;
-    } else if (type == MachineType::Int16()) {
-      return kMemI16;
-    } else if (type == MachineType::Uint16()) {
-      return kMemU16;
-    } else if (type == MachineType::Int32()) {
-      return kMemI32;
-    } else if (type == MachineType::Uint32()) {
-      return kMemU32;
-    } else if (type == MachineType::Int64()) {
-      return kMemI64;
-    } else if (type == MachineType::Uint64()) {
-      return kMemU64;
-    } else if (type == MachineType::Float32()) {
-      return kMemF32;
-    } else if (type == MachineType::Float64()) {
-      return kMemF64;
-    } else if (type == MachineType::Simd128()) {
-      return kMemS128;
-    } else {
-      UNREACHABLE();
-      return kMemI32;
     }
   }
 

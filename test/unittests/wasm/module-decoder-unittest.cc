@@ -177,9 +177,9 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
       SECTION(GLOBALS, 5),  // --
       1,
       NAME_LENGTH(1),
-      'g',      // name
-      kMemI32,  // memory type
-      0,        // exported
+      'g',        // name
+      kLocalI32,  // local type
+      0,          // exported
   };
 
   {
@@ -193,7 +193,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     const WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(1, global->name_length);
-    EXPECT_EQ(MachineType::Int32(), global->type);
+    EXPECT_EQ(kAstI32, global->type);
     EXPECT_EQ(0, global->offset);
     EXPECT_FALSE(global->exported);
 
@@ -244,9 +244,9 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
-      NO_NAME,  // name length
-      kMemI32,  // memory type
-      0,        // exported
+      NO_NAME,    // name length
+      kLocalF32,  // memory type
+      0,          // exported
   };
 
   for (uint32_t i = 0; i < 1000000; i = i * 13 + 1) {
@@ -295,12 +295,12 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {
       SECTION(GLOBALS, 7),
       2,
-      NO_NAME,  // #0: name length
-      kMemF32,  // memory type
-      0,        // exported
-      NO_NAME,  // #1: name length
-      kMemF64,  // memory type
-      1,        // exported
+      NO_NAME,    // #0: name length
+      kLocalF32,  // type
+      0,          // exported
+      NO_NAME,    // #1: name length
+      kLocalF64,  // type
+      1,          // exported
   };
 
   {
@@ -315,12 +315,12 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     const WasmGlobal* g1 = &result.val->globals[1];
 
     EXPECT_EQ(0, g0->name_length);
-    EXPECT_EQ(MachineType::Float32(), g0->type);
+    EXPECT_EQ(kAstF32, g0->type);
     EXPECT_EQ(0, g0->offset);
     EXPECT_FALSE(g0->exported);
 
     EXPECT_EQ(0, g1->name_length);
-    EXPECT_EQ(MachineType::Float64(), g1->type);
+    EXPECT_EQ(kAstF64, g1->type);
     EXPECT_EQ(8, g1->offset);
     EXPECT_TRUE(g1->exported);
 
@@ -857,9 +857,9 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
       0,  // one byte section
       SECTION(GLOBALS, 4),
       1,
-      0,        // name length
-      kMemI32,  // memory type
-      0,        // exported
+      0,          // name length
+      kLocalI32,  // memory type
+      0,          // exported
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_OK(result);
@@ -871,7 +871,7 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
   const WasmGlobal* global = &result.val->globals.back();
 
   EXPECT_EQ(0, global->name_length);
-  EXPECT_EQ(MachineType::Int32(), global->type);
+  EXPECT_EQ(kAstI32, global->type);
   EXPECT_EQ(0, global->offset);
   EXPECT_FALSE(global->exported);
 

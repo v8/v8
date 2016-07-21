@@ -156,8 +156,8 @@ TEST(Run_WasmModule_Global) {
   TestSignatures sigs;
 
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-  uint32_t global1 = builder->AddGlobal(MachineType::Int32(), 0);
-  uint32_t global2 = builder->AddGlobal(MachineType::Int32(), 0);
+  uint32_t global1 = builder->AddGlobal(kAstI32, 0);
+  uint32_t global2 = builder->AddGlobal(kAstI32, 0);
   uint16_t f1_index = builder->AddFunction();
   WasmFunctionBuilder* f = builder->FunctionAt(f1_index);
   f->SetSignature(sigs.i_v());

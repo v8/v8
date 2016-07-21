@@ -233,7 +233,8 @@ class ModuleDecoder : public Decoder {
             if (failed()) break;
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->globals.push_back({0, 0, MachineType::Int32(), 0, false});
+            // Add an uninitialized global and pass a pointer to it.
+            module->globals.push_back({0, 0, kAstStmt, 0, false});
             WasmGlobal* global = &module->globals.back();
             DecodeGlobalInModule(global);
           }
@@ -481,7 +482,7 @@ class ModuleDecoder : public Decoder {
     global->name_offset = consume_string(&global->name_length, false);
     DCHECK(unibrow::Utf8::Validate(start_ + global->name_offset,
                                    global->name_length));
-    global->type = mem_type();
+    global->type = consume_local_type();
     global->offset = 0;
     global->exported = consume_u8("exported") != 0;
   }
@@ -527,7 +528,8 @@ class ModuleDecoder : public Decoder {
       return;
     }
     for (WasmGlobal& global : module->globals) {
-      byte size = WasmOpcodes::MemSize(global.type);
+      byte size =
+          WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(global.type));
       offset = (offset + size - 1) & ~(size - 1);  // align
       global.offset = offset;
       offset += size;
@@ -632,39 +634,6 @@ class ModuleDecoder : public Decoder {
       default:
         error(pc_ - 1, "invalid local type");
         return kAstStmt;
-    }
-  }
-
-  // Reads a single 8-bit integer, interpreting it as a memory type.
-  MachineType mem_type() {
-    byte val = consume_u8("memory type");
-    MemTypeCode t = static_cast<MemTypeCode>(val);
-    switch (t) {
-      case kMemI8:
-        return MachineType::Int8();
-      case kMemU8:
-        return MachineType::Uint8();
-      case kMemI16:
-        return MachineType::Int16();
-      case kMemU16:
-        return MachineType::Uint16();
-      case kMemI32:
-        return MachineType::Int32();
-      case kMemU32:
-        return MachineType::Uint32();
-      case kMemI64:
-        return MachineType::Int64();
-      case kMemU64:
-        return MachineType::Uint64();
-      case kMemF32:
-        return MachineType::Float32();
-      case kMemF64:
-        return MachineType::Float64();
-      case kMemS128:
-        return MachineType::Simd128();
-      default:
-        error(pc_ - 1, "invalid memory type");
-        return MachineType::None();
     }
   }
 
