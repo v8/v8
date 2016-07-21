@@ -1094,13 +1094,15 @@ TEST(ScopeUsesArgumentsSuperThis) {
 
       i::Scope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
-      CHECK_EQ(1, script_scope->inner_scopes()->length());
 
-      i::Scope* scope = script_scope->inner_scopes()->at(0);
+      i::Scope* scope = script_scope->inner_scope();
+      DCHECK_NOT_NULL(scope);
+      DCHECK_NULL(scope->sibling());
       // Adjust for constructor scope.
       if (j == 2) {
-        CHECK_EQ(1, scope->inner_scopes()->length());
-        scope = scope->inner_scopes()->at(0);
+        scope = scope->inner_scope();
+        DCHECK_NOT_NULL(scope);
+        DCHECK_NULL(scope->sibling());
       }
       CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
                scope->uses_arguments());
@@ -1412,9 +1414,10 @@ TEST(ScopePositions) {
     CHECK(scope->is_script_scope());
     CHECK_EQ(scope->start_position(), 0);
     CHECK_EQ(scope->end_position(), kProgramSize);
-    CHECK_EQ(scope->inner_scopes()->length(), 1);
 
-    i::Scope* inner_scope = scope->inner_scopes()->at(0);
+    i::Scope* inner_scope = scope->inner_scope();
+    DCHECK_NOT_NULL(inner_scope);
+    DCHECK_NULL(inner_scope->sibling());
     CHECK_EQ(inner_scope->scope_type(), source_data[i].scope_type);
     CHECK_EQ(inner_scope->start_position(), kPrefixLen);
     // The end position of a token is one position after the last
@@ -3550,8 +3553,9 @@ TEST(InnerAssignment) {
           CHECK(info.literal() != NULL);
 
           i::Scope* scope = info.literal()->scope();
-          CHECK_EQ(scope->inner_scopes()->length(), 1);
-          i::Scope* inner_scope = scope->inner_scopes()->at(0);
+          i::Scope* inner_scope = scope->inner_scope();
+          DCHECK_NOT_NULL(inner_scope);
+          DCHECK_NULL(inner_scope->sibling());
           const i::AstRawString* var_name =
               info.ast_value_factory()->GetOneByteString("x");
           i::Variable* var = inner_scope->Lookup(var_name);

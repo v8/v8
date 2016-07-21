@@ -115,7 +115,7 @@ class Scope: public ZoneObject {
   Scope* FinalizeBlockScope();
 
   // Inserts outer_scope into this scope's scope chain (and removes this
-  // from the current outer_scope_'s inner_scopes_).
+  // from the current outer_scope_'s inner scope list).
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
 
@@ -493,8 +493,11 @@ class Scope: public ZoneObject {
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
-  // Inner scope list.
-  ZoneList<Scope*>* inner_scopes() { return &inner_scopes_; }
+  // inner_scope() and sibling() together implement the inner scope list of a
+  // scope. Inner scope points to the an inner scope of the function, and
+  // "sibling" points to a next inner scope of the outer scope of this scope.
+  Scope* inner_scope() const { return inner_scope_; }
+  Scope* sibling() const { return sibling_; }
 
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
@@ -608,7 +611,8 @@ class Scope: public ZoneObject {
  private:
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
-  ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
+  Scope* inner_scope_;  // an inner scope of this scope
+  Scope* sibling_;  // a sibling inner scope of the outer scope of this scope.
 
   // The scope type.
   const ScopeType scope_type_;
@@ -813,18 +817,24 @@ class Scope: public ZoneObject {
         const AstRawString* catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
-    if (inner_scope != NULL) {
-      inner_scopes_.Add(inner_scope, zone());
+    if (inner_scope != nullptr) {
+      inner_scope->sibling_ = inner_scope_;
+      inner_scope_ = inner_scope;
       inner_scope->outer_scope_ = this;
     }
   }
 
   void RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
-    for (int i = 0; i < inner_scopes_.length(); i++) {
-      if (inner_scopes_[i] == inner_scope) {
-        inner_scopes_.Remove(i);
-        break;
+    if (inner_scope == inner_scope_) {
+      inner_scope_ = inner_scope_->sibling_;
+      return;
+    }
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
+      if (scope->sibling_ == inner_scope) {
+        scope->sibling_ = scope->sibling_->sibling_;
+        return;
       }
     }
   }

@@ -85,7 +85,6 @@ void SloppyBlockFunctionMap::Declare(const AstRawString* name,
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
              FunctionKind function_kind)
     : outer_scope_(outer_scope),
-      inner_scopes_(4, zone),
       scope_type_(scope_type),
       function_kind_(function_kind),
       variables_(zone),
@@ -109,7 +108,7 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
     if (!is_module_scope()) language_mode_ = outer_scope->language_mode_;
     force_context_allocation_ =
         !is_function_scope() && outer_scope->has_forced_context_allocation();
-    outer_scope_->inner_scopes_.Add(this, zone);
+    outer_scope_->AddInnerScope(this);
     scope_inside_with_ = outer_scope_->scope_inside_with_ || is_with_scope();
   }
 }
@@ -117,7 +116,6 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
              Handle<ScopeInfo> scope_info)
     : outer_scope_(nullptr),
-      inner_scopes_(4, zone),
       scope_type_(scope_type),
       function_kind_(scope_info.is_null() ? kNormalFunction
                                           : scope_info->function_kind()),
@@ -145,7 +143,6 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
 Scope::Scope(Zone* zone, Scope* inner_scope,
              const AstRawString* catch_variable_name)
     : outer_scope_(nullptr),
-      inner_scopes_(1, zone),
       scope_type_(CATCH_SCOPE),
       function_kind_(kNormalFunction),
       variables_(zone),
@@ -171,6 +168,8 @@ void Scope::SetDefaults() {
   is_declaration_scope_ =
       is_eval_scope() || is_function_scope() ||
       is_module_scope() || is_script_scope();
+  inner_scope_ = nullptr;
+  sibling_ = nullptr;
   unresolved_ = nullptr;
   scope_name_ = nullptr;
   dynamics_ = nullptr;
@@ -338,20 +337,29 @@ Scope* Scope::FinalizeBlockScope() {
   outer_scope()->RemoveInnerScope(this);
 
   // Reparent inner scopes.
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    outer_scope()->AddInnerScope(inner_scopes_[i]);
+  if (inner_scope_ != nullptr) {
+    Scope* scope = inner_scope_;
+    scope->outer_scope_ = outer_scope();
+    while (scope->sibling_ != nullptr) {
+      scope = scope->sibling_;
+      scope->outer_scope_ = outer_scope();
+    }
+    scope->sibling_ = outer_scope()->inner_scope_;
+    outer_scope()->inner_scope_ = inner_scope_;
+    inner_scope_ = nullptr;
   }
 
   // Move unresolved variables
-  VariableProxy* unresolved = unresolved_;
-  if (outer_scope()->unresolved_ == nullptr) {
-    outer_scope()->unresolved_ = unresolved;
-  } else if (unresolved != nullptr) {
-    while (unresolved->next_unresolved() != nullptr) {
-      unresolved = unresolved->next_unresolved();
+  if (unresolved_ != nullptr) {
+    if (outer_scope()->unresolved_ != nullptr) {
+      VariableProxy* unresolved = unresolved_;
+      while (unresolved->next_unresolved() != nullptr) {
+        unresolved = unresolved->next_unresolved();
+      }
+      unresolved->set_next_unresolved(outer_scope()->unresolved_);
     }
-    unresolved->set_next_unresolved(outer_scope()->unresolved_);
     outer_scope()->unresolved_ = unresolved_;
+    unresolved_ = nullptr;
   }
 
   PropagateUsageFlagsToScope(outer_scope_);
@@ -776,8 +784,7 @@ int Scope::ContextChainLength(Scope* scope) {
 
 int Scope::MaxNestedContextChainLength() {
   int max_context_chain_length = 0;
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* scope = inner_scopes_[i];
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     max_context_chain_length = std::max(scope->MaxNestedContextChainLength(),
                                         max_context_chain_length);
   }
@@ -834,8 +841,8 @@ Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
     Handle<String> name = proxy->name();
     non_locals = StringSet::Add(non_locals, name);
   }
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    non_locals = inner_scopes_[i]->CollectNonLocals(non_locals);
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    non_locals = scope->CollectNonLocals(non_locals);
   }
   return non_locals;
 }
@@ -1028,9 +1035,10 @@ void Scope::Print(int n) {
 
   // Print inner scopes (disable by providing negative n).
   if (n >= 0) {
-    for (int i = 0; i < inner_scopes_.length(); i++) {
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
       PrintF("\n");
-      inner_scopes_[i]->Print(n1);
+      scope->Print(n1);
     }
   }
 
@@ -1040,11 +1048,13 @@ void Scope::Print(int n) {
 void Scope::CheckScopePositions() {
   // A scope is allowed to have invalid positions if it is hidden and has no
   // inner scopes
-  if (!is_hidden() && inner_scopes_.length() == 0) {
+  if (!is_hidden() && inner_scope_ == nullptr) {
     CHECK_NE(kNoSourcePosition, start_position());
     CHECK_NE(kNoSourcePosition, end_position());
   }
-  for (Scope* scope : inner_scopes_) scope->CheckScopePositions();
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->CheckScopePositions();
+  }
 }
 #endif  // DEBUG
 
@@ -1230,9 +1240,8 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info,
   }
 
   // Resolve unresolved variables for inner scopes.
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    if (!inner_scopes_[i]->ResolveVariablesRecursively(info, factory))
-      return false;
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (!scope->ResolveVariablesRecursively(info, factory)) return false;
   }
 
   return true;
@@ -1246,8 +1255,7 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
 
   bool calls_sloppy_eval =
       this->calls_sloppy_eval() || outer_scope_calls_sloppy_eval_;
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* inner = inner_scopes_[i];
+  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
     inner->PropagateScopeInfo(calls_sloppy_eval);
     if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
@@ -1479,8 +1487,8 @@ void Scope::AllocateVariablesRecursively(AstValueFactory* ast_value_factory) {
     num_stack_slots_ = 0;
   }
   // Allocate variables for inner scopes.
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->AllocateVariablesRecursively(ast_value_factory);
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->AllocateVariablesRecursively(ast_value_factory);
   }
 
   // If scope is already resolved, we still need to allocate
