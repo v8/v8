@@ -8,6 +8,15 @@
   # below). MB uses this dict to look up which config to use for a given bot.
   # Bots are ordered by appearance on waterfall.
   'masters': {
+    'developer_default': {
+      'x64.debug': 'default_debug_x64',
+      'x64.optdebug': 'default_optdebug_x64',
+      'x64.release': 'default_release_x64',
+      'x86.debug': 'default_debug_x86',
+      'x86.optdebug': 'default_optdebug_x86',
+      'x86.release': 'default_release_x86',
+    },
+
     'client.dart.fyi': {
       'v8-linux-release': 'gyp_release_x86_disassembler',
       'v8-win-release': 'gyp_release_x86_disassembler',
@@ -179,6 +188,21 @@
   # To ease readability, config values are ordered by:
   # gyp/gn, release/debug, arch type, other values alphabetically.
   'configs': {
+    # Developer default configs.
+    'default_debug_x64': [
+      'gn', 'debug', 'x64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+    'default_optdebug_x64': [
+      'gn', 'debug', 'x64', 'v8_enable_slow_dchecks'],
+    'default_release_x64': [
+      'gn', 'release', 'x64'],
+    'default_debug_x86': [
+      'gn', 'debug', 'x86', 'v8_enable_slow_dchecks', 'v8_full_debug'],
+    'default_optdebug_x86': [
+      'gn', 'debug', 'x86', 'v8_enable_slow_dchecks'],
+    'default_release_x86': [
+      'gn', 'release', 'x86'],
+
+
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
