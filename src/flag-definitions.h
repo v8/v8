@@ -588,7 +588,6 @@ DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
 DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
-DEFINE_BOOL(disable_native_files, false, "disable builtin natives files")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
@@ -874,13 +873,6 @@ DEFINE_INT(testing_int_flag, 13, "testing_int_flag")
 DEFINE_FLOAT(testing_float_flag, 2.5, "float-flag")
 DEFINE_STRING(testing_string_flag, "Hello, world!", "string-flag")
 DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
-#ifdef _WIN32
-DEFINE_STRING(testing_serialization_file, "C:\\Windows\\Temp\\serdes",
-              "file in which to testing_serialize heap")
-#else
-DEFINE_STRING(testing_serialization_file, "/tmp/serdes",
-              "file in which to serialize heap")
-#endif
 
 // mksnapshot.cc
 DEFINE_STRING(startup_src, NULL,
