@@ -80,19 +80,7 @@ BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, DebugBreakType type,
       code_offset_(code_offset),
       type_(type),
       position_(position),
-      statement_position_(statement_position) {
-  if (type == DEBUG_BREAK_SLOT_AT_RETURN) {
-    int return_position = 0;
-    SharedFunctionInfo* shared = debug_info->shared();
-    if (shared->HasSourceCode()) {
-      return_position =
-          std::max(shared->end_position() - 1, shared->start_position());
-    }
-    // TODO(yangguo): find out why return position is wrong for liveedit.
-    position_ = return_position;
-    statement_position_ = return_position;
-  }
-}
+      statement_position_(statement_position) {}
 
 BreakLocation::Iterator* BreakLocation::GetIterator(
     Handle<DebugInfo> debug_info, BreakLocatorType type) {
