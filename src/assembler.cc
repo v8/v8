@@ -126,6 +126,32 @@ double uint32_bias;
 
 static DoubleConstant double_constants;
 
+static struct V8_ALIGNED(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} float_absolute_constant = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
+
+static struct V8_ALIGNED(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} float_negate_constant = {0x80000000, 0x80000000, 0x80000000, 0x80000000};
+
+static struct V8_ALIGNED(16) {
+  uint64_t a;
+  uint64_t b;
+} double_absolute_constant = {V8_UINT64_C(0x7FFFFFFFFFFFFFFF),
+                              V8_UINT64_C(0x7FFFFFFFFFFFFFFF)};
+
+static struct V8_ALIGNED(16) {
+  uint64_t a;
+  uint64_t b;
+} double_negate_constant = {V8_UINT64_C(0x8000000000000000),
+                            V8_UINT64_C(0x8000000000000000)};
+
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
@@ -1314,6 +1340,26 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));
+}
+
+
+ExternalReference ExternalReference::address_of_float_abs_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&float_absolute_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_float_neg_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&float_negate_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_double_abs_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&double_absolute_constant));
+}
+
+
+ExternalReference ExternalReference::address_of_double_neg_constant() {
+  return ExternalReference(reinterpret_cast<void*>(&double_negate_constant));
 }
 
 

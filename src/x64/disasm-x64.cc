@@ -1266,6 +1266,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x10:
+        AppendToBuffer("vmovupd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x11:
+        AppendToBuffer("vmovupd ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
       case 0x28:
         AppendToBuffer("vmovapd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1589,6 +1598,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           current += 4;
         }  // else no immediate displacement.
         AppendToBuffer("nop");
+      } else if (opcode == 0x10) {
+        AppendToBuffer("movupd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x11) {
+        AppendToBuffer("movupd ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
       } else if (opcode == 0x28) {
         AppendToBuffer("movapd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);

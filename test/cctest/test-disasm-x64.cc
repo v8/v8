@@ -431,6 +431,8 @@ TEST(DisasmX64) {
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.
+    __ movupd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ movupd(Operand(rbx, rcx, times_4, 10000), xmm0);
     __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
@@ -449,6 +451,11 @@ TEST(DisasmX64) {
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+    __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ orpd(xmm0, xmm1);
+    __ orpd(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ xorpd(xmm0, xmm1);
+    __ xorpd(xmm0, Operand(rbx, rcx, times_4, 10000));
 
     __ pslld(xmm0, 6);
     __ psrld(xmm0, 6);
@@ -597,6 +604,8 @@ TEST(DisasmX64) {
 
       __ vmovaps(xmm10, xmm11);
       __ vmovapd(xmm7, xmm0);
+      __ vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000));
+      __ vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0);
       __ vmovmskpd(r9, xmm4);
 
       __ vmovups(xmm5, xmm1);

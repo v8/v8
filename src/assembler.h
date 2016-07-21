@@ -991,6 +991,12 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_the_hole_nan();
   static ExternalReference address_of_uint32_bias();
 
+  // Static variables containing simd constants.
+  static ExternalReference address_of_float_abs_constant();
+  static ExternalReference address_of_float_neg_constant();
+  static ExternalReference address_of_double_abs_constant();
+  static ExternalReference address_of_double_neg_constant();
+
   // IEEE 754 functions.
   static ExternalReference ieee754_acos_function(Isolate* isolate);
   static ExternalReference ieee754_acosh_function(Isolate* isolate);

@@ -224,6 +224,14 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::is_tail_call_elimination_enabled_address(isolate)
           .address(),
       "Isolate::is_tail_call_elimination_enabled_address()");
+  Add(ExternalReference::address_of_float_abs_constant().address(),
+      "float_absolute_constant");
+  Add(ExternalReference::address_of_float_neg_constant().address(),
+      "float_negate_constant");
+  Add(ExternalReference::address_of_double_abs_constant().address(),
+      "double_absolute_constant");
+  Add(ExternalReference::address_of_double_neg_constant().address(),
+      "double_negate_constant");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),

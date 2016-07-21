@@ -957,9 +957,10 @@ class MacroAssembler: public Assembler {
   AVX_OP2_XO(Subsd, subsd)
   AVX_OP2_XO(Mulsd, mulsd)
   AVX_OP2_XO(Divsd, divsd)
-  AVX_OP2_X(Andpd, andpd)
-  AVX_OP2_X(Orpd, orpd)
-  AVX_OP2_X(Xorpd, xorpd)
+  AVX_OP2_XO(Andps, andps)
+  AVX_OP2_XO(Andpd, andpd)
+  AVX_OP2_XO(Orpd, orpd)
+  AVX_OP2_XO(Xorpd, xorpd)
   AVX_OP2_X(Pcmpeqd, pcmpeqd)
   AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
   AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
@@ -987,6 +988,8 @@ class MacroAssembler: public Assembler {
   void Movups(XMMRegister dst, const Operand& src);
   void Movups(const Operand& dst, XMMRegister src);
   void Movapd(XMMRegister dst, XMMRegister src);
+  void Movupd(XMMRegister dst, const Operand& src);
+  void Movupd(const Operand& dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
 
   void Xorps(XMMRegister dst, XMMRegister src);
@@ -1001,6 +1004,13 @@ class MacroAssembler: public Assembler {
   void Ucomiss(XMMRegister src1, const Operand& src2);
   void Ucomisd(XMMRegister src1, XMMRegister src2);
   void Ucomisd(XMMRegister src1, const Operand& src2);
+
+  // ---------------------------------------------------------------------------
+  // SIMD macros.
+  void Absps(XMMRegister dst);
+  void Negps(XMMRegister dst);
+  void Abspd(XMMRegister dst);
+  void Negpd(XMMRegister dst);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

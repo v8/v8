@@ -1094,6 +1094,8 @@ class Assembler : public AssemblerBase {
   void movdqu(XMMRegister dst, const Operand& src);
 
   void movapd(XMMRegister dst, XMMRegister src);
+  void movupd(XMMRegister dst, const Operand& src);
+  void movupd(const Operand& dst, XMMRegister src);
 
   void psllq(XMMRegister reg, byte imm8);
   void psrlq(XMMRegister reg, byte imm8);
@@ -1140,8 +1142,11 @@ class Assembler : public AssemblerBase {
   void minsd(XMMRegister dst, const Operand& src);
 
   void andpd(XMMRegister dst, XMMRegister src);
+  void andpd(XMMRegister dst, const Operand& src);
   void orpd(XMMRegister dst, XMMRegister src);
+  void orpd(XMMRegister dst, const Operand& src);
   void xorpd(XMMRegister dst, XMMRegister src);
+  void xorpd(XMMRegister dst, const Operand& src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, const Operand& src);
 
@@ -1539,6 +1544,12 @@ class Assembler : public AssemblerBase {
     vps(0x11, src, xmm0, dst);
   }
   void vmovapd(XMMRegister dst, XMMRegister src) { vpd(0x28, dst, xmm0, src); }
+  void vmovupd(XMMRegister dst, const Operand& src) {
+    vpd(0x10, dst, xmm0, src);
+  }
+  void vmovupd(const Operand& dst, XMMRegister src) {
+    vpd(0x11, src, xmm0, dst);
+  }
   void vmovmskpd(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
     vpd(0x50, idst, xmm0, src);
