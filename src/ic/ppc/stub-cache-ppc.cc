@@ -15,8 +15,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
-                       Code::Flags flags, StubCache::Table table,
-                       Register receiver, Register name,
+                       StubCache::Table table, Register receiver, Register name,
                        // The offset is scaled by 4, based on
                        // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
@@ -73,18 +72,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   scratch2 = no_reg;
   __ LoadP(code, MemOperand(base_addr, value_off_addr - key_off_addr));
 
-  // Check that the flags match what we're looking for.
-  Register flags_reg = base_addr;
-  base_addr = no_reg;
-  __ lwz(flags_reg, FieldMemOperand(code, Code::kFlagsOffset));
-
-  DCHECK(!r0.is(flags_reg));
-  __ li(r0, Operand(Code::kFlagsNotUsedInLookup));
-  __ andc(flags_reg, flags_reg, r0);
-  __ mov(r0, Operand(flags));
-  __ cmpl(flags_reg, r0);
-  __ bne(&miss);
-
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
     __ b(&miss);
@@ -105,9 +92,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
-  Code::Flags flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
-
   Label miss;
 
 #if V8_TARGET_ARCH_PPC64
@@ -158,24 +142,24 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ lwz(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ LoadP(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, ip);
-  __ xori(scratch, scratch, Operand(flags));
+  __ xori(scratch, scratch, Operand(kPrimaryMagic));
   // The mask omits the last two bits because they are not part of the hash.
   __ andi(scratch, scratch,
           Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(this, masm, kPrimary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Primary miss: Compute hash for secondary probe.
   __ sub(scratch, scratch, name);
-  __ addi(scratch, scratch, Operand(flags));
+  __ addi(scratch, scratch, Operand(kSecondaryMagic));
   __ andi(scratch, scratch,
           Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(this, masm, kSecondary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

@@ -1386,6 +1386,7 @@ class FunctionPrototypeStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
   // TODO(mvstanton): only the receiver register is accessed. When this is
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor
@@ -1404,6 +1405,7 @@ class LoadIndexedStringStub : public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::KEYED_LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
@@ -2693,6 +2695,7 @@ class StoreFastElementStub : public HydrogenCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   class ElementsKindBits : public BitField<ElementsKind, 3, 8> {};
@@ -2890,6 +2893,7 @@ class StoreElementStub : public PlatformCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   ElementsKind elements_kind() const {
@@ -2994,6 +2998,7 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   class FromBits : public BitField<ElementsKind, 3, 8> {};

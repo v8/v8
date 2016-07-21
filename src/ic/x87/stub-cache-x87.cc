@@ -15,7 +15,6 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags,
                        StubCache::Table table, Register name, Register receiver,
                        // The offset is scaled by 4, based on
                        // kCacheIndexShift, which is two bits
@@ -27,6 +26,7 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
       ExternalReference::virtual_handler_register(masm->isolate());
 
   Label miss;
+  Code::Kind ic_kind = stub_cache->ic_kind();
   bool is_vector_store =
       IC::ICUseVector(ic_kind) &&
       (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC);
@@ -45,12 +45,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
     // Check the map matches.
     __ mov(offset, Operand::StaticArray(offset, times_1, map_offset));
     __ cmp(offset, FieldOperand(receiver, HeapObject::kMapOffset));
-    __ j(not_equal, &miss);
-
-    // Check that the flags match what we're looking for.
-    __ mov(offset, FieldOperand(extra, Code::kFlagsOffset));
-    __ and_(offset, ~Code::kFlagsNotUsedInLookup);
-    __ cmp(offset, flags);
     __ j(not_equal, &miss);
 
 #ifdef DEBUG
@@ -102,12 +96,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
     // Get the code entry from the cache.
     __ mov(offset, Operand::StaticArray(offset, times_1, value_offset));
 
-    // Check that the flags match what we're looking for.
-    __ mov(offset, FieldOperand(offset, Code::kFlagsOffset));
-    __ and_(offset, ~Code::kFlagsNotUsedInLookup);
-    __ cmp(offset, flags);
-    __ j(not_equal, &miss);
-
 #ifdef DEBUG
     if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
       __ jmp(&miss);
@@ -145,9 +133,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
-  Code::Flags flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
-
   Label miss;
 
   // Assert that code is valid.  The multiplying code relies on the entry size
@@ -178,7 +163,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   // Get the map of the receiver and compute the hash.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
   __ add(offset, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(offset, flags);
+  __ xor_(offset, kPrimaryMagic);
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
   __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
@@ -187,21 +172,19 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   DCHECK(kCacheIndexShift == kPointerSizeLog2);
 
   // Probe the primary table.
-  ProbeTable(this, masm, ic_kind_, flags, kPrimary, name, receiver, offset,
-             extra);
+  ProbeTable(this, masm, kPrimary, name, receiver, offset, extra);
 
   // Primary miss: Compute hash for secondary probe.
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
   __ add(offset, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ xor_(offset, flags);
+  __ xor_(offset, kPrimaryMagic);
   __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
   __ sub(offset, name);
-  __ add(offset, Immediate(flags));
+  __ add(offset, Immediate(kSecondaryMagic));
   __ and_(offset, (kSecondaryTableSize - 1) << kCacheIndexShift);
 
   // Probe the secondary table.
-  ProbeTable(this, masm, ic_kind_, flags, kSecondary, name, receiver, offset,
-             extra);
+  ProbeTable(this, masm, kSecondary, name, receiver, offset, extra);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

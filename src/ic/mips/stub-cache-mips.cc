@@ -15,8 +15,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
-                       Code::Flags flags, StubCache::Table table,
-                       Register receiver, Register name,
+                       StubCache::Table table, Register receiver, Register name,
                        // The offset is scaled by 4, based on
                        // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
@@ -62,13 +61,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   scratch2 = no_reg;
   __ lw(code, MemOperand(base_addr, value_off_addr - key_off_addr));
 
-  // Check that the flags match what we're looking for.
-  Register flags_reg = base_addr;
-  base_addr = no_reg;
-  __ lw(flags_reg, FieldMemOperand(code, Code::kFlagsOffset));
-  __ And(flags_reg, flags_reg, Operand(~Code::kFlagsNotUsedInLookup));
-  __ Branch(&miss, ne, flags_reg, Operand(flags));
-
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
     __ jmp(&miss);
@@ -88,9 +80,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
-  Code::Flags flags =
-      Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind_));
-
   Label miss;
 
   // Make sure that code is valid. The multiplying code relies on the
@@ -135,23 +124,23 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ lw(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ lw(at, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Addu(scratch, scratch, at);
-  __ Xor(scratch, scratch, Operand(flags));
+  __ Xor(scratch, scratch, Operand(kPrimaryMagic));
   __ And(scratch, scratch,
          Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(this, masm, flags, kPrimary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(this, masm, kPrimary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Primary miss: Compute hash for secondary probe.
   __ Subu(scratch, scratch, name);
-  __ Addu(scratch, scratch, Operand(flags));
+  __ Addu(scratch, scratch, Operand(kSecondaryMagic));
   __ And(scratch, scratch,
          Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(this, masm, flags, kSecondary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(this, masm, kSecondary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

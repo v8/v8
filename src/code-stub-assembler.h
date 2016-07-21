@@ -450,11 +450,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                              int unroll_count);
 
   compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
-                                         Code::Flags flags,
                                          compiler::Node* map);
 
   compiler::Node* StubCacheSecondaryOffset(compiler::Node* name,
-                                           Code::Flags flags,
                                            compiler::Node* seed);
 
   // This enum is used here as a replacement for StubCache::Table to avoid
@@ -463,9 +461,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               compiler::Node* entry_offset,
-                              compiler::Node* name, Code::Flags flags,
-                              compiler::Node* map, Label* if_handler,
-                              Variable* var_handler, Label* if_miss);
+                              compiler::Node* name, compiler::Node* map,
+                              Label* if_handler, Variable* var_handler,
+                              Label* if_miss);
 
   void TryProbeStubCache(StubCache* stub_cache, compiler::Node* receiver,
                          compiler::Node* name, Label* if_handler,

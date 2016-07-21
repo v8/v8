@@ -97,11 +97,9 @@ class TypeFeedbackOracle: public ZoneObject {
 
  private:
   void CollectReceiverTypes(StubCache* stub_cache, FeedbackVectorSlot slot,
-                            Handle<Name> name, Code::Flags flags,
-                            SmallMapList* types);
+                            Handle<Name> name, SmallMapList* types);
   void CollectReceiverTypes(StubCache* stub_cache, FeedbackNexus* nexus,
-                            Handle<Name> name, Code::Flags flags,
-                            SmallMapList* types);
+                            Handle<Name> name, SmallMapList* types);
 
   // Returns true if there is at least one string map and if
   // all maps are string maps.
