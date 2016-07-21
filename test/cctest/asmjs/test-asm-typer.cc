@@ -1797,4 +1797,113 @@ TEST(CannotReferenceModuleName) {
   }
 }
 
+TEST(InvalidSourceLayout) {
+  const char* kTests[] = {
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  var v = 0;\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  var v = 0;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  function f() {}\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  function f() {}\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  return f;\n"
+      "  var v_v = [f];\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v1 = 0;\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  var v1 = 0;\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "  var v1 = 0;\n"
+      "}",
+      "function asm() {\n"
+      "  function f() {}\n"
+      "  'use asm';\n"
+      "  var v_v = [f];\n"
+      "  return f;\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  return f;\n"
+      "  var v = 0;\n"
+      "  function f() {}\n"
+      "  var v_v = [f];\n"
+      "}",
+      "function asm() {\n"
+      "  'use asm';\n"
+      "  return f;\n"
+      "  function f() {}\n"
+      "}",
+      "function __f_59() {\n"
+      "  'use asm';\n"
+      "  function __f_110() {\n"
+      "    return 71;\n"
+      "  }\n"
+      "  function __f_21() {\n"
+      "    var __v_38 = 0;\n"
+      "    return __v_23[__v_38&0]() | 0;\n"
+      "  }\n"
+      "  return {__f_21:__f_21};\n"
+      "  var __v_23 = [__f_110];\n"
+      "}",
+  };
+
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage("Invalid asm.js source code layout")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
 }  // namespace
