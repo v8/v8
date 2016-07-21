@@ -3186,8 +3186,8 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
       Statement* statement, Scope* scope) {
-    return new (local_zone_)
-        SloppyBlockFunctionStatement(local_zone_, statement, scope);
+    return new (parser_zone_)
+        SloppyBlockFunctionStatement(parser_zone_, statement, scope);
   }
 
   CaseClause* NewCaseClause(
