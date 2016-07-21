@@ -31,8 +31,7 @@ class Typer {
   typedef base::Flags<Flag> Flags;
 
   Typer(Isolate* isolate, Graph* graph, Flags flags = kNoFlags,
-        CompilationDependencies* dependencies = nullptr,
-        FunctionType* function_type = nullptr);
+        CompilationDependencies* dependencies = nullptr);
   ~Typer();
 
   void Run();
@@ -48,14 +47,12 @@ class Typer {
   Isolate* isolate() const { return isolate_; }
   Flags flags() const { return flags_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
-  FunctionType* function_type() const { return function_type_; }
   OperationTyper* operation_typer() { return &operation_typer_; }
 
   Isolate* const isolate_;
   Graph* const graph_;
   Flags const flags_;
   CompilationDependencies* const dependencies_;
-  FunctionType* function_type_;
   Decorator* decorator_;
   TypeCache const& cache_;
   OperationTyper operation_typer_;

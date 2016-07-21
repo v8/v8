@@ -31,12 +31,11 @@ class Typer::Decorator final : public GraphDecorator {
 };
 
 Typer::Typer(Isolate* isolate, Graph* graph, Flags flags,
-             CompilationDependencies* dependencies, FunctionType* function_type)
+             CompilationDependencies* dependencies)
     : isolate_(isolate),
       graph_(graph),
       flags_(flags),
       dependencies_(dependencies),
-      function_type_(function_type),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       operation_typer_(isolate, zone()) {
@@ -625,17 +624,7 @@ Type* Typer::Visitor::TypeIfException(Node* node) { return Type::Any(); }
 
 // Common operators.
 
-
-Type* Typer::Visitor::TypeParameter(Node* node) {
-  if (FunctionType* function_type = typer_->function_type()) {
-    int const index = ParameterIndexOf(node->op());
-    if (index >= 0 && index < function_type->Arity()) {
-      return function_type->Parameter(index);
-    }
-  }
-  return Type::Any();
-}
-
+Type* Typer::Visitor::TypeParameter(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
 
