@@ -4443,7 +4443,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // parser-persistent zone (see parser_zone_ in AstNodeFactory).
       {
         Zone temp_zone(zone()->allocator());
-        DiscardableZoneScope(this, &temp_zone, use_temp_zone);
+        DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
         body = ParseEagerFunctionBody(function_name, pos, formals, kind,
                                       function_type, CHECK_OK);
       }
