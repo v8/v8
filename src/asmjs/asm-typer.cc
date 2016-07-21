@@ -1347,15 +1347,21 @@ AsmType* AsmTyper::ValidateSwitchStatement(SwitchStatement* stmt) {
     FAIL(stmt, "Switch tag must be signed.");
   }
 
-  bool has_default = false;
-
+  int default_pos = kNoSourcePosition;
+  int last_case_pos = kNoSourcePosition;
   ZoneSet<int32_t> cases_seen(zone_);
   for (auto* a_case : *stmt->cases()) {
     if (a_case->is_default()) {
-      CHECK(!has_default);
+      CHECK(default_pos == kNoSourcePosition);
       RECURSE(ValidateDefault(a_case));
-      has_default = true;
+      default_pos = a_case->position();
       continue;
+    }
+
+    if (last_case_pos == kNoSourcePosition) {
+      last_case_pos = a_case->position();
+    } else {
+      last_case_pos = std::max(last_case_pos, a_case->position());
     }
 
     int32_t case_lbl;
@@ -1373,6 +1379,11 @@ AsmType* AsmTyper::ValidateSwitchStatement(SwitchStatement* stmt) {
     if (max_lbl - min_lbl > std::numeric_limits<int32_t>::max()) {
       FAIL(stmt, "Out-of-bounds case label range.");
     }
+  }
+
+  if (last_case_pos != kNoSourcePosition && default_pos != kNoSourcePosition &&
+      default_pos < last_case_pos) {
+    FAIL(stmt, "Switch default must appear last.");
   }
 
   return AsmType::Void();

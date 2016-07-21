@@ -859,6 +859,8 @@ TEST(ErrorsInStatement) {
       {"do {} while (fround(1));", "Do {} While condition must be type int"},
       {"for (;fround(1););", "For condition must be type int"},
       {"switch(flocal){ case 0: return 0; }", "Switch tag must be signed"},
+      {"switch(slocal){ default: case 0: return 0; }",
+       "Switch default must appear last"},
       {"switch(slocal){ case 1: case 1: return 0; }", "Duplicated case label"},
       {"switch(slocal){ case 1: case 0: break; case 1: return 0; }",
        "Duplicated case label"},
