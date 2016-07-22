@@ -367,6 +367,51 @@ Scope* Scope::FinalizeBlockScope() {
   return NULL;
 }
 
+void Scope::Snapshot::Reparent(Scope* new_parent) const {
+  DCHECK_EQ(new_parent, outer_scope_->inner_scope_);
+  DCHECK_EQ(new_parent->outer_scope_, outer_scope_);
+  DCHECK_EQ(new_parent, new_parent->ClosureScope());
+  DCHECK_NULL(new_parent->inner_scope_);
+  DCHECK_NULL(new_parent->unresolved_);
+  DCHECK_EQ(0, new_parent->temps_.length());
+  Scope* inner_scope = new_parent->sibling_;
+  if (inner_scope != top_inner_scope_) {
+    for (; inner_scope->sibling() != top_inner_scope_;
+         inner_scope = inner_scope->sibling()) {
+      inner_scope->outer_scope_ = new_parent;
+      DCHECK_NE(inner_scope, new_parent);
+    }
+    inner_scope->outer_scope_ = new_parent;
+
+    new_parent->inner_scope_ = new_parent->sibling_;
+    inner_scope->sibling_ = nullptr;
+    // Reset the sibling rather than the inner_scope_ since we
+    // want to keep new_parent there.
+    new_parent->sibling_ = top_inner_scope_;
+  }
+
+  if (outer_scope_->unresolved_ != top_unresolved_) {
+    VariableProxy* last = outer_scope_->unresolved_;
+    while (last->next_unresolved() != top_unresolved_) {
+      last = last->next_unresolved();
+    }
+    last->set_next_unresolved(nullptr);
+    new_parent->unresolved_ = outer_scope_->unresolved_;
+    outer_scope_->unresolved_ = top_unresolved_;
+  }
+
+  if (outer_scope_->ClosureScope()->temps_.length() != top_temp_) {
+    ZoneList<Variable*>* temps = &outer_scope_->ClosureScope()->temps_;
+    for (int i = top_temp_; i < temps->length(); i++) {
+      Variable* temp = temps->at(i);
+      DCHECK_EQ(temp->scope(), temp->scope()->ClosureScope());
+      DCHECK_NE(temp->scope(), new_parent);
+      temp->set_scope(new_parent);
+      new_parent->AddTemporary(temp);
+    }
+    temps->Rewind(top_temp_);
+  }
+}
 
 void Scope::ReplaceOuterScope(Scope* outer) {
   DCHECK_NOT_NULL(outer);

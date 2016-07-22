@@ -380,36 +380,20 @@ void Parser::PatternRewriter::VisitRewritableExpression(
   return set_context(old_context);
 }
 
-// Two cases for scope rewriting the scope of default parameters:
-// - Eagerly parsed arrow functions are initially parsed as having
-//   expressions in the enclosing scope, but when the arrow is encountered,
-//   need to be in the scope of the function.
-// - When an extra declaration scope needs to be inserted to account for
-//   a sloppy eval in a default parameter or function body, the expressions
-//   needs to be in that new inner scope which was added after initial
-//   parsing.
-// Each of these cases can be handled by rewriting the contents of the
-// expression to the current scope. The source scope is typically the outer
-// scope when one case occurs; when both cases occur, both scopes need to
-// be included as the outer scope. (Both rewritings still need to be done
-// to account for lazily parsed arrow functions which hit the second case.)
-// TODO(littledan): Remove the outer_scope parameter of
-//                  RewriteParameterInitializerScope
+// When an extra declaration scope needs to be inserted to account for
+// a sloppy eval in a default parameter or function body, the expressions
+// needs to be in that new inner scope which was added after initial
+// parsing.
 void Parser::PatternRewriter::RewriteParameterScopes(Expression* expr) {
   if (!IsBindingContext()) return;
   if (descriptor_->declaration_kind != DeclarationDescriptor::PARAMETER) return;
-  if (!scope()->is_arrow_scope() && !scope()->is_block_scope()) return;
+  if (!scope()->is_block_scope()) return;
 
-  // Either this scope is an arrow scope or a declaration block scope.
   DCHECK(scope()->is_declaration_scope());
+  DCHECK(scope()->outer_scope()->is_function_scope());
+  DCHECK(scope()->calls_sloppy_eval());
 
-  if (scope()->outer_scope()->is_arrow_scope() && scope()->is_block_scope()) {
-    RewriteParameterInitializerScope(parser_->stack_limit(), expr,
-                                     scope()->outer_scope()->outer_scope(),
-                                     scope());
-  }
-  RewriteParameterInitializerScope(parser_->stack_limit(), expr,
-                                   scope()->outer_scope(), scope());
+  ReparentParameterExpressionScope(parser_->stack_limit(), expr, scope());
 }
 
 void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,

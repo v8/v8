@@ -878,9 +878,9 @@ class PreParserTraits {
       FunctionLiteral::FunctionType function_type, bool* ok);
 
   V8_INLINE void ParseArrowFunctionFormalParameterList(
-      PreParserFormalParameters* parameters,
-      PreParserExpression expression, const Scanner::Location& params_loc,
-      Scanner::Location* duplicate_loc, bool* ok);
+      PreParserFormalParameters* parameters, PreParserExpression expression,
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok);
 
   void ParseAsyncArrowSingleExpressionBody(
       PreParserStatementList body, bool accept_IN,
@@ -1192,11 +1192,10 @@ PreParserExpression PreParserTraits::SpreadCallNew(PreParserExpression function,
   return pre_parser_->factory()->NewCallNew(function, args, pos);
 }
 
-
 void PreParserTraits::ParseArrowFunctionFormalParameterList(
-    PreParserFormalParameters* parameters,
-    PreParserExpression params, const Scanner::Location& params_loc,
-    Scanner::Location* duplicate_loc, bool* ok) {
+    PreParserFormalParameters* parameters, PreParserExpression params,
+    const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+    const Scope::Snapshot& scope_snapshot, bool* ok) {
   // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
   // lists that are too long.
 }

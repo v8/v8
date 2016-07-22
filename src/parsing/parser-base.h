@@ -2263,6 +2263,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   ExpressionClassifier arrow_formals_classifier(this,
                                                 classifier->duplicate_finder());
 
+  Scope::Snapshot scope_snapshot(scope());
+
   bool is_async = allow_harmony_async_await() && peek() == Token::ASYNC &&
                   !scanner()->HasAnyLineTerminatorAfterNext() &&
                   IsValidArrowFormalParametersStart(PeekAhead());
@@ -2312,8 +2314,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
     scope->set_start_position(lhs_beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
-    this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
-                                                &duplicate_loc, CHECK_OK);
+    this->ParseArrowFunctionFormalParameterList(
+        &parameters, expression, loc, &duplicate_loc, scope_snapshot, CHECK_OK);
     if (duplicate_loc.IsValid()) {
       arrow_formals_classifier.RecordDuplicateFormalParameterError(
           duplicate_loc);

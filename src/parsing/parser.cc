@@ -4138,22 +4138,11 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   }
 
   Expression* initializer = nullptr;
-  if (expr->IsVariableProxy()) {
-    // When the formal parameter was originally seen, it was parsed as a
-    // VariableProxy and recorded as unresolved in the scope.  Here we undo that
-    // parse-time side-effect for parameters that are single-names (not
-    // patterns; for patterns that happens uniformly in
-    // PatternRewriter::VisitVariableProxy).
-    parser_->scope()->RemoveUnresolved(expr->AsVariableProxy());
-  } else if (expr->IsAssignment()) {
+  if (expr->IsAssignment()) {
     Assignment* assignment = expr->AsAssignment();
     DCHECK(!assignment->is_compound());
     initializer = assignment->value();
     expr = assignment->target();
-
-    // TODO(adamk): Only call this if necessary.
-    RewriteParameterInitializerScope(parser_->stack_limit(), initializer,
-                                     parser_->scope(), parameters->scope);
   }
 
   AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
@@ -4233,15 +4222,16 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
   return expr;
 }
 
-
 void ParserTraits::ParseArrowFunctionFormalParameterList(
     ParserFormalParameters* parameters, Expression* expr,
-    const Scanner::Location& params_loc,
-    Scanner::Location* duplicate_loc, bool* ok) {
+    const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+    const Scope::Snapshot& scope_snapshot, bool* ok) {
   if (expr->IsEmptyParentheses()) return;
 
   ParseArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos,
                                      CHECK_OK_VOID);
+
+  scope_snapshot.Reparent(parameters->scope);
 
   if (parameters->Arity() > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
@@ -4731,7 +4721,7 @@ Block* Parser::BuildParameterInitializationBlock(
       // rewrite inner initializers of the pattern to param_scope
       descriptor.scope = param_scope;
       // Rewrite the outer initializer to point to param_scope
-      RewriteParameterInitializerScope(stack_limit(), initial_value, scope(),
+      ReparentParameterExpressionScope(stack_limit(), initial_value,
                                        param_scope);
     }
 

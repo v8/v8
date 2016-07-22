@@ -4,10 +4,6 @@
 
 #include "src/parsing/parameter-initializer-rewriter.h"
 
-#include <algorithm>
-#include <utility>
-#include <vector>
-
 #include "src/ast/ast.h"
 #include "src/ast/ast-expression-visitor.h"
 #include "src/ast/scopes.h"
@@ -20,14 +16,9 @@ namespace {
 
 class Rewriter final : public AstExpressionVisitor {
  public:
-  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* old_scope,
-           Scope* new_scope)
+  Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* param_scope)
       : AstExpressionVisitor(stack_limit, initializer),
-        old_scope_(old_scope),
-        new_scope_(new_scope),
-        old_scope_closure_(old_scope->ClosureScope()),
-        new_scope_closure_(new_scope->ClosureScope()) {}
-  ~Rewriter();
+        param_scope_(param_scope) {}
 
  private:
   void VisitExpression(Expression* expr) override {}
@@ -40,38 +31,16 @@ class Rewriter final : public AstExpressionVisitor {
   void VisitTryCatchStatement(TryCatchStatement* stmt) override;
   void VisitWithStatement(WithStatement* stmt) override;
 
-  Scope* old_scope_;
-  Scope* new_scope_;
-  Scope* old_scope_closure_;
-  Scope* new_scope_closure_;
-  std::vector<std::pair<Variable*, int>> temps_;
+  Scope* param_scope_;
 };
-
-struct LessThanSecond {
-  bool operator()(const std::pair<Variable*, int>& left,
-                  const std::pair<Variable*, int>& right) {
-    return left.second < right.second;
-  }
-};
-
-Rewriter::~Rewriter() {
-  if (!temps_.empty()) {
-    // Ensure that we add temporaries in the order they appeared in old_scope_.
-    std::sort(temps_.begin(), temps_.end(), LessThanSecond());
-    for (auto var_and_index : temps_) {
-      var_and_index.first->set_scope(new_scope_closure_);
-      new_scope_closure_->AddTemporary(var_and_index.first);
-    }
-  }
-}
 
 void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
-  function_literal->scope()->ReplaceOuterScope(new_scope_);
+  function_literal->scope()->ReplaceOuterScope(param_scope_);
 }
 
 
 void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
-  class_literal->scope()->ReplaceOuterScope(new_scope_);
+  class_literal->scope()->ReplaceOuterScope(param_scope_);
   if (class_literal->extends() != nullptr) {
     Visit(class_literal->extends());
   }
@@ -91,26 +60,21 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 
 
 void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
-  if (proxy->is_resolved()) {
-    Variable* var = proxy->var();
-    if (var->mode() != TEMPORARY) return;
-    // Temporaries are only placed in ClosureScopes.
-    DCHECK_EQ(var->scope(), var->scope()->ClosureScope());
-    // If the temporary is already where it should be, return quickly.
-    if (var->scope() == new_scope_closure_) return;
-    int index = old_scope_closure_->RemoveTemporary(var);
-    if (index >= 0) {
-      temps_.push_back(std::make_pair(var, index));
+  if (!proxy->is_resolved()) {
+    if (param_scope_->outer_scope()->RemoveUnresolved(proxy)) {
+      param_scope_->AddUnresolved(proxy);
     }
-  } else if (old_scope_->RemoveUnresolved(proxy)) {
-    new_scope_->AddUnresolved(proxy);
+  } else {
+    // Ensure that temporaries we find are already in the correct scope.
+    DCHECK(proxy->var()->mode() != TEMPORARY ||
+           proxy->var()->scope() == param_scope_->ClosureScope());
   }
 }
 
 
 void Rewriter::VisitBlock(Block* stmt) {
   if (stmt->scope() != nullptr)
-    stmt->scope()->ReplaceOuterScope(new_scope_);
+    stmt->scope()->ReplaceOuterScope(param_scope_);
   else
     VisitStatements(stmt->statements());
 }
@@ -118,23 +82,28 @@ void Rewriter::VisitBlock(Block* stmt) {
 
 void Rewriter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
-  stmt->scope()->ReplaceOuterScope(new_scope_);
+  stmt->scope()->ReplaceOuterScope(param_scope_);
 }
 
 
 void Rewriter::VisitWithStatement(WithStatement* stmt) {
   Visit(stmt->expression());
-  stmt->scope()->ReplaceOuterScope(new_scope_);
+  stmt->scope()->ReplaceOuterScope(param_scope_);
 }
 
 
 }  // anonymous namespace
 
+void ReparentParameterExpressionScope(uintptr_t stack_limit, Expression* expr,
+                                      Scope* param_scope) {
+  // The only case that uses this code is block scopes for parameters containing
+  // sloppy eval.
+  DCHECK(param_scope->is_block_scope());
+  DCHECK(param_scope->is_declaration_scope());
+  DCHECK(param_scope->calls_sloppy_eval());
+  DCHECK(param_scope->outer_scope()->is_function_scope());
 
-void RewriteParameterInitializerScope(uintptr_t stack_limit,
-                                      Expression* initializer, Scope* old_scope,
-                                      Scope* new_scope) {
-  Rewriter rewriter(stack_limit, initializer, old_scope, new_scope);
+  Rewriter rewriter(stack_limit, expr, param_scope);
   rewriter.Run();
 }
 

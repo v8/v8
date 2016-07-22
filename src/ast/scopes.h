@@ -92,6 +92,23 @@ class Scope: public ZoneObject {
   Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
         FunctionKind function_kind = kNormalFunction);
 
+  class Snapshot final BASE_EMBEDDED {
+   public:
+    explicit Snapshot(Scope* scope)
+        : outer_scope_(scope),
+          top_inner_scope_(scope->inner_scope_),
+          top_unresolved_(scope->unresolved_),
+          top_temp_(scope->ClosureScope()->temps_.length()) {}
+
+    void Reparent(Scope* new_parent) const;
+
+   private:
+    Scope* outer_scope_;
+    Scope* top_inner_scope_;
+    VariableProxy* top_unresolved_;
+    int top_temp_;
+  };
+
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.

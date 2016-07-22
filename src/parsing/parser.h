@@ -558,8 +558,8 @@ class ParserTraits {
                                           bool* ok);
   void ParseArrowFunctionFormalParameterList(
       ParserFormalParameters* parameters, Expression* params,
-      const Scanner::Location& params_loc,
-      Scanner::Location* duplicate_loc, bool* ok);
+      const Scanner::Location& params_loc, Scanner::Location* duplicate_loc,
+      const Scope::Snapshot& scope_snapshot, bool* ok);
 
   V8_INLINE Expression* ParseAsyncFunctionExpression(bool* ok);
 
