@@ -348,7 +348,7 @@ assertEquals("start:5 resume:throw1 resume:throw2", log.join(" "));
 
 async function foo() {}
 assertEquals("async function foo() {}", foo.toString());
-assertEquals("async function () {}", async function() {}.toString());
+assertEquals("async function () {}", async function () {}.toString());
 assertEquals("async x => x", (async x => x).toString());
 assertEquals("async x => { return x }", (async x => { return x }).toString());
 class AsyncMethod { async foo() { } }
