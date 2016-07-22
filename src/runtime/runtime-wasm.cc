@@ -152,18 +152,11 @@ RUNTIME_FUNCTION(Runtime_JITSingleFunction) {
 
   Handle<JSArrayBuffer> mem_buffer = Handle<JSArrayBuffer>::cast(obj);
 
-  wasm::ErrorThrower thrower(isolate, "JITSingleFunction");
   wasm::WasmModule module(reinterpret_cast<byte*>(mem_buffer->backing_store()));
-  wasm::WasmModuleInstance instance(&module);
-  instance.context = isolate->native_context();
-  instance.mem_size =
-    static_cast<uint32_t>(mem_buffer->byte_length()->Number());
-  instance.mem_start = reinterpret_cast<byte*>(mem_buffer->backing_store());
-  instance.globals_start = nullptr;
-
+  wasm::ErrorThrower thrower(isolate, "JITSingleFunction");
   wasm::ModuleEnv module_env;
   module_env.module = &module;
-  module_env.instance = &instance;
+  module_env.instance = nullptr;
   module_env.origin = wasm::kWasmOrigin;
 
   uint32_t signature_size = args.length() - fixed_args;

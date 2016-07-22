@@ -17,6 +17,7 @@
 #include "src/ostreams.h"
 
 #include "src/compiler/wasm-compiler.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -1037,9 +1038,8 @@ class WasmFullDecoder : public WasmDecoder {
                     BUILD(JITSingleFunction, base.node, length.node, index.node,
                           operand.sig_index, operand.sig, position());
                 Push(kAstI32, call);
+                break;
               }
-              len = 1 + operand.length;
-              break;
             }
           }
           default:
