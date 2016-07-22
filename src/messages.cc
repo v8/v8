@@ -502,9 +502,19 @@ MaybeHandle<Object> ConstructError(Isolate* isolate, Handle<JSFunction> target,
     RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetDetailedStackTrace(err),
                         Object);
   }
+
+  // When we're passed a JSFunction as new target, we can skip frames until that
+  // specific function is seen instead of unconditionally skipping the first
+  // frame.
+  Handle<Object> caller;
+  if (mode == SKIP_FIRST && new_target->IsJSFunction()) {
+    mode = SKIP_UNTIL_SEEN;
+    caller = new_target;
+  }
+
   // Capture a simple stack trace for the stack property.
-  RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetSimpleStackTrace(
-                                   err, mode, Handle<Object>()),
+  RETURN_ON_EXCEPTION(isolate,
+                      isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
                       Object);
 
   return err;
