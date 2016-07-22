@@ -732,6 +732,8 @@
         'compiler/wasm-linkage.cc',
         'compiler/zone-pool.cc',
         'compiler/zone-pool.h',
+        'compiler-dispatcher/compiler-dispatcher-job.cc',
+        'compiler-dispatcher/compiler-dispatcher-job.h',
         'compiler-dispatcher/optimizing-compile-dispatcher.cc',
         'compiler-dispatcher/optimizing-compile-dispatcher.h',
         'compiler.cc',
