@@ -12,48 +12,6 @@
 namespace v8 {
 namespace internal {
 
-
-// Perform string match of pattern on subject, starting at start index.
-// Caller must ensure that 0 <= start_index <= sub->length(),
-// and should check that pat->length() + start_index <= sub->length().
-int StringMatch(Isolate* isolate, Handle<String> sub, Handle<String> pat,
-                int start_index) {
-  DCHECK(0 <= start_index);
-  DCHECK(start_index <= sub->length());
-
-  int pattern_length = pat->length();
-  if (pattern_length == 0) return start_index;
-
-  int subject_length = sub->length();
-  if (start_index + pattern_length > subject_length) return -1;
-
-  sub = String::Flatten(sub);
-  pat = String::Flatten(pat);
-
-  DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  // Extract flattened substrings of cons strings before getting encoding.
-  String::FlatContent seq_sub = sub->GetFlatContent();
-  String::FlatContent seq_pat = pat->GetFlatContent();
-
-  // dispatch on type of strings
-  if (seq_pat.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
-    if (seq_sub.IsOneByte()) {
-      return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                          start_index);
-    }
-    return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector,
-                        start_index);
-  }
-  Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
-  if (seq_sub.IsOneByte()) {
-    return SearchString(isolate, seq_sub.ToOneByteVector(), pat_vector,
-                        start_index);
-  }
-  return SearchString(isolate, seq_sub.ToUC16Vector(), pat_vector, start_index);
-}
-
-
 // This may return an empty MaybeHandle if an exception is thrown or
 // we abort due to reaching the recursion limit.
 MaybeHandle<String> StringReplaceOneCharWithString(
@@ -85,7 +43,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 
     return subject;
   } else {
-    int index = StringMatch(isolate, subject, search, 0);
+    int index = String::IndexOf(isolate, subject, search, 0);
     if (index == -1) return subject;
     *found = true;
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
@@ -141,7 +99,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   CHECK(start_index <= static_cast<uint32_t>(sub->length()));
-  int position = StringMatch(isolate, sub, pat, start_index);
+  int position = String::IndexOf(isolate, sub, pat, start_index);
   return Smi::FromInt(position);
 }
 

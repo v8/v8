@@ -9031,6 +9031,11 @@ class String: public Name {
   MUST_USE_RESULT static ComparisonResult Compare(Handle<String> x,
                                                   Handle<String> y);
 
+  // Perform string match of pattern on subject, starting at start index.
+  // Caller must ensure that 0 <= start_index <= sub->length().
+  static int IndexOf(Isolate* isolate, Handle<String> sub, Handle<String> pat,
+                     int start_index);
+
   // String equality operations.
   inline bool Equals(String* other);
   inline static bool Equals(Handle<String> one, Handle<String> two);
