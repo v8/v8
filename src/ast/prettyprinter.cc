@@ -886,7 +886,7 @@ void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
 void AstPrinter::PrintTryStatement(TryStatement* node) {
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndented("CATCH PREDICTION");
-  const char* prediction;
+  const char* prediction = "";
   switch (node->catch_prediction()) {
     case HandlerTable::UNCAUGHT:
       prediction = "UNCAUGHT";
