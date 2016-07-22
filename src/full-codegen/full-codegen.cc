@@ -125,12 +125,10 @@ void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
       Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
           HandlerTable::LengthForRange(handler_table_size), TENURED));
   for (int i = 0; i < handler_table_size; ++i) {
-    HandlerTable::CatchPrediction prediction = handler_table_[i].catch_predicted
-                                                   ? HandlerTable::CAUGHT
-                                                   : HandlerTable::UNCAUGHT;
     table->SetRangeStart(i, handler_table_[i].range_start);
     table->SetRangeEnd(i, handler_table_[i].range_end);
-    table->SetRangeHandler(i, handler_table_[i].handler_offset, prediction);
+    table->SetRangeHandler(i, handler_table_[i].handler_offset,
+                           handler_table_[i].catch_prediction);
     table->SetRangeData(i, handler_table_[i].stack_depth);
   }
   code->set_handler_table(*table);
@@ -139,7 +137,7 @@ void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
 
 int FullCodeGenerator::NewHandlerTableEntry() {
   int index = static_cast<int>(handler_table_.size());
-  HandlerTableEntry entry = {0, 0, 0, 0, 0};
+  HandlerTableEntry entry = {0, 0, 0, 0, HandlerTable::UNCAUGHT};
   handler_table_.push_back(entry);
   return index;
 }
@@ -1295,7 +1293,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   __ bind(&try_entry);
 
   int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry, stmt->catch_predicted());
+  EnterTryBlock(handler_index, &handler_entry, stmt->catch_prediction());
   {
     Comment cmnt_try(masm(), "[ Try block");
     Visit(stmt->try_block());
@@ -1344,7 +1342,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Set up try handler.
   __ bind(&try_entry);
   int handler_index = NewHandlerTableEntry();
-  EnterTryBlock(handler_index, &handler_entry, stmt->catch_predicted());
+  EnterTryBlock(handler_index, &handler_entry, stmt->catch_prediction());
   {
     Comment cmnt_try(masm(), "[ Try block");
     TryFinally try_body(this, &deferred);
@@ -1527,13 +1525,14 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
-void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler,
-                                      bool catch_predicted) {
+void FullCodeGenerator::EnterTryBlock(
+    int handler_index, Label* handler,
+    HandlerTable::CatchPrediction catch_prediction) {
   HandlerTableEntry* entry = &handler_table_[handler_index];
   entry->range_start = masm()->pc_offset();
   entry->handler_offset = handler->pos();
   entry->stack_depth = operand_stack_depth_;
-  entry->catch_predicted = catch_predicted;
+  entry->catch_prediction = catch_prediction;
 
   // We are using the operand stack depth, check for accuracy.
   EmitOperandStackDepthCheck();

@@ -75,15 +75,31 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   return OpParameter<DeoptimizeParameters>(op);
 }
 
+IfExceptionHint ExceptionHintFromCatchPrediction(
+    HandlerTable::CatchPrediction prediction) {
+  switch (prediction) {
+    case HandlerTable::UNCAUGHT:
+      return IfExceptionHint::kLocallyUncaught;
+    case HandlerTable::CAUGHT:
+      return IfExceptionHint::kLocallyCaught;
+    case HandlerTable::PROMISE:
+      return IfExceptionHint::kLocallyCaughtForPromiseReject;
+  }
+  UNREACHABLE();
+  return IfExceptionHint::kLocallyUncaught;
+}
+
 size_t hash_value(IfExceptionHint hint) { return static_cast<size_t>(hint); }
 
 
 std::ostream& operator<<(std::ostream& os, IfExceptionHint hint) {
   switch (hint) {
-    case IfExceptionHint::kLocallyCaught:
-      return os << "Caught";
     case IfExceptionHint::kLocallyUncaught:
       return os << "Uncaught";
+    case IfExceptionHint::kLocallyCaught:
+      return os << "Caught";
+    case IfExceptionHint::kLocallyCaughtForPromiseReject:
+      return os << "CaughtForPromiseReject";
   }
   UNREACHABLE();
   return os;
@@ -345,8 +361,10 @@ struct CommonOperatorGlobalCache final {
               0, 1, 1, 1, 1, 1,                            // counts
               kCaughtLocally) {}                           // parameter
   };
-  IfExceptionOperator<IfExceptionHint::kLocallyCaught> kIfExceptionCOperator;
   IfExceptionOperator<IfExceptionHint::kLocallyUncaught> kIfExceptionUOperator;
+  IfExceptionOperator<IfExceptionHint::kLocallyCaught> kIfExceptionCOperator;
+  IfExceptionOperator<IfExceptionHint::kLocallyCaughtForPromiseReject>
+      kIfExceptionPOperator;
 
   template <size_t kInputCount>
   struct EndOperator final : public Operator {
@@ -602,10 +620,12 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
 
 const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
   switch (hint) {
-    case IfExceptionHint::kLocallyCaught:
-      return &cache_.kIfExceptionCOperator;
     case IfExceptionHint::kLocallyUncaught:
       return &cache_.kIfExceptionUOperator;
+    case IfExceptionHint::kLocallyCaught:
+      return &cache_.kIfExceptionCOperator;
+    case IfExceptionHint::kLocallyCaughtForPromiseReject:
+      return &cache_.kIfExceptionPOperator;
   }
   UNREACHABLE();
   return nullptr;

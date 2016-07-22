@@ -1754,11 +1754,10 @@ RUNTIME_FUNCTION(Runtime_DebugRecordAsyncFunction) {
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 2);
+  DCHECK(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  isolate->PushPromise(promise, function);
+  isolate->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 

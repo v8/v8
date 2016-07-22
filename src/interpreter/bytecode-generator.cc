@@ -1183,7 +1183,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  TryCatchBuilder try_control_builder(builder(), stmt->catch_predicted());
+  TryCatchBuilder try_control_builder(builder(), stmt->catch_prediction());
   Register no_reg;
 
   // Preserve the context in a dedicated register, so that it can be restored
@@ -1219,7 +1219,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  TryFinallyBuilder try_control_builder(builder(), stmt->catch_predicted());
+  TryFinallyBuilder try_control_builder(builder(), stmt->catch_prediction());
   Register no_reg;
 
   // We keep a record of all paths that enter the finally-block to be able to

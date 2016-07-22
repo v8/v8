@@ -1686,9 +1686,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       int context_index = exception_handlers_.top().context_register_;
       CatchPrediction prediction = exception_handlers_.top().pred_;
       interpreter::Register context_register(context_index);
-      IfExceptionHint hint = prediction == CatchPrediction::CAUGHT
-                                 ? IfExceptionHint::kLocallyCaught
-                                 : IfExceptionHint::kLocallyUncaught;
+      IfExceptionHint hint = ExceptionHintFromCatchPrediction(prediction);
       Environment* success_env = environment()->CopyForConditional();
       const Operator* op = common()->IfException(hint);
       Node* effect = environment()->GetEffectDependency();

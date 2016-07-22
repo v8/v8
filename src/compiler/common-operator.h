@@ -77,7 +77,14 @@ std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
 
 // Prediction whether throw-site is surrounded by any local catch-scope.
-enum class IfExceptionHint { kLocallyUncaught, kLocallyCaught };
+enum class IfExceptionHint {
+  kLocallyUncaught,
+  kLocallyCaught,
+  kLocallyCaughtForPromiseReject
+};
+
+IfExceptionHint ExceptionHintFromCatchPrediction(
+    HandlerTable::CatchPrediction prediction);
 
 size_t hash_value(IfExceptionHint hint);
 

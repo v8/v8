@@ -1092,17 +1092,22 @@ class TryStatement : public Statement {
   //
   // Since it's generally undecidable whether an exception will be caught, our
   // prediction is only an approximation.
-  bool catch_predicted() const { return catch_predicted_; }
-  void set_catch_predicted(bool b) { catch_predicted_ = b; }
+  HandlerTable::CatchPrediction catch_prediction() const {
+    return catch_prediction_;
+  }
+  void set_catch_prediction(HandlerTable::CatchPrediction prediction) {
+    catch_prediction_ = prediction;
+  }
 
  protected:
   TryStatement(Zone* zone, Block* try_block, int pos, NodeType type)
       : Statement(zone, pos, type),
-        catch_predicted_(false),
+        catch_prediction_(HandlerTable::UNCAUGHT),
         try_block_(try_block) {}
 
+  HandlerTable::CatchPrediction catch_prediction_;
+
  private:
-  bool catch_predicted_;
   Block* try_block_;
 };
 
@@ -1126,20 +1131,22 @@ class TryCatchStatement final : public TryStatement {
   // message instead of generating a new one.
   // (When the catch block doesn't rethrow but is guaranteed to perform an
   // ordinary throw, not clearing the old message is safe but not very useful.)
-  bool clear_pending_message() { return clear_pending_message_; }
+  bool clear_pending_message() const {
+    return catch_prediction_ != HandlerTable::UNCAUGHT;
+  }
 
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
                     Variable* variable, Block* catch_block,
-                    bool clear_pending_message, int pos)
+                    HandlerTable::CatchPrediction catch_prediction, int pos)
       : TryStatement(zone, try_block, pos, kTryCatchStatement),
-        clear_pending_message_(clear_pending_message),
         scope_(scope),
         variable_(variable),
-        catch_block_(catch_block) {}
+        catch_block_(catch_block) {
+    catch_prediction_ = catch_prediction;
+  }
 
  private:
-  bool clear_pending_message_;
   Scope* scope_;
   Variable* variable_;
   Block* catch_block_;
@@ -3167,8 +3174,9 @@ class AstNodeFactory final BASE_EMBEDDED {
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
                                           Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (local_zone_) TryCatchStatement(
-        local_zone_, try_block, scope, variable, catch_block, true, pos);
+    return new (local_zone_)
+        TryCatchStatement(local_zone_, try_block, scope, variable, catch_block,
+                          HandlerTable::CAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
@@ -3176,8 +3184,19 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                     Variable* variable,
                                                     Block* catch_block,
                                                     int pos) {
-    return new (local_zone_) TryCatchStatement(
-        local_zone_, try_block, scope, variable, catch_block, false, pos);
+    return new (local_zone_)
+        TryCatchStatement(local_zone_, try_block, scope, variable, catch_block,
+                          HandlerTable::UNCAUGHT, pos);
+  }
+
+  TryCatchStatement* NewTryCatchStatementForPromiseReject(Block* try_block,
+                                                          Scope* scope,
+                                                          Variable* variable,
+                                                          Block* catch_block,
+                                                          int pos) {
+    return new (local_zone_)
+        TryCatchStatement(local_zone_, try_block, scope, variable, catch_block,
+                          HandlerTable::PROMISE, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,

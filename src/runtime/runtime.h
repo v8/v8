@@ -187,7 +187,7 @@ namespace internal {
   F(DebugPrepareStepInIfStepping, 1, 1)         \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugRecordAsyncFunction, 1, 1)             \
-  F(DebugPushPromise, 2, 1)                     \
+  F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugAsyncTaskEvent, 1, 1)                  \
   F(DebugIsActive, 0, 1)                        \

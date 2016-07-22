@@ -250,7 +250,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& ResumeGenerator(Register generator);
 
   // Exception handling.
-  BytecodeArrayBuilder& MarkHandler(int handler_id, bool will_catch);
+  BytecodeArrayBuilder& MarkHandler(int handler_id,
+                                    HandlerTable::CatchPrediction will_catch);
   BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
   BytecodeArrayBuilder& MarkTryEnd(int handler_id);
 

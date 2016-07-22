@@ -523,12 +523,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
-                                                        bool will_catch) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
+    int handler_id, HandlerTable::CatchPrediction catch_prediction) {
   BytecodeLabel handler;
   Bind(&handler);
   handler_table_builder()->SetHandlerTarget(handler_id, handler.offset());
-  handler_table_builder()->SetPrediction(handler_id, will_catch);
+  handler_table_builder()->SetPrediction(handler_id, catch_prediction);
   return *this;
 }
 

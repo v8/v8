@@ -365,7 +365,7 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
         control_(control),
         outer_prediction_(owner->try_catch_prediction_) {
     builder()->try_nesting_level_++;  // Increment nesting.
-    builder()->try_catch_prediction_ = stmt->catch_predicted();
+    builder()->try_catch_prediction_ = stmt->catch_prediction();
   }
   ~ControlScopeForCatch() {
     builder()->try_nesting_level_--;  // Decrement nesting.
@@ -388,7 +388,7 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
 
  private:
   TryCatchBuilder* control_;
-  bool outer_prediction_;
+  HandlerTable::CatchPrediction outer_prediction_;
 };
 
 
@@ -402,7 +402,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
         control_(control),
         outer_prediction_(owner->try_catch_prediction_) {
     builder()->try_nesting_level_++;  // Increment nesting.
-    builder()->try_catch_prediction_ = stmt->catch_predicted();
+    builder()->try_catch_prediction_ = stmt->catch_prediction();
   }
   ~ControlScopeForFinally() {
     builder()->try_nesting_level_--;  // Decrement nesting.
@@ -419,7 +419,7 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  private:
   DeferredCommands* commands_;
   TryFinallyBuilder* control_;
-  bool outer_prediction_;
+  HandlerTable::CatchPrediction outer_prediction_;
 };
 
 
@@ -489,7 +489,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       execution_control_(nullptr),
       execution_context_(nullptr),
       try_nesting_level_(0),
-      try_catch_prediction_(false),
+      try_catch_prediction_(HandlerTable::UNCAUGHT),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone),
@@ -4178,9 +4178,8 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
         // Conservative prediction whether caught locally.
-        IfExceptionHint hint = try_catch_prediction_
-                                   ? IfExceptionHint::kLocallyCaught
-                                   : IfExceptionHint::kLocallyUncaught;
+        IfExceptionHint hint =
+            ExceptionHintFromCatchPrediction(try_catch_prediction_);
         // Copy the environment for the success continuation.
         Environment* success_env = environment()->CopyForConditional();
         const Operator* op = common()->IfException(hint);

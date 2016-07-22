@@ -144,10 +144,11 @@ class SwitchBuilder final : public BreakableControlFlowBuilder {
 // A class to help with co-ordinating control flow in try-catch statements.
 class TryCatchBuilder final : public ControlFlowBuilder {
  public:
-  explicit TryCatchBuilder(BytecodeArrayBuilder* builder, bool catch_predicted)
+  explicit TryCatchBuilder(BytecodeArrayBuilder* builder,
+                           HandlerTable::CatchPrediction catch_prediction)
       : ControlFlowBuilder(builder),
         handler_id_(builder->NewHandlerEntry()),
-        catch_predicted_(catch_predicted) {}
+        catch_prediction_(catch_prediction) {}
 
   void BeginTry(Register context);
   void EndTry();
@@ -155,7 +156,7 @@ class TryCatchBuilder final : public ControlFlowBuilder {
 
  private:
   int handler_id_;
-  bool catch_predicted_;
+  HandlerTable::CatchPrediction catch_prediction_;
   BytecodeLabel handler_;
   BytecodeLabel exit_;
 };
@@ -165,10 +166,10 @@ class TryCatchBuilder final : public ControlFlowBuilder {
 class TryFinallyBuilder final : public ControlFlowBuilder {
  public:
   explicit TryFinallyBuilder(BytecodeArrayBuilder* builder,
-                             bool catch_predicted)
+                             HandlerTable::CatchPrediction catch_prediction)
       : ControlFlowBuilder(builder),
         handler_id_(builder->NewHandlerEntry()),
-        catch_predicted_(catch_predicted),
+        catch_prediction_(catch_prediction),
         finalization_sites_(builder->zone()) {}
 
   void BeginTry(Register context);
@@ -180,7 +181,7 @@ class TryFinallyBuilder final : public ControlFlowBuilder {
 
  private:
   int handler_id_;
-  bool catch_predicted_;
+  HandlerTable::CatchPrediction catch_prediction_;
   BytecodeLabel handler_;
 
   // Unbound labels that identify jumps to the finally block in the code.

@@ -102,7 +102,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   int try_nesting_level_;
 
   // Tracks the prediction of the innermost try-block.
-  bool try_catch_prediction_;
+  HandlerTable::CatchPrediction try_catch_prediction_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;

@@ -885,8 +885,20 @@ void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
 
 void AstPrinter::PrintTryStatement(TryStatement* node) {
   PrintIndentedVisit("TRY", node->try_block());
-  PrintIndented("CATCH PREDICTED");
-  Print(" %d\n", node->catch_predicted());
+  PrintIndented("CATCH PREDICTION");
+  const char* prediction;
+  switch (node->catch_prediction()) {
+    case HandlerTable::UNCAUGHT:
+      prediction = "UNCAUGHT";
+      break;
+    case HandlerTable::CAUGHT:
+      prediction = "CAUGHT";
+      break;
+    case HandlerTable::PROMISE:
+      prediction = "PROMISE";
+      break;
+  }
+  Print(" %s\n", prediction);
 }
 
 void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {

@@ -660,7 +660,7 @@ class Isolate {
   bool OptionalRescheduleException(bool is_bottom_call);
 
   // Push and pop a promise and the current try-catch handler.
-  void PushPromise(Handle<JSObject> promise, Handle<JSFunction> function);
+  void PushPromise(Handle<JSObject> promise);
   void PopPromise();
   Handle<Object> GetPromiseOnStackOnThrow();
 
@@ -1438,15 +1438,12 @@ class Isolate {
 
 class PromiseOnStack {
  public:
-  PromiseOnStack(Handle<JSFunction> function, Handle<JSObject> promise,
-                 PromiseOnStack* prev)
-      : function_(function), promise_(promise), prev_(prev) {}
-  Handle<JSFunction> function() { return function_; }
+  PromiseOnStack(Handle<JSObject> promise, PromiseOnStack* prev)
+      : promise_(promise), prev_(prev) {}
   Handle<JSObject> promise() { return promise_; }
   PromiseOnStack* prev() { return prev_; }
 
  private:
-  Handle<JSFunction> function_;
   Handle<JSObject> promise_;
   PromiseOnStack* prev_;
 };

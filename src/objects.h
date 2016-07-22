@@ -4866,7 +4866,11 @@ class HandlerTable : public FixedArray {
   // Conservative prediction whether a given handler will locally catch an
   // exception or cause a re-throw to outside the code boundary. Since this is
   // undecidable it is merely an approximation (e.g. useful for debugger).
-  enum CatchPrediction { UNCAUGHT, CAUGHT };
+  enum CatchPrediction {
+    UNCAUGHT,  // the handler will (likely) rethrow the exception.
+    CAUGHT,    // the exception will be caught by the handler.
+    PROMISE    // the exception will be caught and cause a promise rejection.
+  };
 
   // Getters for handler table based on ranges.
   inline int GetRangeStart(int index) const;
@@ -4921,8 +4925,8 @@ class HandlerTable : public FixedArray {
   static const int kReturnEntrySize = 2;
 
   // Encoding of the {handler} field.
-  class HandlerPredictionField : public BitField<CatchPrediction, 0, 1> {};
-  class HandlerOffsetField : public BitField<int, 1, 30> {};
+  class HandlerPredictionField : public BitField<CatchPrediction, 0, 2> {};
+  class HandlerOffsetField : public BitField<int, 2, 30> {};
 };
 
 

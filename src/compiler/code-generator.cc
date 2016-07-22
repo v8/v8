@@ -229,11 +229,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
             TENURED));
     for (size_t i = 0; i < handlers_.size(); ++i) {
       int position = handlers_[i].handler->pos();
-      HandlerTable::CatchPrediction prediction = handlers_[i].caught_locally
-                                                     ? HandlerTable::CAUGHT
-                                                     : HandlerTable::UNCAUGHT;
       table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), position, prediction);
+      table->SetReturnHandler(static_cast<int>(i), position,
+                              handlers_[i].catch_prediction);
     }
     result->set_handler_table(*table);
   }
@@ -605,9 +603,15 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
-    bool caught = flags & CallDescriptor::kHasLocalCatchHandler;
+    HandlerTable::CatchPrediction prediction = HandlerTable::UNCAUGHT;
+    if (flags & CallDescriptor::kHasLocalCatchHandler) {
+      prediction = HandlerTable::CAUGHT;
+    } else if (flags & CallDescriptor::kHasLocalCatchHandlerForPromiseReject) {
+      prediction = HandlerTable::PROMISE;
+    }
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
-    handlers_.push_back({caught, GetLabel(handler_rpo), masm()->pc_offset()});
+    handlers_.push_back(
+        {prediction, GetLabel(handler_rpo), masm()->pc_offset()});
   }
 
   if (needs_frame_state) {

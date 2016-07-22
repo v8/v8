@@ -37,7 +37,7 @@ class HandlerTableBuilder final BASE_EMBEDDED {
   void SetTryRegionStart(int handler_id, size_t offset);
   void SetTryRegionEnd(int handler_id, size_t offset);
   void SetHandlerTarget(int handler_id, size_t offset);
-  void SetPrediction(int handler_id, bool will_catch);
+  void SetPrediction(int handler_id, HandlerTable::CatchPrediction prediction);
   void SetContextRegister(int handler_id, Register reg);
 
  private:
@@ -46,7 +46,8 @@ class HandlerTableBuilder final BASE_EMBEDDED {
     size_t offset_end;     // Bytecode offset ending try-region.
     size_t offset_target;  // Bytecode offset of handler target.
     Register context;      // Register holding context for handler.
-    bool will_catch;       // Optimistic prediction for handler.
+                           // Optimistic prediction for handler.
+    HandlerTable::CatchPrediction catch_prediction_;
   };
 
   Isolate* isolate_;

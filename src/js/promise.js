@@ -88,9 +88,9 @@ var GlobalPromise = function Promise(executor) {
   var callbacks = CreateResolvingFunctions(promise);
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
-    if (debug_is_active) %DebugPushPromise(promise, Promise);
+    if (debug_is_active) %DebugPushPromise(promise);
     executor(callbacks.resolve, callbacks.reject);
-  } catch (e) {
+  } %catch (e) {  // Natives syntax to mark this catch block.
     %_Call(callbacks.reject, UNDEFINED, e);
   } finally {
     if (debug_is_active) %DebugPopPromise();
@@ -157,10 +157,10 @@ function FulfillPromise(promise, status, value, promiseQueue) {
 function PromiseHandle(value, handler, deferred) {
   var debug_is_active = DEBUG_IS_ACTIVE;
   try {
-    if (debug_is_active) %DebugPushPromise(deferred.promise, PromiseHandle);
+    if (debug_is_active) %DebugPushPromise(deferred.promise);
     var result = handler(value);
     deferred.resolve(result);
-  } catch (exception) {
+  } %catch (exception) {  // Natives syntax to mark this catch block.
     try { deferred.reject(exception); } catch (e) { }
   } finally {
     if (debug_is_active) %DebugPopPromise();

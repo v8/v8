@@ -2993,10 +2993,18 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   Token::Value tok = peek();
+  bool catch_for_promise_reject = false;
   if (tok != Token::CATCH && tok != Token::FINALLY) {
-    ReportMessage(MessageTemplate::kNoCatchOrFinally);
-    *ok = false;
-    return NULL;
+    if (allow_natives() && tok == Token::MOD) {
+      Consume(Token::MOD);
+      catch_for_promise_reject = true;
+      tok = peek();
+      DCHECK_EQ(Token::CATCH, tok);
+    } else {
+      ReportMessage(MessageTemplate::kNoCatchOrFinally);
+      *ok = false;
+      return NULL;
+    }
   }
 
   Scope* catch_scope = NULL;
@@ -3114,8 +3122,17 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL && finally_block != NULL) {
     // If we have both, create an inner try/catch.
     DCHECK(catch_scope != NULL && catch_variable != NULL);
-    TryCatchStatement* statement = factory()->NewTryCatchStatement(
-        try_block, catch_scope, catch_variable, catch_block, kNoSourcePosition);
+    TryCatchStatement* statement;
+    if (catch_for_promise_reject) {
+      statement = factory()->NewTryCatchStatementForPromiseReject(
+          try_block, catch_scope, catch_variable, catch_block,
+          kNoSourcePosition);
+    } else {
+      statement = factory()->NewTryCatchStatement(try_block, catch_scope,
+                                                  catch_variable, catch_block,
+                                                  kNoSourcePosition);
+    }
+
     try_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
     try_block->statements()->Add(statement, zone());
     catch_block = NULL;  // Clear to indicate it's been handled.

@@ -1308,7 +1308,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       if (js_frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
         // We are conservative with our prediction: try-finally is considered
         // to always rethrow, to meet the expectation of the debugger.
-        if (prediction == HandlerTable::CAUGHT) return CAUGHT_BY_JAVASCRIPT;
+        if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
       }
     }
 
@@ -1693,17 +1693,12 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   return true;
 }
 
-
-void Isolate::PushPromise(Handle<JSObject> promise,
-                          Handle<JSFunction> function) {
+void Isolate::PushPromise(Handle<JSObject> promise) {
   ThreadLocalTop* tltop = thread_local_top();
   PromiseOnStack* prev = tltop->promise_on_stack_;
   Handle<JSObject> global_promise =
       Handle<JSObject>::cast(global_handles()->Create(*promise));
-  Handle<JSFunction> global_function =
-      Handle<JSFunction>::cast(global_handles()->Create(*function));
-  tltop->promise_on_stack_ =
-      new PromiseOnStack(global_function, global_promise, prev);
+  tltop->promise_on_stack_ = new PromiseOnStack(global_promise, prev);
 }
 
 
@@ -1711,11 +1706,9 @@ void Isolate::PopPromise() {
   ThreadLocalTop* tltop = thread_local_top();
   if (tltop->promise_on_stack_ == NULL) return;
   PromiseOnStack* prev = tltop->promise_on_stack_->prev();
-  Handle<Object> global_function = tltop->promise_on_stack_->function();
   Handle<Object> global_promise = tltop->promise_on_stack_->promise();
   delete tltop->promise_on_stack_;
   tltop->promise_on_stack_ = prev;
-  global_handles()->Destroy(global_function.location());
   global_handles()->Destroy(global_promise.location());
 }
 
@@ -1724,15 +1717,15 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = factory()->undefined_value();
   ThreadLocalTop* tltop = thread_local_top();
   if (tltop->promise_on_stack_ == NULL) return undefined;
-  Handle<JSFunction> promise_function = tltop->promise_on_stack_->function();
   // Find the top-most try-catch or try-finally handler.
   if (PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) return undefined;
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
-    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
+    HandlerTable::CatchPrediction prediction;
+    if (frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
       // Throwing inside a Promise only leads to a reject if not caught by an
       // inner try-catch or try-finally.
-      if (frame->function() == *promise_function) {
+      if (prediction == HandlerTable::PROMISE) {
         return tltop->promise_on_stack_->promise();
       }
       return undefined;

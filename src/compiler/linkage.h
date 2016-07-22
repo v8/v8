@@ -175,17 +175,18 @@ class CallDescriptor final : public ZoneObject {
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
     kHasLocalCatchHandler = 1u << 2,
-    kSupportsTailCalls = 1u << 3,
-    kCanUseRoots = 1u << 4,
+    kHasLocalCatchHandlerForPromiseReject = 1u << 3,
+    kSupportsTailCalls = 1u << 4,
+    kCanUseRoots = 1u << 5,
     // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 5,
+    kUseNativeStack = 1u << 6,
     // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 6,
-    kRestoreCSP = 1u << 7,
+    kRestoreJSSP = 1u << 7,
+    kRestoreCSP = 1u << 8,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 8,
+    kInitializeRootRegister = 1u << 9,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 9
+    kNoAllocate = 1u << 10
   };
   typedef base::Flags<Flag> Flags;
 
