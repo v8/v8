@@ -563,9 +563,8 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    // TODO(jgruber): Set back to STRICT once we have eagerly formatted traces.
     RETURN_ON_EXCEPTION(
-        this, JSReceiver::SetProperty(error_object, key, stack_trace, SLOPPY),
+        this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
         JSReceiver);
   }
   return error_object;
@@ -578,9 +577,8 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace =
       CaptureSimpleStackTrace(error_object, mode, caller);
-  // TODO(jgruber): Set back to STRICT once we have eagerly formatted traces.
   RETURN_ON_EXCEPTION(
-      this, JSReceiver::SetProperty(error_object, key, stack_trace, SLOPPY),
+      this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
       JSReceiver);
   return error_object;
 }

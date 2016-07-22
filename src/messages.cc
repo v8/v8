@@ -364,6 +364,23 @@ bool CallSite::IsConstructor() {
   return constructor.is_identical_to(fun_);
 }
 
+MaybeHandle<Object> FormatStackTrace(Isolate* isolate, Handle<JSObject> error,
+                                     Handle<Object> stack_trace) {
+  // TODO(jgruber): Port FormatStackTrace from JS.
+  Handle<JSFunction> fun = isolate->error_format_stack_trace();
+
+  int argc = 2;
+  ScopedVector<Handle<Object>> argv(argc);
+  argv[0] = error;
+  argv[1] = stack_trace;
+
+  Handle<Object> formatted_stack_trace;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, formatted_stack_trace,
+      Execution::Call(isolate, fun, error, argc, argv.start()), Object);
+
+  return formatted_stack_trace;
+}
 
 Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
                                               int template_index,

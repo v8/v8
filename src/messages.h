@@ -71,6 +71,11 @@ class CallSite {
   uint32_t wasm_func_index_ = static_cast<uint32_t>(-1);
 };
 
+// Formats a textual stack trace from the given structured stack trace.
+// Note that this can call arbitrary JS code through Error.prepareStackTrace.
+MaybeHandle<Object> FormatStackTrace(Isolate* isolate, Handle<JSObject> error,
+                                     Handle<Object> stack_trace);
+
 // Determines how stack trace collection skips frames.
 enum FrameSkipMode {
   // Unconditionally skips the first frame. Used e.g. when the Error constructor

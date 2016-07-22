@@ -1132,24 +1132,6 @@ MaybeHandle<JSReceiver> ClearInternalStackTrace(Isolate* isolate,
   return error;
 }
 
-MaybeHandle<Object> FormatStackTrace(Isolate* isolate, Handle<JSObject> error,
-                                     Handle<Object> stack_trace) {
-  // TODO(jgruber): Port FormatStackTrace from JS.
-  Handle<JSFunction> fun = isolate->error_format_stack_trace();
-
-  int argc = 2;
-  ScopedVector<Handle<Object>> argv(argc);
-  argv[0] = error;
-  argv[1] = stack_trace;
-
-  Handle<Object> formatted_stack_trace;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, formatted_stack_trace,
-      Execution::Call(isolate, fun, error, argc, argv.start()), Object);
-
-  return formatted_stack_trace;
-}
-
 bool IsAccessor(Handle<Object> receiver, Handle<Name> name,
                 Handle<JSObject> holder) {
   LookupIterator it(receiver, name, holder,

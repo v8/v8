@@ -5,7 +5,6 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
-#include "src/accessors.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
 #include "src/property-descriptor.h"
@@ -36,67 +35,24 @@ BUILTIN(ErrorCaptureStackTrace) {
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
   FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_NONE;
 
-  // TODO(jgruber): Eagerly format the stack trace and remove accessors.h
-  // include.
-
-  // Handle writes to the global object.
-
-  if (object->IsJSGlobalProxy()) {
-    Map* map = object->map();
-    if (map->has_hidden_prototype()) {
-      object = handle(JSGlobalObject::cast(map->prototype()), isolate);
-    }
-  }
-
-  // Check if the stack property is read-only.
-
-  bool is_extensible = true;
-  if (!JSObject::IsExtensible(object)) {
-    is_extensible = false;
-  }
-
-  PropertyDescriptor desc;
-  Maybe<bool> owned = JSReceiver::GetOwnPropertyDescriptor(
-      isolate, object, isolate->factory()->stack_string(), &desc);
-  if (owned.FromMaybe(false)) {
-    if (!desc.configurable() || !desc.writable()) {
-      is_extensible = false;
-    }
-  }
-
-  if (!is_extensible) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kDefineDisallowed,
-                              isolate->factory()->stack_string(), object));
-  }
-
-  // Add stack accessors to the given object
-
-  Handle<Map> map(object->map());
-  PropertyAttributes attribs = DONT_ENUM;
-  Handle<AccessorInfo> error_stack =
-      Accessors::ErrorStackInfo(isolate, attribs);
-  {
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(error_stack->name())),
-                                 error_stack, attribs);
-    Handle<DescriptorArray> old_descriptors(map->instance_descriptors());
-    int index = old_descriptors->SearchWithCache(isolate, *d.GetKey(), *map);
-    if (index == DescriptorArray::kNotFound) {
-      // TODO(jgruber): This ensures we do not crash when CaptureStackTrace is
-      // called on an object with an existing "stack" property. This will be
-      // removed as soon as we move to eager trace formatting.
-      Handle<Map> new_map =
-          Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
-      JSObject::MigrateToMap(object, new_map, 1);
-    }
-  }
-
   // Collect the stack trace.
 
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               isolate->CaptureAndSetDetailedStackTrace(object));
+
+  // Eagerly format the stack trace and set the stack property.
+
+  Handle<Object> stack_trace =
+      isolate->CaptureSimpleStackTrace(object, mode, caller);
+
+  Handle<Object> formatted_stack_trace;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, formatted_stack_trace,
+      FormatStackTrace(isolate, object, stack_trace));
+
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, isolate->CaptureAndSetSimpleStackTrace(object, mode, caller));
+      isolate, JSObject::SetProperty(object, isolate->factory()->stack_string(),
+                                     formatted_stack_trace, STRICT));
 
   return *isolate->factory()->undefined_value();
 }

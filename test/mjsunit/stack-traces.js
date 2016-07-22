@@ -380,3 +380,9 @@ assertEquals(undefined, error.stack);
 // Check that repeated trace collection does not crash.
 error = new Error();
 Error.captureStackTrace(error);
+
+// Check that exceptions thrown within prepareStackTrace throws an exception.
+Error.prepareStackTrace = function(e, frames) { throw 42; }
+
+var x = {}
+assertThrows(() => Error.captureStackTrace(x));
