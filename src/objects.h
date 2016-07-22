@@ -5408,9 +5408,7 @@ class Code: public HeapObject {
   class ProfilerTicksField : public BitField<int, 4, 28> {};
 
   // Flags layout.  BitField<type, shift, size>.
-  class ICStateField : public BitField<InlineCacheState, 0, 2> {};
-  class HasUnwindingInfoField : public BitField<bool, ICStateField::kNext, 1> {
-  };
+  class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
   class CacheHolderField
       : public BitField<CacheHolderFlag, HasUnwindingInfoField::kNext, 2> {};
   class KindField : public BitField<Kind, CacheHolderField::kNext, 5> {};
