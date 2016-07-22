@@ -3117,14 +3117,18 @@ Node* SimplifiedLowering::Float64Trunc(Node* const node) {
 }
 
 Node* SimplifiedLowering::Int32Abs(Node* const node) {
-  Node* const zero = jsgraph()->Int32Constant(0);
   Node* const input = node->InputAt(0);
 
-  // if 0 < input then input else 0 - input
-  return graph()->NewNode(
-      common()->Select(MachineRepresentation::kWord32, BranchHint::kTrue),
-      graph()->NewNode(machine()->Int32LessThan(), zero, input), input,
-      graph()->NewNode(machine()->Int32Sub(), zero, input));
+  // Generate case for absolute integer value.
+  //
+  //    let sign = input >> 31 in
+  //    (input ^ sign) - sign
+
+  Node* sign = graph()->NewNode(machine()->Word32Sar(), input,
+                                jsgraph()->Int32Constant(31));
+  return graph()->NewNode(machine()->Int32Sub(),
+                          graph()->NewNode(machine()->Word32Xor(), input, sign),
+                          sign);
 }
 
 Node* SimplifiedLowering::Int32Div(Node* const node) {
