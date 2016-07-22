@@ -19,7 +19,8 @@ tarfile.grp = None
 tarfile.pwd = None
 
 def filter_git(tar_info):
-  if tar_info.name.startswith(os.path.join('data', '.git')):
+  if tar_info.name.startswith(os.path.join('data', '.git')) or \
+      tar_info.name.startswith(os.path.join('harness', '.git')):
     return None
   else:
     tar_info.uname = tar_info.gname = "test262"
@@ -27,6 +28,7 @@ def filter_git(tar_info):
 
 with tarfile.open('data.tar', 'w') as tar:
   tar.add('data', filter=filter_git)
+  tar.add('harness', filter=filter_git)
 
 # Workaround for GN. We can't specify the tarfile as output because it's
 # not in the product directory. Therefore we track running of this script

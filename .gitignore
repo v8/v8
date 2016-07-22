@@ -59,6 +59,7 @@ shell_g
 /test/simdjs/data
 /test/test262/data
 /test/test262/data.tar
+/test/test262/harness
 /testing/gmock
 /testing/gtest
 /third_party

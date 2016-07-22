@@ -47,7 +47,10 @@ TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_PATH = ["data", "tools", "packaging"]
+TEST_262_TOOLS_PATH = ["harness", "src"]
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             *TEST_262_TOOLS_PATH))
 
 ALL_VARIANT_FLAGS_STRICT = dict(
     (v, [flags + ["--use-strict"] for flags in flag_sets])

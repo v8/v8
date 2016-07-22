@@ -34,6 +34,8 @@ deps = {
   "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "baf493985cb9ea7cdbd0d68704860a8156de9556",
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "88bc7fe7586f161201c5f14f55c9c489f82b1b67",
+  "v8/test/test262/harness":
+    Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
     Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "0b50729d487ec853d8f7c762c81cb2ad2785e674",
 }
