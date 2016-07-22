@@ -38,26 +38,46 @@ declare_args() {
 # configurations v8 runs on.
 if (v8_snapshot_toolchain == "") {
   if (host_cpu == "x64" && host_os == "linux") {
-    if (current_cpu == "arm" || current_cpu == "mipsel" ||
-        current_cpu == "x86") {
-      _snapshot_cpu = "x86"
+    if (v8_current_cpu == v8_target_cpu && current_cpu == target_cpu &&
+        (target_cpu == "x86" || target_cpu == "x64")) {
+      # Args that are specified by the user can end up having the same
+      # effect as args that are specified in a toolchain; for example,
+      # building on linux x64 with target_cpu == "x86" v8_target_cpu == "arm"
+      # will use the //build/toolchain/linux:clang_x86 toolchain, but have the
+      # same effect as if you specified
+      #
+      #   custom_toolchain="//build/toolchain/linux:clang_x86_v8_arm"
+      #
+      # As a result, if we didn't take that into account we could
+      # accidentally end up building two identical copies of v8.
+      #
+      # So, we can re-use the default toolchain for the snapshot in these
+      # casees, but only when the host is actually capable of running the
+      # target code, which at this time means that the target_cpu == x86
+      # or x64.
+      v8_snapshot_toolchain = default_toolchain
     } else {
-      assert(current_cpu == "arm64" || current_cpu == "x64" ||
-                 current_cpu == "mips64el",
-             "Need environment for this arch: $current_cpu")
-      _snapshot_cpu = "x64"
-    }
+      if (current_cpu == "arm" || current_cpu == "mipsel" ||
+          current_cpu == "x86") {
+        _snapshot_cpu = "x86"
+      } else {
+        assert(current_cpu == "arm64" || current_cpu == "x64" ||
+                   current_cpu == "mips64el",
+               "Need environment for this arch: $current_cpu")
+        _snapshot_cpu = "x64"
+      }
 
-    if (v8_current_cpu != _snapshot_cpu) {
-      _cpus = "${_snapshot_cpu}_v8_${v8_current_cpu}"
-    } else {
-      _cpus = _snapshot_cpu
-    }
+      if (v8_current_cpu != _snapshot_cpu) {
+        _cpus = "${_snapshot_cpu}_v8_${v8_current_cpu}"
+      } else {
+        _cpus = _snapshot_cpu
+      }
 
-    if ((host_os == "linux" && current_os == "android") || is_clang) {
-      v8_snapshot_toolchain = "//build/toolchain/linux:clang_${_cpus}"
-    } else {
-      v8_snapshot_toolchain = "//build/toolchain/linux:${_cpus}"
+      if ((host_os == "linux" && current_os == "android") || is_clang) {
+        v8_snapshot_toolchain = "//build/toolchain/linux:clang_${_cpus}"
+      } else {
+        v8_snapshot_toolchain = "//build/toolchain/linux:${_cpus}"
+      }
     }
   } else if (host_os == "mac" && current_os == "win") {
     assert(v8_current_cpu == current_cpu,
