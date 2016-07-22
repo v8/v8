@@ -165,6 +165,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                          \
   V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                           \
   V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Float64Max, Operator::kNoProperties, 2, 0, 1)                            \
+  V(Float64Min, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float64Add, Operator::kCommutative, 2, 0, 1)                             \
   V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(Float64SubPreserveNan, Operator::kNoProperties, 2, 0, 1)                 \
@@ -376,10 +378,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
-  V(Float32Max, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float32Min, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float64Max, Operator::kNoProperties, 2, 0, 1)           \
-  V(Float64Min, Operator::kNoProperties, 2, 0, 1)           \
   V(Float32RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float32RoundUp, Operator::kNoProperties, 1, 0, 1)       \

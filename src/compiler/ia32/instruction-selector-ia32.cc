@@ -991,23 +991,21 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat32Max(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Max, kSSEFloat32Max);
-}
-
-
 void InstructionSelector::VisitFloat64Max(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Max, kSSEFloat64Max);
-}
-
-
-void InstructionSelector::VisitFloat32Min(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Min, kSSEFloat32Min);
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEFloat64Max, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Min, kSSEFloat64Min);
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kSSEFloat64Min, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 
@@ -1676,10 +1674,6 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
-      MachineOperatorBuilder::kFloat32Max |
-      MachineOperatorBuilder::kFloat32Min |
-      MachineOperatorBuilder::kFloat64Max |
-      MachineOperatorBuilder::kFloat64Min |
       MachineOperatorBuilder::kWord32ShiftIsSafe |
       MachineOperatorBuilder::kWord32Ctz;
   if (CpuFeatures::IsSupported(POPCNT)) {

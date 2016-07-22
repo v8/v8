@@ -1113,10 +1113,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32Mul(node);
     case IrOpcode::kFloat32Div:
       return MarkAsFloat32(node), VisitFloat32Div(node);
-    case IrOpcode::kFloat32Min:
-      return MarkAsFloat32(node), VisitFloat32Min(node);
-    case IrOpcode::kFloat32Max:
-      return MarkAsFloat32(node), VisitFloat32Max(node);
     case IrOpcode::kFloat32Abs:
       return MarkAsFloat32(node), VisitFloat32Abs(node);
     case IrOpcode::kFloat32Sqrt:

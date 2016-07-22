@@ -32,6 +32,8 @@ class SimplifiedLowering final {
 
   void LowerAllNodes();
 
+  void DoMax(Node* node, Operator const* op, MachineRepresentation rep);
+  void DoMin(Node* node, Operator const* op, MachineRepresentation rep);
   void DoJSToNumberTruncatesToFloat64(Node* node,
                                       RepresentationSelector* selector);
   void DoJSToNumberTruncatesToWord32(Node* node,

@@ -353,20 +353,12 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
     // Math.max() -> -Infinity
     return Replace(jsgraph()->Constant(-V8_INFINITY));
   }
-  if (r.InputsMatchOne(Type::PlainPrimitive())) {
-    // Math.max(a:plain-primitive) -> ToNumber(a)
+  if (r.InputsMatchAll(Type::PlainPrimitive())) {
+    // Math.max(a:plain-primitive, b:plain-primitive, ...)
     Node* value = ToNumber(r.GetJSCallInput(0));
-    return Replace(value);
-  }
-  if (r.InputsMatchAll(Type::Integral32())) {
-    // Math.max(a:int32, b:int32, ...)
-    Node* value = r.GetJSCallInput(0);
     for (int i = 1; i < r.GetJSCallArity(); i++) {
-      Node* const input = r.GetJSCallInput(i);
-      value = graph()->NewNode(
-          common()->Select(MachineRepresentation::kNone),
-          graph()->NewNode(simplified()->NumberLessThan(), input, value), value,
-          input);
+      Node* input = ToNumber(r.GetJSCallInput(i));
+      value = graph()->NewNode(simplified()->NumberMax(), value, input);
     }
     return Replace(value);
   }
@@ -380,20 +372,12 @@ Reduction JSBuiltinReducer::ReduceMathMin(Node* node) {
     // Math.min() -> Infinity
     return Replace(jsgraph()->Constant(V8_INFINITY));
   }
-  if (r.InputsMatchOne(Type::PlainPrimitive())) {
-    // Math.min(a:plain-primitive) -> ToNumber(a)
+  if (r.InputsMatchAll(Type::PlainPrimitive())) {
+    // Math.min(a:plain-primitive, b:plain-primitive, ...)
     Node* value = ToNumber(r.GetJSCallInput(0));
-    return Replace(value);
-  }
-  if (r.InputsMatchAll(Type::Integral32())) {
-    // Math.min(a:int32, b:int32, ...)
-    Node* value = r.GetJSCallInput(0);
     for (int i = 1; i < r.GetJSCallArity(); i++) {
-      Node* const input = r.GetJSCallInput(i);
-      value = graph()->NewNode(
-          common()->Select(MachineRepresentation::kNone),
-          graph()->NewNode(simplified()->NumberLessThan(), input, value), input,
-          value);
+      Node* input = ToNumber(r.GetJSCallInput(i));
+      value = graph()->NewNode(simplified()->NumberMin(), value, input);
     }
     return Replace(value);
   }

@@ -251,6 +251,10 @@ Matcher<Node*> IsNumberLog(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog1p(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog10(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberLog2(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsNumberMax(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberMin(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberRound(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsNumberPow(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
@@ -375,10 +379,6 @@ Matcher<Node*> IsChangeUint32ToFloat64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
-Matcher<Node*> IsFloat32Max(const Matcher<Node*>& lhs_matcher,
-                            const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsFloat32Min(const Matcher<Node*>& lhs_matcher,
-                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat32Abs(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat32Equal(const Matcher<Node*>& lhs_matcher,
                               const Matcher<Node*>& rhs_matcher);

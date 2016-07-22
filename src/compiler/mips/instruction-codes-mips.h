@@ -112,8 +112,6 @@ namespace compiler {
   V(MipsFloat64SilenceNaN)         \
   V(MipsFloat64Max)                \
   V(MipsFloat64Min)                \
-  V(MipsFloat32Max)                \
-  V(MipsFloat32Min)                \
   V(MipsPush)                      \
   V(MipsStoreToStackSlot)          \
   V(MipsStackClaim)

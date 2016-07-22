@@ -1314,18 +1314,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fdiv(i.OutputFloat32Register(), i.InputFloat32Register(0),
               i.InputFloat32Register(1));
       break;
-    case kArm64Float32Max:
-      // (b < a) ? a : b
-      __ Fcmp(i.InputFloat32Register(1), i.InputFloat32Register(0));
-      __ Fcsel(i.OutputFloat32Register(), i.InputFloat32Register(0),
-               i.InputFloat32Register(1), lo);
-      break;
-    case kArm64Float32Min:
-      // (a < b) ? a : b
-      __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
-      __ Fcsel(i.OutputFloat32Register(), i.InputFloat32Register(0),
-               i.InputFloat32Register(1), lo);
-      break;
     case kArm64Float32Abs:
       __ Fabs(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
@@ -1372,18 +1360,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        0, 2);
       break;
     }
-    case kArm64Float64Max:
-      // (b < a) ? a : b
-      __ Fcmp(i.InputDoubleRegister(1), i.InputDoubleRegister(0));
-      __ Fcsel(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-               i.InputDoubleRegister(1), lo);
+    case kArm64Float64Max: {
+      __ Fmax(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
       break;
-    case kArm64Float64Min:
-      // (a < b) ? a : b
-      __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
-      __ Fcsel(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-               i.InputDoubleRegister(1), lo);
+    }
+    case kArm64Float64Min: {
+      __ Fmin(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+              i.InputDoubleRegister(1));
       break;
+    }
     case kArm64Float64Abs:
       __ Fabs(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

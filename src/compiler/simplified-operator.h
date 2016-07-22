@@ -218,6 +218,8 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberLog1p();
   const Operator* NumberLog10();
   const Operator* NumberLog2();
+  const Operator* NumberMax();
+  const Operator* NumberMin();
   const Operator* NumberPow();
   const Operator* NumberRound();
   const Operator* NumberSign();

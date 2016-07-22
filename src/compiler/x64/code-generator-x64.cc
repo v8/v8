@@ -1196,12 +1196,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat32Sqrt:
       ASSEMBLE_SSE_UNOP(sqrtss);
       break;
-    case kSSEFloat32Max:
-      ASSEMBLE_SSE_BINOP(maxss);
-      break;
-    case kSSEFloat32Min:
-      ASSEMBLE_SSE_BINOP(minss);
-      break;
     case kSSEFloat32ToFloat64:
       ASSEMBLE_SSE_UNOP(Cvtss2sd);
       break;
@@ -1285,12 +1279,59 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                                        -kDoubleSize);
       break;
     }
-    case kSSEFloat64Max:
-      ASSEMBLE_SSE_BINOP(maxsd);
+    case kSSEFloat64Max: {
+      Label compare_nan, compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool = new (zone()) OutOfLineLoadNaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(above, &done_compare, Label::kNear);
+      __ j(below, &compare_swap, Label::kNear);
+      __ Movmskpd(kScratchRegister, i.InputDoubleRegister(0));
+      __ testl(kScratchRegister, Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Movsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
       break;
-    case kSSEFloat64Min:
-      ASSEMBLE_SSE_BINOP(minsd);
+    }
+    case kSSEFloat64Min: {
+      Label compare_swap, done_compare;
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      auto ool = new (zone()) OutOfLineLoadNaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(below, &done_compare, Label::kNear);
+      __ j(above, &compare_swap, Label::kNear);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movmskpd(kScratchRegister, i.InputDoubleRegister(1));
+      } else {
+        __ Movsd(kScratchDoubleReg, i.InputOperand(1));
+        __ Movmskpd(kScratchRegister, kScratchDoubleReg);
+      }
+      __ testl(kScratchRegister, Immediate(1));
+      __ j(zero, &done_compare, Label::kNear);
+      __ bind(&compare_swap);
+      if (instr->InputAt(1)->IsFPRegister()) {
+        __ Movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      } else {
+        __ Movsd(i.InputDoubleRegister(0), i.InputOperand(1));
+      }
+      __ bind(&done_compare);
+      __ bind(ool->exit());
       break;
+    }
     case kSSEFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
@@ -1601,12 +1642,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // when there is a (v)mulss depending on the result.
       __ Movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
-    case kAVXFloat32Max:
-      ASSEMBLE_AVX_BINOP(vmaxss);
-      break;
-    case kAVXFloat32Min:
-      ASSEMBLE_AVX_BINOP(vminss);
-      break;
     case kAVXFloat64Cmp: {
       CpuFeatureScope avx_scope(masm(), AVX);
       if (instr->InputAt(1)->IsFPRegister()) {
@@ -1630,12 +1665,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulsd depending on the result.
       __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
-      break;
-    case kAVXFloat64Max:
-      ASSEMBLE_AVX_BINOP(vmaxsd);
-      break;
-    case kAVXFloat64Min:
-      ASSEMBLE_AVX_BINOP(vminsd);
       break;
     case kAVXFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.

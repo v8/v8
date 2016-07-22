@@ -1360,44 +1360,75 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vstr(i.InputDoubleRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmFloat32Max: {
-      CpuFeatureScope scope(masm(), ARMv8);
-      // (b < a) ? a : b
-      SwVfpRegister a = i.InputFloatRegister(0);
-      SwVfpRegister b = i.InputFloatRegister(1);
-      SwVfpRegister result = i.OutputFloatRegister();
-      __ VFPCompareAndSetFlags(a, b);
-      __ vsel(gt, result, a, b);
-      break;
-    }
-    case kArmFloat32Min: {
-      CpuFeatureScope scope(masm(), ARMv8);
-      // (a < b) ? a : b
-      SwVfpRegister a = i.InputFloatRegister(0);
-      SwVfpRegister b = i.InputFloatRegister(1);
-      SwVfpRegister result = i.OutputFloatRegister();
-      __ VFPCompareAndSetFlags(b, a);
-      __ vsel(gt, result, a, b);
-      break;
-    }
     case kArmFloat64Max: {
-      CpuFeatureScope scope(masm(), ARMv8);
-      // (b < a) ? a : b
-      DwVfpRegister a = i.InputDoubleRegister(0);
-      DwVfpRegister b = i.InputDoubleRegister(1);
-      DwVfpRegister result = i.OutputDoubleRegister();
-      __ VFPCompareAndSetFlags(a, b);
-      __ vsel(gt, result, a, b);
+      DwVfpRegister left_reg = i.InputDoubleRegister(0);
+      DwVfpRegister right_reg = i.InputDoubleRegister(1);
+      DwVfpRegister result_reg = i.OutputDoubleRegister();
+      Label result_is_nan, return_left, return_right, check_zero, done;
+      __ VFPCompareAndSetFlags(left_reg, right_reg);
+      __ b(mi, &return_right);
+      __ b(gt, &return_left);
+      __ b(vs, &result_is_nan);
+      // Left equals right => check for -0.
+      __ VFPCompareAndSetFlags(left_reg, 0.0);
+      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
+        __ b(ne, &done);  // left == right != 0.
+      } else {
+        __ b(ne, &return_left);  // left == right != 0.
+      }
+      // At this point, both left and right are either 0 or -0.
+      // Since we operate on +0 and/or -0, vadd and vand have the same effect;
+      // the decision for vadd is easy because vand is a NEON instruction.
+      __ vadd(result_reg, left_reg, right_reg);
+      __ b(&done);
+      __ bind(&result_is_nan);
+      __ vadd(result_reg, left_reg, right_reg);
+      __ b(&done);
+      __ bind(&return_right);
+      __ Move(result_reg, right_reg);
+      if (!left_reg.is(result_reg)) __ b(&done);
+      __ bind(&return_left);
+      __ Move(result_reg, left_reg);
+      __ bind(&done);
       break;
     }
     case kArmFloat64Min: {
-      CpuFeatureScope scope(masm(), ARMv8);
-      // (a < b) ? a : b
-      DwVfpRegister a = i.InputDoubleRegister(0);
-      DwVfpRegister b = i.InputDoubleRegister(1);
-      DwVfpRegister result = i.OutputDoubleRegister();
-      __ VFPCompareAndSetFlags(b, a);
-      __ vsel(gt, result, a, b);
+      DwVfpRegister left_reg = i.InputDoubleRegister(0);
+      DwVfpRegister right_reg = i.InputDoubleRegister(1);
+      DwVfpRegister result_reg = i.OutputDoubleRegister();
+      Label result_is_nan, return_left, return_right, check_zero, done;
+      __ VFPCompareAndSetFlags(left_reg, right_reg);
+      __ b(mi, &return_left);
+      __ b(gt, &return_right);
+      __ b(vs, &result_is_nan);
+      // Left equals right => check for -0.
+      __ VFPCompareAndSetFlags(left_reg, 0.0);
+      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
+        __ b(ne, &done);  // left == right != 0.
+      } else {
+        __ b(ne, &return_left);  // left == right != 0.
+      }
+      // At this point, both left and right are either 0 or -0.
+      // We could use a single 'vorr' instruction here if we had NEON support.
+      // The algorithm is: -((-L) + (-R)), which in case of L and R being
+      // different registers is most efficiently expressed as -((-L) - R).
+      __ vneg(left_reg, left_reg);
+      if (left_reg.is(right_reg)) {
+        __ vadd(result_reg, left_reg, right_reg);
+      } else {
+        __ vsub(result_reg, left_reg, right_reg);
+      }
+      __ vneg(result_reg, result_reg);
+      __ b(&done);
+      __ bind(&result_is_nan);
+      __ vadd(result_reg, left_reg, right_reg);
+      __ b(&done);
+      __ bind(&return_right);
+      __ Move(result_reg, right_reg);
+      if (!left_reg.is(result_reg)) __ b(&done);
+      __ bind(&return_left);
+      __ Move(result_reg, left_reg);
+      __ bind(&done);
       break;
     }
     case kArmFloat64SilenceNaN: {

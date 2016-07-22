@@ -1763,6 +1763,58 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         return;
       }
+      case IrOpcode::kNumberMax: {
+        // TODO(turbofan): We should consider feedback types here as well.
+        if (BothInputsAreUnsigned32(node)) {
+          VisitUint32Binop(node);
+          if (lower()) {
+            lowering->DoMax(node, lowering->machine()->Uint32LessThan(),
+                            MachineRepresentation::kWord32);
+          }
+        } else if (BothInputsAreSigned32(node)) {
+          VisitInt32Binop(node);
+          if (lower()) {
+            lowering->DoMax(node, lowering->machine()->Int32LessThan(),
+                            MachineRepresentation::kWord32);
+          }
+        } else if (BothInputsAre(node, Type::PlainNumber())) {
+          VisitFloat64Binop(node);
+          if (lower()) {
+            lowering->DoMax(node, lowering->machine()->Float64LessThan(),
+                            MachineRepresentation::kFloat64);
+          }
+        } else {
+          VisitFloat64Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        }
+        return;
+      }
+      case IrOpcode::kNumberMin: {
+        // TODO(turbofan): We should consider feedback types here as well.
+        if (BothInputsAreUnsigned32(node)) {
+          VisitUint32Binop(node);
+          if (lower()) {
+            lowering->DoMin(node, lowering->machine()->Uint32LessThan(),
+                            MachineRepresentation::kWord32);
+          }
+        } else if (BothInputsAreSigned32(node)) {
+          VisitInt32Binop(node);
+          if (lower()) {
+            lowering->DoMin(node, lowering->machine()->Int32LessThan(),
+                            MachineRepresentation::kWord32);
+          }
+        } else if (BothInputsAre(node, Type::PlainNumber())) {
+          VisitFloat64Binop(node);
+          if (lower()) {
+            lowering->DoMin(node, lowering->machine()->Float64LessThan(),
+                            MachineRepresentation::kFloat64);
+          }
+        } else {
+          VisitFloat64Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        }
+        return;
+      }
       case IrOpcode::kNumberAtan2:
       case IrOpcode::kNumberPow: {
         VisitBinop(node, UseInfo::TruncatingFloat64(),
@@ -3397,6 +3449,27 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   return graph()->NewNode(phi_op, true0, false0, merge0);
 }
 
+void SimplifiedLowering::DoMax(Node* node, Operator const* op,
+                               MachineRepresentation rep) {
+  Node* const lhs = node->InputAt(0);
+  Node* const rhs = node->InputAt(1);
+
+  node->ReplaceInput(0, graph()->NewNode(op, lhs, rhs));
+  DCHECK_EQ(rhs, node->InputAt(1));
+  node->AppendInput(graph()->zone(), lhs);
+  NodeProperties::ChangeOp(node, common()->Select(rep));
+}
+
+void SimplifiedLowering::DoMin(Node* node, Operator const* op,
+                               MachineRepresentation rep) {
+  Node* const lhs = node->InputAt(0);
+  Node* const rhs = node->InputAt(1);
+
+  node->InsertInput(graph()->zone(), 0, graph()->NewNode(op, lhs, rhs));
+  DCHECK_EQ(lhs, node->InputAt(1));
+  DCHECK_EQ(rhs, node->InputAt(2));
+  NodeProperties::ChangeOp(node, common()->Select(rep));
+}
 
 void SimplifiedLowering::DoShift(Node* node, Operator const* op,
                                  Type* rhs_type) {

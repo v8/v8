@@ -751,6 +751,10 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64Log2();
     case IrOpcode::kNumberLog10:
       return machine()->Float64Log10();
+    case IrOpcode::kNumberMax:
+      return machine()->Float64Max();
+    case IrOpcode::kNumberMin:
+      return machine()->Float64Min();
     case IrOpcode::kNumberPow:
       return machine()->Float64Pow();
     case IrOpcode::kNumberSin:

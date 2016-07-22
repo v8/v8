@@ -254,6 +254,8 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Div, 2, 0, 1),                // --
     PURE(Float64Mod, 2, 0, 1),                // --
     PURE(Float64Sqrt, 1, 0, 1),               // --
+    PURE(Float64Max, 2, 0, 1),                // --
+    PURE(Float64Min, 2, 0, 1),                // --
     PURE(Float64Equal, 2, 0, 1),              // --
     PURE(Float64LessThan, 2, 0, 1),           // --
     PURE(Float64LessThanOrEqual, 2, 0, 1),    // --
@@ -318,10 +320,6 @@ const OptionalOperatorEntry kOptionalOperators[] = {
     &MachineOperatorBuilder::Name, MachineOperatorBuilder::k##Name, #Name, \
         value_input_count, control_input_count, value_output_count         \
   }
-    OPTIONAL_ENTRY(Float32Max, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float32Min, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float64Max, 2, 0, 1),            // --
-    OPTIONAL_ENTRY(Float64Min, 2, 0, 1),            // --
     OPTIONAL_ENTRY(Float64RoundDown, 1, 0, 1),      // --
     OPTIONAL_ENTRY(Float64RoundTruncate, 1, 0, 1),  // --
     OPTIONAL_ENTRY(Float64RoundTiesAway, 1, 0, 1),  // --

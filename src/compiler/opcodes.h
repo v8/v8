@@ -248,6 +248,8 @@
   V(NumberLog1p)                      \
   V(NumberLog2)                       \
   V(NumberLog10)                      \
+  V(NumberMax)                        \
+  V(NumberMin)                        \
   V(NumberCbrt)                       \
   V(NumberPow)                        \
   V(NumberRound)                      \
@@ -395,8 +397,6 @@
   V(Float32Neg)                 \
   V(Float32Mul)                 \
   V(Float32Div)                 \
-  V(Float32Max)                 \
-  V(Float32Min)                 \
   V(Float32Abs)                 \
   V(Float32Sqrt)                \
   V(Float32RoundDown)           \

@@ -889,36 +889,15 @@ TEST_F(JSBuiltinReducerTest, MathMaxWithPlainPrimitive) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::PlainPrimitive(), 0);
-  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
-                                UndefinedConstant(), p0, context, frame_state,
-                                effect, control);
+  Node* p1 = Parameter(Type::PlainPrimitive(), 1);
+  Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                UndefinedConstant(), p0, p1, context,
+                                frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsPlainPrimitiveToNumber(p0));
-}
-
-TEST_F(JSBuiltinReducerTest, MathMaxWithIntegral32) {
-  Node* function = MathFunction("max");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
-    TRACED_FOREACH(Type*, t1, kIntegral32Types) {
-      Node* p0 = Parameter(t0, 0);
-      Node* p1 = Parameter(t1, 1);
-      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
-                                    UndefinedConstant(), p0, p1, context,
-                                    frame_state, effect, control);
-      Reduction r = Reduce(call);
-
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsSelect(MachineRepresentation::kNone,
-                                            IsNumberLessThan(p1, p0), p0, p1));
-    }
-  }
+  EXPECT_THAT(r.replacement(), IsNumberMax(IsPlainPrimitiveToNumber(p0),
+                                           IsPlainPrimitiveToNumber(p1)));
 }
 
 // -----------------------------------------------------------------------------
@@ -967,36 +946,15 @@ TEST_F(JSBuiltinReducerTest, MathMinWithPlainPrimitive) {
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
   Node* p0 = Parameter(Type::PlainPrimitive(), 0);
-  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
-                                UndefinedConstant(), p0, context, frame_state,
-                                effect, control);
+  Node* p1 = Parameter(Type::PlainPrimitive(), 1);
+  Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                UndefinedConstant(), p0, p1, context,
+                                frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsPlainPrimitiveToNumber(p0));
-}
-
-TEST_F(JSBuiltinReducerTest, MathMinWithIntegral32) {
-  Node* function = MathFunction("min");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
-    TRACED_FOREACH(Type*, t1, kIntegral32Types) {
-      Node* p0 = Parameter(t0, 0);
-      Node* p1 = Parameter(t1, 1);
-      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
-                                    UndefinedConstant(), p0, p1, context,
-                                    frame_state, effect, control);
-      Reduction r = Reduce(call);
-
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsSelect(MachineRepresentation::kNone,
-                                            IsNumberLessThan(p1, p0), p1, p0));
-    }
-  }
+  EXPECT_THAT(r.replacement(), IsNumberMin(IsPlainPrimitiveToNumber(p0),
+                                           IsPlainPrimitiveToNumber(p1)));
 }
 
 // -----------------------------------------------------------------------------

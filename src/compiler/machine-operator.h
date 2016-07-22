@@ -93,36 +93,29 @@ class MachineOperatorBuilder final : public ZoneObject {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.
-  enum Flag {
+  enum Flag : unsigned {
     kNoFlags = 0u,
-    // Note that Float*Max behaves like `(b < a) ? a : b`, not like Math.max().
-    // Note that Float*Min behaves like `(a < b) ? a : b`, not like Math.min().
-    kFloat32Max = 1u << 0,
-    kFloat32Min = 1u << 1,
-    kFloat64Max = 1u << 2,
-    kFloat64Min = 1u << 3,
-    kFloat32RoundDown = 1u << 4,
-    kFloat64RoundDown = 1u << 5,
-    kFloat32RoundUp = 1u << 6,
-    kFloat64RoundUp = 1u << 7,
-    kFloat32RoundTruncate = 1u << 8,
-    kFloat64RoundTruncate = 1u << 9,
-    kFloat32RoundTiesEven = 1u << 10,
-    kFloat64RoundTiesEven = 1u << 11,
-    kFloat64RoundTiesAway = 1u << 12,
-    kInt32DivIsSafe = 1u << 13,
-    kUint32DivIsSafe = 1u << 14,
-    kWord32ShiftIsSafe = 1u << 15,
-    kWord32Ctz = 1u << 16,
-    kWord64Ctz = 1u << 17,
-    kWord32Popcnt = 1u << 18,
-    kWord64Popcnt = 1u << 19,
-    kWord32ReverseBits = 1u << 20,
-    kWord64ReverseBits = 1u << 21,
-    kFloat32Neg = 1u << 22,
-    kFloat64Neg = 1u << 23,
+    kFloat32RoundDown = 1u << 0,
+    kFloat64RoundDown = 1u << 1,
+    kFloat32RoundUp = 1u << 2,
+    kFloat64RoundUp = 1u << 3,
+    kFloat32RoundTruncate = 1u << 4,
+    kFloat64RoundTruncate = 1u << 5,
+    kFloat32RoundTiesEven = 1u << 6,
+    kFloat64RoundTiesEven = 1u << 7,
+    kFloat64RoundTiesAway = 1u << 8,
+    kInt32DivIsSafe = 1u << 9,
+    kUint32DivIsSafe = 1u << 10,
+    kWord32ShiftIsSafe = 1u << 11,
+    kWord32Ctz = 1u << 12,
+    kWord64Ctz = 1u << 13,
+    kWord32Popcnt = 1u << 14,
+    kWord64Popcnt = 1u << 15,
+    kWord32ReverseBits = 1u << 16,
+    kWord64ReverseBits = 1u << 17,
+    kFloat32Neg = 1u << 18,
+    kFloat64Neg = 1u << 19,
     kAllOptionalOps =
-        kFloat32Max | kFloat32Min | kFloat64Max | kFloat64Min |
         kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
         kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
         kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
@@ -344,13 +337,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64LessThan();
   const Operator* Float64LessThanOrEqual();
 
-  // Floating point min/max complying to IEEE 754 (single-precision).
-  const OptionalOperator Float32Max();
-  const OptionalOperator Float32Min();
-
-  // Floating point min/max complying to IEEE 754 (double-precision).
-  const OptionalOperator Float64Max();
-  const OptionalOperator Float64Min();
+  // Floating point min/max complying to EcmaScript 6 (double-precision).
+  const Operator* Float64Max();
+  const Operator* Float64Min();
 
   // Floating point abs complying to IEEE 754 (single-precision).
   const Operator* Float32Abs();
