@@ -2685,6 +2685,11 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   return !is_is_concat_spreadable_set;
 }
 
+bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver) {
+  if (!IsIsConcatSpreadableLookupChainIntact()) return false;
+  return !receiver->HasProxyInPrototype(this);
+}
+
 void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;

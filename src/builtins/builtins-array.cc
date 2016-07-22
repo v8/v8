@@ -938,7 +938,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  if (!isolate->IsIsConcatSpreadableLookupChainIntact()) {
+  if (!isolate->IsIsConcatSpreadableLookupChainIntact(JSReceiver::cast(*obj))) {
     // Slow path if @@isConcatSpreadable has been used.
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;

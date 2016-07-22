@@ -985,6 +985,7 @@ class Isolate {
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsHasInstanceLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
+  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or

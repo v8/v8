@@ -18986,5 +18986,14 @@ AccessCheckInfo* AccessCheckInfo::Get(Isolate* isolate,
   return AccessCheckInfo::cast(data_obj);
 }
 
+bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
+  for (PrototypeIterator iter(isolate, this, kStartAtReceiver,
+                              PrototypeIterator::END_AT_NULL);
+       !iter.IsAtEnd(); iter.AdvanceIgnoringProxies()) {
+    if (iter.GetCurrent<Object>()->IsJSProxy()) return true;
+  }
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8

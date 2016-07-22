@@ -406,9 +406,6 @@
   'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-get-err': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-proto-err': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5134
-  'built-ins/Array/prototype/concat/is-concat-spreadable-is-array-proxy-revoked': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   'annexB/language/eval-code/direct/global-block-decl-eval-global-exsting-global-init': [FAIL],
   'annexB/language/eval-code/direct/global-if-decl-else-decl-a-eval-global-exsting-global-init': [FAIL],

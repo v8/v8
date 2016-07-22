@@ -2008,6 +2008,8 @@ class JSReceiver: public HeapObject {
   static const int kPropertiesOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = HeapObject::kHeaderSize + kPointerSize;
 
+  bool HasProxyInPrototype(Isolate* isolate);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };

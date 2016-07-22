@@ -872,3 +872,25 @@ logger.get = function(t, trap, r) {
   assertThrows(() => [].concat(obj), TypeError);
   assertThrows(() => Array.prototype.concat.apply(obj), TypeError);
 })();
+
+(function testConcatRevokedProxy() {
+  "use strict";
+  var target = [];
+  var handler = {
+    get(_, name) {
+      if (name === Symbol.isConcatSpreadable) {
+        p.revoke();
+      }
+      return target[name];
+    }
+  }
+
+  p = Proxy.revocable(target, handler);
+  target = {};
+  target.__proto__ = p.proxy;
+  assertThrows(function() { [].concat({ __proto__: p.proxy }); }, TypeError);
+
+  target = [];
+  var p = Proxy.revocable(target, handler);
+  assertThrows(function() { [].concat(p.proxy); }, TypeError);
+})();
