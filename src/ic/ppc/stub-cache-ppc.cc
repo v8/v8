@@ -142,7 +142,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
   __ lwz(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ LoadP(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, ip);
-  __ xori(scratch, scratch, Operand(kPrimaryMagic));
+  __ Xor(scratch, scratch, Operand(kPrimaryMagic));
   // The mask omits the last two bits because they are not part of the hash.
   __ andi(scratch, scratch,
           Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
@@ -153,7 +153,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
 
   // Primary miss: Compute hash for secondary probe.
   __ sub(scratch, scratch, name);
-  __ addi(scratch, scratch, Operand(kSecondaryMagic));
+  __ Add(scratch, scratch, kSecondaryMagic, r0);
   __ andi(scratch, scratch,
           Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
