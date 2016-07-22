@@ -180,7 +180,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::IN, reg);
 
   // Emit cast operator invocations.
-  builder.CastAccumulatorToNumber()
+  builder.CastAccumulatorToNumber(reg)
       .CastAccumulatorToJSObject()
       .CastAccumulatorToName();
 

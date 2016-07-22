@@ -387,8 +387,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber() {
-  Output(Bytecode::kToNumber);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToNumber(
+    Register out) {
+  Output(Bytecode::kToNumber, RegisterOperand(out));
   return *this;
 }
 

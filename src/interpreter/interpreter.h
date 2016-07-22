@@ -79,7 +79,8 @@ class Interpreter {
   template <class Generator>
   void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
 
-  // Generates code to perform the unary operation via |callable|.
+  // Generates code to perform the unary operation via |callable| and stores
+  // the result to the accumulator.
   void DoUnaryOp(Callable callable, InterpreterAssembler* assembler);
 
   // Generates code to perform the unary operation via |Generator|.
@@ -150,6 +151,10 @@ class Interpreter {
                                compiler::Node* cache_type,
                                compiler::Node* cache_array,
                                compiler::Node* cache_length,
+                               InterpreterAssembler* assembler);
+
+  // Generates code to perform the unary operation via |callable|.
+  compiler::Node* BuildUnaryOp(Callable callable,
                                InterpreterAssembler* assembler);
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;

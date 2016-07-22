@@ -215,7 +215,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
   BytecodeArrayBuilder& CastAccumulatorToJSObject();
   BytecodeArrayBuilder& CastAccumulatorToName();
-  BytecodeArrayBuilder& CastAccumulatorToNumber();
+  // Does not update the accumulator but stores to |out| instead.
+  BytecodeArrayBuilder& CastAccumulatorToNumber(Register out);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);

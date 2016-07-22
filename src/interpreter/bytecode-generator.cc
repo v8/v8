@@ -2790,7 +2790,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     old_value = register_allocator()->outer()->NewRegister();
 
     // Convert old value into a number before saving it.
-    builder()->CastAccumulatorToNumber().StoreAccumulatorInRegister(old_value);
+    builder()->CastAccumulatorToNumber(old_value);
   }
 
   // Perform +1/-1 operation.

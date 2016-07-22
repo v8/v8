@@ -1319,7 +1319,11 @@ void BytecodeGraphBuilder::VisitToObject() {
 }
 
 void BytecodeGraphBuilder::VisitToNumber() {
-  BuildCastOperator(javascript()->ToNumber());
+  FrameStateBeforeAndAfter states(this);
+  Node* value =
+      NewNode(javascript()->ToNumber(), environment()->LookupAccumulator());
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), value,
+                              &states);
 }
 
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }

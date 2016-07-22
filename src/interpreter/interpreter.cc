@@ -997,13 +997,17 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::DoUnaryOp(Callable callable,
-                            InterpreterAssembler* assembler) {
+Node* Interpreter::BuildUnaryOp(Callable callable,
+                                InterpreterAssembler* assembler) {
   Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result =
-      __ CallStub(callable.descriptor(), target, context, accumulator);
+  return __ CallStub(callable.descriptor(), target, context, accumulator);
+}
+
+void Interpreter::DoUnaryOp(Callable callable,
+                            InterpreterAssembler* assembler) {
+  Node* result = BuildUnaryOp(callable, assembler);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1028,7 +1032,9 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToNumber(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // ToObject

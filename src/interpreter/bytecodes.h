@@ -212,7 +212,7 @@ namespace interpreter {
                                                                                \
   /* Cast operators */                                                         \
   V(ToName, AccumulatorUse::kReadWrite)                                        \
-  V(ToNumber, AccumulatorUse::kReadWrite)                                      \
+  V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut)                     \
   V(ToObject, AccumulatorUse::kReadWrite)                                      \
                                                                                \
   /* Literals */                                                               \
