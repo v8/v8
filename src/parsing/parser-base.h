@@ -1367,7 +1367,6 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
       }
     }
     if (this->IsArguments(name)) {
-      scope()->RecordArgumentsUsage();
       classifier->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
       if (is_strict(language_mode())) {
@@ -1434,9 +1433,7 @@ ParserBase<Traits>::ParseIdentifierOrStrictReservedWord(
     return Traits::EmptyIdentifier();
   }
 
-  IdentifierT name = this->GetSymbol(scanner());
-  if (this->IsArguments(name)) scope()->RecordArgumentsUsage();
-  return name;
+  return this->GetSymbol(scanner());
 }
 
 template <class Traits>
@@ -1454,9 +1451,7 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
     return Traits::EmptyIdentifier();
   }
 
-  IdentifierT name = this->GetSymbol(scanner());
-  if (this->IsArguments(name)) scope()->RecordArgumentsUsage();
-  return name;
+  return this->GetSymbol(scanner());
 }
 
 

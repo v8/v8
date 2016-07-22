@@ -1104,8 +1104,11 @@ TEST(ScopeUsesArgumentsSuperThis) {
         DCHECK_NOT_NULL(scope);
         DCHECK_NULL(scope->sibling());
       }
-      CHECK_EQ((source_data[i].expected & ARGUMENTS) != 0,
-               scope->uses_arguments());
+      // Arrows themselves never get an arguments object.
+      if ((source_data[i].expected & ARGUMENTS) != 0 &&
+          !scope->is_arrow_scope()) {
+        CHECK_NOT_NULL(scope->arguments());
+      }
       CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
                scope->uses_super_property());
       if ((source_data[i].expected & THIS) != 0) {

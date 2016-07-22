@@ -180,7 +180,6 @@ void Scope::SetDefaults() {
   this_function_ = nullptr;
   scope_inside_with_ = false;
   scope_calls_eval_ = false;
-  scope_uses_arguments_ = false;
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   asm_module_ = false;
@@ -429,7 +428,6 @@ void Scope::PropagateUsageFlagsToScope(Scope* other) {
   DCHECK_NOT_NULL(other);
   DCHECK(!already_resolved());
   DCHECK(!other->already_resolved());
-  if (uses_arguments()) other->RecordArgumentsUsage();
   if (uses_super_property()) other->RecordSuperPropertyUsage();
   if (calls_eval()) other->RecordEvalCall();
 }
@@ -1030,7 +1028,6 @@ void Scope::Print(int n) {
   if (asm_function_) Indent(n1, "// scope is an asm function\n");
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
-  if (scope_uses_arguments_) Indent(n1, "// scope uses 'arguments'\n");
   if (scope_uses_super_property_)
     Indent(n1, "// scope uses 'super' property\n");
   if (outer_scope_calls_sloppy_eval_) {
