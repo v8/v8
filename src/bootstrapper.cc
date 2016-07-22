@@ -434,19 +434,21 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
 Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
                                          Handle<String> name,
                                          Builtins::Name call, int len,
-                                         bool adapt) {
+                                         bool adapt,
+                                         PropertyAttributes attrs = DONT_ENUM) {
   Handle<JSFunction> fun =
       SimpleCreateFunction(base->GetIsolate(), name, call, len, adapt);
-  InstallFunction(base, fun, name, DONT_ENUM);
+  InstallFunction(base, fun, name, attrs);
   return fun;
 }
 
 Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
                                          const char* name, Builtins::Name call,
-                                         int len, bool adapt) {
+                                         int len, bool adapt,
+                                         PropertyAttributes attrs = DONT_ENUM) {
   Factory* const factory = base->GetIsolate()->factory();
   return SimpleInstallFunction(base, factory->InternalizeUtf8String(name), call,
-                               len, adapt);
+                               len, adapt, attrs);
 }
 
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
@@ -2630,6 +2632,57 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                 Builtins::kGeneratorPrototypeThrow, 1, true);
       async_function_next->shared()->set_native(false);
       async_function_throw->shared()->set_native(false);
+    }
+  }
+
+  {  // -- C a l l S i t e
+    // Builtin functions for CallSite.
+
+    Handle<JSFunction> callsite_fun = InstallFunction(
+        container, "CallSite", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kCallSiteConstructor);
+    callsite_fun->shared()->DontAdaptArguments();
+    callsite_fun->shared()->set_native(true);
+
+    {
+      Handle<JSObject> proto =
+          factory->NewJSObject(isolate->object_function(), TENURED);
+      JSObject::AddProperty(proto, factory->constructor_string(), callsite_fun,
+                            DONT_ENUM);
+
+      struct FunctionInfo {
+        const char* name;
+        Builtins::Name id;
+      };
+
+      FunctionInfo infos[] = {
+          {"getColumnNumber", Builtins::kCallSitePrototypeGetColumnNumber},
+          {"getEvalOrigin", Builtins::kCallSitePrototypeGetEvalOrigin},
+          {"getFileName", Builtins::kCallSitePrototypeGetFileName},
+          {"getFunction", Builtins::kCallSitePrototypeGetFunction},
+          {"getFunctionName", Builtins::kCallSitePrototypeGetFunctionName},
+          {"getLineNumber", Builtins::kCallSitePrototypeGetLineNumber},
+          {"getMethodName", Builtins::kCallSitePrototypeGetMethodName},
+          {"getPosition", Builtins::kCallSitePrototypeGetPosition},
+          {"getScriptNameOrSourceURL",
+           Builtins::kCallSitePrototypeGetScriptNameOrSourceURL},
+          {"getThis", Builtins::kCallSitePrototypeGetThis},
+          {"getTypeName", Builtins::kCallSitePrototypeGetTypeName},
+          {"isConstructor", Builtins::kCallSitePrototypeIsConstructor},
+          {"isEval", Builtins::kCallSitePrototypeIsEval},
+          {"isNative", Builtins::kCallSitePrototypeIsNative},
+          {"isToplevel", Builtins::kCallSitePrototypeIsToplevel}};
+
+      PropertyAttributes attrs =
+          static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+      Handle<JSFunction> fun;
+      for (const FunctionInfo& info : infos) {
+        fun = SimpleInstallFunction(proto, info.name, info.id, 0, true, attrs);
+        fun->shared()->set_native(true);
+      }
+
+      Accessors::FunctionSetPrototype(callsite_fun, proto).Assert();
     }
   }
 }

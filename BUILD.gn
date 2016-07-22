@@ -876,6 +876,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
     "src/builtins/builtins-boolean.cc",
+    "src/builtins/builtins-callsite.cc",
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-error.cc",

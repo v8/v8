@@ -62,6 +62,8 @@ class CallSite {
   bool IsJavaScript() { return !fun_.is_null(); }
   bool IsWasm() { return !wasm_obj_.is_null(); }
 
+  int wasm_func_index() const { return wasm_func_index_; }
+
  private:
   Isolate* isolate_;
   Handle<Object> receiver_;

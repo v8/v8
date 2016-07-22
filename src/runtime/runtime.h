@@ -311,16 +311,6 @@ namespace internal {
   F(MessageGetStartPosition, 1, 1)                  \
   F(MessageGetScript, 1, 1)                         \
   F(FormatMessageString, 4, 1)                      \
-  F(CallSiteGetFileNameRT, 1, 1)                    \
-  F(CallSiteGetFunctionNameRT, 1, 1)                \
-  F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1)       \
-  F(CallSiteGetMethodNameRT, 1, 1)                  \
-  F(CallSiteGetLineNumberRT, 1, 1)                  \
-  F(CallSiteGetColumnNumberRT, 1, 1)                \
-  F(CallSiteIsNativeRT, 1, 1)                       \
-  F(CallSiteIsToplevelRT, 1, 1)                     \
-  F(CallSiteIsEvalRT, 1, 1)                         \
-  F(CallSiteIsConstructorRT, 1, 1)                  \
   F(IS_VAR, 1, 1)                                   \
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \

@@ -489,6 +489,7 @@
         'builtins/builtins-arraybuffer.cc',
         'builtins/builtins-array.cc',
         'builtins/builtins-boolean.cc',
+        'builtins/builtins-callsite.cc',
         'builtins/builtins-dataview.cc',
         'builtins/builtins-date.cc',
         'builtins/builtins-error.cc',

@@ -394,47 +394,6 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
                                         template_index, arg0, arg1, arg2));
 }
 
-#define CALLSITE_GET(NAME, RETURN)                          \
-  RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
-    HandleScope scope(isolate);                             \
-    DCHECK(args.length() == 1);                             \
-    CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
-    Handle<String> result;                                  \
-    CallSite call_site(isolate, call_site_obj);             \
-    CHECK(call_site.IsJavaScript() || call_site.IsWasm());  \
-    return RETURN(call_site.NAME(), isolate);               \
-  }
-
-static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
-                                               Isolate* isolate) {
-  return *obj;
-}
-
-
-static inline Object* ReturnPositiveNumberOrNull(int value, Isolate* isolate) {
-  if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
-  return isolate->heap()->null_value();
-}
-
-
-static inline Object* ReturnBoolean(bool value, Isolate* isolate) {
-  return isolate->heap()->ToBoolean(value);
-}
-
-
-CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
-CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
-CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
-CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
-CALLSITE_GET(GetLineNumber, ReturnPositiveNumberOrNull)
-CALLSITE_GET(GetColumnNumber, ReturnPositiveNumberOrNull)
-CALLSITE_GET(IsNative, ReturnBoolean)
-CALLSITE_GET(IsToplevel, ReturnBoolean)
-CALLSITE_GET(IsEval, ReturnBoolean)
-CALLSITE_GET(IsConstructor, ReturnBoolean)
-
-#undef CALLSITE_GET
-
 
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser

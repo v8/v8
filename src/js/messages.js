@@ -15,6 +15,7 @@ var ArrayJoin;
 var Bool16x8ToString;
 var Bool32x4ToString;
 var Bool8x16ToString;
+var CallSite = utils.ImportNow("CallSite");
 var callSiteConstructorSymbol =
     utils.ImportNow("call_site_constructor_symbol");
 var callSiteReceiverSymbol =
@@ -271,121 +272,6 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-function CallSite(receiver, fun, pos, strict_mode) {
-  // For wasm frames, receiver is the wasm object and fun is the function index
-  // instead of an actual function.
-  if (!IS_FUNCTION(fun) && !%IsWasmObject(receiver)) {
-    throw MakeTypeError(kCallSiteExpectsFunction, typeof receiver, typeof fun);
-  }
-
-  if (IS_UNDEFINED(new.target)) {
-    return new CallSite(receiver, fun, pos, strict_mode);
-  }
-
-  if (IS_FUNCTION(fun)) {
-    SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
-    SET_PRIVATE(this, callSiteFunctionSymbol, fun);
-  } else {
-    SET_PRIVATE(this, callSiteWasmObjectSymbol, receiver);
-    SET_PRIVATE(this, callSiteWasmFunctionIndexSymbol, TO_UINT32(fun));
-  }
-  SET_PRIVATE(this, callSitePositionSymbol, TO_INT32(pos));
-  SET_PRIVATE(this, callSiteStrictSymbol, TO_BOOLEAN(strict_mode));
-}
-
-function CheckCallSite(obj, name) {
-  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSitePositionSymbol)) {
-    throw MakeTypeError(kCallSiteMethod, name);
-  }
-}
-
-function CallSiteGetThis() {
-  CheckCallSite(this, "getThis");
-  if (GET_PRIVATE(this, callSiteStrictSymbol)) {
-    return UNDEFINED;
-  }
-  var recv = GET_PRIVATE(this, callSiteReceiverSymbol);
-  return (recv == callSiteConstructorSymbol) ? UNDEFINED : recv;
-}
-
-function CallSiteGetFunction() {
-  CheckCallSite(this, "getFunction");
-  return GET_PRIVATE(this, callSiteStrictSymbol)
-      ? UNDEFINED : GET_PRIVATE(this, callSiteFunctionSymbol);
-}
-
-function CallSiteGetPosition() {
-  CheckCallSite(this, "getPosition");
-  return GET_PRIVATE(this, callSitePositionSymbol);
-}
-
-function CallSiteGetTypeName() {
-  CheckCallSite(this, "getTypeName");
-  return GetTypeName(GET_PRIVATE(this, callSiteReceiverSymbol), false);
-}
-
-function CallSiteIsToplevel() {
-  CheckCallSite(this, "isTopLevel");
-  return %CallSiteIsToplevelRT(this);
-}
-
-function CallSiteIsEval() {
-  CheckCallSite(this, "isEval");
-  return %CallSiteIsEvalRT(this);
-}
-
-function CallSiteGetEvalOrigin() {
-  CheckCallSite(this, "getEvalOrigin");
-  var script = %FunctionGetScript(GET_PRIVATE(this, callSiteFunctionSymbol));
-  return FormatEvalOrigin(script);
-}
-
-function CallSiteGetScriptNameOrSourceURL() {
-  CheckCallSite(this, "getScriptNameOrSourceURL");
-  return %CallSiteGetScriptNameOrSourceUrlRT(this);
-}
-
-function CallSiteGetFunctionName() {
-  // See if the function knows its own name
-  CheckCallSite(this, "getFunctionName");
-  return %CallSiteGetFunctionNameRT(this);
-}
-
-function CallSiteGetMethodName() {
-  // See if we can find a unique property on the receiver that holds
-  // this function.
-  CheckCallSite(this, "getMethodName");
-  return %CallSiteGetMethodNameRT(this);
-}
-
-function CallSiteGetFileName() {
-  CheckCallSite(this, "getFileName");
-  return %CallSiteGetFileNameRT(this);
-}
-
-function CallSiteGetLineNumber() {
-  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
-    return GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
-  }
-  CheckCallSite(this, "getLineNumber");
-  return %CallSiteGetLineNumberRT(this);
-}
-
-function CallSiteGetColumnNumber() {
-  CheckCallSite(this, "getColumnNumber");
-  return %CallSiteGetColumnNumberRT(this);
-}
-
-function CallSiteIsNative() {
-  CheckCallSite(this, "isNative");
-  return %CallSiteIsNativeRT(this);
-}
-
-function CallSiteIsConstructor() {
-  CheckCallSite(this, "isConstructor");
-  return %CallSiteIsConstructorRT(this);
-}
-
 function CallSiteToString() {
   if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
     var funName = this.getFunctionName();
@@ -459,63 +345,9 @@ function CallSiteToString() {
   return line;
 }
 
-utils.SetUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
-  "getThis", CallSiteGetThis,
-  "getTypeName", CallSiteGetTypeName,
-  "isToplevel", CallSiteIsToplevel,
-  "isEval", CallSiteIsEval,
-  "getEvalOrigin", CallSiteGetEvalOrigin,
-  "getScriptNameOrSourceURL", CallSiteGetScriptNameOrSourceURL,
-  "getFunction", CallSiteGetFunction,
-  "getFunctionName", CallSiteGetFunctionName,
-  "getMethodName", CallSiteGetMethodName,
-  "getFileName", CallSiteGetFileName,
-  "getLineNumber", CallSiteGetLineNumber,
-  "getColumnNumber", CallSiteGetColumnNumber,
-  "isNative", CallSiteIsNative,
-  "getPosition", CallSiteGetPosition,
-  "isConstructor", CallSiteIsConstructor,
-  "toString", CallSiteToString
-]);
-
-
-function FormatEvalOrigin(script) {
-  var sourceURL = script.nameOrSourceURL();
-  if (sourceURL) {
-    return sourceURL;
-  }
-
-  var eval_origin = "eval at ";
-  if (script.eval_from_function_name) {
-    eval_origin += script.eval_from_function_name;
-  } else {
-    eval_origin +=  "<anonymous>";
-  }
-
-  var eval_from_script = script.eval_from_script;
-  if (eval_from_script) {
-    if (eval_from_script.compilation_type == COMPILATION_TYPE_EVAL) {
-      // eval script originated from another eval.
-      eval_origin += " (" + FormatEvalOrigin(eval_from_script) + ")";
-    } else {
-      // eval script originated from "real" source.
-      if (eval_from_script.name) {
-        eval_origin += " (" + eval_from_script.name;
-        var location = eval_from_script.locationFromPosition(
-            script.eval_from_script_position, true);
-        if (location) {
-          eval_origin += ":" + (location.line + 1);
-          eval_origin += ":" + (location.column + 1);
-        }
-        eval_origin += ")";
-      } else {
-        eval_origin += " (unknown source)";
-      }
-    }
-  }
-
-  return eval_origin;
-}
+%AddNamedProperty(CallSite.prototype, "toString", CallSiteToString,
+    DONT_ENUM | DONT_DELETE | READ_ONLY);
+%SetNativeFlag(CallSiteToString);
 
 
 function FormatErrorString(error) {

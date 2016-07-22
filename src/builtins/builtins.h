@@ -211,6 +211,25 @@ namespace internal {
   /* ES6 section 19.3.3.3 Boolean.prototype.valueOf ( ) */                   \
   TFJ(BooleanPrototypeValueOf, 1)                                            \
                                                                              \
+  /* CallSite */                                                             \
+  CPP(CallSiteConstructor)                                                   \
+  CPP(CallSitePrototypeGetColumnNumber)                                      \
+  CPP(CallSitePrototypeGetEvalOrigin)                                        \
+  CPP(CallSitePrototypeGetFileName)                                          \
+  CPP(CallSitePrototypeGetFunction)                                          \
+  CPP(CallSitePrototypeGetFunctionName)                                      \
+  CPP(CallSitePrototypeGetLineNumber)                                        \
+  CPP(CallSitePrototypeGetMethodName)                                        \
+  CPP(CallSitePrototypeGetPosition)                                          \
+  CPP(CallSitePrototypeGetScriptNameOrSourceURL)                             \
+  CPP(CallSitePrototypeGetThis)                                              \
+  CPP(CallSitePrototypeGetTypeName)                                          \
+  CPP(CallSitePrototypeIsConstructor)                                        \
+  CPP(CallSitePrototypeIsEval)                                               \
+  CPP(CallSitePrototypeIsNative)                                             \
+  CPP(CallSitePrototypeIsToplevel)                                           \
+  CPP(CallSitePrototypeToString)                                             \
+                                                                             \
   /* DataView */                                                             \
   CPP(DataViewConstructor)                                                   \
   CPP(DataViewConstructor_ConstructStub)                                     \
