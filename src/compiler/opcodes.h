@@ -449,6 +449,8 @@
   V(LoadParentFramePointer)     \
   V(CheckedLoad)                \
   V(CheckedStore)               \
+  V(UnalignedLoad)              \
+  V(UnalignedStore)             \
   V(Int32PairAdd)               \
   V(Int32PairSub)               \
   V(Int32PairMul)               \

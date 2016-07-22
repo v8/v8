@@ -717,6 +717,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   int effect_level = 0;
   for (Node* const node : *block) {
     if (node->opcode() == IrOpcode::kStore ||
+        node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCheckedStore ||
         node->opcode() == IrOpcode::kCall) {
       ++effect_level;
@@ -1227,6 +1228,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoadFramePointer(node);
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
+    case IrOpcode::kUnalignedLoad: {
+      UnalignedLoadRepresentation type =
+          UnalignedLoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitUnalignedLoad(node);
+    }
+    case IrOpcode::kUnalignedStore:
+      return VisitUnalignedStore(node);
     case IrOpcode::kCheckedLoad: {
       MachineRepresentation rep =
           CheckedLoadRepresentationOf(node->op()).representation();

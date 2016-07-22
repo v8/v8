@@ -46,6 +46,16 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   return OpParameter<StoreRepresentation>(op);
 }
 
+UnalignedLoadRepresentation UnalignedLoadRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kUnalignedLoad, op->opcode());
+  return OpParameter<UnalignedLoadRepresentation>(op);
+}
+
+UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kUnalignedStore, op->opcode());
+  return OpParameter<UnalignedStoreRepresentation>(op);
+}
 
 CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckedLoad, op->opcode());
@@ -468,6 +478,14 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
               "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}              \
   };                                                                         \
+  struct UnalignedLoad##Type##Operator final                                 \
+      : public Operator1<UnalignedLoadRepresentation> {                      \
+    UnalignedLoad##Type##Operator()                                          \
+        : Operator1<UnalignedLoadRepresentation>(                            \
+              IrOpcode::kUnalignedLoad,                                      \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
+              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
+  };                                                                         \
   struct CheckedLoad##Type##Operator final                                   \
       : public Operator1<CheckedLoadRepresentation> {                        \
     CheckedLoad##Type##Operator()                                            \
@@ -477,6 +495,7 @@ struct MachineOperatorGlobalCache {
               "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                         \
   Load##Type##Operator kLoad##Type;                                          \
+  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                        \
   CheckedLoad##Type##Operator kCheckedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -524,6 +543,15 @@ struct MachineOperatorGlobalCache {
     Store##Type##FullWriteBarrier##Operator()                                  \
         : Store##Type##Operator(kFullWriteBarrier) {}                          \
   };                                                                           \
+  struct UnalignedStore##Type##Operator final                                  \
+      : public Operator1<UnalignedStoreRepresentation> {                       \
+    UnalignedStore##Type##Operator()                                           \
+        : Operator1<UnalignedStoreRepresentation>(                             \
+              IrOpcode::kUnalignedStore,                                       \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
+              "UnalignedStore", 3, 1, 1, 0, 1, 0,                              \
+              MachineRepresentation::Type) {}                                  \
+  };                                                                           \
   struct CheckedStore##Type##Operator final                                    \
       : public Operator1<CheckedStoreRepresentation> {                         \
     CheckedStore##Type##Operator()                                             \
@@ -538,6 +566,7 @@ struct MachineOperatorGlobalCache {
   Store##Type##PointerWriteBarrier##Operator                                   \
       kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
+  UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
   CheckedStore##Type##Operator kCheckedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
@@ -597,6 +626,33 @@ MachineOperatorBuilder::MachineOperatorBuilder(
          word == MachineRepresentation::kWord64);
 }
 
+const Operator* MachineOperatorBuilder::UnalignedLoad(
+    UnalignedLoadRepresentation rep) {
+#define LOAD(Type)                       \
+  if (rep == MachineType::Type()) {      \
+    return &cache_.kUnalignedLoad##Type; \
+  }
+  MACHINE_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::UnalignedStore(
+    UnalignedStoreRepresentation rep) {
+  switch (rep) {
+#define STORE(kRep)                 \
+  case MachineRepresentation::kRep: \
+    return &cache_.kUnalignedStore##kRep;
+    MACHINE_REPRESENTATION_LIST(STORE)
+#undef STORE
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 #define PURE(Name, properties, value_input_count, control_input_count, \
              output_count)                                             \

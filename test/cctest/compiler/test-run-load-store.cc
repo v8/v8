@@ -47,15 +47,28 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum TestAlignment {
+  kAligned,
+  kUnaligned,
+};
+
 // This is a America!
 #define A_BILLION 1000000000ULL
 #define A_GIG (1024ULL * 1024ULL * 1024ULL)
 
-TEST(RunLoadInt32) {
+namespace {
+void RunLoadInt32(const TestAlignment t) {
   RawMachineAssemblerTester<int32_t> m;
 
   int32_t p1 = 0;  // loads directly from this location.
-  m.Return(m.LoadFromPointer(&p1, MachineType::Int32()));
+
+  if (t == TestAlignment::kAligned) {
+    m.Return(m.LoadFromPointer(&p1, MachineType::Int32()));
+  } else if (t == TestAlignment::kUnaligned) {
+    m.Return(m.UnalignedLoadFromPointer(&p1, MachineType::Int32()));
+  } else {
+    UNREACHABLE();
+  }
 
   FOR_INT32_INPUTS(i) {
     p1 = *i;
@@ -63,7 +76,7 @@ TEST(RunLoadInt32) {
   }
 }
 
-TEST(RunLoadInt32Offset) {
+void RunLoadInt32Offset(TestAlignment t) {
   int32_t p1 = 0;  // loads directly from this location.
 
   int32_t offsets[] = {-2000000, -100, -101, 1,          3,
@@ -73,8 +86,16 @@ TEST(RunLoadInt32Offset) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = offsets[i];
     byte* pointer = reinterpret_cast<byte*>(&p1) - offset;
+
     // generate load [#base + #index]
-    m.Return(m.LoadFromPointer(pointer, MachineType::Int32(), offset));
+    if (t == TestAlignment::kAligned) {
+      m.Return(m.LoadFromPointer(pointer, MachineType::Int32(), offset));
+    } else if (t == TestAlignment::kUnaligned) {
+      m.Return(
+          m.UnalignedLoadFromPointer(pointer, MachineType::Int32(), offset));
+    } else {
+      UNREACHABLE();
+    }
 
     FOR_INT32_INPUTS(j) {
       p1 = *j;
@@ -83,7 +104,7 @@ TEST(RunLoadInt32Offset) {
   }
 }
 
-TEST(RunLoadStoreFloat32Offset) {
+void RunLoadStoreFloat32Offset(TestAlignment t) {
   float p1 = 0.0f;  // loads directly from this location.
   float p2 = 0.0f;  // and stores directly into this location.
 
@@ -94,10 +115,21 @@ TEST(RunLoadStoreFloat32Offset) {
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
-    Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
-                        m.IntPtrConstant(offset));
-    m.Store(MachineRepresentation::kFloat32, m.PointerConstant(to),
-            m.IntPtrConstant(offset), load, kNoWriteBarrier);
+    if (t == TestAlignment::kAligned) {
+      Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
+                          m.IntPtrConstant(offset));
+      m.Store(MachineRepresentation::kFloat32, m.PointerConstant(to),
+              m.IntPtrConstant(offset), load, kNoWriteBarrier);
+    } else if (t == TestAlignment::kUnaligned) {
+      Node* load =
+          m.UnalignedLoad(MachineType::Float32(), m.PointerConstant(from),
+                          m.IntPtrConstant(offset));
+      m.UnalignedStore(MachineRepresentation::kFloat32, m.PointerConstant(to),
+                       m.IntPtrConstant(offset), load);
+
+    } else {
+      UNREACHABLE();
+    }
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT32_INPUTS(j) {
@@ -109,7 +141,7 @@ TEST(RunLoadStoreFloat32Offset) {
   }
 }
 
-TEST(RunLoadStoreFloat64Offset) {
+void RunLoadStoreFloat64Offset(TestAlignment t) {
   double p1 = 0;  // loads directly from this location.
   double p2 = 0;  // and stores directly into this location.
 
@@ -120,10 +152,20 @@ TEST(RunLoadStoreFloat64Offset) {
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
-    Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
-                        m.IntPtrConstant(offset));
-    m.Store(MachineRepresentation::kFloat64, m.PointerConstant(to),
-            m.IntPtrConstant(offset), load, kNoWriteBarrier);
+    if (t == TestAlignment::kAligned) {
+      Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
+                          m.IntPtrConstant(offset));
+      m.Store(MachineRepresentation::kFloat64, m.PointerConstant(to),
+              m.IntPtrConstant(offset), load, kNoWriteBarrier);
+    } else if (t == TestAlignment::kUnaligned) {
+      Node* load =
+          m.UnalignedLoad(MachineType::Float64(), m.PointerConstant(from),
+                          m.IntPtrConstant(offset));
+      m.UnalignedStore(MachineRepresentation::kFloat64, m.PointerConstant(to),
+                       m.IntPtrConstant(offset), load);
+    } else {
+      UNREACHABLE();
+    }
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT64_INPUTS(j) {
@@ -134,10 +176,37 @@ TEST(RunLoadStoreFloat64Offset) {
     }
   }
 }
+}  // namespace
+
+TEST(RunLoadInt32) { RunLoadInt32(TestAlignment::kAligned); }
+
+TEST(RunUnalignedLoadInt32) { RunLoadInt32(TestAlignment::kUnaligned); }
+
+TEST(RunLoadInt32Offset) { RunLoadInt32Offset(TestAlignment::kAligned); }
+
+TEST(RunUnalignedLoadInt32Offset) {
+  RunLoadInt32Offset(TestAlignment::kUnaligned);
+}
+
+TEST(RunLoadStoreFloat32Offset) {
+  RunLoadStoreFloat32Offset(TestAlignment::kAligned);
+}
+
+TEST(RunUnalignedLoadStoreFloat32Offset) {
+  RunLoadStoreFloat32Offset(TestAlignment::kUnaligned);
+}
+
+TEST(RunLoadStoreFloat64Offset) {
+  RunLoadStoreFloat64Offset(TestAlignment::kAligned);
+}
+
+TEST(RunUnalignedLoadStoreFloat64Offset) {
+  RunLoadStoreFloat64Offset(TestAlignment::kUnaligned);
+}
 
 namespace {
 template <typename Type>
-void RunLoadImmIndex(MachineType rep) {
+void RunLoadImmIndex(MachineType rep, TestAlignment t) {
   const int kNumElems = 3;
   Type buffer[kNumElems];
 
@@ -153,7 +222,13 @@ void RunLoadImmIndex(MachineType rep) {
       BufferedRawMachineAssemblerTester<Type> m;
       Node* base = m.PointerConstant(buffer - offset);
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
-      m.Return(m.Load(rep, base, index));
+      if (t == TestAlignment::kAligned) {
+        m.Return(m.Load(rep, base, index));
+      } else if (t == TestAlignment::kUnaligned) {
+        m.Return(m.UnalignedLoad(rep, base, index));
+      } else {
+        UNREACHABLE();
+      }
 
       volatile Type expected = buffer[i];
       volatile Type actual = m.Call();
@@ -163,7 +238,7 @@ void RunLoadImmIndex(MachineType rep) {
 }
 
 template <typename CType>
-void RunLoadStore(MachineType rep) {
+void RunLoadStore(MachineType rep, TestAlignment t) {
   const int kNumElems = 4;
   CType buffer[kNumElems];
 
@@ -179,9 +254,15 @@ void RunLoadStore(MachineType rep) {
     int32_t OK = 0x29000 + x;
     Node* base = m.PointerConstant(buffer);
     Node* index0 = m.IntPtrConstant(x * sizeof(buffer[0]));
-    Node* load = m.Load(rep, base, index0);
     Node* index1 = m.IntPtrConstant(y * sizeof(buffer[0]));
-    m.Store(rep.representation(), base, index1, load, kNoWriteBarrier);
+    if (t == TestAlignment::kAligned) {
+      Node* load = m.Load(rep, base, index0);
+      m.Store(rep.representation(), base, index1, load, kNoWriteBarrier);
+    } else if (t == TestAlignment::kUnaligned) {
+      Node* load = m.UnalignedLoad(rep, base, index0);
+      m.UnalignedStore(rep.representation(), base, index1, load);
+    }
+
     m.Return(m.Int32Constant(OK));
 
     CHECK(buffer[x] != buffer[y]);
@@ -189,36 +270,115 @@ void RunLoadStore(MachineType rep) {
     CHECK(buffer[x] == buffer[y]);
   }
 }
+
+template <typename CType>
+void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
+  CType in, out;
+  CType in_buffer[2];
+  CType out_buffer[2];
+  byte* raw;
+
+  for (int x = 0; x < sizeof(CType); x++) {
+    int y = sizeof(CType) - x;
+
+    raw = reinterpret_cast<byte*>(&in);
+    for (size_t i = 0; i < sizeof(CType); i++) {
+      raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
+    }
+
+    raw = reinterpret_cast<byte*>(in_buffer);
+    MemCopy(raw + x, &in, sizeof(CType));
+
+    RawMachineAssemblerTester<int32_t> m;
+    int32_t OK = 0x29000 + x;
+
+    Node* base0 = m.PointerConstant(in_buffer);
+    Node* base1 = m.PointerConstant(out_buffer);
+    Node* index0 = m.IntPtrConstant(x);
+    Node* index1 = m.IntPtrConstant(y);
+    Node* load = m.UnalignedLoad(rep, base0, index0);
+    m.UnalignedStore(rep.representation(), base1, index1, load);
+
+    m.Return(m.Int32Constant(OK));
+
+    CHECK_EQ(OK, m.Call());
+
+    raw = reinterpret_cast<byte*>(&out_buffer);
+    MemCopy(&out, raw + y, sizeof(CType));
+    CHECK(in == out);
+  }
+}
 }  // namespace
 
 TEST(RunLoadImmIndex) {
-  RunLoadImmIndex<int8_t>(MachineType::Int8());
-  RunLoadImmIndex<uint8_t>(MachineType::Uint8());
-  RunLoadImmIndex<int16_t>(MachineType::Int16());
-  RunLoadImmIndex<uint16_t>(MachineType::Uint16());
-  RunLoadImmIndex<int32_t>(MachineType::Int32());
-  RunLoadImmIndex<uint32_t>(MachineType::Uint32());
-  RunLoadImmIndex<int32_t*>(MachineType::AnyTagged());
-  RunLoadImmIndex<float>(MachineType::Float32());
-  RunLoadImmIndex<double>(MachineType::Float64());
+  RunLoadImmIndex<int8_t>(MachineType::Int8(), TestAlignment::kAligned);
+  RunLoadImmIndex<uint8_t>(MachineType::Uint8(), TestAlignment::kAligned);
+  RunLoadImmIndex<int16_t>(MachineType::Int16(), TestAlignment::kAligned);
+  RunLoadImmIndex<uint16_t>(MachineType::Uint16(), TestAlignment::kAligned);
+  RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
+  RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
+  RunLoadImmIndex<int32_t*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
+  RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
-  RunLoadImmIndex<int64_t>(MachineType::Int64());
+  RunLoadImmIndex<int64_t>(MachineType::Int64(), TestAlignment::kAligned);
+#endif
+  // TODO(titzer): test various indexing modes.
+}
+
+TEST(RunUnalignedLoadImmIndex) {
+  RunLoadImmIndex<int16_t>(MachineType::Int16(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<uint16_t>(MachineType::Uint16(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<int32_t*>(MachineType::AnyTagged(),
+                            TestAlignment::kUnaligned);
+  RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kUnaligned);
+#if V8_TARGET_ARCH_64_BIT
+  RunLoadImmIndex<int64_t>(MachineType::Int64(), TestAlignment::kUnaligned);
 #endif
   // TODO(titzer): test various indexing modes.
 }
 
 TEST(RunLoadStore) {
-  RunLoadStore<int8_t>(MachineType::Int8());
-  RunLoadStore<uint8_t>(MachineType::Uint8());
-  RunLoadStore<int16_t>(MachineType::Int16());
-  RunLoadStore<uint16_t>(MachineType::Uint16());
-  RunLoadStore<int32_t>(MachineType::Int32());
-  RunLoadStore<uint32_t>(MachineType::Uint32());
-  RunLoadStore<void*>(MachineType::AnyTagged());
-  RunLoadStore<float>(MachineType::Float32());
-  RunLoadStore<double>(MachineType::Float64());
+  RunLoadStore<int8_t>(MachineType::Int8(), TestAlignment::kAligned);
+  RunLoadStore<uint8_t>(MachineType::Uint8(), TestAlignment::kAligned);
+  RunLoadStore<int16_t>(MachineType::Int16(), TestAlignment::kAligned);
+  RunLoadStore<uint16_t>(MachineType::Uint16(), TestAlignment::kAligned);
+  RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
+  RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
+  RunLoadStore<void*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
+  RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
-  RunLoadStore<int64_t>(MachineType::Int64());
+  RunLoadStore<int64_t>(MachineType::Int64(), TestAlignment::kAligned);
+#endif
+}
+
+TEST(RunUnalignedLoadStore) {
+  RunLoadStore<int16_t>(MachineType::Int16(), TestAlignment::kUnaligned);
+  RunLoadStore<uint16_t>(MachineType::Uint16(), TestAlignment::kUnaligned);
+  RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
+  RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
+  RunLoadStore<void*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
+  RunLoadStore<float>(MachineType::Float32(), TestAlignment::kUnaligned);
+  RunLoadStore<double>(MachineType::Float64(), TestAlignment::kUnaligned);
+#if V8_TARGET_ARCH_64_BIT
+  RunLoadStore<int64_t>(MachineType::Int64(), TestAlignment::kUnaligned);
+#endif
+}
+
+TEST(RunUnalignedLoadStoreUnalignedAccess) {
+  RunUnalignedLoadStoreUnalignedAccess<int16_t>(MachineType::Int16());
+  RunUnalignedLoadStoreUnalignedAccess<uint16_t>(MachineType::Uint16());
+  RunUnalignedLoadStoreUnalignedAccess<int32_t>(MachineType::Int32());
+  RunUnalignedLoadStoreUnalignedAccess<uint32_t>(MachineType::Uint32());
+  RunUnalignedLoadStoreUnalignedAccess<void*>(MachineType::AnyTagged());
+  RunUnalignedLoadStoreUnalignedAccess<float>(MachineType::Float32());
+  RunUnalignedLoadStoreUnalignedAccess<double>(MachineType::Float64());
+#if V8_TARGET_ARCH_64_BIT
+  RunUnalignedLoadStoreUnalignedAccess<int64_t>(MachineType::Int64());
 #endif
 }
 
@@ -230,15 +390,29 @@ TEST(RunLoadStore) {
 #error "Unknown Architecture"
 #endif
 
-TEST(RunLoadStoreSignExtend32) {
+namespace {
+void RunLoadStoreSignExtend32(TestAlignment t) {
   int32_t buffer[4];
   RawMachineAssemblerTester<int32_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());
-  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
-  Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Int32());
-  m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
-  m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
-  m.StoreToPointer(&buffer[3], MachineRepresentation::kWord32, load32);
+  if (t == TestAlignment::kAligned) {
+    Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
+    Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Int32());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
+    m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
+    m.StoreToPointer(&buffer[3], MachineRepresentation::kWord32, load32);
+  } else if (t == TestAlignment::kUnaligned) {
+    Node* load16 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
+    Node* load32 = m.UnalignedLoadFromPointer(&buffer[0], MachineType::Int32());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
+    m.UnalignedStoreToPointer(&buffer[2], MachineRepresentation::kWord32,
+                              load16);
+    m.UnalignedStoreToPointer(&buffer[3], MachineRepresentation::kWord32,
+                              load32);
+  } else {
+    UNREACHABLE();
+  }
   m.Return(load8);
 
   FOR_INT32_INPUTS(i) {
@@ -251,15 +425,27 @@ TEST(RunLoadStoreSignExtend32) {
   }
 }
 
-TEST(RunLoadStoreZeroExtend32) {
+void RunLoadStoreZeroExtend32(TestAlignment t) {
   uint32_t buffer[4];
   RawMachineAssemblerTester<uint32_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
-  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
-  Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Uint32());
-  m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
-  m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
-  m.StoreToPointer(&buffer[3], MachineRepresentation::kWord32, load32);
+  if (t == TestAlignment::kAligned) {
+    Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
+    Node* load32 = m.LoadFromPointer(&buffer[0], MachineType::Uint32());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
+    m.StoreToPointer(&buffer[2], MachineRepresentation::kWord32, load16);
+    m.StoreToPointer(&buffer[3], MachineRepresentation::kWord32, load32);
+  } else if (t == TestAlignment::kUnaligned) {
+    Node* load16 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
+    Node* load32 =
+        m.UnalignedLoadFromPointer(&buffer[0], MachineType::Uint32());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord32, load8);
+    m.UnalignedStoreToPointer(&buffer[2], MachineRepresentation::kWord32,
+                              load16);
+    m.UnalignedStoreToPointer(&buffer[3], MachineRepresentation::kWord32,
+                              load32);
+  }
   m.Return(load8);
 
   FOR_UINT32_INPUTS(i) {
@@ -271,8 +457,114 @@ TEST(RunLoadStoreZeroExtend32) {
     CHECK_EQ(*i, buffer[3]);
   }
 }
+}  // namespace
+
+TEST(RunLoadStoreSignExtend32) {
+  RunLoadStoreSignExtend32(TestAlignment::kAligned);
+}
+
+TEST(RunUnalignedLoadStoreSignExtend32) {
+  RunLoadStoreSignExtend32(TestAlignment::kUnaligned);
+}
+
+TEST(RunLoadStoreZeroExtend32) {
+  RunLoadStoreZeroExtend32(TestAlignment::kAligned);
+}
+
+TEST(RunUnalignedLoadStoreZeroExtend32) {
+  RunLoadStoreZeroExtend32(TestAlignment::kUnaligned);
+}
 
 #if V8_TARGET_ARCH_64_BIT
+
+namespace {
+void RunLoadStoreSignExtend64(TestAlignment t) {
+  if (true) return;  // TODO(titzer): sign extension of loads to 64-bit.
+  int64_t buffer[5];
+  RawMachineAssemblerTester<int64_t> m;
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());
+  if (t == TestAlignment::kAligned) {
+    Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
+    Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Int32());
+    Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Int64());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
+    m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
+    m.StoreToPointer(&buffer[3], MachineRepresentation::kWord64, load32);
+    m.StoreToPointer(&buffer[4], MachineRepresentation::kWord64, load64);
+  } else if (t == TestAlignment::kUnaligned) {
+    Node* load16 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
+    Node* load32 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 4), MachineType::Int32());
+    Node* load64 = m.UnalignedLoadFromPointer(&buffer[0], MachineType::Int64());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
+    m.UnalignedStoreToPointer(&buffer[2], MachineRepresentation::kWord64,
+                              load16);
+    m.UnalignedStoreToPointer(&buffer[3], MachineRepresentation::kWord64,
+                              load32);
+    m.UnalignedStoreToPointer(&buffer[4], MachineRepresentation::kWord64,
+                              load64);
+  } else {
+    UNREACHABLE();
+  }
+  m.Return(load8);
+
+  FOR_INT64_INPUTS(i) {
+    buffer[0] = *i;
+
+    CHECK_EQ(static_cast<int8_t>(*i & 0xff), m.Call());
+    CHECK_EQ(static_cast<int8_t>(*i & 0xff), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(*i & 0xffff), buffer[2]);
+    CHECK_EQ(static_cast<int32_t>(*i & 0xffffffff), buffer[3]);
+    CHECK_EQ(*i, buffer[4]);
+  }
+}
+
+void RunLoadStoreZeroExtend64(TestAlignment t) {
+  if (kPointerSize < 8) return;
+  uint64_t buffer[5];
+  RawMachineAssemblerTester<int64_t> m;
+  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
+  if (t == TestAlignment::kAligned) {
+    Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
+    Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Uint32());
+    Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Uint64());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
+    m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
+    m.StoreToPointer(&buffer[3], MachineRepresentation::kWord64, load32);
+    m.StoreToPointer(&buffer[4], MachineRepresentation::kWord64, load64);
+  } else if (t == TestAlignment::kUnaligned) {
+    Node* load16 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
+    Node* load32 =
+        m.UnalignedLoadFromPointer(LSB(&buffer[0], 4), MachineType::Uint32());
+    Node* load64 =
+        m.UnalignedLoadFromPointer(&buffer[0], MachineType::Uint64());
+    m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
+    m.UnalignedStoreToPointer(&buffer[2], MachineRepresentation::kWord64,
+                              load16);
+    m.UnalignedStoreToPointer(&buffer[3], MachineRepresentation::kWord64,
+                              load32);
+    m.UnalignedStoreToPointer(&buffer[4], MachineRepresentation::kWord64,
+                              load64);
+  } else {
+    UNREACHABLE();
+  }
+  m.Return(load8);
+
+  FOR_UINT64_INPUTS(i) {
+    buffer[0] = *i;
+
+    CHECK_EQ((*i & 0xff), m.Call());
+    CHECK_EQ((*i & 0xff), buffer[1]);
+    CHECK_EQ((*i & 0xffff), buffer[2]);
+    CHECK_EQ((*i & 0xffffffff), buffer[3]);
+    CHECK_EQ(*i, buffer[4]);
+  }
+}
+
+}  // namespace
+
 TEST(RunCheckedLoadInt64) {
   int64_t buffer[] = {0x66bbccddeeff0011LL, 0x1122334455667788LL};
   RawMachineAssemblerTester<int64_t> m(MachineType::Int32());
@@ -289,53 +581,19 @@ TEST(RunCheckedLoadInt64) {
 }
 
 TEST(RunLoadStoreSignExtend64) {
-  if (true) return;  // TODO(titzer): sign extension of loads to 64-bit.
-  int64_t buffer[5];
-  RawMachineAssemblerTester<int64_t> m;
-  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());
-  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Int16());
-  Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Int32());
-  Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Int64());
-  m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
-  m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
-  m.StoreToPointer(&buffer[3], MachineRepresentation::kWord64, load32);
-  m.StoreToPointer(&buffer[4], MachineRepresentation::kWord64, load64);
-  m.Return(load8);
+  RunLoadStoreSignExtend64(TestAlignment::kAligned);
+}
 
-  FOR_INT64_INPUTS(i) {
-    buffer[0] = *i;
-
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xffff), buffer[2]);
-    CHECK_EQ(static_cast<int32_t>(*i & 0xffffffff), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
-  }
+TEST(RunUnalignedLoadStoreSignExtend64) {
+  RunLoadStoreSignExtend64(TestAlignment::kUnaligned);
 }
 
 TEST(RunLoadStoreZeroExtend64) {
-  if (kPointerSize < 8) return;
-  uint64_t buffer[5];
-  RawMachineAssemblerTester<int64_t> m;
-  Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
-  Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
-  Node* load32 = m.LoadFromPointer(LSB(&buffer[0], 4), MachineType::Uint32());
-  Node* load64 = m.LoadFromPointer(&buffer[0], MachineType::Uint64());
-  m.StoreToPointer(&buffer[1], MachineRepresentation::kWord64, load8);
-  m.StoreToPointer(&buffer[2], MachineRepresentation::kWord64, load16);
-  m.StoreToPointer(&buffer[3], MachineRepresentation::kWord64, load32);
-  m.StoreToPointer(&buffer[4], MachineRepresentation::kWord64, load64);
-  m.Return(load8);
+  RunLoadStoreZeroExtend64(TestAlignment::kAligned);
+}
 
-  FOR_UINT64_INPUTS(i) {
-    buffer[0] = *i;
-
-    CHECK_EQ((*i & 0xff), m.Call());
-    CHECK_EQ((*i & 0xff), buffer[1]);
-    CHECK_EQ((*i & 0xffff), buffer[2]);
-    CHECK_EQ((*i & 0xffffffff), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
-  }
+TEST(RunUnalignedLoadStoreZeroExtend64) {
+  RunLoadStoreZeroExtend64(TestAlignment::kUnaligned);
 }
 
 TEST(RunCheckedStoreInt64) {
@@ -369,13 +627,22 @@ TEST(RunCheckedStoreInt64) {
 
 namespace {
 template <typename IntType>
-void LoadStoreTruncation(MachineType kRepresentation) {
+void LoadStoreTruncation(MachineType kRepresentation, TestAlignment t) {
   IntType input;
 
   RawMachineAssemblerTester<int32_t> m;
-  Node* a = m.LoadFromPointer(&input, kRepresentation);
-  Node* ap1 = m.Int32Add(a, m.Int32Constant(1));
-  m.StoreToPointer(&input, kRepresentation.representation(), ap1);
+  Node* ap1;
+  if (t == TestAlignment::kAligned) {
+    Node* a = m.LoadFromPointer(&input, kRepresentation);
+    ap1 = m.Int32Add(a, m.Int32Constant(1));
+    m.StoreToPointer(&input, kRepresentation.representation(), ap1);
+  } else if (t == TestAlignment::kUnaligned) {
+    Node* a = m.UnalignedLoadFromPointer(&input, kRepresentation);
+    ap1 = m.Int32Add(a, m.Int32Constant(1));
+    m.UnalignedStoreToPointer(&input, kRepresentation.representation(), ap1);
+  } else {
+    UNREACHABLE();
+  }
   m.Return(ap1);
 
   const IntType max = std::numeric_limits<IntType>::max();
@@ -402,8 +669,12 @@ void LoadStoreTruncation(MachineType kRepresentation) {
 }  // namespace
 
 TEST(RunLoadStoreTruncation) {
-  LoadStoreTruncation<int8_t>(MachineType::Int8());
-  LoadStoreTruncation<int16_t>(MachineType::Int16());
+  LoadStoreTruncation<int8_t>(MachineType::Int8(), TestAlignment::kAligned);
+  LoadStoreTruncation<int16_t>(MachineType::Int16(), TestAlignment::kAligned);
+}
+
+TEST(RunUnalignedLoadStoreTruncation) {
+  LoadStoreTruncation<int16_t>(MachineType::Int16(), TestAlignment::kUnaligned);
 }
 
 void TestRunOobCheckedLoad(bool length_is_immediate) {

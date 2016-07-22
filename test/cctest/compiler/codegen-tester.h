@@ -38,7 +38,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
                                 p1, p2, p3, p4),
                 true),
             MachineType::PointerRepresentation(),
-            InstructionSelector::SupportedMachineOperatorFlags()) {}
+            InstructionSelector::SupportedMachineOperatorFlags(),
+            InstructionSelector::AlignmentRequirements()) {}
 
   virtual ~RawMachineAssemblerTester() {}
 

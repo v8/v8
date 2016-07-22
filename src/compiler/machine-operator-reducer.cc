@@ -583,6 +583,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64InsertHighWord32:
       return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
+    case IrOpcode::kUnalignedStore:
     case IrOpcode::kCheckedStore:
       return ReduceStore(node);
     case IrOpcode::kFloat64Equal:
@@ -797,8 +798,12 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   if (nm.IsCheckedStore()) {
     rep = CheckedStoreRepresentationOf(node->op());
     value_input = 3;
-  } else {
+  } else if (nm.IsStore()) {
     rep = StoreRepresentationOf(node->op()).representation();
+    value_input = 2;
+  } else {
+    DCHECK(nm.IsUnalignedStore());
+    rep = UnalignedStoreRepresentationOf(node->op());
     value_input = 2;
   }
 

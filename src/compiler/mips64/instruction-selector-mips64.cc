@@ -1355,6 +1355,102 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
+void InstructionSelector::VisitUnalignedLoad(Node* node) {
+  UnalignedLoadRepresentation load_rep =
+      UnalignedLoadRepresentationOf(node->op());
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      opcode = kMips64Ulwc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMips64Uldc1;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned() ? kMips64Ulhu : kMips64Ulh;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = load_rep.IsUnsigned() ? kMips64Ulwu : kMips64Ulw;
+      break;
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord64:
+      opcode = kMips64Uld;
+      break;
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMips64Dadd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
+void InstructionSelector::VisitUnalignedStore(Node* node) {
+  Mips64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      opcode = kMips64Uswc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMips64Usdc1;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kMips64Ush;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kMips64Usw;
+      break;
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord64:
+      opcode = kMips64Usd;
+      break;
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMips64Dadd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired store opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
+  }
+}
+
 void InstructionSelector::VisitCheckedLoad(Node* node) {
   CheckedLoadRepresentation load_rep = CheckedLoadRepresentationOf(node->op());
   Mips64OperandGenerator g(this);
@@ -2029,7 +2125,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kWord32Ctz |
+  MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
+  return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord64Ctz |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kWord64Popcnt |

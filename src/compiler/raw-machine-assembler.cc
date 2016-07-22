@@ -13,14 +13,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         CallDescriptor* call_descriptor,
-                                         MachineRepresentation word,
-                                         MachineOperatorBuilder::Flags flags)
+RawMachineAssembler::RawMachineAssembler(
+    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    MachineRepresentation word, MachineOperatorBuilder::Flags flags,
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word, flags),
+      machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       call_descriptor_(call_descriptor),
       parameters_(parameter_count(), zone()),

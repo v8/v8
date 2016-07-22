@@ -1635,29 +1635,57 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Lhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kMips64Ulhu:
+      __ Ulhu(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kMips64Lh:
       __ lh(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kMips64Ulh:
+      __ Ulh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Sh:
       __ sh(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kMips64Ush:
+      __ Ush(i.InputRegister(2), i.MemoryOperand(), kScratchReg);
+      break;
     case kMips64Lw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kMips64Ulw:
+      __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Lwu:
       __ lwu(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kMips64Ulwu:
+      __ Ulwu(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kMips64Ld:
       __ ld(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kMips64Uld:
+      __ Uld(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMips64Sw:
       __ sw(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kMips64Usw:
+      __ Usw(i.InputRegister(2), i.MemoryOperand());
+      break;
     case kMips64Sd:
       __ sd(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kMips64Usd:
+      __ Usd(i.InputRegister(2), i.MemoryOperand());
+      break;
     case kMips64Lwc1: {
       __ lwc1(i.OutputSingleRegister(), i.MemoryOperand());
+      break;
+    }
+    case kMips64Ulwc1: {
+      __ Ulwc1(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
     case kMips64Swc1: {
@@ -1666,11 +1694,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ swc1(i.InputSingleRegister(index), operand);
       break;
     }
+    case kMips64Uswc1: {
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&index);
+      __ Uswc1(i.InputSingleRegister(index), operand, kScratchReg);
+      break;
+    }
     case kMips64Ldc1:
       __ ldc1(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
+    case kMips64Uldc1:
+      __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
+      break;
     case kMips64Sdc1:
       __ sdc1(i.InputDoubleRegister(2), i.MemoryOperand());
+      break;
+    case kMips64Usdc1:
+      __ Usdc1(i.InputDoubleRegister(2), i.MemoryOperand(), kScratchReg);
       break;
     case kMips64Push:
       if (instr->InputAt(0)->IsFPRegister()) {

@@ -97,14 +97,23 @@ namespace compiler {
   V(MipsLbu)                       \
   V(MipsSb)                        \
   V(MipsLh)                        \
+  V(MipsUlh)                       \
   V(MipsLhu)                       \
+  V(MipsUlhu)                      \
   V(MipsSh)                        \
+  V(MipsUsh)                       \
   V(MipsLw)                        \
+  V(MipsUlw)                       \
   V(MipsSw)                        \
+  V(MipsUsw)                       \
   V(MipsLwc1)                      \
+  V(MipsUlwc1)                     \
   V(MipsSwc1)                      \
+  V(MipsUswc1)                     \
   V(MipsLdc1)                      \
+  V(MipsUldc1)                     \
   V(MipsSdc1)                      \
+  V(MipsUsdc1)                     \
   V(MipsFloat64ExtractLowWord32)   \
   V(MipsFloat64ExtractHighWord32)  \
   V(MipsFloat64InsertLowWord32)    \

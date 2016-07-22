@@ -952,6 +952,100 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
+void InstructionSelector::VisitUnalignedLoad(Node* node) {
+  UnalignedLoadRepresentation load_rep =
+      UnalignedLoadRepresentationOf(node->op());
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned() ? kMipsUlhu : kMipsUlh;
+      break;
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kMipsUlw;
+      break;
+    case MachineRepresentation::kFloat32:
+      opcode = kMipsUlwc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMipsUldc1;
+      break;
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
+void InstructionSelector::VisitUnalignedStore(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+
+  // TODO(mips): I guess this could be done in a better way.
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      opcode = kMipsUswc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMipsUsdc1;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kMipsUsh;
+      break;
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kMipsUsw;
+      break;
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired store opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
+  }
+}
+
 void InstructionSelector::VisitCheckedLoad(Node* node) {
   CheckedLoadRepresentation load_rep = CheckedLoadRepresentationOf(node->op());
   MipsOperandGenerator g(this);
@@ -1531,6 +1625,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
+
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kInt32DivIsSafe |

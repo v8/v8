@@ -1194,132 +1194,140 @@ class IsStoreElementMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+#define LOAD_MATCHER(kLoad)                                                   \
+  class Is##kLoad##Matcher final : public NodeMatcher {                       \
+   public:                                                                    \
+    Is##kLoad##Matcher(const Matcher<kLoad##Representation>& rep_matcher,     \
+                       const Matcher<Node*>& base_matcher,                    \
+                       const Matcher<Node*>& index_matcher,                   \
+                       const Matcher<Node*>& effect_matcher,                  \
+                       const Matcher<Node*>& control_matcher)                 \
+        : NodeMatcher(IrOpcode::k##kLoad),                                    \
+          rep_matcher_(rep_matcher),                                          \
+          base_matcher_(base_matcher),                                        \
+          index_matcher_(index_matcher),                                      \
+          effect_matcher_(effect_matcher),                                    \
+          control_matcher_(control_matcher) {}                                \
+                                                                              \
+    void DescribeTo(std::ostream* os) const final {                           \
+      NodeMatcher::DescribeTo(os);                                            \
+      *os << " whose rep (";                                                  \
+      rep_matcher_.DescribeTo(os);                                            \
+      *os << "), base (";                                                     \
+      base_matcher_.DescribeTo(os);                                           \
+      *os << "), index (";                                                    \
+      index_matcher_.DescribeTo(os);                                          \
+      *os << "), effect (";                                                   \
+      effect_matcher_.DescribeTo(os);                                         \
+      *os << ") and control (";                                               \
+      control_matcher_.DescribeTo(os);                                        \
+      *os << ")";                                                             \
+    }                                                                         \
+                                                                              \
+    bool MatchAndExplain(Node* node,                                          \
+                         MatchResultListener* listener) const final {         \
+      Node* effect_node = nullptr;                                            \
+      Node* control_node = nullptr;                                           \
+      if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {      \
+        effect_node = NodeProperties::GetEffectInput(node);                   \
+      }                                                                       \
+      if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {     \
+        control_node = NodeProperties::GetControlInput(node);                 \
+      }                                                                       \
+      return (NodeMatcher::MatchAndExplain(node, listener) &&                 \
+              PrintMatchAndExplain(OpParameter<kLoad##Representation>(node),  \
+                                   "rep", rep_matcher_, listener) &&          \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),    \
+                                   "base", base_matcher_, listener) &&        \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),    \
+                                   "index", index_matcher_, listener) &&      \
+              PrintMatchAndExplain(effect_node, "effect", effect_matcher_,    \
+                                   listener) &&                               \
+              PrintMatchAndExplain(control_node, "control", control_matcher_, \
+                                   listener));                                \
+    }                                                                         \
+                                                                              \
+   private:                                                                   \
+    const Matcher<kLoad##Representation> rep_matcher_;                        \
+    const Matcher<Node*> base_matcher_;                                       \
+    const Matcher<Node*> index_matcher_;                                      \
+    const Matcher<Node*> effect_matcher_;                                     \
+    const Matcher<Node*> control_matcher_;                                    \
+  };
 
-class IsLoadMatcher final : public NodeMatcher {
- public:
-  IsLoadMatcher(const Matcher<LoadRepresentation>& rep_matcher,
-                const Matcher<Node*>& base_matcher,
-                const Matcher<Node*>& index_matcher,
-                const Matcher<Node*>& effect_matcher,
-                const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kLoad),
-        rep_matcher_(rep_matcher),
-        base_matcher_(base_matcher),
-        index_matcher_(index_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
+LOAD_MATCHER(Load)
+LOAD_MATCHER(UnalignedLoad)
 
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose rep (";
-    rep_matcher_.DescribeTo(os);
-    *os << "), base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), index (";
-    index_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
+#define STORE_MATCHER(kStore)                                                 \
+  class Is##kStore##Matcher final : public NodeMatcher {                      \
+   public:                                                                    \
+    Is##kStore##Matcher(const Matcher<kStore##Representation>& rep_matcher,   \
+                        const Matcher<Node*>& base_matcher,                   \
+                        const Matcher<Node*>& index_matcher,                  \
+                        const Matcher<Node*>& value_matcher,                  \
+                        const Matcher<Node*>& effect_matcher,                 \
+                        const Matcher<Node*>& control_matcher)                \
+        : NodeMatcher(IrOpcode::k##kStore),                                   \
+          rep_matcher_(rep_matcher),                                          \
+          base_matcher_(base_matcher),                                        \
+          index_matcher_(index_matcher),                                      \
+          value_matcher_(value_matcher),                                      \
+          effect_matcher_(effect_matcher),                                    \
+          control_matcher_(control_matcher) {}                                \
+                                                                              \
+    void DescribeTo(std::ostream* os) const final {                           \
+      NodeMatcher::DescribeTo(os);                                            \
+      *os << " whose rep (";                                                  \
+      rep_matcher_.DescribeTo(os);                                            \
+      *os << "), base (";                                                     \
+      base_matcher_.DescribeTo(os);                                           \
+      *os << "), index (";                                                    \
+      index_matcher_.DescribeTo(os);                                          \
+      *os << "), value (";                                                    \
+      value_matcher_.DescribeTo(os);                                          \
+      *os << "), effect (";                                                   \
+      effect_matcher_.DescribeTo(os);                                         \
+      *os << ") and control (";                                               \
+      control_matcher_.DescribeTo(os);                                        \
+      *os << ")";                                                             \
+    }                                                                         \
+                                                                              \
+    bool MatchAndExplain(Node* node,                                          \
+                         MatchResultListener* listener) const final {         \
+      Node* effect_node = nullptr;                                            \
+      Node* control_node = nullptr;                                           \
+      if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {      \
+        effect_node = NodeProperties::GetEffectInput(node);                   \
+      }                                                                       \
+      if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {     \
+        control_node = NodeProperties::GetControlInput(node);                 \
+      }                                                                       \
+      return (NodeMatcher::MatchAndExplain(node, listener) &&                 \
+              PrintMatchAndExplain(OpParameter<kStore##Representation>(node), \
+                                   "rep", rep_matcher_, listener) &&          \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),    \
+                                   "base", base_matcher_, listener) &&        \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),    \
+                                   "index", index_matcher_, listener) &&      \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),    \
+                                   "value", value_matcher_, listener) &&      \
+              PrintMatchAndExplain(effect_node, "effect", effect_matcher_,    \
+                                   listener) &&                               \
+              PrintMatchAndExplain(control_node, "control", control_matcher_, \
+                                   listener));                                \
+    }                                                                         \
+                                                                              \
+   private:                                                                   \
+    const Matcher<kStore##Representation> rep_matcher_;                       \
+    const Matcher<Node*> base_matcher_;                                       \
+    const Matcher<Node*> index_matcher_;                                      \
+    const Matcher<Node*> value_matcher_;                                      \
+    const Matcher<Node*> effect_matcher_;                                     \
+    const Matcher<Node*> control_matcher_;                                    \
+  };
 
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    Node* effect_node = nullptr;
-    Node* control_node = nullptr;
-    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
-      effect_node = NodeProperties::GetEffectInput(node);
-    }
-    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
-      control_node = NodeProperties::GetControlInput(node);
-    }
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<LoadRepresentation>(node), "rep",
-                                 rep_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "index", index_matcher_, listener) &&
-            PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
-                                 listener) &&
-            PrintMatchAndExplain(control_node, "control", control_matcher_,
-                                 listener));
-  }
-
- private:
-  const Matcher<LoadRepresentation> rep_matcher_;
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> index_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
-
-
-class IsStoreMatcher final : public NodeMatcher {
- public:
-  IsStoreMatcher(const Matcher<StoreRepresentation>& rep_matcher,
-                 const Matcher<Node*>& base_matcher,
-                 const Matcher<Node*>& index_matcher,
-                 const Matcher<Node*>& value_matcher,
-                 const Matcher<Node*>& effect_matcher,
-                 const Matcher<Node*>& control_matcher)
-      : NodeMatcher(IrOpcode::kStore),
-        rep_matcher_(rep_matcher),
-        base_matcher_(base_matcher),
-        index_matcher_(index_matcher),
-        value_matcher_(value_matcher),
-        effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
-
-  void DescribeTo(std::ostream* os) const final {
-    NodeMatcher::DescribeTo(os);
-    *os << " whose rep (";
-    rep_matcher_.DescribeTo(os);
-    *os << "), base (";
-    base_matcher_.DescribeTo(os);
-    *os << "), index (";
-    index_matcher_.DescribeTo(os);
-    *os << "), value (";
-    value_matcher_.DescribeTo(os);
-    *os << "), effect (";
-    effect_matcher_.DescribeTo(os);
-    *os << ") and control (";
-    control_matcher_.DescribeTo(os);
-    *os << ")";
-  }
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    Node* effect_node = nullptr;
-    Node* control_node = nullptr;
-    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
-      effect_node = NodeProperties::GetEffectInput(node);
-    }
-    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
-      control_node = NodeProperties::GetControlInput(node);
-    }
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<StoreRepresentation>(node), "rep",
-                                 rep_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
-                                 base_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
-                                 "index", index_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
-                                 "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
-                                 listener) &&
-            PrintMatchAndExplain(control_node, "control", control_matcher_,
-                                 listener));
-  }
-
- private:
-  const Matcher<StoreRepresentation> rep_matcher_;
-  const Matcher<Node*> base_matcher_;
-  const Matcher<Node*> index_matcher_;
-  const Matcher<Node*> value_matcher_;
-  const Matcher<Node*> effect_matcher_;
-  const Matcher<Node*> control_matcher_;
-};
+STORE_MATCHER(Store)
+STORE_MATCHER(UnalignedStore)
 
 class IsStackSlotMatcher final : public NodeMatcher {
  public:
@@ -2135,7 +2143,6 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
       effect_matcher, control_matcher));
 }
 
-
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,
                       const Matcher<Node*>& index_matcher,
@@ -2145,6 +2152,15 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                        effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsUnalignedLoad(
+    const Matcher<UnalignedLoadRepresentation>& rep_matcher,
+    const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsUnalignedLoadMatcher(rep_matcher, base_matcher,
+                                                index_matcher, effect_matcher,
+                                                control_matcher));
+}
 
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
@@ -2155,6 +2171,16 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
   return MakeMatcher(new IsStoreMatcher(rep_matcher, base_matcher,
                                         index_matcher, value_matcher,
                                         effect_matcher, control_matcher));
+}
+
+Matcher<Node*> IsUnalignedStore(
+    const Matcher<UnalignedStoreRepresentation>& rep_matcher,
+    const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
+    const Matcher<Node*>& value_matcher, const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsUnalignedStoreMatcher(
+      rep_matcher, base_matcher, index_matcher, value_matcher, effect_matcher,
+      control_matcher));
 }
 
 Matcher<Node*> IsStackSlot(const Matcher<MachineRepresentation>& rep_matcher) {

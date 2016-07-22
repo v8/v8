@@ -2523,6 +2523,13 @@ Type* Typer::Visitor::TypeLoadParentFramePointer(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeUnalignedLoad(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeUnalignedStore(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeCheckedLoad(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeCheckedStore(Node* node) {

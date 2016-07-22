@@ -40,7 +40,10 @@ class RawMachineAssembler {
       Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
       MachineRepresentation word = MachineType::PointerRepresentation(),
       MachineOperatorBuilder::Flags flags =
-          MachineOperatorBuilder::Flag::kNoFlags);
+          MachineOperatorBuilder::Flag::kNoFlags,
+      MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
+          MachineOperatorBuilder::AlignmentRequirements::
+              FullUnalignedAccessSupport());
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
@@ -131,6 +134,34 @@ class RawMachineAssembler {
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
+  }
+
+  // Unaligned memory operations
+  Node* UnalignedLoad(MachineType rep, Node* base) {
+    return UnalignedLoad(rep, base, IntPtrConstant(0));
+  }
+  Node* UnalignedLoad(MachineType rep, Node* base, Node* index) {
+    if (machine()->UnalignedLoadSupported(rep, 1)) {
+      return AddNode(machine()->Load(rep), base, index);
+    } else {
+      return AddNode(machine()->UnalignedLoad(rep), base, index);
+    }
+  }
+  Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* value) {
+    return UnalignedStore(rep, base, IntPtrConstant(0), value);
+  }
+  Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
+                       Node* value) {
+    MachineType t = MachineType::TypeForRepresentation(rep);
+    if (machine()->UnalignedStoreSupported(t, 1)) {
+      return AddNode(machine()->Store(StoreRepresentation(
+                         rep, WriteBarrierKind::kNoWriteBarrier)),
+                     base, index, value);
+    } else {
+      return AddNode(
+          machine()->UnalignedStore(UnalignedStoreRepresentation(rep)), base,
+          index, value);
+    }
   }
 
   // Atomic memory operations.
@@ -646,6 +677,14 @@ class RawMachineAssembler {
   }
   Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
+  }
+  Node* UnalignedLoadFromPointer(void* address, MachineType rep,
+                                 int32_t offset = 0) {
+    return UnalignedLoad(rep, PointerConstant(address), Int32Constant(offset));
+  }
+  Node* UnalignedStoreToPointer(void* address, MachineRepresentation rep,
+                                Node* node) {
+    return UnalignedStore(rep, PointerConstant(address), node);
   }
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));

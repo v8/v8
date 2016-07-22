@@ -25,7 +25,8 @@ class GraphAndBuilders {
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
         main_machine_(zone, MachineType::PointerRepresentation(),
-                      InstructionSelector::SupportedMachineOperatorFlags()),
+                      InstructionSelector::SupportedMachineOperatorFlags(),
+                      InstructionSelector::AlignmentRequirements()),
         main_simplified_(zone) {}
 
   Graph* graph() const { return main_graph_; }

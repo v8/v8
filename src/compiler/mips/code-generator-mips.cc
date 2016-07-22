@@ -1360,20 +1360,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsLhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kMipsUlhu:
+      __ Ulhu(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kMipsLh:
       __ lh(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kMipsUlh:
+      __ Ulh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMipsSh:
       __ sh(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kMipsUsh:
+      __ Ush(i.InputRegister(2), i.MemoryOperand(), kScratchReg);
+      break;
     case kMipsLw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kMipsUlw:
+      __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
     case kMipsSw:
       __ sw(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kMipsUsw:
+      __ Usw(i.InputRegister(2), i.MemoryOperand());
+      break;
     case kMipsLwc1: {
       __ lwc1(i.OutputSingleRegister(), i.MemoryOperand());
+      break;
+    }
+    case kMipsUlwc1: {
+      __ Ulwc1(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
     case kMipsSwc1: {
@@ -1382,11 +1401,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ swc1(i.InputSingleRegister(index), operand);
       break;
     }
+    case kMipsUswc1: {
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&index);
+      __ Uswc1(i.InputSingleRegister(index), operand, kScratchReg);
+      break;
+    }
     case kMipsLdc1:
       __ ldc1(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
+    case kMipsUldc1:
+      __ Uldc1(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
+      break;
     case kMipsSdc1:
       __ sdc1(i.InputDoubleRegister(2), i.MemoryOperand());
+      break;
+    case kMipsUsdc1:
+      __ Usdc1(i.InputDoubleRegister(2), i.MemoryOperand(), kScratchReg);
       break;
     case kMipsPush:
       if (instr->InputAt(0)->IsFPRegister()) {

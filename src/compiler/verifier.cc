@@ -1184,6 +1184,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
+    case IrOpcode::kUnalignedLoad:
+    case IrOpcode::kUnalignedStore:
     case IrOpcode::kCheckedLoad:
     case IrOpcode::kCheckedStore:
     case IrOpcode::kAtomicLoad:
