@@ -47,6 +47,7 @@ shell_g
 /hydrogen.cfg
 /obj
 /out
+/platform/inspector_protocol
 /perf.data
 /perf.data.old
 /test/benchmarks/data
