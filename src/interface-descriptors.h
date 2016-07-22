@@ -217,6 +217,8 @@ class CallInterfaceDescriptor {
 
   void Initialize(Isolate* isolate, CallDescriptors::Key key) {
     if (!data()->IsInitialized()) {
+      // We should only initialize descriptors on the isolate's main thread.
+      DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
       CallInterfaceDescriptorData* d = isolate->call_descriptor_data(key);
       DCHECK(d == data());  // d should be a modifiable pointer to data().
       InitializePlatformSpecific(d);

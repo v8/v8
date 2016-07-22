@@ -607,6 +607,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
   }
 
+  // TODO(mstarzinger): Hack to ensure that the ToNumber call descriptor is
+  // initialized on the main thread, since it is needed off-thread by the
+  // effect control linearizer.
+  CodeFactory::ToNumber(info()->isolate());
+
   linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
 
   if (!pipeline_.CreateGraph()) {
