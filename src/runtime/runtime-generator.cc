@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
     operand_stack = isolate->factory()->NewFixedArray(size);
   } else {
     // Old-style generators.
-    operand_stack = handle(isolate->heap()->empty_fixed_array());
+    operand_stack = isolate->factory()->empty_fixed_array();
   }
 
   Handle<JSGeneratorObject> generator =

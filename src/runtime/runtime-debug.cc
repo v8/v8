@@ -1582,7 +1582,7 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
                                         Isolate* isolate) {
   Script::PositionInfo info;
   if (!script->GetPositionInfo(position, &info, offset_flag)) {
-    return handle(isolate->heap()->null_value(), isolate);
+    return isolate->factory()->null_value();
   }
 
   Handle<String> source = handle(String::cast(script->source()), isolate);
