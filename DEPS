@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "5782f1c84fc41934d265f69e5bd61badbf61e5c5",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "2c67d4d74b6b3673228fab191918500a582ef3b0",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -20,7 +20,7 @@ deps = {
   "v8/platform/inspector_protocol":
     Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f49542089820a34a9a6e33264e09b73779407512",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "c0f2da01e7e7e530fcbbf3823b7c7655632f05b1",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "0c4dc43c454f26936ddf3074ab8e9a41e3dc03a3",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
@@ -37,13 +37,13 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "0b50729d487ec853d8f7c762c81cb2ad2785e674",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "496622ab4aaa5be7e5a9b80617013cb02f45dc87",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "20a4bd598cf3ba8434311156ce94c110a0024fe7",
+      Var("git_url") + "/android_tools.git" + "@" + "e4d61eb8f463e6cb8d1e1269a15c22f7c9bbd122",
   },
   "win": {
     "v8/third_party/cygwin":
