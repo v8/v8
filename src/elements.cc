@@ -1041,25 +1041,15 @@ class ElementsAccessorBase : public ElementsAccessor {
         combined_keys, &nof_indices);
 
     if (needs_sorting) {
-      SortIndices(combined_keys, nof_indices, SKIP_WRITE_BARRIER);
-      uint32_t array_length = 0;
+      SortIndices(combined_keys, nof_indices);
       // Indices from dictionary elements should only be converted after
       // sorting.
       if (convert == GetKeysConversion::kConvertToString) {
         for (uint32_t i = 0; i < nof_indices; i++) {
           Handle<Object> index_string = isolate->factory()->Uint32ToString(
-                  combined_keys->get(i)->Number());
+              combined_keys->get(i)->Number());
           combined_keys->set(i, *index_string);
         }
-      } else if (!(object->IsJSArray() &&
-                   JSArray::cast(*object)->length()->ToArrayLength(
-                       &array_length) &&
-                   array_length <= Smi::kMaxValue)) {
-        // Since we use std::sort above, the GC will no longer know where the
-        // HeapNumbers are.  For Arrays with valid Smi length, we are sure to
-        // have no HeapNumber indices and thus we can skip this step.
-        FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(isolate->heap(), *combined_keys, 0,
-                                           nof_indices);
       }
     }
 
