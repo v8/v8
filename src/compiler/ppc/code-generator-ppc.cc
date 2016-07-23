@@ -470,19 +470,88 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MAX(scratch_reg)                                       \
+#define ASSEMBLE_FLOAT_MAX()                                                  \
   do {                                                                        \
-    __ fsub(scratch_reg, i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
-    __ fsel(i.OutputDoubleRegister(), scratch_reg, i.InputDoubleRegister(0),  \
-            i.InputDoubleRegister(1));                                        \
-  } while (0)
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                       \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                      \
+    DoubleRegister result_reg = i.OutputDoubleRegister();                     \
+    Label check_nan_left, check_zero, return_left, return_right, done;        \
+    __ fcmpu(left_reg, right_reg);                                            \
+    __ bunordered(&check_nan_left);                                           \
+    __ beq(&check_zero);                                                      \
+    __ bge(&return_left);                                                     \
+    __ b(&return_right);                                                      \
+                                                                              \
+    __ bind(&check_zero);                                                     \
+    __ fcmpu(left_reg, kDoubleRegZero);                                       \
+    /* left == right != 0. */                                                 \
+    __ bne(&return_left);                                                     \
+    /* At this point, both left and right are either 0 or -0. */              \
+    __ fadd(result_reg, left_reg, right_reg);                                 \
+    __ b(&done);                                                              \
+                                                                              \
+    __ bind(&check_nan_left);                                                 \
+    __ fcmpu(left_reg, left_reg);                                             \
+    /* left == NaN. */                                                        \
+    __ bunordered(&return_left);                                              \
+    __ bind(&return_right);                                                   \
+    if (!right_reg.is(result_reg)) {                                          \
+      __ fmr(result_reg, right_reg);                                          \
+    }                                                                         \
+    __ b(&done);                                                              \
+                                                                              \
+    __ bind(&return_left);                                                    \
+    if (!left_reg.is(result_reg)) {                                           \
+      __ fmr(result_reg, left_reg);                                           \
+    }                                                                         \
+    __ bind(&done);                                                           \
+  } while (0)                                                                 \
 
 
-#define ASSEMBLE_FLOAT_MIN(scratch_reg)                                       \
-  do {                                                                        \
-    __ fsub(scratch_reg, i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
-    __ fsel(i.OutputDoubleRegister(), scratch_reg, i.InputDoubleRegister(1),  \
-            i.InputDoubleRegister(0));                                        \
+#define ASSEMBLE_FLOAT_MIN()                                                   \
+  do {                                                                         \
+    DoubleRegister left_reg = i.InputDoubleRegister(0);                        \
+    DoubleRegister right_reg = i.InputDoubleRegister(1);                       \
+    DoubleRegister result_reg = i.OutputDoubleRegister();                      \
+    Label check_nan_left, check_zero, return_left, return_right, done;         \
+    __ fcmpu(left_reg, right_reg);                                             \
+    __ bunordered(&check_nan_left);                                            \
+    __ beq(&check_zero);                                                       \
+    __ ble(&return_left);                                                      \
+    __ b(&return_right);                                                       \
+                                                                               \
+    __ bind(&check_zero);                                                      \
+    __ fcmpu(left_reg, kDoubleRegZero);                                        \
+    /* left == right != 0. */                                                  \
+    __ bne(&return_left);                                                      \
+    /* At this point, both left and right are either 0 or -0. */               \
+    /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R being */\
+    /* different registers is most efficiently expressed as -((-L) - R). */    \
+    __ fneg(left_reg, left_reg);                                               \
+    if (left_reg.is(right_reg)) {                                              \
+      __ fadd(result_reg, left_reg, right_reg);                                \
+    } else {                                                                   \
+      __ fsub(result_reg, left_reg, right_reg);                                \
+    }                                                                          \
+    __ fneg(result_reg, result_reg);                                           \
+    __ b(&done);                                                               \
+                                                                               \
+    __ bind(&check_nan_left);                                                  \
+    __ fcmpu(left_reg, left_reg);                                              \
+    /* left == NaN. */                                                         \
+    __ bunordered(&return_left);                                               \
+                                                                               \
+    __ bind(&return_right);                                                    \
+    if (!right_reg.is(result_reg)) {                                           \
+      __ fmr(result_reg, right_reg);                                           \
+    }                                                                          \
+    __ b(&done);                                                               \
+                                                                               \
+    __ bind(&return_left);                                                     \
+    if (!left_reg.is(result_reg)) {                                            \
+      __ fmr(result_reg, left_reg);                                            \
+    }                                                                          \
+    __ bind(&done);                                                            \
   } while (0)
 
 
@@ -1448,10 +1517,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
       break;
     case kPPC_MaxDouble:
-      ASSEMBLE_FLOAT_MAX(kScratchDoubleReg);
+      ASSEMBLE_FLOAT_MAX();
       break;
     case kPPC_MinDouble:
-      ASSEMBLE_FLOAT_MIN(kScratchDoubleReg);
+      ASSEMBLE_FLOAT_MIN();
       break;
     case kPPC_AbsDouble:
       ASSEMBLE_FLOAT_UNOP_RC(fabs, 0);
