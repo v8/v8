@@ -48,11 +48,11 @@
       'V8 Win64 - debug': 'gyp_debug_x64_minimal_symbols',
       'V8 Win64 - clang': 'gyp_release_x64_clang',
       # Mac.
-      'V8 Mac': 'gyp_release_x86',
-      'V8 Mac - debug': 'gyp_debug_x86',
-      'V8 Mac64': 'gyp_release_x64',
-      'V8 Mac64 - debug': 'gyp_debug_x64',
-      'V8 Mac GC Stress': 'gyp_debug_x86',
+      'V8 Mac': 'gn_release_x86',
+      'V8 Mac - debug': 'gn_debug_x86',
+      'V8 Mac64': 'gn_release_x64',
+      'V8 Mac64 - debug': 'gn_debug_x64',
+      'V8 Mac GC Stress': 'gn_debug_x86',
       'V8 Mac64 ASAN': 'gyp_release_x64_asan',
       # Sanitizers.
       'V8 Linux64 ASAN': 'gyp_release_x64_asan',
@@ -165,11 +165,11 @@
         'gyp_release_x86_no_snap_shared_minimal_symbols',
       'v8_win64_dbg': 'gyp_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gyp_release_x64_trybot',
-      'v8_mac_rel_ng': 'gyp_release_x86_trybot',
-      'v8_mac_dbg': 'gyp_debug_x86_trybot',
-      'v8_mac_gc_stress_dbg': 'gyp_debug_x86_trybot',
-      'v8_mac64_rel': 'gyp_release_x64_trybot',
-      'v8_mac64_dbg': 'gyp_debug_x64_minimal_symbols',
+      'v8_mac_rel_ng': 'gn_release_x86_trybot',
+      'v8_mac_dbg': 'gn_debug_x86_trybot',
+      'v8_mac_gc_stress_dbg': 'gn_debug_x86_trybot',
+      'v8_mac64_rel': 'gn_release_x64_trybot',
+      'v8_mac64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_mac64_asan_rel': 'gyp_release_x64_asan',
       'v8_linux_arm_rel_ng': 'gyp_release_simulate_arm_trybot',
       'v8_linux_arm_dbg': 'gyp_debug_simulate_arm',
@@ -216,6 +216,8 @@
       'gn', 'debug_bot', 'x64', 'swarming'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+    'gn_debug_x64_minimal_symbols': [
+      'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
       'gn', 'debug_trybot', 'x64', 'swarming'],
     'gn_debug_x64_valgrind': [
@@ -250,6 +252,8 @@
       'gn', 'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_release_x86_shared_verify_heap': [
       'gn', 'release', 'x86', 'goma', 'shared', 'swarming', 'v8_verify_heap'],
+    'gn_release_x86_trybot': [
+      'gn', 'release_trybot', 'x86', 'swarming'],
 
     # Gyp debug configs for arm.
     'gyp_debug_arm': [
@@ -272,8 +276,6 @@
       'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
 
     # Gyp debug configs for x64.
-    'gyp_debug_x64': [
-      'gyp', 'debug_bot', 'x64', 'swarming'],
     'gyp_debug_x64_asan_edge': [
       'gyp', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gyp_debug_x64_minimal_symbols': [
@@ -364,8 +366,6 @@
       'gyp', 'release_trybot', 'x64', 'swarming'],
 
     # Gyp release configs for x86.
-    'gyp_release_x86': [
-      'gyp', 'release_bot', 'x86', 'swarming'],
     'gyp_release_x86_disassembler': [
       'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gyp_release_x86_interpreted_regexp': [
