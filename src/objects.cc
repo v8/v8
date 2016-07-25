@@ -4374,15 +4374,18 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                     value, it->GetReceiver(), language_mode);
 
       case LookupIterator::INTERCEPTOR: {
-        Handle<Map> store_target_map =
-            handle(it->GetStoreTarget()->map(), it->isolate());
+        Handle<Map> store_target_map;
+        if (it->GetReceiver()->IsJSObject()) {
+          store_target_map = handle(it->GetStoreTarget()->map(), it->isolate());
+        }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
           // Interceptor modified the store target but failed to set the
           // property.
-          Utils::ApiCheck(*store_target_map == it->GetStoreTarget()->map(),
+          Utils::ApiCheck(store_target_map.is_null() ||
+                              *store_target_map == it->GetStoreTarget()->map(),
                           it->IsElement() ? "v8::IndexedPropertySetterCallback"
                                           : "v8::NamedPropertySetterCallback",
                           "Interceptor silently changed store target.");
@@ -4395,7 +4398,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           }
           // Interceptor modified the store target but failed to set the
           // property.
-          Utils::ApiCheck(*store_target_map == it->GetStoreTarget()->map(),
+          Utils::ApiCheck(store_target_map.is_null() ||
+                              *store_target_map == it->GetStoreTarget()->map(),
                           it->IsElement() ? "v8::IndexedPropertySetterCallback"
                                           : "v8::NamedPropertySetterCallback",
                           "Interceptor silently changed store target.");
