@@ -50,26 +50,26 @@ namespace internal {
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                      \
   ASM(Abort)                                                                 \
   /* Handlers */                                                             \
-  ASM(KeyedLoadIC_Miss)                                                      \
-  ASM(KeyedStoreIC_Miss)                                                     \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                      \
   ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)               \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)     \
+  ASM(KeyedLoadIC_Miss)                                                      \
+  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                        \
   ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)             \
   ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                       \
       StoreICState::kStrictModeState)                                        \
-  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                        \
+  ASM(KeyedStoreIC_Miss)                                                     \
   ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                      \
-  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                 \
-  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                               \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)     \
-  TFS(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,       \
-      LoadGlobalWithVector)                                                  \
   TFS(LoadGlobalIC_SlowInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,          \
       LoadGlobalWithVector)                                                  \
+  TFS(LoadGlobalIC_SlowNotInsideTypeof, HANDLER, Code::LOAD_GLOBAL_IC,       \
+      LoadGlobalWithVector)                                                  \
+  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                      \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                 \
+  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                 \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                   \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)               \
+  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                               \
+  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)     \
   TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)          \
   TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)          \
                                                                              \
@@ -124,11 +124,11 @@ namespace internal {
   /* Interpreter */                                                          \
   ASM(InterpreterEntryTrampoline)                                            \
   ASM(InterpreterMarkBaselineOnReturn)                                       \
-  ASM(InterpreterPushArgsAndCallFunction)                                    \
-  ASM(InterpreterPushArgsAndTailCallFunction)                                \
   ASM(InterpreterPushArgsAndCall)                                            \
-  ASM(InterpreterPushArgsAndTailCall)                                        \
+  ASM(InterpreterPushArgsAndCallFunction)                                    \
   ASM(InterpreterPushArgsAndConstruct)                                       \
+  ASM(InterpreterPushArgsAndTailCall)                                        \
+  ASM(InterpreterPushArgsAndTailCallFunction)                                \
   ASM(InterpreterEnterBytecodeDispatch)                                      \
                                                                              \
   /* Code life-cycle */                                                      \
@@ -159,9 +159,9 @@ namespace internal {
   ASM(AllocateInOldSpace)                                                    \
                                                                              \
   /* Debugger */                                                             \
+  DBG(FrameDropper_LiveEdit)                                                 \
   DBG(Return_DebugBreak)                                                     \
   DBG(Slot_DebugBreak)                                                       \
-  DBG(FrameDropper_LiveEdit)                                                 \
                                                                              \
   /* Type conversions */                                                     \
   TFS(ToBoolean, BUILTIN, kNoExtraICState, TypeConversion)                   \
