@@ -5,6 +5,8 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/macro-assembler.h"
+
 namespace v8 {
 namespace internal {
 
@@ -29,6 +31,17 @@ BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
+}
+
+// -----------------------------------------------------------------------------
+// Interrupt and stack checks.
+
+void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kInterrupt);
+}
+
+void Builtins::Generate_StackCheck(MacroAssembler* masm) {
+  masm->TailCallRuntime(Runtime::kStackGuard);
 }
 
 }  // namespace internal
