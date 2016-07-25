@@ -4183,9 +4183,6 @@ TEST(InterpreterIllegalConstDeclaration) {
 }
 
 TEST(InterpreterGenerators) {
-  bool old_flag = FLAG_ignition_generators;
-  FLAG_ignition_generators = true;
-
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
@@ -4207,8 +4204,6 @@ TEST(InterpreterGenerators) {
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*tests[i].second));
   }
-
-  FLAG_ignition_generators = old_flag;
 }
 
 }  // namespace interpreter

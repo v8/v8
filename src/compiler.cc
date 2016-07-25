@@ -450,11 +450,6 @@ bool ShouldUseIgnition(CompilationInfo* info) {
     return info->shared_info()->HasBytecodeArray();
   }
 
-  // For generator or async functions we might avoid Ignition wholesale.
-  if (info->shared_info()->is_resumable() && !FLAG_ignition_generators) {
-    return false;
-  }
-
   // Since we can't OSR from Ignition, skip Ignition for asm.js functions.
   if (info->shared_info()->asm_function()) {
     return false;

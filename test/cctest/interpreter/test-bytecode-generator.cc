@@ -2224,9 +2224,6 @@ TEST(ClassAndSuperClass) {
 }
 
 TEST(Generators) {
-  bool old_flag = FLAG_ignition_generators;
-  FLAG_ignition_generators = true;
-
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate(),
                                       ConstantPoolType::kMixed);
@@ -2246,8 +2243,6 @@ TEST(Generators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Generators.golden")));
-
-  FLAG_ignition_generators = old_flag;
 }
 
 }  // namespace interpreter

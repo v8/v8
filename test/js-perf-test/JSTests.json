@@ -23,8 +23,7 @@
       "resources": ["generators.js"],
       "flags": [
         "--harmony-function-sent",
-        "--ignition",
-        "--ignition-generators"
+        "--ignition"
       ],
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
@@ -36,7 +35,6 @@
       "flags": [
         "--harmony-function-sent",
         "--ignition",
-        "--ignition-generators",
         "--turbo",
         "--turbo-from-bytecode"
       ],
