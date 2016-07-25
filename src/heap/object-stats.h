@@ -60,19 +60,22 @@ class ObjectStats {
     size_histogram_[code_age_index][idx]++;
   }
 
-  void RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
+  bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
                                     size_t size, size_t over_allocated) {
     auto it = visited_fixed_array_sub_types_.insert(array);
-    if (!it.second) return;
+    if (!it.second) return false;
     DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
     object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
     object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
     size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
                    [HistogramIndexFromSize(size)]++;
-    over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
-        over_allocated;
-    over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
-                             [HistogramIndexFromSize(over_allocated)]++;
+    if (over_allocated > 0) {
+      over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
+          over_allocated;
+      over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                               [HistogramIndexFromSize(over_allocated)]++;
+    }
+    return true;
   }
 
   size_t object_count_last_gc(size_t index) {
@@ -117,26 +120,31 @@ class ObjectStats {
 
 class ObjectStatsCollector {
  public:
-  static void CollectStatistics(ObjectStats* stats, HeapObject* obj);
+  ObjectStatsCollector(Heap* heap, ObjectStats* stats)
+      : heap_(heap), stats_(stats) {}
+
+  void CollectGlobalStatistics();
+  void CollectStatistics(HeapObject* obj);
 
  private:
-  static void RecordMapDetails(ObjectStats* stats, Heap* heap, HeapObject* obj);
-  static void RecordCodeDetails(ObjectStats* stats, Heap* heap,
-                                HeapObject* obj);
-  static void RecordSharedFunctionInfoDetails(ObjectStats* stats, Heap* heap,
-                                              HeapObject* obj);
-  static void RecordFixedArrayDetails(ObjectStats* stats, Heap* heap,
-                                      HeapObject* obj);
+  void RecordCodeDetails(Code* code);
+  void RecordFixedArrayDetails(FixedArray* array);
+  void RecordJSCollectionDetails(JSObject* obj);
+  void RecordJSFunctionDetails(JSFunction* function);
+  void RecordJSObjectDetails(JSObject* object);
+  void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
+  void RecordMapDetails(Map* map);
+  void RecordScriptDetails(Script* obj);
+  void RecordSharedFunctionInfoDetails(SharedFunctionInfo* sfi);
 
-  static void RecordJSObjectDetails(ObjectStats* stats, Heap* heap,
-                                    JSObject* object);
-  static void RecordJSWeakCollectionDetails(ObjectStats* stats, Heap* heap,
-                                            JSWeakCollection* obj);
-  static void RecordScriptDetails(ObjectStats* stats, Heap* heap, Script* obj);
-
-  static void RecordFixedArrayHelper(ObjectStats* stats, Heap* heap,
-                                     HeapObject* parent, FixedArray* array,
-                                     int subtype, size_t overhead);
+  bool RecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
+                              int subtype, size_t overhead);
+  void RecursivelyRecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
+                                         int subtype);
+  template <class HashTable>
+  void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
+  Heap* heap_;
+  ObjectStats* stats_;
 };
 
 }  // namespace internal

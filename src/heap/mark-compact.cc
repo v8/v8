@@ -2243,25 +2243,28 @@ void MarkCompactCollector::RegisterExternallyReferencedObject(Object** object) {
 class MarkCompactCollector::ObjectStatsVisitor
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  ObjectStatsVisitor(ObjectStats* live_stats, ObjectStats* dead_stats)
-      : live_stats_(live_stats), dead_stats_(dead_stats) {
-    DCHECK_NOT_NULL(live_stats_);
-    DCHECK_NOT_NULL(dead_stats_);
+  ObjectStatsVisitor(Heap* heap, ObjectStats* live_stats,
+                     ObjectStats* dead_stats)
+      : live_collector_(heap, live_stats), dead_collector_(heap, dead_stats) {
+    DCHECK_NOT_NULL(live_stats);
+    DCHECK_NOT_NULL(dead_stats);
+    // Global objects are roots and thus recorded as live.
+    live_collector_.CollectGlobalStatistics();
   }
 
   bool Visit(HeapObject* obj) override {
     if (Marking::IsBlack(ObjectMarking::MarkBitFrom(obj))) {
-      ObjectStatsCollector::CollectStatistics(live_stats_, obj);
+      live_collector_.CollectStatistics(obj);
     } else {
       DCHECK(!Marking::IsGrey(ObjectMarking::MarkBitFrom(obj)));
-      ObjectStatsCollector::CollectStatistics(dead_stats_, obj);
+      dead_collector_.CollectStatistics(obj);
     }
     return true;
   }
 
  private:
-  ObjectStats* live_stats_;
-  ObjectStats* dead_stats_;
+  ObjectStatsCollector live_collector_;
+  ObjectStatsCollector dead_collector_;
 };
 
 void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
@@ -2277,7 +2280,7 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
 
 void MarkCompactCollector::RecordObjectStats() {
   if (FLAG_track_gc_object_stats) {
-    ObjectStatsVisitor visitor(heap()->live_object_stats_,
+    ObjectStatsVisitor visitor(heap(), heap()->live_object_stats_,
                                heap()->dead_object_stats_);
     VisitAllObjects(&visitor);
     if (FLAG_trace_gc_object_stats) {

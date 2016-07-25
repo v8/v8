@@ -776,17 +776,27 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(EMBEDDED_OBJECT_SUB_TYPE)                 \
   V(ENUM_CACHE_SUB_TYPE)                      \
   V(ENUM_INDICES_CACHE_SUB_TYPE)              \
+  V(DEPENDENT_CODE_SUB_TYPE)                  \
   V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
   V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
+  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)     \
   V(FAST_ELEMENTS_SUB_TYPE)                   \
   V(FAST_PROPERTIES_SUB_TYPE)                 \
+  V(HANDLER_TABLE_SUB_TYPE)                   \
   V(INTRINSIC_FUNCTION_NAMES_SUB_TYPE)        \
+  V(JS_COLLECTION_SUB_TYPE)                   \
+  V(JS_WEAK_COLLECTION_SUB_TYPE)              \
   V(LITERALS_ARRAY_SUB_TYPE)                  \
   V(MAP_CODE_CACHE_SUB_TYPE)                  \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)  \
   V(NUMBER_STRING_CACHE_SUB_TYPE)             \
   V(OBJECT_TO_CODE_SUB_TYPE)                  \
+  V(OPTIMIZED_CODE_MAP_SUB_TYPE)              \
+  V(PROTOTYPE_USERS_SUB_TYPE)                 \
   V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)           \
+  V(RETAINED_MAPS_SUB_TYPE)                   \
   V(SCOPE_INFO_SUB_TYPE)                      \
+  V(SCRIPT_LIST_SUB_TYPE)                     \
   V(SERIALIZED_TEMPLATES_SUB_TYPE)            \
   V(SHARED_FUNCTION_INFOS_SUB_TYPE)           \
   V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)   \
@@ -795,7 +805,6 @@ std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
   V(TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE)   \
   V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)            \
   V(TYPE_FEEDBACK_METADATA_SUB_TYPE)          \
-  V(WEAK_COLLECTION_SUB_TYPE)                 \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
@@ -975,6 +984,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSArray)                     \
   V(JSArrayBuffer)               \
   V(JSArrayBufferView)           \
+  V(JSCollection)                \
   V(JSTypedArray)                \
   V(JSDataView)                  \
   V(JSProxy)                     \
@@ -5598,6 +5608,9 @@ class DependentCode: public FixedArray {
   };
 
   static const int kGroupCount = kAllocationSiteTransitionChangedGroup + 1;
+  static const int kNextLinkIndex = 0;
+  static const int kFlagsIndex = 1;
+  static const int kCodesStartIndex = 2;
 
   bool Contains(DependencyGroup group, WeakCell* code_cell);
   bool IsEmpty(DependencyGroup group);
@@ -5658,9 +5671,6 @@ class DependentCode: public FixedArray {
   class GroupField : public BitField<int, 0, 3> {};
   class CountField : public BitField<int, 3, 27> {};
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
-  static const int kNextLinkIndex = 0;
-  static const int kFlagsIndex = 1;
-  static const int kCodesStartIndex = 2;
 };
 
 

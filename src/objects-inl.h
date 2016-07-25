@@ -705,6 +705,8 @@ bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
 }
 
+bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
+
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
