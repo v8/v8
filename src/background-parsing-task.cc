@@ -23,8 +23,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   // will happen in the main thread after parsing.
   Zone* zone = new Zone(isolate->allocator());
   ParseInfo* info = new ParseInfo(zone);
-  source->zone.Reset(zone);
-  source->info.Reset(info);
+  source->zone.reset(zone);
+  source->info.reset(info);
   info->set_isolate(isolate);
   info->set_source_stream(source->source_stream.get());
   info->set_source_stream_encoding(source->encoding);
@@ -55,11 +55,11 @@ void BackgroundParsingTask::Run() {
   source_->info->set_stack_limit(stack_limit);
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread. Passing &parse_info is OK because Parser doesn't store it.
-  source_->parser.Reset(new Parser(source_->info.get()));
+  source_->parser.reset(new Parser(source_->info.get()));
   source_->parser->ParseOnBackground(source_->info.get());
 
   if (script_data != NULL) {
-    source_->cached_data.Reset(new ScriptCompiler::CachedData(
+    source_->cached_data.reset(new ScriptCompiler::CachedData(
         script_data->data(), script_data->length(),
         ScriptCompiler::CachedData::BufferOwned));
     script_data->ReleaseDataOwnership();

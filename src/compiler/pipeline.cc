@@ -581,10 +581,12 @@ class PipelineCompilationJob final : public CompilationJob {
   ZonePool zone_pool_;
   ParseInfo parse_info_;
   CompilationInfo info_;
-  base::SmartPointer<PipelineStatistics> pipeline_statistics_;
+  std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage* linkage_;
+
+  DISALLOW_COPY_AND_ASSIGN(PipelineCompilationJob);
 };
 
 PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
@@ -1565,9 +1567,9 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool(isolate->allocator());
   PipelineData data(&zone_pool, &info, graph, schedule);
-  base::SmartPointer<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
+    pipeline_statistics.reset(new PipelineStatistics(&info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("stub codegen");
   }
 
@@ -1590,7 +1592,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
 // static
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
   ZonePool zone_pool(info->isolate()->allocator());
-  base::SmartPointer<PipelineStatistics> pipeline_statistics(
+  std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(info, &zone_pool));
   PipelineData data(&zone_pool, info, pipeline_statistics.get());
   PipelineImpl pipeline(&data);
@@ -1619,9 +1621,9 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool(info->isolate()->allocator());
   PipelineData data(&zone_pool, info, graph, schedule);
-  base::SmartPointer<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics.Reset(new PipelineStatistics(info, &zone_pool));
+    pipeline_statistics.reset(new PipelineStatistics(info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("test codegen");
   }
 
@@ -1788,10 +1790,10 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
                                      bool run_verifier) {
   PipelineData* data = this->data_;
   // Don't track usage for this zone in compiler stats.
-  base::SmartPointer<Zone> verifier_zone;
+  std::unique_ptr<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
-    verifier_zone.Reset(new Zone(isolate()->allocator()));
+    verifier_zone.reset(new Zone(isolate()->allocator()));
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
         verifier_zone.get(), config, data->sequence());
   }

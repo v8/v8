@@ -4,6 +4,8 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include <memory>
+
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
@@ -154,9 +156,9 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   HandleScope scope(isolate);
 
-  base::SmartPointer<SerializedCodeData> scd(
+  std::unique_ptr<SerializedCodeData> scd(
       SerializedCodeData::FromCachedData(isolate, cached_data, *source));
-  if (scd.is_empty()) {
+  if (!scd) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
     return MaybeHandle<SharedFunctionInfo>();

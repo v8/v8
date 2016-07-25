@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <memory>
 #include <vector>
 
 #include "test/cctest/interpreter/bytecode-expectations-printer.h"
@@ -12,7 +13,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/base/smart-pointers.h"
 #include "src/compiler.h"
 #include "src/interpreter/interpreter.h"
 
@@ -102,8 +102,8 @@ class V8InitializationScope final {
   v8::Isolate* isolate() const { return isolate_; }
 
  private:
-  v8::base::SmartPointer<v8::Platform> platform_;
-  v8::base::SmartPointer<v8::ArrayBuffer::Allocator> allocator_;
+  std::unique_ptr<v8::Platform> platform_;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   v8::Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(V8InitializationScope);
@@ -354,7 +354,7 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   v8::V8::Initialize();
 
   v8::Isolate::CreateParams create_params;
-  allocator_.Reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  allocator_.reset(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   create_params.array_buffer_allocator = allocator_.get();
 
   isolate_ = v8::Isolate::New(create_params);

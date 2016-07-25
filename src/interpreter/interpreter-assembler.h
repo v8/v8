@@ -6,7 +6,6 @@
 #define V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 
 #include "src/allocation.h"
-#include "src/base/smart-pointers.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/frames.h"

@@ -773,7 +773,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
   bool use_turbofan = UseTurboFan(shared);
-  base::SmartPointer<CompilationJob> job(
+  std::unique_ptr<CompilationJob> job(
       use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
                    : new HCompilationJob(function));
   CompilationInfo* info = job->info();
@@ -819,7 +819,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   if (mode == Compiler::CONCURRENT) {
     if (GetOptimizedCodeLater(job.get())) {
-      job.Detach();   // The background recompile job owns this now.
+      job.release();  // The background recompile job owns this now.
       return isolate->builtins()->InOptimizationQueue();
     }
   } else {
@@ -1843,7 +1843,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 
 void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   // Take ownership of compilation job.  Deleting job also tears down the zone.
-  base::SmartPointer<CompilationJob> job(raw_job);
+  std::unique_ptr<CompilationJob> job(raw_job);
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 

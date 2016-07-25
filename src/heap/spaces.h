@@ -6,6 +6,7 @@
 #define V8_HEAP_SPACES_H_
 
 #include <list>
+#include <memory>
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
@@ -935,7 +936,7 @@ class Space : public Malloced {
 #endif
 
  protected:
-  v8::base::SmartPointer<List<AllocationObserver*>> allocation_observers_;
+  std::unique_ptr<List<AllocationObserver*>> allocation_observers_;
   bool allocation_observers_paused_;
 
  private:
@@ -946,6 +947,8 @@ class Space : public Malloced {
   // Keeps track of committed memory in a space.
   intptr_t committed_;
   intptr_t max_committed_;
+
+  DISALLOW_COPY_AND_ASSIGN(Space);
 };
 
 

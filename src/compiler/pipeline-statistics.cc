@@ -14,8 +14,8 @@ namespace compiler {
 
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {
-  DCHECK(scope_.is_empty());
-  scope_.Reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
+  DCHECK(!scope_);
+  scope_.reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
   allocated_bytes_at_start_ =
@@ -28,7 +28,7 @@ void PipelineStatistics::CommonStats::Begin(
 void PipelineStatistics::CommonStats::End(
     PipelineStatistics* pipeline_stats,
     CompilationStatistics::BasicStats* diff) {
-  DCHECK(!scope_.is_empty());
+  DCHECK(scope_);
   diff->function_name_ = pipeline_stats->function_name_;
   diff->delta_ = timer_.Elapsed();
   size_t outer_zone_diff =
@@ -38,7 +38,7 @@ void PipelineStatistics::CommonStats::End(
       diff->max_allocated_bytes_ + allocated_bytes_at_start_;
   diff->total_allocated_bytes_ =
       outer_zone_diff + scope_->GetTotalAllocatedBytes();
-  scope_.Reset(nullptr);
+  scope_.reset();
   timer_.Stop();
 }
 

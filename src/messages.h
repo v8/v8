@@ -12,7 +12,6 @@
 
 #include <memory>
 
-#include "src/base/smart-pointers.h"
 #include "src/handles.h"
 #include "src/list.h"
 

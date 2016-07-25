@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/base/smart-pointers.h"
 
 #include "src/handles.h"
 #include "src/globals.h"

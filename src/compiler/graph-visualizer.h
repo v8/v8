@@ -9,8 +9,6 @@
 #include <iosfwd>
 #include <memory>
 
-#include "src/base/smart-pointers.h"
-
 namespace v8 {
 namespace internal {
 

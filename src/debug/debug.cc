@@ -4,6 +4,8 @@
 
 #include "src/debug/debug.h"
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/bootstrapper.h"
@@ -241,7 +243,7 @@ BreakLocation BreakLocation::BytecodeArrayIterator::GetBreakLocation() {
 // the address.
 BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
                                             int offset) {
-  base::SmartPointer<Iterator> it(GetIterator(debug_info));
+  std::unique_ptr<Iterator> it(GetIterator(debug_info));
   it->SkipTo(BreakIndexFromCodeOffset(debug_info, offset));
   return it->GetBreakLocation();
 }
@@ -257,7 +259,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
                                             int statement_position,
                                             List<BreakLocation>* result_out) {
-  for (base::SmartPointer<Iterator> it(GetIterator(debug_info)); !it->Done();
+  for (std::unique_ptr<Iterator> it(GetIterator(debug_info)); !it->Done();
        it->Next()) {
     if (it->statement_position() == statement_position) {
       result_out->Add(it->GetBreakLocation());
@@ -271,7 +273,7 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
   int closest_break = 0;
   int distance = kMaxInt;
   DCHECK(0 <= offset && offset < debug_info->abstract_code()->Size());
-  for (base::SmartPointer<Iterator> it(GetIterator(debug_info)); !it->Done();
+  for (std::unique_ptr<Iterator> it(GetIterator(debug_info)); !it->Done();
        it->Next()) {
     // Check if this break point is closer that what was previously found.
     if (it->code_offset() <= offset && offset - it->code_offset() < distance) {
@@ -291,7 +293,7 @@ BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
   // Run through all break points to locate the one closest to the source
   // position.
   int distance = kMaxInt;
-  base::SmartPointer<Iterator> it(GetIterator(debug_info));
+  std::unique_ptr<Iterator> it(GetIterator(debug_info));
   BreakLocation closest_break = it->GetBreakLocation();
   while (!it->Done()) {
     int next_position;
@@ -851,7 +853,7 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
 void Debug::ClearAllBreakPoints() {
   for (DebugInfoListNode* node = debug_info_list_; node != NULL;
        node = node->next()) {
-    for (base::SmartPointer<BreakLocation::Iterator> it(
+    for (std::unique_ptr<BreakLocation::Iterator> it(
              BreakLocation::GetIterator(node->debug_info()));
          !it->Done(); it->Next()) {
       it->GetBreakLocation().ClearDebugBreak();
@@ -885,7 +887,7 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
 
   // Flood the function with break points.
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  for (base::SmartPointer<BreakLocation::Iterator> it(
+  for (std::unique_ptr<BreakLocation::Iterator> it(
            BreakLocation::GetIterator(debug_info, type));
        !it->Done(); it->Next()) {
     it->GetBreakLocation().SetOneShot();
@@ -1127,7 +1129,7 @@ void Debug::ClearOneShot() {
   // removed from the list.
   for (DebugInfoListNode* node = debug_info_list_; node != NULL;
        node = node->next()) {
-    for (base::SmartPointer<BreakLocation::Iterator> it(
+    for (std::unique_ptr<BreakLocation::Iterator> it(
              BreakLocation::GetIterator(node->debug_info()));
          !it->Done(); it->Next()) {
       it->GetBreakLocation().ClearOneShot();

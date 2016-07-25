@@ -10,7 +10,6 @@
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
-#include "src/base/smart-pointers.h"
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/isolate.h"

@@ -6,6 +6,7 @@
 #define V8_COMPILER_CODE_ASSEMBLER_H_
 
 #include <map>
+#include <memory>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -410,7 +411,7 @@ class CodeAssembler {
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
 
-  base::SmartPointer<RawMachineAssembler> raw_assembler_;
+  std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;
   const char* name_;
   bool code_generated_;

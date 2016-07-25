@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <set>
 #include "include/v8-profiler.h"
 #include "src/heap/heap.h"
@@ -141,8 +142,8 @@ class SamplingHeapProfiler {
 
   Isolate* const isolate_;
   Heap* const heap_;
-  base::SmartPointer<SamplingAllocationObserver> new_space_observer_;
-  base::SmartPointer<SamplingAllocationObserver> other_spaces_observer_;
+  std::unique_ptr<SamplingAllocationObserver> new_space_observer_;
+  std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
   AllocationNode profile_root_;
   std::set<Sample*> samples_;
@@ -151,6 +152,8 @@ class SamplingHeapProfiler {
   v8::HeapProfiler::SamplingFlags flags_;
 
   friend class SamplingAllocationObserver;
+
+  DISALLOW_COPY_AND_ASSIGN(SamplingHeapProfiler);
 };
 
 class SamplingAllocationObserver : public AllocationObserver {

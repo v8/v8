@@ -41,7 +41,6 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
-#include "src/base/smart-pointers.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"

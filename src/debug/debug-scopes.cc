@@ -4,6 +4,8 @@
 
 #include "src/debug/debug-scopes.h"
 
+#include <memory>
+
 #include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
@@ -85,11 +87,11 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   // Reparse the code and analyze the scopes.
   // Check whether we are in global, eval or function code.
   Zone zone(isolate->allocator());
-  base::SmartPointer<ParseInfo> info;
+  std::unique_ptr<ParseInfo> info;
   if (scope_info->scope_type() != FUNCTION_SCOPE) {
     // Global or eval code.
     Handle<Script> script(Script::cast(shared_info->script()));
-    info.Reset(new ParseInfo(&zone, script));
+    info.reset(new ParseInfo(&zone, script));
     info->set_toplevel();
     if (scope_info->scope_type() == SCRIPT_SCOPE) {
       info->set_global();
@@ -103,7 +105,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     }
   } else {
     // Inner function.
-    info.Reset(new ParseInfo(&zone, function));
+    info.reset(new ParseInfo(&zone, function));
   }
   Scope* scope = NULL;
   if (Compiler::ParseAndAnalyze(info.get())) scope = info->literal()->scope();

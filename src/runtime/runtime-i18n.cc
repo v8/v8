@@ -805,7 +805,7 @@ namespace {
 void ConvertCaseWithTransliterator(icu::UnicodeString* input,
                                    const char* transliterator_id) {
   UErrorCode status = U_ZERO_ERROR;
-  base::SmartPointer<icu::Transliterator> translit(
+  std::unique_ptr<icu::Transliterator> translit(
       icu::Transliterator::createInstance(
           icu::UnicodeString(transliterator_id, -1, US_INV), UTRANS_FORWARD,
           status));

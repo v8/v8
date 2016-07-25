@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include <memory>
+
 #include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -746,7 +748,7 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(
+  std::unique_ptr<CodePatcher> patcher(
       new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));

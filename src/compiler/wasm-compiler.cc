@@ -4,6 +4,8 @@
 
 #include "src/compiler/wasm-compiler.h"
 
+#include <memory>
+
 #include "src/isolate-inl.h"
 
 #include "src/base/platform/elapsed-timer.h"
@@ -3379,7 +3381,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   double decode_ms = 0;
   size_t node_count = 0;
 
-  base::SmartPointer<Zone> graph_zone(graph_zone_.Detach());
+  std::unique_ptr<Zone> graph_zone(graph_zone_.release());
   SourcePositionTable* source_positions = BuildGraphForWasmFunction(&decode_ms);
 
   if (graph_construction_result_.failed()) {
@@ -3400,7 +3402,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
     descriptor =
         module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
   }
-  job_.Reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_->graph(),
+  job_.reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_->graph(),
                                              descriptor, source_positions));
 
   // The function name {OptimizeGraph()} is misleading but necessary because we

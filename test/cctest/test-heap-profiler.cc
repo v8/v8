@@ -2914,9 +2914,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(1024);
     CompileRun(script_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
@@ -2941,9 +2941,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(128);
     CompileRun(script_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names[] = {"", "foo", "bar"};
     auto node_bar = FindAllocationProfileNode(*profile, ArrayVector(names));
@@ -2975,9 +2975,9 @@ TEST(SamplingHeapProfiler) {
     heap_profiler->StartSamplingHeapProfiler(64);
     CompileRun(record_trace_tree_source);
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
     auto node1 = FindAllocationProfileNode(*profile, ArrayVector(names1));
@@ -3000,9 +3000,9 @@ TEST(SamplingHeapProfiler) {
 
     CcTest::heap()->CollectAllGarbage();
 
-    v8::base::SmartPointer<v8::AllocationProfile> profile(
+    std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
-    CHECK(!profile.is_empty());
+    CHECK(profile);
 
     CheckNoZeroCountNodes(profile->GetRootNode());
 
@@ -3023,9 +3023,9 @@ TEST(SamplingHeapProfilerApiAllocation) {
 
   for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(env->GetIsolate());
 
-  v8::base::SmartPointer<v8::AllocationProfile> profile(
+  std::unique_ptr<v8::AllocationProfile> profile(
       heap_profiler->GetAllocationProfile());
-  CHECK(!profile.is_empty());
+  CHECK(profile);
   const char* names[] = {"(V8 API)"};
   auto node = FindAllocationProfileNode(*profile, ArrayVector(names));
   CHECK(node);

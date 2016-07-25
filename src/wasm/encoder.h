@@ -8,8 +8,6 @@
 #include "src/signature.h"
 #include "src/zone-containers.h"
 
-#include "src/base/smart-pointers.h"
-
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"

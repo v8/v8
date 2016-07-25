@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_WASM_COMPILER_H_
 #define V8_COMPILER_WASM_COMPILER_H_
 
+#include <memory>
+
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/compiler.h"
@@ -67,14 +69,16 @@ class WasmCompilationUnit final {
   wasm::ModuleEnv* module_env_;
   const wasm::WasmFunction* function_;
   // The graph zone is deallocated at the end of ExecuteCompilation.
-  base::SmartPointer<Zone> graph_zone_;
+  std::unique_ptr<Zone> graph_zone_;
   JSGraph* jsgraph_;
   Zone compilation_zone_;
   CompilationInfo info_;
-  base::SmartPointer<CompilationJob> job_;
+  std::unique_ptr<CompilationJob> job_;
   uint32_t index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   bool ok_;
+
+  DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
 
 // Wraps a JS function, producing a code object that can be called from WASM.

@@ -12,7 +12,6 @@
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"
-#include "src/base/smart-pointers.h"
 #include "src/builtins/builtins.h"
 #include "src/checks.h"
 #include "src/elements-kind.h"

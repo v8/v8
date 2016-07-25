@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "src/base/smart-pointers.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

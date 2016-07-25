@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
@@ -431,7 +433,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator());
-    base::SmartPointer<ParseInfo> info(
+    std::unique_ptr<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));

@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
+
 #include "src/base/accounting-allocator.h"
 #include "src/base/utils/random-number-generator.h"
 
@@ -540,7 +542,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     }
     CompilationInfo info(debug_name_, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
-    v8::base::SmartPointer<CompilationJob> job(Pipeline::NewWasmCompilationJob(
+    std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, graph(), desc, &source_position_table_));
     if (job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
         job->GenerateCode() != CompilationJob::SUCCEEDED)

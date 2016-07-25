@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/allocation.h"
-#include "src/base/smart-pointers.h"
 #include "src/handles.h"
 #include "src/vector.h"
 

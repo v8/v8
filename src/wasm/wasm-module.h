@@ -5,6 +5,8 @@
 #ifndef V8_WASM_MODULE_H_
 #define V8_WASM_MODULE_H_
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/handles.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -188,7 +190,7 @@ struct WasmModule {
   // invalid-semaphore error in the compilation tasks.
   // TODO(wasm): Move this semaphore back to CompileInParallel when the try bots
   // switch to libc-2.21 or higher.
-  base::SmartPointer<base::Semaphore> pending_tasks;
+  std::unique_ptr<base::Semaphore> pending_tasks;
 
   WasmModule() : WasmModule(nullptr) {}
   explicit WasmModule(byte* module_start);
@@ -243,6 +245,9 @@ struct WasmModule {
     DCHECK_LE(function_table.size(), UINT32_MAX);
     return static_cast<uint32_t>(function_table.size());
   }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(WasmModule);
 };
 
 // An instantiated WASM module, including memory, function table, etc.

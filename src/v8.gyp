@@ -1780,7 +1780,6 @@
         'base/safe_conversions_impl.h',
         'base/safe_math.h',
         'base/safe_math_impl.h',
-        'base/smart-pointers.h',
         'base/sys-info.cc',
         'base/sys-info.h',
         'base/utils/random-number-generator.cc',
