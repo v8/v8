@@ -247,12 +247,6 @@ function newGraphOccupation(graph){
 }
 
 function layoutNodeGraph(graph) {
-  graph.minGraphX = 0;
-  graph.maxGraphNodeX = 1;
-  graph.maxGraphX = 1;
-  graph.minGraphY = 0;
-  graph.maxGraphY = 1;
-
   // First determine the set of nodes that have no outputs. Those are the
   // basis for bottom-up DFS to determine rank and node placement.
   var endNodesHasNoOutputs = [];
@@ -422,19 +416,6 @@ function layoutNodeGraph(graph) {
       } else {
         nodeToPlace.x = 0;
       }
-
-      if (nodeToPlace.x < graph.minGraphX) {
-        graph.minGraphX = nodeToPlace.x;
-      }
-      if ((nodeToPlace.y - 50) < graph.minGraphY) {
-        graph.minGraphY = nodeToPlace.y - 50;
-      }
-      if ((nodeToPlace.x + nodeToPlace.getTotalNodeWidth()) > graph.maxGraphNodeX) {
-        graph.maxGraphNodeX = nodeToPlace.x + nodeToPlace.getTotalNodeWidth();
-      }
-      if ((nodeToPlace.y + graph.getNodeHeight() + 50) > graph.maxGraphY) {
-        graph.maxGraphY = nodeToPlace.y + graph.getNodeHeight() + 50;
-      }
     }
 
     if (traceLayout) {
@@ -458,17 +439,55 @@ function layoutNodeGraph(graph) {
       console.log("After occupying inputs");
       occupation.print();
     }
+
+    if (traceLayout) {
+      console.log("After determining bounding box");
+      occupation.print();
+    }
   });
 
-  var backEdgeNumber = 0;
+  graph.maxBackEdgeNumber = 0;
   graph.visibleEdges.each(function (e) {
     if (e.isBackEdge()) {
-      e.backEdgeNumber = ++backEdgeNumber;
+      e.backEdgeNumber = ++graph.maxBackEdgeNumber;
     } else {
       e.backEdgeNumber = 0;
     }
   });
 
+  redetermineGraphBoundingBox(graph);
+
+}
+
+function redetermineGraphBoundingBox(graph) {
+  graph.minGraphX = 0;
+  graph.maxGraphNodeX = 1;
+  graph.maxGraphX = undefined;  // see below
+  graph.minGraphY = 0;
+  graph.maxGraphY = 1;
+
+  for (var i = 0; i < graph.nodes.length; ++i) {
+    var node = graph.nodes[i];
+
+    if (!node.visible) {
+      continue;
+    }
+
+    if (node.x < graph.minGraphX) {
+      graph.minGraphX = node.x;
+    }
+    if ((node.x + node.getTotalNodeWidth()) > graph.maxGraphNodeX) {
+      graph.maxGraphNodeX = node.x + node.getTotalNodeWidth();
+    }
+    if ((node.y - 50) < graph.minGraphY) {
+      graph.minGraphY = node.y - 50;
+    }
+    if ((node.y + graph.getNodeHeight() + 50) > graph.maxGraphY) {
+      graph.maxGraphY = node.y + graph.getNodeHeight() + 50;
+    }
+  }
+
   graph.maxGraphX = graph.maxGraphNodeX +
-    backEdgeNumber * MINIMUM_EDGE_SEPARATION;
+    graph.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
+
 }

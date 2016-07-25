@@ -471,6 +471,7 @@ class GraphView extends View {
 
     if (state.justDragged) {
       // dragged, not clicked
+      redetermineGraphBoundingBox(graph);
       state.justDragged = false;
     } else{
       // clicked, not dragged
