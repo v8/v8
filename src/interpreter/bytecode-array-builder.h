@@ -79,6 +79,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   bool TemporaryRegisterIsLive(Register reg) const;
 
   // Constant loads to accumulator.
+  BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
   BytecodeArrayBuilder& LoadLiteral(Handle<Object> object);
   BytecodeArrayBuilder& LoadUndefined();
@@ -259,6 +260,11 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
+
+  // Allocates a slot in the constant pool which can later be inserted.
+  size_t AllocateConstantPoolEntry();
+  // Inserts a entry into an allocated constant pool entry.
+  void InsertConstantPoolEntryAt(size_t entry, Handle<Object> object);
 
   void InitializeReturnPosition(FunctionLiteral* literal);
 

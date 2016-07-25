@@ -48,6 +48,13 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   // present. Returns the array index associated with the object.
   size_t Insert(Handle<Object> object);
 
+  // Allocates an empty entry and returns the array index associated with the
+  // reservation. Entry can be inserted by calling InsertReservedEntry().
+  size_t AllocateEntry();
+
+  // Inserts the given object into an allocated entry.
+  void InsertAllocatedEntry(size_t index, Handle<Object> object);
+
   // Creates a reserved entry in the constant pool and returns
   // the size of the operand that'll be required to hold the entry
   // when committed.
@@ -64,6 +71,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   typedef uint32_t index_t;
 
   index_t AllocateEntry(Handle<Object> object);
+  index_t AllocateIndex(Handle<Object> object);
 
   struct ConstantArraySlice final : public ZoneObject {
     ConstantArraySlice(Zone* zone, size_t start_index, size_t capacity,
@@ -72,6 +80,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
     void Unreserve();
     size_t Allocate(Handle<Object> object);
     Handle<Object> At(size_t index) const;
+    void InsertAt(size_t index, Handle<Object> object);
 
     inline size_t available() const { return capacity() - reserved() - size(); }
     inline size_t reserved() const { return reserved_; }
@@ -91,7 +100,7 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
     DISALLOW_COPY_AND_ASSIGN(ConstantArraySlice);
   };
 
-  const ConstantArraySlice* IndexToSlice(size_t index) const;
+  ConstantArraySlice* IndexToSlice(size_t index) const;
   ConstantArraySlice* OperandSizeToSlice(OperandSize operand_size) const;
 
   IdentityMap<index_t>* constants_map() { return &constants_map_; }

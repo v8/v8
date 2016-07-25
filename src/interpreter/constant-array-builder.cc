@@ -46,6 +46,13 @@ Handle<Object> ConstantArrayBuilder::ConstantArraySlice::At(
   return constants_[index - start_index()];
 }
 
+void ConstantArrayBuilder::ConstantArraySlice::InsertAt(size_t index,
+                                                        Handle<Object> object) {
+  DCHECK_GE(index, start_index());
+  DCHECK_LT(index, start_index() + size());
+  constants_[index - start_index()] = object;
+}
+
 STATIC_CONST_MEMBER_DEFINITION const size_t ConstantArrayBuilder::k8BitCapacity;
 STATIC_CONST_MEMBER_DEFINITION const size_t
     ConstantArrayBuilder::k16BitCapacity;
@@ -73,9 +80,9 @@ size_t ConstantArrayBuilder::size() const {
   return idx_slice_[0]->size();
 }
 
-const ConstantArrayBuilder::ConstantArraySlice*
-ConstantArrayBuilder::IndexToSlice(size_t index) const {
-  for (const ConstantArraySlice* slice : idx_slice_) {
+ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
+    size_t index) const {
+  for (ConstantArraySlice* slice : idx_slice_) {
     if (index <= slice->max_index()) {
       return slice;
     }
@@ -129,28 +136,21 @@ size_t ConstantArrayBuilder::Insert(Handle<Object> object) {
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateEntry(
     Handle<Object> object) {
   DCHECK(!object->IsOddball());
+  index_t index = AllocateIndex(object);
   index_t* entry = constants_map()->Get(object);
+  *entry = index;
+  return index;
+}
+
+ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndex(
+    Handle<Object> object) {
   for (size_t i = 0; i < arraysize(idx_slice_); ++i) {
     if (idx_slice_[i]->available() > 0) {
-      size_t index = idx_slice_[i]->Allocate(object);
-      *entry = static_cast<index_t>(index);
-      return *entry;
-      break;
+      return static_cast<index_t>(idx_slice_[i]->Allocate(object));
     }
   }
   UNREACHABLE();
   return kMaxUInt32;
-}
-
-OperandSize ConstantArrayBuilder::CreateReservedEntry() {
-  for (size_t i = 0; i < arraysize(idx_slice_); ++i) {
-    if (idx_slice_[i]->available() > 0) {
-      idx_slice_[i]->Reserve();
-      return idx_slice_[i]->operand_size();
-    }
-  }
-  UNREACHABLE();
-  return OperandSize::kNone;
 }
 
 ConstantArrayBuilder::ConstantArraySlice*
@@ -172,6 +172,28 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
   }
   DCHECK(slice->operand_size() == operand_size);
   return slice;
+}
+
+size_t ConstantArrayBuilder::AllocateEntry() {
+  return AllocateIndex(isolate_->factory()->the_hole_value());
+}
+
+void ConstantArrayBuilder::InsertAllocatedEntry(size_t index,
+                                                Handle<Object> object) {
+  DCHECK_EQ(isolate_->heap()->the_hole_value(), *At(index));
+  ConstantArraySlice* slice = IndexToSlice(index);
+  slice->InsertAt(index, object);
+}
+
+OperandSize ConstantArrayBuilder::CreateReservedEntry() {
+  for (size_t i = 0; i < arraysize(idx_slice_); ++i) {
+    if (idx_slice_[i]->available() > 0) {
+      idx_slice_[i]->Reserve();
+      return idx_slice_[i]->operand_size();
+    }
+  }
+  UNREACHABLE();
+  return OperandSize::kNone;
 }
 
 size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,

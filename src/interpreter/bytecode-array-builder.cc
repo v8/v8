@@ -179,6 +179,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
+    size_t entry) {
+  Output(Bytecode::kLdaConstant, UnsignedOperand(entry));
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
     v8::internal::Smi* smi) {
   int32_t raw_smi = smi->value();
@@ -631,6 +637,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
+}
+
+size_t BytecodeArrayBuilder::AllocateConstantPoolEntry() {
+  return constant_array_builder()->AllocateEntry();
+}
+
+void BytecodeArrayBuilder::InsertConstantPoolEntryAt(size_t entry,
+                                                     Handle<Object> object) {
+  constant_array_builder()->InsertAllocatedEntry(entry, object);
 }
 
 void BytecodeArrayBuilder::SetReturnPosition() {
