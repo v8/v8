@@ -2993,18 +2993,18 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   Token::Value tok = peek();
+
   bool catch_for_promise_reject = false;
+  if (allow_natives() && tok == Token::MOD) {
+    Consume(Token::MOD);
+    catch_for_promise_reject = true;
+    tok = peek();
+  }
+
   if (tok != Token::CATCH && tok != Token::FINALLY) {
-    if (allow_natives() && tok == Token::MOD) {
-      Consume(Token::MOD);
-      catch_for_promise_reject = true;
-      tok = peek();
-      DCHECK_EQ(Token::CATCH, tok);
-    } else {
-      ReportMessage(MessageTemplate::kNoCatchOrFinally);
-      *ok = false;
-      return NULL;
-    }
+    ReportMessage(MessageTemplate::kNoCatchOrFinally);
+    *ok = false;
+    return NULL;
   }
 
   Scope* catch_scope = NULL;
