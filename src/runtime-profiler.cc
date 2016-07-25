@@ -110,11 +110,6 @@ static void TraceRecompile(JSFunction* function, const char* reason,
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   TraceRecompile(function, reason, "optimized");
-
-  // TODO(4280): Fix this to check function is compiled to baseline once we
-  // have a standard way to check that. For now, if baseline code doesn't have
-  // a bytecode array.
-  DCHECK(!function->shared()->HasBytecodeArray());
   function->AttemptConcurrentOptimization();
 }
 
@@ -253,7 +248,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   }
 }
 
-void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
+void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function) {
   if (function->IsInOptimizationQueue()) return;
 
   SharedFunctionInfo* shared = function->shared();
@@ -261,8 +256,6 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
 
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
-  // TODO(rmcilroy): Consider whether we should optimize small functions when
-  // they are first seen on the stack (e.g., kMaxSizeEarlyOpt).
 
   if (function->IsMarkedForBaseline() || function->IsMarkedForOptimization() ||
       function->IsMarkedForConcurrentOptimization() ||
@@ -281,6 +274,58 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
   if (ticks >= kProfilerTicksBeforeBaseline) {
     Baseline(function, "hot enough for baseline");
   }
+}
+
+void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
+  if (function->IsInOptimizationQueue()) return;
+
+  SharedFunctionInfo* shared = function->shared();
+  int ticks = shared->profiler_ticks();
+
+  // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
+  // than kMaxToplevelSourceSize.
+  if (function->IsMarkedForBaseline() || function->IsMarkedForOptimization() ||
+      function->IsMarkedForConcurrentOptimization() ||
+      function->IsOptimized()) {
+    // TODO(rmcilroy): Support OSR in these cases.
+    return;
+  }
+
+  if (shared->optimization_disabled()) {
+    if (shared->deopt_count() >= FLAG_max_opt_count) {
+      // If optimization was disabled due to many deoptimizations,
+      // then check if the function is hot and try to reenable optimization.
+      if (ticks >= kProfilerTicksBeforeReenablingOptimization) {
+        shared->set_profiler_ticks(0);
+        shared->TryReenableOptimization();
+      }
+    }
+    return;
+  }
+  if (function->IsOptimized()) return;
+
+  if (ticks >= kProfilerTicksBeforeOptimization) {
+    int typeinfo, generic, total, type_percentage, generic_percentage;
+    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
+                &generic_percentage);
+    if (type_percentage >= FLAG_type_info_threshold &&
+        generic_percentage <= FLAG_generic_ic_threshold) {
+      // If this particular function hasn't had any ICs patched for enough
+      // ticks, optimize it now.
+      Optimize(function, "hot and stable");
+    } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
+      Optimize(function, "not much type info but very hot");
+    } else {
+      if (FLAG_trace_opt_verbose) {
+        PrintF("[not yet optimizing ");
+        function->PrintName();
+        PrintF(", not enough type info: %d/%d (%d%%)]\n", typeinfo, total,
+               type_percentage);
+      }
+    }
+  }
+  // TODO(rmcilroy): Consider whether we should optimize small functions when
+  // they are first seen on the stack (e.g., kMaxSizeEarlyOpt).
 }
 
 void RuntimeProfiler::MarkCandidatesForOptimization() {
@@ -311,10 +356,18 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
       }
     }
 
+    Compiler::CompilationTier next_tier =
+        Compiler::NextCompilationTier(function);
     if (frame->is_interpreted()) {
-      DCHECK(!frame->is_optimized());
-      MaybeOptimizeIgnition(function);
+      if (next_tier == Compiler::BASELINE) {
+        DCHECK(!frame->is_optimized());
+        MaybeBaselineIgnition(function);
+      } else {
+        DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
+        MaybeOptimizeIgnition(function);
+      }
     } else {
+      DCHECK_EQ(next_tier, Compiler::OPTIMIZED);
       MaybeOptimizeFullCodegen(function, frame_count, frame->is_optimized());
     }
   }

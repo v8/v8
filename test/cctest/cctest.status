@@ -404,6 +404,37 @@
 
 ##############################################################################
 ['ignition or ignition_turbofan', {
+  # TODO(rmcilroy,4837): Inlining is currently disabled for the BytecodeGraphBuilder
+  # (see InliningPhase::Run). Also, we don't set a LoadContextSlot for a function as
+  # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
+  'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
+  'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
+  'test-run-inlining/InlineTwice': [FAIL],
+  'test-run-inlining/InlineSurplusArgumentsObject': [FAIL],
+  'test-run-inlining/InlineTwiceDependentDiamond': [FAIL],
+  'test-run-inlining/InlineWithArguments': [FAIL],
+  'test-run-inlining/InlineLoopUnguardedTwice': [FAIL],
+  'test-run-inlining/InlineOmitArgumentsObject': [FAIL],
+  'test-run-inlining/InlineLoopUnguardedOnce': [FAIL],
+  'test-run-inlining/InlineOmitArgumentsDeopt': [FAIL],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [FAIL],
+  'test-run-inlining/SimpleInliningContext': [FAIL],
+  'test-run-inlining/InlineMutuallyRecursive': [FAIL],
+  'test-run-inlining/InlineLoopGuardedEmpty': [FAIL],
+  'test-run-inlining/InlineLoopGuardedOnce': [FAIL],
+  'test-run-inlining/InlineOmitArguments': [FAIL],
+  'test-run-inlining/SimpleInlining': [FAIL],
+  'test-run-inlining/InlineLoopUnguardedEmpty': [FAIL],
+  'test-run-inlining/InlineNestedBuiltin': [FAIL],
+  'test-run-inlining/InlineSurplusArguments': [FAIL],
+  'test-run-inlining/InlineBuiltin': [FAIL],
+  'test-run-inlining/InlineTwiceDependent': [FAIL],
+  'test-run-inlining/SimpleInliningContextDeopt': [FAIL],
+
+  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
+  # on nodes (behind --turbo_source_positions flag).
+  'test-cpu-profiler/TickLinesOptimized': [FAIL],
+
   # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
