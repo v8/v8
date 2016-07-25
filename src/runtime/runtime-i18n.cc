@@ -569,18 +569,22 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
 
   string1 = String::Flatten(string1);
   string2 = String::Flatten(string2);
-  DisallowHeapAllocation no_gc;
-  int32_t length1 = string1->length();
-  int32_t length2 = string2->length();
-  String::FlatContent flat1 = string1->GetFlatContent();
-  String::FlatContent flat2 = string2->GetFlatContent();
-  base::SmartArrayPointer<uc16> sap1;
-  base::SmartArrayPointer<uc16> sap2;
-  const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
-  const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
+
+  UCollationResult result;
   UErrorCode status = U_ZERO_ERROR;
-  UCollationResult result =
-      collator->compare(string_val1, length1, string_val2, length2, status);
+  {
+    DisallowHeapAllocation no_gc;
+    int32_t length1 = string1->length();
+    int32_t length2 = string2->length();
+    String::FlatContent flat1 = string1->GetFlatContent();
+    String::FlatContent flat2 = string2->GetFlatContent();
+    base::SmartArrayPointer<uc16> sap1;
+    base::SmartArrayPointer<uc16> sap2;
+    const UChar* string_val1 = GetUCharBufferFromFlat(flat1, &sap1, length1);
+    const UChar* string_val2 = GetUCharBufferFromFlat(flat2, &sap2, length2);
+    result =
+        collator->compare(string_val1, length1, string_val2, length2, status);
+  }
   if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(result);
