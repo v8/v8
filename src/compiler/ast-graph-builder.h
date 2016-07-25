@@ -457,9 +457,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   void VisitObjectLiteralAccessor(Node* home_object,
                                   ObjectLiteralProperty* property);
 
-  // Dispatched from VisitClassLiteral.
-  void VisitClassLiteralContents(ClassLiteral* expr);
-
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
 };

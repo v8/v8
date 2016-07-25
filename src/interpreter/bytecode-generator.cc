@@ -1361,18 +1361,6 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
-  if (expr->scope()->ContextLocalCount() > 0) {
-    VisitNewLocalBlockContext(expr->scope());
-    ContextScope scope(this, expr->scope());
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
-  } else {
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
-  }
-}
-
-void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
   VisitClassLiteralForRuntimeDefinition(expr);
 
   // Load the "prototype" from the constructor.

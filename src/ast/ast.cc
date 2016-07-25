@@ -141,8 +141,8 @@ bool Expression::IsValidReferenceExpressionOrThis() const {
 bool Expression::IsAnonymousFunctionDefinition() const {
   return (IsFunctionLiteral() &&
           AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
-         (IsClassLiteral() &&
-          AsClassLiteral()->IsAnonymousFunctionDefinition());
+         (IsDoExpression() &&
+          AsDoExpression()->IsAnonymousFunctionDefinition());
 }
 
 void Expression::MarkTail() {
@@ -153,6 +153,12 @@ void Expression::MarkTail() {
   } else if (IsBinaryOperation()) {
     AsBinaryOperation()->MarkTail();
   }
+}
+
+bool DoExpression::IsAnonymousFunctionDefinition() const {
+  // This is specifically to allow DoExpressions to represent ClassLiterals.
+  return represented_function_ != nullptr &&
+         represented_function_->raw_name()->length() == 0;
 }
 
 bool Statement::IsJump() const {

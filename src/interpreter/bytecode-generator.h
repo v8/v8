@@ -127,7 +127,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void VisitClassLiteralContents(ClassLiteral* expr);
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
                                    Register prototype);

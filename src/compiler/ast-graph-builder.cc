@@ -1635,20 +1635,6 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
-  // Visit declarations and class literal in a block scope.
-  if (expr->scope()->ContextLocalCount() > 0) {
-    Node* context = BuildLocalBlockContext(expr->scope());
-    ContextScope scope(this, expr->scope(), context);
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
-  } else {
-    VisitDeclarations(expr->scope()->declarations());
-    VisitClassLiteralContents(expr);
-  }
-}
-
-
-void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   VisitForValueOrTheHole(expr->extends());
   VisitForValue(expr->constructor());
 

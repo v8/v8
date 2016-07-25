@@ -1446,45 +1446,38 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   Comment cmnt(masm_, "[ ClassLiteral");
 
-  {
-    NestedClassLiteral nested_class_literal(this, lit);
-    EnterBlockScopeIfNeeded block_scope_state(
-        this, lit->scope(), lit->EntryId(), lit->DeclsId(), lit->ExitId());
+  if (lit->extends() != NULL) {
+    VisitForStackValue(lit->extends());
+  } else {
+    PushOperand(isolate()->factory()->the_hole_value());
+  }
 
-    if (lit->extends() != NULL) {
-      VisitForStackValue(lit->extends());
-    } else {
-      PushOperand(isolate()->factory()->the_hole_value());
-    }
+  VisitForStackValue(lit->constructor());
 
-    VisitForStackValue(lit->constructor());
+  PushOperand(Smi::FromInt(lit->start_position()));
+  PushOperand(Smi::FromInt(lit->end_position()));
 
-    PushOperand(Smi::FromInt(lit->start_position()));
-    PushOperand(Smi::FromInt(lit->end_position()));
+  CallRuntimeWithOperands(Runtime::kDefineClass);
+  PrepareForBailoutForId(lit->CreateLiteralId(), BailoutState::TOS_REGISTER);
+  PushOperand(result_register());
 
-    CallRuntimeWithOperands(Runtime::kDefineClass);
-    PrepareForBailoutForId(lit->CreateLiteralId(), BailoutState::TOS_REGISTER);
-    PushOperand(result_register());
+  // Load the "prototype" from the constructor.
+  __ Move(LoadDescriptor::ReceiverRegister(), result_register());
+  __ LoadRoot(LoadDescriptor::NameRegister(), Heap::kprototype_stringRootIndex);
+  __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
+  CallLoadIC();
+  PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
+  PushOperand(result_register());
 
-    // Load the "prototype" from the constructor.
-    __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-    __ LoadRoot(LoadDescriptor::NameRegister(),
-                Heap::kprototype_stringRootIndex);
-    __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
-    CallLoadIC();
-    PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
-    PushOperand(result_register());
+  EmitClassDefineProperties(lit);
+  DropOperands(1);
 
-    EmitClassDefineProperties(lit);
-    DropOperands(1);
+  // Set the constructor to have fast properties.
+  CallRuntimeWithOperands(Runtime::kToFastProperties);
 
-    // Set the constructor to have fast properties.
-    CallRuntimeWithOperands(Runtime::kToFastProperties);
-
-    if (lit->class_variable_proxy() != nullptr) {
-      EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
-                             lit->ProxySlot());
-    }
+  if (lit->class_variable_proxy() != nullptr) {
+    EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
+                           lit->ProxySlot());
   }
 
   context()->Plug(result_register());

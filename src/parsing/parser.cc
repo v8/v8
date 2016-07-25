@@ -796,7 +796,7 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
       function_token_position, type, language_mode, ok);
 }
 
-ClassLiteral* ParserTraits::ParseClassLiteral(
+Expression* ParserTraits::ParseClassLiteral(
     Type::ExpressionClassifier* classifier, const AstRawString* name,
     Scanner::Location class_name_location, bool name_is_strict_reserved,
     int pos, bool* ok) {
@@ -2267,8 +2267,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
     variable_name = name;
   }
 
-  ClassLiteral* value = ParseClassLiteral(nullptr, name, scanner()->location(),
-                                          is_strict_reserved, pos, CHECK_OK);
+  Expression* value = ParseClassLiteral(nullptr, name, scanner()->location(),
+                                        is_strict_reserved, pos, CHECK_OK);
 
   VariableProxy* proxy = NewUnresolved(variable_name, LET);
   Declaration* declaration =
@@ -5005,11 +5005,11 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   return result;
 }
 
-ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
-                                        const AstRawString* name,
-                                        Scanner::Location class_name_location,
-                                        bool name_is_strict_reserved, int pos,
-                                        bool* ok) {
+Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
+                                      const AstRawString* name,
+                                      Scanner::Location class_name_location,
+                                      bool name_is_strict_reserved, int pos,
+                                      bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location,
@@ -5111,8 +5111,21 @@ ClassLiteral* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     proxy->var()->set_initializer_position(end_pos);
   }
 
-  return factory()->NewClassLiteral(block_scope, proxy, extends, constructor,
-                                    properties, pos, end_pos);
+  Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
+  do_block->set_scope(block_scope);
+  Variable* result_var =
+      block_scope->NewTemporary(ast_value_factory()->empty_string());
+  DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
+
+  ClassLiteral* class_literal = factory()->NewClassLiteral(
+      proxy, extends, constructor, properties, pos, end_pos);
+
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(class_literal, pos), zone());
+  do_expr->set_represented_function(constructor);
+  Rewriter::Rewrite(this, do_expr, ast_value_factory());
+
+  return do_expr;
 }
 
 
@@ -6106,8 +6119,8 @@ void ParserTraits::SetFunctionName(Expression* value,
   if (function != nullptr) {
     function->set_raw_name(name);
   } else {
-    DCHECK(value->IsClassLiteral());
-    value->AsClassLiteral()->constructor()->set_raw_name(name);
+    DCHECK(value->IsDoExpression());
+    value->AsDoExpression()->represented_function()->set_raw_name(name);
   }
 }
 

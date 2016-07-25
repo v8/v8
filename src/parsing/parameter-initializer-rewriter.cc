@@ -42,7 +42,6 @@ void Rewriter::VisitFunctionLiteral(FunctionLiteral* function_literal) {
 
 
 void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
-  class_literal->scope()->ReplaceOuterScope(param_scope_);
   if (class_literal->extends() != nullptr) {
     Visit(class_literal->extends());
   }
