@@ -173,8 +173,8 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), value,
                        effect, if_false),
       effect, if_false);
-  Node* vfalse = graph()->NewNode(machine()->Word32Equal(), efalse,
-                                  jsgraph()->Int32Constant(instance_type));
+  Node* vfalse = graph()->NewNode(simplified()->NumberEqual(), efalse,
+                                  jsgraph()->Constant(instance_type));
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
 
@@ -385,12 +385,6 @@ CommonOperatorBuilder* JSIntrinsicLowering::common() const {
 JSOperatorBuilder* JSIntrinsicLowering::javascript() const {
   return jsgraph_->javascript();
 }
-
-
-MachineOperatorBuilder* JSIntrinsicLowering::machine() const {
-  return jsgraph()->machine();
-}
-
 
 SimplifiedOperatorBuilder* JSIntrinsicLowering::simplified() const {
   return jsgraph()->simplified();

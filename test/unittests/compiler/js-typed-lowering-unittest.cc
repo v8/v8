@@ -619,7 +619,8 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Matcher<Node*> offset_matcher =
         element_size == 1
             ? key
-            : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+            : IsNumberShiftLeft(key,
+                                IsNumberConstant(WhichPowerOf2(element_size)));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
@@ -700,7 +701,8 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Matcher<Node*> offset_matcher =
           element_size == 1
               ? key
-              : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+              : IsNumberShiftLeft(
+                    key, IsNumberConstant(WhichPowerOf2(element_size)));
 
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
@@ -747,7 +749,8 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Matcher<Node*> offset_matcher =
           element_size == 1
               ? key
-              : IsWord32Shl(key, IsInt32Constant(WhichPowerOf2(element_size)));
+              : IsNumberShiftLeft(
+                    key, IsNumberConstant(WhichPowerOf2(element_size)));
 
       Matcher<Node*> value_matcher =
           IsToNumber(value, context, checkpoint, control);

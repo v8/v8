@@ -24,7 +24,6 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
-class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
 
@@ -87,8 +86,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceShiftLeft(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
-
-  Node* Word32Shl(Node* const lhs, int32_t const rhs);
 
   Node* EmptyFrameState();
 
