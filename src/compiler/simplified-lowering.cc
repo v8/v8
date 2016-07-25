@@ -128,54 +128,6 @@ void ChangeToPureOp(Node* node, const Operator* new_op) {
 
 #ifdef DEBUG
 // Helpers for monotonicity checking.
-bool MachineRepresentationIsSubtype(MachineRepresentation r1,
-                                    MachineRepresentation r2) {
-  switch (r1) {
-    case MachineRepresentation::kNone:
-      return true;
-    case MachineRepresentation::kBit:
-      return r2 == MachineRepresentation::kBit ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kWord8:
-      return r2 == MachineRepresentation::kWord8 ||
-             r2 == MachineRepresentation::kWord16 ||
-             r2 == MachineRepresentation::kWord32 ||
-             r2 == MachineRepresentation::kWord64 ||
-             r2 == MachineRepresentation::kFloat32 ||
-             r2 == MachineRepresentation::kFloat64 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kWord16:
-      return r2 == MachineRepresentation::kWord16 ||
-             r2 == MachineRepresentation::kWord32 ||
-             r2 == MachineRepresentation::kWord64 ||
-             r2 == MachineRepresentation::kFloat32 ||
-             r2 == MachineRepresentation::kFloat64 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kWord32:
-      return r2 == MachineRepresentation::kWord32 ||
-             r2 == MachineRepresentation::kWord64 ||
-             r2 == MachineRepresentation::kFloat64 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kWord64:
-      return r2 == MachineRepresentation::kWord64;
-    case MachineRepresentation::kFloat32:
-      return r2 == MachineRepresentation::kFloat32 ||
-             r2 == MachineRepresentation::kFloat64 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kFloat64:
-      return r2 == MachineRepresentation::kFloat64 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kSimd128:
-      return r2 == MachineRepresentation::kSimd128 ||
-             r2 == MachineRepresentation::kTagged;
-    case MachineRepresentation::kTagged:
-      return r2 == MachineRepresentation::kTagged;
-  }
-  UNREACHABLE();
-  return false;
-}
-
-
 class InputUseInfos {
  public:
   explicit InputUseInfos(Zone* zone) : input_use_infos_(zone) {}
@@ -194,9 +146,7 @@ class InputUseInfos {
   ZoneVector<UseInfo> input_use_infos_;
 
   static bool IsUseLessGeneral(UseInfo use1, UseInfo use2) {
-    return MachineRepresentationIsSubtype(use1.representation(),
-                                          use2.representation()) &&
-           use1.truncation().IsLessGeneralThan(use2.truncation());
+    return use1.truncation().IsLessGeneralThan(use2.truncation());
   }
 };
 
