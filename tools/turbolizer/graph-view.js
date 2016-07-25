@@ -469,33 +469,17 @@ class GraphView extends View {
 
     if (!mouseDownNode) return;
 
-    if (mouseDownNode !== d){
-      // we're in a different node: create new edge for mousedown edge and add to graph
-      var newEdge = {source: mouseDownNode, target: d};
-      var filtRes = graph.visibleEdges.filter(function(d){
-        if (d.source === newEdge.target && d.target === newEdge.source){
-          graph.edges.splice(graph.edges.indexOf(d), 1);
-        }
-        return d.source === newEdge.source && d.target === newEdge.target;
-      });
-      if (!filtRes[0].length){
-        graph.edges.push(newEdge);
-        graph.updateGraphVisibility();
-      }
+    if (state.justDragged) {
+      // dragged, not clicked
+      state.justDragged = false;
     } else{
-      // we're in the same node
-      if (state.justDragged) {
-        // dragged, not clicked
-        state.justDragged = false;
-      } else{
-        // clicked, not dragged
-        var extend = d3.event.shiftKey;
-        var selection = graph.state.selection;
-        if (!extend) {
-          selection.clear();
-        }
-        selection.select(d3node[0][0], true);
+      // clicked, not dragged
+      var extend = d3.event.shiftKey;
+      var selection = graph.state.selection;
+      if (!extend) {
+        selection.clear();
       }
+      selection.select(d3node[0][0], true);
     }
   }
 
