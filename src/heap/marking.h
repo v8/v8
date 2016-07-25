@@ -106,98 +106,8 @@ class Bitmap {
     for (int i = 0; i < CellsCount(); i++) cells()[i] = 0;
   }
 
-  // Sets all bits in the range [start_index, end_index).
-  void SetRange(uint32_t start_index, uint32_t end_index) {
-    unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-    unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-
-    if (start_cell_index != end_cell_index) {
-      // Firstly, fill all bits from the start address to the end of the first
-      // cell with 1s.
-      cells()[start_cell_index] |= ~(start_index_mask - 1);
-      // Then fill all in between cells with 1s.
-      for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        cells()[i] = ~0u;
-      }
-      // Finally, fill all bits until the end address in the last cell with 1s.
-      cells()[end_cell_index] |= (end_index_mask - 1);
-    } else {
-      cells()[start_cell_index] |= end_index_mask - start_index_mask;
-    }
-  }
-
-  // Clears all bits in the range [start_index, end_index).
-  void ClearRange(uint32_t start_index, uint32_t end_index) {
-    unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-    unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-
-    if (start_cell_index != end_cell_index) {
-      // Firstly, fill all bits from the start address to the end of the first
-      // cell with 0s.
-      cells()[start_cell_index] &= (start_index_mask - 1);
-      // Then fill all in between cells with 0s.
-      for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        cells()[i] = 0;
-      }
-      // Finally, set all bits until the end address in the last cell with 0s.
-      cells()[end_cell_index] &= ~(end_index_mask - 1);
-    } else {
-      cells()[start_cell_index] &= ~(end_index_mask - start_index_mask);
-    }
-  }
-
-  // Returns true if all bits in the range [start_index, end_index) are set.
-  bool AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {
-    unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-    unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-
-    MarkBit::CellType matching_mask;
-    if (start_cell_index != end_cell_index) {
-      matching_mask = ~(start_index_mask - 1);
-      if ((cells()[start_cell_index] & matching_mask) != matching_mask) {
-        return false;
-      }
-      for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        if (cells()[i] != ~0u) return false;
-      }
-      matching_mask = (end_index_mask - 1);
-      return ((cells()[end_cell_index] & matching_mask) == matching_mask);
-    } else {
-      matching_mask = end_index_mask - start_index_mask;
-      return (cells()[end_cell_index] & matching_mask) == matching_mask;
-    }
-  }
-
-  // Returns true if all bits in the range [start_index, end_index) are cleared.
-  bool AllBitsClearInRange(uint32_t start_index, uint32_t end_index) {
-    unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-    unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-    MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
-
-    MarkBit::CellType matching_mask;
-    if (start_cell_index != end_cell_index) {
-      matching_mask = ~(start_index_mask - 1);
-      if ((cells()[start_cell_index] & matching_mask)) return false;
-      for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-        if (cells()[i]) return false;
-      }
-      matching_mask = (end_index_mask - 1);
-      return !(cells()[end_cell_index] & matching_mask);
-    } else {
-      matching_mask = end_index_mask - start_index_mask;
-      return !(cells()[end_cell_index] & matching_mask);
-    }
+  void SetAllBits() {
+    for (int i = 0; i < CellsCount(); i++) cells()[i] = 0xffffffff;
   }
 
   static void PrintWord(uint32_t word, uint32_t himask = 0) {
@@ -264,6 +174,23 @@ class Bitmap {
       }
     }
     return true;
+  }
+
+  // Clears all bits starting from {cell_base_index} up to and excluding
+  // {index}. Note that {cell_base_index} is required to be cell aligned.
+  void ClearRange(uint32_t cell_base_index, uint32_t index) {
+    DCHECK_EQ(IndexInCell(cell_base_index), 0u);
+    DCHECK_GE(index, cell_base_index);
+    uint32_t start_cell_index = IndexToCell(cell_base_index);
+    uint32_t end_cell_index = IndexToCell(index);
+    DCHECK_GE(end_cell_index, start_cell_index);
+    // Clear all cells till the cell containing the last index.
+    for (uint32_t i = start_cell_index; i < end_cell_index; i++) {
+      cells()[i] = 0;
+    }
+    // Clear all bits in the last cell till the last bit before index.
+    uint32_t clear_mask = ~((1u << IndexInCell(index)) - 1);
+    cells()[end_cell_index] &= clear_mask;
   }
 };
 
