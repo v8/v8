@@ -280,22 +280,8 @@ span.linkable-text:hover {
     left: 0;
 }
 
-#graph-toolbox {
-    position: relative;
-    top: 1em;
-    left: 0.7em;
-    border: 2px solid #eee8d5;
-    border-radius: 5px;
-    padding: 0.7em;
-    z-index: 5;
-}
-
-#disassembly-collapse {
-    right: 0;
-}
-
-#source-collapse {
-    left: 0;
+#graph-toolbox-anchor {
+    height: 0px;
 }
 
 #graph-toolbox {
@@ -306,19 +292,23 @@ span.linkable-text:hover {
     border-radius: 5px;
     padding: 0.7em;
     z-index: 5;
+    background: rgba(100%, 100%, 100%, 0.7);
 }
 
 #load-file {
-    background: #A0A0A0;
     position: absolute;
     top: 0;
     right: 0;
     margin-top: 0.5em;
     margin-right: 0.5em;
-    border-radius: 5px;
-    padding: 0.5em;
     z-index: 5;
     opacity: 0.7;
+}
+
+#load-file input {
+    background: #A0A0A0;
+    border-radius: 5px;
+    padding: 0.5em;
 }
 
 #hidden-file-upload{
