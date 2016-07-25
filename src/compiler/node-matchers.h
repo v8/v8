@@ -128,6 +128,7 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
     return this->HasValue() && this->Value() < 0 &&
            (-this->Value() & (-this->Value() - 1)) == 0;
   }
+  bool IsNegative() const { return this->HasValue() && this->Value() < 0; }
 };
 
 typedef IntMatcher<int32_t, IrOpcode::kInt32Constant> Int32Matcher;

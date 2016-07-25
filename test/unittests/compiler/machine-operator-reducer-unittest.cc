@@ -289,7 +289,6 @@ TEST_F(MachineOperatorReducerTest,
   EXPECT_EQ(value, reduction.replacement());
 }
 
-
 TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt32WithConstant) {
   TRACED_FOREACH(int32_t, x, kInt32Values) {
     Reduction reduction = Reduce(graph()->NewNode(
@@ -1501,6 +1500,26 @@ TEST_F(MachineOperatorReducerTest, Int32MulWithOverflowWithConstant) {
       r = Reduce(graph()->NewNode(common()->Projection(0), mul, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(), IsInt32Constant(z));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Int32LessThan
+
+TEST_F(MachineOperatorReducerTest, Int32LessThanWithWord32Or) {
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    Node* word32_or =
+        graph()->NewNode(machine()->Word32Or(), p0, Int32Constant(x));
+    Node* less_than = graph()->NewNode(machine()->Int32LessThan(), word32_or,
+                                       Int32Constant(0));
+    Reduction r = Reduce(less_than);
+    if (x < 0) {
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(1));
+    } else {
+      ASSERT_FALSE(r.Changed());
     }
   }
 }

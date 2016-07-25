@@ -35,3 +35,11 @@ const SMI_MIN = -SMI_MAX - 1;  // Create without overflowing.
 
 // multiply by 3 to avoid compiler optimizations that convert 2*x to x + x.
 assertEquals(SMI_MAX + SMI_MAX + SMI_MAX, test(SMI_MAX, 3));
+
+// Verify that strength reduction will reduce the -0 check quite a bit
+// if we have a negative integer constant.
+function negtest(y) { return -3 * y; }
+assertEquals(-12, negtest(4));
+assertEquals(-12, negtest(4));
+%OptimizeFunctionOnNextCall(negtest);
+negtest(4);
