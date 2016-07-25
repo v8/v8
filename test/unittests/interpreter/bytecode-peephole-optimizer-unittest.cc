@@ -241,7 +241,7 @@ TEST_F(BytecodePeepholeOptimizerTest, StarRxLdarRxStatementStarRy) {
 
 TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
   BytecodeNode first(Bytecode::kLdar, Register(0).ToOperand());
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);
@@ -252,26 +252,18 @@ TEST_F(BytecodePeepholeOptimizerTest, LdarToName) {
   CHECK_EQ(last_written(), second);
 }
 
-TEST_F(BytecodePeepholeOptimizerTest, ToNameToName) {
-  BytecodeNode first(Bytecode::kToName);
-  BytecodeNode second(Bytecode::kToName);
-  optimizer()->Write(&first);
-  optimizer()->Write(&second);
-  CHECK_EQ(write_count(), 0);
-  Flush();
-  CHECK_EQ(last_written(), first);
-  CHECK_EQ(write_count(), 1);
-}
-
 TEST_F(BytecodePeepholeOptimizerTest, TypeOfToName) {
   BytecodeNode first(Bytecode::kTypeOf);
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
-  optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  Flush();
+  optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
+  Flush();
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written(), second);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
@@ -279,20 +271,23 @@ TEST_F(BytecodePeepholeOptimizerTest, LdaConstantStringToName) {
       isolate()->factory()->NewStringFromStaticChars("optimizing");
   size_t index = constant_array()->Insert(word);
   BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
-  optimizer()->Write(&second);
   CHECK_EQ(write_count(), 0);
-  Flush();
+  optimizer()->Write(&second);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(last_written(), first);
+  Flush();
+  CHECK_EQ(write_count(), 2);
+  CHECK_EQ(last_written(), second);
+  CHECK_EQ(last_written().bytecode(), Bytecode::kStar);
 }
 
 TEST_F(BytecodePeepholeOptimizerTest, LdaConstantNumberToName) {
   Handle<Object> word = isolate()->factory()->NewNumber(0.380);
   size_t index = constant_array()->Insert(word);
   BytecodeNode first(Bytecode::kLdaConstant, static_cast<uint32_t>(index));
-  BytecodeNode second(Bytecode::kToName);
+  BytecodeNode second(Bytecode::kToName, Register(0).ToOperand());
   optimizer()->Write(&first);
   CHECK_EQ(write_count(), 0);
   optimizer()->Write(&second);

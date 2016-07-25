@@ -505,7 +505,7 @@ bool Bytecodes::IsPrefixScalingBytecode(Bytecode bytecode) {
 
 // static
 bool Bytecodes::PutsNameInAccumulator(Bytecode bytecode) {
-  return bytecode == Bytecode::kToName || bytecode == Bytecode::kTypeOf;
+  return bytecode == Bytecode::kTypeOf;
 }
 
 // static

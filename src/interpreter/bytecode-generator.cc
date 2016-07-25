@@ -1448,7 +1448,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
     }
 
     VisitForAccumulatorValue(property->key());
-    builder()->CastAccumulatorToName().StoreAccumulatorInRegister(key);
+    builder()->CastAccumulatorToName(key);
     // The static prototype property is read only. We handle the non computed
     // property name case in the parser. Since this is the only case where we
     // need to check for an own read only property we special case this so we do
@@ -1734,7 +1734,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
     builder()->MoveRegister(literal, literal_argument);
     VisitForAccumulatorValue(property->key());
-    builder()->CastAccumulatorToName().StoreAccumulatorInRegister(key);
+    builder()->CastAccumulatorToName(key);
     VisitForAccumulatorValue(property->value());
     builder()->StoreAccumulatorInRegister(value);
     VisitSetHomeObject(value, literal, property);

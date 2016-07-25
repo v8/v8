@@ -221,18 +221,6 @@ void BytecodePeepholeOptimizer::ElideCurrentIfOperand0MatchesAction(
   }
 }
 
-void BytecodePeepholeOptimizer::ElideCurrentIfLoadingNameConstantAction(
-    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
-  DCHECK_EQ(last()->bytecode(), Bytecode::kLdaConstant);
-  DCHECK(!Bytecodes::IsJump(node->bytecode()));
-
-  if (GetConstantForIndexOperand(last(), 0)->IsName()) {
-    ElideCurrentAction(node);
-  } else {
-    DefaultAction(node);
-  }
-}
-
 void BytecodePeepholeOptimizer::ElideLastAction(
     BytecodeNode* const node, const PeepholeActionAndData* action_data) {
   DCHECK(LastIsValid());
@@ -256,7 +244,7 @@ void BytecodePeepholeOptimizer::ChangeBytecodeAction(
   DCHECK(LastIsValid());
   DCHECK(!Bytecodes::IsJump(node->bytecode()));
 
-  node->set_bytecode(action_data->bytecode);
+  node->replace_bytecode(action_data->bytecode);
   DefaultAction(node);
 }
 
@@ -299,6 +287,17 @@ void BytecodePeepholeOptimizer::
   } else {
     DefaultAction(node);
   }
+}
+
+void BytecodePeepholeOptimizer::TransformToStarIfLoadingNameConstantAction(
+    BytecodeNode* const node, const PeepholeActionAndData* action_data) {
+  DCHECK_EQ(last()->bytecode(), Bytecode::kLdaConstant);
+  DCHECK(!Bytecodes::IsJump(node->bytecode()));
+
+  if (GetConstantForIndexOperand(last(), 0)->IsName()) {
+    node->replace_bytecode(Bytecode::kStar);
+  }
+  DefaultAction(node);
 }
 
 void BytecodePeepholeOptimizer::DefaultJumpAction(

@@ -1304,18 +1304,19 @@ void BytecodeGraphBuilder::VisitTestInstanceOf() {
   BuildCompareOp(javascript()->InstanceOf());
 }
 
-void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
-  FrameStateBeforeAndAfter states(this);
-  Node* node = NewNode(js_op, environment()->LookupAccumulator());
-  environment()->BindAccumulator(node, &states);
-}
-
 void BytecodeGraphBuilder::VisitToName() {
-  BuildCastOperator(javascript()->ToName());
+  FrameStateBeforeAndAfter states(this);
+  Node* value =
+      NewNode(javascript()->ToName(), environment()->LookupAccumulator());
+  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), value,
+                              &states);
 }
 
 void BytecodeGraphBuilder::VisitToObject() {
-  BuildCastOperator(javascript()->ToObject());
+  FrameStateBeforeAndAfter states(this);
+  Node* node =
+      NewNode(javascript()->ToObject(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitToNumber() {

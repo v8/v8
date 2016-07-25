@@ -211,7 +211,7 @@ namespace interpreter {
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
                                                                                \
   /* Cast operators */                                                         \
-  V(ToName, AccumulatorUse::kReadWrite)                                        \
+  V(ToName, AccumulatorUse::kRead, OperandType::kRegOut)                       \
   V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut)                     \
   V(ToObject, AccumulatorUse::kReadWrite)                                      \
                                                                                \

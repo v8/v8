@@ -1026,7 +1026,9 @@ void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToName(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // ToNumber

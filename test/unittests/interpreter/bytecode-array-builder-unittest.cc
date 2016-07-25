@@ -182,7 +182,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber(reg)
       .CastAccumulatorToJSObject()
-      .CastAccumulatorToName();
+      .CastAccumulatorToName(reg);
 
   // Emit control flow. Return must be the last instruction.
   BytecodeLabel start;

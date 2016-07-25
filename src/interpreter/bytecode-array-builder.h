@@ -212,11 +212,12 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
 
-  // Casts.
+  // Casts accumulator and stores result in accumulator.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
   BytecodeArrayBuilder& CastAccumulatorToJSObject();
-  BytecodeArrayBuilder& CastAccumulatorToName();
-  // Does not update the accumulator but stores to |out| instead.
+
+  // Casts accumulator and stores result in register |out|.
+  BytecodeArrayBuilder& CastAccumulatorToName(Register out);
   BytecodeArrayBuilder& CastAccumulatorToNumber(Register out);
 
   // Flow Control.

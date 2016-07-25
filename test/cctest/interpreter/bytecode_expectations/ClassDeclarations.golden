@@ -122,7 +122,7 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 126
+bytecode array length: 124
 bytecodes: [
                 B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),
                 B(PushContext), R(2),
@@ -147,8 +147,7 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdrNamedProperty), R(3), U8(3), U8(1), R(4),
   /*   75 E> */ B(LdaContextSlot), R(context), U8(4),
-                B(ToName),
-                B(Star), R(6),
+                B(ToName), R(6),
                 B(CreateClosure), U8(4), U8(2),
                 B(Star), R(7),
                 B(LdaSmi), U8(2),
@@ -158,8 +157,7 @@ bytecodes: [
                 B(Mov), R(4), R(5),
                 B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(5),
   /*  106 E> */ B(LdaContextSlot), R(context), U8(5),
-                B(ToName),
-                B(Star), R(6),
+                B(ToName), R(6),
                 B(LdaConstant), U8(3),
                 B(TestEqualStrict), R(6),
                 B(Mov), R(3), R(5),

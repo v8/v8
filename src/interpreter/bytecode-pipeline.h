@@ -153,6 +153,12 @@ class BytecodeNode final : ZoneObject {
   BytecodeNode(const BytecodeNode& other);
   BytecodeNode& operator=(const BytecodeNode& other);
 
+  // Replace the bytecode of this node with |bytecode| and keep the operands.
+  void replace_bytecode(Bytecode bytecode) {
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode_),
+              Bytecodes::NumberOfOperands(bytecode));
+    bytecode_ = bytecode;
+  }
   void set_bytecode(Bytecode bytecode) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
     bytecode_ = bytecode;

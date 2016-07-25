@@ -388,8 +388,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
-  Output(Bytecode::kToName);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName(
+    Register out) {
+  Output(Bytecode::kToName, RegisterOperand(out));
   return *this;
 }
 
