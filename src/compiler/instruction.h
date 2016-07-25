@@ -1149,6 +1149,8 @@ class FrameStateDescriptor : public ZoneObject {
   }
   StateValueDescriptor* GetStateValueDescriptor() { return &values_; }
 
+  static const int kImpossibleValue = 0xdead;
+
  private:
   FrameStateType type_;
   BailoutId bailout_id_;

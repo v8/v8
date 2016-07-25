@@ -865,7 +865,11 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     switch (constant.type()) {
       case Constant::kInt32:
         DCHECK(type == MachineType::Int32() || type == MachineType::Uint32() ||
-               type.representation() == MachineRepresentation::kBit);
+               type.representation() == MachineRepresentation::kBit ||
+               type.representation() == MachineRepresentation::kNone);
+        DCHECK(type.representation() != MachineRepresentation::kNone ||
+               constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
+
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;

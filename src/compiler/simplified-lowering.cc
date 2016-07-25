@@ -568,7 +568,8 @@ class RepresentationSelector {
       NodeInfo* info = GetInfo(node);
       queue_.pop();
       info->set_visited();
-      TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
+      TRACE(" visit #%d: %s (trunc: %s)\n", node->id(), node->op()->mnemonic(),
+            info->truncation().description());
       VisitNode(node, info->truncation(), nullptr);
       TRACE("  ==> output ");
       PrintOutputInfo(info);
@@ -635,12 +636,12 @@ class RepresentationSelector {
       info->set_queued();
       nodes_.push_back(node);
       queue_.push(node);
-      TRACE("  initial: ");
+      TRACE("  initial #%i: ", node->id());
       info->AddUse(use_info);
       PrintTruncation(info->truncation());
       return;
     }
-    TRACE("   queue?: ");
+    TRACE("   queue #%i?: ", node->id());
     PrintTruncation(info->truncation());
     if (info->AddUse(use_info)) {
       // New usage information for the node is available.

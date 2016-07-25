@@ -117,8 +117,10 @@ bool IsWord(MachineRepresentation rep) {
 Node* RepresentationChanger::GetRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
     Node* use_node, UseInfo use_info) {
-  if (output_rep == MachineRepresentation::kNone) {
-    // The output representation should be set.
+  if (output_rep == MachineRepresentation::kNone &&
+      output_type->IsInhabited()) {
+    // The output representation should be set if the type is inhabited (i.e.,
+    // if the value is possible).
     return TypeError(node, output_rep, output_type, use_info.representation());
   }
 
@@ -200,7 +202,11 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   }
   // Select the correct X -> Tagged operator.
   const Operator* op;
-  if (output_rep == MachineRepresentation::kBit) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only asisgn this representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToTagged();
+  } else if (output_rep == MachineRepresentation::kBit) {
     if (output_type->Is(Type::Boolean())) {
       op = simplified()->ChangeBitToTagged();
     } else {
@@ -271,7 +277,11 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   }
   // Select the correct X -> Float32 operator.
   const Operator* op = nullptr;
-  if (IsWord(output_rep)) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToFloat32();
+  } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       // int32 -> float64 -> float32
       op = machine()->ChangeInt32ToFloat64();
@@ -336,7 +346,11 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   }
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
-  if (IsWord(output_rep)) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToFloat64();
+  } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Signed32())) {
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type->Is(Type::Unsigned32()) ||
@@ -408,7 +422,11 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
 
   // Select the correct X -> Word32 operator.
   const Operator* op = nullptr;
-  if (output_rep == MachineRepresentation::kBit) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToWord32();
+  } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word32
   } else if (output_rep == MachineRepresentation::kFloat64) {
     if (output_type->Is(Type::Unsigned32())) {
@@ -497,7 +515,11 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   }
   // Select the correct X -> Bit operator.
   const Operator* op;
-  if (output_rep == MachineRepresentation::kTagged) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToBit();
+  } else if (output_rep == MachineRepresentation::kTagged) {
     op = simplified()->ChangeTaggedToBit();
   } else {
     return TypeError(node, output_rep, output_type,
@@ -508,7 +530,11 @@ Node* RepresentationChanger::GetBitRepresentationFor(
 
 Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type) {
-  if (output_rep == MachineRepresentation::kBit) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    return jsgraph()->graph()->NewNode(machine()->ImpossibleToFloat64(), node);
+  } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word64
   }
   // Can't really convert Word64 to anything else. Purported to be internal.
@@ -532,7 +558,11 @@ Node* RepresentationChanger::GetCheckedWord32RepresentationFor(
 
   // Select the correct X -> Word32 operator.
   const Operator* op = nullptr;
-  if (output_rep == MachineRepresentation::kWord32) {
+  if (output_rep == MachineRepresentation::kNone) {
+    // We should only use kNone representation if the type is empty.
+    CHECK(!output_type->IsInhabited());
+    op = machine()->ImpossibleToWord32();
+  } else if (output_rep == MachineRepresentation::kWord32) {
     if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->CheckedUint32ToInt32();
     }

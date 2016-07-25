@@ -948,6 +948,13 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckUpperIs(node, to));
       break;
     }
+    case IrOpcode::kImpossibleToWord32:
+    case IrOpcode::kImpossibleToWord64:
+    case IrOpcode::kImpossibleToFloat32:
+    case IrOpcode::kImpossibleToFloat64:
+    case IrOpcode::kImpossibleToTagged:
+    case IrOpcode::kImpossibleToBit:
+      break;
 
     case IrOpcode::kCheckBounds:
       CheckValueInputIs(node, 0, Type::Any());

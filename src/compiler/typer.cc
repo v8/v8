@@ -2230,16 +2230,35 @@ Type* Typer::Visitor::TypeChangeInt32ToInt64(Node* node) {
   return Type::Internal();
 }
 
-
 Type* Typer::Visitor::TypeChangeUint32ToFloat64(Node* node) {
   return Type::Intersect(Type::Unsigned32(), Type::UntaggedFloat64(), zone());
 }
-
 
 Type* Typer::Visitor::TypeChangeUint32ToUint64(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeImpossibleToWord32(Node* node) {
+  return Type::None();
+}
+
+Type* Typer::Visitor::TypeImpossibleToWord64(Node* node) {
+  return Type::None();
+}
+
+Type* Typer::Visitor::TypeImpossibleToFloat32(Node* node) {
+  return Type::None();
+}
+
+Type* Typer::Visitor::TypeImpossibleToFloat64(Node* node) {
+  return Type::None();
+}
+
+Type* Typer::Visitor::TypeImpossibleToTagged(Node* node) {
+  return Type::None();
+}
+
+Type* Typer::Visitor::TypeImpossibleToBit(Node* node) { return Type::None(); }
 
 Type* Typer::Visitor::TypeTruncateFloat64ToFloat32(Node* node) {
   return Type::Intersect(Type::Number(), Type::UntaggedFloat32(), zone());
@@ -2249,7 +2268,6 @@ Type* Typer::Visitor::TypeTruncateFloat64ToWord32(Node* node) {
   return Type::Intersect(Type::Integral32(), Type::UntaggedIntegral32(),
                          zone());
 }
-
 
 Type* Typer::Visitor::TypeTruncateInt64ToInt32(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
