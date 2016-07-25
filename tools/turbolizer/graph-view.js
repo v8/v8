@@ -122,82 +122,14 @@ class GraphView extends View {
         graph.dragmove.call(graph, args);
       })
 
-    d3.select("#upload").on("click", function(){
-      document.getElementById("hidden-file-upload").click();
-    });
-
-    d3.select("#layout").on("click", function(){
-      graph.updateGraphVisibility();
-      graph.layoutGraph();
-      graph.updateGraphVisibility();
-      graph.viewWholeGraph();
-    });
-
-    d3.select("#show-all").on("click", function(){
-      graph.nodes.filter(function(n) { n.visible = true; })
-      graph.edges.filter(function(e) { e.visible = true; })
-      graph.updateGraphVisibility();
-      graph.viewWholeGraph();
-    });
-
-    d3.select("#hide-unselected").on("click", function() {
-      var unselected = graph.visibleNodes.filter(function(n) {
-        return !this.classList.contains("selected");
-      });
-      unselected.each(function(n) {
-        n.visible = false;
-      });
-      graph.updateGraphVisibility();
-    });
-
-    d3.select("#hide-selected").on("click", function() {
-      var selected = graph.visibleNodes.filter(function(n) {
-        return this.classList.contains("selected");
-      });
-      selected.each(function(n) {
-        n.visible = false;
-      });
-      graph.state.selection.clear();
-      graph.updateGraphVisibility();
-    });
-
-    d3.select("#zoom-selection").on("click", function() {
-      graph.viewSelection();
-    });
-
-    d3.select("#toggle-types").on("click", function() {
-      graph.toggleTypes();
-    });
-
-    d3.select("#search-input").on("keydown", function() {
-      if (d3.event.keyCode == 13) {
-        graph.state.selection.clear();
-        var reg = new RegExp(this.value);
-        var filterFunction = function(n) {
-          return (reg.exec(n.getDisplayLabel()) != null ||
-                  (graph.state.showTypes && reg.exec(n.getDisplayType())) ||
-                  reg.exec(n.opcode) != null);
-        };
-        if (d3.event.ctrlKey) {
-          graph.nodes.forEach(function(n, i) {
-            if (filterFunction(n)) {
-              n.visible = true;
-            }
-          });
-          graph.updateGraphVisibility();
-        }
-        var selected = graph.visibleNodes.each(function(n) {
-          if (filterFunction(n)) {
-            graph.state.selection.select(this, true);
-          }
-        });
-        graph.connectVisibleSelectedNodes();
-        graph.updateGraphVisibility();
-        this.blur();
-        graph.viewSelection();
-      }
-      d3.event.stopPropagation();
-    });
+    d3.select("#upload").on("click", partial(this.uploadAction, graph));
+    d3.select("#layout").on("click", partial(this.layoutAction, graph));
+    d3.select("#show-all").on("click", partial(this.showAllAction, graph));
+    d3.select("#hide-unselected").on("click", partial(this.hideUnselectedAction, graph));
+    d3.select("#hide-selected").on("click", partial(this.hideSelectedAction, graph));
+    d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, graph));
+    d3.select("#toggle-types").on("click", partial(this.toggleTypesAction, graph));
+    d3.select("#search-input").on("keydown", partial(this.searchInputAction, graph));
 
     // listen for key events
     d3.select(window).on("keydown", function(e){
@@ -511,6 +443,83 @@ class GraphView extends View {
     }
     graph.state.selection.select(graph.visibleNodes[0], true);
     graph.updateGraphVisibility();
+  }
+
+  uploadAction(graph) {
+    document.getElementById("hidden-file-upload").click();
+  }
+
+  layoutAction(graph) {
+    graph.updateGraphVisibility();
+    graph.layoutGraph();
+    graph.updateGraphVisibility();
+    graph.viewWholeGraph();
+  }
+
+  showAllAction(graph) {
+    graph.nodes.filter(function(n) { n.visible = true; })
+    graph.edges.filter(function(e) { e.visible = true; })
+    graph.updateGraphVisibility();
+    graph.viewWholeGraph();
+  }
+
+  hideUnselectedAction(graph) {
+    var unselected = graph.visibleNodes.filter(function(n) {
+      return !this.classList.contains("selected");
+    });
+    unselected.each(function(n) {
+      n.visible = false;
+    });
+    graph.updateGraphVisibility();
+  }
+
+  hideSelectedAction(graph) {
+    var selected = graph.visibleNodes.filter(function(n) {
+      return this.classList.contains("selected");
+    });
+    selected.each(function(n) {
+      n.visible = false;
+    });
+    graph.state.selection.clear();
+    graph.updateGraphVisibility();
+  }
+
+  zoomSelectionAction(graph) {
+    graph.viewSelection();
+  }
+
+  toggleTypesAction(graph) {
+    graph.toggleTypes();
+  }
+
+  searchInputAction(graph) {
+    if (d3.event.keyCode == 13) {
+      graph.state.selection.clear();
+      var reg = new RegExp(this.value);
+      var filterFunction = function(n) {
+        return (reg.exec(n.getDisplayLabel()) != null ||
+                (graph.state.showTypes && reg.exec(n.getDisplayType())) ||
+                reg.exec(n.opcode) != null);
+      };
+      if (d3.event.ctrlKey) {
+        graph.nodes.forEach(function(n, i) {
+          if (filterFunction(n)) {
+            n.visible = true;
+          }
+        });
+        graph.updateGraphVisibility();
+      }
+      var selected = graph.visibleNodes.each(function(n) {
+        if (filterFunction(n)) {
+          graph.state.selection.select(this, true);
+        }
+      });
+      graph.connectVisibleSelectedNodes();
+      graph.updateGraphVisibility();
+      this.blur();
+      graph.viewSelection();
+    }
+    d3.event.stopPropagation();
   }
 
   svgMouseDown() {
