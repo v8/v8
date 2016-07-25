@@ -610,6 +610,19 @@ class GraphView extends View {
       showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
       break;
     }
+    case 82:
+      // 'r'
+      if (!d3.event.ctrlKey) {
+        this.layoutAction(this);
+      } else {
+        eventHandled = false;
+      }
+      break;
+    case 191:
+      // '/'
+      document.getElementById("search-input").focus();
+      document.getElementById("search-input").select();
+      break;
     default:
       eventHandled = false;
       break;
