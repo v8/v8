@@ -4,6 +4,8 @@
 
 #include "src/code-stubs.h"
 
+#include <memory>
+
 #include "src/bailout-reason.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/crankshaft/lithium.h"
@@ -42,7 +44,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         descriptor_(code_stub),
         context_(NULL) {
     int parameter_count = GetParameterCount();
-    parameters_.Reset(new HParameter*[parameter_count]);
+    parameters_.reset(new HParameter*[parameter_count]);
   }
   virtual bool BuildGraph();
 
@@ -89,7 +91,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
  private:
-  base::SmartArrayPointer<HParameter*> parameters_;
+  std::unique_ptr<HParameter* []> parameters_;
   HValue* arguments_length_;
   CompilationInfo* info_;
   CodeStub* code_stub_;

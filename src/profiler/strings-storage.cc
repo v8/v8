@@ -4,6 +4,8 @@
 
 #include "src/profiler/strings-storage.h"
 
+#include <memory>
+
 #include "src/base/smart-pointers.h"
 #include "src/objects-inl.h"
 
@@ -81,9 +83,9 @@ const char* StringsStorage::GetName(Name* name) {
     String* str = String::cast(name);
     int length = Min(kMaxNameSize, str->length());
     int actual_length = 0;
-    base::SmartArrayPointer<char> data = str->ToCString(
+    std::unique_ptr<char[]> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
-    return AddOrDisposeString(data.Detach(), actual_length);
+    return AddOrDisposeString(data.release(), actual_length);
   } else if (name->IsSymbol()) {
     return "<symbol>";
   }

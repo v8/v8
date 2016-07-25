@@ -4,6 +4,8 @@
 
 #include "src/objects.h"
 
+#include <memory>
+
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/interpreter/bytecodes.h"
@@ -938,7 +940,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     String* source = String::cast(Script::cast(script())->source());
     int start = start_position();
     int length = end_position() - start;
-    base::SmartArrayPointer<char> source_string = source->ToCString(
+    std::unique_ptr<char[]> source_string = source->ToCString(
         DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
     os << source_string.get();
   }

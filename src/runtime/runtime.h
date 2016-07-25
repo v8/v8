@@ -5,6 +5,8 @@
 #ifndef V8_RUNTIME_RUNTIME_H_
 #define V8_RUNTIME_RUNTIME_H_
 
+#include <memory>
+
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
@@ -1096,7 +1098,7 @@ class RuntimeState {
 
   void set_redirected_intrinsic_functions(
       Runtime::Function* redirected_intrinsic_functions) {
-    redirected_intrinsic_functions_.Reset(redirected_intrinsic_functions);
+    redirected_intrinsic_functions_.reset(redirected_intrinsic_functions);
   }
 
  private:
@@ -1104,8 +1106,7 @@ class RuntimeState {
   unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
   unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
 
-
-  base::SmartArrayPointer<Runtime::Function> redirected_intrinsic_functions_;
+  std::unique_ptr<Runtime::Function[]> redirected_intrinsic_functions_;
 
   friend class Isolate;
   friend class Runtime;

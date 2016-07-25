@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/ast/scopeinfo.h"
@@ -370,8 +372,8 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
-                                                           int* total_argc) {
+std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
+                                                     int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -396,7 +398,7 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     argument_count--;
 
     *total_argc = argument_count;
-    base::SmartArrayPointer<Handle<Object>> param_data(
+    std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
@@ -417,7 +419,7 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     int args_count = frame->ComputeParametersCount();
 
     *total_argc = args_count;
-    base::SmartArrayPointer<Handle<Object>> param_data(
+    std::unique_ptr<Handle<Object>[]> param_data(
         NewArray<Handle<Object>>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
@@ -426,7 +428,6 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     return param_data;
   }
 }
-
 
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
@@ -546,7 +547,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
@@ -560,7 +561,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
@@ -586,7 +587,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
+  std::unique_ptr<Handle<Object>[]> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
   Handle<JSObject> result =

@@ -4,6 +4,8 @@
 
 #include "src/string-stream.h"
 
+#include <memory>
+
 #include "src/handles-inl.h"
 #include "src/prototype.h"
 
@@ -249,12 +251,11 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
   Add(CStrVector(format), Vector<FmtElm>(argv, argc));
 }
 
-
-base::SmartArrayPointer<const char> StringStream::ToCString() const {
+std::unique_ptr<char[]> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   MemCopy(str, buffer_, length_);
   str[length_] = '\0';
-  return base::SmartArrayPointer<const char>(str);
+  return std::unique_ptr<char[]>(str);
 }
 
 

@@ -4,6 +4,8 @@
 
 #include "src/messages.h"
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/bootstrapper.h"
 #include "src/execution.h"
@@ -31,13 +33,13 @@ MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 void MessageHandler::DefaultMessageReport(Isolate* isolate,
                                           const MessageLocation* loc,
                                           Handle<Object> message_obj) {
-  base::SmartArrayPointer<char> str = GetLocalizedMessage(isolate, message_obj);
+  std::unique_ptr<char[]> str = GetLocalizedMessage(isolate, message_obj);
   if (loc == NULL) {
     PrintF("%s\n", str.get());
   } else {
     HandleScope scope(isolate);
     Handle<Object> data(loc->script()->name(), isolate);
-    base::SmartArrayPointer<char> data_str;
+    std::unique_ptr<char[]> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
     PrintF("%s:%i: %s\n", data_str.get() ? data_str.get() : "<unknown>",
@@ -159,8 +161,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   return MessageTemplate::FormatMessage(isolate, message->type(), arg);
 }
 
-
-base::SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
+std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
     Isolate* isolate, Handle<Object> data) {
   HandleScope scope(isolate);
   return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);

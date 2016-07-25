@@ -5,6 +5,8 @@
 #ifndef V8_CALL_INTERFACE_DESCRIPTOR_H_
 #define V8_CALL_INTERFACE_DESCRIPTOR_H_
 
+#include <memory>
+
 #include "src/assembler.h"
 #include "src/macro-assembler.h"
 
@@ -140,7 +142,7 @@ class CallInterfaceDescriptorData {
   // InterfaceDescriptor, and freed on destruction. This is because static
   // arrays of Registers cause creation of runtime static initializers
   // which we don't want.
-  base::SmartArrayPointer<Register> register_params_;
+  std::unique_ptr<Register[]> register_params_;
 
   // Specifies types for parameters and return
   FunctionType* function_type_;

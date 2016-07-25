@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <memory>
+
 #include "src/arguments.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
@@ -399,7 +401,7 @@ RUNTIME_FUNCTION(Runtime_SetFlags) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(String, arg, 0);
-  base::SmartArrayPointer<char> flags =
+  std::unique_ptr<char[]> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
   return isolate->heap()->undefined_value();

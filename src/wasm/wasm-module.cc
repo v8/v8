@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "src/base/atomic-utils.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
@@ -794,7 +796,7 @@ void CompileInParallel(Isolate* isolate, const WasmModule* module,
 
   // 2) The main thread spawns {WasmCompilationTask} instances which run on
   //    the background threads.
-  base::SmartArrayPointer<uint32_t> task_ids(StartCompilationTasks(
+  std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks(
       isolate, compilation_units, executed_units, module->pending_tasks.get(),
       result_mutex, next_unit));
 

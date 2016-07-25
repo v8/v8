@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "src/compiler.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-pool.h"
@@ -52,7 +54,7 @@ PipelineStatistics::PipelineStatistics(CompilationInfo* info,
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    base::SmartArrayPointer<char> name =
+    std::unique_ptr<char[]> name =
         info->shared_info()->DebugName()->ToCString();
     function_name_ = name.get();
   }

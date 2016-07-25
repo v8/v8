@@ -83,26 +83,6 @@ class SmartPointerBase {
   T* p_;
 };
 
-// A 'scoped array pointer' that calls DeleteArray on its pointer when the
-// destructor is called.
-
-template <typename T>
-struct ArrayDeallocator {
-  static void Delete(T* array) { delete[] array; }
-};
-
-
-template <typename T>
-class SmartArrayPointer : public SmartPointerBase<ArrayDeallocator<T>, T> {
- public:
-  SmartArrayPointer() {}
-  explicit SmartArrayPointer(T* ptr)
-      : SmartPointerBase<ArrayDeallocator<T>, T>(ptr) {}
-  SmartArrayPointer(const SmartArrayPointer<T>& rhs)
-      : SmartPointerBase<ArrayDeallocator<T>, T>(rhs) {}
-};
-
-
 template <typename T>
 struct ObjectDeallocator {
   static void Delete(T* object) { delete object; }

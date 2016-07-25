@@ -5,6 +5,7 @@
 #include "src/compiler.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-typer.h"
@@ -181,8 +182,7 @@ bool CompilationInfo::has_simple_parameters() {
   return scope()->has_simple_parameters();
 }
 
-
-base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
+std::unique_ptr<char[]> CompilationInfo::GetDebugName() const {
   if (parse_info() && parse_info()->literal()) {
     AllowHandleDereference allow_deref;
     return parse_info()->literal()->debug_name()->ToCString();
@@ -192,7 +192,7 @@ base::SmartArrayPointer<char> CompilationInfo::GetDebugName() const {
   }
   Vector<const char> name_vec = debug_name_;
   if (name_vec.is_empty()) name_vec = ArrayVector("unknown");
-  base::SmartArrayPointer<char> name(new char[name_vec.length() + 1]);
+  std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
   memcpy(name.get(), name_vec.start(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;

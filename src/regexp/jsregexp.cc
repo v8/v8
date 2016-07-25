@@ -4,6 +4,8 @@
 
 #include "src/regexp/jsregexp.h"
 
+#include <memory>
+
 #include "src/ast/ast.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
@@ -596,7 +598,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
     output_registers = NewArray<int32_t>(required_registers);
   }
-  base::SmartArrayPointer<int32_t> auto_release(output_registers);
+  std::unique_ptr<int32_t[]> auto_release(output_registers);
   if (output_registers == NULL) {
     output_registers = isolate->jsregexp_static_offsets_vector();
   }

@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <iosfwd>
+#include <memory>
 
 #include "src/base/smart-pointers.h"
 
@@ -23,8 +24,9 @@ class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
 
-base::SmartArrayPointer<const char> GetVisualizerLogFileName(
-    CompilationInfo* info, const char* phase, const char* suffix);
+std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+                                                 const char* phase,
+                                                 const char* suffix);
 
 struct AsJSON {
   AsJSON(const Graph& g, SourcePositionTable* p) : graph(g), positions(p) {}

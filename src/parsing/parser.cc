@@ -4,6 +4,8 @@
 
 #include "src/parsing/parser.h"
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/ast-expression-rewriter.h"
@@ -910,7 +912,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
       PrintF("[parsing eval");
     } else if (info->script()->name()->IsString()) {
       String* name = String::cast(info->script()->name());
-      base::SmartArrayPointer<char> name_chars = name->ToCString();
+      std::unique_ptr<char[]> name_chars = name->ToCString();
       PrintF("[parsing script: %s", name_chars.get());
     } else {
       PrintF("[parsing script");
@@ -1062,8 +1064,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
-    base::SmartArrayPointer<char> name_chars =
-        result->debug_name()->ToCString();
+    std::unique_ptr<char[]> name_chars = result->debug_name()->ToCString();
     PrintF("[parsing function: %s - took %0.3f ms]\n", name_chars.get(), ms);
   }
   return result;

@@ -44,7 +44,7 @@ class ModuleDecoder : public Decoder {
     pc_ = limit_;  // On error, terminate section decoding loop.
   }
 
-  static void DumpModule(WasmModule* module, ModuleResult result) {
+  static void DumpModule(WasmModule* module, const ModuleResult& result) {
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -458,7 +458,7 @@ class ModuleDecoder : public Decoder {
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
     FunctionResult result;
-    result.CopyFrom(result_);  // Copy error code and location.
+    result.MoveFrom(result_);  // Copy error code and location.
     result.val = function;
     return result;
   }
@@ -562,8 +562,8 @@ class ModuleDecoder : public Decoder {
       buffer[len - 1] = 0;
 
       // Copy error code and location.
-      result_.CopyFrom(result);
-      result_.error_msg.Reset(buffer);
+      result_.MoveFrom(result);
+      result_.error_msg.reset(buffer);
     }
   }
 
@@ -690,7 +690,7 @@ class ModuleError : public ModuleResult {
     char* result = new char[len];
     strncpy(result, msg, len);
     result[len - 1] = 0;
-    error_msg.Reset(result);
+    error_msg.reset(result);
   }
 };
 
@@ -703,7 +703,7 @@ class FunctionError : public FunctionResult {
     char* result = new char[len];
     strncpy(result, msg, len);
     result[len - 1] = 0;
-    error_msg.Reset(result);
+    error_msg.reset(result);
   }
 };
 

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include <memory>
+
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/bailout-reason.h"
@@ -434,7 +436,7 @@ class CompilationInfo final {
     inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
   }
 
-  base::SmartArrayPointer<char> GetDebugName() const;
+  std::unique_ptr<char[]> GetDebugName() const;
 
   Code::Kind output_code_kind() const {
     return Code::ExtractKindFromFlags(code_flags_);

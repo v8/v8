@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <string>
 
 #include "src/v8.h"
@@ -313,7 +314,7 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
     return obj_info;
   }
 
-  base::SmartArrayPointer<char> aname = key->AsPropertyName()->ToCString();
+  std::unique_ptr<char[]> aname = key->AsPropertyName()->ToCString();
   ObjectTypeMap::iterator i = stdlib->find(std::string(aname.get()));
   if (i == stdlib->end()) {
     return nullptr;

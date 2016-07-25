@@ -10,6 +10,8 @@
 #ifndef V8_MESSAGES_H_
 #define V8_MESSAGES_H_
 
+#include <memory>
+
 #include "src/base/smart-pointers.h"
 #include "src/handles.h"
 #include "src/list.h"
@@ -555,8 +557,8 @@ class MessageHandler {
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    Handle<Object> message_obj);
   static Handle<String> GetMessage(Isolate* isolate, Handle<Object> data);
-  static base::SmartArrayPointer<char> GetLocalizedMessage(Isolate* isolate,
-                                                           Handle<Object> data);
+  static std::unique_ptr<char[]> GetLocalizedMessage(Isolate* isolate,
+                                                     Handle<Object> data);
 };
 
 

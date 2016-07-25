@@ -5,6 +5,7 @@
 #include "src/interpreter/interpreter.h"
 
 #include <fstream>
+#include <memory>
 
 #include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
@@ -39,7 +40,7 @@ void Interpreter::Initialize() {
 
   if (FLAG_trace_ignition_dispatches) {
     static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
-    bytecode_dispatch_counters_table_.Reset(
+    bytecode_dispatch_counters_table_.reset(
         new uintptr_t[kBytecodeCount * kBytecodeCount]);
     memset(bytecode_dispatch_counters_table_.get(), 0,
            sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
@@ -140,7 +141,7 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 
   if (FLAG_print_bytecode || FLAG_print_ast) {
     OFStream os(stdout);
-    base::SmartArrayPointer<char> name = info->GetDebugName();
+    std::unique_ptr<char[]> name = info->GetDebugName();
     os << "[generating bytecode for function: " << info->GetDebugName().get()
        << "]" << std::endl
        << std::flush;

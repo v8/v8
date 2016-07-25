@@ -4,6 +4,7 @@
 
 #include "src/compiler/graph-visualizer.h"
 
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -25,10 +26,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-base::SmartArrayPointer<const char> GetVisualizerLogFileName(
-    CompilationInfo* info, const char* phase, const char* suffix) {
+std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+                                                 const char* phase,
+                                                 const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
-  base::SmartArrayPointer<char> debug_name = info->GetDebugName();
+  std::unique_ptr<char[]> debug_name = info->GetDebugName();
   if (strlen(debug_name.get()) > 0) {
     SNPrintF(filename, "turbo-%s", debug_name.get());
   } else if (info->has_shared_info()) {
@@ -69,7 +71,7 @@ base::SmartArrayPointer<const char> GetVisualizerLogFileName(
   char* buffer = new char[full_filename.length() + 1];
   memcpy(buffer, full_filename.start(), full_filename.length());
   buffer[full_filename.length()] = '\0';
-  return base::SmartArrayPointer<const char>(buffer);
+  return std::unique_ptr<char[]>(buffer);
 }
 
 
@@ -328,7 +330,7 @@ void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
 
 void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
   Tag tag(this, "compilation");
-  base::SmartArrayPointer<char> name = info->GetDebugName();
+  std::unique_ptr<char[]> name = info->GetDebugName();
   if (info->IsOptimizing()) {
     PrintStringProperty("name", name.get());
     PrintIndent();

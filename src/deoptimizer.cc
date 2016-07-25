@@ -4,6 +4,8 @@
 
 #include "src/deoptimizer.h"
 
+#include <memory>
+
 #include "src/accessors.h"
 #include "src/ast/prettyprinter.h"
 #include "src/codegen.h"
@@ -874,7 +876,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => node=%d, height=%d%s\n", node_id.ToInt(),
            height_in_bytes, goto_catch_handler ? " (throw)" : "");
@@ -1093,7 +1095,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d%s\n",
            bytecode_offset, height_in_bytes,
@@ -1438,7 +1440,7 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
 
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating tail caller frame ");
-    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s\n", name.get());
   }
 
@@ -3185,8 +3187,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file, " => node=%d, args=%d, height=%d; inputs:\n",
@@ -3201,8 +3202,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = shared_info->internal_formal_parameter_count() + 1;
         PrintF(trace_file,
@@ -3218,8 +3218,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -3230,8 +3229,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading tail caller frame marker %s\n",
                name.get());
       }
@@ -3243,8 +3241,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -3255,8 +3252,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading getter frame %s; inputs:\n", name.get());
       }
       return TranslatedFrame::AccessorFrame(TranslatedFrame::kGetter,
@@ -3267,8 +3263,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       if (trace_file != nullptr) {
-        base::SmartArrayPointer<char> name =
-            shared_info->DebugName()->ToCString();
+        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading setter frame %s; inputs:\n", name.get());
       }
       return TranslatedFrame::AccessorFrame(TranslatedFrame::kSetter,

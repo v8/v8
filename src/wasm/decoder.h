@@ -5,6 +5,8 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <memory>
+
 #include "src/base/compiler-specific.h"
 #include "src/base/smart-pointers.h"
 #include "src/flags.h"
@@ -247,7 +249,7 @@ class Decoder {
       va_start(arguments, format);
       base::OS::VSNPrintF(buffer, kMaxErrorMsg - 1, format, arguments);
       va_end(arguments);
-      error_msg_.Reset(buffer);
+      error_msg_.reset(buffer);
       error_pc_ = pc;
       error_pt_ = pt;
       onFirstError();
@@ -280,7 +282,7 @@ class Decoder {
       result.error_pc = error_pc_;
       result.error_pt = error_pt_;
       // transfer ownership of the error to the result.
-      result.error_msg.Reset(error_msg_.Detach());
+      result.error_msg.reset(error_msg_.release());
     } else {
       result.error_code = kSuccess;
     }
@@ -296,11 +298,11 @@ class Decoder {
     end_ = end;
     error_pc_ = nullptr;
     error_pt_ = nullptr;
-    error_msg_.Reset(nullptr);
+    error_msg_.reset();
   }
 
   bool ok() const { return error_pc_ == nullptr; }
-  bool failed() const { return !error_msg_.is_empty(); }
+  bool failed() const { return !!error_msg_; }
   bool more() const { return pc_ < limit_; }
 
   const byte* start() { return start_; }
@@ -314,7 +316,7 @@ class Decoder {
   const byte* end_;
   const byte* error_pc_;
   const byte* error_pt_;
-  base::SmartArrayPointer<char> error_msg_;
+  std::unique_ptr<char[]> error_msg_;
 
  private:
   template <typename IntType, bool is_signed>

@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "src/ast/ast.h"
@@ -528,8 +530,7 @@ TEST(PreParseOverflow) {
       i::GetCurrentStackPosition() - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
-  v8::base::SmartArrayPointer<char> program(
-      i::NewArray<char>(kProgramSize + 1));
+  std::unique_ptr<char[]> program(i::NewArray<char>(kProgramSize + 1));
   memset(program.get(), '(', kProgramSize);
   program[kProgramSize] = '\0';
 
@@ -582,7 +583,7 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope test_scope(isolate);
-  v8::base::SmartArrayPointer<i::uc16> uc16_buffer(new i::uc16[length]);
+  std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
   for (unsigned i = 0; i < length; i++) {
     uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
   }

@@ -5,6 +5,7 @@
 #include "src/compiler/pipeline.h"
 
 #include <fstream>  // NOLINT(readability/streams)
+#include <memory>
 #include <sstream>
 
 #include "src/base/adapters.h"
@@ -305,7 +306,7 @@ class PipelineData {
  private:
   Isolate* const isolate_;
   CompilationInfo* const info_;
-  base::SmartArrayPointer<char> debug_name_;
+  std::unique_ptr<char[]> debug_name_;
   Zone* outer_zone_ = nullptr;
   ZonePool* const zone_pool_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
@@ -532,7 +533,7 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     Handle<Script> script = info->script();
-    base::SmartArrayPointer<char> function_name = info->GetDebugName();
+    std::unique_ptr<char[]> function_name = info->GetDebugName();
     int pos = info->shared_info()->start_position();
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";

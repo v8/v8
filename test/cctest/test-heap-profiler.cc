@@ -29,6 +29,8 @@
 
 #include <ctype.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
@@ -1830,7 +1832,7 @@ TEST(GetHeapValueForDeletedObject) {
 
 
 static int StringCmp(const char* ref, i::String* act) {
-  v8::base::SmartArrayPointer<char> s_act = act->ToCString();
+  std::unique_ptr<char[]> s_act = act->ToCString();
   int result = strcmp(ref, s_act.get());
   if (result != 0)
     fprintf(stderr, "Expected: \"%s\", Actual: \"%s\"\n", ref, s_act.get());

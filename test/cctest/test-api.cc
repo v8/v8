@@ -28,6 +28,7 @@
 #include <climits>
 #include <csignal>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "test/cctest/test-api.h"
@@ -19263,8 +19264,7 @@ TEST(ContainsOnlyOneByte) {
   const int length = 512;
   // Ensure word aligned assignment.
   const int aligned_length = length*sizeof(uintptr_t)/sizeof(uint16_t);
-  v8::base::SmartArrayPointer<uintptr_t> aligned_contents(
-      new uintptr_t[aligned_length]);
+  std::unique_ptr<uintptr_t[]> aligned_contents(new uintptr_t[aligned_length]);
   uint16_t* string_contents =
       reinterpret_cast<uint16_t*>(aligned_contents.get());
   // Set to contain only one byte.

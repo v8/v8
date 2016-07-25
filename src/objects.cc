@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 
 #include "src/objects-inl.h"
@@ -2460,8 +2461,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = SharedFunctionInfo::cast(this);
-      base::SmartArrayPointer<char> debug_name =
-          shared->DebugName()->ToCString();
+      std::unique_ptr<char[]> debug_name = shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
       } else {
@@ -10412,13 +10412,12 @@ String::FlatContent String::GetFlatContent() {
   }
 }
 
-
-base::SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                                RobustnessFlag robust_flag,
-                                                int offset, int length,
-                                                int* length_return) {
+std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int offset, int length,
+                                          int* length_return) {
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return base::SmartArrayPointer<char>(NULL);
+    return std::unique_ptr<char[]>();
   }
   // Negative length means the to the end of the string.
   if (length < 0) length = kMaxInt - offset;
@@ -10455,13 +10454,12 @@ base::SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
     last = character;
   }
   result[utf8_byte_position] = 0;
-  return base::SmartArrayPointer<char>(result);
+  return std::unique_ptr<char[]>(result);
 }
 
-
-base::SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
-                                                RobustnessFlag robust_flag,
-                                                int* length_return) {
+std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
+                                          RobustnessFlag robust_flag,
+                                          int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 
@@ -12546,7 +12544,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
 
 void JSFunction::PrintName(FILE* out) {
-  base::SmartArrayPointer<char> name = shared()->DebugName()->ToCString();
+  std::unique_ptr<char[]> name = shared()->DebugName()->ToCString();
   PrintF(out, "%s", name.get());
 }
 

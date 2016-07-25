@@ -5,6 +5,7 @@
 #include "src/log.h"
 
 #include <cstdarg>
+#include <memory>
 #include <sstream>
 
 #include "src/bailout-reason.h"
@@ -973,10 +974,10 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
   DCHECK(name->IsName());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> property_name =
+    std::unique_ptr<char[]> property_name =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     ApiEvent("api,%s,\"%s\",\"%s\"", tag, class_name.get(),
              property_name.get());
@@ -986,7 +987,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
     if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       ApiEvent("api,%s,\"%s\",symbol(hash %x)", tag, class_name.get(), hash);
     } else {
-      base::SmartArrayPointer<char> str =
+      std::unique_ptr<char[]> str =
           String::cast(symbol->name())
               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       ApiEvent("api,%s,\"%s\",symbol(\"%s\" hash %x)", tag, class_name.get(),
@@ -1000,7 +1001,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
                                       uint32_t index) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\",%u", tag, class_name.get(), index);
 }
@@ -1009,7 +1010,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = object->class_name();
-  base::SmartArrayPointer<char> class_name =
+  std::unique_ptr<char[]> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   ApiEvent("api,%s,\"%s\"", tag, class_name.get());
 }
@@ -1046,7 +1047,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
              kLogEventsNames[CodeEventListener::CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> str =
+    std::unique_ptr<char[]> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append(",1,\"%s%s\"", prefix, str.get());
   } else {
@@ -1054,7 +1055,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
     if (symbol->name()->IsUndefined(symbol->GetIsolate())) {
       msg.Append(",1,symbol(hash %x)", symbol->Hash());
     } else {
-      base::SmartArrayPointer<char> str =
+      std::unique_ptr<char[]> str =
           String::cast(symbol->name())
               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
       msg.Append(",1,symbol(\"%s%s\" hash %x)", prefix, str.get(),
@@ -1129,7 +1130,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
   if (name->IsString()) {
-    base::SmartArrayPointer<char> str =
+    std::unique_ptr<char[]> str =
         String::cast(name)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("\"%s\"", str.get());
   } else {
@@ -1152,11 +1153,11 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(&msg, tag, code);
-  base::SmartArrayPointer<char> name =
+  std::unique_ptr<char[]> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("\"%s ", name.get());
   if (source->IsString()) {
-    base::SmartArrayPointer<char> sourcestr = String::cast(source)->ToCString(
+    std::unique_ptr<char[]> sourcestr = String::cast(source)->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     msg.Append("%s", sourcestr.get());
   } else {
@@ -1184,7 +1185,7 @@ void Logger::CodeDisableOptEvent(AbstractCode* code,
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   msg.Append("%s,", kLogEventsNames[CodeEventListener::CODE_DISABLE_OPT_EVENT]);
-  base::SmartArrayPointer<char> name =
+  std::unique_ptr<char[]> name =
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("\"%s\",", name.get());
   msg.Append("\"%s\"", GetBailoutReason(shared->disable_optimization_reason()));

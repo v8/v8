@@ -4,6 +4,7 @@
 
 #include "src/frames.h"
 
+#include <memory>
 #include <sstream>
 
 #include "src/ast/ast.h"
@@ -1005,7 +1006,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
       Object* script_name_raw = script->name();
       if (script_name_raw->IsString()) {
         String* script_name = String::cast(script->name());
-        base::SmartArrayPointer<char> c_script_name =
+        std::unique_ptr<char[]> c_script_name =
             script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
         PrintF(file, " at %s:%d", c_script_name.get(), line);
       } else {

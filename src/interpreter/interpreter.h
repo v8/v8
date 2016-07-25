@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_INTERPRETER_H_
 #define V8_INTERPRETER_INTERPRETER_H_
 
+#include <memory>
+
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
@@ -171,7 +173,7 @@ class Interpreter {
 
   Isolate* isolate_;
   Address dispatch_table_[kDispatchTableSize];
-  v8::base::SmartArrayPointer<uintptr_t> bytecode_dispatch_counters_table_;
+  std::unique_ptr<uintptr_t[]> bytecode_dispatch_counters_table_;
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };
