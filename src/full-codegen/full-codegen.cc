@@ -224,7 +224,7 @@ void FullCodeGenerator::RecordBackEdge(BailoutId ast_id) {
   // The pc offset does not need to be encoded and packed together with a state.
   DCHECK(masm_->pc_offset() > 0);
   DCHECK(loop_depth() > 0);
-  uint8_t depth = Min(loop_depth(), Code::kMaxLoopNestingMarker);
+  uint8_t depth = Min(loop_depth(), AbstractCode::kMaxLoopNestingMarker);
   BackEdgeEntry entry =
       { ast_id, static_cast<unsigned>(masm_->pc_offset()), depth };
   back_edges_.Add(entry, zone());
@@ -1771,7 +1771,7 @@ void BackEdgeTable::Patch(Isolate* isolate, Code* unoptimized) {
   // to find the matching loops to patch the interrupt
   // call to an unconditional call to the replacement code.
   int loop_nesting_level = unoptimized->allow_osr_at_loop_nesting_level() + 1;
-  if (loop_nesting_level > Code::kMaxLoopNestingMarker) return;
+  if (loop_nesting_level > AbstractCode::kMaxLoopNestingMarker) return;
 
   BackEdgeTable back_edges(unoptimized, &no_gc);
   for (uint32_t i = 0; i < back_edges.length(); i++) {
@@ -1818,7 +1818,7 @@ bool BackEdgeTable::Verify(Isolate* isolate, Code* unoptimized) {
   BackEdgeTable back_edges(unoptimized, &no_gc);
   for (uint32_t i = 0; i < back_edges.length(); i++) {
     uint32_t loop_depth = back_edges.loop_depth(i);
-    CHECK_LE(static_cast<int>(loop_depth), Code::kMaxLoopNestingMarker);
+    CHECK_LE(static_cast<int>(loop_depth), AbstractCode::kMaxLoopNestingMarker);
     // Assert that all back edges for shallower loops (and only those)
     // have already been patched.
     CHECK_EQ((static_cast<int>(loop_depth) <= loop_nesting_level),

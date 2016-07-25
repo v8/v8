@@ -138,17 +138,29 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
   // arguments accesses, which is unsound.  Don't try OSR.
   if (shared->uses_arguments()) return;
 
-  // We're using on-stack replacement: patch the unoptimized code so that
-  // any back edge in any unoptimized frame will trigger on-stack
+  // We're using on-stack replacement: modify unoptimized code so that
+  // certain back edges in any unoptimized frame will trigger on-stack
   // replacement for that frame.
+  //  - Ignition: Store new loop nesting level in BytecodeArray header.
+  //  - FullCodegen: Patch back edges up to new level using BackEdgeTable.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - patching back edges in ");
+    PrintF("[OSR - arming back edges in ");
     function->PrintName();
     PrintF("]\n");
   }
 
-  for (int i = 0; i < loop_nesting_levels; i++) {
-    BackEdgeTable::Patch(isolate_, shared->code());
+  if (shared->code()->kind() == Code::FUNCTION) {
+    DCHECK(BackEdgeTable::Verify(shared->GetIsolate(), shared->code()));
+    for (int i = 0; i < loop_nesting_levels; i++) {
+      BackEdgeTable::Patch(isolate_, shared->code());
+    }
+  } else if (shared->HasBytecodeArray()) {
+    DCHECK(FLAG_ignition_osr);  // Should only happen when enabled.
+    int level = shared->bytecode_array()->osr_loop_nesting_level();
+    shared->bytecode_array()->set_osr_loop_nesting_level(
+        Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -161,7 +173,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
   if (function->IsInOptimizationQueue()) return;
 
   if (FLAG_always_osr) {
-    AttemptOnStackReplacement(function, Code::kMaxLoopNestingMarker);
+    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal optimized compile as well.
   } else if (!frame_optimized &&
              (function->IsMarkedForOptimization() ||

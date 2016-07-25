@@ -4096,6 +4096,15 @@ void BytecodeArray::set_interrupt_budget(int interrupt_budget) {
   WRITE_INT_FIELD(this, kInterruptBudgetOffset, interrupt_budget);
 }
 
+int BytecodeArray::osr_loop_nesting_level() const {
+  return READ_INT_FIELD(this, kOSRNestingLevelOffset);
+}
+
+void BytecodeArray::set_osr_loop_nesting_level(int depth) {
+  DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
+  WRITE_INT_FIELD(this, kOSRNestingLevelOffset, depth);
+}
+
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
@@ -5054,7 +5063,7 @@ int Code::allow_osr_at_loop_nesting_level() {
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
   DCHECK_EQ(FUNCTION, kind());
-  DCHECK(level >= 0 && level <= kMaxLoopNestingMarker);
+  DCHECK(level >= 0 && level <= AbstractCode::kMaxLoopNestingMarker);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = AllowOSRAtLoopNestingLevelField::update(previous, level);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);

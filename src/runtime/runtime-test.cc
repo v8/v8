@@ -175,20 +175,19 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return isolate->heap()->undefined_value();
   }
 
-  // If function is interpreted, just return. OSR is not supported.
-  // TODO(4764): Remove this check when OSR is enabled in the interpreter.
-  if (function->shared()->HasBytecodeArray()) {
+  // If function is interpreted but OSR hasn't been enabled, just return.
+  if (function->shared()->HasBytecodeArray() && !FLAG_ignition_osr) {
     return isolate->heap()->undefined_value();
   }
 
   // If the function is already optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
-  Code* unoptimized = function->shared()->code();
-  if (unoptimized->kind() == Code::FUNCTION) {
-    DCHECK(BackEdgeTable::Verify(isolate, unoptimized));
+  // Make the profiler arm all back edges in unoptimized code.
+  if (function->shared()->HasBytecodeArray() ||
+      function->shared()->code()->kind() == Code::FUNCTION) {
     isolate->runtime_profiler()->AttemptOnStackReplacement(
-        *function, Code::kMaxLoopNestingMarker);
+        *function, AbstractCode::kMaxLoopNestingMarker);
   }
 
   return isolate->heap()->undefined_value();
