@@ -2445,7 +2445,6 @@ class RepresentationSelector {
       Node* effect = NodeProperties::GetEffectInput(node);
       ReplaceEffectControlUses(node, effect, control);
     } else {
-      DCHECK_EQ(0, node->op()->ControlInputCount());
       DCHECK_EQ(0, node->op()->EffectInputCount());
       DCHECK_EQ(0, node->op()->ControlOutputCount());
       DCHECK_EQ(0, node->op()->EffectOutputCount());
