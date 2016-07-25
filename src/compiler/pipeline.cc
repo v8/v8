@@ -904,7 +904,6 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
-    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -916,7 +915,6 @@ struct TypedLoweringPhase {
     }
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -1054,15 +1052,14 @@ struct LoadEliminationPhase {
   static const char* phase_name() { return "load elimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    // The memory optimizer requires the graphs to be trimmed, so trim now.
-    GraphTrimmer trimmer(temp_zone, data->graph());
-    NodeVector roots(temp_zone);
-    data->jsgraph()->GetCachedNodes(&roots);
-    trimmer.TrimGraph(roots.begin(), roots.end());
-
-    // Eliminate redundant loads.
-    LoadElimination load_elimination(data->graph(), temp_zone);
-    load_elimination.Run();
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
+    LoadElimination load_elimination(&graph_reducer, temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
+    AddReducer(data, &graph_reducer, &redundancy_elimination);
+    AddReducer(data, &graph_reducer, &load_elimination);
+    AddReducer(data, &graph_reducer, &value_numbering);
+    graph_reducer.ReduceGraph();
   }
 };
 

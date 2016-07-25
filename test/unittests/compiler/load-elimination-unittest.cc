@@ -6,8 +6,13 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
+#include "testing/gmock-support.h"
+
+using testing::_;
+using testing::StrictMock;
 
 namespace v8 {
 namespace internal {
@@ -19,37 +24,122 @@ class LoadEliminationTest : public TypedGraphTest {
   ~LoadEliminationTest() override {}
 
  protected:
-  void Run() {
-    LoadElimination load_elimination(graph(), zone());
-    load_elimination.Run();
-  }
-
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
  private:
   SimplifiedOperatorBuilder simplified_;
 };
 
+TEST_F(LoadEliminationTest, LoadElementAndLoadElement) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* load1 = effect = graph()->NewNode(simplified()->LoadElement(access),
+                                          object, index, effect, control);
+  load_elimination.Reduce(load1);
+
+  Node* load2 = effect = graph()->NewNode(simplified()->LoadElement(access),
+                                          object, index, effect, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load2, load1, load1, _));
+  Reduction r = load_elimination.Reduce(load2);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load1, r.replacement());
+}
+
+TEST_F(LoadEliminationTest, StoreElementAndLoadElement) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  Node* value = Parameter(Type::Any(), 2);
+  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* store = effect =
+      graph()->NewNode(simplified()->StoreElement(access), object, index, value,
+                       effect, control);
+  load_elimination.Reduce(store);
+
+  Node* load = effect = graph()->NewNode(simplified()->LoadElement(access),
+                                         object, index, effect, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, value, store, _));
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(value, r.replacement());
+}
+
+TEST_F(LoadEliminationTest, StoreElementAndStoreFieldAndLoadElement) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  Node* value = Parameter(Type::Any(), 2);
+  ElementAccess const access = {kTaggedBase, kPointerSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* store1 = effect =
+      graph()->NewNode(simplified()->StoreElement(access), object, index, value,
+                       effect, control);
+  load_elimination.Reduce(store1);
+
+  Node* store2 = effect =
+      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                       object, value, effect, control);
+  load_elimination.Reduce(store2);
+
+  Node* load = effect = graph()->NewNode(simplified()->LoadElement(access),
+                                         object, index, effect, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, value, store2, _));
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(value, r.replacement());
+}
+
 TEST_F(LoadEliminationTest, LoadFieldAndLoadField) {
   Node* object = Parameter(Type::Any(), 0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess access = {kTaggedBase,
-                        kPointerSize,
-                        MaybeHandle<Name>(),
-                        Type::Any(),
-                        MachineType::AnyTagged(),
-                        kNoWriteBarrier};
+  FieldAccess const access = {kTaggedBase,
+                              kPointerSize,
+                              MaybeHandle<Name>(),
+                              Type::Any(),
+                              MachineType::AnyTagged(),
+                              kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
   Node* load1 = effect = graph()->NewNode(simplified()->LoadField(access),
                                           object, effect, control);
+  load_elimination.Reduce(load1);
+
   Node* load2 = effect = graph()->NewNode(simplified()->LoadField(access),
                                           object, effect, control);
-  control = graph()->NewNode(common()->Return(), load2, effect, control);
-  graph()->end()->ReplaceInput(0, control);
-
-  Run();
-
-  EXPECT_THAT(graph()->end(), IsEnd(IsReturn(load1, load1, graph()->start())));
+  EXPECT_CALL(editor, ReplaceWithValue(load2, load1, load1, _));
+  Reduction r = load_elimination.Reduce(load2);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load1, r.replacement());
 }
 
 TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
@@ -63,16 +153,57 @@ TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
                         Type::Any(),
                         MachineType::AnyTagged(),
                         kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
   Node* store = effect = graph()->NewNode(simplified()->StoreField(access),
                                           object, value, effect, control);
+  load_elimination.Reduce(store);
+
   Node* load = effect = graph()->NewNode(simplified()->LoadField(access),
                                          object, effect, control);
-  control = graph()->NewNode(common()->Return(), load, effect, control);
-  graph()->end()->ReplaceInput(0, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, value, store, _));
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(value, r.replacement());
+}
 
-  Run();
+TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* value = Parameter(Type::Any(), 1);
+  Node* index = Parameter(Type::UnsignedSmall(), 2);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  FieldAccess access = {kTaggedBase,
+                        kPointerSize,
+                        MaybeHandle<Name>(),
+                        Type::Any(),
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
 
-  EXPECT_THAT(graph()->end(), IsEnd(IsReturn(value, store, graph()->start())));
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* store1 = effect = graph()->NewNode(simplified()->StoreField(access),
+                                           object, value, effect, control);
+  load_elimination.Reduce(store1);
+
+  Node* store2 = effect = graph()->NewNode(
+      simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()), object,
+      index, object, effect, control);
+  load_elimination.Reduce(store2);
+
+  Node* load = effect = graph()->NewNode(simplified()->LoadField(access),
+                                         object, effect, control);
+  EXPECT_CALL(editor, ReplaceWithValue(load, value, store2, _));
+  Reduction r = load_elimination.Reduce(load);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(value, r.replacement());
 }
 
 }  // namespace compiler
