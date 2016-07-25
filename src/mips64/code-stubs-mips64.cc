@@ -856,11 +856,11 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // double_exponent may not contain the exponent value if the input was a
   // smi.  We set it with exponent value before bailing out.
+  __ bind(&bail_out);
   __ mtc1(exponent, single_scratch);
   __ cvt_d_w(double_exponent, single_scratch);
 
   // Returning or bailing out.
-  __ bind(&bail_out);
   __ push(ra);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
