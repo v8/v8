@@ -2893,7 +2893,7 @@ class EmptyParentheses final : public Expression {
 template <class Subclass>
 class AstVisitor BASE_EMBEDDED {
  public:
-  void Visit(AstNode* node) { This()->Visit(node); }
+  void Visit(AstNode* node) { impl()->Visit(node); }
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations) {
     for (int i = 0; i < declarations->length(); i++) {
@@ -2920,13 +2920,13 @@ class AstVisitor BASE_EMBEDDED {
     }
   }
 
- private:
-  Subclass* This() { return static_cast<Subclass*>(this); }
+ protected:
+  Subclass* impl() { return static_cast<Subclass*>(this); }
 };
 
-#define GENERATE_VISIT_CASE(NodeType) \
-  case AstNode::k##NodeType:          \
-    return Visit##NodeType(static_cast<NodeType*>(node));
+#define GENERATE_VISIT_CASE(NodeType)                                   \
+  case AstNode::k##NodeType:                                            \
+    return this->impl()->Visit##NodeType(static_cast<NodeType*>(node));
 
 #define GENERATE_AST_VISITOR_SWITCH()  \
   switch (node->node_type()) {         \
@@ -3037,38 +3037,6 @@ class AstVisitor BASE_EMBEDDED {
     AST_REWRITE(Type, _list->at(_index), _list->Set(_index, replacement)); \
   } while (false)
 
-
-// ----------------------------------------------------------------------------
-// Traversing visitor
-// - fully traverses the entire AST.
-
-// This AstVistor is not final, and provides the AstVisitor methods as virtual
-// methods so they can be specialized by subclasses.
-class AstTraversalVisitor : public AstVisitor<AstTraversalVisitor> {
- public:
-  explicit AstTraversalVisitor(Isolate* isolate);
-  explicit AstTraversalVisitor(uintptr_t stack_limit);
-  virtual ~AstTraversalVisitor() {}
-
-  // Iteration left-to-right.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  void VisitStatements(ZoneList<Statement*>* statements);
-
-// Individual nodes
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
-  AST_NODE_LIST(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
- protected:
-  int depth() { return depth_; }
-
- private:
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
-  int depth_;
-
-  DISALLOW_COPY_AND_ASSIGN(AstTraversalVisitor);
-};
 
 // ----------------------------------------------------------------------------
 // AstNode factory

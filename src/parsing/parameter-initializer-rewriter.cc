@@ -5,7 +5,7 @@
 #include "src/parsing/parameter-initializer-rewriter.h"
 
 #include "src/ast/ast.h"
-#include "src/ast/ast-expression-visitor.h"
+#include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/scopes.h"
 
 namespace v8 {
@@ -14,22 +14,24 @@ namespace internal {
 namespace {
 
 
-class Rewriter final : public AstExpressionVisitor {
+class Rewriter final : public AstTraversalVisitor<Rewriter> {
  public:
   Rewriter(uintptr_t stack_limit, Expression* initializer, Scope* param_scope)
-      : AstExpressionVisitor(stack_limit, initializer),
+      : AstTraversalVisitor(stack_limit, initializer),
         param_scope_(param_scope) {}
 
  private:
-  void VisitExpression(Expression* expr) override {}
+  // This is required so that the overriden Visit* methods can be
+  // called by the base class (template).
+  friend class AstTraversalVisitor<Rewriter>;
 
-  void VisitFunctionLiteral(FunctionLiteral* expr) override;
-  void VisitClassLiteral(ClassLiteral* expr) override;
-  void VisitVariableProxy(VariableProxy* expr) override;
+  void VisitFunctionLiteral(FunctionLiteral* expr);
+  void VisitClassLiteral(ClassLiteral* expr);
+  void VisitVariableProxy(VariableProxy* expr);
 
-  void VisitBlock(Block* stmt) override;
-  void VisitTryCatchStatement(TryCatchStatement* stmt) override;
-  void VisitWithStatement(WithStatement* stmt) override;
+  void VisitBlock(Block* stmt);
+  void VisitTryCatchStatement(TryCatchStatement* stmt);
+  void VisitWithStatement(WithStatement* stmt);
 
   Scope* param_scope_;
 };

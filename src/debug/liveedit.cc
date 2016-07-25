@@ -1857,7 +1857,7 @@ Handle<JSArray> LiveEditFunctionTracker::Collect(FunctionLiteral* node,
 
 LiveEditFunctionTracker::LiveEditFunctionTracker(Handle<Script> script,
                                                  Zone* zone, Isolate* isolate)
-    : AstTraversalVisitor(isolate) {
+    : AstTraversalVisitor<LiveEditFunctionTracker>(isolate) {
   current_parent_index_ = -1;
   isolate_ = isolate;
   len_ = 0;
@@ -1867,20 +1867,16 @@ LiveEditFunctionTracker::LiveEditFunctionTracker(Handle<Script> script,
 }
 
 void LiveEditFunctionTracker::VisitFunctionLiteral(FunctionLiteral* node) {
-  Scope* scope = node->scope();
-
   // FunctionStarted is called in pre-order.
   FunctionStarted(node);
-
-  VisitDeclarations(scope->declarations());
-  VisitStatements(node->body());
-
+  // Recurse using the regular traversal.
+  AstTraversalVisitor::VisitFunctionLiteral(node);
   // FunctionDone are called in post-order.
   // TODO(jgruber): If required, replace the (linear cost)
   // FindSharedFunctionInfo call with a more efficient implementation.
   Handle<SharedFunctionInfo> info =
       script_->FindSharedFunctionInfo(node).ToHandleChecked();
-  FunctionDone(info, scope);
+  FunctionDone(info, node->scope());
 }
 
 void LiveEditFunctionTracker::FunctionStarted(FunctionLiteral* fun) {

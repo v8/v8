@@ -7,8 +7,8 @@
 #include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/ast-expression-rewriter.h"
-#include "src/ast/ast-expression-visitor.h"
 #include "src/ast/ast-literal-reindexer.h"
+#include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/scopeinfo.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
@@ -4631,28 +4631,31 @@ Statement* Parser::BuildAssertIsCoercible(Variable* var) {
 }
 
 
-class InitializerRewriter : public AstExpressionVisitor {
+class InitializerRewriter final
+    : public AstTraversalVisitor<InitializerRewriter> {
  public:
   InitializerRewriter(uintptr_t stack_limit, Expression* root, Parser* parser,
                       Scope* scope)
-      : AstExpressionVisitor(stack_limit, root),
+      : AstTraversalVisitor(stack_limit, root),
         parser_(parser),
         scope_(scope) {}
 
  private:
-  void VisitExpression(Expression* expr) override {
-    RewritableExpression* to_rewrite = expr->AsRewritableExpression();
-    if (to_rewrite == nullptr || to_rewrite->is_rewritten()) return;
+  // This is required so that the overriden Visit* methods can be
+  // called by the base class (template).
+  friend class AstTraversalVisitor<InitializerRewriter>;
 
+  // Just rewrite destructuring assignments wrapped in RewritableExpressions.
+  void VisitRewritableExpression(RewritableExpression* to_rewrite) {
+    if (to_rewrite->is_rewritten()) return;
     Parser::PatternRewriter::RewriteDestructuringAssignment(parser_, to_rewrite,
                                                             scope_);
   }
 
   // Code in function literals does not need to be eagerly rewritten, it will be
   // rewritten when scheduled.
-  void VisitFunctionLiteral(FunctionLiteral* expr) override {}
+  void VisitFunctionLiteral(FunctionLiteral* expr) {}
 
- private:
   Parser* parser_;
   Scope* scope_;
 };

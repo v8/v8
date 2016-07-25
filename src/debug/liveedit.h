@@ -26,6 +26,7 @@
 
 
 #include "src/allocation.h"
+#include "src/ast/ast-traversal-visitor.h"
 #include "src/compiler.h"
 
 namespace v8 {
@@ -38,7 +39,8 @@ namespace internal {
 // in order to analyze whether function code may be safely patched (with new
 // code successfully reading existing data from function scopes). The Tracker
 // also collects compiled function codes.
-class LiveEditFunctionTracker : public AstTraversalVisitor {
+class LiveEditFunctionTracker
+    : public AstTraversalVisitor<LiveEditFunctionTracker> {
  public:
   // Traverses the entire AST, and records information about all
   // FunctionLiterals for further use by LiveEdit code patching. The collected
@@ -46,8 +48,9 @@ class LiveEditFunctionTracker : public AstTraversalVisitor {
   static Handle<JSArray> Collect(FunctionLiteral* node, Handle<Script> script,
                                  Zone* zone, Isolate* isolate);
 
-  virtual ~LiveEditFunctionTracker() {}
-  void VisitFunctionLiteral(FunctionLiteral* node) override;
+ protected:
+  friend AstTraversalVisitor<LiveEditFunctionTracker>;
+  void VisitFunctionLiteral(FunctionLiteral* node);
 
  private:
   LiveEditFunctionTracker(Handle<Script> script, Zone* zone, Isolate* isolate);

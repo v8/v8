@@ -853,7 +853,7 @@ class Parser : public ParserBase<ParserTraits> {
     Scanner::Location bindings_loc;
   };
 
-  class PatternRewriter final : private AstVisitor<PatternRewriter> {
+  class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
     static void DeclareAndInitializeVariables(
         Block* block, const DeclarationDescriptor* declaration_descriptor,
