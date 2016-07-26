@@ -72,6 +72,7 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
     i::FLAG_ignition = true;
+    i::FLAG_ignition_osr = false;  // TODO(4764): Disabled for now.
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     CcTest::i_isolate()->interpreter()->Initialize();
