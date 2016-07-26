@@ -3512,9 +3512,9 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
-      Isolate* isolate,
-      int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED);
+      Isolate* isolate, int at_least_space_for,
+      PretenureFlag pretenure = NOT_TENURED,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   // Ensures that a new dictionary is created when the capacity is checked.
   void SetRequiresCopyOnCapacityChange();

@@ -100,8 +100,12 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   // Add names to NamesTable.
   const int name_count = spec->name_count();
 
-  Handle<UnseededNumberDictionary> names =
-      UnseededNumberDictionary::New(isolate, name_count);
+  Handle<UnseededNumberDictionary> names;
+  if (name_count) {
+    names = UnseededNumberDictionary::New(
+        isolate, base::bits::RoundUpToPowerOfTwo32(name_count), TENURED,
+        USE_CUSTOM_MINIMUM_CAPACITY);
+  }
 
   int name_index = 0;
   for (int i = 0; i < slot_count; i++) {
@@ -115,7 +119,8 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     }
   }
   DCHECK_EQ(name_count, name_index);
-  metadata->set(kNamesTableIndex, *names);
+  metadata->set(kNamesTableIndex,
+                name_count ? static_cast<Object*>(*names) : Smi::FromInt(0));
 
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
   // pointed to by both a SharedFunctionInfo and indirectly by closures through

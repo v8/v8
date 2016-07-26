@@ -16425,20 +16425,23 @@ template class Dictionary<UnseededNumberDictionary,
                           uint32_t>;
 
 template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    New(Isolate*, int at_least_space_for, PretenureFlag pretenure);
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::New(
+    Isolate*, int at_least_space_for, PretenureFlag pretenure,
+    MinimumCapacity capacity_option);
 
 template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    New(Isolate*, int at_least_space_for, PretenureFlag pretenure);
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape,
+           uint32_t>::New(Isolate*, int at_least_space_for,
+                          PretenureFlag pretenure,
+                          MinimumCapacity capacity_option);
 
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    New(Isolate*, int n, PretenureFlag pretenure);
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name>>::New(
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
 
 template Handle<GlobalDictionary>
-Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name> >::New(
-    Isolate*, int n, PretenureFlag pretenure);
+Dictionary<GlobalDictionary, GlobalDictionaryShape, Handle<Name>>::New(
+    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
 
 template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -17230,17 +17233,13 @@ void CompilationCacheTable::Remove(Object* value) {
   return;
 }
 
-
-template<typename Derived, typename Shape, typename Key>
+template <typename Derived, typename Shape, typename Key>
 Handle<Derived> Dictionary<Derived, Shape, Key>::New(
-    Isolate* isolate,
-    int at_least_space_for,
-    PretenureFlag pretenure) {
+    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
+    MinimumCapacity capacity_option) {
   DCHECK(0 <= at_least_space_for);
-  Handle<Derived> dict = DerivedHashTable::New(isolate,
-                                               at_least_space_for,
-                                               USE_DEFAULT_MINIMUM_CAPACITY,
-                                               pretenure);
+  Handle<Derived> dict = DerivedHashTable::New(isolate, at_least_space_for,
+                                               capacity_option, pretenure);
 
   // Initialize the next enumeration index.
   dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
