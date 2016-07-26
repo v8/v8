@@ -44,12 +44,23 @@ document.onload = (function(d3){
     }
   }
 
+  function getLastExpandedState(type, default_state) {
+    var state = window.sessionStorage.getItem("expandedState-"+type);
+    if (state === null) return default_state;
+    return state === 'true';
+  }
+
+  function setLastExpandedState(type, state) {
+    window.sessionStorage.setItem("expandedState-"+type, state);
+  }
+
   function toggleSourceExpanded() {
     setSourceExpanded(!sourceExpanded);
   }
 
   function setSourceExpanded(newState) {
     sourceExpanded = newState;
+    setLastExpandedState("source", newState);
     updatePanes();
     if (newState) {
       sourceCollapseClassList.add(COLLAPSE_PANE_BUTTON_VISIBLE);
@@ -70,6 +81,7 @@ document.onload = (function(d3){
 
   function setDisassemblyExpanded(newState) {
     disassemblyExpanded = newState;
+    setLastExpandedState("disassembly", newState);
     updatePanes();
     if (newState) {
       disassemblyCollapseClassList.add(COLLAPSE_PANE_BUTTON_VISIBLE);
@@ -175,15 +187,33 @@ document.onload = (function(d3){
             disassemblyView.setNodePositionMap(jsonObj.nodePositions);
             disassemblyView.show(disassemblyPhase.data, null);
 
+            var initialPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");
+            if (!(initialPhaseIndex in jsonObj.phases)) {
+              initialPhaseIndex = 0;
+            }
+
+            // We wish to show the remembered phase {lastSelectedPhase}, but
+            // this will crash if the first view we switch to is a
+            // ScheduleView. So we first switch to the first phase, which
+            // should never be a ScheduleView.
             displayPhase(jsonObj.phases[0]);
+            displayPhase(jsonObj.phases[initialPhaseIndex]);
+            selectMenu.selectedIndex = initialPhaseIndex;
 
             selectMenu.onchange = function(item) {
+              window.sessionStorage.setItem("lastSelectedPhase", selectMenu.selectedIndex);
               displayPhase(jsonObj.phases[selectMenu.selectedIndex]);
             }
 
             fitPanesToParents();
+
+            d3.select("#search-input").attr("value", window.sessionStorage.getItem("lastSearch") || "");
+
           }
           catch(err) {
+            window.console.log("caught exception, clearing session storage just in case");
+            window.sessionStorage.clear(); // just in case
+            window.console.log("showing error");
             window.alert("Invalid TurboFan JSON file\n" +
                          "error: " + err.message);
             return;
@@ -204,8 +234,8 @@ document.onload = (function(d3){
 
   initializeHandlers(graph);
 
-  setSourceExpanded(true);
-  setDisassemblyExpanded(false);
+  setSourceExpanded(getLastExpandedState("source", true));
+  setDisassemblyExpanded(getLastExpandedState("disassembly", false));
 
   displayPhaseView(empty, null);
   fitPanesToParents();

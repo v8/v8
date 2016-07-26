@@ -495,7 +495,10 @@ class GraphView extends View {
   searchInputAction(graph) {
     if (d3.event.keyCode == 13) {
       graph.state.selection.clear();
-      var reg = new RegExp(this.value);
+      var query = this.value;
+      window.sessionStorage.setItem("lastSearch", query);
+
+      var reg = new RegExp(query);
       var filterFunction = function(n) {
         return (reg.exec(n.getDisplayLabel()) != null ||
                 (graph.state.showTypes && reg.exec(n.getDisplayType())) ||
