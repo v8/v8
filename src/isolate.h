@@ -778,7 +778,8 @@ class Isolate {
   void IterateThread(ThreadVisitor* v, char* t);
 
   // Returns the current native context.
-  Handle<Context> native_context();
+  inline Handle<Context> native_context();
+  inline Context* raw_native_context();
 
   // Returns the native context of the calling JavaScript code.  That
   // is, the native context of the top-most JavaScript frame.
@@ -1079,7 +1080,7 @@ class Isolate {
 
   void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
-  void FireBeforeCallEnteredCallback();
+  inline void FireBeforeCallEnteredCallback();
 
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);

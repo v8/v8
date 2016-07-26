@@ -17,6 +17,11 @@ void Isolate::set_context(Context* context) {
   thread_local_top_.context_ = context;
 }
 
+Handle<Context> Isolate::native_context() {
+  return handle(context()->native_context(), this);
+}
+
+Context* Isolate::raw_native_context() { return context()->native_context(); }
 
 Object* Isolate::pending_exception() {
   DCHECK(has_pending_exception());
@@ -71,6 +76,11 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
   return exception != heap()->termination_exception();
 }
 
+void Isolate::FireBeforeCallEnteredCallback() {
+  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
+    before_call_entered_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
+  }
+}
 
 Handle<JSGlobalObject> Isolate::global_object() {
   return handle(context()->global_object(), this);
@@ -90,13 +100,12 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
-
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name) \
-  Handle<type> Isolate::name() {                         \
-    return Handle<type>(native_context()->name(), this); \
-  }                                                      \
-  bool Isolate::is_##name(type* value) {                 \
-    return native_context()->is_##name(value);           \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
+  Handle<type> Isolate::name() {                             \
+    return Handle<type>(raw_native_context()->name(), this); \
+  }                                                          \
+  bool Isolate::is_##name(type* value) {                     \
+    return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
