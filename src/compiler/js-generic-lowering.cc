@@ -224,6 +224,9 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
 
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+  Node* value = NodeProperties::GetValueInput(node, 2);
   Node* closure = NodeProperties::GetValueInput(node, 3);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -242,14 +245,22 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
       jsgraph()->IntPtrConstant(LiteralsArray::kFeedbackVectorOffset -
                                 kHeapObjectTag),
       effect, control);
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(4, vector);
+  typedef StoreWithVectorDescriptor Descriptor;
+  node->InsertInputs(zone(), 0, 1);
+  node->ReplaceInput(Descriptor::kReceiver, receiver);
+  node->ReplaceInput(Descriptor::kName, key);
+  node->ReplaceInput(Descriptor::kValue, value);
+  node->ReplaceInput(Descriptor::kSlot,
+                     jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(Descriptor::kVector, vector);
   node->ReplaceInput(7, effect);
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
   Node* closure = NodeProperties::GetValueInput(node, 2);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -267,15 +278,21 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
       jsgraph()->IntPtrConstant(LiteralsArray::kFeedbackVectorOffset -
                                 kHeapObjectTag),
       effect, control);
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(4, vector);
+  typedef StoreWithVectorDescriptor Descriptor;
+  node->InsertInputs(zone(), 0, 2);
+  node->ReplaceInput(Descriptor::kReceiver, receiver);
+  node->ReplaceInput(Descriptor::kName, jsgraph()->HeapConstant(p.name()));
+  node->ReplaceInput(Descriptor::kValue, value);
+  node->ReplaceInput(Descriptor::kSlot,
+                     jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(Descriptor::kVector, vector);
   node->ReplaceInput(7, effect);
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
+  Node* value = NodeProperties::GetValueInput(node, 0);
   Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -304,10 +321,14 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
       machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
       effect, control);
-  node->InsertInput(zone(), 0, global);
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  node->ReplaceInput(4, vector);
+  typedef StoreWithVectorDescriptor Descriptor;
+  node->InsertInputs(zone(), 0, 3);
+  node->ReplaceInput(Descriptor::kReceiver, global);
+  node->ReplaceInput(Descriptor::kName, jsgraph()->HeapConstant(p.name()));
+  node->ReplaceInput(Descriptor::kValue, value);
+  node->ReplaceInput(Descriptor::kSlot,
+                     jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(Descriptor::kVector, vector);
   node->ReplaceInput(7, effect);
   ReplaceWithStubCall(node, callable, flags);
 }

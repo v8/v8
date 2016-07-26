@@ -421,10 +421,10 @@ void LoadICTrampolineTFStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* slot = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* context = assembler->Parameter(Descriptor::kContext);
   Node* vector = assembler->LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
@@ -434,11 +434,11 @@ void LoadICTrampolineTFStub::GenerateAssembly(
 void LoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* slot = assembler->Parameter(2);
-  Node* vector = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, receiver, name, slot, vector);
   assembler->LoadIC(&p);
@@ -448,8 +448,8 @@ void LoadGlobalICTrampolineStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* slot = assembler->Parameter(0);
-  Node* context = assembler->Parameter(1);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* context = assembler->Parameter(Descriptor::kContext);
   Node* vector = assembler->LoadTypeFeedbackVectorForStub();
 
   CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
@@ -460,9 +460,9 @@ void LoadGlobalICTrampolineStub::GenerateAssembly(
 void LoadGlobalICStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
 
-  Node* slot = assembler->Parameter(0);
-  Node* vector = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   CodeStubAssembler::LoadICParameters p(context, nullptr, nullptr, slot,
                                         vector);
@@ -3559,8 +3559,8 @@ void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
 
 void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  Node* context = assembler->Parameter(3);
-  Node* receiver = assembler->Parameter(0);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
   // For now we only support receiver_is_holder.
   DCHECK(receiver_is_holder());
   Node* holder = receiver;
@@ -3805,12 +3805,11 @@ void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 void StoreInterceptorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* value = assembler->Parameter(2);
-  // Node* slot = assembler->Parameter(3);
-  // Node* vector = assembler->Parameter(4);
-  Node* context = assembler->Parameter(5);
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* context = assembler->Parameter(Descriptor::kContext);
   assembler->TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
                              receiver, name, value);
 }
@@ -3819,11 +3818,12 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
-  Node* receiver = assembler->Parameter(0);
-  Node* key = assembler->Parameter(1);
-  Node* slot = assembler->Parameter(2);
-  Node* vector = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   Label if_keyispositivesmi(assembler), if_keyisinvalid(assembler);
   assembler->Branch(assembler->WordIsPositiveSmi(key), &if_keyispositivesmi,
@@ -4065,16 +4065,9 @@ void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(Runtime::FunctionForId(Runtime::kToObject)->entry);
 }
 
-
-CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
-    const {
-  return VectorStoreTransitionDescriptor(isolate());
-}
-
-
-CallInterfaceDescriptor
-ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
-  return VectorStoreTransitionDescriptor(isolate());
+void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(
+      FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
 }
 
 void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
@@ -4499,10 +4492,8 @@ void FastNewFunctionContextStub::GenerateAssembly(
   int size = length * kPointerSize + FixedArray::kHeaderSize;
 
   // Get the function
-  Node* function =
-      assembler->Parameter(FastNewFunctionContextDescriptor::kFunctionIndex);
-  Node* context =
-      assembler->Parameter(FastNewFunctionContextDescriptor::kContextIndex);
+  Node* function = assembler->Parameter(Descriptor::kFunction);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
@@ -4692,17 +4683,13 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
   Node* native_context = assembler->LoadObjectField(
-      assembler->Parameter(
-          ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
-      JSFunction::kContextOffset);
+      assembler->Parameter(Descriptor::kFunction), JSFunction::kContextOffset);
   bool track_allocation_site =
       AllocationSite::GetMode(elements_kind()) == TRACK_ALLOCATION_SITE &&
       override_mode() != DISABLE_ALLOCATION_SITES;
   Node* allocation_site =
-      track_allocation_site
-          ? assembler->Parameter(
-                ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex)
-          : nullptr;
+      track_allocation_site ? assembler->Parameter(Descriptor::kAllocationSite)
+                            : nullptr;
   Node* array_map =
       assembler->LoadJSArrayElementsMap(elements_kind(), native_context);
   Node* array = assembler->AllocateJSArray(
@@ -4715,10 +4702,9 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
 void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  Node* array_map = assembler->LoadObjectField(
-      assembler->Parameter(
-          ArrayNoArgumentConstructorDescriptor::kFunctionIndex),
-      JSFunction::kPrototypeOrInitialMapOffset);
+  Node* array_map =
+      assembler->LoadObjectField(assembler->Parameter(Descriptor::kFunction),
+                                 JSFunction::kPrototypeOrInitialMapOffset);
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
@@ -4728,6 +4714,7 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
 
 namespace {
 
+template <typename Descriptor>
 void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
                                      ElementsKind elements_kind,
                                      compiler::Node* array_map,
@@ -4741,8 +4728,7 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
   Label small_smi_size(assembler);
   Label call_runtime(assembler, Label::kDeferred);
 
-  Node* size = assembler->Parameter(
-      ArraySingleArgumentConstructorDescriptor::kArraySizeSmiParameterIndex);
+  Node* size = assembler->Parameter(Descriptor::kArraySizeSmiParameter);
   assembler->Branch(assembler->WordIsSmi(size), &smi_size, &call_runtime);
 
   assembler->Bind(&smi_size);
@@ -4756,8 +4742,7 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
     assembler->Bind(&abort);
     Node* reason =
         assembler->SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
-    Node* context = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kContextIndex);
+    Node* context = assembler->Parameter(Descriptor::kContext);
     assembler->TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
@@ -4783,14 +4768,10 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
 
   assembler->Bind(&call_runtime);
   {
-    Node* context = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kContextIndex);
-    Node* function = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
-    Node* array_size = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kArraySizeSmiParameterIndex);
-    Node* allocation_site = assembler->Parameter(
-        ArraySingleArgumentConstructorDescriptor::kAllocationSiteIndex);
+    Node* context = assembler->Parameter(Descriptor::kContext);
+    Node* function = assembler->Parameter(Descriptor::kFunction);
+    Node* array_size = assembler->Parameter(Descriptor::kArraySizeSmiParameter);
+    Node* allocation_site = assembler->Parameter(Descriptor::kAllocationSite);
     assembler->TailCallRuntime(Runtime::kNewArray, context, function,
                                array_size, function, allocation_site);
   }
@@ -4800,8 +4781,7 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
 void ArraySingleArgumentConstructorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  Node* function = assembler->Parameter(
-      ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
+  Node* function = assembler->Parameter(Descriptor::kFunction);
   Node* native_context =
       assembler->LoadObjectField(function, JSFunction::kContextOffset);
   Node* array_map =
@@ -4809,22 +4789,20 @@ void ArraySingleArgumentConstructorStub::GenerateAssembly(
   AllocationSiteMode mode = override_mode() == DISABLE_ALLOCATION_SITES
                                 ? DONT_TRACK_ALLOCATION_SITE
                                 : AllocationSite::GetMode(elements_kind());
-  Node* allocation_site = assembler->Parameter(
-      ArrayNoArgumentConstructorDescriptor::kAllocationSiteIndex);
-  SingleArgumentConstructorCommon(assembler, elements_kind(), array_map,
-                                  allocation_site, mode);
+  Node* allocation_site = assembler->Parameter(Descriptor::kAllocationSite);
+  SingleArgumentConstructorCommon<Descriptor>(assembler, elements_kind(),
+                                              array_map, allocation_site, mode);
 }
 
 void InternalArraySingleArgumentConstructorStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
-  Node* function = assembler->Parameter(
-      ArraySingleArgumentConstructorDescriptor::kFunctionIndex);
+  Node* function = assembler->Parameter(Descriptor::kFunction);
   Node* array_map = assembler->LoadObjectField(
       function, JSFunction::kPrototypeOrInitialMapOffset);
-  SingleArgumentConstructorCommon(assembler, elements_kind(), array_map,
-                                  assembler->UndefinedConstant(),
-                                  DONT_TRACK_ALLOCATION_SITE);
+  SingleArgumentConstructorCommon<Descriptor>(
+      assembler, elements_kind(), array_map, assembler->UndefinedConstant(),
+      DONT_TRACK_ALLOCATION_SITE);
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)

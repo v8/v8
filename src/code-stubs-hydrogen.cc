@@ -189,6 +189,8 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
   explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
       : CodeStubGraphBuilderBase(info, stub) {}
 
+  typedef typename Stub::Descriptor Descriptor;
+
  protected:
   virtual HValue* BuildCodeStub() {
     if (casted_stub()->IsUninitialized()) {
@@ -287,7 +289,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(NumberToStringStub::kNumber);
+  HValue* number = GetParameter(Descriptor::kArgument);
   return BuildNumberToString(number, Type::Number());
 }
 
@@ -302,7 +304,7 @@ template <>
 HValue* CodeStubGraphBuilder<TypeofStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HConstant* number_string = Add<HConstant>(factory->number_string());
-  HValue* object = GetParameter(TypeofStub::kObject);
+  HValue* object = GetParameter(Descriptor::kObject);
 
   IfBuilder is_smi(this);
   HValue* smi_check = is_smi.If<HIsSmiAndBranch>(object);
@@ -407,8 +409,8 @@ Handle<Code> TypeofStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<FastCloneRegExpStub>::BuildCodeStub() {
-  HValue* closure = GetParameter(0);
-  HValue* literal_index = GetParameter(1);
+  HValue* closure = GetParameter(Descriptor::kClosure);
+  HValue* literal_index = GetParameter(Descriptor::kLiteralIndex);
 
   // This stub is very performance sensitive, the generated code must be tuned
   // so that it doesn't build and eager frame.
@@ -467,8 +469,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
   AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
-  HValue* closure = GetParameter(0);
-  HValue* literal_index = GetParameter(1);
+  HValue* closure = GetParameter(Descriptor::kClosure);
+  HValue* literal_index = GetParameter(Descriptor::kLiteralIndex);
 
   // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
   // point and wasn't caught since it wasn't built in the snapshot. We should
@@ -607,8 +609,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);
 
-  HInstruction* feedback_vector = GetParameter(0);
-  HInstruction* slot = GetParameter(1);
+  HInstruction* feedback_vector = GetParameter(Descriptor::kVector);
+  HInstruction* slot = GetParameter(Descriptor::kSlot);
   Add<HStoreKeyed>(feedback_vector, slot, object, nullptr, FAST_ELEMENTS,
                    INITIALIZING_STORE);
   return feedback_vector;
@@ -634,14 +636,13 @@ HValue* CodeStubGraphBuilder<CreateWeakCellStub>::BuildCodeStub() {
   Handle<Map> weak_cell_map = isolate()->factory()->weak_cell_map();
   AddStoreMapConstant(object, weak_cell_map);
 
-  HInstruction* value = GetParameter(CreateWeakCellDescriptor::kValueIndex);
+  HInstruction* value = GetParameter(Descriptor::kValue);
   Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellValue(), value);
   Add<HStoreNamedField>(object, HObjectAccess::ForWeakCellNext(),
                         graph()->GetConstantHole());
 
-  HInstruction* feedback_vector =
-      GetParameter(CreateWeakCellDescriptor::kVectorIndex);
-  HInstruction* slot = GetParameter(CreateWeakCellDescriptor::kSlotIndex);
+  HInstruction* feedback_vector = GetParameter(Descriptor::kVector);
+  HInstruction* slot = GetParameter(Descriptor::kSlot);
   Add<HStoreKeyed>(feedback_vector, slot, object, nullptr, FAST_ELEMENTS,
                    INITIALIZING_STORE);
   return graph()->GetConstant0();
@@ -676,6 +677,7 @@ HValue* CodeStubGraphBuilder<StoreScriptContextFieldStub>::BuildCodeStub() {
   Add<HStoreNamedField>(script_context,
                         HObjectAccess::ForContextSlot(slot_index),
                         GetParameter(2), STORE_TO_INITIALIZED_ENTRY);
+  // TODO(ishell): Remove this unused stub.
   return GetParameter(2);
 }
 
@@ -1073,8 +1075,8 @@ HValue* CodeStubGraphBuilder<GrowArrayElementsStub>::BuildCodeStub() {
     info()->MarkAsSavesCallerDoubles();
   }
 
-  HValue* object = GetParameter(GrowArrayElementsDescriptor::kObjectIndex);
-  HValue* key = GetParameter(GrowArrayElementsDescriptor::kKeyIndex);
+  HValue* object = GetParameter(Descriptor::kObject);
+  HValue* key = GetParameter(Descriptor::kKey);
 
   HValue* elements = AddLoadElements(object);
   HValue* current_capacity = Add<HLoadNamedField>(
@@ -1103,9 +1105,8 @@ HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
                                     : NEVER_RETURN_HOLE;
 
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(LoadDescriptor::kReceiverIndex),
-      GetParameter(LoadDescriptor::kNameIndex), NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
+      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
+      NULL, casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
       hole_mode, STANDARD_STORE);
   return load;
 }
@@ -1139,7 +1140,8 @@ HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  return BuildLoadNamedField(GetParameter(0), casted_stub()->index());
+  return BuildLoadNamedField(GetParameter(Descriptor::kReceiver),
+                             casted_stub()->index());
 }
 
 
@@ -1150,7 +1152,7 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
-  HValue* map = AddLoadMap(GetParameter(0), NULL);
+  HValue* map = AddLoadMap(GetParameter(Descriptor::kReceiver), NULL);
   HObjectAccess descriptors_access = HObjectAccess::ForObservableJSObjectOffset(
       Map::kDescriptorsOffset, Representation::Tagged());
   HValue* descriptors = Add<HLoadNamedField>(map, nullptr, descriptors_access);
@@ -1285,8 +1287,8 @@ HValue* CodeStubGraphBuilderBase::EmitKeyedSloppyArguments(HValue* receiver,
 
 template <>
 HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
 
   return EmitKeyedSloppyArguments(receiver, key, NULL);
 }
@@ -1299,9 +1301,9 @@ Handle<Code> KeyedLoadSloppyArgumentsStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<KeyedStoreSloppyArgumentsStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(StoreDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(StoreDescriptor::kNameIndex);
-  HValue* value = GetParameter(StoreDescriptor::kValueIndex);
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
+  HValue* value = GetParameter(Descriptor::kValue);
 
   return EmitKeyedSloppyArguments(receiver, key, value);
 }
@@ -1359,9 +1361,10 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 
 template <>
 HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
-  BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
+  BuildStoreNamedField(GetParameter(Descriptor::kReceiver),
+                       GetParameter(Descriptor::kValue), casted_stub()->index(),
                        casted_stub()->representation(), false);
-  return GetParameter(2);
+  return GetParameter(Descriptor::kValue);
 }
 
 
@@ -1435,13 +1438,12 @@ Handle<Code> StoreTransitionStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<StoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
-      GetParameter(StoreDescriptor::kReceiverIndex),
-      GetParameter(StoreDescriptor::kNameIndex),
-      GetParameter(StoreDescriptor::kValueIndex), casted_stub()->is_js_array(),
+      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
+      GetParameter(Descriptor::kValue), casted_stub()->is_js_array(),
       casted_stub()->elements_kind(), STORE, NEVER_RETURN_HOLE,
       casted_stub()->store_mode());
 
-  return GetParameter(2);
+  return GetParameter(Descriptor::kValue);
 }
 
 
@@ -1454,8 +1456,8 @@ template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind const from_kind = casted_stub()->from_kind();
   ElementsKind const to_kind = casted_stub()->to_kind();
-  HValue* const object = GetParameter(0);
-  HValue* const map = GetParameter(1);
+  HValue* const object = GetParameter(Descriptor::kObject);
+  HValue* const map = GetParameter(Descriptor::kMap);
 
   // The {object} is known to be a JSObject (otherwise it wouldn't have elements
   // anyways).
@@ -1518,8 +1520,8 @@ template <>
 HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   BinaryOpICState state = casted_stub()->state();
 
-  HValue* left = GetParameter(BinaryOpICStub::kLeft);
-  HValue* right = GetParameter(BinaryOpICStub::kRight);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
   Type* left_type = state.GetLeftType();
   Type* right_type = state.GetRightType();
@@ -1595,10 +1597,9 @@ template <>
 HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   BinaryOpICState state = casted_stub()->state();
 
-  HValue* allocation_site = GetParameter(
-      BinaryOpWithAllocationSiteStub::kAllocationSite);
-  HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
-  HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
+  HValue* allocation_site = GetParameter(Descriptor::kAllocationSite);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
   Type* left_type = state.GetLeftType();
   Type* right_type = state.GetRightType();
@@ -1755,8 +1756,8 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
   StringAddFlags flags = stub->flags();
   PretenureFlag pretenure_flag = stub->pretenure_flag();
 
-  HValue* left = GetParameter(StringAddStub::kLeft);
-  HValue* right = GetParameter(StringAddStub::kRight);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
@@ -1780,7 +1781,7 @@ template <>
 HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
   ToBooleanICStub* stub = casted_stub();
   IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(0), stub->types());
+  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->types());
   if_true.Then();
   if_true.Return(graph()->GetConstantTrue());
   if_true.Else();
@@ -1793,11 +1794,11 @@ Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
 template <>
 HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   StoreGlobalStub* stub = casted_stub();
-  HParameter* value = GetParameter(StoreDescriptor::kValueIndex);
+  HParameter* value = GetParameter(Descriptor::kValue);
   if (stub->check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
     // that will be replaced later with the global object's map.
-    HParameter* proxy = GetParameter(StoreDescriptor::kReceiverIndex);
+    HParameter* proxy = GetParameter(Descriptor::kReceiver);
     HValue* proxy_map =
         Add<HLoadNamedField>(proxy, nullptr, HObjectAccess::ForMap());
     HValue* global =
@@ -1920,7 +1921,7 @@ Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(TypeConversionDescriptor::kArgumentIndex);
+  HValue* receiver = GetParameter(Descriptor::kArgument);
   return BuildToObject(receiver);
 }
 
@@ -1929,8 +1930,8 @@ Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
 
   Add<HCheckSmi>(key);
 
@@ -1950,9 +1951,9 @@ Handle<Code> LoadDictionaryElementStub::GenerateCode() {
 template<>
 HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   // Determine the parameters.
-  HValue* length = GetParameter(RegExpConstructResultStub::kLength);
-  HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
-  HValue* input = GetParameter(RegExpConstructResultStub::kInput);
+  HValue* length = GetParameter(Descriptor::kLength);
+  HValue* index = GetParameter(Descriptor::kIndex);
+  HValue* input = GetParameter(Descriptor::kInput);
 
   // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
   // point and wasn't caught since it wasn't built in the snapshot. We should
@@ -1976,6 +1977,8 @@ class CodeStubGraphBuilder<KeyedLoadGenericStub>
  public:
   explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
       : CodeStubGraphBuilderBase(info, stub) {}
+
+  typedef KeyedLoadGenericStub::Descriptor Descriptor;
 
  protected:
   virtual HValue* BuildCodeStub();
@@ -2032,8 +2035,8 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
 
 
 HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
   // Split into a smi/integer case and unique string case.
   HIfContinuation index_name_split_continuation(graph()->CreateBasicBlock(),
                                                 graph()->CreateBasicBlock());

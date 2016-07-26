@@ -3045,9 +3045,12 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
 
     // |handler| is a heap object. Must be code, call it.
     Bind(&call_handler);
-    LoadWithVectorDescriptor descriptor(isolate());
-    TailCallStub(descriptor, handler, p->context, p->receiver, p->name, p->slot,
-                 p->vector);
+    typedef LoadWithVectorDescriptor Descriptor;
+    TailCallStub(Descriptor(isolate()), var_handler.value(), p->context,
+                 Arg(Descriptor::kReceiver, p->receiver),
+                 Arg(Descriptor::kName, p->name),
+                 Arg(Descriptor::kSlot, p->slot),
+                 Arg(Descriptor::kVector, p->vector));
   }
 
   Bind(&try_polymorphic);

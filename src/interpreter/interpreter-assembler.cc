@@ -38,10 +38,9 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       made_call_(false),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
-  accumulator_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
+  accumulator_.Bind(Parameter(InterpreterDispatchDescriptor::kAccumulator));
   bytecode_offset_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter));
+      Parameter(InterpreterDispatchDescriptor::kBytecodeOffset));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -95,12 +94,12 @@ Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
     // the debugger has swapped us to the patched debugger bytecode array.
     return LoadRegister(Register::bytecode_array());
   } else {
-    return Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter);
+    return Parameter(InterpreterDispatchDescriptor::kBytecodeArray);
   }
 }
 
 Node* InterpreterAssembler::DispatchTableRawPointer() {
-  return Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter);
+  return Parameter(InterpreterDispatchDescriptor::kDispatchTable);
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {

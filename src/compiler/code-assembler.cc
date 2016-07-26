@@ -536,6 +536,91 @@ Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
   return CallN(call_descriptor, target, args);
 }
 
+Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                              Node* target, Node* context, const Arg& arg1,
+                              const Arg& arg2, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 3;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                              Node* target, Node* context, const Arg& arg1,
+                              const Arg& arg2, const Arg& arg3,
+                              size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 4;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[arg3.index] = arg3.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                              Node* target, Node* context, const Arg& arg1,
+                              const Arg& arg2, const Arg& arg3, const Arg& arg4,
+                              size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 5;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[arg3.index] = arg3.value;
+  args[arg4.index] = arg4.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                              Node* target, Node* context, const Arg& arg1,
+                              const Arg& arg2, const Arg& arg3, const Arg& arg4,
+                              const Arg& arg5, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 6;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[arg3.index] = arg3.value;
+  args[arg4.index] = arg4.value;
+  args[arg5.index] = arg5.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
+
+  return CallN(call_descriptor, target, args);
+}
+
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
                                Node* target, Node** args, size_t result_size) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
@@ -631,6 +716,52 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
   args[2] = arg3;
   args[3] = arg4;
   args[4] = context;
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, const Arg& arg1,
+                                  const Arg& arg2, const Arg& arg3,
+                                  const Arg& arg4, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 5;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[arg3.index] = arg3.value;
+  args[arg4.index] = arg4.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, const Arg& arg1,
+                                  const Arg& arg2, const Arg& arg3,
+                                  const Arg& arg4, const Arg& arg5,
+                                  size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  const int kArgsCount = 6;
+  Node** args = zone()->NewArray<Node*>(kArgsCount);
+  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
+  args[arg1.index] = arg1.value;
+  args[arg2.index] = arg2.value;
+  args[arg3.index] = arg3.value;
+  args[arg4.index] = arg4.value;
+  args[arg5.index] = arg5.value;
+  args[kArgsCount - 1] = context;
+  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
 
   return raw_assembler_->TailCallN(call_descriptor, target, args);
 }

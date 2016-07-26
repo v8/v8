@@ -2378,12 +2378,13 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-
-  DCHECK(args.length() == 4);
-  Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  DCHECK_EQ(4, args.length());
+  typedef LoadWithVectorDescriptor Descriptor;
+  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
+  Handle<Object> key = args.at<Object>(Descriptor::kName);
+  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
+  Handle<TypeFeedbackVector> vector =
+      args.at<TypeFeedbackVector>(Descriptor::kVector);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
@@ -2425,12 +2426,44 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  typedef StoreWithVectorDescriptor Descriptor;
+  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
+  Handle<Name> key = args.at<Name>(Descriptor::kName);
+  Handle<Object> value = args.at<Object>(Descriptor::kValue);
+  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
+  Handle<TypeFeedbackVector> vector =
+      args.at<TypeFeedbackVector>(Descriptor::kVector);
+
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
+    StoreICNexus nexus(vector, vector_slot);
+    StoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+    ic.UpdateState(receiver, key);
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+  } else {
+    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC,
+              vector->GetKind(vector_slot));
+    KeyedStoreICNexus nexus(vector, vector_slot);
+    KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
+    ic.UpdateState(receiver, key);
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+  }
+}
+
+RUNTIME_FUNCTION(Runtime_TransitionStoreIC_MissFromStubFailure) {
+  TimerEventScope<TimerEventIcMiss> timer(isolate);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
+  HandleScope scope(isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
 
   int length = args.length();
   DCHECK(length == 5 || length == 6);
+  // TODO(ishell): use VectorStoreTransitionDescriptor indices here and update
+  // this comment:
+  //
   // We might have slot and vector, for a normal miss (slot(3), vector(4)).
   // Or, map and vector for a transitioning store miss (map(3), vector(4)).
   // In this case, we need to recover the slot from a virtual register.
@@ -2438,15 +2471,10 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   Handle<Smi> slot;
   Handle<TypeFeedbackVector> vector;
   if (length == 5) {
-    if (args.at<Object>(3)->IsMap()) {
-      vector = args.at<TypeFeedbackVector>(4);
-      slot = handle(
-          *reinterpret_cast<Smi**>(isolate->virtual_slot_register_address()),
-          isolate);
-    } else {
-      vector = args.at<TypeFeedbackVector>(4);
-      slot = args.at<Smi>(3);
-    }
+    vector = args.at<TypeFeedbackVector>(4);
+    slot = handle(
+        *reinterpret_cast<Smi**>(isolate->virtual_slot_register_address()),
+        isolate);
   } else {
     vector = args.at<TypeFeedbackVector>(5);
     slot = args.at<Smi>(4);
@@ -2468,17 +2496,15 @@ RUNTIME_FUNCTION(Runtime_StoreIC_MissFromStubFailure) {
   }
 }
 
-
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
   Handle<Object> receiver = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-
-  DCHECK(args.length() == 5);
   Handle<Smi> slot = args.at<Smi>(3);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2493,13 +2519,14 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
-
-  DCHECK(args.length() == 5);
-  Handle<Smi> slot = args.at<Smi>(3);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+  DCHECK_EQ(5, args.length());
+  typedef StoreWithVectorDescriptor Descriptor;
+  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
+  Handle<Object> key = args.at<Object>(Descriptor::kName);
+  Handle<Object> value = args.at<Object>(Descriptor::kValue);
+  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
+  Handle<TypeFeedbackVector> vector =
+      args.at<TypeFeedbackVector>(Descriptor::kVector);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
@@ -2510,7 +2537,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_MissFromStubFailure) {
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK_EQ(5, args.length());
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
@@ -2671,8 +2698,9 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
-  Handle<Object> right = args.at<Object>(BinaryOpICStub::kRight);
+  typedef BinaryOpDescriptor Descriptor;
+  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
+  Handle<Object> right = args.at<Object>(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate, ic.Transition(Handle<AllocationSite>::null(), left, right));
@@ -2684,11 +2712,11 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
+  typedef BinaryOpWithAllocationSiteDescriptor Descriptor;
   Handle<AllocationSite> allocation_site =
-      args.at<AllocationSite>(BinaryOpWithAllocationSiteStub::kAllocationSite);
-  Handle<Object> left = args.at<Object>(BinaryOpWithAllocationSiteStub::kLeft);
-  Handle<Object> right =
-      args.at<Object>(BinaryOpWithAllocationSiteStub::kRight);
+      args.at<AllocationSite>(Descriptor::kAllocationSite);
+  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
+  Handle<Object> right = args.at<Object>(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            ic.Transition(allocation_site, left, right));
@@ -2993,12 +3021,13 @@ RUNTIME_FUNCTION(Runtime_LoadIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Name> key = args.at<Name>(1);
-
-  DCHECK(args.length() == 4);
-  Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  DCHECK_EQ(4, args.length());
+  typedef LoadWithVectorDescriptor Descriptor;
+  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
+  Handle<Name> key = args.at<Name>(Descriptor::kName);
+  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
+  Handle<TypeFeedbackVector> vector =
+      args.at<TypeFeedbackVector>(Descriptor::kVector);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is

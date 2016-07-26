@@ -326,6 +326,15 @@ class CodeAssembler {
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                         Node* arg5);
 
+  // A pair of a zero-based argument index and a value.
+  // It helps writing arguments order independent code.
+  struct Arg {
+    Arg(int index, Node* value) : index(index), value(value) {}
+
+    int const index;
+    Node* const value;
+  };
+
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  size_t result_size = 1);
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
@@ -350,6 +359,21 @@ class CodeAssembler {
   Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                  Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                  Node* arg5, size_t result_size = 1);
+
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, const Arg& arg4, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, const Arg& arg1, const Arg& arg2,
+                 const Arg& arg3, const Arg& arg4, const Arg& arg5,
+                 size_t result_size = 1);
+
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
                   Node** args, size_t result_size = 1);
 
@@ -370,6 +394,14 @@ class CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2, Node* arg3,
                      Node* arg4, size_t result_size = 1);
+
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, const Arg& arg1, const Arg& arg2,
+                     const Arg& arg3, const Arg& arg4, size_t result_size = 1);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, const Arg& arg1, const Arg& arg2,
+                     const Arg& arg3, const Arg& arg4, const Arg& arg5,
+                     size_t result_size = 1);
 
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
                                  Node* code_target_address, Node** args);

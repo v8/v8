@@ -28,9 +28,10 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
                                       ToPrimitiveHint hint) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
 
-  Node* input = assembler->Parameter(0);
-  Node* context = assembler->Parameter(1);
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   // Lookup the @@toPrimitive property on the {input}.
   Callable callable = CodeFactory::GetProperty(assembler->isolate());
@@ -113,9 +114,10 @@ void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
+  typedef TypeConversionDescriptor Descriptor;
 
-  Node* input = assembler->Parameter(0);
-  Node* context = assembler->Parameter(1);
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   // We might need to loop once here due to ToPrimitive conversions.
   Variable var_input(assembler, MachineRepresentation::kTagged);
@@ -224,9 +226,10 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
+  typedef TypeConversionDescriptor Descriptor;
 
-  Node* input = assembler->Parameter(0);
-  Node* context = assembler->Parameter(1);
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   Variable var_result(assembler, MachineRepresentation::kTagged);
   Label return_result(assembler, &var_result);
@@ -304,8 +307,9 @@ void Builtins::Generate_OrdinaryToPrimitive_String(
 void Builtins::Generate_ToBoolean(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Label Label;
+  typedef TypeConversionDescriptor Descriptor;
 
-  Node* value = assembler->Parameter(0);
+  Node* value = assembler->Parameter(Descriptor::kArgument);
 
   Label return_true(assembler), return_false(assembler);
   assembler->BranchIfToBooleanIsTrue(value, &return_true, &return_false);

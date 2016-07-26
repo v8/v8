@@ -39,10 +39,11 @@ void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
 
 void Builtins::Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
+  typedef LoadGlobalWithVectorDescriptor Descriptor;
 
-  Node* slot = assembler->Parameter(0);
-  Node* vector = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   assembler->TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, slot,
                              vector);
@@ -51,10 +52,11 @@ void Builtins::Generate_LoadGlobalIC_Miss(CodeStubAssembler* assembler) {
 namespace {
 void Generate_LoadGlobalIC_Slow(CodeStubAssembler* assembler, TypeofMode mode) {
   typedef compiler::Node Node;
+  typedef LoadGlobalWithVectorDescriptor Descriptor;
 
-  Node* slot = assembler->Parameter(0);
-  Node* vector = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
   Node* typeof_mode = assembler->SmiConstant(Smi::FromInt(mode));
 
   assembler->TailCallRuntime(Runtime::kGetGlobal, context, slot, vector,
@@ -78,12 +80,13 @@ void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 
 void Builtins::Generate_LoadIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
+  typedef LoadWithVectorDescriptor Descriptor;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* slot = assembler->Parameter(2);
-  Node* vector = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   assembler->TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
                              slot, vector);
@@ -95,25 +98,25 @@ void Builtins::Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 void Builtins::Generate_LoadIC_Slow(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
+  typedef LoadWithVectorDescriptor Descriptor;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  // Node* slot = assembler->Parameter(2);
-  // Node* vector = assembler->Parameter(3);
-  Node* context = assembler->Parameter(4);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   assembler->TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
 void Builtins::Generate_StoreIC_Miss(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
+  typedef StoreWithVectorDescriptor Descriptor;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* value = assembler->Parameter(2);
-  Node* slot = assembler->Parameter(3);
-  Node* vector = assembler->Parameter(4);
-  Node* context = assembler->Parameter(5);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
   assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, receiver, name,
                              value, slot, vector);
@@ -131,13 +134,12 @@ namespace {
 void Generate_StoreIC_Slow(CodeStubAssembler* assembler,
                            LanguageMode language_mode) {
   typedef compiler::Node Node;
+  typedef StoreWithVectorDescriptor Descriptor;
 
-  Node* receiver = assembler->Parameter(0);
-  Node* name = assembler->Parameter(1);
-  Node* value = assembler->Parameter(2);
-  // Node* slot = assembler->Parameter(3);
-  // Node* vector = assembler->Parameter(4);
-  Node* context = assembler->Parameter(5);
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* context = assembler->Parameter(Descriptor::kContext);
   Node* lang_mode = assembler->SmiConstant(Smi::FromInt(language_mode));
 
   // The slow case calls into the runtime to complete the store without causing

@@ -93,10 +93,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedByteOperand(
     int offset) {
   return IsLoad(
       MachineType::Uint8(),
-      IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-      IsIntPtrAdd(
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-          IsIntPtrConstant(offset)));
+      IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+      IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                  IsIntPtrConstant(offset)));
 }
 
 Matcher<Node*>
@@ -104,10 +103,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedByteOperand(
     int offset) {
   Matcher<Node*> load_matcher = IsLoad(
       MachineType::Int8(),
-      IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-      IsIntPtrAdd(
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-          IsIntPtrConstant(offset)));
+      IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+      IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                  IsIntPtrConstant(offset)));
   if (kPointerSize == 8) {
     load_matcher = IsChangeInt32ToInt64(load_matcher);
   }
@@ -120,11 +118,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedShortOperand(
   if (TargetSupportsUnalignedAccess()) {
     return IsLoad(
         MachineType::Uint16(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset)));
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                    IsIntPtrConstant(offset)));
   } else {
 #if V8_TARGET_LITTLE_ENDIAN
     const int kStep = -1;
@@ -139,10 +135,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedShortOperand(
     for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
       bytes[i] = IsLoad(
           MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           IsIntPtrAdd(
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
               IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
     }
     return IsWord32Or(IsWord32Shl(bytes[0], IsInt32Constant(kBitsPerByte)),
@@ -157,11 +152,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedShortOperand(
   if (TargetSupportsUnalignedAccess()) {
     load_matcher = IsLoad(
         MachineType::Int16(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset)));
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                    IsIntPtrConstant(offset)));
   } else {
 #if V8_TARGET_LITTLE_ENDIAN
     const int kStep = -1;
@@ -176,10 +169,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedShortOperand(
     for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
       bytes[i] = IsLoad(
           (i == 0) ? MachineType::Int8() : MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           IsIntPtrAdd(
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
               IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
     }
     load_matcher = IsWord32Or(
@@ -198,11 +190,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedQuadOperand(
   if (TargetSupportsUnalignedAccess()) {
     return IsLoad(
         MachineType::Uint32(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset)));
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                    IsIntPtrConstant(offset)));
   } else {
 #if V8_TARGET_LITTLE_ENDIAN
     const int kStep = -1;
@@ -217,10 +207,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedQuadOperand(
     for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
       bytes[i] = IsLoad(
           MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           IsIntPtrAdd(
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
               IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
     }
     return IsWord32Or(
@@ -239,11 +228,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedQuadOperand(
   if (TargetSupportsUnalignedAccess()) {
     load_matcher = IsLoad(
         MachineType::Int32(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        IsIntPtrAdd(
-            IsParameter(
-                InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsIntPtrConstant(offset)));
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                    IsIntPtrConstant(offset)));
   } else {
 #if V8_TARGET_LITTLE_ENDIAN
     const int kStep = -1;
@@ -258,10 +245,9 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSignedQuadOperand(
     for (int i = 0; i < static_cast<int>(arraysize(bytes)); i++) {
       bytes[i] = IsLoad(
           (i == 0) ? MachineType::Int8() : MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
           IsIntPtrAdd(
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+              IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
               IsIntPtrConstant(offset + kMsbOffset + kStep * i)));
     }
     load_matcher = IsWord32Or(
@@ -316,20 +302,20 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
     Node* tail_call_node = m.Dispatch();
 
     OperandScale operand_scale = OperandScale::kSingle;
-    Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-        IsIntPtrConstant(
-            interpreter::Bytecodes::Size(bytecode, operand_scale)));
-    Matcher<Node*> target_bytecode_matcher = m.IsLoad(
-        MachineType::Uint8(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-        next_bytecode_offset_matcher);
+    Matcher<Node*> next_bytecode_offset_matcher =
+        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
+                    IsIntPtrConstant(
+                        interpreter::Bytecodes::Size(bytecode, operand_scale)));
+    Matcher<Node*> target_bytecode_matcher =
+        m.IsLoad(MachineType::Uint8(),
+                 IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+                 next_bytecode_offset_matcher);
     if (kPointerSize == 8) {
       target_bytecode_matcher = IsChangeUint32ToUint64(target_bytecode_matcher);
     }
     Matcher<Node*> code_target_matcher = m.IsLoad(
         MachineType::Pointer(),
-        IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
+        IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
         IsWordShl(target_bytecode_matcher, IsIntPtrConstant(kPointerSizeLog2)));
 
     if (interpreter::Bytecodes::IsStarLookahead(bytecode, operand_scale)) {
@@ -340,10 +326,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
       next_bytecode_offset_matcher =
           IsPhi(MachineType::PointerRepresentation(),
                 next_bytecode_offset_matcher, after_lookahead_offset, _);
-      Matcher<Node*> after_lookahead_bytecode = m.IsLoad(
-          MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-          after_lookahead_offset);
+      Matcher<Node*> after_lookahead_bytecode =
+          m.IsLoad(MachineType::Uint8(),
+                   IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+                   after_lookahead_offset);
       if (kPointerSize == 8) {
         after_lookahead_bytecode =
             IsChangeUint32ToUint64(after_lookahead_bytecode);
@@ -351,22 +337,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
       target_bytecode_matcher =
           IsPhi(MachineRepresentation::kWord8, target_bytecode_matcher,
                 after_lookahead_bytecode, _);
-      code_target_matcher = m.IsLoad(
-          MachineType::Pointer(),
-          IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-          IsWordShl(target_bytecode_matcher,
-                    IsIntPtrConstant(kPointerSizeLog2)));
+      code_target_matcher =
+          m.IsLoad(MachineType::Pointer(),
+                   IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
+                   IsWordShl(target_bytecode_matcher,
+                             IsIntPtrConstant(kPointerSizeLog2)));
     }
 
     EXPECT_THAT(
         tail_call_node,
-        IsTailCall(
-            _, code_target_matcher,
-            IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-            next_bytecode_offset_matcher,
-            IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-            IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-            _, _));
+        IsTailCall(_, code_target_matcher,
+                   IsParameter(InterpreterDispatchDescriptor::kAccumulator),
+                   next_bytecode_offset_matcher,
+                   IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
+                   IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
+                   _, _));
   }
 }
 
@@ -383,7 +368,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
       Node* tail_call_node = m.Jump(m.IntPtrConstant(jump_offset));
 
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
+          IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
           IsIntPtrConstant(jump_offset));
       Matcher<Node*> target_bytecode_matcher =
           m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
@@ -391,21 +376,19 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
         target_bytecode_matcher =
             IsChangeUint32ToUint64(target_bytecode_matcher);
       }
-      Matcher<Node*> code_target_matcher = m.IsLoad(
-          MachineType::Pointer(),
-          IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
-          IsWordShl(target_bytecode_matcher,
-                    IsIntPtrConstant(kPointerSizeLog2)));
+      Matcher<Node*> code_target_matcher =
+          m.IsLoad(MachineType::Pointer(),
+                   IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
+                   IsWordShl(target_bytecode_matcher,
+                             IsIntPtrConstant(kPointerSizeLog2)));
 
       EXPECT_THAT(
           tail_call_node,
-          IsTailCall(
-              _, code_target_matcher,
-              IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
-              next_bytecode_offset_matcher, _,
-              IsParameter(
-                  InterpreterDispatchDescriptor::kDispatchTableParameter),
-              _, _));
+          IsTailCall(_, code_target_matcher,
+                     IsParameter(InterpreterDispatchDescriptor::kAccumulator),
+                     next_bytecode_offset_matcher, _,
+                     IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
+                     _, _));
     }
   }
 }
@@ -478,9 +461,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
 
     InterpreterAssemblerForTest m(this, bytecode);
     // Should be incoming accumulator if not set.
-    EXPECT_THAT(
-        m.GetAccumulator(),
-        IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
+    EXPECT_THAT(m.GetAccumulator(),
+                IsParameter(InterpreterDispatchDescriptor::kAccumulator));
     // Should be set by SetAccumulator.
     Node* accumulator_value_1 = m.Int32Constant(0xdeadbeef);
     m.SetAccumulator(accumulator_value_1);
@@ -597,7 +579,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
     Node* load_constant = m.LoadConstantPoolEntry(index);
     Matcher<Node*> constant_pool_matcher = m.IsLoad(
         MachineType::AnyTagged(),
-        IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+        IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
         IsIntPtrConstant(BytecodeArray::kConstantPoolOffset - kHeapObjectTag));
     EXPECT_THAT(
         load_constant,
