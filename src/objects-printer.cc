@@ -4,7 +4,6 @@
 
 #include "src/objects.h"
 
-#include <iomanip>
 #include <memory>
 
 #include "src/disasm.h"
@@ -318,35 +317,12 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   }
 }
 
-template <class T, bool print_the_hole>
+
+template <class T>
 static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
-  T* array = T::cast(object);
-  if (array->length() == 0) return;
-  int previous_index = 0;
-  double previous_value = array->get_scalar(0);
-  double value;
-  int i;
-  for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get_scalar(i);
-    bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
-    if ((previous_value == value || values_are_nan) && i != array->length()) {
-      continue;
-    }
-    os << "\n";
-    std::stringstream ss;
-    ss << previous_index;
-    if (previous_index != i - 1) {
-      ss << '-' << (i - 1);
-    }
-    os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole &&
-        FixedDoubleArray::cast(object)->is_the_hole(previous_index)) {
-      os << "<the_hole>";
-    } else {
-      os << previous_value;
-    }
-    previous_index = i;
-    previous_value = value;
+  T* p = T::cast(object);
+  for (int i = 0; i < p->length(); i++) {
+    os << "\n   " << i << ": " << p->get_scalar(i);
   }
 }
 
@@ -354,7 +330,6 @@ static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
 void JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  if (elements()->length() == 0) return;
   switch (map()->elements_kind()) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -362,49 +337,45 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case FAST_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       // Print in array notation for non-sparse arrays.
-      FixedArray* array = FixedArray::cast(elements());
-      Object* previous_value = array->get(0);
-      Object* value;
-      int previous_index = 0;
-      int i;
-      for (i = 1; i <= array->length(); i++) {
-        if (i < array->length()) value = array->get(i);
-        if (previous_value == value && i != array->length()) {
-          continue;
-        }
-        os << "\n";
-        std::stringstream ss;
-        ss << previous_index;
-        if (previous_index != i - 1) {
-          ss << '-' << (i - 1);
-        }
-        os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
-        previous_index = i;
-        previous_value = value;
+      FixedArray* p = FixedArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        os << "\n   " << i << ": " << Brief(p->get(i));
       }
       break;
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray, true>(os, elements());
+      // Print in array notation for non-sparse arrays.
+      if (elements()->length() > 0) {
+        FixedDoubleArray* p = FixedDoubleArray::cast(elements());
+        for (int i = 0; i < p->length(); i++) {
+          os << "\n   " << i << ": ";
+          if (p->is_the_hole(i)) {
+            os << "<the hole>";
+          } else {
+            os << p->get_scalar(i);
+          }
+        }
+      }
       break;
     }
 
-#define PRINT_ELEMENTS(Kind, Type)                \
-  case Kind: {                                    \
-    DoPrintElements<Type, false>(os, elements()); \
-    break;                                        \
+
+#define PRINT_ELEMENTS(Kind, Type)         \
+  case Kind: {                             \
+    DoPrintElements<Type>(os, elements()); \
+    break;                                 \
   }
 
-      PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)
-      PRINT_ELEMENTS(UINT8_CLAMPED_ELEMENTS, FixedUint8ClampedArray)
-      PRINT_ELEMENTS(INT8_ELEMENTS, FixedInt8Array)
-      PRINT_ELEMENTS(UINT16_ELEMENTS, FixedUint16Array)
-      PRINT_ELEMENTS(INT16_ELEMENTS, FixedInt16Array)
-      PRINT_ELEMENTS(UINT32_ELEMENTS, FixedUint32Array)
-      PRINT_ELEMENTS(INT32_ELEMENTS, FixedInt32Array)
-      PRINT_ELEMENTS(FLOAT32_ELEMENTS, FixedFloat32Array)
-      PRINT_ELEMENTS(FLOAT64_ELEMENTS, FixedFloat64Array)
+    PRINT_ELEMENTS(UINT8_ELEMENTS, FixedUint8Array)
+    PRINT_ELEMENTS(UINT8_CLAMPED_ELEMENTS, FixedUint8ClampedArray)
+    PRINT_ELEMENTS(INT8_ELEMENTS, FixedInt8Array)
+    PRINT_ELEMENTS(UINT16_ELEMENTS, FixedUint16Array)
+    PRINT_ELEMENTS(INT16_ELEMENTS, FixedInt16Array)
+    PRINT_ELEMENTS(UINT32_ELEMENTS, FixedUint32Array)
+    PRINT_ELEMENTS(INT32_ELEMENTS, FixedInt32Array)
+    PRINT_ELEMENTS(FLOAT32_ELEMENTS, FixedFloat32Array)
+    PRINT_ELEMENTS(FLOAT64_ELEMENTS, FixedFloat64Array)
 
 #undef PRINT_ELEMENTS
 
