@@ -442,6 +442,8 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool ShouldUseIgnition(CompilationInfo* info) {
+  if (!FLAG_ignition) return false;
+
   DCHECK(info->has_shared_info());
 
   // When requesting debug code as a replacement for existing code, we provide
@@ -484,7 +486,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
       return true;
     }
   }
-  if (FLAG_ignition && ShouldUseIgnition(info)) {
+  if (ShouldUseIgnition(info)) {
     success = interpreter::Interpreter::MakeBytecode(info);
   } else {
     success = FullCodeGenerator::MakeCode(info);
