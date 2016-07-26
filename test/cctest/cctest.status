@@ -299,9 +299,6 @@
   'test-api/Threading2': [PASS, SLOW],
   'test-api/Threading3': [PASS, SLOW],
   'test-api/Threading4': [PASS, SLOW],
-
-  # Implement ARM UnalignedLoad and UnalignedStore operators
-  'test-run-load-store/RunUnalignedLoadStoreUnalignedAccess': [SKIP],
 }],  # 'arch == arm'
 
 ##############################################################################

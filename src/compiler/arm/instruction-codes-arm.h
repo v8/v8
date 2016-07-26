@@ -100,6 +100,7 @@ namespace compiler {
   V(ArmVmovHighU32F64)             \
   V(ArmVmovHighF64U32)             \
   V(ArmVmovF64U32U32)              \
+  V(ArmVmovU32U32F64)              \
   V(ArmVldrF32)                    \
   V(ArmVstrF32)                    \
   V(ArmVldrF64)                    \

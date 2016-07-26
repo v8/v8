@@ -1317,6 +1317,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(i.OutputDoubleRegister(), i.InputRegister(0), i.InputRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmVmovU32U32F64:
+      __ vmov(i.OutputRegister(0), i.OutputRegister(1),
+              i.InputDoubleRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());

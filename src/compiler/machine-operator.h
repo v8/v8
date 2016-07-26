@@ -146,13 +146,13 @@ class MachineOperatorBuilder final : public ZoneObject {
 
     bool IsUnalignedLoadSupported(const MachineType& machineType,
                                   uint8_t alignment) const {
-      return IsUnalignedSupported(unalignedLoadSupportedTypes_, machineType,
+      return IsUnalignedSupported(unalignedLoadUnsupportedTypes_, machineType,
                                   alignment);
     }
 
     bool IsUnalignedStoreSupported(const MachineType& machineType,
                                    uint8_t alignment) const {
-      return IsUnalignedSupported(unalignedStoreSupportedTypes_, machineType,
+      return IsUnalignedSupported(unalignedStoreUnsupportedTypes_, machineType,
                                   alignment);
     }
 
@@ -162,25 +162,25 @@ class MachineOperatorBuilder final : public ZoneObject {
     static AlignmentRequirements NoUnalignedAccessSupport() {
       return AlignmentRequirements(kNoSupport);
     }
-    static AlignmentRequirements SomeUnalignedAccessSupport(
-        const Vector<MachineType>& unalignedLoadSupportedTypes,
-        const Vector<MachineType>& unalignedStoreSupportedTypes) {
-      return AlignmentRequirements(kSomeSupport, unalignedLoadSupportedTypes,
-                                   unalignedStoreSupportedTypes);
+    static AlignmentRequirements SomeUnalignedAccessUnsupported(
+        const Vector<MachineType>& unalignedLoadUnsupportedTypes,
+        const Vector<MachineType>& unalignedStoreUnsupportedTypes) {
+      return AlignmentRequirements(kSomeSupport, unalignedLoadUnsupportedTypes,
+                                   unalignedStoreUnsupportedTypes);
     }
 
    private:
     explicit AlignmentRequirements(
         AlignmentRequirements::UnalignedAccessSupport unalignedAccessSupport,
-        Vector<MachineType> unalignedLoadSupportedTypes =
+        Vector<MachineType> unalignedLoadUnsupportedTypes =
             Vector<MachineType>(NULL, 0),
-        Vector<MachineType> unalignedStoreSupportedTypes =
+        Vector<MachineType> unalignedStoreUnsupportedTypes =
             Vector<MachineType>(NULL, 0))
         : unalignedSupport_(unalignedAccessSupport),
-          unalignedLoadSupportedTypes_(unalignedLoadSupportedTypes),
-          unalignedStoreSupportedTypes_(unalignedStoreSupportedTypes) {}
+          unalignedLoadUnsupportedTypes_(unalignedLoadUnsupportedTypes),
+          unalignedStoreUnsupportedTypes_(unalignedStoreUnsupportedTypes) {}
 
-    bool IsUnalignedSupported(const Vector<MachineType>& supported,
+    bool IsUnalignedSupported(const Vector<MachineType>& unsupported,
                               const MachineType& machineType,
                               uint8_t alignment) const {
       if (unalignedSupport_ == kFullSupport) {
@@ -188,18 +188,18 @@ class MachineOperatorBuilder final : public ZoneObject {
       } else if (unalignedSupport_ == kNoSupport) {
         return false;
       } else {
-        for (MachineType m : supported) {
+        for (MachineType m : unsupported) {
           if (m == machineType) {
-            return true;
+            return false;
           }
         }
-        return false;
+        return true;
       }
     }
 
     const AlignmentRequirements::UnalignedAccessSupport unalignedSupport_;
-    const Vector<MachineType> unalignedLoadSupportedTypes_;
-    const Vector<MachineType> unalignedStoreSupportedTypes_;
+    const Vector<MachineType> unalignedLoadUnsupportedTypes_;
+    const Vector<MachineType> unalignedStoreUnsupportedTypes_;
   };
 
   explicit MachineOperatorBuilder(

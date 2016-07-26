@@ -3665,11 +3665,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         }
 
         int32_t address = get_register(rn) + 4 * offset;
+        // Load and store address for singles must be at least four-byte
+        // aligned.
+        DCHECK((address % 4) == 0);
         if (instr->HasL()) {
-          // Load double from memory: vldr.
+          // Load single from memory: vldr.
           set_s_register_from_sinteger(vd, ReadW(address, instr));
         } else {
-          // Store double to memory: vstr.
+          // Store single to memory: vstr.
           WriteW(address, get_sinteger_from_s_register(vd), instr);
         }
         break;
@@ -3718,6 +3721,9 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           offset = -offset;
         }
         int32_t address = get_register(rn) + 4 * offset;
+        // Load and store address for doubles must be at least four-byte
+        // aligned.
+        DCHECK((address % 4) == 0);
         if (instr->HasL()) {
           // Load double from memory: vldr.
           int32_t data[] = {

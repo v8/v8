@@ -338,6 +338,46 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode div_opcode,
   }
 }
 
+void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
+              InstructionOperand* output, Node* base, Node* index) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand inputs[3];
+  size_t input_count = 2;
+
+  inputs[0] = g.UseRegister(base);
+  if (g.CanBeImmediate(index, opcode)) {
+    inputs[1] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RI);
+  } else if ((opcode == kArmLdr) &&
+             TryMatchLSLImmediate(selector, &opcode, index, &inputs[1],
+                                  &inputs[2])) {
+    input_count = 3;
+  } else {
+    inputs[1] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+  }
+  selector->Emit(opcode, 1, output, input_count, inputs);
+}
+
+void EmitStore(InstructionSelector* selector, InstructionCode opcode,
+               size_t input_count, InstructionOperand* inputs,
+               Node* index) {
+  ArmOperandGenerator g(selector);
+
+  if (g.CanBeImmediate(index, opcode)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RI);
+  } else if ((opcode == kArmStr) &&
+             TryMatchLSLImmediate(selector, &opcode, index, &inputs[2],
+                                  &inputs[3])) {
+    input_count = 4;
+  } else {
+    inputs[input_count++] = g.UseRegister(index);
+    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+  }
+  selector->Emit(opcode, 0, nullptr, input_count, inputs);
+}
+
 }  // namespace
 
 
@@ -346,9 +386,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  InstructionOperand outputs[1];
 
   InstructionCode opcode = kArchNop;
   switch (load_rep.representation()) {
@@ -376,24 +413,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
 
-  outputs[0] = g.DefineAsRegister(node);
-  inputs[0] = g.UseRegister(base);
-
-  if (g.CanBeImmediate(index, opcode)) {
-    input_count = 2;
-    inputs[1] = g.UseImmediate(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RI);
-  } else if ((opcode == kArmLdr) &&
-             TryMatchLSLImmediate(this, &opcode, index, &inputs[1],
-                                  &inputs[2])) {
-    input_count = 3;
-  } else {
-    input_count = 2;
-    inputs[1] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RR);
-  }
-
-  Emit(opcode, arraysize(outputs), outputs, input_count, inputs);
+  InstructionOperand output = g.DefineAsRegister(node);
+  EmitLoad(this, opcode, &output, base, index);
 }
 
 
@@ -445,9 +466,6 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    InstructionOperand inputs[4];
-    size_t input_count = 0;
-
     InstructionCode opcode = kArchNop;
     switch (rep) {
       case MachineRepresentation::kFloat32:
@@ -474,31 +492,129 @@ void InstructionSelector::VisitStore(Node* node) {
         return;
     }
 
-    inputs[0] = g.UseRegister(value);
-    inputs[1] = g.UseRegister(base);
-
-    if (g.CanBeImmediate(index, opcode)) {
-      input_count = 3;
-      inputs[2] = g.UseImmediate(index);
-      opcode |= AddressingModeField::encode(kMode_Offset_RI);
-    } else if ((opcode == kArmStr) &&
-               TryMatchLSLImmediate(this, &opcode, index, &inputs[2],
-                                    &inputs[3])) {
-      input_count = 4;
-    } else {
-      input_count = 3;
-      inputs[2] = g.UseRegister(index);
-      opcode |= AddressingModeField::encode(kMode_Offset_RR);
-    }
-    Emit(opcode, 0, nullptr, input_count, inputs);
+    InstructionOperand inputs[4];
+    size_t input_count = 0;
+    inputs[input_count++] = g.UseRegister(value);
+    inputs[input_count++] = g.UseRegister(base);
+    EmitStore(this, opcode, input_count, inputs, index);
   }
 }
 
-// Architecture supports unaligned access, therefore VisitLoad is used instead
-void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitUnalignedLoad(Node* node) {
+  UnalignedLoadRepresentation load_rep =
+      UnalignedLoadRepresentationOf(node->op());
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
 
-// Architecture supports unaligned access, therefore VisitStore is used instead
-void InstructionSelector::VisitUnalignedStore(Node* node) { UNREACHABLE(); }
+  InstructionCode opcode = kArmLdr;
+  // Only floating point loads need to be specially handled; integer loads
+  // support unaligned access. We support unaligned FP loads by loading to
+  // integer registers first, then moving to the destination FP register.
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32: {
+      InstructionOperand temp = g.TempRegister();
+      EmitLoad(this, opcode, &temp, base, index);
+      Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
+      return;
+    }
+    case MachineRepresentation::kFloat64: {
+      // TODO(arm): use vld1.8 for this when NEON is available.
+      // Compute the address of the least-significant half of the FP value.
+      // We assume that the base node is unlikely to be an encodable immediate
+      // or the result of a shift operation, so only consider the addressing
+      // mode that should be used for the index node.
+      InstructionCode add_opcode = kArmAdd;
+      InstructionOperand inputs[3];
+      inputs[0] = g.UseRegister(base);
+
+      size_t input_count;
+      if (TryMatchImmediateOrShift(this, &add_opcode, index, &input_count,
+                                   &inputs[1])) {
+        // input_count has been set by TryMatchImmediateOrShift(), so increment
+        // it to account for the base register in inputs[0].
+        input_count++;
+      } else {
+        add_opcode |= AddressingModeField::encode(kMode_Operand2_R);
+        inputs[1] = g.UseRegister(index);
+        input_count = 2;  // Base register and index.
+      }
+
+      InstructionOperand addr = g.TempRegister();
+      Emit(add_opcode, 1, &addr, input_count, inputs);
+
+      // Load both halves and move to an FP register.
+      InstructionOperand fp_lo = g.TempRegister();
+      InstructionOperand fp_hi = g.TempRegister();
+      opcode |= AddressingModeField::encode(kMode_Offset_RI);
+      Emit(opcode, fp_lo, addr, g.TempImmediate(0));
+      Emit(opcode, fp_hi, addr, g.TempImmediate(4));
+      Emit(kArmVmovF64U32U32, g.DefineAsRegister(node), fp_lo, fp_hi);
+      return;
+    }
+    default:
+      // All other cases should support unaligned accesses.
+      UNREACHABLE();
+      return;
+  }
+}
+
+void InstructionSelector::VisitUnalignedStore(Node* node) {
+  ArmOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+
+  UnalignedStoreRepresentation store_rep =
+      UnalignedStoreRepresentationOf(node->op());
+
+  // Only floating point stores need to be specially handled; integer stores
+  // support unaligned access. We support unaligned FP stores by moving the
+  // value to integer registers first, then storing to the destination address.
+  switch (store_rep) {
+    case MachineRepresentation::kFloat32: {
+      inputs[input_count++] = g.TempRegister();
+      Emit(kArmVmovU32F32, inputs[0], g.UseRegister(value));
+      inputs[input_count++] = g.UseRegister(base);
+      EmitStore(this, kArmStr, input_count, inputs, index);
+      return;
+    }
+    case MachineRepresentation::kFloat64: {
+      // TODO(arm): use vst1.8 for this when NEON is available.
+      // Store a 64-bit floating point value using two 32-bit integer stores.
+      // Computing the store address here would require three live temporary
+      // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after
+      // storing the least-significant half of the value.
+
+      // First, move the 64-bit FP value into two temporary integer registers.
+      InstructionOperand fp[] = {g.TempRegister(), g.TempRegister()};
+      inputs[input_count++] = g.UseRegister(value);
+      Emit(kArmVmovU32U32F64, arraysize(fp), fp, input_count,
+           inputs);
+
+      // Store the least-significant half.
+      inputs[0] = fp[0];  // Low 32-bits of FP value.
+      inputs[input_count++] = g.UseRegister(base);  // First store base address.
+      EmitStore(this, kArmStr, input_count, inputs, index);
+
+      // Store the most-significant half.
+      InstructionOperand base4 = g.TempRegister();
+      Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_I), base4,
+           g.UseRegister(base), g.TempImmediate(4));  // Compute base + 4.
+      inputs[0] = fp[1];  // High 32-bits of FP value.
+      inputs[1] = base4;  // Second store base + 4 address.
+      EmitStore(this, kArmStr, input_count, inputs, index);
+      return;
+    }
+    default:
+      // All other cases should support unaligned accesses.
+      UNREACHABLE();
+      return;
+  }
+}
 
 void InstructionSelector::VisitCheckedLoad(Node* node) {
   CheckedLoadRepresentation load_rep = CheckedLoadRepresentationOf(node->op());
@@ -2176,8 +2292,11 @@ InstructionSelector::SupportedMachineOperatorFlags() {
 // static
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {
+  Vector<MachineType> req_aligned = Vector<MachineType>::New(2);
+  req_aligned[0] = MachineType::Float32();
+  req_aligned[1] = MachineType::Float64();
   return MachineOperatorBuilder::AlignmentRequirements::
-      FullUnalignedAccessSupport();
+      SomeUnalignedAccessUnsupported(req_aligned, req_aligned);
 }
 
 }  // namespace compiler
