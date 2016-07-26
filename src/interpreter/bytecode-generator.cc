@@ -266,7 +266,10 @@ class BytecodeGenerator::ControlScopeForIteration final
                            LoopBuilder* loop_builder)
       : ControlScope(generator),
         statement_(statement),
-        loop_builder_(loop_builder) {}
+        loop_builder_(loop_builder) {
+    generator->loop_depth_++;
+  }
+  ~ControlScopeForIteration() { generator()->loop_depth_--; }
 
  protected:
   bool Execute(Command command, Statement* statement) override {
@@ -597,7 +600,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       execution_result_(nullptr),
       register_allocator_(nullptr),
       generator_resume_points_(info->literal()->yield_count(), info->zone()),
-      generator_state_() {
+      generator_state_(),
+      loop_depth_(0) {
   InitializeAstVisitor(isolate()->stack_guard()->real_climit());
 }
 
@@ -719,8 +723,8 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
   if (FLAG_ignition_osr) {
     // TODO(4764): Merge this with another bytecode (e.g. {Jump} back edge).
     // TODO(4764): Investigate interaction with generators.
-    // TODO(4764): Track and pass correct loop depth.
-    builder()->OsrPoll(0);
+    int level = Min(loop_depth_, AbstractCode::kMaxLoopNestingMarker - 1);
+    builder()->OsrPoll(level);
   }
 
   if (stmt->yield_count() > 0) {

@@ -214,6 +214,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   RegisterAllocationScope* register_allocator_;
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;
+  int loop_depth_;
 };
 
 }  // namespace interpreter
