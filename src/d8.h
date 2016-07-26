@@ -290,8 +290,7 @@ class ShellOptions {
         isolate_sources(NULL),
         icu_data_file(NULL),
         natives_blob(NULL),
-        snapshot_blob(NULL),
-        trace_enabled(false) {}
+        snapshot_blob(NULL) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -319,8 +318,6 @@ class ShellOptions {
   const char* icu_data_file;
   const char* natives_blob;
   const char* snapshot_blob;
-  bool trace_enabled;
-  const char* trace_config;
 };
 
 #ifdef V8_SHARED

@@ -10,7 +10,6 @@
 #include <queue>
 #include <vector>
 
-#include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
@@ -22,10 +21,6 @@ namespace platform {
 class TaskQueue;
 class Thread;
 class WorkerThread;
-
-namespace tracing {
-class TracingController;
-}
 
 class DefaultPlatform : public Platform {
  public:
@@ -59,7 +54,7 @@ class DefaultPlatform : public Platform {
                          unsigned int flags) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
-  void SetTracingController(tracing::TracingController* tracing_controller);
+
 
  private:
   static const int kMaxThreadPoolSize;
@@ -79,7 +74,6 @@ class DefaultPlatform : public Platform {
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
-  tracing::TracingController* tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };
