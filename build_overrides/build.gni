@@ -15,4 +15,4 @@ build_with_chromium = false
 # default_android_ndk_version = "r10e"
 
 # Some non-Chromium builds don't support building java targets.
-enable_java_templates = true
+enable_java_templates = false
