@@ -94,7 +94,7 @@ class ObjectStats {
   static const int kLastBucketShift = 19;  // >512k
   static const int kFirstBucket = 1 << kFirstBucketShift;
   static const int kLastBucket = 1 << kLastBucketShift;
-  static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift;
+  static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
 
   int HistogramIndexFromSize(size_t size) {
     if (size == 0) return 0;
