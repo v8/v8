@@ -233,8 +233,6 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   BytecodeArrayBuilder& StackCheck(int position);
 
-  BytecodeArrayBuilder& OsrPoll(int loop_depth);
-
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();

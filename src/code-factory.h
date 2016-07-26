@@ -157,7 +157,6 @@ class CodeFactory final {
       CallableType function_type = CallableType::kAny);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
-  static Callable InterpreterOnStackReplacement(Isolate* isolate);
 };
 
 }  // namespace internal

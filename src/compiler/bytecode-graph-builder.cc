@@ -1392,11 +1392,6 @@ void BytecodeGraphBuilder::VisitStackCheck() {
   environment()->RecordAfterState(node, &states);
 }
 
-void BytecodeGraphBuilder::VisitOsrPoll() {
-  // TODO(4764): Implement OSR graph construction. Not marked UNIMPLEMENTED to
-  // ensure the --ignition-osr flag can already be fuzzed without crashing.
-}
-
 void BytecodeGraphBuilder::VisitReturn() {
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());

@@ -217,75 +217,38 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
   return true;
 }
 
-namespace {
 
-BailoutId DetermineEntryAndDisarmOSRForBaseline(JavaScriptFrame* frame) {
-  Handle<Code> caller_code(frame->function()->shared()->code());
+RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<Code> caller_code(function->shared()->code());
 
-  // Passing the PC in the JavaScript frame from the caller directly is
+  // We're not prepared to handle a function with arguments object.
+  DCHECK(!function->shared()->uses_arguments());
+
+  CHECK(FLAG_use_osr);
+
+  // Passing the PC in the javascript frame from the caller directly is
   // not GC safe, so we walk the stack to get it.
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
   if (!caller_code->contains(frame->pc())) {
     // Code on the stack may not be the code object referenced by the shared
     // function info.  It may have been replaced to include deoptimization data.
     caller_code = Handle<Code>(frame->LookupCode());
   }
 
-  DCHECK_EQ(frame->LookupCode(), *caller_code);
-  DCHECK_EQ(Code::FUNCTION, caller_code->kind());
-  DCHECK(caller_code->contains(frame->pc()));
-
-  // Revert the patched back edge table, regardless of whether OSR succeeds.
-  BackEdgeTable::Revert(frame->isolate(), *caller_code);
-
   uint32_t pc_offset =
       static_cast<uint32_t>(frame->pc() - caller_code->instruction_start());
 
-  return caller_code->TranslatePcOffsetToAstId(pc_offset);
-}
-
-BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
-  InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-
-  // Note that the bytecode array active on the stack might be different from
-  // the one installed on the function (e.g. patched by debugger). This however
-  // is fine because we guarantee the layout to be in sync, hence any BailoutId
-  // representing the entry point will be valid for any copy of the bytecode.
-  Handle<BytecodeArray> bytecode(iframe->GetBytecodeArray());
-
-  DCHECK(frame->LookupCode()->is_interpreter_trampoline_builtin());
-  DCHECK(frame->function()->shared()->HasBytecodeArray());
-  DCHECK(frame->is_interpreted());
-  DCHECK(FLAG_ignition_osr);
-
-  // Reset the OSR loop nesting depth to disarm back edges.
-  bytecode->set_osr_loop_nesting_level(0);
-
-  return BailoutId(iframe->GetBytecodeOffset());
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  // We're not prepared to handle a function with arguments object.
-  DCHECK(!function->shared()->uses_arguments());
-
-  // Only reachable when OST is enabled.
-  CHECK(FLAG_use_osr);
-
-  // Determine frame triggering OSR request.
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
+#ifdef DEBUG
   DCHECK_EQ(frame->function(), *function);
+  DCHECK_EQ(frame->LookupCode(), *caller_code);
+  DCHECK(caller_code->contains(frame->pc()));
+#endif  // DEBUG
 
-  // Determine the entry point for which this OSR request has been fired and
-  // also disarm all back edges in the calling code to stop new requests.
-  BailoutId ast_id = frame->is_interpreted()
-                         ? DetermineEntryAndDisarmOSRForInterpreter(frame)
-                         : DetermineEntryAndDisarmOSRForBaseline(frame);
+  BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
   DCHECK(!ast_id.IsNone());
 
   MaybeHandle<Code> maybe_result;
@@ -297,6 +260,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     }
     maybe_result = Compiler::GetOptimizedCodeForOSR(function, ast_id, frame);
   }
+
+  // Revert the patched back edge table, regardless of whether OSR succeeds.
+  BackEdgeTable::Revert(isolate, *caller_code);
 
   // Check whether we ended up with usable optimized code.
   Handle<Code> result;

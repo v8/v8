@@ -2968,16 +2968,9 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   }
 }
 
-static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
-                                              bool has_handler_frame) {
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   // Lookup the function in the JavaScript frame.
-  if (has_handler_frame) {
-    __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ mov(eax, Operand(eax, JavaScriptFrameConstants::kFunctionOffset));
-  } else {
-    __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  }
-
+  __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Pass function as argument.
@@ -2986,18 +2979,12 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
   }
 
   Label skip;
-  // If the code object is null, just return to the caller.
+  // If the code object is null, just return to the unoptimized code.
   __ cmp(eax, Immediate(0));
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
   __ bind(&skip);
-
-  // Drop any potential handler frame that is be sitting on top of the actual
-  // JavaScript frame. This is the case then OSR is triggered from bytecode.
-  if (has_handler_frame) {
-    __ leave();
-  }
 
   // Load deoptimization data from the code object.
   __ mov(ebx, Operand(eax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
@@ -3016,14 +3003,6 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // And "return" to the OSR entry point of the function.
   __ ret(0);
-}
-
-void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  Generate_OnStackReplacementHelper(masm, false);
-}
-
-void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  Generate_OnStackReplacementHelper(masm, true);
 }
 
 #undef __

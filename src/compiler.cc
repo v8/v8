@@ -745,11 +745,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
-  // TODO(4764): Remove this guard once OSR graph construction works.
-  if (!osr_ast_id.IsNone() && osr_frame->is_interpreted()) {
-    return MaybeHandle<Code>();
-  }
-
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeMap(function, osr_ast_id)
           .ToHandle(&cached_code)) {

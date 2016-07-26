@@ -470,11 +470,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::OsrPoll(int loop_depth) {
-  Output(Bytecode::kOsrPoll, UnsignedOperand(loop_depth));
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   Output(Bytecode::kThrow);
   return *this;

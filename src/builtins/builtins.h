@@ -130,7 +130,6 @@ namespace internal {
   ASM(InterpreterPushArgsAndTailCall)                                        \
   ASM(InterpreterPushArgsAndTailCallFunction)                                \
   ASM(InterpreterEnterBytecodeDispatch)                                      \
-  ASM(InterpreterOnStackReplacement)                                         \
                                                                              \
   /* Code life-cycle */                                                      \
   ASM(CompileLazy)                                                           \
