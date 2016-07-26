@@ -1735,9 +1735,16 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kThrowIllegalInvocation);
 }
 
-void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
+                                              bool has_handler_frame) {
   // Lookup the function in the JavaScript frame.
-  __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  if (has_handler_frame) {
+    __ Ldr(x0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ Ldr(x0, MemOperand(x0, JavaScriptFrameConstants::kFunctionOffset));
+  } else {
+    __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Pass function as argument.
@@ -1745,12 +1752,18 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
   }
 
-  // If the code object is null, just return to the unoptimized code.
+  // If the code object is null, just return to the caller.
   Label skip;
   __ CompareAndBranch(x0, Smi::FromInt(0), ne, &skip);
   __ Ret();
 
   __ Bind(&skip);
+
+  // Drop any potential handler frame that is be sitting on top of the actual
+  // JavaScript frame. This is the case then OSR is triggered from bytecode.
+  if (has_handler_frame) {
+    __ LeaveFrame(StackFrame::STUB);
+  }
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
@@ -1769,6 +1782,14 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // And "return" to the OSR entry point of the function.
   __ Ret();
+}
+
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
+  Generate_OnStackReplacementHelper(masm, false);
+}
+
+void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
+  Generate_OnStackReplacementHelper(masm, true);
 }
 
 // static

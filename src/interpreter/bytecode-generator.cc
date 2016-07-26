@@ -714,6 +714,16 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
 
   loop_builder->LoopHeader(&resume_points_in_loop);
 
+  // Insert an explicit {OsrPoll} right after the loop header, to trigger
+  // on-stack replacement when armed for the given loop nesting depth.
+  if (FLAG_ignition_osr) {
+    // TODO(4764): Merge this with another bytecode (e.g. {Jump} back edge).
+    // TODO(4764): Investigate interaction with generators.
+    // TODO(4764): Track and pass correct loop depth.
+    DCHECK_EQ(0, stmt->yield_count());
+    builder()->OsrPoll(0);
+  }
+
   if (stmt->yield_count() > 0) {
     // If we are not resuming, fall through to loop body.
     // If we are resuming, perform state dispatch.

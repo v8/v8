@@ -848,6 +848,12 @@ Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
   return UintPtrLessThan(sp, stack_limit);
 }
 
+Node* InterpreterAssembler::LoadOSRNestingLevel() {
+  Node* offset =
+      IntPtrConstant(BytecodeArray::kOSRNestingLevelOffset - kHeapObjectTag);
+  return Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), offset);
+}
+
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
   disable_stack_check_across_call_ = true;
   Node* abort_id = SmiTag(Int32Constant(bailout_reason));

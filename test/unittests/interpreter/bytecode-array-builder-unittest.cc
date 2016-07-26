@@ -257,6 +257,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit stack check bytecode.
   builder.StackCheck(0);
 
+  // Emit an OSR poll bytecode.
+  builder.OsrPoll(1);
+
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.
   BytecodeLabel after_throw;
