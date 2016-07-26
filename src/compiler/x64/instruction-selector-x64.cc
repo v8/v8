@@ -595,15 +595,25 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 
 void InstructionSelector::VisitWord64Shl(Node* node) {
   X64OperandGenerator g(this);
-  Int64BinopMatcher m(node);
-  if ((m.left().IsChangeInt32ToInt64() || m.left().IsChangeUint32ToUint64()) &&
-      m.right().IsInRange(32, 63)) {
-    // There's no need to sign/zero-extend to 64-bit if we shift out the upper
-    // 32 bits anyway.
-    Emit(kX64Shl, g.DefineSameAsFirst(node),
-         g.UseRegister(m.left().node()->InputAt(0)),
-         g.UseImmediate(m.right().node()));
+  Int64ScaleMatcher m(node, true);
+  if (m.matches()) {
+    Node* index = node->InputAt(0);
+    Node* base = m.power_of_two_plus_one() ? index : nullptr;
+    EmitLea(this, kX64Lea, node, index, m.scale(), base, nullptr,
+            kPositiveDisplacement);
     return;
+  } else {
+    Int64BinopMatcher m(node);
+    if ((m.left().IsChangeInt32ToInt64() ||
+         m.left().IsChangeUint32ToUint64()) &&
+        m.right().IsInRange(32, 63)) {
+      // There's no need to sign/zero-extend to 64-bit if we shift out the upper
+      // 32 bits anyway.
+      Emit(kX64Shl, g.DefineSameAsFirst(node),
+           g.UseRegister(m.left().node()->InputAt(0)),
+           g.UseImmediate(m.right().node()));
+      return;
+    }
   }
   VisitWord64Shift(this, node, kX64Shl);
 }
@@ -780,6 +790,18 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
+  X64OperandGenerator g(this);
+
+  // Try to match the Add to a leaq pattern
+  BaseWithIndexAndDisplacement64Matcher m(node);
+  if (m.matches() &&
+      (m.displacement() == nullptr || g.CanBeImmediate(m.displacement()))) {
+    EmitLea(this, kX64Lea, node, m.index(), m.scale(), m.base(),
+            m.displacement(), m.displacement_mode());
+    return;
+  }
+
+  // No leal pattern match, use addq
   VisitBinop(this, node, kX64Add);
 }
 
@@ -819,6 +841,14 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kX64Neg, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
+    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+      // Turn subtractions of constant values into immediate "leaq" instructions
+      // by negating the value.
+      Emit(kX64Lea | AddressingModeField::encode(kMode_MRI),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.TempImmediate(-static_cast<int32_t>(m.right().Value())));
+      return;
+    }
     VisitBinop(this, node, kX64Sub);
   }
 }
