@@ -705,7 +705,7 @@ class RuntimeCallTimer {
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)   \
   V(KeyedLoadIC_LoadFastElementStub)            \
   V(KeyedLoadIC_LoadDictionaryElementStub)      \
-  V(KeyedLoadIC_PolymorphicElement)             \
+  V(KeyedLoadIC_SlowStub)                       \
   V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub) \
   V(KeyedStoreIC_StoreFastElementStub)          \
   V(KeyedStoreIC_StoreElementStub)              \

@@ -140,6 +140,8 @@ namespace internal {
   V(GetProperty)                            \
   V(LoadICTrampolineTF)                     \
   V(LoadICTF)                               \
+  V(KeyedLoadICTrampolineTF)                \
+  V(KeyedLoadICTF)                          \
   /* IC Handler stubs */                    \
   V(KeyedLoadSloppyArguments)               \
   V(KeyedStoreSloppyArguments)              \
@@ -2350,6 +2352,18 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, LoadICTrampolineStub);
 };
 
+class KeyedLoadICTrampolineTFStub : public LoadICTrampolineTFStub {
+ public:
+  explicit KeyedLoadICTrampolineTFStub(Isolate* isolate)
+      : LoadICTrampolineTFStub(isolate) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
+
+  DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineTFStub);
+};
+
 class StoreICTrampolineStub : public PlatformCodeStub {
  public:
   StoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
@@ -2466,6 +2480,17 @@ class KeyedLoadICStub : public PlatformCodeStub {
 
  protected:
   void GenerateImpl(MacroAssembler* masm, bool in_frame);
+};
+
+class KeyedLoadICTFStub : public LoadICTFStub {
+ public:
+  explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICTFStub(isolate) {}
+
+  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+
+  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
+
+  DEFINE_CODE_STUB(KeyedLoadICTF, LoadICTFStub);
 };
 
 class StoreICStub : public PlatformCodeStub {

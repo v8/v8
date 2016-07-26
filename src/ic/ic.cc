@@ -552,7 +552,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
     nexus->ConfigureHandlerMode(Handle<Code>::cast(handler));
   } else if (kind() == Code::KEYED_LOAD_IC) {
     KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    nexus->ConfigureMonomorphic(name, map, Handle<Code>::cast(handler));
+    nexus->ConfigureMonomorphic(name, map, handler);
   } else if (kind() == Code::STORE_IC) {
     StoreICNexus* nexus = casted_nexus<StoreICNexus>();
     nexus->ConfigureMonomorphic(map, Handle<Code>::cast(handler));
@@ -781,7 +781,8 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
 }
 
 void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
-  DCHECK(code->IsCode() || (kind() == Code::LOAD_IC && code->IsSmi()));
+  DCHECK(code->IsCode() || (code->IsSmi() && (kind() == Code::LOAD_IC ||
+                                              kind() == Code::KEYED_LOAD_IC)));
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
@@ -828,9 +829,10 @@ Handle<Code> LoadGlobalIC::initialize_stub_in_optimized_code(
   return LoadGlobalICStub(isolate, LoadGlobalICState(extra_state)).GetCode();
 }
 
-Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, ExtraICState extra_state) {
-  // TODO(ishell): remove extra_ic_state
+Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
+  if (FLAG_tf_load_ic_stub) {
+    return KeyedLoadICTFStub(isolate).GetCode();
+  }
   return KeyedLoadICStub(isolate).GetCode();
 }
 
@@ -850,10 +852,9 @@ Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
 }
 
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
-  if (kind() == Code::LOAD_IC && FLAG_tf_load_ic_stub) {
+  if (FLAG_tf_load_ic_stub) {
     return handle(Smi::FromInt(index.GetLoadByFieldOffset()), isolate());
   }
-  DCHECK(kind() == Code::KEYED_LOAD_IC || !FLAG_tf_load_ic_stub);
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
   LoadFieldStub stub(isolate(), index);
   return stub.GetCode();
@@ -1354,8 +1355,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
 
   if (target_receiver_maps.length() == 0) {
     Handle<Code> handler =
-        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
-            receiver_map, extra_ic_state());
+        ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1384,8 +1384,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
           target_receiver_maps.at(0)->elements_kind(),
           Handle<JSObject>::cast(receiver)->GetElementsKind())) {
     Handle<Code> handler =
-        PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
-            receiver_map, extra_ic_state());
+        ElementHandlerCompiler::GetKeyedLoadHandler(receiver_map, isolate());
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1408,7 +1407,6 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   }
 
   List<Handle<Object>> handlers(target_receiver_maps.length());
-  TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_PolymorphicElement);
   ElementHandlerCompiler compiler(isolate());
   compiler.CompileElementHandlers(&target_receiver_maps, &handlers);
   ConfigureVectorState(Handle<Name>(), &target_receiver_maps, &handlers);

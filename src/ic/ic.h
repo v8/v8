@@ -355,8 +355,7 @@ class KeyedLoadIC : public LoadIC {
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
 
-  static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, ExtraICState extra_state);
+  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
   static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
                                             ExtraICState extra_state);
 

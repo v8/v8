@@ -2416,7 +2416,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Node* elements = LoadElements(object);
     Node* length = LoadFixedArrayBaseLength(elements);
 
-    GotoIf(Int32GreaterThanOrEqual(index, SmiToWord32(length)), if_not_found);
+    GotoUnless(Uint32LessThan(index, SmiToWord32(length)), if_not_found);
 
     Node* element = LoadFixedArrayElement(elements, index);
     Node* the_hole = TheHoleConstant();
@@ -2427,7 +2427,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Node* elements = LoadElements(object);
     Node* length = LoadFixedArrayBaseLength(elements);
 
-    GotoIf(Int32GreaterThanOrEqual(index, SmiToWord32(length)), if_not_found);
+    GotoUnless(Uint32LessThan(index, SmiToWord32(length)), if_not_found);
 
     if (kPointerSize == kDoubleSize) {
       Node* element =
@@ -2456,7 +2456,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Assert(Int32LessThan(LoadInstanceType(string),
                          Int32Constant(FIRST_NONSTRING_TYPE)));
     Node* length = LoadStringLength(string);
-    GotoIf(Int32LessThan(index, SmiToWord32(length)), if_found);
+    GotoIf(Uint32LessThan(index, SmiToWord32(length)), if_found);
     Goto(&if_isobjectorsmi);
   }
   Bind(&if_isslowstringwrapper);
@@ -2466,7 +2466,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Assert(Int32LessThan(LoadInstanceType(string),
                          Int32Constant(FIRST_NONSTRING_TYPE)));
     Node* length = LoadStringLength(string);
-    GotoIf(Int32LessThan(index, SmiToWord32(length)), if_found);
+    GotoIf(Uint32LessThan(index, SmiToWord32(length)), if_found);
     Goto(&if_isdictionary);
   }
 }
@@ -2977,6 +2977,71 @@ void CodeStubAssembler::TryProbeStubCache(
   }
 }
 
+void CodeStubAssembler::HandleLoadICHandlerCase(const LoadICParameters* p,
+                                                Node* handler, Label* miss) {
+  Comment("have_handler");
+  Label call_handler(this);
+  GotoUnless(WordIsSmi(handler), &call_handler);
+
+  // |handler| is a Smi. It encodes a field index as obtained by
+  // FieldIndex.GetLoadByFieldOffset().
+  // TODO(jkummerow): For KeyedLoadICs, extend this scheme to encode
+  // fast *element* loads.
+  {
+    Variable var_double_value(this, MachineRepresentation::kFloat64);
+    Label rebox_double(this, &var_double_value);
+
+    Node* handler_word = SmiUntag(handler);
+    // |handler_word| is a field index as obtained by
+    // FieldIndex.GetLoadByFieldOffset():
+    Label inobject_double(this), out_of_object(this),
+        out_of_object_double(this);
+    Node* inobject_bit = WordAnd(
+        handler_word, IntPtrConstant(FieldIndex::FieldOffsetIsInobject::kMask));
+    Node* double_bit = WordAnd(
+        handler_word, IntPtrConstant(FieldIndex::FieldOffsetIsDouble::kMask));
+    Node* offset = WordSar(
+        handler_word, IntPtrConstant(FieldIndex::FieldOffsetOffset::kShift));
+
+    GotoIf(WordEqual(inobject_bit, IntPtrConstant(0)), &out_of_object);
+
+    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &inobject_double);
+    Return(LoadObjectField(p->receiver, offset));
+
+    Bind(&inobject_double);
+    if (FLAG_unbox_double_fields) {
+      var_double_value.Bind(
+          LoadObjectField(p->receiver, offset, MachineType::Float64()));
+    } else {
+      Node* mutable_heap_number = LoadObjectField(p->receiver, offset);
+      var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+    }
+    Goto(&rebox_double);
+
+    Bind(&out_of_object);
+    Node* properties = LoadProperties(p->receiver);
+    Node* value = LoadObjectField(properties, offset);
+    GotoUnless(WordEqual(double_bit, IntPtrConstant(0)), &out_of_object_double);
+    Return(value);
+
+    Bind(&out_of_object_double);
+    var_double_value.Bind(LoadHeapNumberValue(value));
+    Goto(&rebox_double);
+
+    Bind(&rebox_double);
+    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+  }
+
+  // |handler| is a heap object. Must be code, call it.
+  Bind(&call_handler);
+  typedef LoadWithVectorDescriptor Descriptor;
+  TailCallStub(Descriptor(isolate()), handler, p->context,
+               Arg(Descriptor::kReceiver, p->receiver),
+               Arg(Descriptor::kName, p->name),
+               Arg(Descriptor::kSlot, p->slot),
+               Arg(Descriptor::kVector, p->vector));
+}
+
 void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
   // TODO(ishell): defer blocks when it works.
@@ -2991,66 +3056,7 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
                                       &var_handler, &try_polymorphic);
   Bind(&if_handler);
   {
-    Comment("LoadIC_if_handler");
-    Label call_handler(this);
-    Node* handler = var_handler.value();
-    GotoUnless(WordIsSmi(handler), &call_handler);
-
-    // |handler| is a Smi. It encodes a field index as obtained by
-    // FieldIndex.GetLoadByFieldOffset().
-    {
-      Label inobject_double(this), out_of_object(this),
-          out_of_object_double(this);
-      Variable var_double_value(this, MachineRepresentation::kFloat64);
-      Label rebox_double(this, &var_double_value);
-
-      Node* handler_word = SmiToWord32(handler);
-      // handler == (offset << 1) | is_double.
-      Node* double_bit = Word32And(handler_word, Int32Constant(1));
-      Node* offset = Word32Sar(handler_word, Int32Constant(1));
-
-      // Negative index -> out of object.
-      GotoIf(Int32LessThan(offset, Int32Constant(0)), &out_of_object);
-
-      Node* offset_ptr = ChangeInt32ToIntPtr(offset);
-      GotoUnless(Word32Equal(double_bit, Int32Constant(0)), &inobject_double);
-      Return(LoadObjectField(p->receiver, offset_ptr));
-
-      Bind(&inobject_double);
-      if (FLAG_unbox_double_fields) {
-        var_double_value.Bind(
-            LoadObjectField(p->receiver, offset_ptr, MachineType::Float64()));
-      } else {
-        Node* mutable_heap_number = LoadObjectField(p->receiver, offset_ptr);
-        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
-      }
-      Goto(&rebox_double);
-
-      Bind(&out_of_object);
-      // |offset| == -actual_offset
-      offset_ptr = ChangeInt32ToIntPtr(Int32Sub(Int32Constant(0), offset));
-      Node* properties = LoadProperties(p->receiver);
-      Node* value = LoadObjectField(properties, offset_ptr);
-      GotoUnless(Word32Equal(double_bit, Int32Constant(0)),
-                 &out_of_object_double);
-      Return(value);
-
-      Bind(&out_of_object_double);
-      var_double_value.Bind(LoadHeapNumberValue(value));
-      Goto(&rebox_double);
-
-      Bind(&rebox_double);
-      Return(AllocateHeapNumberWithValue(var_double_value.value()));
-    }
-
-    // |handler| is a heap object. Must be code, call it.
-    Bind(&call_handler);
-    typedef LoadWithVectorDescriptor Descriptor;
-    TailCallStub(Descriptor(isolate()), var_handler.value(), p->context,
-                 Arg(Descriptor::kReceiver, p->receiver),
-                 Arg(Descriptor::kName, p->name),
-                 Arg(Descriptor::kSlot, p->slot),
-                 Arg(Descriptor::kVector, p->vector));
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss);
   }
 
   Bind(&try_polymorphic);
@@ -3078,6 +3084,68 @@ void CodeStubAssembler::LoadIC(const LoadICParameters* p) {
   {
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
                     p->slot, p->vector);
+  }
+}
+
+void CodeStubAssembler::KeyedLoadIC(const LoadICParameters* p) {
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  // TODO(ishell): defer blocks when it works.
+  Label if_handler(this, &var_handler), try_polymorphic(this),
+      try_megamorphic(this /*, Label::kDeferred*/),
+      try_polymorphic_name(this /*, Label::kDeferred*/),
+      miss(this /*, Label::kDeferred*/);
+
+  Node* receiver_map = LoadReceiverMap(p->receiver);
+
+  // Check monomorphic case.
+  Node* feedback = TryMonomorphicCase(p, receiver_map, &if_handler,
+                                      &var_handler, &try_polymorphic);
+  Bind(&if_handler);
+  {
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss);
+  }
+
+  Bind(&try_polymorphic);
+  {
+    // Check polymorphic case.
+    Comment("KeyedLoadIC_try_polymorphic");
+    GotoUnless(
+        WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+        &try_megamorphic);
+    HandlePolymorphicCase(p, receiver_map, feedback, &if_handler, &var_handler,
+                          &miss, 2);
+  }
+
+  Bind(&try_megamorphic);
+  {
+    // Check megamorphic case.
+    Comment("KeyedLoadIC_try_megamorphic");
+    GotoUnless(
+        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+        &try_polymorphic_name);
+    // TODO(jkummerow): Inline this? Or some of it?
+    TailCallStub(CodeFactory::KeyedLoadIC_Megamorphic(isolate()), p->context,
+                 p->receiver, p->name, p->slot, p->vector);
+  }
+  Bind(&try_polymorphic_name);
+  {
+    // We might have a name in feedback, and a fixed array in the next slot.
+    Comment("KeyedLoadIC_try_polymorphic_name");
+    GotoUnless(WordEqual(feedback, p->name), &miss);
+    // If the name comparison succeeded, we know we have a fixed array with
+    // at least one map/handler pair.
+    Node* offset = ElementOffsetFromIndex(
+        p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
+        FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
+    Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
+    HandlePolymorphicCase(p, receiver_map, array, &if_handler, &var_handler,
+                          &miss, 1);
+  }
+  Bind(&miss);
+  {
+    Comment("KeyedLoadIC_miss");
+    TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
+                    p->name, p->slot, p->vector);
   }
 }
 

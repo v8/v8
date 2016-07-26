@@ -39,6 +39,7 @@ class CodeFactory final {
                                               TypeofMode typeof_mode);
   static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
+  static Callable KeyedLoadIC_Megamorphic(Isolate* isolate);
   static Callable CallIC(Isolate* isolate, int argc,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);

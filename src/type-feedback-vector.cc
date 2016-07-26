@@ -688,7 +688,7 @@ void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Code> handler) {
 
 void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
                                             Handle<Map> receiver_map,
-                                            Handle<Code> handler) {
+                                            Handle<Object> handler) {
   Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
   if (name.is_null()) {
     SetFeedback(*cell);

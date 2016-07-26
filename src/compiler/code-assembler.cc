@@ -653,6 +653,14 @@ Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
                       result_size);
 }
 
+Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
+                                  Node* arg1, Node* arg2, Node* arg3,
+                                  Node* arg4, size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return TailCallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
+                      arg4, result_size);
+}
+
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
                                   Node* target, Node* context, Node* arg1,
                                   size_t result_size) {

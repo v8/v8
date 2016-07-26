@@ -49,6 +49,10 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
+  if (FLAG_tf_load_ic_stub) {
+    KeyedLoadICTrampolineTFStub stub(isolate);
+    return Callable(stub.GetCode(), LoadDescriptor(isolate));
+  }
   KeyedLoadICTrampolineStub stub(isolate);
   return Callable(stub.GetCode(), LoadDescriptor(isolate));
 }
@@ -56,11 +60,15 @@ Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
 
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
-  auto code =
-      KeyedLoadIC::initialize_stub_in_optimized_code(isolate, kNoExtraICState);
+  auto code = KeyedLoadIC::initialize_stub_in_optimized_code(isolate);
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
+  return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic(),
+                  LoadWithVectorDescriptor(isolate));
+}
 
 // static
 Callable CodeFactory::CallIC(Isolate* isolate, int argc,

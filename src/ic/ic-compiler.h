@@ -14,9 +14,6 @@ namespace internal {
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
   // Keyed
-  static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
-      Handle<Map> receiver_map, ExtraICState extra_ic_state);
-
   static Handle<Code> ComputeKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   static void ComputeKeyedStorePolymorphicHandlers(

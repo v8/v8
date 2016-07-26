@@ -86,18 +86,18 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
 
 // Takes an offset as computed by GetLoadByFieldOffset and reconstructs a
 // FieldIndex object from it.
+// static
 inline FieldIndex FieldIndex::ForLoadByFieldOffset(Map* map, int offset) {
-  bool is_double = offset & 1;
-  int field_index = (offset >> 1) / kPointerSize;
-  int is_inobject = true;
+  DCHECK(offset & 1);  // Property marker (as opposed to element).
+  bool is_inobject = FieldOffsetIsInobject::decode(offset);
+  bool is_double = FieldOffsetIsDouble::decode(offset);
+  int field_index = FieldOffsetOffset::decode(offset) >> kPointerSizeLog2;
   int first_inobject_offset = 0;
-  if (field_index < 0) {
-    field_index = -field_index;
-    is_inobject = false;
-    first_inobject_offset = FixedArray::kHeaderSize;
-  } else {
+  if (is_inobject) {
     first_inobject_offset =
         map->IsJSObjectMap() ? map->GetInObjectPropertyOffset(0) : 0;
+  } else {
+    first_inobject_offset = FixedArray::kHeaderSize;
   }
   int inobject_properties =
       map->IsJSObjectMap() ? map->GetInObjectProperties() : 0;
@@ -108,17 +108,13 @@ inline FieldIndex FieldIndex::ForLoadByFieldOffset(Map* map, int offset) {
 }
 
 // Returns the offset format consumed by TurboFan stubs:
-// In-object: zero-based from object start,
-// out-of-object: zero-based from FixedArray start.
+// (offset << 3) | (is_double << 2) | (is_inobject << 1) | is_property
+// Where |offset| is relative to object start or FixedArray start, respectively.
 inline int FieldIndex::GetLoadByFieldOffset() const {
-  // For efficiency, stubs consume an offset that is optimized for quick
-  // access. If the property is in-object, the offset is positive.
-  // If it's out-of-object, the encoded offset is -raw_offset.
-  // In either case, the offset itself is shifted up by one bit, the lower-most
-  // bit signifying if the field is a mutable double box (1) or not (0).
-  int result = index() << kPointerSizeLog2;
-  if (!is_inobject()) result = -result;
-  return (result << 1) | (is_double() ? 1 : 0);
+  return FieldOffsetIsInobject::encode(is_inobject()) |
+         FieldOffsetIsDouble::encode(is_double()) |
+         FieldOffsetOffset::encode(index() << kPointerSizeLog2) |
+         1;  // Property marker (as opposed to element).
 }
 
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {

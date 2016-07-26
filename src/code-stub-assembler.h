@@ -449,6 +449,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                              Variable* var_handler, Label* if_miss,
                              int unroll_count);
 
+  void HandleLoadICHandlerCase(const LoadICParameters* p,
+                               compiler::Node* handler, Label* miss);
+
   compiler::Node* StubCachePrimaryOffset(compiler::Node* name,
                                          compiler::Node* map);
 
@@ -471,6 +474,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
+  void KeyedLoadIC(const LoadICParameters* p);
 
   // Get the enumerable length from |map| and return the result as a Smi.
   compiler::Node* EnumLength(compiler::Node* map);
