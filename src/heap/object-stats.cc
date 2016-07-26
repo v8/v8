@@ -274,7 +274,9 @@ void ObjectStatsCollector::RecordHashTableHelper(HeapObject* parent,
                                                  int subtype) {
   int used = array->NumberOfElements() * HashTable::kEntrySize;
   CHECK_GE(array->Size(), used);
-  size_t overhead = array->Size() - used;
+  size_t overhead = array->Size() - used -
+                    HashTable::kElementsStartIndex * kPointerSize -
+                    FixedArray::kHeaderSize;
   RecordFixedArrayHelper(parent, array, subtype, overhead);
 }
 
@@ -290,7 +292,7 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
         int used = object->GetFastElementsUsage() * kPointerSize;
         if (object->GetElementsKind() == FAST_HOLEY_DOUBLE_ELEMENTS) used *= 2;
         CHECK_GE(elements->Size(), used);
-        overhead = elements->Size() - used;
+        overhead = elements->Size() - used - FixedArray::kHeaderSize;
       }
       stats_->RecordFixedArraySubTypeStats(elements, FAST_ELEMENTS_SUB_TYPE,
                                            elements->Size(), overhead);
@@ -322,15 +324,16 @@ void ObjectStatsCollector::RecordJSWeakCollectionDetails(
 }
 
 void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
+  // The JS versions use a different HashTable implementation that cannot use
+  // the regular helper. Since overall impact is usually small just record
+  // without overhead.
   if (obj->IsJSMap()) {
-    RecordHashTableHelper(nullptr,
-                          OrderedHashMap::cast(JSMap::cast(obj)->table()),
-                          JS_COLLECTION_SUB_TYPE);
+    RecordFixedArrayHelper(nullptr, FixedArray::cast(JSMap::cast(obj)->table()),
+                           JS_COLLECTION_SUB_TYPE, 0);
   }
   if (obj->IsJSSet()) {
-    RecordHashTableHelper(nullptr,
-                          OrderedHashSet::cast(JSSet::cast(obj)->table()),
-                          JS_COLLECTION_SUB_TYPE);
+    RecordFixedArrayHelper(nullptr, FixedArray::cast(JSSet::cast(obj)->table()),
+                           JS_COLLECTION_SUB_TYPE, 0);
   }
 }
 
