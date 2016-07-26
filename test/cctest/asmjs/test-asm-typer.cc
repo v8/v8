@@ -1908,4 +1908,34 @@ TEST(InvalidSourceLayout) {
   }
 }
 
+// This issue was triggered because of the "lenient" 8-bit heap access code
+// path. The canonical heap access index validation fails because __34 is not an
+// intish. Then, during the "lenient" code path for accessing elements in 8-bit
+// heap views, the __34 node in the indexing expression would be re-tagged, thus
+// causing the assertion failure.
+TEST(B63099) {
+  const char* kTests[] = {
+      "function __f_109(stdlib, __v_36, buffer) {\n"
+      "  'use asm';\n"
+      "  var __v_34 = new stdlib.Uint8Array(buffer);\n"
+      "  function __f_22() {__v_34[__v_34>>0]|0 + 1 | 0;\n"
+      "  }\n"
+      "}",
+      "function __f_109(stdlib, __v_36, buffer) {\n"
+      "  'use asm';\n"
+      "  var __v_34 = new stdlib.Int8Array(buffer);\n"
+      "  function __f_22() {__v_34[__v_34>>0]|0 + 1 | 0;\n"
+      "  }\n"
+      "}",
+  };
+
+  for (size_t ii = 0; ii < arraysize(kTests); ++ii) {
+    if (!ValidationOf(Module(kTests[ii]))
+             ->FailsWithMessage("Invalid heap access index")) {
+      std::cerr << "Test:\n" << kTests[ii];
+      CHECK(false);
+    }
+  }
+}
+
 }  // namespace

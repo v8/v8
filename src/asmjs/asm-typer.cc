@@ -2462,9 +2462,7 @@ AsmType* AsmTyper::ValidateHeapAccess(Property* heap,
         }
         return obj_type->StoreType();
       }
-      // TODO(jpp): it may be the case that, if type is not an Intish, we could
-      // fail here instead of letting the validator try using the "leniency"
-      // rule (i.e., allow unshifted indexes for heap views of 8-bit integers.
+      FAIL(key_as_binop, "Invalid heap access index.");
     }
   }
 
