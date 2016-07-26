@@ -1335,9 +1335,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsFloat64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
-    case kMipsFloat64SilenceNaN:
-      __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+    case kMipsFloat64SilenceNaN: {
+      FPURegister value = i.InputDoubleRegister(0);
+      FPURegister result = i.OutputDoubleRegister();
+      Register scratch0 = i.TempRegister(0);
+      Label is_nan, not_nan;
+      __ BranchF(NULL, &is_nan, eq, value, value);
+      __ Branch(&not_nan);
+      __ bind(&is_nan);
+      __ LoadRoot(scratch0, Heap::kNanValueRootIndex);
+      __ ldc1(result, FieldMemOperand(scratch0, HeapNumber::kValueOffset));
+      __ bind(&not_nan);
       break;
+    }
 
     // ... more basic instructions ...
 
