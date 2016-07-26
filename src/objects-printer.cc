@@ -419,6 +419,9 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
     os << " (COW)";
   }
   os << "]";
+  if (obj->GetInternalFieldCount() > 0) {
+    os << "\n - internal fields: " << obj->GetInternalFieldCount();
+  }
 }
 
 
@@ -430,6 +433,14 @@ static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
   if (print_elements && obj->elements()->length() > 0) {
     os << " - elements = {";
     obj->PrintElements(os);
+    os << "\n }\n";
+  }
+  int internal_fields = obj->GetInternalFieldCount();
+  if (internal_fields > 0) {
+    os << " - internal fields = {";
+    for (int i = 0; i < internal_fields; i++) {
+      os << "\n    " << Brief(obj->GetInternalField(i));
+    }
     os << "\n }\n";
   }
 }
