@@ -280,10 +280,6 @@ bool Operand::AddressUsesRegister(Register reg) const {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-#ifdef GENERATED_CODE_COVERAGE
-static void InitCoverageLog();
-#endif
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size), code_targets_(100) {
 // Clear the buffer in debug mode unless it was provided by the
@@ -296,11 +292,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 #endif
 
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
-
-
-#ifdef GENERATED_CODE_COVERAGE
-  InitCoverageLog();
-#endif
 }
 
 

@@ -1776,26 +1776,7 @@ inline Operand StackOperandForReturnAddress(int32_t disp) {
   return Operand(rsp, disp);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-extern void LogGeneratedCodeCoverage(const char* file_line);
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm) {                                                  \
-    Address x64_coverage_function = FUNCTION_ADDR(LogGeneratedCodeCoverage); \
-    masm->pushfq();                                                          \
-    masm->Pushad();                                                          \
-    masm->Push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));            \
-    masm->Call(x64_coverage_function, RelocInfo::EXTERNAL_REFERENCE);        \
-    masm->Pop(rax);                                                          \
-    masm->Popad();                                                           \
-    masm->popfq();                                                           \
-  }                                                                          \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
 
 }  // namespace internal
 }  // namespace v8

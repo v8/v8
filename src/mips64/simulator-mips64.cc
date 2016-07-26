@@ -66,7 +66,6 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
 class MipsDebugger {
  public:
   explicit MipsDebugger(Simulator* sim) : sim_(sim) { }
-  ~MipsDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -97,57 +96,7 @@ class MipsDebugger {
   void RedoBreakpoints();
 };
 
-
-MipsDebugger::~MipsDebugger() {
-}
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void MipsDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->Bits(25, 6);
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-    reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (!watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", str);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instr*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  // TODO(yuyin): 2 -> 3?
-  sim_->set_pc(sim_->get_pc() + 3 * Instruction::kInstructionSize);
-}
-
-
-#else  // GENERATED_CODE_COVERAGE
-
 #define UNSUPPORTED() printf("Sim: Unsupported instruction.\n");
-
-static void InitializeCoverage() {}
-
 
 void MipsDebugger::Stop(Instruction* instr) {
   // Get the stop code.
@@ -157,8 +106,6 @@ void MipsDebugger::Stop(Instruction* instr) {
   sim_->set_pc(sim_->get_pc() + 3 * Instruction::kInstrSize);
   Debug();
 }
-#endif  // GENERATED_CODE_COVERAGE
-
 
 int64_t MipsDebugger::GetRegisterValue(int regnum) {
   if (regnum == kNumSimuRegisters) {
@@ -909,7 +856,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_ra;
   registers_[ra] = bad_ra;
-  InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }

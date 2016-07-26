@@ -33,7 +33,6 @@ namespace internal {
 class ArmDebugger {
  public:
   explicit ArmDebugger(Simulator* sim) : sim_(sim) { }
-  ~ArmDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -62,56 +61,6 @@ class ArmDebugger {
   void RedoBreakpoints();
 };
 
-
-ArmDebugger::~ArmDebugger() {
-}
-
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void ArmDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-    reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (isWatchedStop(code) && !watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", msg);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instruction*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
-}
-
-#else  // ndef GENERATED_CODE_COVERAGE
-
-static void InitializeCoverage() {
-}
-
-
 void ArmDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->SvcValue() & kStopCodeMask;
@@ -124,8 +73,6 @@ void ArmDebugger::Stop(Instruction* instr) {
   sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
 }
-#endif
-
 
 int32_t ArmDebugger::GetRegisterValue(int regnum) {
   if (regnum == kPCRegister) {
@@ -134,7 +81,6 @@ int32_t ArmDebugger::GetRegisterValue(int regnum) {
     return sim_->get_register(regnum);
   }
 }
-
 
 double ArmDebugger::GetRegisterPairDoubleValue(int regnum) {
   return sim_->get_double_from_register_pair(regnum);
@@ -757,7 +703,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_lr;
   registers_[lr] = bad_lr;
-  InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }

@@ -295,11 +295,6 @@ Register Operand::reg() const {
 #define EMIT(x)                                 \
   *pc_++ = (x)
 
-
-#ifdef GENERATED_CODE_COVERAGE
-static void InitCoverageLog();
-#endif
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size) {
 // Clear the buffer in debug mode unless it was provided by the
@@ -312,10 +307,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 #endif
 
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
-
-#ifdef GENERATED_CODE_COVERAGE
-  InitCoverageLog();
-#endif
 }
 
 
@@ -3069,31 +3060,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitCoverageLog() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void LogGeneratedCodeCoverage(const char* file_line) {
-  const char* return_address = (&file_line)[-1];
-  char* push_insn = const_cast<char*>(return_address - 12);
-  push_insn[0] = 0xeb;  // Relative branch insn.
-  push_insn[1] = 13;    // Skip over coverage insns.
-  if (coverage_log != NULL) {
-    fprintf(coverage_log, "%s\n", file_line);
-    fflush(coverage_log);
-  }
-}
-
-#endif
 
 }  // namespace internal
 }  // namespace v8

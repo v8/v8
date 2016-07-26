@@ -36,7 +36,6 @@ const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 class PPCDebugger {
  public:
   explicit PPCDebugger(Simulator* sim) : sim_(sim) {}
-  ~PPCDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -63,53 +62,6 @@ class PPCDebugger {
   void RedoBreakpoints();
 };
 
-
-PPCDebugger::~PPCDebugger() {}
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void PPCDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-      reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (isWatchedStop(code) && !watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", msg);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instruction*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
-}
-
-#else  // ndef GENERATED_CODE_COVERAGE
-
-static void InitializeCoverage() {}
-
-
 void PPCDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   // use of kStopCodeMask not right on PowerPC
@@ -130,8 +82,6 @@ void PPCDebugger::Stop(Instruction* instr) {
   sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
   Debug();
 }
-#endif
-
 
 intptr_t PPCDebugger::GetRegisterValue(int regnum) {
   return sim_->get_register(regnum);
@@ -826,7 +776,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // some buffer below.
   registers_[sp] =
       reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
-  InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }
