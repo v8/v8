@@ -1865,6 +1865,52 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)
 #endif
 
+class VerboseAccountingAllocator : public base::AccountingAllocator {
+ public:
+  VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
+      : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
+
+  void* Allocate(size_t size) override {
+    void* memory = base::AccountingAllocator::Allocate(size);
+    if (memory) {
+      size_t current = GetCurrentMemoryUsage();
+      if (last_memory_usage_.Value() + sample_bytes_ < current) {
+        PrintJSON(current);
+        last_memory_usage_.SetValue(current);
+      }
+    }
+    return memory;
+  }
+
+  void Free(void* memory, size_t bytes) override {
+    base::AccountingAllocator::Free(memory, bytes);
+    size_t current = GetCurrentMemoryUsage();
+    if (current + sample_bytes_ < last_memory_usage_.Value()) {
+      PrintJSON(current);
+      last_memory_usage_.SetValue(current);
+    }
+  }
+
+ private:
+  void PrintJSON(size_t sample) {
+    // Note: Neither isolate, nor heap is locked, so be careful with accesses
+    // as the allocator is potentially used on a concurrent thread.
+    double time = heap_->isolate()->time_millis_since_init();
+    PrintF(
+        "{"
+        "\"type\": \"malloced\", "
+        "\"isolate\": \"%p\", "
+        "\"time\": %f, "
+        "\"value\": %zu"
+        "}\n",
+        reinterpret_cast<void*>(heap_->isolate()), time, sample);
+  }
+
+  Heap* heap_;
+  base::AtomicNumber<size_t> last_memory_usage_;
+  size_t sample_bytes_;
+};
+
 Isolate::Isolate(bool enable_serializer)
     : embedder_data_(),
       entry_stack_(NULL),
@@ -1890,8 +1936,11 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
-      runtime_zone_(&allocator_),
-      interface_descriptor_zone_(&allocator_),
+      allocator_(FLAG_trace_gc_object_stats
+                     ? new VerboseAccountingAllocator(&heap_, 256 * KB)
+                     : new base::AccountingAllocator()),
+      runtime_zone_(new Zone(allocator_)),
+      interface_descriptor_zone_(new Zone(allocator_)),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -2088,7 +2137,7 @@ Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
   // Has to be called while counters_ are still alive
-  runtime_zone_.DeleteKeptSegment();
+  runtime_zone_->DeleteKeptSegment();
 
   // The entry stack must be empty when we get here.
   DCHECK(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
@@ -2165,6 +2214,15 @@ Isolate::~Isolate() {
 
   delete cancelable_task_manager_;
   cancelable_task_manager_ = nullptr;
+
+  delete runtime_zone_;
+  runtime_zone_ = nullptr;
+
+  delete interface_descriptor_zone_;
+  interface_descriptor_zone_ = nullptr;
+
+  delete allocator_;
+  allocator_ = nullptr;
 
 #if USE_SIMULATOR
   Simulator::TearDown(simulator_i_cache_, simulator_redirection_);

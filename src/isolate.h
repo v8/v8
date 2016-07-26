@@ -869,8 +869,8 @@ class Isolate {
     DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
-  Zone* runtime_zone() { return &runtime_zone_; }
-  Zone* interface_descriptor_zone() { return &interface_descriptor_zone_; }
+  Zone* runtime_zone() { return runtime_zone_; }
+  Zone* interface_descriptor_zone() { return interface_descriptor_zone_; }
 
   UnicodeCache* unicode_cache() {
     return unicode_cache_;
@@ -1134,7 +1134,7 @@ class Isolate {
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
-  base::AccountingAllocator* allocator() { return &allocator_; }
+  base::AccountingAllocator* allocator() { return allocator_; }
 
   bool IsInAnyContext(Object* object, uint32_t index);
 
@@ -1298,9 +1298,9 @@ class Isolate {
   HandleScopeData handle_scope_data_;
   HandleScopeImplementer* handle_scope_implementer_;
   UnicodeCache* unicode_cache_;
-  base::AccountingAllocator allocator_;
-  Zone runtime_zone_;
-  Zone interface_descriptor_zone_;
+  base::AccountingAllocator* allocator_;
+  Zone* runtime_zone_;
+  Zone* interface_descriptor_zone_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   GlobalHandles* global_handles_;
   EternalHandles* eternal_handles_;
