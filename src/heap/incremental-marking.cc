@@ -164,9 +164,7 @@ void IncrementalMarking::TransferMark(Heap* heap, Address old_start,
   DCHECK(MemoryChunk::FromAddress(old_start) ==
          MemoryChunk::FromAddress(new_start));
 
-  if (!heap->incremental_marking()->IsMarking() ||
-      Page::FromAddress(old_start)->IsFlagSet(Page::BLACK_PAGE))
-    return;
+  if (!heap->incremental_marking()->IsMarking()) return;
 
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
@@ -603,9 +601,9 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(FLAG_black_allocation);
   DCHECK(IsMarking());
   black_allocation_ = true;
-  OldSpace* old_space = heap()->old_space();
-  old_space->EmptyAllocationInfo();
-  old_space->free_list()->Reset();
+  heap()->old_space()->MarkAllocationInfoBlack();
+  heap()->map_space()->MarkAllocationInfoBlack();
+  heap()->code_space()->MarkAllocationInfoBlack();
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Black allocation started\n");
   }
@@ -833,7 +831,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       // them.
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
-        if (Page::FromAddress(dest->address())->IsFlagSet(Page::BLACK_PAGE))
+        if (Marking::IsBlack(ObjectMarking::MarkBitFrom(dest->address())))
           continue;
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
