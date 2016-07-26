@@ -810,9 +810,7 @@ Type* Typer::Visitor::TypeProjection(Node* node) {
   return Type::Any();
 }
 
-
-Type* Typer::Visitor::TypeDead(Node* node) { return Type::Any(); }
-
+Type* Typer::Visitor::TypeDead(Node* node) { return Type::None(); }
 
 // JS comparison operators.
 
