@@ -107,7 +107,7 @@ class LoadElimination final : public AdvancedReducer {
     ZoneMap<Node*, Node*> info_for_node_;
   };
 
-  static size_t const kMaxTrackedFields = 16;
+  static size_t const kMaxTrackedFields = 32;
 
   class AbstractState final : public ZoneObject {
    public:
