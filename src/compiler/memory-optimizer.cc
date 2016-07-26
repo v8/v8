@@ -370,23 +370,28 @@ void MemoryOptimizer::VisitOtherEffect(Node* node,
 }
 
 Node* MemoryOptimizer::ComputeIndex(ElementAccess const& access, Node* key) {
-  Node* index = key;
-  int element_size_shift =
+  Node* index;
+  if (machine()->Is64()) {
+    // On 64-bit platforms, we need to feed a Word64 index to the Load and
+    // Store operators. Since LoadElement or StoreElement don't do any bounds
+    // checking themselves, we can be sure that the {key} was already checked
+    // and is in valid range, so we can do the further address computation on
+    // Word64 below, which ideally allows us to fuse the address computation
+    // with the actual memory access operation on Intel platforms.
+    index = graph()->NewNode(machine()->ChangeUint32ToUint64(), key);
+  } else {
+    index = key;
+  }
+  int const element_size_shift =
       ElementSizeLog2Of(access.machine_type.representation());
   if (element_size_shift) {
-    index = graph()->NewNode(machine()->Word32Shl(), index,
-                             jsgraph()->Int32Constant(element_size_shift));
+    index = graph()->NewNode(machine()->WordShl(), index,
+                             jsgraph()->IntPtrConstant(element_size_shift));
   }
-  const int fixed_offset = access.header_size - access.tag();
+  int const fixed_offset = access.header_size - access.tag();
   if (fixed_offset) {
-    index = graph()->NewNode(machine()->Int32Add(), index,
-                             jsgraph()->Int32Constant(fixed_offset));
-  }
-  if (machine()->Is64()) {
-    // TODO(turbofan): This is probably only correct for typed arrays, and only
-    // if the typed arrays are at most 2GiB in size, which happens to match
-    // exactly our current situation.
-    index = graph()->NewNode(machine()->ChangeUint32ToUint64(), index);
+    index = graph()->NewNode(machine()->IntAdd(), index,
+                             jsgraph()->IntPtrConstant(fixed_offset));
   }
   return index;
 }

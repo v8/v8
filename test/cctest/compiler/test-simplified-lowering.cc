@@ -1238,23 +1238,38 @@ void CheckFieldAccessArithmetic(FieldAccess access, Node* load_or_store) {
 Node* CheckElementAccessArithmetic(ElementAccess access, Node* load_or_store) {
   Node* index = load_or_store->InputAt(1);
   if (kPointerSize == 8) {
+    Int64BinopMatcher mindex(index);
+    CHECK_EQ(IrOpcode::kInt64Add, mindex.node()->opcode());
+    CHECK(mindex.right().Is(access.header_size - access.tag()));
+
+    const int element_size_shift =
+        ElementSizeLog2Of(access.machine_type.representation());
+    Node* index;
+    if (element_size_shift) {
+      Int64BinopMatcher shl(mindex.left().node());
+      CHECK_EQ(IrOpcode::kWord64Shl, shl.node()->opcode());
+      CHECK(shl.right().Is(element_size_shift));
+      index = shl.left().node();
+    } else {
+      index = mindex.left().node();
+    }
     CHECK_EQ(IrOpcode::kChangeUint32ToUint64, index->opcode());
-    index = index->InputAt(0);
-  }
-
-  Int32BinopMatcher mindex(index);
-  CHECK_EQ(IrOpcode::kInt32Add, mindex.node()->opcode());
-  CHECK(mindex.right().Is(access.header_size - access.tag()));
-
-  const int element_size_shift =
-      ElementSizeLog2Of(access.machine_type.representation());
-  if (element_size_shift) {
-    Int32BinopMatcher shl(mindex.left().node());
-    CHECK_EQ(IrOpcode::kWord32Shl, shl.node()->opcode());
-    CHECK(shl.right().Is(element_size_shift));
-    return shl.left().node();
+    return index->InputAt(0);
   } else {
-    return mindex.left().node();
+    Int32BinopMatcher mindex(index);
+    CHECK_EQ(IrOpcode::kInt32Add, mindex.node()->opcode());
+    CHECK(mindex.right().Is(access.header_size - access.tag()));
+
+    const int element_size_shift =
+        ElementSizeLog2Of(access.machine_type.representation());
+    if (element_size_shift) {
+      Int32BinopMatcher shl(mindex.left().node());
+      CHECK_EQ(IrOpcode::kWord32Shl, shl.node()->opcode());
+      CHECK(shl.right().Is(element_size_shift));
+      return shl.left().node();
+    } else {
+      return mindex.left().node();
+    }
   }
 }
 
