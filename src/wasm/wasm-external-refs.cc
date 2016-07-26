@@ -25,13 +25,21 @@ void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
 
 void f32_nearest_int_wrapper(float* param) { *param = nearbyintf(*param); }
 
-void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
+void f64_trunc_wrapper(double* param) {
+  WriteDoubleValue(param, trunc(ReadDoubleValue(param)));
+}
 
-void f64_floor_wrapper(double* param) { *param = floor(*param); }
+void f64_floor_wrapper(double* param) {
+  WriteDoubleValue(param, floor(ReadDoubleValue(param)));
+}
 
-void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
+void f64_ceil_wrapper(double* param) {
+  WriteDoubleValue(param, ceil(ReadDoubleValue(param)));
+}
 
-void f64_nearest_int_wrapper(double* param) { *param = nearbyint(*param); }
+void f64_nearest_int_wrapper(double* param) {
+  WriteDoubleValue(param, nearbyint(ReadDoubleValue(param)));
+}
 
 void int64_to_float32_wrapper(int64_t* input, float* output) {
   *output = static_cast<float>(*input);
