@@ -32,7 +32,7 @@ declare_args() {
   v8_embed_script = ""
 
   # Sets -dENABLE_DISASSEMBLER.
-  v8_enable_disassembler = false
+  v8_enable_disassembler = ""
 
   # Sets -dENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
@@ -52,7 +52,7 @@ declare_args() {
   v8_interpreted_regexp = false
 
   # Sets -dOBJECT_PRINT.
-  v8_object_print = false
+  v8_object_print = ""
 
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
@@ -81,6 +81,14 @@ if (v8_enable_gdbjit == "") {
   } else {
     v8_enable_gdbjit = false
   }
+}
+
+# Derived defaults.
+if (v8_object_print == "") {
+  v8_object_print = is_debug && !v8_optimized_debug
+}
+if (v8_enable_disassembler == "") {
+  v8_enable_disassembler = is_debug && !v8_optimized_debug
 }
 
 v8_generated_peephole_source = "$target_gen_dir/bytecode-peephole-table.cc"
