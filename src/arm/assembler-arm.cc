@@ -2164,7 +2164,11 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
     } else {
       svc(kStopCode + kMaxStopCode, cond);
     }
-    emit(reinterpret_cast<Instr>(msg));
+    // Do not embed the message string address! We used to do this, but that
+    // made snapshots created from position-independent executable builds
+    // non-deterministic.
+    // TODO(yangguo): remove this field entirely.
+    nop();
   }
 #else  // def __arm__
   if (cond != al) {

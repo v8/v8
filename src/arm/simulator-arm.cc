@@ -115,18 +115,11 @@ static void InitializeCoverage() {
 void ArmDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char* msg = *reinterpret_cast<char**>(sim_->get_pc()
-                                        + Instruction::kInstrSize);
-  // Update this stop description.
-  if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
-    sim_->watched_stops_[code].desc = msg;
-  }
   // Print the stop message and code if it is not the default code.
   if (code != kMaxStopCode) {
-    PrintF("Simulator hit stop %u: %s\n", code, msg);
+    PrintF("Simulator hit stop %u\n", code);
   } else {
-    PrintF("Simulator hit %s\n", msg);
+    PrintF("Simulator hit\n");
   }
   sim_->set_pc(sim_->get_pc() + 2 * Instruction::kInstrSize);
   Debug();
