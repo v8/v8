@@ -437,6 +437,19 @@ Node* CodeAssembler::CallStubN(Callable const& callable, Node** args,
 }
 
 Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                              Node* target, Node* context, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(1);
+  args[0] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
                               Node* target, Node* context, Node* arg1,
                               size_t result_size) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(

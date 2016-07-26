@@ -601,5 +601,11 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   return Callable(stub.GetCode(), InterpreterCEntryDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
+  return Callable(isolate->builtins()->InterpreterOnStackReplacement(),
+                  ContextOnlyDescriptor(isolate));
+}
+
 }  // namespace internal
 }  // namespace v8

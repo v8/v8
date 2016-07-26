@@ -1796,6 +1796,32 @@ void Interpreter::DoStackCheck(InterpreterAssembler* assembler) {
   }
 }
 
+// OsrPoll <loop_depth>
+//
+// Performs a loop nesting check and potentially triggers OSR.
+void Interpreter::DoOsrPoll(InterpreterAssembler* assembler) {
+  Node* loop_depth = __ BytecodeOperandImm(0);
+  Node* osr_level = __ LoadOSRNestingLevel();
+
+  // Check if OSR points at the given {loop_depth} are armed by comparing it to
+  // the current {osr_level} loaded from the header of the BytecodeArray.
+  Label ok(assembler), osr_armed(assembler, Label::kDeferred);
+  Node* condition = __ Int32GreaterThanOrEqual(loop_depth, osr_level);
+  __ Branch(condition, &ok, &osr_armed);
+
+  __ Bind(&ok);
+  __ Dispatch();
+
+  __ Bind(&osr_armed);
+  {
+    Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate_);
+    Node* target = __ HeapConstant(callable.code());
+    Node* context = __ GetContext();
+    __ CallStub(callable.descriptor(), target, context);
+    __ Dispatch();
+  }
+}
+
 // Throw
 //
 // Throws the exception in the accumulator.

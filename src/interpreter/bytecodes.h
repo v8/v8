@@ -260,6 +260,9 @@ namespace interpreter {
   /* Perform a stack guard check */                                            \
   V(StackCheck, AccumulatorUse::kNone)                                         \
                                                                                \
+  /* Perform a check to trigger on-stack replacement */                        \
+  V(OsrPoll, AccumulatorUse::kNone, OperandType::kImm)                         \
+                                                                               \
   /* Non-local flow control */                                                 \
   V(Throw, AccumulatorUse::kRead)                                              \
   V(ReThrow, AccumulatorUse::kRead)                                            \
