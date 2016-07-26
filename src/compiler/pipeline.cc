@@ -973,12 +973,22 @@ struct LoopExitEliminationPhase {
   }
 };
 
+struct GenericLoweringPhase {
+  static const char* phase_name() { return "generic lowering"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    JSGenericLowering generic_lowering(data->jsgraph());
+    AddReducer(data, &graph_reducer, &generic_lowering);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct EarlyOptimizationPhase {
   static const char* phase_name() { return "early optimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-    JSGenericLowering generic_lowering(data->jsgraph());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
@@ -990,7 +1000,6 @@ struct EarlyOptimizationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
-    AddReducer(data, &graph_reducer, &generic_lowering);
     AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -1507,9 +1516,9 @@ bool PipelineImpl::CreateGraph() {
   RunPrintAndVerify("Untyped", true);
 #endif
 
-  // Run early optimization pass.
-  Run<EarlyOptimizationPhase>();
-  RunPrintAndVerify("Early optimized", true);
+  // Run generic lowering pass.
+  Run<GenericLoweringPhase>();
+  RunPrintAndVerify("Generic lowering", true);
 
   data->EndPhaseKind();
 
@@ -1520,6 +1529,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
   data->BeginPhaseKind("block building");
+
+  // Run early optimization pass.
+  Run<EarlyOptimizationPhase>();
+  RunPrintAndVerify("Early optimized", true);
 
   Run<EffectControlLinearizationPhase>();
   RunPrintAndVerify("Effect and control linearized", true);
