@@ -7,7 +7,6 @@ pool type: mixed
 execute: yes
 wrap: no
 test function name: f
-ignition generators: yes
 
 ---
 snippet: "
