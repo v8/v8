@@ -399,7 +399,7 @@
         'action': ['<(mkpeephole_exec)', '<(INTERMEDIATE_DIR)/bytecode-peephole-table.cc' ],
         'process_outputs_as_sources': 1,
         'conditions': [
-          ['want_separate_host_toolset==1', {
+          ['want_separate_host_toolset_mkpeephole==1', {
             'dependencies': ['mkpeephole#host'],
             'toolsets': ['host'],
           }, {
@@ -1794,7 +1794,8 @@
         'base/utils/random-number-generator.h',
       ],
       'conditions': [
-        ['want_separate_host_toolset==1', {
+        ['want_separate_host_toolset==1 or \
+          want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
@@ -2372,7 +2373,7 @@
         'interpreter/mkpeephole.cc'
       ],
       'conditions': [
-        ['want_separate_host_toolset==1', {
+        ['want_separate_host_toolset_mkpeephole==1', {
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
