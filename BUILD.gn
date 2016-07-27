@@ -2181,9 +2181,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-    # This is executed on the host only and doesn't require PIE.
-    want_pie = false
-
     sources = [
       "src/snapshot/mksnapshot.cc",
     ]
@@ -2205,9 +2202,6 @@ v8_executable("mkpeephole") {
   # table can built during build. The table depends on the properties of
   # bytecodes that are described in bytecodes.{cc,h}.
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  # This is executed on the host only and doesn't require PIE.
-  want_pie = false
 
   sources = [
     "src/interpreter/bytecode-peephole-optimizer.h",
