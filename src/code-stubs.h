@@ -1952,6 +1952,12 @@ class CompareICStub : public PlatformCodeStub {
                  LeftStateBits::encode(left) | RightStateBits::encode(right) |
                  StateBits::encode(state);
   }
+  // Creates uninitialized compare stub.
+  CompareICStub(Isolate* isolate, Token::Value op)
+      : CompareICStub(isolate, op, CompareICState::UNINITIALIZED,
+                      CompareICState::UNINITIALIZED,
+                      CompareICState::UNINITIALIZED) {}
+
   CompareICStub(Isolate* isolate, ExtraICState extra_ic_state)
       : PlatformCodeStub(isolate) {
     minor_key_ = extra_ic_state;

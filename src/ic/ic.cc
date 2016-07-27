@@ -817,32 +817,6 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> code) {
   }
 }
 
-Handle<Code> LoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    return LoadICTFStub(isolate).GetCode();
-  }
-  return LoadICStub(isolate).GetCode();
-}
-
-Handle<Code> LoadGlobalIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, ExtraICState extra_state) {
-  return LoadGlobalICStub(isolate, LoadGlobalICState(extra_state)).GetCode();
-}
-
-Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
-  if (FLAG_tf_load_ic_stub) {
-    return KeyedLoadICTFStub(isolate).GetCode();
-  }
-  return KeyedLoadICStub(isolate).GetCode();
-}
-
-Handle<Code> KeyedStoreIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, LanguageMode language_mode) {
-  StoreICState state = StoreICState(language_mode);
-  return KeyedStoreICStub(isolate, state).GetCode();
-}
-
-
 Handle<Code> KeyedStoreIC::ChooseMegamorphicStub(Isolate* isolate,
                                                  ExtraICState extra_state) {
   LanguageMode mode = StoreICState::GetLanguageMode(extra_state);
@@ -1592,20 +1566,6 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   MAYBE_RETURN_NULL(
       Object::SetProperty(&it, value, language_mode(), store_mode));
   return value;
-}
-
-Handle<Code> CallIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, int argc, ConvertReceiverMode mode,
-    TailCallMode tail_call_mode) {
-  CallICStub stub(isolate, CallICState(argc, mode, tail_call_mode));
-  Handle<Code> code = stub.GetCode();
-  return code;
-}
-
-Handle<Code> StoreIC::initialize_stub_in_optimized_code(
-    Isolate* isolate, LanguageMode language_mode) {
-  StoreICStub stub(isolate, StoreICState(language_mode));
-  return stub.GetCode();
 }
 
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
@@ -2728,14 +2688,6 @@ Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
   CHECK(stub.FindCodeInCache(&code));
   return code;
 }
-
-Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
-  CompareICStub stub(isolate, op, CompareICState::UNINITIALIZED,
-                     CompareICState::UNINITIALIZED,
-                     CompareICState::UNINITIALIZED);
-  return stub.GetCode();
-}
-
 
 Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
