@@ -1484,11 +1484,6 @@ void Shell::RunShell(Isolate* isolate) {
   while (true) {
     HandleScope inner_scope(isolate);
     printf("d8> ");
-#if defined(__native_client__)
-    // Native Client libc is used to being embedded in Chrome and
-    // has trouble recognizing when to flush.
-    fflush(stdout);
-#endif
     Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
     ExecuteString(isolate, input, name, true, true);

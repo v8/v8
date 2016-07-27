@@ -1099,13 +1099,6 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #define STOS "stosq"
 #endif
 #endif
-#if defined(__native_client__)
-  // This STOS sequence does not validate for x86_64 Native Client.
-  // Here we #undef STOS to force use of the slower C version.
-  // TODO(bradchen): Profile V8 and implement a faster REP STOS
-  // here if the profile indicates it matters.
-#undef STOS
-#endif
 
 #if defined(MEMORY_SANITIZER)
   // MemorySanitizer does not understand inline assembly.

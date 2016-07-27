@@ -42,7 +42,6 @@ exec_script_whitelist = [
   "//build/toolchain/concurrent_links.gni",
   "//build/toolchain/gcc_toolchain.gni",
   "//build/toolchain/mac/BUILD.gn",
-  "//build/toolchain/nacl/BUILD.gn",
   "//build/toolchain/win/BUILD.gn",
   "//build/util/branding.gni",
   "//build/util/version.gni",

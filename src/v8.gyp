@@ -1744,7 +1744,6 @@
         'base/atomicops_internals_mac.h',
         'base/atomicops_internals_mips_gcc.h',
         'base/atomicops_internals_mips64_gcc.h',
-        'base/atomicops_internals_portable.h',
         'base/atomicops_internals_ppc_gcc.h',
         'base/atomicops_internals_s390_gcc.h',
         'base/atomicops_internals_tsan.h',
@@ -1801,20 +1800,12 @@
           'toolsets': ['target'],
         }],
         ['OS=="linux"', {
-            'conditions': [
-              ['nacl_target_arch=="none"', {
-                'link_settings': {
-                  'libraries': [
-                    '-ldl',
-                    '-lrt'
-                  ],
-                },
-              }, {
-                'defines': [
-                  'V8_LIBRT_NOT_AVAILABLE=1',
-                ],
-              }],
-            ],
+            'link_settings': {
+              'libraries': [
+                '-ldl',
+                '-lrt'
+              ],
+            },
             'sources': [
               'base/platform/platform-linux.cc',
               'base/platform/platform-posix.cc'

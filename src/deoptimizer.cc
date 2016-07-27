@@ -25,13 +25,7 @@ namespace internal {
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
                                   base::OS::CommitPageSize(),
-#if defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-                                  NOT_EXECUTABLE,
-#else
                                   EXECUTABLE,
-#endif
                                   NULL);
 }
 

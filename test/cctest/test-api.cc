@@ -22176,7 +22176,7 @@ THREADED_TEST(JSONStringifyObjectWithGap) {
   ExpectString("JSON.stringify(obj, null,  '*')", *utf8);
 }
 
-#if V8_OS_POSIX && !V8_OS_NACL
+#if V8_OS_POSIX
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(0), sem_value_(0) { }

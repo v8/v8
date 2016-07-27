@@ -42,13 +42,6 @@
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!(python -c "import sys; print sys.byteorder")',
     'force_dynamic_crt%': 0,
-    # Native Client builds currently use the V8 ARM JIT and
-    # arm/simulator-arm.cc to defer the significant effort required
-    # for NaCl JIT support. The nacl_target_arch variable provides
-    # the 'true' target arch for places in this file that need it.
-    # TODO(bradchen): get rid of nacl_target_arch when someday
-    # NaCl V8 builds stop using the ARM simulator
-    'nacl_target_arch%': 'none',     # must be set externally
 
     # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
     # registers d16-d31 in the generated code, both in the snapshot and for the
@@ -1029,7 +1022,7 @@
           }],
           ['_toolset=="target"', {
             'conditions': [
-              ['target_cxx_is_biarch==1 and nacl_target_arch!="nacl_x64"', {
+              ['target_cxx_is_biarch==1', {
                 'conditions': [
                   ['host_arch=="s390" or host_arch=="s390x"', {
                     'cflags': [ '-m31' ],
@@ -1192,9 +1185,8 @@
               '-ffunction-sections',
             ],
             'conditions': [
-              # TODO(crbug.com/272548): Avoid -O3 in NaCl
               # Don't use -O3 with sanitizers.
-              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+              ['asan==0 and msan==0 and lsan==0 \
                 and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
@@ -1311,9 +1303,8 @@
               '<(wno_array_bounds)',
             ],
             'conditions': [
-              # TODO(crbug.com/272548): Avoid -O3 in NaCl
               # Don't use -O3 with sanitizers.
-              ['nacl_target_arch=="none" and asan==0 and msan==0 and lsan==0 \
+              ['asan==0 and msan==0 and lsan==0 \
                 and tsan==0 and ubsan==0 and ubsan_vptr==0', {
                 'cflags': ['-O3'],
                 'cflags!': ['-O2'],
