@@ -564,8 +564,6 @@ DEFINE_BOOL(enable_sudiv, true,
 DEFINE_BOOL(enable_movw_movt, false,
             "enable loading 32-bit constant by means of movw/movt "
             "instruction pairs (ARM only)")
-DEFINE_BOOL(enable_unaligned_accesses, true,
-            "enable unaligned accesses for ARMv7 (ARM only)")
 DEFINE_BOOL(enable_32dregs, ENABLE_32DREGS_DEFAULT,
             "enable use of d16-d31 registers on ARM - this requires VFP3")
 DEFINE_BOOL(enable_vldr_imm, false,
@@ -573,6 +571,10 @@ DEFINE_BOOL(enable_vldr_imm, false,
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
+
+// regexp-macro-assembler-*.cc
+DEFINE_BOOL(enable_regexp_unaligned_accesses, true,
+            "enable unaligned accesses for the regexp engine")
 
 DEFINE_IMPLICATION(enable_armv8, enable_vfp3)
 DEFINE_IMPLICATION(enable_armv8, enable_neon)
