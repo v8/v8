@@ -15,6 +15,7 @@
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 
+#include "src/base/build_config.h"
 #include "src/base/file-utils.h"
 
 #define ICU_UTIL_DATA_FILE   0
@@ -50,7 +51,13 @@ bool InitializeICUDefaultLocation(const char* exec_path,
     return InitializeICU(icu_data_file);
   }
   char* icu_data_file_default;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   RelativePath(&icu_data_file_default, exec_path, "icudtl.dat");
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  RelativePath(&icu_data_file_default, exec_path, "icudtb.dat");
+#else
+#error Unknown byte ordering
+#endif
   bool result = InitializeICU(icu_data_file_default);
   free(icu_data_file_default);
   return result;
