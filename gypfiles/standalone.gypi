@@ -238,23 +238,12 @@
         (v8_target_arch=="arm64" and host_arch!="arm64") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
         (v8_target_arch=="mips64el" and host_arch!="mips64el") or \
+        (v8_target_arch=="mips" and host_arch!="mips") or \
         (v8_target_arch=="x64" and host_arch!="x64") or \
         (OS=="android" or OS=="qnx")', {
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
-      }],
-      ['(v8_target_arch=="arm" and host_arch!="arm") or \
-        (v8_target_arch=="arm64" and host_arch!="arm64") or \
-        (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
-        (v8_target_arch=="mips64el" and host_arch!="mips64el") or \
-        (v8_target_arch=="mips" and host_arch!="mips") or \
-        (v8_target_arch=="mips64" and host_arch!="mips64") or \
-        (v8_target_arch=="x64" and host_arch!="x64") or \
-        (OS=="android" or OS=="qnx")', {
-        'want_separate_host_toolset_mkpeephole': 1,
-      }, {
-        'want_separate_host_toolset_mkpeephole': 0,
       }],
       ['OS == "win"', {
         'os_posix%': 0,
