@@ -458,16 +458,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->ChangeTaggedToInt32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
-        op = simplified()->CheckedTaggedToFloat64();
-        Node* effect = NodeProperties::GetEffectInput(use_node);
-        Node* control = NodeProperties::GetControlInput(use_node);
-        Node* to_float_checked =
-            jsgraph()->graph()->NewNode(op, node, effect, control);
-        NodeProperties::ReplaceEffectInput(use_node, to_float_checked);
-        return jsgraph()->graph()->NewNode(machine()->TruncateFloat64ToWord32(),
-                                           to_float_checked);
+        op = simplified()->CheckedTruncateTaggedToWord32();
+      } else {
+        op = simplified()->TruncateTaggedToWord32();
       }
-      op = simplified()->TruncateTaggedToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32();
     }

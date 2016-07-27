@@ -998,6 +998,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedToFloat64:
+    case IrOpcode::kCheckedTruncateTaggedToWord32:
       break;
 
     case IrOpcode::kCheckFloat64Hole:

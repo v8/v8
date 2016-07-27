@@ -288,6 +288,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedFloat64ToInt32();
   const Operator* CheckedTaggedToInt32();
   const Operator* CheckedTaggedToFloat64();
+  const Operator* CheckedTruncateTaggedToWord32();
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckTaggedHole(CheckTaggedHoleMode);

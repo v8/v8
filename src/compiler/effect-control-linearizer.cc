@@ -673,6 +673,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTruncateTaggedToWord32:
       state = LowerTruncateTaggedToWord32(node, *effect, *control);
       break;
+    case IrOpcode::kCheckedTruncateTaggedToWord32:
+      state = LowerCheckedTruncateTaggedToWord32(node, frame_state, *effect,
+                                                 *control);
+      break;
     case IrOpcode::kObjectIsCallable:
       state = LowerObjectIsCallable(node, *effect, *control);
       break;
@@ -1617,6 +1621,41 @@ EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node, Node* effect,
                            vtrue, vfalse, control);
 
   return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(Node* node,
+                                                            Node* frame_state,
+                                                            Node* effect,
+                                                            Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = ObjectIsSmi(value);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  // In the Smi case, just convert to int32.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = ChangeSmiToInt32(value);
+
+  // Otherwise, check that it's a heap number or oddball and truncate the value
+  // to int32.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  ValueEffectControl false_state = BuildCheckedHeapNumberOrOddballToFloat64(
+      value, frame_state, effect, if_false);
+  false_state.value =
+      graph()->NewNode(machine()->TruncateFloat64ToWord32(), false_state.value);
+
+  Node* merge =
+      graph()->NewNode(common()->Merge(2), if_true, false_state.control);
+  Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), etrue,
+                                      false_state.effect, merge);
+  Node* result =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue,
+                       false_state.value, merge);
+
+  return ValueEffectControl(result, effect_phi, merge);
 }
 
 EffectControlLinearizer::ValueEffectControl

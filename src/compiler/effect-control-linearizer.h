@@ -101,6 +101,10 @@ class EffectControlLinearizer {
                                                   Node* control);
   ValueEffectControl LowerTruncateTaggedToWord32(Node* node, Node* effect,
                                                  Node* control);
+  ValueEffectControl LowerCheckedTruncateTaggedToWord32(Node* node,
+                                                        Node* frame_state,
+                                                        Node* effect,
+                                                        Node* control);
   ValueEffectControl LowerObjectIsCallable(Node* node, Node* effect,
                                            Node* control);
   ValueEffectControl LowerObjectIsNumber(Node* node, Node* effect,

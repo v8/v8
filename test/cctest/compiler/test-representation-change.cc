@@ -442,7 +442,6 @@ TEST(ToUint32_constant) {
   }
 }
 
-
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
                         Type* from_type, MachineRepresentation to) {
   RepresentationChangerTester r;
@@ -477,6 +476,20 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
   CHECK_EQ(n, c2->InputAt(0));
 }
 
+static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
+                        Type* from_type, MachineRepresentation to,
+                        UseInfo use_info) {
+  RepresentationChangerTester r;
+
+  Node* n = r.Parameter();
+  Node* use = r.Return(n);
+  Node* c =
+      r.changer()->GetRepresentationFor(n, from, from_type, use, use_info);
+
+  CHECK_NE(c, n);
+  CHECK_EQ(expected, c->opcode());
+  CHECK_EQ(n, c->InputAt(0));
+}
 
 TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeTaggedToBit, MachineRepresentation::kTagged,
@@ -580,6 +593,10 @@ TEST(SignednessInWord32) {
   CheckChange(IrOpcode::kTruncateFloat64ToWord32,
               MachineRepresentation::kFloat64, Type::Number(),
               MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
+              MachineRepresentation::kTagged, Type::NumberOrOddball(),
+              MachineRepresentation::kWord32,
+              UseInfo::CheckedNumberOrOddballAsWord32());
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,

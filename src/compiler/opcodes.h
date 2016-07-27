@@ -192,6 +192,7 @@
   V(CheckedUint32ToInt32)             \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedToInt32)             \
+  V(CheckedTruncateTaggedToWord32)    \
   V(CheckedTaggedToFloat64)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
