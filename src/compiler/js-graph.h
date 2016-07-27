@@ -45,6 +45,7 @@ class JSGraph : public ZoneObject {
   Node* CEntryStubConstant(int result_size);
   Node* EmptyFixedArrayConstant();
   Node* EmptyLiteralsArrayConstant();
+  Node* EmptyStringConstant();
   Node* HeapNumberMapConstant();
   Node* OptimizedOutConstant();
   Node* StaleRegisterConstant();
@@ -151,6 +152,7 @@ class JSGraph : public ZoneObject {
     kCEntryStubConstant,
     kEmptyFixedArrayConstant,
     kEmptyLiteralsArrayConstant,
+    kEmptyStringConstant,
     kHeapNumberMapConstant,
     kOptimizedOutConstant,
     kStaleRegisterConstant,

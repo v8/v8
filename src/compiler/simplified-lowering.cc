@@ -822,9 +822,16 @@ class RepresentationSelector {
       return MachineRepresentation::kWord32;
     } else if (type->Is(Type::Boolean())) {
       return MachineRepresentation::kBit;
-    } else if (type->Is(Type::Number())) {
-      return MachineRepresentation::kFloat64;
     } else if (use.IsUsedAsFloat64()) {
+      return MachineRepresentation::kFloat64;
+    } else if (type->Is(
+                   Type::Union(Type::SignedSmall(), Type::NaN(), zone()))) {
+      // TODO(turbofan): For Phis that return either NaN or some Smi, it's
+      // beneficial to not go all the way to double, unless the uses are
+      // double uses. For tagging that just means some potentially expensive
+      // allocation code; we might want to do the same for -0 as well?
+      return MachineRepresentation::kTagged;
+    } else if (type->Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
     } else if (type->Is(Type::Internal())) {
       // We mark (u)int64 as Type::Internal.
@@ -1934,6 +1941,11 @@ class RepresentationSelector {
           node->AppendInput(jsgraph_->zone(), jsgraph_->graph()->start());
           NodeProperties::ChangeOp(node, jsgraph_->common()->Call(desc));
         }
+        return;
+      }
+      case IrOpcode::kStringCharCodeAt: {
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32);
         return;
       }
       case IrOpcode::kStringFromCharCode: {

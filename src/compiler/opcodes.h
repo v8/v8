@@ -265,6 +265,7 @@
   V(NumberToInt32)                    \
   V(NumberToUint32)                   \
   V(NumberSilenceNaN)                 \
+  V(StringCharCodeAt)                 \
   V(StringFromCharCode)               \
   V(CheckBounds)                      \
   V(CheckIf)                          \

@@ -124,6 +124,33 @@ class AccessBuilder final : public AllStatic {
   // Provides access to String::length() field.
   static FieldAccess ForStringLength();
 
+  // Provides access to ConsString::first() field.
+  static FieldAccess ForConsStringFirst();
+
+  // Provides access to ConsString::second() field.
+  static FieldAccess ForConsStringSecond();
+
+  // Provides access to SlicedString::offset() field.
+  static FieldAccess ForSlicedStringOffset();
+
+  // Provides access to SlicedString::parent() field.
+  static FieldAccess ForSlicedStringParent();
+
+  // Provides access to ExternalString::resource_data() field.
+  static FieldAccess ForExternalStringResourceData();
+
+  // Provides access to ExternalOneByteString characters.
+  static ElementAccess ForExternalOneByteStringCharacter();
+
+  // Provides access to ExternalTwoByteString characters.
+  static ElementAccess ForExternalTwoByteStringCharacter();
+
+  // Provides access to SeqOneByteString characters.
+  static ElementAccess ForSeqOneByteStringCharacter();
+
+  // Provides access to SeqTwoByteString characters.
+  static ElementAccess ForSeqTwoByteStringCharacter();
+
   // Provides access to JSGlobalObject::global_proxy() field.
   static FieldAccess ForJSGlobalObjectGlobalProxy();
 

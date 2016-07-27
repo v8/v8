@@ -1883,6 +1883,11 @@ Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
+Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
+  // TODO(bmeurer): We could do better here based on inputs.
+  return Type::Range(0, kMaxUInt16, zone());
+}
+
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
   return TypeUnaryOp(node, StringFromCharCodeTyper);
 }

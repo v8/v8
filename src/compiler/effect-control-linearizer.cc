@@ -698,6 +698,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringFromCharCode:
       state = LowerStringFromCharCode(node, *effect, *control);
       break;
+    case IrOpcode::kStringCharCodeAt:
+      state = LowerStringCharCodeAt(node, *effect, *control);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       state = LowerCheckFloat64Hole(node, frame_state, *effect, *control);
       break;
@@ -1846,6 +1849,273 @@ EffectControlLinearizer::LowerObjectIsUndetectable(Node* node, Node* effect,
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2), vtrue,
                            vfalse, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringCharCodeAt(Node* node, Node* effect,
+                                               Node* control) {
+  Node* subject = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  // We may need to loop several times for ConsString/SlicedString {subject}s.
+  Node* loop =
+      graph()->NewNode(common()->Loop(4), control, control, control, control);
+  Node* lsubject =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 4),
+                       subject, subject, subject, subject, loop);
+  Node* lindex =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 4), index,
+                       index, index, index, loop);
+  Node* leffect = graph()->NewNode(common()->EffectPhi(4), effect, effect,
+                                   effect, effect, loop);
+
+  control = loop;
+  effect = leffect;
+
+  // Determine the instance type of {lsubject}.
+  Node* lsubject_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       lsubject, effect, control);
+  Node* lsubject_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+      lsubject_map, effect, control);
+
+  // Check if {lsubject} is a SeqString.
+  Node* check0 = graph()->NewNode(
+      machine()->Word32Equal(),
+      graph()->NewNode(machine()->Word32And(), lsubject_instance_type,
+                       jsgraph()->Int32Constant(kStringRepresentationMask)),
+      jsgraph()->Int32Constant(kSeqStringTag));
+  Node* branch0 = graph()->NewNode(common()->Branch(), check0, control);
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+  Node* vtrue0;
+  {
+    // Check if the {lsubject} is a TwoByteSeqString or a OneByteSeqString.
+    Node* check1 = graph()->NewNode(
+        machine()->Word32Equal(),
+        graph()->NewNode(machine()->Word32And(), lsubject_instance_type,
+                         jsgraph()->Int32Constant(kStringEncodingMask)),
+        jsgraph()->Int32Constant(kTwoByteStringTag));
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = etrue0;
+    Node* vtrue1 = etrue1 =
+        graph()->NewNode(simplified()->LoadElement(
+                             AccessBuilder::ForSeqTwoByteStringCharacter()),
+                         lsubject, lindex, etrue1, if_true1);
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = etrue0;
+    Node* vfalse1 = efalse1 =
+        graph()->NewNode(simplified()->LoadElement(
+                             AccessBuilder::ForSeqOneByteStringCharacter()),
+                         lsubject, lindex, efalse1, if_false1);
+
+    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    etrue0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
+    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                              vtrue1, vfalse1, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* efalse0 = effect;
+  Node* vfalse0;
+  {
+    // Check if the {lsubject} is a ConsString.
+    Node* check1 = graph()->NewNode(
+        machine()->Word32Equal(),
+        graph()->NewNode(machine()->Word32And(), lsubject_instance_type,
+                         jsgraph()->Int32Constant(kStringRepresentationMask)),
+        jsgraph()->Int32Constant(kConsStringTag));
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
+
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    Node* etrue1 = efalse0;
+    {
+      // Load the right hand side of the {lsubject} ConsString.
+      Node* lsubject_second = etrue1 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForConsStringSecond()),
+          lsubject, etrue1, if_true1);
+
+      // Check whether the right hand side is the empty string (i.e. if
+      // this is really a flat string in a cons string). If that is not
+      // the case we flatten the string first.
+      Node* check2 = graph()->NewNode(machine()->WordEqual(), lsubject_second,
+                                      jsgraph()->EmptyStringConstant());
+      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                       check2, if_true1);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* etrue2 = etrue1;
+      Node* vtrue2 = etrue2 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForConsStringFirst()),
+          lsubject, etrue2, if_true2);
+
+      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+      Node* efalse2 = etrue1;
+      Node* vfalse2;
+      {
+        // Flatten the {lsubject} ConsString first.
+        Operator::Properties properties =
+            Operator::kNoDeopt | Operator::kNoThrow;
+        Runtime::FunctionId id = Runtime::kFlattenString;
+        CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+            graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+        vfalse2 = efalse2 = graph()->NewNode(
+            common()->Call(desc), jsgraph()->CEntryStubConstant(1), lsubject,
+            jsgraph()->ExternalConstant(ExternalReference(id, isolate())),
+            jsgraph()->Int32Constant(1), jsgraph()->NoContextConstant(),
+            efalse2, if_false2);
+      }
+
+      // Retry the {loop} with the new subject.
+      loop->ReplaceInput(1, if_true2);
+      lindex->ReplaceInput(1, lindex);
+      leffect->ReplaceInput(1, etrue2);
+      lsubject->ReplaceInput(1, vtrue2);
+      loop->ReplaceInput(2, if_false2);
+      lindex->ReplaceInput(2, lindex);
+      leffect->ReplaceInput(2, efalse2);
+      lsubject->ReplaceInput(2, vfalse2);
+    }
+
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    Node* efalse1 = efalse0;
+    Node* vfalse1;
+    {
+      // Check if the {lsubject} is an ExternalString.
+      Node* check2 = graph()->NewNode(
+          machine()->Word32Equal(),
+          graph()->NewNode(machine()->Word32And(), lsubject_instance_type,
+                           jsgraph()->Int32Constant(kStringRepresentationMask)),
+          jsgraph()->Int32Constant(kExternalStringTag));
+      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                       check2, if_false1);
+
+      Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+      Node* etrue2 = efalse1;
+      Node* vtrue2;
+      {
+        // Check if the {lsubject} is a short external string.
+        Node* check3 = graph()->NewNode(
+            machine()->Word32Equal(),
+            graph()->NewNode(
+                machine()->Word32And(), lsubject_instance_type,
+                jsgraph()->Int32Constant(kShortExternalStringMask)),
+            jsgraph()->Int32Constant(0));
+        Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                         check3, if_true2);
+
+        Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+        Node* etrue3 = etrue2;
+        Node* vtrue3;
+        {
+          // Load the actual resource data from the {lsubject}.
+          Node* lsubject_resource_data = etrue3 = graph()->NewNode(
+              simplified()->LoadField(
+                  AccessBuilder::ForExternalStringResourceData()),
+              lsubject, etrue3, if_true3);
+
+          // Check if the {lsubject} is a TwoByteExternalString or a
+          // OneByteExternalString.
+          Node* check4 = graph()->NewNode(
+              machine()->Word32Equal(),
+              graph()->NewNode(machine()->Word32And(), lsubject_instance_type,
+                               jsgraph()->Int32Constant(kStringEncodingMask)),
+              jsgraph()->Int32Constant(kTwoByteStringTag));
+          Node* branch4 =
+              graph()->NewNode(common()->Branch(), check4, if_true3);
+
+          Node* if_true4 = graph()->NewNode(common()->IfTrue(), branch4);
+          Node* etrue4 = etrue3;
+          Node* vtrue4 = etrue4 = graph()->NewNode(
+              simplified()->LoadElement(
+                  AccessBuilder::ForExternalTwoByteStringCharacter()),
+              lsubject_resource_data, lindex, etrue4, if_true4);
+
+          Node* if_false4 = graph()->NewNode(common()->IfFalse(), branch4);
+          Node* efalse4 = etrue3;
+          Node* vfalse4 = efalse4 = graph()->NewNode(
+              simplified()->LoadElement(
+                  AccessBuilder::ForExternalOneByteStringCharacter()),
+              lsubject_resource_data, lindex, efalse4, if_false4);
+
+          if_true3 = graph()->NewNode(common()->Merge(2), if_true4, if_false4);
+          etrue3 = graph()->NewNode(common()->EffectPhi(2), etrue4, efalse4,
+                                    if_true3);
+          vtrue3 =
+              graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue4, vfalse4, if_true3);
+        }
+
+        Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
+        Node* efalse3 = etrue2;
+        Node* vfalse3;
+        {
+          // The {lsubject} might be compressed, call the runtime.
+          Operator::Properties properties =
+              Operator::kNoDeopt | Operator::kNoThrow;
+          Runtime::FunctionId id = Runtime::kExternalStringGetChar;
+          CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+              graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
+          vfalse3 = efalse3 = graph()->NewNode(
+              common()->Call(desc), jsgraph()->CEntryStubConstant(1), lsubject,
+              ChangeInt32ToSmi(lindex),
+              jsgraph()->ExternalConstant(ExternalReference(id, isolate())),
+              jsgraph()->Int32Constant(2), jsgraph()->NoContextConstant(),
+              efalse3, if_false3);
+          vfalse3 = ChangeSmiToInt32(vfalse3);
+        }
+
+        if_true2 = graph()->NewNode(common()->Merge(2), if_true3, if_false3);
+        etrue2 =
+            graph()->NewNode(common()->EffectPhi(2), etrue3, efalse3, if_true2);
+        vtrue2 =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                             vtrue3, vfalse3, if_true2);
+      }
+
+      Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+      Node* efalse2 = efalse1;
+      {
+        // The {lsubject} is a SlicedString, continue with its parent.
+        Node* lsubject_parent = efalse2 = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForSlicedStringParent()),
+            lsubject, efalse2, if_false2);
+        Node* lsubject_offset = efalse2 = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForSlicedStringOffset()),
+            lsubject, efalse2, if_false2);
+        Node* lsubject_index = graph()->NewNode(
+            machine()->Int32Add(), lindex, ChangeSmiToInt32(lsubject_offset));
+
+        // Retry the {loop} with the parent subject.
+        loop->ReplaceInput(3, if_false2);
+        leffect->ReplaceInput(3, efalse2);
+        lindex->ReplaceInput(3, lsubject_index);
+        lsubject->ReplaceInput(3, lsubject_parent);
+      }
+
+      if_false1 = if_true2;
+      efalse1 = etrue2;
+      vfalse1 = vtrue2;
+    }
+
+    if_false0 = if_false1;
+    efalse0 = efalse1;
+    vfalse0 = vfalse1;
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), vtrue0,
+                       vfalse0, control);
 
   return ValueEffectControl(value, effect, control);
 }

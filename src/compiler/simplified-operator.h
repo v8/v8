@@ -251,6 +251,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringCharCodeAt();
   const Operator* StringFromCharCode();
 
   const Operator* PlainPrimitiveToNumber();

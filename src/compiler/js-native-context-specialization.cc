@@ -131,7 +131,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     control = graph()->NewNode(common()->IfFalse(), branch);
     receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
     receiverissmi_effect = effect;
-  } else {
+  } else if (access_infos.size() != 1 ||
+             !access_infos[0].receiver_type()->Is(Type::String())) {
+    // TODO(bmeurer): We omit the Smi check here if we are going to lower to
+    // the CheckString below; make this less horrible and adhoc.
     receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                          receiver, effect, control);
   }

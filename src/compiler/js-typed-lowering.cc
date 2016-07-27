@@ -655,7 +655,11 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       r.OneInputCannotBe(Type::StringOrReceiver())) {
     const Operator* less_than;
     const Operator* less_than_or_equal;
-    if (hint != CompareOperationHints::kAny) {
+    if (r.BothInputsAre(Type::Signed32()) ||
+        r.BothInputsAre(Type::Unsigned32())) {
+      less_than = simplified()->NumberLessThan();
+      less_than_or_equal = simplified()->NumberLessThanOrEqual();
+    } else if (hint != CompareOperationHints::kAny) {
       less_than = simplified()->SpeculativeNumberLessThan(hint);
       less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
     } else if (r.BothInputsAre(Type::PlainPrimitive()) ||

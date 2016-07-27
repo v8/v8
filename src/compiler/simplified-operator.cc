@@ -278,83 +278,84 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   return OpParameter<CompareOperationHints::Hint>(op);
 }
 
-#define PURE_OP_LIST(V)                                    \
-  V(BooleanNot, Operator::kNoProperties, 1)                \
-  V(NumberEqual, Operator::kCommutative, 2)                \
-  V(NumberLessThan, Operator::kNoProperties, 2)            \
-  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)     \
-  V(NumberAdd, Operator::kCommutative, 2)                  \
-  V(NumberSubtract, Operator::kNoProperties, 2)            \
-  V(NumberMultiply, Operator::kCommutative, 2)             \
-  V(NumberDivide, Operator::kNoProperties, 2)              \
-  V(NumberModulus, Operator::kNoProperties, 2)             \
-  V(NumberBitwiseOr, Operator::kCommutative, 2)            \
-  V(NumberBitwiseXor, Operator::kCommutative, 2)           \
-  V(NumberBitwiseAnd, Operator::kCommutative, 2)           \
-  V(NumberShiftLeft, Operator::kNoProperties, 2)           \
-  V(NumberShiftRight, Operator::kNoProperties, 2)          \
-  V(NumberShiftRightLogical, Operator::kNoProperties, 2)   \
-  V(NumberImul, Operator::kCommutative, 2)                 \
-  V(NumberAbs, Operator::kNoProperties, 1)                 \
-  V(NumberClz32, Operator::kNoProperties, 1)               \
-  V(NumberCeil, Operator::kNoProperties, 1)                \
-  V(NumberFloor, Operator::kNoProperties, 1)               \
-  V(NumberFround, Operator::kNoProperties, 1)              \
-  V(NumberAcos, Operator::kNoProperties, 1)                \
-  V(NumberAcosh, Operator::kNoProperties, 1)               \
-  V(NumberAsin, Operator::kNoProperties, 1)                \
-  V(NumberAsinh, Operator::kNoProperties, 1)               \
-  V(NumberAtan, Operator::kNoProperties, 1)                \
-  V(NumberAtan2, Operator::kNoProperties, 2)               \
-  V(NumberAtanh, Operator::kNoProperties, 1)               \
-  V(NumberCbrt, Operator::kNoProperties, 1)                \
-  V(NumberCos, Operator::kNoProperties, 1)                 \
-  V(NumberCosh, Operator::kNoProperties, 1)                \
-  V(NumberExp, Operator::kNoProperties, 1)                 \
-  V(NumberExpm1, Operator::kNoProperties, 1)               \
-  V(NumberLog, Operator::kNoProperties, 1)                 \
-  V(NumberLog1p, Operator::kNoProperties, 1)               \
-  V(NumberLog10, Operator::kNoProperties, 1)               \
-  V(NumberLog2, Operator::kNoProperties, 1)                \
-  V(NumberMax, Operator::kNoProperties, 2)                 \
-  V(NumberMin, Operator::kNoProperties, 2)                 \
-  V(NumberPow, Operator::kNoProperties, 2)                 \
-  V(NumberRound, Operator::kNoProperties, 1)               \
-  V(NumberSign, Operator::kNoProperties, 1)                \
-  V(NumberSin, Operator::kNoProperties, 1)                 \
-  V(NumberSinh, Operator::kNoProperties, 1)                \
-  V(NumberSqrt, Operator::kNoProperties, 1)                \
-  V(NumberTan, Operator::kNoProperties, 1)                 \
-  V(NumberTanh, Operator::kNoProperties, 1)                \
-  V(NumberTrunc, Operator::kNoProperties, 1)               \
-  V(NumberToInt32, Operator::kNoProperties, 1)             \
-  V(NumberToUint32, Operator::kNoProperties, 1)            \
-  V(NumberSilenceNaN, Operator::kNoProperties, 1)          \
-  V(StringFromCharCode, Operator::kNoProperties, 1)        \
-  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)    \
-  V(PlainPrimitiveToWord32, Operator::kNoProperties, 1)    \
-  V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1)   \
-  V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1) \
-  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)       \
-  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)      \
-  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)     \
-  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1) \
-  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)       \
-  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)      \
-  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)     \
-  V(ChangeTaggedToBit, Operator::kNoProperties, 1)         \
-  V(ChangeBitToTagged, Operator::kNoProperties, 1)         \
-  V(TruncateTaggedToWord32, Operator::kNoProperties, 1)    \
-  V(TruncateTaggedToFloat64, Operator::kNoProperties, 1)   \
-  V(ObjectIsCallable, Operator::kNoProperties, 1)          \
-  V(ObjectIsNumber, Operator::kNoProperties, 1)            \
-  V(ObjectIsReceiver, Operator::kNoProperties, 1)          \
-  V(ObjectIsSmi, Operator::kNoProperties, 1)               \
-  V(ObjectIsString, Operator::kNoProperties, 1)            \
-  V(ObjectIsUndetectable, Operator::kNoProperties, 1)      \
-  V(StringEqual, Operator::kCommutative, 2)                \
-  V(StringLessThan, Operator::kNoProperties, 2)            \
-  V(StringLessThanOrEqual, Operator::kNoProperties, 2)
+#define PURE_OP_LIST(V)                                       \
+  V(BooleanNot, Operator::kNoProperties, 1, 0)                \
+  V(NumberEqual, Operator::kCommutative, 2, 0)                \
+  V(NumberLessThan, Operator::kNoProperties, 2, 0)            \
+  V(NumberLessThanOrEqual, Operator::kNoProperties, 2, 0)     \
+  V(NumberAdd, Operator::kCommutative, 2, 0)                  \
+  V(NumberSubtract, Operator::kNoProperties, 2, 0)            \
+  V(NumberMultiply, Operator::kCommutative, 2, 0)             \
+  V(NumberDivide, Operator::kNoProperties, 2, 0)              \
+  V(NumberModulus, Operator::kNoProperties, 2, 0)             \
+  V(NumberBitwiseOr, Operator::kCommutative, 2, 0)            \
+  V(NumberBitwiseXor, Operator::kCommutative, 2, 0)           \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2, 0)           \
+  V(NumberShiftLeft, Operator::kNoProperties, 2, 0)           \
+  V(NumberShiftRight, Operator::kNoProperties, 2, 0)          \
+  V(NumberShiftRightLogical, Operator::kNoProperties, 2, 0)   \
+  V(NumberImul, Operator::kCommutative, 2, 0)                 \
+  V(NumberAbs, Operator::kNoProperties, 1, 0)                 \
+  V(NumberClz32, Operator::kNoProperties, 1, 0)               \
+  V(NumberCeil, Operator::kNoProperties, 1, 0)                \
+  V(NumberFloor, Operator::kNoProperties, 1, 0)               \
+  V(NumberFround, Operator::kNoProperties, 1, 0)              \
+  V(NumberAcos, Operator::kNoProperties, 1, 0)                \
+  V(NumberAcosh, Operator::kNoProperties, 1, 0)               \
+  V(NumberAsin, Operator::kNoProperties, 1, 0)                \
+  V(NumberAsinh, Operator::kNoProperties, 1, 0)               \
+  V(NumberAtan, Operator::kNoProperties, 1, 0)                \
+  V(NumberAtan2, Operator::kNoProperties, 2, 0)               \
+  V(NumberAtanh, Operator::kNoProperties, 1, 0)               \
+  V(NumberCbrt, Operator::kNoProperties, 1, 0)                \
+  V(NumberCos, Operator::kNoProperties, 1, 0)                 \
+  V(NumberCosh, Operator::kNoProperties, 1, 0)                \
+  V(NumberExp, Operator::kNoProperties, 1, 0)                 \
+  V(NumberExpm1, Operator::kNoProperties, 1, 0)               \
+  V(NumberLog, Operator::kNoProperties, 1, 0)                 \
+  V(NumberLog1p, Operator::kNoProperties, 1, 0)               \
+  V(NumberLog10, Operator::kNoProperties, 1, 0)               \
+  V(NumberLog2, Operator::kNoProperties, 1, 0)                \
+  V(NumberMax, Operator::kNoProperties, 2, 0)                 \
+  V(NumberMin, Operator::kNoProperties, 2, 0)                 \
+  V(NumberPow, Operator::kNoProperties, 2, 0)                 \
+  V(NumberRound, Operator::kNoProperties, 1, 0)               \
+  V(NumberSign, Operator::kNoProperties, 1, 0)                \
+  V(NumberSin, Operator::kNoProperties, 1, 0)                 \
+  V(NumberSinh, Operator::kNoProperties, 1, 0)                \
+  V(NumberSqrt, Operator::kNoProperties, 1, 0)                \
+  V(NumberTan, Operator::kNoProperties, 1, 0)                 \
+  V(NumberTanh, Operator::kNoProperties, 1, 0)                \
+  V(NumberTrunc, Operator::kNoProperties, 1, 0)               \
+  V(NumberToInt32, Operator::kNoProperties, 1, 0)             \
+  V(NumberToUint32, Operator::kNoProperties, 1, 0)            \
+  V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)          \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)          \
+  V(StringFromCharCode, Operator::kNoProperties, 1, 0)        \
+  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)    \
+  V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)    \
+  V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)   \
+  V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1, 0) \
+  V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)       \
+  V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)      \
+  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)     \
+  V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0) \
+  V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)       \
+  V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)      \
+  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1, 0)     \
+  V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)         \
+  V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)         \
+  V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)    \
+  V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)   \
+  V(ObjectIsCallable, Operator::kNoProperties, 1, 0)          \
+  V(ObjectIsNumber, Operator::kNoProperties, 1, 0)            \
+  V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)          \
+  V(ObjectIsSmi, Operator::kNoProperties, 1, 0)               \
+  V(ObjectIsString, Operator::kNoProperties, 1, 0)            \
+  V(ObjectIsUndetectable, Operator::kNoProperties, 1, 0)      \
+  V(StringEqual, Operator::kCommutative, 2, 0)                \
+  V(StringLessThan, Operator::kNoProperties, 2, 0)            \
+  V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)
 
 #define SPECULATIVE_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)         \
@@ -384,11 +385,11 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
-#define PURE(Name, properties, input_count)                                \
+#define PURE(Name, properties, value_input_count, control_input_count)     \
   struct Name##Operator final : public Operator {                          \
     Name##Operator()                                                       \
         : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name, \
-                   input_count, 0, 0, 1, 0, 0) {}                          \
+                   value_input_count, 0, control_input_count, 1, 0, 0) {}  \
   };                                                                       \
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
@@ -488,13 +489,9 @@ static base::LazyInstance<SimplifiedOperatorGlobalCache>::type kCache =
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
     : cache_(kCache.Get()), zone_(zone) {}
 
-#define GET_FROM_CACHE(Name, properties, input_count) \
+#define GET_FROM_CACHE(Name, ...) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
-#undef GET_FROM_CACHE
-
-#define GET_FROM_CACHE(Name, value_input_count, value_output_count) \
-  const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 CHECKED_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 

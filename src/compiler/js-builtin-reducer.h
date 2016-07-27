@@ -63,6 +63,8 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathTanh(Node* node);
   Reduction ReduceMathTrunc(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
+  Reduction ReduceStringCharAt(Node* node);
+  Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
 
   Node* ToNumber(Node* value);

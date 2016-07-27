@@ -386,6 +386,78 @@ FieldAccess AccessBuilder::ForStringLength() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForConsStringFirst() {
+  FieldAccess access = {
+      kTaggedBase,    ConsString::kFirstOffset, Handle<Name>(),
+      Type::String(), MachineType::AnyTagged(), kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForConsStringSecond() {
+  FieldAccess access = {
+      kTaggedBase,    ConsString::kSecondOffset, Handle<Name>(),
+      Type::String(), MachineType::AnyTagged(),  kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForSlicedStringOffset() {
+  FieldAccess access = {
+      kTaggedBase,         SlicedString::kOffsetOffset, Handle<Name>(),
+      Type::SignedSmall(), MachineType::AnyTagged(),    kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForSlicedStringParent() {
+  FieldAccess access = {
+      kTaggedBase,    SlicedString::kParentOffset, Handle<Name>(),
+      Type::String(), MachineType::AnyTagged(),    kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForExternalStringResourceData() {
+  FieldAccess access = {kTaggedBase,
+                        ExternalString::kResourceDataOffset,
+                        Handle<Name>(),
+                        Type::UntaggedPointer(),
+                        MachineType::Pointer(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
+ElementAccess AccessBuilder::ForExternalOneByteStringCharacter() {
+  ElementAccess access = {kUntaggedBase, 0, TypeCache::Get().kUint8,
+                          MachineType::Uint8(), kNoWriteBarrier};
+  return access;
+}
+
+// static
+ElementAccess AccessBuilder::ForExternalTwoByteStringCharacter() {
+  ElementAccess access = {kUntaggedBase, 0, TypeCache::Get().kUint16,
+                          MachineType::Uint16(), kNoWriteBarrier};
+  return access;
+}
+
+// static
+ElementAccess AccessBuilder::ForSeqOneByteStringCharacter() {
+  ElementAccess access = {kTaggedBase, SeqOneByteString::kHeaderSize,
+                          TypeCache::Get().kUint8, MachineType::Uint8(),
+                          kNoWriteBarrier};
+  return access;
+}
+
+// static
+ElementAccess AccessBuilder::ForSeqTwoByteStringCharacter() {
+  ElementAccess access = {kTaggedBase, SeqTwoByteString::kHeaderSize,
+                          TypeCache::Get().kUint16, MachineType::Uint16(),
+                          kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSGlobalObjectGlobalProxy() {
@@ -397,7 +469,6 @@ FieldAccess AccessBuilder::ForJSGlobalObjectGlobalProxy() {
                         kPointerWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {

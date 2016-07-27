@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-builtin-reducer.h"
+
+#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -40,6 +42,10 @@ class JSCallReduction {
     return function->shared()->builtin_function_id();
   }
 
+  bool ReceiverMatches(Type* type) {
+    return NodeProperties::GetType(receiver())->Is(type);
+  }
+
   // Determines whether the call takes zero inputs.
   bool InputsMatchZero() { return GetJSCallArity() == 0; }
 
@@ -66,6 +72,7 @@ class JSCallReduction {
     return true;
   }
 
+  Node* receiver() { return NodeProperties::GetValueInput(node_, 1); }
   Node* left() { return GetJSCallInput(0); }
   Node* right() { return GetJSCallInput(1); }
 
@@ -534,6 +541,127 @@ Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+Node* GetStringReceiver(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Type* receiver_type = NodeProperties::GetType(receiver);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  if (receiver_type->Is(Type::String())) return receiver;
+  // Check if the {node} is dominated by a CheckString renaming for
+  // it's {receiver}, and if so use that renaming as {receiver} for
+  // the lowering below.
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckString &&
+        dominator->InputAt(0) == receiver) {
+      return dominator;
+    }
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckString node.
+      return nullptr;
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
+}  // namespace
+
+// ES6 section 21.1.3.1 String.prototype.charAt ( pos )
+Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
+  // We need at least target, receiver and index parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* index = NodeProperties::GetValueInput(node, 2);
+    Type* index_type = NodeProperties::GetType(index);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    if (index_type->Is(Type::Unsigned32())) {
+      if (Node* receiver = GetStringReceiver(node)) {
+        // Determine the {receiver} length.
+        Node* receiver_length = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+            effect, control);
+
+        // Check if {index} is less than {receiver} length.
+        Node* check = graph()->NewNode(simplified()->NumberLessThan(), index,
+                                       receiver_length);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, control);
+
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* vtrue;
+        {
+          // Load the character from the {receiver}.
+          vtrue = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                                   index, if_true);
+
+          // Return it as single character string.
+          vtrue = graph()->NewNode(simplified()->StringFromCharCode(), vtrue);
+        }
+
+        // Return the empty string otherwise.
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* vfalse = jsgraph()->EmptyStringConstant();
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        Node* value =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
+
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+    }
+  }
+
+  return NoChange();
+}
+
+// ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
+Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
+  // We need at least target, receiver and index parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* index = NodeProperties::GetValueInput(node, 2);
+    Type* index_type = NodeProperties::GetType(index);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    if (index_type->Is(Type::Unsigned32())) {
+      if (Node* receiver = GetStringReceiver(node)) {
+        // Determine the {receiver} length.
+        Node* receiver_length = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+            effect, control);
+
+        // Check if {index} is less than {receiver} length.
+        Node* check = graph()->NewNode(simplified()->NumberLessThan(), index,
+                                       receiver_length);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, control);
+
+        // Load the character from the {receiver}.
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* vtrue = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                       receiver, index, if_true);
+
+        // Return NaN otherwise.
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* vfalse = jsgraph()->NaNConstant();
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        Node* value =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
+
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+    }
+  }
+
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
   JSCallReduction r(node);
@@ -646,6 +774,10 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kStringFromCharCode:
       reduction = ReduceStringFromCharCode(node);
       break;
+    case kStringCharAt:
+      return ReduceStringCharAt(node);
+    case kStringCharCodeAt:
+      return ReduceStringCharCodeAt(node);
     default:
       break;
   }
