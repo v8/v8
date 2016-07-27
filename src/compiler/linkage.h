@@ -422,6 +422,9 @@ class Linkage : public ZoneObject {
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;
 
+  // A special {OsrValue} index to indicate the accumulator register.
+  static const int kOsrAccumulatorRegisterIndex = -1;
+
  private:
   CallDescriptor* const incoming_;
 

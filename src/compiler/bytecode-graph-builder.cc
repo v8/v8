@@ -60,6 +60,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Environment* CopyForConditional() const;
   Environment* CopyForLoop();
   void Merge(Environment* other);
+  void PrepareForOsr();
 
  private:
   explicit Environment(const Environment* copy);
@@ -358,6 +359,36 @@ void BytecodeGraphBuilder::Environment::PrepareForLoop() {
   builder()->exit_controls_.push_back(terminate);
 }
 
+void BytecodeGraphBuilder::Environment::PrepareForOsr() {
+  DCHECK_EQ(IrOpcode::kLoop, GetControlDependency()->opcode());
+  DCHECK_EQ(1, GetControlDependency()->InputCount());
+  Node* start = graph()->start();
+
+  // Create a control node for the OSR entry point and merge it into the loop
+  // header. Update the current environment's control dependency accordingly.
+  Node* entry = graph()->NewNode(common()->OsrLoopEntry(), start, start);
+  Node* control = builder()->MergeControl(GetControlDependency(), entry);
+  UpdateControlDependency(control);
+
+  // Create a merge of the effect from the OSR entry and the existing effect
+  // dependency. Update the current environment's effect dependency accordingly.
+  Node* effect = builder()->MergeEffect(GetEffectDependency(), entry, control);
+  UpdateEffectDependency(effect);
+
+  // Rename all values in the environment which will extend or introduce Phi
+  // nodes to contain the OSR values available at the entry point.
+  Node* osr_context = graph()->NewNode(
+      common()->OsrValue(Linkage::kOsrContextSpillSlotIndex), entry);
+  context_ = builder()->MergeValue(context_, osr_context, control);
+  int size = static_cast<int>(values()->size());
+  for (int i = 0; i < size; i++) {
+    int idx = i;  // Indexing scheme follows {StandardFrame}, adapt accordingly.
+    if (i >= register_base()) idx += InterpreterFrameConstants::kExtraSlotCount;
+    if (i >= accumulator_base()) idx = Linkage::kOsrAccumulatorRegisterIndex;
+    Node* osr_value = graph()->NewNode(common()->OsrValue(idx), entry);
+    values_[i] = builder()->MergeValue(values_[i], osr_value, control);
+  }
+}
 
 bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
     Node** state_values, int offset, int count) {
@@ -447,6 +478,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),
           bytecode_array()->register_count(), info->shared_info())),
+      osr_ast_id_(info->osr_ast_id()),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
@@ -520,6 +552,10 @@ bool BytecodeGraphBuilder::CreateGraph() {
                   bytecode_array()->parameter_count(), graph()->start(),
                   GetFunctionContext());
   set_environment(&env);
+
+  // For OSR add an {OsrNormalEntry} as the start of the top-level environment.
+  // It will be replaced with {Dead} after typing and optimizations.
+  if (!osr_ast_id_.IsNone()) NewNode(common()->OsrNormalEntry());
 
   VisitBytecodes();
 
@@ -1393,8 +1429,12 @@ void BytecodeGraphBuilder::VisitStackCheck() {
 }
 
 void BytecodeGraphBuilder::VisitOsrPoll() {
-  // TODO(4764): Implement OSR graph construction. Not marked UNIMPLEMENTED to
-  // ensure the --ignition-osr flag can already be fuzzed without crashing.
+  // TODO(4764): This should be moved into the {VisitBytecodes} once we merge
+  // the polling with existing bytecode. This will also guarantee that we are
+  // not missing the OSR entry point, which we wouldn't catch right now.
+  if (osr_ast_id_.ToInt() == bytecode_iterator().current_offset()) {
+    environment()->PrepareForOsr();
+  }
 }
 
 void BytecodeGraphBuilder::VisitReturn() {

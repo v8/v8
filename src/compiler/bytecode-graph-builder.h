@@ -219,6 +219,7 @@ class BytecodeGraphBuilder {
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
+  BailoutId osr_ast_id_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all

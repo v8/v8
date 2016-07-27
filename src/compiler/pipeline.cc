@@ -1820,6 +1820,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 
   data->InitializeRegisterAllocationData(config, descriptor);
   if (info()->is_osr()) {
+    AllowHandleDereference allow_deref;
     OsrHelper osr_helper(info());
     osr_helper.SetupFrame(data->frame());
   }

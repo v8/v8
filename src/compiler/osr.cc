@@ -24,10 +24,16 @@ namespace internal {
 namespace compiler {
 
 OsrHelper::OsrHelper(CompilationInfo* info)
-    : parameter_count_(info->scope()->num_parameters()),
-      stack_slot_count_(info->scope()->num_stack_slots() +
-                        info->osr_expr_stack_height()) {}
-
+    : parameter_count_(
+          info->is_optimizing_from_bytecode()
+              ? info->shared_info()->bytecode_array()->parameter_count()
+              : info->scope()->num_parameters()),
+      stack_slot_count_(
+          info->is_optimizing_from_bytecode()
+              ? info->shared_info()->bytecode_array()->register_count() +
+                    InterpreterFrameConstants::kExtraSlotCount
+              : info->scope()->num_stack_slots() +
+                    info->osr_expr_stack_height()) {}
 
 #ifdef DEBUG
 #define TRACE_COND (FLAG_trace_turbo_graph && FLAG_trace_osr)
