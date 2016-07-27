@@ -479,12 +479,10 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 
 template <Heap::FindMementoMode mode>
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
-  // Check if there is potentially a memento behind the object. If
-  // the last word of the memento is on another page we return
-  // immediately.
   Address object_address = object->address();
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
+  // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return nullptr;
   }
@@ -497,6 +495,22 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   if (candidate_map != allocation_memento_map()) {
     return nullptr;
   }
+
+  // Bail out if the memento is below the age mark, which can happen when
+  // mementos survived because a page got moved within new space.
+  Page* object_page = Page::FromAddress(object_address);
+  if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
+    Address age_mark =
+        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
+    if (!object_page->Contains(age_mark)) {
+      return nullptr;
+    }
+    // Do an exact check in the case where the age mark is on the same page.
+    if (object_address < age_mark) {
+      return nullptr;
+    }
+  }
+
   AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
 
   // Depending on what the memento is used for, we might need to perform
