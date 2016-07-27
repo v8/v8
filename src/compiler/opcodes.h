@@ -267,6 +267,7 @@
   V(CheckBounds)                      \
   V(CheckIf)                          \
   V(CheckNumber)                      \
+  V(CheckString)                      \
   V(CheckTaggedPointer)               \
   V(CheckTaggedSigned)                \
   V(CheckFloat64Hole)                 \

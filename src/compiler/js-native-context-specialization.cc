@@ -154,13 +154,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Perform map check on {receiver}.
     Type* receiver_type = access_info.receiver_type();
     if (receiver_type->Is(Type::String())) {
-      Node* check = graph()->NewNode(simplified()->ObjectIsString(), receiver);
       if (j == access_infos.size() - 1) {
-        this_effect = graph()->NewNode(simplified()->CheckIf(), check,
-                                       this_effect, fallthrough_control);
+        this_receiver = this_effect =
+            graph()->NewNode(simplified()->CheckString(), receiver, this_effect,
+                             fallthrough_control);
         this_control = fallthrough_control;
         fallthrough_control = nullptr;
       } else {
+        Node* check =
+            graph()->NewNode(simplified()->ObjectIsString(), receiver);
         Node* branch =
             graph()->NewNode(common()->Branch(), check, fallthrough_control);
         fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);

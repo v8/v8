@@ -625,6 +625,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckNumber:
       state = LowerCheckNumber(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckString:
+      state = LowerCheckString(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
       break;
@@ -1039,6 +1042,32 @@ EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state,
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state,
+                                          Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check0 = ObjectIsSmi(value);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check0,
+                       frame_state, effect, control);
+
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  Node* check1 =
+      graph()->NewNode(machine()->Uint32LessThan(), value_instance_type,
+                       jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType), check1,
+      frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }

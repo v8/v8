@@ -1806,6 +1806,11 @@ Type* Typer::Visitor::TypeCheckNumber(Node* node) {
   return Type::Intersect(arg, Type::Number(), zone());
 }
 
+Type* Typer::Visitor::TypeCheckString(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::String(), zone());
+}
+
 Type* Typer::Visitor::TypeCheckIf(Node* node) {
   UNREACHABLE();
   return nullptr;

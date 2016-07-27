@@ -368,6 +368,7 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(CheckBounds, 2, 1)           \
   V(CheckIf, 1, 0)               \
   V(CheckNumber, 1, 1)           \
+  V(CheckString, 1, 1)           \
   V(CheckTaggedPointer, 1, 1)    \
   V(CheckTaggedSigned, 1, 1)     \
   V(CheckedInt32Add, 2, 1)       \

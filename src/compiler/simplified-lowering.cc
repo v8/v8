@@ -1990,6 +1990,15 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckString: {
+        if (InputIs(node, Type::String())) {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
+        }
+        return;
+      }
       case IrOpcode::kCheckTaggedPointer: {
         if (InputCannotBe(node, Type::SignedSmall())) {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
