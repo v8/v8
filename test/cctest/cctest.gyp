@@ -102,6 +102,7 @@
       'heap/test-mark-compact.cc',
       'heap/test-page-promotion.cc',
       'heap/test-spaces.cc',
+      'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
       'print-extension.cc',
       'profiler-extension.cc',

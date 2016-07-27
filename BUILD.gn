@@ -2114,10 +2114,18 @@ v8_source_set("v8_libbase") {
 v8_source_set("v8_libplatform") {
   sources = [
     "include/libplatform/libplatform.h",
+    "include/libplatform/v8-tracing.h",
     "src/libplatform/default-platform.cc",
     "src/libplatform/default-platform.h",
     "src/libplatform/task-queue.cc",
     "src/libplatform/task-queue.h",
+    "src/libplatform/tracing/trace-buffer.cc",
+    "src/libplatform/tracing/trace-buffer.h",
+    "src/libplatform/tracing/trace-config.cc",
+    "src/libplatform/tracing/trace-object.cc",
+    "src/libplatform/tracing/trace-writer.cc",
+    "src/libplatform/tracing/trace-writer.h",
+    "src/libplatform/tracing/tracing-controller.cc",
     "src/libplatform/worker-thread.cc",
     "src/libplatform/worker-thread.h",
   ]
