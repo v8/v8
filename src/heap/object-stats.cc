@@ -272,7 +272,7 @@ template <class HashTable>
 void ObjectStatsCollector::RecordHashTableHelper(HeapObject* parent,
                                                  HashTable* array,
                                                  int subtype) {
-  int used = array->NumberOfElements() * HashTable::kEntrySize;
+  int used = array->NumberOfElements() * HashTable::kEntrySize * kPointerSize;
   CHECK_GE(array->Size(), used);
   size_t overhead = array->Size() - used -
                     HashTable::kElementsStartIndex * kPointerSize -
@@ -411,9 +411,13 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata,
                            TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
-    UnseededNumberDictionary* names = UnseededNumberDictionary::cast(
-        feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex));
-    RecordHashTableHelper(sfi, names, TYPE_FEEDBACK_METADATA_SUB_TYPE);
+    Object* names =
+        feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex);
+    if (!names->IsSmi()) {
+      UnseededNumberDictionary* names = UnseededNumberDictionary::cast(
+          feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex));
+      RecordHashTableHelper(sfi, names, TYPE_FEEDBACK_METADATA_SUB_TYPE);
+    }
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {
