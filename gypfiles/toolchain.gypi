@@ -357,28 +357,47 @@
         ],
         'cflags': ['-march=i586'],
       }],  # v8_target_arch=="x87"
-      ['(v8_target_arch=="mips" or v8_target_arch=="mipsel" \
-        or v8_target_arch=="mips64" or v8_target_arch=="mips64el") \
-         and v8_target_arch==target_arch', {
+      ['v8_target_arch=="mips" or v8_target_arch=="mipsel" \
+        or v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
         'target_conditions': [
           ['_toolset=="target"', {
-            # Target built with a Mips CXX compiler.
-            'variables': {
-              'ldso_path%': '<!(/bin/echo -n $LDSO_PATH)',
-              'ld_r_path%': '<!(/bin/echo -n $LD_R_PATH)',
-            },
             'conditions': [
-              ['ldso_path!=""', {
-                'ldflags': ['-Wl,--dynamic-linker=<(ldso_path)'],
-              }],
-              ['ld_r_path!=""', {
-                'ldflags': ['-Wl,--rpath=<(ld_r_path)'],
-              }],
-              [ 'clang==1', {
-                'cflags': ['-integrated-as'],
+              ['v8_target_arch==target_arch', {
+                # Target built with a Mips CXX compiler.
+                'variables': {
+                  'ldso_path%': '<!(/bin/echo -n $LDSO_PATH)',
+                  'ld_r_path%': '<!(/bin/echo -n $LD_R_PATH)',
+                },
+                'conditions': [
+                  ['ldso_path!=""', {
+                    'ldflags': ['-Wl,--dynamic-linker=<(ldso_path)'],
+                  }],
+                  ['ld_r_path!=""', {
+                    'ldflags': ['-Wl,--rpath=<(ld_r_path)'],
+                  }],
+                  [ 'clang==1', {
+                    'cflags': ['-integrated-as'],
+                  }],
+                  ['OS!="mac"', {
+                    'defines': ['_MIPS_TARGET_HW',],
+                  }, {
+                    'defines': ['_MIPS_TARGET_SIMULATOR',],
+                  }],
+                ],
+              }, {
+                'defines': ['_MIPS_TARGET_SIMULATOR',],
               }],
             ],
-          }],
+          }],  #'_toolset=="target"
+          ['_toolset=="host"', {
+            'conditions': [
+              ['v8_target_arch==target_arch and OS!="mac"', {
+                'defines': ['_MIPS_TARGET_HW',],
+              }, {
+                'defines': ['_MIPS_TARGET_SIMULATOR',],
+              }],
+            ],
+          }],  #'_toolset=="host"
         ],
       }],
       ['v8_target_arch=="mips"', {
