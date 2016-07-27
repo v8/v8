@@ -220,9 +220,6 @@
   'array-literal-feedback': [PASS, NO_IGNITION],
   'regress/regress-4121': [PASS, NO_IGNITION],
 
-  # TODO(mythria, 4764): lack of osr support.
-  'regress/regress-2618': [PASS, NO_IGNITION],
-
   # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [PASS, NO_IGNITION],
@@ -709,8 +706,6 @@
   'array-feedback': [FAIL],
   'allocation-site-info': [FAIL],
 
-  # TODO(mythria, 4764): lack of osr support.
-  'regress/regress-2618': [FAIL],
   # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
   # till it is optimized. So test timeouts.
   'array-literal-transitions': [SKIP],
