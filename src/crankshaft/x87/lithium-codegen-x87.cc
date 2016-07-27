@@ -1969,8 +1969,8 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
       __ pop(scratch_reg);  // restore esp
     } else {
       // Since we operate on +0 and/or -0, addsd and andsd have the same effect.
-      X87Fxch(left_reg);
-      __ fadd(1);
+      // Should put the result in stX0
+      __ fadd_i(1);
     }
     __ jmp(&return_left, Label::kNear);
 
@@ -1981,7 +1981,6 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
 
     __ bind(&return_right);
-    X87Fxch(left_reg);
     X87Mov(left_reg, right_reg);
 
     __ bind(&return_left);
