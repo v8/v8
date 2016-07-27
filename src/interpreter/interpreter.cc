@@ -2041,8 +2041,8 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
 
     // Need to filter the {key} for the {receiver}.
     Node* context = __ GetContext();
-    Node* result =
-        __ CallRuntime(Runtime::kForInFilter, context, receiver, key);
+    Callable callable = CodeFactory::ForInFilter(assembler->isolate());
+    Node* result = __ CallStub(callable, context, key, receiver);
     __ SetAccumulator(result);
     __ Dispatch();
   }
