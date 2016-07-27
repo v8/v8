@@ -222,11 +222,6 @@ class RepresentationChanger final {
                                 Type* output_type);
   Node* GetWord64RepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type* output_type);
-  Node* GetCheckedWord32RepresentationFor(Node* node,
-                                          MachineRepresentation output_rep,
-                                          Type* output_type, Node* use_node,
-                                          Truncation truncation,
-                                          TypeCheckKind check);
   Node* TypeError(Node* node, MachineRepresentation output_rep,
                   Type* output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
