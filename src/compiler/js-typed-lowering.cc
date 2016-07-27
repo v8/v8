@@ -595,8 +595,7 @@ Reduction JSTypedLowering::ReduceShiftLeft(Node* node) {
 
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
-  if (feedback == BinaryOperationHints::kSigned32 ||
-      feedback == BinaryOperationHints::kSignedSmall) {
+  if (feedback != BinaryOperationHints::kAny) {
     return r.ChangeToSpeculativeOperator(
         simplified()->SpeculativeNumberShiftLeft(feedback), Type::Signed32());
   }

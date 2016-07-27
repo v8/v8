@@ -457,6 +457,16 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
+      if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
+        op = simplified()->CheckedTaggedToFloat64();
+        Node* effect = NodeProperties::GetEffectInput(use_node);
+        Node* control = NodeProperties::GetControlInput(use_node);
+        Node* to_float_checked =
+            jsgraph()->graph()->NewNode(op, node, effect, control);
+        NodeProperties::ReplaceEffectInput(use_node, to_float_checked);
+        return jsgraph()->graph()->NewNode(machine()->TruncateFloat64ToWord32(),
+                                           to_float_checked);
+      }
       op = simplified()->TruncateTaggedToWord32();
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32();
@@ -464,11 +474,15 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
-    DCHECK(use_info.type_check() == TypeCheckKind::kSigned32);
-    if (output_type->Is(Type::Signed32())) {
+    if (use_info.type_check() == TypeCheckKind::kSigned32) {
+      if (output_type->Is(Type::Signed32())) {
+        return node;
+      } else if (output_type->Is(Type::Unsigned32())) {
+        op = simplified()->CheckedUint32ToInt32();
+      }
+    } else {
+      DCHECK_EQ(TypeCheckKind::kNumberOrOddball, use_info.type_check());
       return node;
-    } else if (output_type->Is(Type::Unsigned32())) {
-      op = simplified()->CheckedUint32ToInt32();
     }
   } else if (output_rep == MachineRepresentation::kWord8 ||
              output_rep == MachineRepresentation::kWord16) {

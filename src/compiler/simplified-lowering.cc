@@ -1666,27 +1666,15 @@ class RepresentationSelector {
           return;
         }
         BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
-        if (hint == BinaryOperationHints::kSignedSmall ||
-            hint == BinaryOperationHints::kSigned32) {
-          Type* rhs_type = GetUpperBound(node->InputAt(1));
-          if (truncation.IsUsedAsWord32()) {
-            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
-                       MachineRepresentation::kWord32);
-            if (lower()) {
-              lowering->DoShift(node, lowering->machine()->Word32Shl(),
-                                rhs_type);
-            }
-          } else {
-            VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
-                       MachineRepresentation::kWord32, Type::Signed32());
-            if (lower()) {
-              lowering->DoShift(node, lowering->machine()->Word32Shl(),
-                                rhs_type);
-            }
-          }
-          return;
+        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        VisitBinop(node, hint == BinaryOperationHints::kNumberOrOddball
+                             ? UseInfo::CheckedNumberOrOddballAsWord32()
+                             : UseInfo::CheckedSigned32AsWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+        if (lower()) {
+          lowering->DoShift(node, lowering->machine()->Word32Shl(), rhs_type);
         }
-        UNREACHABLE();
+        return;
       }
       case IrOpcode::kNumberShiftRight: {
         Type* rhs_type = GetUpperBound(node->InputAt(1));

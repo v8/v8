@@ -67,3 +67,14 @@
   %OptimizeFunctionOnNextCall(f4);
   assertEquals(64, f4(4, 4));
 })();
+
+(function ShiftLeftNumbers() {
+  function f5(a, b) {
+    return a << b;
+  }
+
+  assertEquals(24, f5(3.3, 3.4));
+  assertEquals(40, f5(5.1, 3.9));
+  %OptimizeFunctionOnNextCall(f5);
+  assertEquals(64, f5(4.9, 4.1));
+})();

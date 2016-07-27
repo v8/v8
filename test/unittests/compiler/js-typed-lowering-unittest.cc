@@ -910,6 +910,23 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftSmis) {
                                            lhs, rhs, effect, control));
 }
 
+TEST_F(JSTypedLoweringTest, JSShiftLeftNumberOrOddball) {
+  BinaryOperationHints const hints(BinaryOperationHints::kNumberOrOddball,
+                                   BinaryOperationHints::kNumberOrOddball,
+                                   BinaryOperationHints::kNumberOrOddball);
+  Node* lhs = Parameter(Type::Number(), 2);
+  Node* rhs = Parameter(Type::Number(), 3);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ShiftLeft(hints), lhs, rhs, UndefinedConstant(),
+      EmptyFrameState(), EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftLeft(
+                                   BinaryOperationHints::kNumberOrOddball, lhs,
+                                   rhs, effect, control));
+}
+
 // -----------------------------------------------------------------------------
 // JSInstanceOf
 // Test that instanceOf is reduced if and only if the right-hand side is a

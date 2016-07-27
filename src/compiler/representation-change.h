@@ -139,6 +139,10 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
                    TypeCheckKind::kNumberOrOddball);
   }
+  static UseInfo CheckedNumberOrOddballAsWord32() {
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kNumberOrOddball);
+  }
 
   // Undetermined representation.
   static UseInfo Any() {
