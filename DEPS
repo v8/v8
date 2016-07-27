@@ -8,19 +8,19 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "cce24bcaab6481f479f4baf00b5ea36d78268bcd",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "603acacfd82e28d442da5e24bf22bbacbeefa589",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "b5ecbb29a26532f72ef482569b223d5a51fd50bf",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "60f7f9a8b421ebf9a46041dfa2ff11c0fe59c582",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "67bf0653b2eb9eabd4fc17c4bf2df828e904a558",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "315bf1e2d45be7d53346c31cfcc37424a32c30c8",
   "v8/platform/inspector_protocol":
     Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f49542089820a34a9a6e33264e09b73779407512",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "11aa1bbe1b4fbae3694d14eb59b4eb98550bcbee",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "93a755bd710560a2db62300d69db0d8876c01442",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
@@ -37,13 +37,13 @@ deps = {
   "v8/test/test262/harness":
     Var("git_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "cbd968f54f7a95c6556d53ba852292a4c49d11d8",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "496622ab4aaa5be7e5a9b80617013cb02f45dc87",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "a98f7fa326ac2b7e1710e923c1287cde7f901d86",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "e4d61eb8f463e6cb8d1e1269a15c22f7c9bbd122",
+      Var("git_url") + "/android_tools.git" + "@" + "af1c5a4cd6329ccdcf8c2bc93d9eea02f9d74869",
   },
   "win": {
     "v8/third_party/cygwin":
