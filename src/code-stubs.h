@@ -53,6 +53,13 @@ namespace internal {
   V(KeyedStoreICTrampoline)                 \
   V(StoreIC)                                \
   V(KeyedStoreIC)                           \
+  V(KeyedLoadIC)                            \
+  V(LoadIC)                                 \
+  V(LoadGlobalIC)                           \
+  V(FastNewObject)                          \
+  V(FastNewRestParameter)                   \
+  V(FastNewSloppyArguments)                 \
+  V(FastNewStrictArguments)                 \
   /* HydrogenCodeStubs */                   \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
@@ -62,10 +69,6 @@ namespace internal {
   V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
   V(FastFunctionBind)                       \
-  V(FastNewObject)                          \
-  V(FastNewRestParameter)                   \
-  V(FastNewSloppyArguments)                 \
-  V(FastNewStrictArguments)                 \
   V(GrowArrayElements)                      \
   V(KeyedLoadGeneric)                       \
   V(LoadScriptContextField)                 \
@@ -80,9 +83,6 @@ namespace internal {
   V(StringAdd)                              \
   V(ToBooleanIC)                            \
   V(TransitionElementsKind)                 \
-  V(KeyedLoadIC)                            \
-  V(LoadIC)                                 \
-  V(LoadGlobalIC)                           \
   /* TurboFanCodeStubs */                   \
   V(AllocateHeapNumber)                     \
   V(AllocateFloat32x4)                      \
