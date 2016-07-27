@@ -56,7 +56,6 @@ namespace internal {
   /* HydrogenCodeStubs */                   \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
-  V(CreateAllocationSite)                   \
   V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
   V(FastArrayPush)                          \
@@ -99,6 +98,7 @@ namespace internal {
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
   V(ArrayNArgumentsConstructor)             \
+  V(CreateAllocationSite)                   \
   V(StringLength)                           \
   V(Add)                                    \
   V(Subtract)                               \
@@ -1204,16 +1204,14 @@ class FastCloneShallowObjectStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowObject, TurboFanCodeStub);
 };
 
-
-class CreateAllocationSiteStub : public HydrogenCodeStub {
+class CreateAllocationSiteStub : public TurboFanCodeStub {
  public:
   explicit CreateAllocationSiteStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) { }
-
+      : TurboFanCodeStub(isolate) {}
   static void GenerateAheadOfTime(Isolate* isolate);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
-  DEFINE_HYDROGEN_CODE_STUB(CreateAllocationSite, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(CreateAllocationSite, TurboFanCodeStub);
 };
 
 

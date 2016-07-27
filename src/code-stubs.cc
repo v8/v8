@@ -4120,9 +4120,6 @@ void FastCloneShallowArrayStub::InitializeDescriptor(
 }
 
 
-void CreateAllocationSiteStub::InitializeDescriptor(CodeStubDescriptor* d) {}
-
-
 void CreateWeakCellStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
@@ -4704,6 +4701,65 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
   FunctionEntryHook entry_hook = isolate->function_entry_hook();
   DCHECK(entry_hook != NULL);
   entry_hook(function, stack_pointer);
+}
+
+void CreateAllocationSiteStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  Node* size = assembler->IntPtrConstant(AllocationSite::kSize);
+  Node* site = assembler->Allocate(size, compiler::CodeAssembler::kPretenured);
+
+  // Store the map
+  Node* map =
+      assembler->HeapConstant(isolate()->factory()->allocation_site_map());
+  assembler->StoreMapNoWriteBarrier(site, map);
+
+  Node* kind =
+      assembler->SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
+  assembler->StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kTransitionInfoOffset, kind);
+
+  // Unlike literals, constructed arrays don't have nested sites
+  Node* zero = assembler->IntPtrConstant(0);
+  assembler->StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kNestedSiteOffset, zero);
+
+  // Pretenuring calculation field.
+  assembler->StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kPretenureDataOffset, zero);
+
+  // Pretenuring memento creation count field.
+  assembler->StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kPretenureCreateCountOffset, zero);
+
+  // Store an empty fixed array for the code dependency.
+  Node* empty_fixed_array =
+      assembler->HeapConstant(isolate()->factory()->empty_fixed_array());
+  assembler->StoreObjectFieldNoWriteBarrier(
+      site, AllocationSite::kDependentCodeOffset, empty_fixed_array);
+
+  // Link the object to the allocation site list
+  Node* site_list = assembler->ExternalConstant(
+      ExternalReference::allocation_sites_list_address(isolate()));
+  Node* next_site = assembler->LoadBufferObject(site_list, 0);
+
+  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
+  // mark as such in order to skip the write barrier, once we have a unified
+  // system for weakness. For now we decided to keep it like this because having
+  // an initial write barrier backed store makes this pointer strong until the
+  // next GC, and allocation sites are designed to survive several GCs anyway.
+  assembler->StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
+  assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list,
+                                 site);
+
+  Node* feedback_vector = assembler->Parameter(Descriptor::kVector);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+
+  assembler->StoreFixedArrayElement(feedback_vector, slot, site,
+                                    UPDATE_WRITE_BARRIER,
+                                    CodeStubAssembler::SMI_PARAMETERS);
+
+  assembler->Return(site);
 }
 
 void ArrayNoArgumentConstructorStub::GenerateAssembly(
