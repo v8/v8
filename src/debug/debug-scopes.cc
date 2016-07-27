@@ -792,6 +792,11 @@ void ScopeIterator::CopyContextExtensionToScopeObject(
 
 void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
                                         int position) {
+  if (scope->is_function_scope()) {
+    // Do not collect scopes of nested inner functions inside the current one.
+    Handle<JSFunction> function = frame_inspector_->GetFunction();
+    if (scope->end_position() < function->shared()->end_position()) return;
+  }
   if (scope->is_hidden()) {
     // We need to add this chain element in case the scope has a context
     // associated. We need to keep the scope chain and context chain in sync.
