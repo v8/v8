@@ -232,6 +232,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
+  const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
   const Operator* LoopExitValue();
   const Operator* LoopExitEffect();

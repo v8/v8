@@ -45,6 +45,7 @@
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
+#include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/memory-optimizer.h"
 #include "src/compiler/move-optimizer.h"
@@ -834,7 +835,10 @@ struct TyperPhase {
   void Run(PipelineData* data, Zone* temp_zone, Typer* typer) {
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
-    typer->Run(roots);
+    LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
+                                         data->common(), temp_zone);
+    if (FLAG_turbo_loop_variable) induction_vars.Run();
+    typer->Run(roots, &induction_vars);
   }
 };
 

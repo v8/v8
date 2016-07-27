@@ -657,6 +657,8 @@
         'compiler/loop-analysis.h',
         'compiler/loop-peeling.cc',
         'compiler/loop-peeling.h',
+        'compiler/loop-variable-optimizer.cc',
+        'compiler/loop-variable-optimizer.h',
         'compiler/machine-operator-reducer.cc',
         'compiler/machine-operator-reducer.h',
         'compiler/machine-operator.cc',

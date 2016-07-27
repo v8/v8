@@ -43,23 +43,24 @@
   V(RelocatableInt32Constant) \
   V(RelocatableInt64Constant)
 
-#define INNER_OP_LIST(V) \
-  V(Select)              \
-  V(Phi)                 \
-  V(EffectPhi)           \
-  V(Checkpoint)          \
-  V(BeginRegion)         \
-  V(FinishRegion)        \
-  V(FrameState)          \
-  V(StateValues)         \
-  V(TypedStateValues)    \
-  V(ObjectState)         \
-  V(Call)                \
-  V(Parameter)           \
-  V(OsrValue)            \
-  V(LoopExit)            \
-  V(LoopExitValue)       \
-  V(LoopExitEffect)      \
+#define INNER_OP_LIST(V)  \
+  V(Select)               \
+  V(Phi)                  \
+  V(EffectPhi)            \
+  V(InductionVariablePhi) \
+  V(Checkpoint)           \
+  V(BeginRegion)          \
+  V(FinishRegion)         \
+  V(FrameState)           \
+  V(StateValues)          \
+  V(TypedStateValues)     \
+  V(ObjectState)          \
+  V(Call)                 \
+  V(Parameter)            \
+  V(OsrValue)             \
+  V(LoopExit)             \
+  V(LoopExitValue)        \
+  V(LoopExitEffect)       \
   V(Projection)
 
 #define COMMON_OP_LIST(V) \

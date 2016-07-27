@@ -10,6 +10,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/loop-variable-optimizer.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operation-typer.h"
@@ -77,8 +78,10 @@ Typer::~Typer() {
 
 class Typer::Visitor : public Reducer {
  public:
-  explicit Visitor(Typer* typer)
-      : typer_(typer), weakened_nodes_(typer->zone()) {}
+  explicit Visitor(Typer* typer, LoopVariableOptimizer* induction_vars)
+      : typer_(typer),
+        induction_vars_(induction_vars),
+        weakened_nodes_(typer->zone()) {}
 
   Reduction Reduce(Node* node) override {
     if (node->op()->ValueOutputCount() == 0) return NoChange();
@@ -189,6 +192,7 @@ class Typer::Visitor : public Reducer {
 
  private:
   Typer* typer_;
+  LoopVariableOptimizer* induction_vars_;
   ZoneSet<NodeId> weakened_nodes_;
 
 #define DECLARE_METHOD(x) inline Type* Type##x(Node* node);
@@ -308,18 +312,23 @@ class Typer::Visitor : public Reducer {
   }
 };
 
+void Typer::Run() { Run(NodeVector(zone()), nullptr); }
 
-void Typer::Run() { Run(NodeVector(zone())); }
-
-
-void Typer::Run(const NodeVector& roots) {
-  Visitor visitor(this);
+void Typer::Run(const NodeVector& roots,
+                LoopVariableOptimizer* induction_vars) {
+  if (induction_vars != nullptr) {
+    induction_vars->ChangeToInductionVariablePhis();
+  }
+  Visitor visitor(this, induction_vars);
   GraphReducer graph_reducer(zone(), graph());
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();
-}
 
+  if (induction_vars != nullptr) {
+    induction_vars->ChangeFromInductionVariablePhis();
+  }
+}
 
 void Typer::Decorator::Decorate(Node* node) {
   if (node->op()->ValueOutputCount() > 0) {
@@ -327,7 +336,7 @@ void Typer::Decorator::Decorate(Node* node) {
     // Other cases will generally require a proper fixpoint iteration with Run.
     bool is_typed = NodeProperties::IsTyped(node);
     if (is_typed || NodeProperties::AllValueInputsAreTyped(node)) {
-      Visitor typing(typer_);
+      Visitor typing(typer_, nullptr);
       Type* type = typing.TypeNode(node);
       if (is_typed) {
         type = Type::Intersect(type, NodeProperties::GetType(node),
@@ -736,7 +745,6 @@ Type* Typer::Visitor::TypeSelect(Node* node) {
   return Type::Union(Operand(node, 1), Operand(node, 2), zone());
 }
 
-
 Type* Typer::Visitor::TypePhi(Node* node) {
   int arity = node->op()->ValueInputCount();
   Type* type = Operand(node, 0);
@@ -746,6 +754,89 @@ Type* Typer::Visitor::TypePhi(Node* node) {
   return type;
 }
 
+Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
+  int arity = NodeProperties::GetControlInput(node)->op()->ControlInputCount();
+  DCHECK_EQ(IrOpcode::kLoop, NodeProperties::GetControlInput(node)->opcode());
+  DCHECK_EQ(2, NodeProperties::GetControlInput(node)->InputCount());
+
+  Type* initial_type = Operand(node, 0);
+  Type* increment_type = Operand(node, 2);
+
+  // We only handle integer induction variables (otherwise ranges
+  // do not apply and we cannot do anything).
+  if (!initial_type->Is(typer_->cache_.kInteger) ||
+      !increment_type->Is(typer_->cache_.kInteger)) {
+    // Fallback to normal phi typing.
+    Type* type = Operand(node, 0);
+    for (int i = 1; i < arity; ++i) {
+      type = Type::Union(type, Operand(node, i), zone());
+    }
+    return type;
+  }
+  // If we do not have enough type information for the initial value or
+  // the increment, just return the initial value's type.
+  if (!initial_type->IsInhabited() || !increment_type->IsInhabited()) {
+    return initial_type;
+  }
+
+  // Now process the bounds.
+  auto res = induction_vars_->induction_variables().find(node->id());
+  DCHECK(res != induction_vars_->induction_variables().end());
+  InductionVariable* induction_var = res->second;
+
+  double min = -V8_INFINITY;
+  double max = V8_INFINITY;
+  if (increment_type->Min() >= 0) {
+    min = initial_type->Min();
+    for (auto bound : induction_var->upper_bounds()) {
+      Type* bound_type = TypeOrNone(bound.bound);
+      // If the type is not an integer, just skip the bound.
+      if (!bound_type->Is(typer_->cache_.kInteger)) continue;
+      // If the type is not inhabited, then we can take the initial value.
+      if (!bound_type->IsInhabited()) {
+        max = initial_type->Max();
+        break;
+      }
+      double bound_max = bound_type->Max();
+      if (bound.kind == InductionVariable::kStrict) {
+        bound_max -= 1;
+      }
+      max = std::min(max, bound_max + increment_type->Max());
+    }
+    // The upper bound must be at least the initial value's upper bound.
+    max = std::max(max, initial_type->Max());
+  } else if (increment_type->Max() <= 0) {
+    max = initial_type->Max();
+    for (auto bound : induction_var->lower_bounds()) {
+      Type* bound_type = TypeOrNone(bound.bound);
+      // If the type is not an integer, just skip the bound.
+      if (!bound_type->Is(typer_->cache_.kInteger)) continue;
+      // If the type is not inhabited, then we can take the initial value.
+      if (!bound_type->IsInhabited()) {
+        min = initial_type->Min();
+        break;
+      }
+      double bound_min = bound_type->Min();
+      if (bound.kind == InductionVariable::kStrict) {
+        bound_min += 1;
+      }
+      min = std::max(min, bound_min + increment_type->Min());
+    }
+    // The lower bound must be at most the initial value's lower bound.
+    min = std::min(min, initial_type->Min());
+  } else {
+    // Shortcut: If the increment can be both positive and negative,
+    // the variable can go arbitrarily far, so just return integer.
+    return typer_->cache_.kInteger;
+  }
+  if (FLAG_trace_turbo_loop) {
+    OFStream os(stdout);
+    os << "Loop (" << NodeProperties::GetControlInput(node)->id()
+       << ") variable bounds for phi " << node->id() << ": (" << min << ", "
+       << max << ")\n";
+  }
+  return Type::Range(min, max, typer_->zone());
+}
 
 Type* Typer::Visitor::TypeEffectPhi(Node* node) {
   UNREACHABLE();

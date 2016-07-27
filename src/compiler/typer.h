@@ -19,6 +19,7 @@ class TypeCache;
 
 namespace compiler {
 
+class LoopVariableOptimizer;
 class OperationTyper;
 
 class Typer {
@@ -36,7 +37,8 @@ class Typer {
 
   void Run();
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
-  void Run(const ZoneVector<Node*>& roots);
+  void Run(const ZoneVector<Node*>& roots,
+           LoopVariableOptimizer* induction_vars);
 
  private:
   class Visitor;

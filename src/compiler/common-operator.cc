@@ -276,6 +276,11 @@ std::ostream& operator<<(std::ostream& os,
   V(5)                            \
   V(6)
 
+#define CACHED_INDUCTION_VARIABLE_PHI_LIST(V) \
+  V(4)                                        \
+  V(5)                                        \
+  V(6)                                        \
+  V(7)
 
 #define CACHED_LOOP_LIST(V) \
   V(1)                      \
@@ -472,6 +477,20 @@ struct CommonOperatorGlobalCache final {
       kPhi##rep##input_count##Operator;
   CACHED_PHI_LIST(CACHED_PHI)
 #undef CACHED_PHI
+
+  template <int kInputCount>
+  struct InductionVariablePhiOperator final : public Operator {
+    InductionVariablePhiOperator()
+        : Operator(                                              //--
+              IrOpcode::kInductionVariablePhi, Operator::kPure,  // opcode
+              "InductionVariablePhi",                            // name
+              kInputCount, 0, 1, 1, 0, 0) {}                     // counts
+  };
+#define CACHED_INDUCTION_VARIABLE_PHI(input_count) \
+  InductionVariablePhiOperator<input_count>        \
+      kInductionVariablePhi##input_count##Operator;
+  CACHED_INDUCTION_VARIABLE_PHI_LIST(CACHED_INDUCTION_VARIABLE_PHI)
+#undef CACHED_INDUCTION_VARIABLE_PHI
 
   template <int kIndex>
   struct ParameterOperator final : public Operator1<ParameterInfo> {
@@ -851,6 +870,25 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
       IrOpcode::kEffectPhi, Operator::kKontrol,  // opcode
       "EffectPhi",                               // name
       0, effect_input_count, 1, 0, 1, 0);        // counts
+}
+
+const Operator* CommonOperatorBuilder::InductionVariablePhi(int input_count) {
+  DCHECK(input_count >= 4);  // There must be always the entry, backedge,
+                             // increment and at least one bound.
+  switch (input_count) {
+#define CACHED_INDUCTION_VARIABLE_PHI(input_count) \
+  case input_count:                                \
+    return &cache_.kInductionVariablePhi##input_count##Operator;
+    CACHED_INDUCTION_VARIABLE_PHI_LIST(CACHED_INDUCTION_VARIABLE_PHI)
+#undef CACHED_INDUCTION_VARIABLE_PHI
+    default:
+      break;
+  }
+  // Uncached.
+  return new (zone()) Operator(                          // --
+      IrOpcode::kInductionVariablePhi, Operator::kPure,  // opcode
+      "InductionVariablePhi",                            // name
+      input_count, 0, 1, 1, 0, 0);                       // counts
 }
 
 const Operator* CommonOperatorBuilder::BeginRegion(
