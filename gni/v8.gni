@@ -87,19 +87,13 @@ template("v8_source_set") {
 
 template("v8_executable") {
   executable(target_name) {
-    forward_variables_from(invoker, "*", [ "configs", "want_pie"])
+    forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    if (!defined(invoker.want_pie) || invoker.want_pie) {
-      if (is_linux) {
-        # For enabling ASLR.
-        ldflags = [ "-pie" ]
-      }
-    } else {
-      if (is_android) {
-        configs -= "//build/config/android:executable_config"
-      }
+    if (is_linux) {
+      # For enabling ASLR.
+      ldflags = [ "-pie" ]
     }
   }
 }
