@@ -102,7 +102,7 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
   // and this construction just queries the details from the descriptors table.
   CallInterfaceDescriptor descriptor(isolate, interface_descriptor);
   // Ensure descriptor is already initialized.
-  DCHECK_NOT_NULL(descriptor.GetFunctionType());
+  DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   CodeStubAssembler assembler(isolate, &zone, descriptor, flags, name);
   generator(&assembler);
   Handle<Code> code = assembler.GenerateCode();

@@ -133,8 +133,6 @@ class CallInterfaceDescriptorData {
     return platform_specific_descriptor_;
   }
 
-  FunctionType* function_type() const { return function_type_; }
-
  private:
   int register_param_count_;
 
@@ -179,7 +177,7 @@ class CallInterfaceDescriptor {
   }
 
   int GetStackParameterCount() const {
-    return data()->function_type()->Arity() - data()->register_param_count();
+    return data()->param_count() - data()->register_param_count();
   }
 
   Register GetRegisterParameter(int index) const {
@@ -195,8 +193,6 @@ class CallInterfaceDescriptor {
   PlatformInterfaceDescriptor* platform_specific_descriptor() const {
     return data()->platform_specific_descriptor();
   }
-
-  FunctionType* GetFunctionType() const { return data()->function_type(); }
 
   static const Register ContextRegister();
 
