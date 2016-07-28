@@ -48,7 +48,6 @@ shell_g
 /obj
 /out
 /out.gn
-/platform/inspector_protocol
 /perf.data
 /perf.data.old
 /test/benchmarks/data
@@ -63,6 +62,7 @@ shell_g
 /testing/gmock
 /testing/gtest
 /third_party
+/third_party/WebKit
 /third_party/android_tools
 /third_party/cygwin
 /third_party/icu
