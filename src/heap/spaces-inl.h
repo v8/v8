@@ -34,6 +34,7 @@ NewSpacePageRange::NewSpacePageRange(Address start, Address limit)
   SemiSpace::AssertValidRange(start, limit);
 }
 
+
 // -----------------------------------------------------------------------------
 // SemiSpaceIterator
 
@@ -241,6 +242,7 @@ void MemoryChunk::ResetLiveBytes() {
 }
 
 void MemoryChunk::IncrementLiveBytes(int by) {
+  if (IsFlagSet(BLACK_PAGE)) return;
   if (FLAG_trace_live_bytes) {
     PrintIsolate(
         heap()->isolate(), "live-bytes: update page=%p delta=%d %d->%d\n",
@@ -441,12 +443,6 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
     object = free_list_.Allocate(size_in_bytes);
     if (object == NULL) {
       object = SlowAllocateRaw(size_in_bytes);
-    }
-    if (object != NULL) {
-      if (heap()->incremental_marking()->black_allocation()) {
-        Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-        MemoryChunk::IncrementLiveBytesFromGC(object, size_in_bytes);
-      }
     }
   }
 

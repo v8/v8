@@ -139,8 +139,6 @@ void RelocInfo::set_target_object(Object* target,
       host() != NULL &&
       target->IsHeapObject()) {
     host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target));
   }
 }
 

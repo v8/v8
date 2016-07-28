@@ -218,19 +218,7 @@ class MarkBitCellIterator BASE_EMBEDDED {
 
   inline void Advance() {
     cell_index_++;
-    cell_base_ += Bitmap::kBitsPerCell * kPointerSize;
-  }
-
-  inline bool Advance(unsigned int new_cell_index) {
-    if (new_cell_index != cell_index_) {
-      DCHECK_GT(new_cell_index, cell_index_);
-      DCHECK_LE(new_cell_index, last_cell_index_);
-      unsigned int diff = new_cell_index - cell_index_;
-      cell_index_ = new_cell_index;
-      cell_base_ += diff * (Bitmap::kBitsPerCell * kPointerSize);
-      return true;
-    }
-    return false;
+    cell_base_ += 32 * kPointerSize;
   }
 
   // Return the next mark bit cell. If there is no next it returns 0;
@@ -265,6 +253,8 @@ class LiveObjectIterator BASE_EMBEDDED {
         it_(chunk_),
         cell_base_(it_.CurrentCellBase()),
         current_cell_(*it_.CurrentCell()) {
+    // Black pages can not be iterated.
+    DCHECK(!chunk->IsFlagSet(Page::BLACK_PAGE));
   }
 
   HeapObject* Next();
