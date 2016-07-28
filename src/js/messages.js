@@ -16,20 +16,6 @@ var Bool16x8ToString;
 var Bool32x4ToString;
 var Bool8x16ToString;
 var CallSite = utils.ImportNow("CallSite");
-var callSiteConstructorSymbol =
-    utils.ImportNow("call_site_constructor_symbol");
-var callSiteReceiverSymbol =
-    utils.ImportNow("call_site_receiver_symbol");
-var callSiteFunctionSymbol =
-    utils.ImportNow("call_site_function_symbol");
-var callSitePositionSymbol =
-    utils.ImportNow("call_site_position_symbol");
-var callSiteStrictSymbol =
-    utils.ImportNow("call_site_strict_symbol");
-var callSiteWasmObjectSymbol =
-    utils.ImportNow("call_site_wasm_obj_symbol");
-var callSiteWasmFunctionIndexSymbol =
-    utils.ImportNow("call_site_wasm_func_index_symbol");
 var Float32x4ToString;
 var GlobalObject = global.Object;
 var GlobalError = global.Error;
@@ -48,7 +34,6 @@ var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
-var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var Uint16x8ToString;
 var Uint32x4ToString;
@@ -64,7 +49,6 @@ utils.Import(function(from) {
   Int32x4ToString = from.Int32x4ToString;
   Int8x16ToString = from.Int8x16ToString;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  StringIndexOf = from.StringIndexOf;
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
   Uint8x16ToString = from.Uint8x16ToString;
@@ -271,83 +255,6 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 
 // ----------------------------------------------------------------------------
 // Error implementation
-
-function CallSiteToString() {
-  if (HAS_PRIVATE(this, callSiteWasmObjectSymbol)) {
-    var funName = this.getFunctionName();
-    var funcIndex = GET_PRIVATE(this, callSiteWasmFunctionIndexSymbol);
-    var pos = this.getPosition();
-    if (IS_NULL(funName)) funName = "<WASM UNNAMED>";
-    return funName + " (<WASM>[" + funcIndex + "]+" + pos + ")";
-  }
-
-  var fileName;
-  var fileLocation = "";
-  if (this.isNative()) {
-    fileLocation = "native";
-  } else {
-    fileName = this.getScriptNameOrSourceURL();
-    if (!fileName && this.isEval()) {
-      fileLocation = this.getEvalOrigin();
-      fileLocation += ", ";  // Expecting source position to follow.
-    }
-
-    if (fileName) {
-      fileLocation += fileName;
-    } else {
-      // Source code does not originate from a file and is not native, but we
-      // can still get the source position inside the source string, e.g. in
-      // an eval string.
-      fileLocation += "<anonymous>";
-    }
-    var lineNumber = this.getLineNumber();
-    if (lineNumber != null) {
-      fileLocation += ":" + lineNumber;
-      var columnNumber = this.getColumnNumber();
-      if (columnNumber) {
-        fileLocation += ":" + columnNumber;
-      }
-    }
-  }
-
-  var line = "";
-  var functionName = this.getFunctionName();
-  var addSuffix = true;
-  var isConstructor = this.isConstructor();
-  var isMethodCall = !(this.isToplevel() || isConstructor);
-  if (isMethodCall) {
-    var typeName = GetTypeName(GET_PRIVATE(this, callSiteReceiverSymbol), true);
-    var methodName = this.getMethodName();
-    if (functionName) {
-      if (typeName && %_Call(StringIndexOf, functionName, typeName) != 0) {
-        line += typeName + ".";
-      }
-      line += functionName;
-      if (methodName &&
-          (%_Call(StringIndexOf, functionName, "." + methodName) !=
-           functionName.length - methodName.length - 1)) {
-        line += " [as " + methodName + "]";
-      }
-    } else {
-      line += typeName + "." + (methodName || "<anonymous>");
-    }
-  } else if (isConstructor) {
-    line += "new " + (functionName || "<anonymous>");
-  } else if (functionName) {
-    line += functionName;
-  } else {
-    line += fileLocation;
-    addSuffix = false;
-  }
-  if (addSuffix) {
-    line += " (" + fileLocation + ")";
-  }
-  return line;
-}
-
-%AddNamedProperty(CallSite.prototype, "toString", CallSiteToString,
-    DONT_ENUM | DONT_DELETE | READ_ONLY);
-%SetNativeFlag(CallSiteToString);
 
 
 function FormatErrorString(error) {

@@ -2671,7 +2671,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           {"isConstructor", Builtins::kCallSitePrototypeIsConstructor},
           {"isEval", Builtins::kCallSitePrototypeIsEval},
           {"isNative", Builtins::kCallSitePrototypeIsNative},
-          {"isToplevel", Builtins::kCallSitePrototypeIsToplevel}};
+          {"isToplevel", Builtins::kCallSitePrototypeIsToplevel},
+          {"toString", Builtins::kCallSitePrototypeToString}};
 
       PropertyAttributes attrs =
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
