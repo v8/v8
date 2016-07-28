@@ -20,3 +20,5 @@ var DISASSEMBLY_COLLAPSE_ID = 'disassembly-shrink';
 var DISASSEMBLY_EXPAND_ID = 'disassembly-expand';
 var COLLAPSE_PANE_BUTTON_VISIBLE = 'button-input';
 var COLLAPSE_PANE_BUTTON_INVISIBLE = 'button-input-invisible';
+var PROF_HIGH = 5;
+var PROF_MED = 0.5;

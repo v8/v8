@@ -295,6 +295,16 @@ span.linkable-text:hover {
     background: rgba(100%, 100%, 100%, 0.7);
 }
 
+#disassembly-toolbox {
+    position: relative;
+    top: 1em;
+    left: 0.7em;
+    border: 2px solid #eee8d5;
+    border-radius: 5px;
+    padding: 0.7em;
+    z-index: 5;
+}
+
 #load-file {
     position: absolute;
     top: 0;
@@ -311,7 +321,18 @@ span.linkable-text:hover {
     padding: 0.5em;
 }
 
-#hidden-file-upload{
+#hidden-file-upload {
     display: none;
 }
 
+.prof-low {
+    color: #888;
+}
+
+.prof-med {
+    color: #080;
+}
+
+.prof-high {
+    color: #800;
+}

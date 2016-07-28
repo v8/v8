@@ -9,6 +9,9 @@ class DisassemblyView extends TextView {
     super(id, broker, null, false);
     this.pos_start = -1;
     this.pos_lines = null;
+    this.addr_event_counts = null;
+    this.total_event_counts = null;
+
     let view = this;
     let ADDRESS_STYLE = {
       css: 'tag',
@@ -143,6 +146,11 @@ class DisassemblyView extends TextView {
     return result;
   }
 
+  initializeContent(data, rememberedSelection) {
+    this.data = data;
+    super.initializeContent(data, rememberedSelection);
+  }
+
   initializeCode(sourceText, sourcePosition) {
     let view = this;
     view.pos_lines = new Array();
@@ -153,12 +161,35 @@ class DisassemblyView extends TextView {
       let base = sourcePosition;
       let current = 0;
       let source_lines = sourceText.split("\n");
-      for (i=1; i < source_lines.length; i++) {
+      for (let i = 1; i < source_lines.length; i++) {
         // Add 1 for newline character that is split off.
         current += source_lines[i-1].length + 1;
         view.pos_lines[i] = base + current;
       }
     }
+  }
+
+  initializePerfProfile(eventCounts) {
+    let view = this;
+    if (eventCounts !== undefined) {
+      view.addr_event_counts = eventCounts;
+
+      view.total_event_counts = {};
+      for (var ev_name in view.addr_event_counts) {
+        let keys = Object.keys(view.addr_event_counts[ev_name]);
+        let values = keys.map(key => view.addr_event_counts[ev_name][key]);
+        view.total_event_counts[ev_name] = values.reduce((a, b) => a + b);
+      }
+    }
+    else {
+      view.addr_event_counts = null;
+      view.total_event_counts = null;
+    }
+  }
+
+  // Shorten decimals and remove trailing zeroes for readability.
+  humanize(num) {
+    return num.toFixed(3).replace(/\.?0+$/, "") + "%";
   }
 
   processLine(line) {
@@ -174,6 +205,35 @@ class DisassemblyView extends TextView {
     };
     line = line.replace(view.SOURCE_POSITION_HEADER_REGEX, func);
     let fragments = super.processLine(line);
+
+    // Add profiling data per instruction if available.
+    if (view.total_event_counts) {
+      let event_selector = document.getElementById('event-selector');
+      if (event_selector.length !== 0) {
+        let event = event_selector.value;
+        let matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
+        if (matches) {
+          let count = view.addr_event_counts[event][matches[1]];
+          let str = "";
+          let css_cls = undefined;
+          if(count !== undefined) {
+            let perc = count / view.total_event_counts[event] * 100;
+
+            str = "(" + view.humanize(perc) + ") ";
+
+            css_cls = "prof-low";
+            if(perc > PROF_HIGH)
+              css_cls = "prof-high";
+            else if(perc > PROF_MED)
+              css_cls = "prof-med";
+          }
+          // Pad extra spaces to keep alignment for all instructions.
+          str = (" ".repeat(10) + str).slice(-10);
+
+          fragments.splice(0, 0, view.createFragment(str, css_cls));
+        }
+      }
+    }
     return fragments;
   }
 }

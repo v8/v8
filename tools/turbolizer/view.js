@@ -26,7 +26,11 @@ class View {
   resizeToParent() {
     var view = this;
     var documentElement = document.documentElement;
-    var y = this.parentNode.clientHeight || documentElement.clientHeight;
+    var y;
+    if (this.parentNode.clientHeight)
+      y = Math.max(this.parentNode.clientHeight, documentElement.clientHeight);
+    else
+      y = documentElement.clientHeight;
     this.parentNode.style.height = y + 'px';
   }
 
