@@ -380,9 +380,8 @@ class TimerEventScope {
 
   ~TimerEventScope() { LogTimerEvent(Logger::END); }
 
-  void LogTimerEvent(Logger::StartEnd se);
-
  private:
+  void LogTimerEvent(Logger::StartEnd se);
   Isolate* isolate_;
 };
 

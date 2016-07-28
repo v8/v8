@@ -39,6 +39,12 @@ void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
   }
 }
 
+template <class TimerEvent>
+void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
+  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
+                          TimerEvent::expose_to_api());
+}
+
 }  // namespace internal
 }  // namespace v8
 

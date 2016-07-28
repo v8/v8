@@ -895,14 +895,6 @@ void Logger::LeaveExternal(Isolate* isolate) {
   isolate->set_current_vm_state(JS);
 }
 
-
-template <class TimerEvent>
-void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
-  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
-                          TimerEvent::expose_to_api());
-}
-
-
 // Instantiate template methods.
 #define V(TimerName, expose)                                           \
   template void TimerEventScope<TimerEvent##TimerName>::LogTimerEvent( \
