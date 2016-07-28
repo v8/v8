@@ -2407,8 +2407,9 @@ WASM_EXEC_TEST(SimpleCallIndirect) {
   module.AddSignature(sigs.d_dd());
 
   // Function table.
-  int table[] = {0, 1};
-  module.AddIndirectFunctionTable(table, 2);
+  uint16_t indirect_function_table[] = {0, 1};
+  module.AddIndirectFunctionTable(indirect_function_table,
+                                  arraysize(indirect_function_table));
   module.PopulateIndirectFunctionTable();
 
   // Builder the caller function.
@@ -2438,8 +2439,9 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
   module.AddSignature(sigs.d_dd());
 
   // Function table.
-  int table[] = {0, 1};
-  module.AddIndirectFunctionTable(table, 2);
+  uint16_t indirect_function_table[] = {0, 1};
+  module.AddIndirectFunctionTable(indirect_function_table,
+                                  arraysize(indirect_function_table));
   module.PopulateIndirectFunctionTable();
 
   // Builder the caller function.

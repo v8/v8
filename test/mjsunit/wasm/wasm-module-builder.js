@@ -227,6 +227,10 @@ class WasmModuleBuilder {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kDeclTable, section => {
         section.emit_varint(wasm.table.length);
+        if (wasm.pad !== null) {
+          if (debug) print("emitting table padding @ " + binary.length);
+          section.emit_varint(wasm.pad);
+        }
         for (let index of wasm.table) {
           section.emit_varint(index);
         }
@@ -337,19 +341,6 @@ class WasmModuleBuilder {
         }
       });
     }
-
-    // Add an indirect function table pad section.
-    if (wasm.pad !== null) {
-      if (debug)
-        print("emitting indirect function table pad @ " + binary.length);
-      binary.emit_section(kDeclFunctionTablePad, section => {
-        section.emit_varint(wasm.pad);
-      });
-    }
-
-    // End the module.
-    if (debug) print("emitting end @ " + binary.length);
-    binary.emit_section(kDeclEnd, section => {});
 
     return binary;
   }

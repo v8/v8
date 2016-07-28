@@ -222,25 +222,24 @@ class TestingModule : public ModuleEnv {
     instance->function_code[index] = code;
   }
 
-  void AddIndirectFunctionTable(int* functions, int table_size) {
-    Handle<FixedArray> fixed =
-        isolate_->factory()->NewFixedArray(2 * table_size);
-    instance->function_table = fixed;
-    DCHECK_EQ(0u, module->function_table.size());
-    for (int i = 0; i < table_size; i++) {
-      module_.function_table.push_back(functions[i]);
+  void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
+    module_.function_tables.push_back(
+        {table_size, table_size, std::vector<uint16_t>()});
+    for (uint32_t i = 0; i < table_size; ++i) {
+      module_.function_tables.back().values.push_back(functions[i]);
     }
+
+    Handle<FixedArray> values = BuildFunctionTable(
+        isolate_, static_cast<int>(module_.function_tables.size() - 1),
+        &module_);
+    instance->function_tables.push_back(values);
   }
 
   void PopulateIndirectFunctionTable() {
-    if (instance->function_table.is_null()) return;
-    int table_size = static_cast<int>(module->function_table.size());
-    for (int i = 0; i < table_size; i++) {
-      int function_index = module->function_table[i];
-      const WasmFunction* function = &module->functions[function_index];
-      instance->function_table->set(i, Smi::FromInt(function->sig_index));
-      instance->function_table->set(i + table_size,
-                                    *instance->function_code[function_index]);
+    for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
+      PopulateFunctionTable(instance->function_tables[i],
+                            module_.function_tables[i].size,
+                            &instance->function_code);
     }
   }
 

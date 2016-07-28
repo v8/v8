@@ -168,7 +168,7 @@ class WasmGraphBuilder {
   Node* ToJS(Node* node, Node* context, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
-  Node* FunctionTable();
+  Node* FunctionTable(uint32_t index);
   Node* ChangeToRuntimeCall(Node* node, Runtime::FunctionId function_id,
                             Signature<Conversion>* signature);
 
@@ -215,7 +215,7 @@ class WasmGraphBuilder {
   wasm::ModuleEnv* module_;
   Node* mem_buffer_;
   Node* mem_size_;
-  Node* function_table_;
+  NodeVector function_tables_;
   Node** control_;
   Node** effect_;
   Node** cur_buffer_;

@@ -278,7 +278,7 @@ WasmGraphBuilder::WasmGraphBuilder(
       module_(nullptr),
       mem_buffer_(nullptr),
       mem_size_(nullptr),
-      function_table_(nullptr),
+      function_tables_(zone),
       control_(nullptr),
       effect_(nullptr),
       cur_buffer_(def_buffer_),
@@ -2059,11 +2059,14 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args,
   // Compute the code object by loading it from the function table.
   Node* key = args[0];
 
+  // Assume only one table for now.
+  DCHECK_LE(module_->instance->function_tables.size(), 1u);
   // Bounds check the index.
-  int table_size = static_cast<int>(module_->FunctionTableSize());
+  uint32_t table_size =
+      module_->IsValidTable(0) ? module_->GetTable(0)->max_size : 0;
   if (table_size > 0) {
     // Bounds check against the table size.
-    Node* size = Int32Constant(static_cast<int>(table_size));
+    Node* size = Uint32Constant(table_size);
     Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
     trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
   } else {
@@ -2071,7 +2074,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args,
     trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, Int32Constant(0), position);
     return trap_->GetTrapValue(module_->GetSignature(index));
   }
-  Node* table = FunctionTable();
+  Node* table = FunctionTable(0);
 
   // Load signature from the table and check.
   // The table is a FixedArray; signatures are encoded as SMIs.
@@ -2093,13 +2096,13 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args,
   }
 
   // Load code object from the table.
-  int offset = fixed_offset + kPointerSize * table_size;
+  uint32_t offset = fixed_offset + kPointerSize * table_size;
   Node* load_code = graph()->NewNode(
       machine->Load(MachineType::AnyTagged()), table,
       graph()->NewNode(machine->Int32Add(),
                        graph()->NewNode(machine->Word32Shl(), key,
                                         Int32Constant(kPointerSizeLog2)),
-                       Int32Constant(offset)),
+                       Uint32Constant(offset)),
       *effect_, *control_);
 
   args[0] = load_code;
@@ -2131,10 +2134,13 @@ Node* WasmGraphBuilder::JITSingleFunction(Node* const base, Node* const length,
 
   // Bounds check the index.
   {
-    int table_size = static_cast<int>(module_->FunctionTableSize());
+    // Assume only one table for now.
+    DCHECK_LE(module_->instance->function_tables.size(), 1u);
+    uint32_t table_size =
+        module_->IsValidTable(0) ? module_->GetTable(0)->max_size : 0;
     if (table_size > 0) {
       // Bounds check against the table size.
-      Node* size = Int32Constant(static_cast<int>(table_size));
+      Node* size = Uint32Constant(table_size);
       Node* in_bounds =
           graph()->NewNode(machine->Uint32LessThan(), index, size);
       trap_->AddTrapIfFalse(wasm::kTrapInvalidIndex, in_bounds, position);
@@ -2164,7 +2170,7 @@ Node* WasmGraphBuilder::JITSingleFunction(Node* const base, Node* const length,
   inputs[1] = BuildChangeUint32ToSmi(base);
   inputs[2] = BuildChangeUint32ToSmi(length);
   inputs[3] = BuildChangeUint32ToSmi(index);
-  inputs[4] = FunctionTable();
+  inputs[4] = FunctionTable(0);
   inputs[5] = Uint32Constant(sig_index);
   inputs[6] = BuildChangeUint32ToSmi(Uint32Constant(return_count));
 
@@ -2806,13 +2812,17 @@ Node* WasmGraphBuilder::DefaultS128Value() {
                           zero, zero);
 }
 
-Node* WasmGraphBuilder::FunctionTable() {
+Node* WasmGraphBuilder::FunctionTable(uint32_t index) {
   DCHECK(module_ && module_->instance &&
-         !module_->instance->function_table.is_null());
-  if (!function_table_) {
-    function_table_ = HeapConstant(module_->instance->function_table);
+         index < module_->instance->function_tables.size());
+  if (!function_tables_.size()) {
+    for (size_t i = 0; i < module_->instance->function_tables.size(); ++i) {
+      DCHECK(!module_->instance->function_tables[i].is_null());
+      function_tables_.push_back(
+          HeapConstant(module_->instance->function_tables[i]));
+    }
   }
-  return function_table_;
+  return function_tables_[index];
 }
 
 Node* WasmGraphBuilder::ChangeToRuntimeCall(Node* node,

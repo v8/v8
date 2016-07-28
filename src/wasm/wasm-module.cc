@@ -154,11 +154,11 @@ enum CompiledWasmObjectFields {
   kExports,          // maybe FixedArray of FixedArray of WasmExportMetadata
                      // structure
   kStartupFunction,  // maybe FixedArray of WasmExportMetadata structure
-  kIndirectFunctionTableSize,       // Smi. Size of indirect function table.
-  kIndirectFunctionTablePrototype,  // maybe FixedArray
-  kModuleBytes,                     // maybe String
-  kFunctionNameTable,               // maybe ByteArray
-  kMinRequiredMemory,               // Smi. an uint32_t
+  kTableOfIndirectFunctionTables,  // maybe FixedArray of FixedArray of
+                                   // WasmIndirectFunctionTableMetadata
+  kModuleBytes,                    // maybe String
+  kFunctionNameTable,              // maybe ByteArray
+  kMinRequiredMemory,              // Smi. an uint32_t
   // The following 2 are either together present or absent:
   kDataSegmentsInfo,  // maybe FixedArray of FixedArray respecting the
                       // WasmSegmentInfo structure
@@ -190,6 +190,12 @@ enum WasmSegmentInfo {
   kDestAddr,            // Smi. an uint32_t
   kSourceSize,          // Smi. an uint32_t
   kWasmSegmentInfoSize  // Sentinel value.
+};
+
+enum WasmIndirectFunctionTableMetadata {
+  kSize,   // Smi. an uint32_t
+  kTable,  // FixedArray of indirect function table
+  kWasmIndirectFunctionTableMetadataSize  // Sentinel value.
 };
 
 uint32_t GetMinModuleMemSize(const WasmModule* module) {
@@ -255,39 +261,6 @@ void SaveDataSegmentInfo(Factory* factory, const WasmModule* module,
   }
   compiled_module->set(kDataSegmentsInfo, *segments);
   compiled_module->set(kDataSegments, *data);
-}
-
-MaybeHandle<FixedArray> BuildFunctionTable(Isolate* isolate,
-                                           const WasmModule* module) {
-  // Compute the size of the indirect function table
-  uint32_t table_size = module->FunctionTableSize();
-  if (table_size == 0) {
-    return MaybeHandle<FixedArray>();
-  }
-
-  DCHECK_GE(table_size, module->function_table.size());
-
-  Handle<FixedArray> fixed = isolate->factory()->NewFixedArray(2 * table_size);
-  for (uint32_t i = 0; i < module->function_table.size(); ++i) {
-    const WasmFunction* function =
-        &module->functions[module->function_table[i]];
-    int fixed_array_index = static_cast<int>(i);
-    fixed->set(fixed_array_index, Smi::FromInt(function->sig_index));
-    fixed->set(fixed_array_index + table_size,
-               Smi::FromInt(module->function_table[fixed_array_index]));
-  }
-
-  // Set the remaining elements to -1 (instead of "undefined"). These
-  // elements are accessed directly as SMIs (without a check). On 64-bit
-  // platforms, it is possible to have the top bits of "undefined" take
-  // small integer values (or zero), which are more likely to be equal to
-  // the signature index we check against.
-  for (uint32_t i = static_cast<uint32_t>(module->function_table.size());
-       i < table_size;
-       ++i) {
-    fixed->set(i, Smi::FromInt(-1));
-  }
-  return fixed;
 }
 
 void PatchFunctionTable(Handle<Code> code,
@@ -377,7 +350,8 @@ Handle<Code> CreatePlaceholder(Factory* factory, uint32_t index,
   // the {constant_pool_offset} field of the code object.
   // TODO(titzer): placeholder code objects are somewhat dangerous.
   static byte buffer[] = {0, 0, 0, 0, 0, 0, 0, 0};  // fake instructions.
-  static CodeDesc desc = {buffer, 8, 8, 0, 0, nullptr, 0, nullptr};
+  static CodeDesc desc = {
+      buffer, arraysize(buffer), arraysize(buffer), 0, 0, nullptr, 0, nullptr};
   Handle<Code> code = factory->NewCode(desc, Code::KindField::encode(kind),
                                        Handle<Object>::null());
   code->set_constant_pool_offset(static_cast<int>(index) + kPlaceholderMarker);
@@ -461,7 +435,6 @@ WasmModule::WasmModule(byte* module_start)
       start_function_index(-1),
       origin(kWasmOrigin),
       globals_size(0),
-      indirect_table_size(0),
       pending_tasks(new base::Semaphore(0)) {}
 
 static MaybeHandle<JSFunction> ReportFFIError(
@@ -1027,10 +1000,19 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
   temp_instance_for_compilation.mem_start = nullptr;
   temp_instance_for_compilation.globals_start = nullptr;
 
-  MaybeHandle<FixedArray> indirect_table = BuildFunctionTable(isolate, this);
-  if (!indirect_table.is_null()) {
-    temp_instance_for_compilation.function_table =
-        indirect_table.ToHandleChecked();
+  MaybeHandle<FixedArray> indirect_table =
+      function_tables.size()
+          ? factory->NewFixedArray(static_cast<int>(function_tables.size()))
+          : MaybeHandle<FixedArray>();
+  for (uint32_t i = 0; i < function_tables.size(); ++i) {
+    Handle<FixedArray> values = wasm::BuildFunctionTable(isolate, i, this);
+    temp_instance_for_compilation.function_tables[i] = values;
+
+    Handle<FixedArray> metadata = isolate->factory()->NewFixedArray(
+        kWasmIndirectFunctionTableMetadataSize);
+    metadata->set(kSize, Smi::FromInt(function_tables[i].size));
+    metadata->set(kTable, *values);
+    indirect_table.ToHandleChecked()->set(i, *metadata);
   }
 
   HistogramTimerScope wasm_compile_module_time_scope(
@@ -1077,11 +1059,8 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
   Handle<FixedArray> ret =
       factory->NewFixedArray(kCompiledWasmObjectTableSize, TENURED);
   ret->set(kFunctions, *compiled_functions);
-  ret->set(kIndirectFunctionTableSize,
-           Smi::FromInt(static_cast<int>(function_table.size())));
   if (!indirect_table.is_null()) {
-    ret->set(kIndirectFunctionTablePrototype,
-             *indirect_table.ToHandleChecked());
+    ret->set(kTableOfIndirectFunctionTables, *indirect_table.ToHandleChecked());
   }
   Handle<FixedArray> import_data = GetImportsMetadata(factory, this);
   ret->set(kImportData, *import_data);
@@ -1183,28 +1162,54 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<FixedArray> clone = factory->CopyFixedArray(original);
 
+  // Copy the outer table, each WasmIndirectFunctionTableMetadata table, and the
+  // inner kTable.
+  MaybeHandle<FixedArray> maybe_indirect_tables =
+      original->GetValue<FixedArray>(kTableOfIndirectFunctionTables);
+  Handle<FixedArray> indirect_tables, clone_indirect_tables;
+  if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
+    clone_indirect_tables = factory->CopyFixedArray(indirect_tables);
+    clone->set(kTableOfIndirectFunctionTables, *clone_indirect_tables);
+    for (int i = 0; i < clone_indirect_tables->length(); ++i) {
+      Handle<FixedArray> orig_metadata =
+          clone_indirect_tables->GetValueChecked<FixedArray>(i);
+      Handle<FixedArray> clone_metadata =
+          factory->CopyFixedArray(orig_metadata);
+      clone_indirect_tables->set(i, *clone_metadata);
+
+      Handle<FixedArray> orig_table =
+          clone_metadata->GetValueChecked<FixedArray>(kTable);
+      Handle<FixedArray> clone_table = factory->CopyFixedArray(orig_table);
+      clone_metadata->set(kTable, *clone_table);
+    }
+  }
+
+  // Clone each code, then if indirect tables are used, patch the cloned code to
+  // refer to the cloned kTable.
   Handle<FixedArray> orig_wasm_functions =
       original->GetValueChecked<FixedArray>(kFunctions);
   Handle<FixedArray> clone_wasm_functions =
       factory->CopyFixedArray(orig_wasm_functions);
   clone->set(kFunctions, *clone_wasm_functions);
-
-  MaybeHandle<FixedArray> maybe_indirect_table =
-      original->GetValue<FixedArray>(kIndirectFunctionTablePrototype);
-
-  Handle<FixedArray> indirect_table;
-  Handle<FixedArray> old_table;
-  if (maybe_indirect_table.ToHandle(&old_table)) {
-    indirect_table = factory->CopyFixedArray(old_table);
-    clone->set(kIndirectFunctionTablePrototype, *indirect_table);
-  }
-
-  for (int i = 0; i < orig_wasm_functions->length(); ++i) {
-    Handle<Code> orig_code = orig_wasm_functions->GetValueChecked<Code>(i);
+  for (int i = 0; i < clone_wasm_functions->length(); ++i) {
+    Handle<Code> orig_code = clone_wasm_functions->GetValueChecked<Code>(i);
     Handle<Code> cloned_code = factory->CopyCode(orig_code);
     clone_wasm_functions->set(i, *cloned_code);
-    if (!maybe_indirect_table.is_null()) {
-      PatchFunctionTable(cloned_code, old_table, indirect_table);
+
+    if (!clone_indirect_tables.is_null()) {
+      for (int j = 0; j < clone_indirect_tables->length(); ++j) {
+        Handle<FixedArray> orig_metadata =
+            indirect_tables->GetValueChecked<FixedArray>(j);
+        Handle<FixedArray> orig_table =
+            orig_metadata->GetValueChecked<FixedArray>(kTable);
+
+        Handle<FixedArray> clone_metadata =
+            clone_indirect_tables->GetValueChecked<FixedArray>(j);
+        Handle<FixedArray> clone_table =
+            clone_metadata->GetValueChecked<FixedArray>(kTable);
+
+        PatchFunctionTable(cloned_code, orig_table, clone_table);
+      }
     }
   }
 
@@ -1276,14 +1281,12 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   Handle<FixedArray> code_table =
       compiled_module->GetValueChecked<FixedArray>(kFunctions);
 
-  {
-    std::vector<Handle<Code>> functions(
-        static_cast<size_t>(code_table->length()));
-    for (int i = 0; i < code_table->length(); ++i) {
-      functions[static_cast<size_t>(i)] = code_table->GetValueChecked<Code>(i);
-    }
-    LinkModuleFunctions(isolate, functions);
+  std::vector<Handle<Code>> functions(
+      static_cast<size_t>(code_table->length()));
+  for (int i = 0; i < code_table->length(); ++i) {
+    functions[static_cast<size_t>(i)] = code_table->GetValueChecked<Code>(i);
   }
+  LinkModuleFunctions(isolate, functions);
 
   RecordStats(isolate, code_table);
 
@@ -1307,20 +1310,18 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
 
   FlushAssemblyCache(isolate, code_table);
 
-  MaybeHandle<FixedArray> maybe_indirect_table =
-      compiled_module->GetValue<FixedArray>(kIndirectFunctionTablePrototype);
-  Handle<FixedArray> indirect_table;
-  if (maybe_indirect_table.ToHandle(&indirect_table)) {
-    int table_size =
-        Smi::cast(compiled_module->get(kIndirectFunctionTableSize))->value();
-    int half_point = indirect_table->length() / 2;
-    for (int i = half_point; i < half_point + table_size; ++i) {
-      int index = Smi::cast(indirect_table->get(i))->value();
-      DCHECK_GE(index, 0);
-      DCHECK_LT(index, code_table->length());
-      indirect_table->set(i, code_table->get(index));
+  MaybeHandle<FixedArray> maybe_indirect_tables =
+      compiled_module->GetValue<FixedArray>(kTableOfIndirectFunctionTables);
+  Handle<FixedArray> indirect_tables;
+  if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
+    for (int i = 0; i < indirect_tables->length(); ++i) {
+      Handle<FixedArray> metadata =
+          indirect_tables->GetValueChecked<FixedArray>(i);
+      uint32_t size = Smi::cast(metadata->get(kSize))->value();
+      Handle<FixedArray> table = metadata->GetValueChecked<FixedArray>(kTable);
+      wasm::PopulateFunctionTable(table, size, &functions);
     }
-    js_object->SetInternalField(kWasmModuleFunctionTable, *indirect_table);
+    js_object->SetInternalField(kWasmModuleFunctionTable, *indirect_tables);
   }
 
   // Run the start function if one was specified.
@@ -1473,6 +1474,40 @@ bool UpdateWasmModuleMemory(Handle<JSObject> object, Address old_start,
     }
   }
   return true;
+}
+
+Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
+                                      const WasmModule* module) {
+  const WasmIndirectFunctionTable* table = &module->function_tables[index];
+  DCHECK_EQ(table->size, table->values.size());
+  DCHECK_GE(table->max_size, table->size);
+  Handle<FixedArray> values =
+      isolate->factory()->NewFixedArray(2 * table->max_size);
+  for (uint32_t i = 0; i < table->size; ++i) {
+    const WasmFunction* function = &module->functions[table->values[i]];
+    values->set(i, Smi::FromInt(function->sig_index));
+    values->set(i + table->max_size, Smi::FromInt(table->values[i]));
+  }
+  // Set the remaining elements to -1 (instead of "undefined"). These
+  // elements are accessed directly as SMIs (without a check). On 64-bit
+  // platforms, it is possible to have the top bits of "undefined" take
+  // small integer values (or zero), which are more likely to be equal to
+  // the signature index we check against.
+  for (uint32_t i = table->size; i < table->max_size; i++) {
+    values->set(i, Smi::FromInt(-1));
+  }
+  return values;
+}
+
+void PopulateFunctionTable(Handle<FixedArray> table, uint32_t table_size,
+                           const std::vector<Handle<Code>>* code_table) {
+  uint32_t max_size = table->length() / 2;
+  for (uint32_t i = max_size; i < max_size + table_size; ++i) {
+    int index = Smi::cast(table->get(static_cast<int>(i)))->value();
+    DCHECK_GE(index, 0);
+    DCHECK_LT(static_cast<size_t>(index), code_table->size());
+    table->set(static_cast<int>(i), *(*code_table)[index]);
+  }
 }
 
 int GetNumberOfFunctions(JSObject* wasm) {

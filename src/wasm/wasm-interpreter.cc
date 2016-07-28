@@ -915,9 +915,12 @@ class CodeMap {
     return Preprocess(&interpreter_code_[function_index]);
   }
 
-  InterpreterCode* GetIndirectCode(uint32_t indirect_index) {
-    if (indirect_index >= module_->function_table.size()) return nullptr;
-    uint32_t index = module_->function_table[indirect_index];
+  InterpreterCode* GetIndirectCode(uint32_t table_index, uint32_t entry_index) {
+    if (table_index >= module_->function_tables.size()) return nullptr;
+    const WasmIndirectFunctionTable* table =
+        &module_->function_tables[table_index];
+    if (entry_index >= table->values.size()) return nullptr;
+    uint32_t index = table->values[entry_index];
     if (index >= interpreter_code_.size()) return nullptr;
     return GetCode(index);
   }
@@ -1383,14 +1386,13 @@ class ThreadImpl : public WasmInterpreter::Thread {
           CallIndirectOperand operand(&decoder, code->at(pc));
           size_t index = stack_.size() - operand.arity - 1;
           DCHECK_LT(index, stack_.size());
-          uint32_t table_index = stack_[index].to<uint32_t>();
-          if (table_index >= module()->function_table.size()) {
+          uint32_t entry_index = stack_[index].to<uint32_t>();
+          // Assume only one table for now.
+          DCHECK_LE(module()->function_tables.size(), 1u);
+          InterpreterCode* target = codemap()->GetIndirectCode(0, entry_index);
+          if (target == nullptr) {
             return DoTrap(kTrapFuncInvalid, pc);
-          }
-          uint16_t function_index = module()->function_table[table_index];
-          InterpreterCode* target = codemap()->GetCode(function_index);
-          DCHECK(target);
-          if (target->function->sig_index != operand.index) {
+          } else if (target->function->sig_index != operand.index) {
             return DoTrap(kTrapFuncSigMismatch, pc);
           }
 
