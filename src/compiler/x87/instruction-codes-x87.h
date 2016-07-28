@@ -49,8 +49,6 @@ namespace compiler {
   V(X87Float32Sub)                 \
   V(X87Float32Mul)                 \
   V(X87Float32Div)                 \
-  V(X87Float32Max)                 \
-  V(X87Float32Min)                 \
   V(X87Float32Abs)                 \
   V(X87Float32Sqrt)                \
   V(X87Float32Round)               \

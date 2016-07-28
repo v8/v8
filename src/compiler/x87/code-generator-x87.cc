@@ -191,18 +191,14 @@ class OutOfLineLoadInteger final : public OutOfLineCode {
   Register const result_;
 };
 
-
-class OutOfLineLoadFloat final : public OutOfLineCode {
+class OutOfLineLoadNaN final : public OutOfLineCode {
  public:
-  OutOfLineLoadFloat(CodeGenerator* gen, X87Register result)
+  OutOfLineLoadNaN(CodeGenerator* gen, X87Register result)
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
     DCHECK(result_.code() == 0);
     USE(result_);
-    if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-      __ VerifyX87StackDepth(1);
-    }
     __ fstp(0);
     __ push(Immediate(0xffffffff));
     __ push(Immediate(0x7fffffff));
@@ -275,24 +271,22 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 }  // namespace
 
-
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                          \
-  do {                                                                  \
-    auto result = i.OutputDoubleRegister();                             \
-    auto offset = i.InputRegister(0);                                   \
-    DCHECK(result.code() == 0);                                         \
-    if (instr->InputAt(1)->IsRegister()) {                              \
-      __ cmp(offset, i.InputRegister(1));                               \
-    } else {                                                            \
-      __ cmp(offset, i.InputImmediate(1));                              \
-    }                                                                   \
-    OutOfLineCode* ool = new (zone()) OutOfLineLoadFloat(this, result); \
-    __ j(above_equal, ool->entry());                                    \
-    __ fstp(0);                                                         \
-    __ asm_instr(i.MemoryOperand(2));                                   \
-    __ bind(ool->exit());                                               \
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(asm_instr)                        \
+  do {                                                                \
+    auto result = i.OutputDoubleRegister();                           \
+    auto offset = i.InputRegister(0);                                 \
+    DCHECK(result.code() == 0);                                       \
+    if (instr->InputAt(1)->IsRegister()) {                            \
+      __ cmp(offset, i.InputRegister(1));                             \
+    } else {                                                          \
+      __ cmp(offset, i.InputImmediate(1));                            \
+    }                                                                 \
+    OutOfLineCode* ool = new (zone()) OutOfLineLoadNaN(this, result); \
+    __ j(above_equal, ool->entry());                                  \
+    __ fstp(0);                                                       \
+    __ asm_instr(i.MemoryOperand(2));                                 \
+    __ bind(ool->exit());                                             \
   } while (false)
-
 
 #define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                          \
   do {                                                                    \
@@ -1164,93 +1158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ X87SetFPUCW(0x037F);
       break;
     }
-    case kX87Float32Max: {
-      Label check_nan_left, check_zero, return_left, return_right;
-      Condition condition = below;
-      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-        __ VerifyX87StackDepth(1);
-      }
-      __ fstp(0);
-      __ fld_s(MemOperand(esp, kFloatSize));
-      __ fld_s(MemOperand(esp, 0));
-      __ fld(1);
-      __ fld(1);
-      __ FCmp();
 
-      // At least one NaN.
-      // Return the second operands if one of the two operands is NaN
-      __ j(parity_even, &return_right, Label::kNear);
-      __ j(equal, &check_zero, Label::kNear);            // left == right.
-      __ j(condition, &return_left, Label::kNear);
-      __ jmp(&return_right, Label::kNear);
-
-      __ bind(&check_zero);
-      __ fld(0);
-      __ fldz();
-      __ FCmp();
-      __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
-
-      __ fadd(1);
-      __ jmp(&return_left, Label::kNear);
-
-      __ bind(&return_right);
-      __ fxch();
-
-      __ bind(&return_left);
-      __ fstp(0);
-      __ lea(esp, Operand(esp, 2 * kFloatSize));
-      break;
-    }
-    case kX87Float32Min: {
-      Label check_nan_left, check_zero, return_left, return_right;
-      Condition condition = above;
-      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
-        __ VerifyX87StackDepth(1);
-      }
-      __ fstp(0);
-      __ fld_s(MemOperand(esp, kFloatSize));
-      __ fld_s(MemOperand(esp, 0));
-      __ fld(1);
-      __ fld(1);
-      __ FCmp();
-      // At least one NaN.
-      // Return the second operands if one of the two operands is NaN
-      __ j(parity_even, &return_right, Label::kNear);
-      __ j(equal, &check_zero, Label::kNear);            // left == right.
-      __ j(condition, &return_left, Label::kNear);
-      __ jmp(&return_right, Label::kNear);
-
-      __ bind(&check_zero);
-      __ fld(0);
-      __ fldz();
-      __ FCmp();
-      __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
-      // At this point, both left and right are either 0 or -0.
-      // Push st0 and st1 to stack, then pop them to temp registers and OR them,
-      // load it to left.
-      __ push(eax);
-      __ fld(1);
-      __ fld(1);
-      __ sub(esp, Immediate(2 * kPointerSize));
-      __ fstp_s(MemOperand(esp, 0));
-      __ fstp_s(MemOperand(esp, kPointerSize));
-      __ pop(eax);
-      __ xor_(MemOperand(esp, 0), eax);
-      __ fstp(0);
-      __ fld_s(MemOperand(esp, 0));
-      __ pop(eax);  // restore esp
-      __ pop(eax);  // restore esp
-      __ jmp(&return_left, Label::kNear);
-
-
-      __ bind(&return_right);
-      __ fxch();
-
-      __ bind(&return_left);
-      __ fstp(0);
-      __ lea(esp, Operand(esp, 2 * kFloatSize));
-      break;
-    }
     case kX87Float32Sqrt: {
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
         __ VerifyX87StackDepth(1);
@@ -1366,8 +1274,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX87Float64Max: {
-      Label check_zero, return_left, return_right;
-      Condition condition = below;
+      Label compare_swap, done_compare;
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
         __ VerifyX87StackDepth(1);
       }
@@ -1377,29 +1284,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &return_right,
-           Label::kNear);  // At least one NaN, Return right.
-      __ j(equal, &check_zero, Label::kNear);  // left == right.
-      __ j(condition, &return_left, Label::kNear);
-      __ jmp(&return_right, Label::kNear);
 
-      __ bind(&check_zero);
-      __ fld(0);
-      __ fldz();
-      __ FCmp();
-      __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
+      auto ool = new (zone()) OutOfLineLoadNaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(below, &done_compare, Label::kNear);
+      __ j(above, &compare_swap, Label::kNear);
+      __ push(eax);
+      __ lea(esp, Operand(esp, -kDoubleSize));
+      __ fld(1);
+      __ fstp_d(Operand(esp, 0));
+      __ mov(eax, MemOperand(esp, 4));
+      __ and_(eax, Immediate(0x80000000));
+      __ lea(esp, Operand(esp, kDoubleSize));
+      __ pop(eax);
+      __ j(zero, &done_compare, Label::kNear);
 
-      __ bind(&return_right);
-      __ fxch();
+      __ bind(&compare_swap);
+      __ bind(ool->exit());
+      __ fxch(1);
 
-      __ bind(&return_left);
+      __ bind(&done_compare);
       __ fstp(0);
       __ lea(esp, Operand(esp, 2 * kDoubleSize));
       break;
     }
     case kX87Float64Min: {
-      Label check_zero, return_left, return_right;
-      Condition condition = above;
+      Label compare_swap, done_compare;
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
         __ VerifyX87StackDepth(1);
       }
@@ -1409,22 +1319,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &return_right,
-           Label::kNear);  // At least one NaN, return right value.
-      __ j(equal, &check_zero, Label::kNear);  // left == right.
-      __ j(condition, &return_left, Label::kNear);
-      __ jmp(&return_right, Label::kNear);
 
-      __ bind(&check_zero);
+      auto ool = new (zone()) OutOfLineLoadNaN(this, i.OutputDoubleRegister());
+      __ j(parity_even, ool->entry());
+      __ j(above, &done_compare, Label::kNear);
+      __ j(below, &compare_swap, Label::kNear);
+      __ push(eax);
+      __ lea(esp, Operand(esp, -kDoubleSize));
       __ fld(0);
-      __ fldz();
-      __ FCmp();
-      __ j(not_equal, &return_left, Label::kNear);  // left == right != 0.
+      __ fstp_d(Operand(esp, 0));
+      __ mov(eax, MemOperand(esp, 4));
+      __ and_(eax, Immediate(0x80000000));
+      __ lea(esp, Operand(esp, kDoubleSize));
+      __ pop(eax);
+      __ j(zero, &done_compare, Label::kNear);
 
-      __ bind(&return_right);
-      __ fxch();
+      __ bind(&compare_swap);
+      __ bind(ool->exit());
+      __ fxch(1);
 
-      __ bind(&return_left);
+      __ bind(&done_compare);
       __ fstp(0);
       __ lea(esp, Operand(esp, 2 * kDoubleSize));
       break;
