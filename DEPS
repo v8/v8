@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "603acacfd82e28d442da5e24bf22bbacbeefa589",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "0a8d7715646009e2d0935f72462c481be22c6de4",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -20,7 +20,7 @@ deps = {
   "v8/platform/inspector_protocol":
     Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f49542089820a34a9a6e33264e09b73779407512",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "93a755bd710560a2db62300d69db0d8876c01442",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "1d3f4544cadd78d89c8c71c37ef5474ac2b1e297",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
