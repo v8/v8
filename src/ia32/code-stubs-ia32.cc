@@ -1277,9 +1277,11 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
     __ push(edi);
     __ push(edx);
     __ push(ebx);
+    __ push(esi);
 
     __ CallStub(stub);
 
+    __ pop(esi);
     __ pop(ebx);
     __ pop(edx);
     __ pop(edi);
@@ -1575,7 +1577,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
     __ push(edi);
+    __ push(esi);
     __ CallStub(&create_stub);
+    __ pop(esi);
     __ pop(edi);
   }
 

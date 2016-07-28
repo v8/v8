@@ -891,6 +891,15 @@ Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
       IntPtrConstant(HeapNumber::kMapOffset - kHeapObjectTag), map);
 }
 
+Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
+                                              Heap::RootListIndex root_index) {
+  if (Heap::RootIsImmortalImmovable(root_index)) {
+    return StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
+  } else {
+    return StoreObjectField(object, offset, LoadRoot(root_index));
+  }
+}
+
 Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 Node* value,
                                                 WriteBarrierMode barrier_mode,
@@ -3252,6 +3261,24 @@ void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
     Node* zero_constant = SmiConstant(Smi::FromInt(0));
     BranchIf(WordEqual(enum_length, zero_constant), &loop, use_runtime);
   }
+}
+
+Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
+                                                        Node* slot,
+                                                        Node* value) {
+  Node* size = IntPtrConstant(WeakCell::kSize);
+  Node* cell = Allocate(size, compiler::CodeAssembler::kPretenured);
+
+  // Initialize the WeakCell.
+  StoreObjectFieldRoot(cell, WeakCell::kMapOffset, Heap::kWeakCellMapRootIndex);
+  StoreObjectField(cell, WeakCell::kValueOffset, value);
+  StoreObjectFieldRoot(cell, WeakCell::kNextOffset,
+                       Heap::kTheHoleValueRootIndex);
+
+  // Store the WeakCell in the feedback vector.
+  StoreFixedArrayElement(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER,
+                         CodeStubAssembler::SMI_PARAMETERS);
+  return cell;
 }
 
 }  // namespace internal

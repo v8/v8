@@ -4120,9 +4120,6 @@ void FastCloneShallowArrayStub::InitializeDescriptor(
 }
 
 
-void CreateWeakCellStub::InitializeDescriptor(CodeStubDescriptor* d) {}
-
-
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
@@ -4710,9 +4707,8 @@ void CreateAllocationSiteStub::GenerateAssembly(
   Node* site = assembler->Allocate(size, compiler::CodeAssembler::kPretenured);
 
   // Store the map
-  Node* map =
-      assembler->HeapConstant(isolate()->factory()->allocation_site_map());
-  assembler->StoreMapNoWriteBarrier(site, map);
+  assembler->StoreObjectFieldRoot(site, AllocationSite::kMapOffset,
+                                  Heap::kAllocationSiteMapRootIndex);
 
   Node* kind =
       assembler->SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
@@ -4733,10 +4729,8 @@ void CreateAllocationSiteStub::GenerateAssembly(
       site, AllocationSite::kPretenureCreateCountOffset, zero);
 
   // Store an empty fixed array for the code dependency.
-  Node* empty_fixed_array =
-      assembler->HeapConstant(isolate()->factory()->empty_fixed_array());
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kDependentCodeOffset, empty_fixed_array);
+  assembler->StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
 
   // Link the object to the allocation site list
   Node* site_list = assembler->ExternalConstant(
@@ -4760,6 +4754,13 @@ void CreateAllocationSiteStub::GenerateAssembly(
                                     CodeStubAssembler::SMI_PARAMETERS);
 
   assembler->Return(site);
+}
+
+void CreateWeakCellStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  assembler->Return(assembler->CreateWeakCellInFeedbackVector(
+      assembler->Parameter(Descriptor::kVector),
+      assembler->Parameter(Descriptor::kSlot),
+      assembler->Parameter(Descriptor::kValue)));
 }
 
 void ArrayNoArgumentConstructorStub::GenerateAssembly(

@@ -548,10 +548,8 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       StoreFixedArrayElement(type_feedback_vector, call_count_slot,
                              SmiTag(Int32Constant(1)), SKIP_WRITE_BARRIER);
 
-      CreateWeakCellStub weak_cell_stub(isolate());
-      CallStub(weak_cell_stub.GetCallInterfaceDescriptor(),
-               HeapConstant(weak_cell_stub.GetCode()), context,
-               type_feedback_vector, SmiTag(slot_id), function);
+      CreateWeakCellInFeedbackVector(type_feedback_vector, SmiTag(slot_id),
+                                     function);
 
       // Call using call function builtin.
       Callable callable = CodeFactory::InterpreterPushArgsAndCall(

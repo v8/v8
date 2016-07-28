@@ -63,7 +63,6 @@ namespace internal {
   /* HydrogenCodeStubs */                   \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
-  V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
   V(FastArrayPush)                          \
   V(FastCloneRegExp)                        \
@@ -99,6 +98,7 @@ namespace internal {
   V(ArraySingleArgumentConstructor)         \
   V(ArrayNArgumentsConstructor)             \
   V(CreateAllocationSite)                   \
+  V(CreateWeakCell)                         \
   V(StringLength)                           \
   V(Add)                                    \
   V(Subtract)                               \
@@ -1214,17 +1214,15 @@ class CreateAllocationSiteStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(CreateAllocationSite, TurboFanCodeStub);
 };
 
-
-class CreateWeakCellStub : public HydrogenCodeStub {
+class CreateWeakCellStub : public TurboFanCodeStub {
  public:
-  explicit CreateWeakCellStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+  explicit CreateWeakCellStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
-  DEFINE_HYDROGEN_CODE_STUB(CreateWeakCell, HydrogenCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(CreateWeakCell, TurboFanCodeStub);
 };
-
 
 class GrowArrayElementsStub : public HydrogenCodeStub {
  public:

@@ -220,6 +220,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Store the Map of an HeapObject.
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
                                          compiler::Node* map);
+  compiler::Node* StoreObjectFieldRoot(compiler::Node* object, int offset,
+                                       Heap::RootListIndex root);
   // Store an array element to a FixedArray.
   compiler::Node* StoreFixedArrayElement(
       compiler::Node* object, compiler::Node* index, compiler::Node* value,
@@ -484,6 +486,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void CheckEnumCache(compiler::Node* receiver,
                       CodeStubAssembler::Label* use_cache,
                       CodeStubAssembler::Label* use_runtime);
+
+  // Create a new weak cell with a specified value and install it into a
+  // feedback vector.
+  compiler::Node* CreateWeakCellInFeedbackVector(
+      compiler::Node* feedback_vector, compiler::Node* slot,
+      compiler::Node* value);
 
  private:
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
