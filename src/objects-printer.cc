@@ -1469,3 +1469,44 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
 }  // namespace internal
 }  // namespace v8
+
+//
+// The following functions are used by our gdb macros.
+//
+extern void _v8_internal_Print_Object(void* object) {
+  reinterpret_cast<i::Object*>(object)->Print();
+}
+
+extern void _v8_internal_Print_Code(void* object) {
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->FindCodeObject(reinterpret_cast<i::Address>(object))->Print();
+}
+
+extern void _v8_internal_Print_TypeFeedbackVector(void* object) {
+  if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
+    printf("Not a type feedback vector\n");
+  } else {
+    reinterpret_cast<i::TypeFeedbackVector*>(object)->Print();
+  }
+}
+
+extern void _v8_internal_Print_DescriptorArray(void* object) {
+  if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
+    printf("Not a descriptor array\n");
+  } else {
+    reinterpret_cast<i::DescriptorArray*>(object)->Print();
+  }
+}
+
+extern void _v8_internal_Print_TransitionArray(void* object) {
+  if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
+    printf("Not a transition array\n");
+  } else {
+    reinterpret_cast<i::TransitionArray*>(object)->Print();
+  }
+}
+
+extern void _v8_internal_Print_StackTrace() {
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->PrintStack(stdout);
+}
