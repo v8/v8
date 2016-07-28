@@ -329,12 +329,11 @@ void BytecodePeepholeOptimizer::ElideLastBeforeJumpAction(
     BytecodeNode* const node, const PeepholeActionAndData* action_data) {
   DCHECK(LastIsValid());
   DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK(CanElideLastBasedOnSourcePosition(node));
 
-  if (!node->source_info().is_valid()) {
-    node->source_info().Clone(last()->source_info());
-  } else {
+  if (!CanElideLastBasedOnSourcePosition(node)) {
     next_stage()->Write(last());
+  } else if (!node->source_info().is_valid()) {
+    node->source_info().Clone(last()->source_info());
   }
   InvalidateLast();
 }
