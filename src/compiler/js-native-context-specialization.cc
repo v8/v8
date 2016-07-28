@@ -130,7 +130,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Nothing to do if we have no non-deprecated maps.
-  if (access_infos.empty()) return NoChange();
+  if (access_infos.empty()) {
+    return ReduceSoftDeoptimize(
+        node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+  }
 
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
@@ -426,7 +429,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   }
 
   // Nothing to do if we have no non-deprecated maps.
-  if (access_infos.empty()) return NoChange();
+  if (access_infos.empty()) {
+    return ReduceSoftDeoptimize(
+        node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+  }
 
   // The final states for every polymorphic branch. We join them with
   // Merge+Phi+EffectPhi at the bottom.
