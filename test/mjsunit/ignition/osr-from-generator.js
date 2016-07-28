@@ -15,7 +15,7 @@
   assertEquals({ value:23, done:true }, g.next());
 })();
 
-(function TestGeneratorOSRYield() {
+(function TestGeneratorOSRYieldAfterArming() {
   function* gen2() {
     for (var i = 0; i < 3; ++i) {
       if (i == 1) %OptimizeOsr();
@@ -30,8 +30,23 @@
   assertEquals({ value:23, done:true }, g.next());
 })();
 
-(function TestGeneratorOSRNested() {
+(function TestGeneratorOSRYieldBeforeArming() {
   function* gen3() {
+    for (var i = 0; i < 3; ++i) {
+      yield i;
+      if (i == 1) %OptimizeOsr();
+    }
+    return 23;
+  }
+  var g = gen3();
+  assertEquals({ value:0, done:false }, g.next());
+  assertEquals({ value:1, done:false }, g.next());
+  assertEquals({ value:2, done:false }, g.next());
+  assertEquals({ value:23, done:true }, g.next());
+})();
+
+(function TestGeneratorOSRNested() {
+  function* gen4() {
     for (var i = 0; i < 3; ++i) {
       for (var j = 0; j < 3; ++j) {
         for (var k = 0; k < 10; ++k) {
@@ -42,7 +57,7 @@
     }
     return 23;
   }
-  var g = gen3();
+  var g = gen4();
   assertEquals({ value:0, done:false }, g.next());
   assertEquals({ value:1, done:false }, g.next());
   assertEquals({ value:2, done:false }, g.next());
