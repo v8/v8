@@ -56,5 +56,17 @@ Print the current JavaScript stack trace
 Usage: jst
 end
 
+# Skip the JavaScript stack.
+define jss
+set $js_entry_sp=v8::internal::Isolate::Current()->thread_local_top()->js_entry_sp_
+set $rbp=*(void**)$js_entry_sp
+set $rsp=$js_entry_sp + 2*sizeof(void*)
+set $pc=*(void**)($js_entry_sp+sizeof(void*))
+end
+document jss
+Skip the jitted stack on x64 to where we entered JS last.
+Usage: jss
+end
+
 set disassembly-flavor intel
 set disable-randomization off
