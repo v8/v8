@@ -48,7 +48,6 @@ namespace internal {
   V(SubString)                              \
   V(ToString)                               \
   V(ToName)                                 \
-  V(ToObject)                               \
   V(StoreICTrampoline)                      \
   V(KeyedStoreICTrampoline)                 \
   V(StoreIC)                                \
@@ -74,6 +73,7 @@ namespace internal {
   V(LoadDictionaryElement)                  \
   V(NameDictionaryLookup)                   \
   V(NumberToString)                         \
+  V(ToObject)                               \
   V(Typeof)                                 \
   V(RegExpConstructResult)                  \
   V(StoreFastElement)                       \
@@ -487,8 +487,9 @@ class CodeStubDescriptor {
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
 
-  void SetMissHandler(ExternalReference handler) {
-    miss_handler_ = handler;
+  void SetMissHandler(Runtime::FunctionId id) {
+    miss_handler_id_ = id;
+    miss_handler_ = ExternalReference(Runtime::FunctionForId(id), isolate_);
     has_miss_handler_ = true;
     // Our miss handler infrastructure doesn't currently support
     // variable stack parameter counts.
@@ -523,6 +524,11 @@ class CodeStubDescriptor {
     return miss_handler_;
   }
 
+  Runtime::FunctionId miss_handler_id() const {
+    DCHECK(has_miss_handler_);
+    return miss_handler_id_;
+  }
+
   bool has_miss_handler() const {
     return has_miss_handler_;
   }
@@ -545,6 +551,7 @@ class CodeStubDescriptor {
     return stack_parameter_count_.is_valid();
   }
 
+  Isolate* isolate_;
   CallInterfaceDescriptor call_descriptor_;
   Register stack_parameter_count_;
   // If hint_stack_parameter_count_ > 0, the code stub can optimize the
@@ -555,6 +562,7 @@ class CodeStubDescriptor {
   Address deoptimization_handler_;
 
   ExternalReference miss_handler_;
+  Runtime::FunctionId miss_handler_id_;
   bool has_miss_handler_;
 };
 
@@ -578,6 +586,8 @@ class HydrogenCodeStub : public CodeStub {
   bool IsUninitialized() const { return IsMissBits::decode(minor_key_); }
 
   Handle<Code> GenerateLightweightMissCode(ExternalReference miss);
+
+  Handle<Code> GenerateRuntimeTailCall(CodeStubDescriptor* descriptor);
 
   template<class StateType>
   void TraceTransition(StateType from, StateType to);

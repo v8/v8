@@ -585,5 +585,12 @@ RUNTIME_FUNCTION(Runtime_IsWasmObject) {
   return *isolate->factory()->ToBoolean(is_wasm_object);
 }
 
+RUNTIME_FUNCTION(Runtime_Typeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  return *Object::TypeOf(isolate, object);
+}
+
 }  // namespace internal
 }  // namespace v8

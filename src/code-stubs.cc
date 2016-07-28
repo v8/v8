@@ -25,9 +25,9 @@ RUNTIME_FUNCTION(UnexpectedStubMiss) {
   return Smi::FromInt(0);
 }
 
-
 CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
-    : call_descriptor_(stub->GetCallInterfaceDescriptor()),
+    : isolate_(stub->isolate()),
+      call_descriptor_(stub->GetCallInterfaceDescriptor()),
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
@@ -37,9 +37,9 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
   stub->InitializeDescriptor(this);
 }
 
-
 CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
-    : stack_parameter_count_(no_reg),
+    : isolate_(isolate),
+      stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
@@ -270,6 +270,7 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
 
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
+  if (FLAG_minimal) return;
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
     BinaryOpICStub stub(isolate, static_cast<Token::Value>(op));
@@ -289,6 +290,7 @@ void BinaryOpICStub::PrintState(std::ostream& os) const {  // NOLINT
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
                                          const BinaryOpICState& state) {
+  if (FLAG_minimal) return;
   BinaryOpICStub stub(isolate, state);
   stub.GetCode();
 }
@@ -4090,6 +4092,7 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
 
 void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(Runtime::FunctionForId(Runtime::kToObject)->entry);
+  descriptor->SetMissHandler(Runtime::kToObject);
 }
 
 void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
@@ -4097,11 +4100,14 @@ void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
       FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
 }
 
-void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {}
+void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->SetMissHandler(Runtime::kTypeof);
+}
 
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
+  descriptor->SetMissHandler(Runtime::kNumberToString);
 }
 
 
@@ -4109,6 +4115,7 @@ void FastCloneRegExpStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   FastCloneRegExpDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kCreateRegExpLiteral)->entry);
+  descriptor->SetMissHandler(Runtime::kCreateRegExpLiteral);
 }
 
 
@@ -4117,13 +4124,14 @@ void FastCloneShallowArrayStub::InitializeDescriptor(
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
+  descriptor->SetMissHandler(Runtime::kCreateArrayLiteralStubBailout);
 }
-
 
 void RegExpConstructResultStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
+  descriptor->SetMissHandler(Runtime::kRegExpConstructResult);
 }
 
 
@@ -4152,15 +4160,13 @@ SIMD128_TYPES(SIMD128_INIT_DESC)
 
 void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
-  descriptor->SetMissHandler(ExternalReference(
-      Runtime::FunctionForId(Runtime::kToBooleanIC_Miss), isolate()));
+  descriptor->SetMissHandler(Runtime::kToBooleanIC_Miss);
 }
 
 
 void BinaryOpICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_BinaryOpIC_Miss));
-  descriptor->SetMissHandler(ExternalReference(
-      Runtime::FunctionForId(Runtime::kBinaryOpIC_Miss), isolate()));
+  descriptor->SetMissHandler(Runtime::kBinaryOpIC_Miss);
 }
 
 
@@ -4173,6 +4179,7 @@ void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
 
 void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
+  descriptor->SetMissHandler(Runtime::kStringAdd);
 }
 
 
@@ -4575,6 +4582,7 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
+  if (FLAG_minimal) return;
   StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
   StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS,

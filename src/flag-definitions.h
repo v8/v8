@@ -491,6 +491,14 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
 DEFINE_BOOL(turbo_store_elimination, false,
             "enable store-store elimination in TurboFan")
 
+// Flags to help platform porters
+DEFINE_BOOL(minimal, false,
+            "simplifies execution model to make porting "
+            "easier (e.g. always use Ignition, never use Crankshaft")
+DEFINE_IMPLICATION(minimal, ignition)
+DEFINE_NEG_IMPLICATION(minimal, crankshaft)
+DEFINE_NEG_IMPLICATION(minimal, use_ic)
+
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
 DEFINE_INT(wasm_num_compilation_tasks, 10,

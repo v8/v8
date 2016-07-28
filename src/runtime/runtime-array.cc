@@ -53,8 +53,12 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
-  FastArrayPushStub stub(isolate);
-  InstallCode(isolate, holder, "push", stub.GetCode());
+  if (FLAG_minimal) {
+    InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
+  } else {
+    FastArrayPushStub stub(isolate);
+    InstallCode(isolate, holder, "push", stub.GetCode());
+  }
   InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);

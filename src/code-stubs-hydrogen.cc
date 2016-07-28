@@ -248,11 +248,55 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
   return new_object;
 }
 
+Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
+    CodeStubDescriptor* descriptor) {
+  const char* name = CodeStub::MajorName(MajorKey());
+  Zone zone(isolate()->allocator());
+  CallInterfaceDescriptor interface_descriptor(GetCallInterfaceDescriptor());
+  CodeStubAssembler assembler(isolate(), &zone, interface_descriptor,
+                              GetCodeFlags(), name);
+  int total_params = interface_descriptor.GetStackParameterCount() +
+                     interface_descriptor.GetRegisterParameterCount();
+  switch (total_params) {
+    case 0:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(0));
+      break;
+    case 1:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(1), assembler.Parameter(0));
+      break;
+    case 2:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(2), assembler.Parameter(0),
+                                assembler.Parameter(1));
+      break;
+    case 3:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(3), assembler.Parameter(0),
+                                assembler.Parameter(1), assembler.Parameter(2));
+      break;
+    case 4:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(4), assembler.Parameter(0),
+                                assembler.Parameter(1), assembler.Parameter(2),
+                                assembler.Parameter(3));
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  return assembler.GenerateCode();
+}
 
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
   CodeStubDescriptor descriptor(stub);
+
+  if (FLAG_minimal && descriptor.has_miss_handler()) {
+    return stub->GenerateRuntimeTailCall(&descriptor);
+  }
 
   // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard

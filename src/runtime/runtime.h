@@ -324,7 +324,8 @@ namespace internal {
   F(EnqueueMicrotask, 1, 1)                         \
   F(RunMicrotasks, 0, 1)                            \
   F(OrdinaryHasInstance, 2, 1)                      \
-  F(IsWasmObject, 1, 1)
+  F(IsWasmObject, 1, 1)                             \
+  F(Typeof, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \
   F(CreateRegExpLiteral, 4, 1)         \
