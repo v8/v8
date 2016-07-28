@@ -22807,9 +22807,12 @@ THREADED_TEST(FunctionNew) {
                        ->get_api_func_data()
                        ->serial_number()),
       i_isolate);
-  auto cache = i_isolate->template_instantiations_cache();
-  CHECK(cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
+  auto slow_cache = i_isolate->slow_template_instantiations_cache();
+  CHECK(slow_cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
         i::UnseededNumberDictionary::kNotFound);
+  auto fast_cache = i_isolate->fast_template_instantiations_cache();
+  CHECK(fast_cache->get(static_cast<uint32_t>(serial_number->value()))
+            ->IsUndefined(i_isolate));
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;

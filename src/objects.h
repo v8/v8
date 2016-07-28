@@ -767,44 +767,45 @@ STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
 
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
-  V(CODE_STUBS_TABLE_SUB_TYPE)                \
-  V(CONTEXT_SUB_TYPE)                         \
-  V(COPY_ON_WRITE_SUB_TYPE)                   \
-  V(DEOPTIMIZATION_DATA_SUB_TYPE)             \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
-  V(EMBEDDED_OBJECT_SUB_TYPE)                 \
-  V(ENUM_CACHE_SUB_TYPE)                      \
-  V(ENUM_INDICES_CACHE_SUB_TYPE)              \
-  V(DEPENDENT_CODE_SUB_TYPE)                  \
-  V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
-  V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
-  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)     \
-  V(FAST_ELEMENTS_SUB_TYPE)                   \
-  V(FAST_PROPERTIES_SUB_TYPE)                 \
-  V(HANDLER_TABLE_SUB_TYPE)                   \
-  V(INTRINSIC_FUNCTION_NAMES_SUB_TYPE)        \
-  V(JS_COLLECTION_SUB_TYPE)                   \
-  V(JS_WEAK_COLLECTION_SUB_TYPE)              \
-  V(LITERALS_ARRAY_SUB_TYPE)                  \
-  V(MAP_CODE_CACHE_SUB_TYPE)                  \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)  \
-  V(NUMBER_STRING_CACHE_SUB_TYPE)             \
-  V(OBJECT_TO_CODE_SUB_TYPE)                  \
-  V(OPTIMIZED_CODE_MAP_SUB_TYPE)              \
-  V(PROTOTYPE_USERS_SUB_TYPE)                 \
-  V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)           \
-  V(RETAINED_MAPS_SUB_TYPE)                   \
-  V(SCOPE_INFO_SUB_TYPE)                      \
-  V(SCRIPT_LIST_SUB_TYPE)                     \
-  V(SERIALIZED_TEMPLATES_SUB_TYPE)            \
-  V(SHARED_FUNCTION_INFOS_SUB_TYPE)           \
-  V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)   \
-  V(STRING_SPLIT_CACHE_SUB_TYPE)              \
-  V(STRING_TABLE_SUB_TYPE)                    \
-  V(TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE)   \
-  V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)            \
-  V(TYPE_FEEDBACK_METADATA_SUB_TYPE)          \
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
+  V(CODE_STUBS_TABLE_SUB_TYPE)                   \
+  V(CONTEXT_SUB_TYPE)                            \
+  V(COPY_ON_WRITE_SUB_TYPE)                      \
+  V(DEOPTIMIZATION_DATA_SUB_TYPE)                \
+  V(DESCRIPTOR_ARRAY_SUB_TYPE)                   \
+  V(EMBEDDED_OBJECT_SUB_TYPE)                    \
+  V(ENUM_CACHE_SUB_TYPE)                         \
+  V(ENUM_INDICES_CACHE_SUB_TYPE)                 \
+  V(DEPENDENT_CODE_SUB_TYPE)                     \
+  V(DICTIONARY_ELEMENTS_SUB_TYPE)                \
+  V(DICTIONARY_PROPERTIES_SUB_TYPE)              \
+  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)        \
+  V(FAST_ELEMENTS_SUB_TYPE)                      \
+  V(FAST_PROPERTIES_SUB_TYPE)                    \
+  V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
+  V(HANDLER_TABLE_SUB_TYPE)                      \
+  V(INTRINSIC_FUNCTION_NAMES_SUB_TYPE)           \
+  V(JS_COLLECTION_SUB_TYPE)                      \
+  V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
+  V(LITERALS_ARRAY_SUB_TYPE)                     \
+  V(MAP_CODE_CACHE_SUB_TYPE)                     \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
+  V(NUMBER_STRING_CACHE_SUB_TYPE)                \
+  V(OBJECT_TO_CODE_SUB_TYPE)                     \
+  V(OPTIMIZED_CODE_MAP_SUB_TYPE)                 \
+  V(PROTOTYPE_USERS_SUB_TYPE)                    \
+  V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)              \
+  V(RETAINED_MAPS_SUB_TYPE)                      \
+  V(SCOPE_INFO_SUB_TYPE)                         \
+  V(SCRIPT_LIST_SUB_TYPE)                        \
+  V(SERIALIZED_TEMPLATES_SUB_TYPE)               \
+  V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
+  V(SINGLE_CHARACTER_STRING_CACHE_SUB_TYPE)      \
+  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
+  V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
+  V(STRING_TABLE_SUB_TYPE)                       \
+  V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)               \
+  V(TYPE_FEEDBACK_METADATA_SUB_TYPE)             \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
@@ -2671,10 +2672,14 @@ class FixedArray: public FixedArrayBase {
   static inline Handle<Object> get(FixedArray* array, int index,
                                    Isolate* isolate);
   template <class T>
-  MaybeHandle<T> GetValue(int index) const;
+  MaybeHandle<T> GetValue(Isolate* isolate, int index) const;
 
   template <class T>
-  Handle<T> GetValueChecked(int index) const;
+  Handle<T> GetValueChecked(Isolate* isolate, int index) const;
+
+  // Return a grown copy if the index is bigger than the array's length.
+  static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
+                                       Handle<Object> value);
 
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
@@ -4859,7 +4864,7 @@ class LiteralsArray : public FixedArray {
   static Handle<LiteralsArray> New(Isolate* isolate,
                                    Handle<TypeFeedbackVector> vector,
                                    int number_of_literals,
-                                   PretenureFlag pretenure);
+                                   PretenureFlag pretenure = TENURED);
 
   DECLARE_CAST(LiteralsArray)
 
@@ -7735,7 +7740,7 @@ class JSFunction: public JSObject {
   // necessary so that we do not dynamically lookup the object, regexp
   // or array functions.  Performing a dynamic lookup, we might end up
   // using the functions from a new context that we should not have
-  // access to.
+  // access to. For API objects we store the boilerplate in the literal array.
   DECL_ACCESSORS(literals, LiteralsArray)
 
   static void EnsureLiterals(Handle<JSFunction> function);
@@ -10691,6 +10696,8 @@ class TemplateInfo: public Struct {
       kPropertyAccessorsOffset + kPointerSize;
   static const int kHeaderSize = kPropertyIntrinsicsOffset + kPointerSize;
 
+  static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TemplateInfo);
 };
@@ -10709,6 +10716,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(shared_function_info, Object)
+  DECL_ACCESSORS(js_function, Object)
   DECL_INT_ACCESSORS(flag)
 
   inline int length() const;
@@ -10755,6 +10763,8 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info);
+  // Returns parent function template or null.
+  inline FunctionTemplateInfo* GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.
   inline bool IsTemplateFor(JSObject* object);
   bool IsTemplateFor(Map* map);
@@ -10791,6 +10801,10 @@ class ObjectTemplateInfo: public TemplateInfo {
   // LSB is for immutable_proto, higher bits for internal_field_count
   static const int kDataOffset = kConstructorOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
+
+  // Starting from given object template's constructor walk up the inheritance
+  // chain till a function template that has an instance template is found.
+  inline ObjectTemplateInfo* GetParent(Isolate* isolate);
 
  private:
   class IsImmutablePrototype : public BitField<bool, 0, 1> {};

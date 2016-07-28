@@ -9755,6 +9755,24 @@ Code* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
   return Code::cast(FixedArray::cast(get(EntryToIndex(entry)))->get(1));
 }
 
+Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
+                                          Handle<Object> value) {
+  if (index < array->length()) {
+    array->set(index, *value);
+    return array;
+  }
+  int capacity = array->length();
+  do {
+    capacity = JSObject::NewElementsCapacity(capacity);
+  } while (capacity < index);
+  Handle<FixedArray> new_array =
+      array->GetIsolate()->factory()->NewUninitializedFixedArray(capacity);
+  array->CopyTo(0, *new_array, 0, array->length());
+  new_array->FillWithHoles(array->length(), new_array->length());
+  new_array->set(index, *value);
+  return new_array;
+}
+
 void FixedArray::Shrink(int new_length) {
   DCHECK(0 <= new_length && new_length <= length());
   if (new_length < length()) {
@@ -11624,8 +11642,8 @@ Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
 
   Handle<TypeFeedbackVector> feedback_vector =
       TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> literals = LiteralsArray::New(
-      isolate, feedback_vector, shared->num_literals(), TENURED);
+  Handle<LiteralsArray> literals =
+      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
   Handle<Code> code;
   if (result.code != nullptr) {
     code = Handle<Code>(result.code, isolate);

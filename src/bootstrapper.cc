@@ -2991,11 +2991,15 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   }
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
+  auto fast_template_instantiations_cache = isolate()->factory()->NewFixedArray(
+      TemplateInfo::kFastTemplateInstantiationsCacheSize);
+  native_context()->set_fast_template_instantiations_cache(
+      *fast_template_instantiations_cache);
 
-  auto template_instantiations_cache = UnseededNumberDictionary::New(
+  auto slow_template_instantiations_cache = UnseededNumberDictionary::New(
       isolate(), ApiNatives::kInitialFunctionCacheSize);
-  native_context()->set_template_instantiations_cache(
-      *template_instantiations_cache);
+  native_context()->set_slow_template_instantiations_cache(
+      *slow_template_instantiations_cache);
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.

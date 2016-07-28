@@ -465,8 +465,13 @@ void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {
   }
   if (array->IsNativeContext()) {
     Context* native_ctx = Context::cast(array);
-    RecordHashTableHelper(array, native_ctx->template_instantiations_cache(),
-                          TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE);
+    RecordHashTableHelper(array,
+                          native_ctx->slow_template_instantiations_cache(),
+                          SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE);
+    FixedArray* fast_cache = native_ctx->fast_template_instantiations_cache();
+    stats_->RecordFixedArraySubTypeStats(
+        fast_cache, FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE,
+        fast_cache->Size(), 0);
   }
 }
 

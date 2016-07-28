@@ -2318,17 +2318,17 @@ Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
 }
 
 template <class T>
-MaybeHandle<T> FixedArray::GetValue(int index) const {
+MaybeHandle<T> FixedArray::GetValue(Isolate* isolate, int index) const {
   Object* obj = get(index);
-  if (obj->IsUndefined(GetIsolate())) return MaybeHandle<T>();
-  return Handle<T>(T::cast(obj));
+  if (obj->IsUndefined(isolate)) return MaybeHandle<T>();
+  return Handle<T>(T::cast(obj), isolate);
 }
 
 template <class T>
-Handle<T> FixedArray::GetValueChecked(int index) const {
+Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
   Object* obj = get(index);
-  CHECK(!obj->IsUndefined(GetIsolate()));
-  return Handle<T>(T::cast(obj));
+  CHECK(!obj->IsUndefined(isolate));
+  return Handle<T>(T::cast(obj), isolate);
 }
 
 bool FixedArray::is_the_hole(int index) {
@@ -5600,6 +5600,27 @@ bool PrototypeInfo::HasObjectCreateMap() {
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info()->IsSharedFunctionInfo();
+}
+
+FunctionTemplateInfo* FunctionTemplateInfo::GetParent(Isolate* isolate) {
+  Object* parent = parent_template();
+  return parent->IsUndefined(isolate) ? nullptr
+                                      : FunctionTemplateInfo::cast(parent);
+}
+
+ObjectTemplateInfo* ObjectTemplateInfo::GetParent(Isolate* isolate) {
+  Object* maybe_ctor = constructor();
+  if (maybe_ctor->IsUndefined(isolate)) return nullptr;
+  FunctionTemplateInfo* constructor = FunctionTemplateInfo::cast(maybe_ctor);
+  while (true) {
+    constructor = constructor->GetParent(isolate);
+    if (constructor == nullptr) return nullptr;
+    Object* maybe_obj = constructor->instance_template();
+    if (!maybe_obj->IsUndefined(isolate)) {
+      return ObjectTemplateInfo::cast(maybe_obj);
+    }
+  }
+  return nullptr;
 }
 
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)

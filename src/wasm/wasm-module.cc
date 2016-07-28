@@ -204,10 +204,11 @@ uint32_t GetMinModuleMemSize(const WasmModule* module) {
 
 void LoadDataSegments(Handle<FixedArray> compiled_module, Address mem_addr,
                       size_t mem_size) {
+  Isolate* isolate = compiled_module->GetIsolate();
   MaybeHandle<ByteArray> maybe_data =
-      compiled_module->GetValue<ByteArray>(kDataSegments);
+      compiled_module->GetValue<ByteArray>(isolate, kDataSegments);
   MaybeHandle<FixedArray> maybe_segments =
-      compiled_module->GetValue<FixedArray>(kDataSegmentsInfo);
+      compiled_module->GetValue<FixedArray>(isolate, kDataSegmentsInfo);
 
   // We either have both or neither.
   CHECK(maybe_data.is_null() == maybe_segments.is_null());
@@ -417,7 +418,7 @@ void LinkImports(Isolate* isolate, std::vector<Handle<Code>>& functions,
 
 void FlushAssemblyCache(Isolate* isolate, Handle<FixedArray> functions) {
   for (int i = 0; i < functions->length(); ++i) {
-    Handle<Code> code = functions->GetValueChecked<Code>(i);
+    Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
     Assembler::FlushICache(isolate, code->instruction_start(),
                            code->instruction_size());
   }
@@ -627,15 +628,19 @@ bool CompileWrappersToImportedFunctions(Isolate* isolate,
   if (import_count > 0) {
     imports.reserve(import_count);
     for (uint32_t index = 0; index < import_count; ++index) {
-      Handle<FixedArray> data = import_data->GetValueChecked<FixedArray>(index);
-      Handle<String> module_name = data->GetValueChecked<String>(kModuleName);
-      MaybeHandle<String> function_name = data->GetValue<String>(kFunctionName);
+      Handle<FixedArray> data =
+          import_data->GetValueChecked<FixedArray>(isolate, index);
+      Handle<String> module_name =
+          data->GetValueChecked<String>(isolate, kModuleName);
+      MaybeHandle<String> function_name =
+          data->GetValue<String>(isolate, kFunctionName);
 
       // TODO(mtrofin): this is an uint32_t, actually. We should rationalize
       // it when we rationalize signed/unsigned stuff.
       int ret_count = Smi::cast(data->get(kOutputCount))->value();
       CHECK(ret_count >= 0);
-      Handle<ByteArray> sig_data = data->GetValueChecked<ByteArray>(kSignature);
+      Handle<ByteArray> sig_data =
+          data->GetValueChecked<ByteArray>(isolate, kSignature);
       int sig_data_size = sig_data->length();
       int param_count = sig_data_size - ret_count;
       CHECK(param_count >= 0);
@@ -820,8 +825,9 @@ void CompileSequentially(Isolate* isolate, const WasmModule* module,
 
 void SetDebugSupport(Factory* factory, Handle<FixedArray> compiled_module,
                      Handle<JSObject> js_object) {
+  Isolate* isolate = compiled_module->GetIsolate();
   MaybeHandle<String> module_bytes_string =
-      compiled_module->GetValue<String>(kModuleBytes);
+      compiled_module->GetValue<String>(isolate, kModuleBytes);
   if (!module_bytes_string.is_null()) {
     js_object->SetInternalField(kWasmModuleBytesString,
                                 *module_bytes_string.ToHandleChecked());
@@ -830,7 +836,7 @@ void SetDebugSupport(Factory* factory, Handle<FixedArray> compiled_module,
       FixedArray::cast(js_object->GetInternalField(kWasmModuleCodeTable)));
 
   for (int i = FLAG_skip_compiling_wasm_funcs; i < functions->length(); ++i) {
-    Handle<Code> code = functions->GetValueChecked<Code>(i);
+    Handle<Code> code = functions->GetValueChecked<Code>(isolate, i);
     DCHECK(code->deoptimization_data() == nullptr ||
            code->deoptimization_data()->length() == 0);
     Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
@@ -843,7 +849,7 @@ void SetDebugSupport(Factory* factory, Handle<FixedArray> compiled_module,
   }
 
   MaybeHandle<ByteArray> function_name_table =
-      compiled_module->GetValue<ByteArray>(kFunctionNameTable);
+      compiled_module->GetValue<ByteArray>(isolate, kFunctionNameTable);
   if (!function_name_table.is_null()) {
     js_object->SetInternalField(kWasmFunctionNamesArray,
                                 *function_name_table.ToHandleChecked());
@@ -902,7 +908,7 @@ bool SetupImports(Isolate* isolate, Handle<FixedArray> compiled_module,
   //-------------------------------------------------------------------------
   std::vector<Handle<Code>> import_code;
   MaybeHandle<FixedArray> maybe_import_data =
-      compiled_module->GetValue<FixedArray>(kImportData);
+      compiled_module->GetValue<FixedArray>(isolate, kImportData);
   Handle<FixedArray> import_data;
   if (maybe_import_data.ToHandle(&import_data)) {
     if (!CompileWrappersToImportedFunctions(isolate, ffi, import_code,
@@ -936,7 +942,7 @@ bool SetupExportsObject(Handle<FixedArray> compiled_module, Isolate* isolate,
       Smi::cast(compiled_module->get(kOrigin))->value());
 
   MaybeHandle<FixedArray> maybe_exports =
-      compiled_module->GetValue<FixedArray>(kExports);
+      compiled_module->GetValue<FixedArray>(isolate, kExports);
   if (!maybe_exports.is_null() || mem_export) {
     PropertyDescriptor desc;
     desc.set_writable(false);
@@ -956,12 +962,12 @@ bool SetupExportsObject(Handle<FixedArray> compiled_module, Isolate* isolate,
       for (int i = 0; i < exports_size; ++i) {
         if (thrower->error()) return false;
         Handle<FixedArray> export_metadata =
-            exports->GetValueChecked<FixedArray>(i);
+            exports->GetValueChecked<FixedArray>(isolate, i);
         Handle<Code> export_code =
-            export_metadata->GetValueChecked<Code>(kExportCode);
+            export_metadata->GetValueChecked<Code>(isolate, kExportCode);
         RecordStats(isolate, *export_code);
         Handle<String> name =
-            export_metadata->GetValueChecked<String>(kExportName);
+            export_metadata->GetValueChecked<String>(isolate, kExportName);
         int arity = Smi::cast(export_metadata->get(kExportArity))->value();
         Handle<JSFunction> function = WrapExportCodeAsJSFunction(
             isolate, export_code, name, arity, instance);
@@ -1165,20 +1171,20 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
   // Copy the outer table, each WasmIndirectFunctionTableMetadata table, and the
   // inner kTable.
   MaybeHandle<FixedArray> maybe_indirect_tables =
-      original->GetValue<FixedArray>(kTableOfIndirectFunctionTables);
+      original->GetValue<FixedArray>(isolate, kTableOfIndirectFunctionTables);
   Handle<FixedArray> indirect_tables, clone_indirect_tables;
   if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
     clone_indirect_tables = factory->CopyFixedArray(indirect_tables);
     clone->set(kTableOfIndirectFunctionTables, *clone_indirect_tables);
     for (int i = 0; i < clone_indirect_tables->length(); ++i) {
       Handle<FixedArray> orig_metadata =
-          clone_indirect_tables->GetValueChecked<FixedArray>(i);
+          clone_indirect_tables->GetValueChecked<FixedArray>(isolate, i);
       Handle<FixedArray> clone_metadata =
           factory->CopyFixedArray(orig_metadata);
       clone_indirect_tables->set(i, *clone_metadata);
 
       Handle<FixedArray> orig_table =
-          clone_metadata->GetValueChecked<FixedArray>(kTable);
+          clone_metadata->GetValueChecked<FixedArray>(isolate, kTable);
       Handle<FixedArray> clone_table = factory->CopyFixedArray(orig_table);
       clone_metadata->set(kTable, *clone_table);
     }
@@ -1187,26 +1193,27 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
   // Clone each code, then if indirect tables are used, patch the cloned code to
   // refer to the cloned kTable.
   Handle<FixedArray> orig_wasm_functions =
-      original->GetValueChecked<FixedArray>(kFunctions);
+      original->GetValueChecked<FixedArray>(isolate, kFunctions);
   Handle<FixedArray> clone_wasm_functions =
       factory->CopyFixedArray(orig_wasm_functions);
   clone->set(kFunctions, *clone_wasm_functions);
   for (int i = 0; i < clone_wasm_functions->length(); ++i) {
-    Handle<Code> orig_code = clone_wasm_functions->GetValueChecked<Code>(i);
+    Handle<Code> orig_code =
+        clone_wasm_functions->GetValueChecked<Code>(isolate, i);
     Handle<Code> cloned_code = factory->CopyCode(orig_code);
     clone_wasm_functions->set(i, *cloned_code);
 
     if (!clone_indirect_tables.is_null()) {
       for (int j = 0; j < clone_indirect_tables->length(); ++j) {
         Handle<FixedArray> orig_metadata =
-            indirect_tables->GetValueChecked<FixedArray>(j);
+            indirect_tables->GetValueChecked<FixedArray>(isolate, j);
         Handle<FixedArray> orig_table =
-            orig_metadata->GetValueChecked<FixedArray>(kTable);
+            orig_metadata->GetValueChecked<FixedArray>(isolate, kTable);
 
         Handle<FixedArray> clone_metadata =
-            clone_indirect_tables->GetValueChecked<FixedArray>(j);
+            clone_indirect_tables->GetValueChecked<FixedArray>(isolate, j);
         Handle<FixedArray> clone_table =
-            clone_metadata->GetValueChecked<FixedArray>(kTable);
+            clone_metadata->GetValueChecked<FixedArray>(isolate, kTable);
 
         PatchFunctionTable(cloned_code, orig_table, clone_table);
       }
@@ -1214,19 +1221,19 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
   }
 
   MaybeHandle<FixedArray> maybe_orig_exports =
-      original->GetValue<FixedArray>(kExports);
+      original->GetValue<FixedArray>(isolate, kExports);
   Handle<FixedArray> orig_exports;
   if (maybe_orig_exports.ToHandle(&orig_exports)) {
     Handle<FixedArray> cloned_exports = factory->CopyFixedArray(orig_exports);
     clone->set(kExports, *cloned_exports);
     for (int i = 0; i < orig_exports->length(); ++i) {
       Handle<FixedArray> export_metadata =
-          orig_exports->GetValueChecked<FixedArray>(i);
+          orig_exports->GetValueChecked<FixedArray>(isolate, i);
       Handle<FixedArray> clone_metadata =
           factory->CopyFixedArray(export_metadata);
       cloned_exports->set(i, *clone_metadata);
       Handle<Code> orig_code =
-          export_metadata->GetValueChecked<Code>(kExportCode);
+          export_metadata->GetValueChecked<Code>(isolate, kExportCode);
       Handle<Code> cloned_code = factory->CopyCode(orig_code);
       clone_metadata->set(kExportCode, *cloned_code);
       // TODO(wasm): This is actually a uint32_t, but since FixedArray indexes
@@ -1235,19 +1242,19 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
           Smi::cast(export_metadata->get(kExportedFunctionIndex))->value();
       CHECK_GE(exported_fct_index, 0);
       CHECK_LT(exported_fct_index, clone_wasm_functions->length());
-      Handle<Code> new_target =
-          clone_wasm_functions->GetValueChecked<Code>(exported_fct_index);
+      Handle<Code> new_target = clone_wasm_functions->GetValueChecked<Code>(
+          isolate, exported_fct_index);
       PatchJSWrapper(isolate, cloned_code, new_target);
     }
   }
 
   MaybeHandle<FixedArray> maybe_startup =
-      original->GetValue<FixedArray>(kStartupFunction);
+      original->GetValue<FixedArray>(isolate, kStartupFunction);
   if (!maybe_startup.is_null()) {
     Handle<FixedArray> startup_metadata =
         factory->CopyFixedArray(maybe_startup.ToHandleChecked());
-    Handle<Code> startup_fct_clone =
-        factory->CopyCode(startup_metadata->GetValueChecked<Code>(kExportCode));
+    Handle<Code> startup_fct_clone = factory->CopyCode(
+        startup_metadata->GetValueChecked<Code>(isolate, kExportCode));
     startup_metadata->set(kExportCode, *startup_fct_clone);
     clone->set(kStartupFunction, *startup_metadata);
     // TODO(wasm): see todo above about int vs size_t indexing in FixedArray.
@@ -1256,7 +1263,7 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
     CHECK_GE(startup_fct_index, 0);
     CHECK_LT(startup_fct_index, clone_wasm_functions->length());
     Handle<Code> new_target =
-        clone_wasm_functions->GetValueChecked<Code>(startup_fct_index);
+        clone_wasm_functions->GetValueChecked<Code>(isolate, startup_fct_index);
     PatchJSWrapper(isolate, startup_fct_clone, new_target);
   }
   return clone;
@@ -1279,12 +1286,13 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
 
   // These fields are compulsory.
   Handle<FixedArray> code_table =
-      compiled_module->GetValueChecked<FixedArray>(kFunctions);
+      compiled_module->GetValueChecked<FixedArray>(isolate, kFunctions);
 
   std::vector<Handle<Code>> functions(
       static_cast<size_t>(code_table->length()));
   for (int i = 0; i < code_table->length(); ++i) {
-    functions[static_cast<size_t>(i)] = code_table->GetValueChecked<Code>(i);
+    functions[static_cast<size_t>(i)] =
+        code_table->GetValueChecked<Code>(isolate, i);
   }
   LinkModuleFunctions(isolate, functions);
 
@@ -1311,14 +1319,16 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
   FlushAssemblyCache(isolate, code_table);
 
   MaybeHandle<FixedArray> maybe_indirect_tables =
-      compiled_module->GetValue<FixedArray>(kTableOfIndirectFunctionTables);
+      compiled_module->GetValue<FixedArray>(isolate,
+                                            kTableOfIndirectFunctionTables);
   Handle<FixedArray> indirect_tables;
   if (maybe_indirect_tables.ToHandle(&indirect_tables)) {
     for (int i = 0; i < indirect_tables->length(); ++i) {
       Handle<FixedArray> metadata =
-          indirect_tables->GetValueChecked<FixedArray>(i);
+          indirect_tables->GetValueChecked<FixedArray>(isolate, i);
       uint32_t size = Smi::cast(metadata->get(kSize))->value();
-      Handle<FixedArray> table = metadata->GetValueChecked<FixedArray>(kTable);
+      Handle<FixedArray> table =
+          metadata->GetValueChecked<FixedArray>(isolate, kTable);
       wasm::PopulateFunctionTable(table, size, &functions);
     }
     js_object->SetInternalField(kWasmModuleFunctionTable, *indirect_tables);
@@ -1326,11 +1336,12 @@ MaybeHandle<JSObject> WasmModule::Instantiate(
 
   // Run the start function if one was specified.
   MaybeHandle<FixedArray> maybe_startup_fct =
-      compiled_module->GetValue<FixedArray>(kStartupFunction);
+      compiled_module->GetValue<FixedArray>(isolate, kStartupFunction);
   Handle<FixedArray> metadata;
   if (maybe_startup_fct.ToHandle(&metadata)) {
     HandleScope scope(isolate);
-    Handle<Code> startup_code = metadata->GetValueChecked<Code>(kExportCode);
+    Handle<Code> startup_code =
+        metadata->GetValueChecked<Code>(isolate, kExportCode);
     int arity = Smi::cast(metadata->get(kExportArity))->value();
     Handle<JSFunction> startup_fct = WrapExportCodeAsJSFunction(
         isolate, startup_code, factory->InternalizeUtf8String("start"), arity,

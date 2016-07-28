@@ -882,7 +882,7 @@ class LiteralFixer {
         Handle<TypeFeedbackVector> vector =
             TypeFeedbackVector::New(isolate, feedback_metadata);
         Handle<LiteralsArray> new_literals =
-            LiteralsArray::New(isolate, vector, new_literal_count, TENURED);
+            LiteralsArray::New(isolate, vector, new_literal_count);
         fun->set_literals(*new_literals);
       }
 
