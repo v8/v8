@@ -751,7 +751,7 @@ const char* HeapObjectsSet::GetTag(Object* obj) {
 }
 
 
-void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
+V8_NOINLINE void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
   if (!obj->IsHeapObject()) return;
   HeapObject* object = HeapObject::cast(obj);
   base::HashMap::Entry* cache_entry =
