@@ -56,59 +56,51 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   return os;
 }
 
+ElementAccessInfo::ElementAccessInfo() {}
 
-// static
-PropertyAccessInfo PropertyAccessInfo::NotFound(Type* receiver_type,
-                                                MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(holder, receiver_type);
-}
-
-
-// static
-PropertyAccessInfo PropertyAccessInfo::DataConstant(
-    Type* receiver_type, Handle<Object> constant,
-    MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(holder, constant, receiver_type);
-}
-
-
-// static
-PropertyAccessInfo PropertyAccessInfo::DataField(
-    Type* receiver_type, FieldIndex field_index, Type* field_type,
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
-  return PropertyAccessInfo(holder, transition_map, field_index, field_type,
-                            receiver_type);
-}
-
-
-ElementAccessInfo::ElementAccessInfo() : receiver_type_(Type::None()) {}
-
-
-ElementAccessInfo::ElementAccessInfo(Type* receiver_type,
+ElementAccessInfo::ElementAccessInfo(MapList const& receiver_maps,
                                      ElementsKind elements_kind,
                                      MaybeHandle<JSObject> holder)
     : elements_kind_(elements_kind),
       holder_(holder),
-      receiver_type_(receiver_type) {}
+      receiver_maps_(receiver_maps) {}
 
+// static
+PropertyAccessInfo PropertyAccessInfo::NotFound(MapList const& receiver_maps,
+                                                MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(holder, receiver_maps);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DataConstant(
+    MapList const& receiver_maps, Handle<Object> constant,
+    MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(holder, constant, receiver_maps);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DataField(
+    MapList const& receiver_maps, FieldIndex field_index, Type* field_type,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
+  return PropertyAccessInfo(holder, transition_map, field_index, field_type,
+                            receiver_maps);
+}
 
 PropertyAccessInfo::PropertyAccessInfo()
-    : kind_(kInvalid), receiver_type_(Type::None()), field_type_(Type::Any()) {}
-
+    : kind_(kInvalid), field_type_(Type::Any()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
-                                       Type* receiver_type)
+                                       MapList const& receiver_maps)
     : kind_(kNotFound),
-      receiver_type_(receiver_type),
+      receiver_maps_(receiver_maps),
       holder_(holder),
       field_type_(Type::Any()) {}
 
-
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
                                        Handle<Object> constant,
-                                       Type* receiver_type)
+                                       MapList const& receiver_maps)
     : kind_(kDataConstant),
-      receiver_type_(receiver_type),
+      receiver_maps_(receiver_maps),
       constant_(constant),
       holder_(holder),
       field_type_(Type::Any()) {}
@@ -116,13 +108,54 @@ PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
                                        MaybeHandle<Map> transition_map,
                                        FieldIndex field_index, Type* field_type,
-                                       Type* receiver_type)
+                                       MapList const& receiver_maps)
     : kind_(kDataField),
-      receiver_type_(receiver_type),
+      receiver_maps_(receiver_maps),
       transition_map_(transition_map),
       holder_(holder),
       field_index_(field_index),
       field_type_(field_type) {}
+
+bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
+  if (this->kind_ != that->kind_) return false;
+  if (this->holder_.address() != that->holder_.address()) return false;
+
+  switch (this->kind_) {
+    case kInvalid:
+      break;
+
+    case kNotFound:
+      return true;
+
+    case kDataField: {
+      // Check if we actually access the same field.
+      if (this->transition_map_.address() == that->transition_map_.address() &&
+          this->field_index_ == that->field_index_ &&
+          this->field_type_->Is(that->field_type_) &&
+          that->field_type_->Is(this->field_type_)) {
+        this->receiver_maps_.insert(this->receiver_maps_.end(),
+                                    that->receiver_maps_.begin(),
+                                    that->receiver_maps_.end());
+        return true;
+      }
+      return false;
+    }
+
+    case kDataConstant: {
+      // Check if we actually access the same constant.
+      if (this->constant_.address() == that->constant_.address()) {
+        this->receiver_maps_.insert(this->receiver_maps_.end(),
+                                    that->receiver_maps_.begin(),
+                                    that->receiver_maps_.end());
+        return true;
+      }
+      return false;
+    }
+  }
+
+  UNREACHABLE();
+  return false;
+}
 
 AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
@@ -161,8 +194,7 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
     }
   }
 
-  *access_info =
-      ElementAccessInfo(Type::Class(map, zone()), elements_kind, holder);
+  *access_info = ElementAccessInfo(MapList{map}, elements_kind, holder);
   return true;
 }
 
@@ -258,7 +290,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
       }
       if (details.type() == DATA_CONSTANT) {
         *access_info = PropertyAccessInfo::DataConstant(
-            Type::Class(receiver_map, zone()),
+            MapList{receiver_map},
             handle(descriptors->GetValue(number), isolate()), holder);
         return true;
       } else if (details.type() == DATA) {
@@ -294,7 +326,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           DCHECK(field_type->Is(Type::TaggedPointer()));
         }
         *access_info = PropertyAccessInfo::DataField(
-            Type::Class(receiver_map, zone()), field_index, field_type, holder);
+            MapList{receiver_map}, field_index, field_type, holder);
         return true;
       } else {
         // TODO(bmeurer): Add support for accessors.
@@ -331,8 +363,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
         // The property was not found, return undefined or throw depending
         // on the language mode of the load operation.
         // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
-        *access_info = PropertyAccessInfo::NotFound(
-            Type::Class(receiver_map, zone()), holder);
+        *access_info =
+            PropertyAccessInfo::NotFound(MapList{receiver_map}, holder);
         return true;
       } else {
         return false;
@@ -350,7 +382,6 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   return false;
 }
 
-
 bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandleList const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
@@ -360,7 +391,15 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
       if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
         return false;
       }
-      access_infos->push_back(access_info);
+      // Try to merge the {access_info} with an existing one.
+      bool merged = false;
+      for (PropertyAccessInfo& other_info : *access_infos) {
+        if (other_info.Merge(&access_info)) {
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) access_infos->push_back(access_info);
     }
   }
   return true;
@@ -394,8 +433,8 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
         field_type = type_cache_.kJSArrayLengthType;
       }
     }
-    *access_info = PropertyAccessInfo::DataField(Type::Class(map, zone()),
-                                                 field_index, field_type);
+    *access_info =
+        PropertyAccessInfo::DataField(MapList{map}, field_index, field_type);
     return true;
   }
   return false;
@@ -445,9 +484,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       DCHECK(field_type->Is(Type::TaggedPointer()));
     }
     dependencies()->AssumeMapNotDeprecated(transition_map);
-    *access_info =
-        PropertyAccessInfo::DataField(Type::Class(map, zone()), field_index,
-                                      field_type, holder, transition_map);
+    *access_info = PropertyAccessInfo::DataField(
+        MapList{map}, field_index, field_type, holder, transition_map);
     return true;
   }
   return false;

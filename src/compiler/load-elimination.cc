@@ -312,10 +312,10 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
     if (Node* const replacement = state->LookupField(object, field_index)) {
       // Make sure the {replacement} has at least as good type
       // as the original {node}.
-      if (NodeProperties::GetType(replacement)
+      if (!replacement->IsDead() &&
+          NodeProperties::GetType(replacement)
               ->Is(NodeProperties::GetType(node))) {
         ReplaceWithValue(node, replacement, effect);
-        DCHECK(!replacement->IsDead());
         return Replace(replacement);
       }
     }
@@ -357,10 +357,10 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
   if (Node* const replacement = state->LookupElement(object, index)) {
     // Make sure the {replacement} has at least as good type
     // as the original {node}.
-    if (NodeProperties::GetType(replacement)
+    if (!replacement->IsDead() &&
+        NodeProperties::GetType(replacement)
             ->Is(NodeProperties::GetType(node))) {
       ReplaceWithValue(node, replacement, effect);
-      DCHECK(!replacement->IsDead());
       return Replace(replacement);
     }
   }

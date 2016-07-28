@@ -76,6 +76,11 @@ class FieldIndex final {
         (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
   }
 
+  bool operator==(FieldIndex const& other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  bool operator!=(FieldIndex const& other) const { return !(*this == other); }
+
   // For GetLoadByFieldOffset.
   class FieldOffsetIsInobject : public BitField<bool, 1, 1> {};
   class FieldOffsetIsDouble : public BitField<bool, 2, 1> {};

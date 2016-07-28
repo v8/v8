@@ -226,6 +226,10 @@ class MaybeHandle final {
     }
   }
 
+  // Returns the raw address where this handle is stored. This should only be
+  // used for hashing handles; do not ever try to dereference it.
+  V8_INLINE Address address() const { return bit_cast<Address>(location_); }
+
   bool is_null() const { return location_ == nullptr; }
 
  protected:

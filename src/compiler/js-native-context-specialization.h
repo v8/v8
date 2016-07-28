@@ -24,9 +24,11 @@ namespace compiler {
 // Forward declarations.
 enum class AccessMode;
 class CommonOperatorBuilder;
+class ElementAccessInfo;
 class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
+class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
 
 
@@ -80,9 +82,41 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
+  // A triple of nodes that represents a continuation.
+  class ValueEffectControl final {
+   public:
+    ValueEffectControl(Node* value, Node* effect, Node* control)
+        : value_(value), effect_(effect), control_(control) {}
+
+    Node* value() const { return value_; }
+    Node* effect() const { return effect_; }
+    Node* control() const { return control_; }
+
+   private:
+    Node* const value_;
+    Node* const effect_;
+    Node* const control_;
+  };
+
+  // Construct the appropriate subgraph for property access.
+  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
+                                         Node* effect, Node* control,
+                                         Handle<Name> name,
+                                         Handle<Context> native_context,
+                                         PropertyAccessInfo const& access_info,
+                                         AccessMode access_mode);
+
+  // Construct the appropriate subgraph for element access.
+  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
+                                        Node* value, Node* effect,
+                                        Node* control,
+                                        Handle<Context> native_context,
+                                        ElementAccessInfo const& access_info,
+                                        AccessMode access_mode);
+
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
-  void AssumePrototypesStable(Type* receiver_type,
+  void AssumePrototypesStable(std::vector<Handle<Map>> const& receiver_maps,
                               Handle<Context> native_context,
                               Handle<JSObject> holder);
 

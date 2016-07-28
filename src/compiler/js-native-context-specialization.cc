@@ -22,6 +22,38 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+bool HasNumberMaps(MapList const& maps) {
+  for (auto map : maps) {
+    if (map->instance_type() == HEAP_NUMBER_TYPE) return true;
+  }
+  return false;
+}
+
+bool HasOnlyJSArrayMaps(MapList const& maps) {
+  for (auto map : maps) {
+    if (!map->IsJSArrayMap()) return false;
+  }
+  return true;
+}
+
+bool HasOnlyNumberMaps(MapList const& maps) {
+  for (auto map : maps) {
+    if (map->instance_type() != HEAP_NUMBER_TYPE) return false;
+  }
+  return true;
+}
+
+bool HasOnlyStringMaps(MapList const& maps) {
+  for (auto map : maps) {
+    if (!map->IsStringMap()) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, Flags flags,
     MaybeHandle<Context> native_context, CompilationDependencies* dependencies,
@@ -100,12 +132,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Nothing to do if we have no non-deprecated maps.
   if (access_infos.empty()) return NoChange();
 
-  // The final states for every polymorphic branch. We join them with
-  // Merge++Phi+EffectPhi at the bottom.
-  ZoneVector<Node*> values(zone());
-  ZoneVector<Node*> effects(zone());
-  ZoneVector<Node*> controls(zone());
-
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Name()),
@@ -113,284 +139,167 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
   }
 
-  // Check if {receiver} may be a number.
-  bool receiverissmi_possible = false;
-  for (PropertyAccessInfo const& access_info : access_infos) {
-    if (access_info.receiver_type()->Is(Type::Number())) {
-      receiverissmi_possible = true;
-      break;
-    }
-  }
-
-  // Ensure that {receiver} is a heap object.
-  Node* receiverissmi_control = nullptr;
-  Node* receiverissmi_effect = effect;
-  if (receiverissmi_possible) {
-    Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-    Node* branch = graph()->NewNode(common()->Branch(), check, control);
-    control = graph()->NewNode(common()->IfFalse(), branch);
-    receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
-    receiverissmi_effect = effect;
-  } else if (access_infos.size() != 1 ||
-             !access_infos[0].receiver_type()->Is(Type::String())) {
-    // TODO(bmeurer): We omit the Smi check here if we are going to lower to
-    // the CheckString below; make this less horrible and adhoc.
-    receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
-                                         receiver, effect, control);
-  }
-
-  // Load the {receiver} map. The resulting effect is the dominating effect for
-  // all (polymorphic) branches.
-  Node* receiver_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-
-  // Generate code for the various different property access patterns.
-  Node* fallthrough_control = control;
-  for (size_t j = 0; j < access_infos.size(); ++j) {
-    PropertyAccessInfo const& access_info = access_infos[j];
-    Node* this_value = value;
-    Node* this_receiver = receiver;
-    Node* this_effect = effect;
-    Node* this_control;
-
-    // Perform map check on {receiver}.
-    Type* receiver_type = access_info.receiver_type();
-    if (receiver_type->Is(Type::String())) {
-      if (j == access_infos.size() - 1) {
-        this_receiver = this_effect =
-            graph()->NewNode(simplified()->CheckString(), receiver, this_effect,
-                             fallthrough_control);
-        this_control = fallthrough_control;
-        fallthrough_control = nullptr;
-      } else {
-        Node* check =
-            graph()->NewNode(simplified()->ObjectIsString(), receiver);
-        Node* branch =
-            graph()->NewNode(common()->Branch(), check, fallthrough_control);
-        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-        this_control = graph()->NewNode(common()->IfTrue(), branch);
-      }
-    } else {
-      // Emit a (sequence of) map checks for other {receiver}s.
-      ZoneVector<Node*> this_controls(zone());
-      ZoneVector<Node*> this_effects(zone());
-      int num_classes = access_info.receiver_type()->NumClasses();
-      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
-           i.Advance()) {
-        DCHECK_LT(0, num_classes);
-        Handle<Map> map = i.Current();
-        Node* check =
-            graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
-                             receiver_map, jsgraph()->Constant(map));
-        if (--num_classes == 0 && j == access_infos.size() - 1) {
-          check = graph()->NewNode(simplified()->CheckIf(), check, this_effect,
-                                   fallthrough_control);
-          this_controls.push_back(fallthrough_control);
-          this_effects.push_back(check);
-          fallthrough_control = nullptr;
-        } else {
-          Node* branch =
-              graph()->NewNode(common()->Branch(), check, fallthrough_control);
-          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-          this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-          this_effects.push_back(this_effect);
-        }
-      }
-
-      // The Number case requires special treatment to also deal with Smis.
-      if (receiver_type->Is(Type::Number())) {
-        // Join this check with the "receiver is smi" check above.
-        DCHECK_NOT_NULL(receiverissmi_effect);
-        DCHECK_NOT_NULL(receiverissmi_control);
-        this_effects.push_back(receiverissmi_effect);
-        this_controls.push_back(receiverissmi_control);
-        receiverissmi_effect = receiverissmi_control = nullptr;
-      }
-
-      // Create dominating Merge+EffectPhi for this {receiver} type.
-      int const this_control_count = static_cast<int>(this_controls.size());
-      this_control =
-          (this_control_count == 1)
-              ? this_controls.front()
-              : graph()->NewNode(common()->Merge(this_control_count),
-                                 this_control_count, &this_controls.front());
-      this_effects.push_back(this_control);
-      int const this_effect_count = static_cast<int>(this_effects.size());
-      this_effect =
-          (this_control_count == 1)
-              ? this_effects.front()
-              : graph()->NewNode(common()->EffectPhi(this_control_count),
-                                 this_effect_count, &this_effects.front());
-    }
-
-    // Determine actual holder and perform prototype chain checks.
-    Handle<JSObject> holder;
-    if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, native_context, holder);
-    }
+  // Check for the monomorphic cases.
+  if (access_infos.size() == 1 &&
+      HasOnlyStringMaps(access_infos[0].receiver_maps())) {
+    // Monormorphic string access (ignoring the fact that there are multiple
+    // String maps).
+    receiver = effect = graph()->NewNode(simplified()->CheckString(), receiver,
+                                         effect, control);
 
     // Generate the actual property access.
-    if (access_info.IsNotFound()) {
-      DCHECK_EQ(AccessMode::kLoad, access_mode);
-      this_value = jsgraph()->UndefinedConstant();
-    } else if (access_info.IsDataConstant()) {
-      this_value = jsgraph()->Constant(access_info.constant());
-      if (access_mode == AccessMode::kStore) {
-        Node* check = graph()->NewNode(
-            simplified()->ReferenceEqual(Type::Tagged()), value, this_value);
-        this_effect = graph()->NewNode(simplified()->CheckIf(), check,
-                                       this_effect, this_control);
-      }
-    } else {
-      DCHECK(access_info.IsDataField());
-      FieldIndex const field_index = access_info.field_index();
-      Type* const field_type = access_info.field_type();
-      if (access_mode == AccessMode::kLoad &&
-          access_info.holder().ToHandle(&holder)) {
-        this_receiver = jsgraph()->Constant(holder);
-      }
-      Node* this_storage = this_receiver;
-      if (!field_index.is_inobject()) {
-        this_storage = this_effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
-            this_storage, this_effect, this_control);
-      }
-      FieldAccess field_access = {
-          kTaggedBase, field_index.offset(),     name,
-          field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
-      if (access_mode == AccessMode::kLoad) {
-        if (field_type->Is(Type::UntaggedFloat64())) {
-          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-              !FLAG_unbox_double_fields) {
-            this_storage = this_effect =
-                graph()->NewNode(simplified()->LoadField(field_access),
-                                 this_storage, this_effect, this_control);
-            field_access.offset = HeapNumber::kValueOffset;
-            field_access.name = MaybeHandle<Name>();
-          }
-          field_access.machine_type = MachineType::Float64();
-        }
-        this_value = this_effect =
-            graph()->NewNode(simplified()->LoadField(field_access),
-                             this_storage, this_effect, this_control);
-      } else {
-        DCHECK_EQ(AccessMode::kStore, access_mode);
-        if (field_type->Is(Type::UntaggedFloat64())) {
-          this_value = this_effect =
-              graph()->NewNode(simplified()->CheckNumber(), this_value,
-                               this_effect, this_control);
+    ValueEffectControl continuation =
+        BuildPropertyAccess(receiver, value, effect, control, name,
+                            native_context, access_infos[0], access_mode);
+    value = continuation.value();
+    effect = continuation.effect();
+    control = continuation.control();
+  } else if (access_infos.size() == 1 &&
+             HasOnlyNumberMaps(access_infos[0].receiver_maps())) {
+    // Monomorphic number access (we also deal with Smis here).
+    receiver = effect = graph()->NewNode(simplified()->CheckNumber(), receiver,
+                                         effect, control);
 
-          if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-              !FLAG_unbox_double_fields) {
-            if (access_info.HasTransitionMap()) {
-              // Allocate a MutableHeapNumber for the new property.
-              this_effect = graph()->NewNode(
-                  common()->BeginRegion(RegionObservability::kNotObservable),
-                  this_effect);
-              Node* this_box = this_effect =
-                  graph()->NewNode(simplified()->Allocate(NOT_TENURED),
-                                   jsgraph()->Constant(HeapNumber::kSize),
-                                   this_effect, this_control);
-              this_effect = graph()->NewNode(
-                  simplified()->StoreField(AccessBuilder::ForMap()), this_box,
-                  jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
-                  this_effect, this_control);
-              this_effect = graph()->NewNode(
-                  simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
-                  this_box, this_value, this_effect, this_control);
-              this_value = this_effect = graph()->NewNode(
-                  common()->FinishRegion(), this_box, this_effect);
+    // Generate the actual property access.
+    ValueEffectControl continuation =
+        BuildPropertyAccess(receiver, value, effect, control, name,
+                            native_context, access_infos[0], access_mode);
+    value = continuation.value();
+    effect = continuation.effect();
+    control = continuation.control();
+  } else {
+    // The final states for every polymorphic branch. We join them with
+    // Merge+Phi+EffectPhi at the bottom.
+    ZoneVector<Node*> values(zone());
+    ZoneVector<Node*> effects(zone());
+    ZoneVector<Node*> controls(zone());
 
-              field_access.type = Type::TaggedPointer();
-            } else {
-              // We just store directly to the MutableHeapNumber.
-              this_storage = this_effect =
-                  graph()->NewNode(simplified()->LoadField(field_access),
-                                   this_storage, this_effect, this_control);
-              field_access.offset = HeapNumber::kValueOffset;
-              field_access.name = MaybeHandle<Name>();
-              field_access.machine_type = MachineType::Float64();
-            }
-          } else {
-            // Unboxed double field, we store directly to the field.
-            field_access.machine_type = MachineType::Float64();
-          }
-        } else if (field_type->Is(Type::TaggedSigned())) {
-          this_value = this_effect =
-              graph()->NewNode(simplified()->CheckTaggedSigned(), this_value,
-                               this_effect, this_control);
-        } else if (field_type->Is(Type::TaggedPointer())) {
-          this_value = this_effect =
-              graph()->NewNode(simplified()->CheckTaggedPointer(), this_value,
-                               this_effect, this_control);
-          if (field_type->NumClasses() == 1) {
-            // Emit a map check for the value.
-            Node* this_value_map = this_effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForMap()), this_value,
-                this_effect, this_control);
-            Node* check = graph()->NewNode(
-                simplified()->ReferenceEqual(Type::Internal()), this_value_map,
-                jsgraph()->Constant(field_type->Classes().Current()));
-            this_effect = graph()->NewNode(simplified()->CheckIf(), check,
-                                           this_effect, this_control);
-          } else {
-            DCHECK_EQ(0, field_type->NumClasses());
-          }
-        } else {
-          DCHECK(field_type->Is(Type::Tagged()));
-        }
-        Handle<Map> transition_map;
-        if (access_info.transition_map().ToHandle(&transition_map)) {
-          this_effect = graph()->NewNode(
-              common()->BeginRegion(RegionObservability::kObservable),
-              this_effect);
-          this_effect = graph()->NewNode(
-              simplified()->StoreField(AccessBuilder::ForMap()), this_receiver,
-              jsgraph()->Constant(transition_map), this_effect, this_control);
-        }
-        this_effect = graph()->NewNode(simplified()->StoreField(field_access),
-                                       this_storage, this_value, this_effect,
-                                       this_control);
-        if (access_info.HasTransitionMap()) {
-          this_effect =
-              graph()->NewNode(common()->FinishRegion(),
-                               jsgraph()->UndefinedConstant(), this_effect);
-        }
+    // Check if {receiver} may be a number.
+    bool receiverissmi_possible = false;
+    for (PropertyAccessInfo const& access_info : access_infos) {
+      if (HasNumberMaps(access_info.receiver_maps())) {
+        receiverissmi_possible = true;
+        break;
       }
     }
 
-    // Remember the final state for this property access.
-    values.push_back(this_value);
-    effects.push_back(this_effect);
-    controls.push_back(this_control);
-  }
+    // Ensure that {receiver} is a heap object.
+    Node* receiverissmi_control = nullptr;
+    Node* receiverissmi_effect = effect;
+    if (receiverissmi_possible) {
+      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+      Node* branch = graph()->NewNode(common()->Branch(), check, control);
+      control = graph()->NewNode(common()->IfFalse(), branch);
+      receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+      receiverissmi_effect = effect;
+    } else {
+      receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                           receiver, effect, control);
+    }
 
-  DCHECK_NULL(fallthrough_control);
+    // Load the {receiver} map. The resulting effect is the dominating effect
+    // for all (polymorphic) branches.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
 
-  // Generate the final merge point for all (polymorphic) branches.
-  int const control_count = static_cast<int>(controls.size());
-  if (control_count == 0) {
-    value = effect = control = jsgraph()->Dead();
-  } else if (control_count == 1) {
-    value = values.front();
-    effect = effects.front();
-    control = controls.front();
-  } else {
-    control = graph()->NewNode(common()->Merge(control_count), control_count,
-                               &controls.front());
-    values.push_back(control);
-    value = graph()->NewNode(
-        common()->Phi(MachineRepresentation::kTagged, control_count),
-        control_count + 1, &values.front());
-    effects.push_back(control);
-    effect = graph()->NewNode(common()->EffectPhi(control_count),
-                              control_count + 1, &effects.front());
+    // Generate code for the various different property access patterns.
+    Node* fallthrough_control = control;
+    for (size_t j = 0; j < access_infos.size(); ++j) {
+      PropertyAccessInfo const& access_info = access_infos[j];
+      Node* this_value = value;
+      Node* this_receiver = receiver;
+      Node* this_effect = effect;
+      Node* this_control;
+
+      // Perform map check on {receiver}.
+      MapList const& receiver_maps = access_info.receiver_maps();
+      {
+        // Emit a (sequence of) map checks for other {receiver}s.
+        ZoneVector<Node*> this_controls(zone());
+        ZoneVector<Node*> this_effects(zone());
+        size_t num_classes = receiver_maps.size();
+        for (auto map : receiver_maps) {
+          DCHECK_LT(0u, num_classes);
+          Node* check =
+              graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
+                               receiver_map, jsgraph()->Constant(map));
+          if (--num_classes == 0 && j == access_infos.size() - 1) {
+            check = graph()->NewNode(simplified()->CheckIf(), check,
+                                     this_effect, fallthrough_control);
+            this_controls.push_back(fallthrough_control);
+            this_effects.push_back(check);
+            fallthrough_control = nullptr;
+          } else {
+            Node* branch = graph()->NewNode(common()->Branch(), check,
+                                            fallthrough_control);
+            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+            this_controls.push_back(
+                graph()->NewNode(common()->IfTrue(), branch));
+            this_effects.push_back(this_effect);
+          }
+        }
+
+        // The Number case requires special treatment to also deal with Smis.
+        if (HasNumberMaps(receiver_maps)) {
+          // Join this check with the "receiver is smi" check above.
+          DCHECK_NOT_NULL(receiverissmi_effect);
+          DCHECK_NOT_NULL(receiverissmi_control);
+          this_effects.push_back(receiverissmi_effect);
+          this_controls.push_back(receiverissmi_control);
+          receiverissmi_effect = receiverissmi_control = nullptr;
+        }
+
+        // Create dominating Merge+EffectPhi for this {receiver} type.
+        int const this_control_count = static_cast<int>(this_controls.size());
+        this_control =
+            (this_control_count == 1)
+                ? this_controls.front()
+                : graph()->NewNode(common()->Merge(this_control_count),
+                                   this_control_count, &this_controls.front());
+        this_effects.push_back(this_control);
+        int const this_effect_count = static_cast<int>(this_effects.size());
+        this_effect =
+            (this_control_count == 1)
+                ? this_effects.front()
+                : graph()->NewNode(common()->EffectPhi(this_control_count),
+                                   this_effect_count, &this_effects.front());
+      }
+
+      // Generate the actual property access.
+      ValueEffectControl continuation = BuildPropertyAccess(
+          this_receiver, this_value, this_effect, this_control, name,
+          native_context, access_info, access_mode);
+      values.push_back(continuation.value());
+      effects.push_back(continuation.effect());
+      controls.push_back(continuation.control());
+    }
+
+    DCHECK_NULL(fallthrough_control);
+
+    // Generate the final merge point for all (polymorphic) branches.
+    int const control_count = static_cast<int>(controls.size());
+    if (control_count == 0) {
+      value = effect = control = jsgraph()->Dead();
+    } else if (control_count == 1) {
+      value = values.front();
+      effect = effects.front();
+      control = controls.front();
+    } else {
+      control = graph()->NewNode(common()->Merge(control_count), control_count,
+                                 &controls.front());
+      values.push_back(control);
+      value = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, control_count),
+          control_count + 1, &values.front());
+      effects.push_back(control);
+      effect = graph()->NewNode(common()->EffectPhi(control_count),
+                                control_count + 1, &effects.front());
+    }
   }
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
-
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
@@ -560,16 +469,13 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                          receiver, this_effect, this_control);
 
     // Perform map check on {receiver}.
-    Type* receiver_type = access_info.receiver_type();
-    bool receiver_is_jsarray = true;
+    MapList const& receiver_maps = access_info.receiver_maps();
     {
       ZoneVector<Node*> this_controls(zone());
       ZoneVector<Node*> this_effects(zone());
-      int num_classes = access_info.receiver_type()->NumClasses();
-      for (auto i = access_info.receiver_type()->Classes(); !i.Done();
-           i.Advance()) {
-        DCHECK_LT(0, num_classes);
-        Handle<Map> map = i.Current();
+      size_t num_classes = receiver_maps.size();
+      for (Handle<Map> map : receiver_maps) {
+        DCHECK_LT(0u, num_classes);
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
                              receiver_map, jsgraph()->Constant(map));
@@ -591,7 +497,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           this_effects.push_back(effect);
           fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
         }
-        if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
       }
 
       // Create single chokepoint for the control.
@@ -623,141 +528,16 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // not compatible with (monomorphic) keyed stores.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_type, native_context, holder);
+      AssumePrototypesStable(receiver_maps, native_context, holder);
     }
-
-    // TODO(bmeurer): We currently specialize based on elements kind. We should
-    // also be able to properly support strings and other JSObjects here.
-    ElementsKind elements_kind = access_info.elements_kind();
-
-    // Load the elements for the {receiver}.
-    Node* this_elements = this_effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-        this_receiver, this_effect, this_control);
-
-    // Don't try to store to a copy-on-write backing store.
-    if (access_mode == AccessMode::kStore &&
-        IsFastSmiOrObjectElementsKind(elements_kind)) {
-      Node* this_elements_map = this_effect =
-          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                           this_elements, this_effect, this_control);
-      Node* check = graph()->NewNode(
-          simplified()->ReferenceEqual(Type::Any()), this_elements_map,
-          jsgraph()->HeapConstant(factory()->fixed_array_map()));
-      this_effect = graph()->NewNode(simplified()->CheckIf(), check,
-                                     this_effect, this_control);
-    }
-
-    // Load the length of the {receiver}.
-    Node* this_length = this_effect =
-        receiver_is_jsarray
-            ? graph()->NewNode(
-                  simplified()->LoadField(
-                      AccessBuilder::ForJSArrayLength(elements_kind)),
-                  this_receiver, this_effect, this_control)
-            : graph()->NewNode(
-                  simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                  this_elements, this_effect, this_control);
-
-    // Check that the {index} is in the valid range for the {receiver}.
-    this_index = this_effect =
-        graph()->NewNode(simplified()->CheckBounds(), this_index, this_length,
-                         this_effect, this_control);
-
-    // Compute the element access.
-    Type* element_type = Type::Any();
-    MachineType element_machine_type = MachineType::AnyTagged();
-    if (IsFastDoubleElementsKind(elements_kind)) {
-      element_type = Type::Number();
-      element_machine_type = MachineType::Float64();
-    } else if (IsFastSmiElementsKind(elements_kind)) {
-      element_type = type_cache_.kSmi;
-    }
-    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
-                                    element_type, element_machine_type,
-                                    kFullWriteBarrier};
 
     // Access the actual element.
-    // TODO(bmeurer): Refactor this into separate methods or even a separate
-    // class that deals with the elements access.
-    if (access_mode == AccessMode::kLoad) {
-      // Compute the real element access type, which includes the hole in case
-      // of holey backing stores.
-      if (elements_kind == FAST_HOLEY_ELEMENTS ||
-          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-        element_access.type = Type::Union(
-            element_type,
-            Type::Constant(factory()->the_hole_value(), graph()->zone()),
-            graph()->zone());
-      }
-      // Perform the actual backing store access.
-      this_value = this_effect = graph()->NewNode(
-          simplified()->LoadElement(element_access), this_elements, this_index,
-          this_effect, this_control);
-      // Handle loading from holey backing stores correctly, by either mapping
-      // the hole to undefined if possible, or deoptimizing otherwise.
-      if (elements_kind == FAST_HOLEY_ELEMENTS ||
-          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-        // Perform the hole check on the result.
-        CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
-        // Check if we are allowed to turn the hole into undefined.
-        Type* initial_holey_array_type = Type::Class(
-            handle(isolate()->get_initial_js_array_map(elements_kind)),
-            graph()->zone());
-        if (receiver_type->NowIs(initial_holey_array_type) &&
-            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-          // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type, native_context,
-                                 isolate()->initial_object_prototype());
-          dependencies()->AssumePropertyCell(factory()->array_protector());
-          // Turn the hole into undefined.
-          mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
-        }
-        this_value = this_effect =
-            graph()->NewNode(simplified()->CheckTaggedHole(mode), this_value,
-                             this_effect, this_control);
-      } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
-        // Perform the hole check on the result.
-        CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
-        // Check if we are allowed to return the hole directly.
-        Type* initial_holey_array_type = Type::Class(
-            handle(isolate()->get_initial_js_array_map(elements_kind)),
-            graph()->zone());
-        if (receiver_type->NowIs(initial_holey_array_type) &&
-            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-          // Add a code dependency on the array protector cell.
-          AssumePrototypesStable(receiver_type, native_context,
-                                 isolate()->initial_object_prototype());
-          dependencies()->AssumePropertyCell(factory()->array_protector());
-          // Return the signaling NaN hole directly if all uses are truncating.
-          mode = CheckFloat64HoleMode::kAllowReturnHole;
-        }
-        this_value = this_effect =
-            graph()->NewNode(simplified()->CheckFloat64Hole(mode), this_value,
-                             this_effect, this_control);
-      }
-    } else {
-      DCHECK_EQ(AccessMode::kStore, access_mode);
-      if (IsFastSmiElementsKind(elements_kind)) {
-        this_value = this_effect =
-            graph()->NewNode(simplified()->CheckTaggedSigned(), this_value,
-                             this_effect, this_control);
-      } else if (IsFastDoubleElementsKind(elements_kind)) {
-        this_value = this_effect = graph()->NewNode(
-            simplified()->CheckNumber(), this_value, this_effect, this_control);
-        // Make sure we do not store signalling NaNs into double arrays.
-        this_value =
-            graph()->NewNode(simplified()->NumberSilenceNaN(), this_value);
-      }
-      this_effect = graph()->NewNode(simplified()->StoreElement(element_access),
-                                     this_elements, this_index, this_value,
-                                     this_effect, this_control);
-    }
-
-    // Remember the final state for this element access.
-    values.push_back(this_value);
-    effects.push_back(this_effect);
-    controls.push_back(this_control);
+    ValueEffectControl continuation = BuildElementAccess(
+        this_receiver, this_index, this_value, this_effect, this_control,
+        native_context, access_info, access_mode);
+    values.push_back(continuation.value());
+    effects.push_back(continuation.effect());
+    controls.push_back(continuation.control());
   }
 
   DCHECK_NULL(fallthrough_control);
@@ -904,13 +684,283 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
                            p.language_mode(), store_mode);
 }
 
+JSNativeContextSpecialization::ValueEffectControl
+JSNativeContextSpecialization::BuildPropertyAccess(
+    Node* receiver, Node* value, Node* effect, Node* control, Handle<Name> name,
+    Handle<Context> native_context, PropertyAccessInfo const& access_info,
+    AccessMode access_mode) {
+  // Determine actual holder and perform prototype chain checks.
+  Handle<JSObject> holder;
+  if (access_info.holder().ToHandle(&holder)) {
+    AssumePrototypesStable(access_info.receiver_maps(), native_context, holder);
+  }
+
+  // Generate the actual property access.
+  if (access_info.IsNotFound()) {
+    DCHECK_EQ(AccessMode::kLoad, access_mode);
+    value = jsgraph()->UndefinedConstant();
+  } else if (access_info.IsDataConstant()) {
+    value = jsgraph()->Constant(access_info.constant());
+    if (access_mode == AccessMode::kStore) {
+      Node* check = graph()->NewNode(
+          simplified()->ReferenceEqual(Type::Tagged()), value, value);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    }
+  } else {
+    DCHECK(access_info.IsDataField());
+    FieldIndex const field_index = access_info.field_index();
+    Type* const field_type = access_info.field_type();
+    if (access_mode == AccessMode::kLoad &&
+        access_info.holder().ToHandle(&holder)) {
+      receiver = jsgraph()->Constant(holder);
+    }
+    Node* storage = receiver;
+    if (!field_index.is_inobject()) {
+      storage = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
+          storage, effect, control);
+    }
+    FieldAccess field_access = {
+        kTaggedBase, field_index.offset(),     name,
+        field_type,  MachineType::AnyTagged(), kFullWriteBarrier};
+    if (access_mode == AccessMode::kLoad) {
+      if (field_type->Is(Type::UntaggedFloat64())) {
+        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+            !FLAG_unbox_double_fields) {
+          storage = effect = graph()->NewNode(
+              simplified()->LoadField(field_access), storage, effect, control);
+          field_access.offset = HeapNumber::kValueOffset;
+          field_access.name = MaybeHandle<Name>();
+        }
+        field_access.machine_type = MachineType::Float64();
+      }
+      value = effect = graph()->NewNode(simplified()->LoadField(field_access),
+                                        storage, effect, control);
+    } else {
+      DCHECK_EQ(AccessMode::kStore, access_mode);
+      if (field_type->Is(Type::UntaggedFloat64())) {
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+
+        if (!field_index.is_inobject() || field_index.is_hidden_field() ||
+            !FLAG_unbox_double_fields) {
+          if (access_info.HasTransitionMap()) {
+            // Allocate a MutableHeapNumber for the new property.
+            effect = graph()->NewNode(
+                common()->BeginRegion(RegionObservability::kNotObservable),
+                effect);
+            Node* box = effect = graph()->NewNode(
+                simplified()->Allocate(NOT_TENURED),
+                jsgraph()->Constant(HeapNumber::kSize), effect, control);
+            effect = graph()->NewNode(
+                simplified()->StoreField(AccessBuilder::ForMap()), box,
+                jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
+                effect, control);
+            effect = graph()->NewNode(
+                simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
+                box, value, effect, control);
+            value = effect =
+                graph()->NewNode(common()->FinishRegion(), box, effect);
+
+            field_access.type = Type::TaggedPointer();
+          } else {
+            // We just store directly to the MutableHeapNumber.
+            storage = effect =
+                graph()->NewNode(simplified()->LoadField(field_access), storage,
+                                 effect, control);
+            field_access.offset = HeapNumber::kValueOffset;
+            field_access.name = MaybeHandle<Name>();
+            field_access.machine_type = MachineType::Float64();
+          }
+        } else {
+          // Unboxed double field, we store directly to the field.
+          field_access.machine_type = MachineType::Float64();
+        }
+      } else if (field_type->Is(Type::TaggedSigned())) {
+        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                          value, effect, control);
+      } else if (field_type->Is(Type::TaggedPointer())) {
+        value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
+                                          value, effect, control);
+        if (field_type->NumClasses() == 1) {
+          // Emit a map check for the value.
+          Node* value_map = effect =
+              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                               value, effect, control);
+          Node* check = graph()->NewNode(
+              simplified()->ReferenceEqual(Type::Internal()), value_map,
+              jsgraph()->Constant(field_type->Classes().Current()));
+          effect =
+              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        } else {
+          DCHECK_EQ(0, field_type->NumClasses());
+        }
+      } else {
+        DCHECK(field_type->Is(Type::Tagged()));
+      }
+      Handle<Map> transition_map;
+      if (access_info.transition_map().ToHandle(&transition_map)) {
+        effect = graph()->NewNode(
+            common()->BeginRegion(RegionObservability::kObservable), effect);
+        effect = graph()->NewNode(
+            simplified()->StoreField(AccessBuilder::ForMap()), receiver,
+            jsgraph()->Constant(transition_map), effect, control);
+      }
+      effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
+                                value, effect, control);
+      if (access_info.HasTransitionMap()) {
+        effect = graph()->NewNode(common()->FinishRegion(),
+                                  jsgraph()->UndefinedConstant(), effect);
+      }
+    }
+  }
+
+  return ValueEffectControl(value, effect, control);
+}
+
+JSNativeContextSpecialization::ValueEffectControl
+JSNativeContextSpecialization::BuildElementAccess(
+    Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+    Handle<Context> native_context, ElementAccessInfo const& access_info,
+    AccessMode access_mode) {
+  // Determine actual holder and perform prototype chain checks.
+  Handle<JSObject> holder;
+  if (access_info.holder().ToHandle(&holder)) {
+    AssumePrototypesStable(access_info.receiver_maps(), native_context, holder);
+  }
+
+  // TODO(bmeurer): We currently specialize based on elements kind. We should
+  // also be able to properly support strings and other JSObjects here.
+  ElementsKind elements_kind = access_info.elements_kind();
+  MapList const& receiver_maps = access_info.receiver_maps();
+
+  // Load the elements for the {receiver}.
+  Node* elements = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+      effect, control);
+
+  // Don't try to store to a copy-on-write backing store.
+  if (access_mode == AccessMode::kStore &&
+      IsFastSmiOrObjectElementsKind(elements_kind)) {
+    Node* elements_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         elements, effect, control);
+    Node* check = graph()->NewNode(
+        simplified()->ReferenceEqual(Type::Any()), elements_map,
+        jsgraph()->HeapConstant(factory()->fixed_array_map()));
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  }
+
+  // Load the length of the {receiver}.
+  Node* length = effect =
+      HasOnlyJSArrayMaps(receiver_maps)
+          ? graph()->NewNode(
+                simplified()->LoadField(
+                    AccessBuilder::ForJSArrayLength(elements_kind)),
+                receiver, effect, control)
+          : graph()->NewNode(
+                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+                elements, effect, control);
+
+  // Check that the {index} is in the valid range for the {receiver}.
+  index = effect = graph()->NewNode(simplified()->CheckBounds(), index, length,
+                                    effect, control);
+
+  // Compute the element access.
+  Type* element_type = Type::Any();
+  MachineType element_machine_type = MachineType::AnyTagged();
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    element_type = Type::Number();
+    element_machine_type = MachineType::Float64();
+  } else if (IsFastSmiElementsKind(elements_kind)) {
+    element_type = type_cache_.kSmi;
+  }
+  ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                  element_type, element_machine_type,
+                                  kFullWriteBarrier};
+
+  // Access the actual element.
+  // TODO(bmeurer): Refactor this into separate methods or even a separate
+  // class that deals with the elements access.
+  if (access_mode == AccessMode::kLoad) {
+    // Compute the real element access type, which includes the hole in case
+    // of holey backing stores.
+    if (elements_kind == FAST_HOLEY_ELEMENTS ||
+        elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+      element_access.type = Type::Union(
+          element_type,
+          Type::Constant(factory()->the_hole_value(), graph()->zone()),
+          graph()->zone());
+    }
+    // Perform the actual backing store access.
+    value = effect = graph()->NewNode(simplified()->LoadElement(element_access),
+                                      elements, index, effect, control);
+    // Handle loading from holey backing stores correctly, by either mapping
+    // the hole to undefined if possible, or deoptimizing otherwise.
+    if (elements_kind == FAST_HOLEY_ELEMENTS ||
+        elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+      // Perform the hole check on the result.
+      CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
+      // Check if we are allowed to turn the hole into undefined.
+      // TODO(bmeurer): We might check the JSArray map from a different
+      // context here; may need reinvestigation.
+      if (receiver_maps.size() == 1 &&
+          receiver_maps[0].is_identical_to(
+              handle(isolate()->get_initial_js_array_map(elements_kind))) &&
+          isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+        // Add a code dependency on the array protector cell.
+        dependencies()->AssumePrototypeMapsStable(
+            receiver_maps[0], isolate()->initial_object_prototype());
+        dependencies()->AssumePropertyCell(factory()->array_protector());
+        // Turn the hole into undefined.
+        mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
+      }
+      value = effect = graph()->NewNode(simplified()->CheckTaggedHole(mode),
+                                        value, effect, control);
+    } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+      // Perform the hole check on the result.
+      CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
+      // Check if we are allowed to return the hole directly.
+      // TODO(bmeurer): We might check the JSArray map from a different
+      // context here; may need reinvestigation.
+      if (receiver_maps.size() == 1 &&
+          receiver_maps[0].is_identical_to(
+              handle(isolate()->get_initial_js_array_map(elements_kind))) &&
+          isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+        // Add a code dependency on the array protector cell.
+        dependencies()->AssumePrototypeMapsStable(
+            receiver_maps[0], isolate()->initial_object_prototype());
+        dependencies()->AssumePropertyCell(factory()->array_protector());
+        // Return the signaling NaN hole directly if all uses are truncating.
+        mode = CheckFloat64HoleMode::kAllowReturnHole;
+      }
+      value = effect = graph()->NewNode(simplified()->CheckFloat64Hole(mode),
+                                        value, effect, control);
+    }
+  } else {
+    DCHECK_EQ(AccessMode::kStore, access_mode);
+    if (IsFastSmiElementsKind(elements_kind)) {
+      value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                        value, effect, control);
+    } else if (IsFastDoubleElementsKind(elements_kind)) {
+      value = effect =
+          graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
+      // Make sure we do not store signalling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+    effect = graph()->NewNode(simplified()->StoreElement(element_access),
+                              elements, index, value, effect, control);
+  }
+
+  return ValueEffectControl(value, effect, control);
+}
 
 void JSNativeContextSpecialization::AssumePrototypesStable(
-    Type* receiver_type, Handle<Context> native_context,
-    Handle<JSObject> holder) {
+    std::vector<Handle<Map>> const& receiver_maps,
+    Handle<Context> native_context, Handle<JSObject> holder) {
   // Determine actual holder and perform prototype chain checks.
-  for (auto i = receiver_type->Classes(); !i.Done(); i.Advance()) {
-    Handle<Map> map = i.Current();
+  for (auto map : receiver_maps) {
     // Perform the implicit ToObject for primitives here.
     // Implemented according to ES6 section 7.3.2 GetV (V, P).
     Handle<JSFunction> constructor;
