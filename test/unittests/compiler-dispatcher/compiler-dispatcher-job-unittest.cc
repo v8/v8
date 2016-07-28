@@ -20,5 +20,15 @@ TEST_F(CompilerDispatcherJobTest, Construct) {
       new CompilerDispatcherJob(i_isolate, i_isolate->object_function()));
 }
 
+TEST_F(CompilerDispatcherJobTest, PrepareToParse) {
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
+  std::unique_ptr<CompilerDispatcherJob> job(
+      new CompilerDispatcherJob(i_isolate, i_isolate->object_function()));
+
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+  job->PrepareToParseOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
+}
+
 }  // namespace internal
 }  // namespace v8

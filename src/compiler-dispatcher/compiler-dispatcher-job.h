@@ -5,8 +5,9 @@
 #ifndef V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_JOB_H_
 #define V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_JOB_H_
 
-#include "src/base/macros.h"
+#include <memory>
 
+#include "src/base/macros.h"
 #include "src/handles.h"
 
 namespace v8 {
@@ -15,9 +16,13 @@ namespace internal {
 class CompilationInfo;
 class Isolate;
 class JSFunction;
+class ParseInfo;
+class UnicodeCache;
+class Zone;
 
 enum class CompileJobStatus {
   kInitial,
+  kReadyToParse,
 };
 
 class CompilerDispatcherJob {
@@ -27,10 +32,18 @@ class CompilerDispatcherJob {
 
   CompileJobStatus status() const { return status_; }
 
+  // Transition from kInitial to kReadyToParse.
+  void PrepareToParseOnMainThread();
+
  private:
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
   Handle<JSFunction> function_;  // Global handle.
+
+  // Members required for parsing.
+  std::unique_ptr<UnicodeCache> unicode_cache_;
+  std::unique_ptr<Zone> zone_;
+  std::unique_ptr<ParseInfo> parse_info_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };
