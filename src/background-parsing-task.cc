@@ -49,6 +49,11 @@ void BackgroundParsingTask::Run() {
     source_->info->set_cached_data(&script_data);
   }
 
+  // Nullify the Isolate temporarily so that the background parser doesn't
+  // accidentally use it.
+  Isolate* isolate = source_->info->isolate();
+  source_->info->set_isolate(nullptr);
+
   uintptr_t stack_limit =
       reinterpret_cast<uintptr_t>(&stack_limit) - stack_size_ * KB;
 
@@ -65,6 +70,7 @@ void BackgroundParsingTask::Run() {
     script_data->ReleaseDataOwnership();
     delete script_data;
   }
+  source_->info->set_isolate(isolate);
 }
 }  // namespace internal
 }  // namespace v8
