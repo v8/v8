@@ -848,7 +848,7 @@ Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
 Node* InterpreterAssembler::LoadOSRNestingLevel() {
   Node* offset =
       IntPtrConstant(BytecodeArray::kOSRNestingLevelOffset - kHeapObjectTag);
-  return Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), offset);
+  return Load(MachineType::Int8(), BytecodeArrayTaggedPointer(), offset);
 }
 
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {

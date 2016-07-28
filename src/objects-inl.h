@@ -4099,12 +4099,13 @@ void BytecodeArray::set_interrupt_budget(int interrupt_budget) {
 }
 
 int BytecodeArray::osr_loop_nesting_level() const {
-  return READ_INT_FIELD(this, kOSRNestingLevelOffset);
+  return READ_INT8_FIELD(this, kOSRNestingLevelOffset);
 }
 
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
-  WRITE_INT_FIELD(this, kOSRNestingLevelOffset, depth);
+  STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
+  WRITE_INT8_FIELD(this, kOSRNestingLevelOffset, depth);
 }
 
 int BytecodeArray::parameter_count() const {
