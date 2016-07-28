@@ -400,3 +400,14 @@ assertThrows(() => Error.captureStackTrace(x));
 var o = {};
 Error.stackTraceLimit = "not a number";
 Error.captureStackTrace(o);
+
+// Check that we don't crash when a callsite's function's script is empty.
+Error.prepareStackTrace = function(e, frames) {
+  assertEquals(undefined, frames[0].getEvalOrigin());
+}
+try {
+  DataView();
+  assertUnreachable();
+} catch (e) {
+  assertEquals(undefined, e.stack);
+}

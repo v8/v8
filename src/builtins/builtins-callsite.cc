@@ -219,6 +219,10 @@ BUILTIN(CallSitePrototypeGetEvalOrigin) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_obj);
   Handle<Object> script = handle(function->shared()->script(), isolate);
 
+  if (!script->IsScript()) {
+    return *isolate->factory()->undefined_value();
+  }
+
   RETURN_RESULT_OR_FAILURE(
       isolate, FormatEvalOrigin(isolate, Handle<Script>::cast(script)));
 }
