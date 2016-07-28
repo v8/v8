@@ -1715,9 +1715,11 @@ static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
   // Number-of-arguments register must be smi-tagged to call out.
   __ SmiTag(r2);
   __ Push(r5, r4, r3, r2);
+  __ Push(cp);
 
   __ CallStub(stub);
 
+  __ Pop(cp);
   __ Pop(r5, r4, r3, r2);
   __ SmiUntag(r2);
 }
@@ -2021,9 +2023,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ Push(r3);
+    __ Push(cp, r3);
     __ CallStub(&create_stub);
-    __ Pop(r3);
+    __ Pop(cp, r3);
   }
 
   __ b(&call_function);
