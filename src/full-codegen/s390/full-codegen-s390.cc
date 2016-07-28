@@ -3110,25 +3110,23 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
         VisitForAccumulatorValue(
             prop->obj()->AsSuperPropertyReference()->home_object());
-        PushOperand(result_register());
         const Register scratch = r3;
-        __ LoadP(scratch, MemOperand(sp, kPointerSize));
-        PushOperands(scratch, result_register());
+        __ LoadP(scratch, MemOperand(sp, 0));  // this
+        PushOperands(result_register(), scratch, result_register());
         EmitNamedSuperPropertyLoad(prop);
         break;
       }
 
       case KEYED_SUPER_PROPERTY: {
         VisitForStackValue(prop->obj()->AsSuperPropertyReference()->this_var());
-        VisitForAccumulatorValue(
+        VisitForStackValue(
             prop->obj()->AsSuperPropertyReference()->home_object());
-        const Register scratch = r3;
-        const Register scratch1 = r4;
-        __ LoadRR(scratch, result_register());
         VisitForAccumulatorValue(prop->key());
-        PushOperands(scratch, result_register());
-        __ LoadP(scratch1, MemOperand(sp, 2 * kPointerSize));
-        PushOperands(scratch1, scratch, result_register());
+        const Register scratch1 = r3;
+        const Register scratch2 = r4;
+        __ LoadP(scratch1, MemOperand(sp, 1 * kPointerSize));  // this
+        __ LoadP(scratch2, MemOperand(sp, 0 * kPointerSize));  // home object
+        PushOperands(result_register(), scratch1, scratch2, result_register());
         EmitKeyedSuperPropertyLoad(prop);
         break;
       }
