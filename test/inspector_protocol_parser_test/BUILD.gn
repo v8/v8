@@ -8,6 +8,8 @@ v8_executable("inspector_protocol_parser_test") {
   testonly = true
   deps = [
     "../../src/inspector:inspector_protocol",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",
   ]
