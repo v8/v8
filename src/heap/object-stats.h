@@ -127,6 +127,7 @@ class ObjectStatsCollector {
   void CollectStatistics(HeapObject* obj);
 
  private:
+  void RecordBytecodeArrayDetails(BytecodeArray* obj);
   void RecordCodeDetails(Code* code);
   void RecordFixedArrayDetails(FixedArray* array);
   void RecordJSCollectionDetails(JSObject* obj);

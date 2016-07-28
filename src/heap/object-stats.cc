@@ -170,6 +170,9 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
 
   // Record specific sub types where possible.
   if (obj->IsMap()) RecordMapDetails(Map::cast(obj));
+  if (obj->IsBytecodeArray()) {
+    RecordBytecodeArrayDetails(BytecodeArray::cast(obj));
+  }
   if (obj->IsCode()) RecordCodeDetails(Code::cast(obj));
   if (obj->IsSharedFunctionInfo()) {
     RecordSharedFunctionInfoDetails(SharedFunctionInfo::cast(obj));
@@ -382,6 +385,13 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
       }
     }
   }
+}
+
+void ObjectStatsCollector::RecordBytecodeArrayDetails(BytecodeArray* obj) {
+  RecordFixedArrayHelper(obj, obj->constant_pool(),
+                         BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE, 0);
+  RecordFixedArrayHelper(obj, obj->handler_table(),
+                         BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordCodeDetails(Code* code) {

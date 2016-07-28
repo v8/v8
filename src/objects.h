@@ -768,6 +768,8 @@ STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
   V(CODE_STUBS_TABLE_SUB_TYPE)                   \
   V(CONTEXT_SUB_TYPE)                            \
   V(COPY_ON_WRITE_SUB_TYPE)                      \
