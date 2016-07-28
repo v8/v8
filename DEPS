@@ -17,8 +17,12 @@ deps = {
     Var("git_url") + "/chromium/buildtools.git" + "@" + "67bf0653b2eb9eabd4fc17c4bf2df828e904a558",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "315bf1e2d45be7d53346c31cfcc37424a32c30c8",
-  "v8/platform/inspector_protocol":
-    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f49542089820a34a9a6e33264e09b73779407512",
+  "v8/third_party/WebKit/Source/platform/inspector_protocol":
+    Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "35e3f59ad05d994f163e82f9e644f18f9e708fec",
+  "v8/third_party/jinja2":
+    Var("git_url") + "/chromium/src/third_party/jinja2.git" + "@" + "2222b31554f03e62600cd7e383376a7c187967a1",
+  "v8/third_party/markupsafe":
+    Var("git_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "484a5661041cac13bfc688a26ec5434b05d18961",
   "v8/tools/mb":
     Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "1d3f4544cadd78d89c8c71c37ef5474ac2b1e297",
   "v8/tools/swarming_client":
