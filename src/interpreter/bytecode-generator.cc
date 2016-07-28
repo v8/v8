@@ -722,7 +722,6 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
   // on-stack replacement when armed for the given loop nesting depth.
   if (FLAG_ignition_osr) {
     // TODO(4764): Merge this with another bytecode (e.g. {Jump} back edge).
-    // TODO(4764): Investigate interaction with generators.
     int level = Min(loop_depth_, AbstractCode::kMaxLoopNestingMarker - 1);
     builder()->OsrPoll(level);
   }
