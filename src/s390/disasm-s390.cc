@@ -736,6 +736,12 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case LTEBR:
       Format(instr, "ltebr\t'f5,'f6");
       break;
+    case LRVR:
+      Format(instr, "lrvr\t'r5,'r6");
+      break;
+    case LRVGR:
+      Format(instr, "lrvgr\t'r5,'r6");
+      break;
     case LGR:
       Format(instr, "lgr\t'r5,'r6");
       break;
@@ -1196,6 +1202,15 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case LB:
       Format(instr, "lb\t'r1,'d2('r2d,'r3)");
       break;
+    case LRVH:
+      Format(instr, "lrvh\t'r1,'d2('r2d,'r3)");
+      break;
+    case LRV:
+      Format(instr, "lrv\t'r1,'d2('r2d,'r3)");
+      break;
+    case LRVG:
+      Format(instr, "lrvg\t'r1,'d2('r2d,'r3)");
+      break;
     case LG:
       Format(instr, "lg\t'r1,'d2('r2d,'r3)");
       break;
@@ -1267,6 +1282,15 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
       break;
     case STY:
       Format(instr, "sty\t'r1,'d2('r2d,'r3)");
+      break;
+    case STRVH:
+      Format(instr, "strvh\t'r1,'d2('r2d,'r3)");
+      break;
+    case STRV:
+      Format(instr, "strv\t'r1,'d2('r2d,'r3)");
+      break;
+    case STRVG:
+      Format(instr, "strvg\t'r1,'d2('r2d,'r3)");
       break;
     case STG:
       Format(instr, "stg\t'r1,'d2('r2d,'r3)");

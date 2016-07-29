@@ -1843,6 +1843,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadW);
       break;
+    case kS390_LoadReverse16:
+      ASSEMBLE_LOAD_INTEGER(lrvh);
+      break;
+    case kS390_LoadReverse32:
+      ASSEMBLE_LOAD_INTEGER(lrv);
+      break;
+    case kS390_LoadReverse64:
+      ASSEMBLE_LOAD_INTEGER(lrvg);
+      break;
+    case kS390_LoadReverse16RR:
+      __ lrvr(i.OutputRegister(), i.InputRegister(0));
+      __ rll(i.OutputRegister(), i.OutputRegister(), Operand(16));
+      break;
+    case kS390_LoadReverse32RR:
+      __ lrvr(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_LoadReverse64RR:
+      __ lrvgr(i.OutputRegister(), i.InputRegister(0));
+      break;
 #if V8_TARGET_ARCH_S390X
     case kS390_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(lg);
@@ -1868,6 +1887,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_STORE_INTEGER(StoreP);
       break;
 #endif
+    case kS390_StoreReverse16:
+      ASSEMBLE_STORE_INTEGER(strvh);
+      break;
+    case kS390_StoreReverse32:
+      ASSEMBLE_STORE_INTEGER(strv);
+      break;
+    case kS390_StoreReverse64:
+      ASSEMBLE_STORE_INTEGER(strvg);
+      break;
     case kS390_StoreFloat32:
       ASSEMBLE_STORE_FLOAT32();
       break;

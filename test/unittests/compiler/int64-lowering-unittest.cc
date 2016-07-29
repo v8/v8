@@ -838,6 +838,17 @@ TEST_F(Int64LoweringTest, I64PhiWord32) {
   TestPhi(this, MachineRepresentation::kWord32, Float32Constant(1),
           Float32Constant(2));
 }
+
+TEST_F(Int64LoweringTest, I64ReverseBytes) {
+  LowerGraph(graph()->NewNode(machine()->Word64ReverseBytes().placeholder(),
+                              Int64Constant(value(0))),
+             MachineRepresentation::kWord64);
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn2(IsWord32ReverseBytes(IsInt32Constant(high_word_value(0))),
+                IsWord32ReverseBytes(IsInt32Constant(low_word_value(0))),
+                start(), start()));
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

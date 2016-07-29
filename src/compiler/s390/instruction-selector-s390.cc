@@ -271,6 +271,7 @@ void InstructionSelector::VisitStore(Node* node) {
   } else {
     ArchOpcode opcode = kArchNop;
     ImmediateMode mode = kInt16Imm;
+    NodeMatcher m(value);
     switch (rep) {
       case MachineRepresentation::kFloat32:
         opcode = kS390_StoreFloat32;
@@ -290,12 +291,20 @@ void InstructionSelector::VisitStore(Node* node) {
 #endif
       case MachineRepresentation::kWord32:
         opcode = kS390_StoreWord32;
+        if (m.IsWord32ReverseBytes()) {
+          opcode = kS390_StoreReverse32;
+          value = value->InputAt(0);
+        }
         break;
 #if V8_TARGET_ARCH_S390X
       case MachineRepresentation::kTagged:  // Fall through.
       case MachineRepresentation::kWord64:
         opcode = kS390_StoreWord64;
         mode = kInt16Imm_4ByteAligned;
+        if (m.IsWord64ReverseBytes()) {
+          opcode = kS390_StoreReverse64;
+          value = value->InputAt(0);
+        }
         break;
 #else
       case MachineRepresentation::kWord64:  // Fall through.
@@ -892,6 +901,31 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 #if V8_TARGET_ARCH_S390X
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 #endif
+
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kS390_LoadReverse64RR, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
+  S390OperandGenerator g(this);
+  NodeMatcher input(node->InputAt(0));
+  if (CanCover(node, input.node()) && input.IsLoad()) {
+    LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
+    if (load_rep.representation() == MachineRepresentation::kWord32) {
+      Node* base = input.node()->InputAt(0);
+      Node* offset = input.node()->InputAt(1);
+      Emit(kS390_LoadReverse32 | AddressingModeField::encode(kMode_MRR),
+           // TODO(john.yan): one of the base and offset can be imm.
+           g.DefineAsRegister(node), g.UseRegister(base),
+           g.UseRegister(offset));
+      return;
+    }
+  }
+  Emit(kS390_LoadReverse32RR, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kS390_Add, kInt16Imm);
@@ -1897,6 +1931,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord32ReverseBytes |
+         MachineOperatorBuilder::kWord64ReverseBytes |
          MachineOperatorBuilder::kWord64Popcnt;
 }
 

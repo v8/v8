@@ -129,6 +129,12 @@ namespace compiler {
   V(S390_LoadWordU16)              \
   V(S390_LoadWordS32)              \
   V(S390_LoadWordU32)              \
+  V(S390_LoadReverse16RR)          \
+  V(S390_LoadReverse32RR)          \
+  V(S390_LoadReverse64RR)          \
+  V(S390_LoadReverse16)            \
+  V(S390_LoadReverse32)            \
+  V(S390_LoadReverse64)            \
   V(S390_LoadWord64)               \
   V(S390_LoadFloat32)              \
   V(S390_LoadDouble)               \
@@ -136,6 +142,9 @@ namespace compiler {
   V(S390_StoreWord16)              \
   V(S390_StoreWord32)              \
   V(S390_StoreWord64)              \
+  V(S390_StoreReverse16)           \
+  V(S390_StoreReverse32)           \
+  V(S390_StoreReverse64)           \
   V(S390_StoreFloat32)             \
   V(S390_StoreDouble)
 

@@ -335,6 +335,7 @@
   V(Word32Clz)                  \
   V(Word32Ctz)                  \
   V(Word32ReverseBits)          \
+  V(Word32ReverseBytes)         \
   V(Word32Popcnt)               \
   V(Word64Popcnt)               \
   V(Word64And)                  \
@@ -347,6 +348,7 @@
   V(Word64Clz)                  \
   V(Word64Ctz)                  \
   V(Word64ReverseBits)          \
+  V(Word64ReverseBytes)         \
   V(Int32Add)                   \
   V(Int32AddWithOverflow)       \
   V(Int32Sub)                   \

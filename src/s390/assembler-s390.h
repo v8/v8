@@ -790,7 +790,10 @@ class Assembler : public AssemblerBase {
   RR_FORM(lnr);
   RSY1_FORM(loc);
   RXY_FORM(lrv);
+  RRE_FORM(lrvr);
+  RRE_FORM(lrvgr);
   RXY_FORM(lrvh);
+  RXY_FORM(lrvg);
   RXE_FORM(mdb);
   RRE_FORM(mdbr);
   SS4_FORM(mvck);
@@ -816,6 +819,8 @@ class Assembler : public AssemblerBase {
   RX_FORM(ste);
   RXY_FORM(stey);
   RXY_FORM(strv);
+  RXY_FORM(strvh);
+  RXY_FORM(strvg);
   RI1_FORM(tmll);
   SS1_FORM(tr);
   S_FORM(ts);

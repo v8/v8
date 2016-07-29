@@ -1082,6 +1082,9 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) {
   VisitRR(this, kArmRbit, node);
 }
 
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 

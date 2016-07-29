@@ -2070,6 +2070,9 @@ Type* Typer::Visitor::TypeWord32ReverseBits(Node* node) {
   return Type::Integral32();
 }
 
+Type* Typer::Visitor::TypeWord32ReverseBytes(Node* node) {
+  return Type::Integral32();
+}
 
 Type* Typer::Visitor::TypeWord32Popcnt(Node* node) {
   return Type::Integral32();
@@ -2107,6 +2110,9 @@ Type* Typer::Visitor::TypeWord64ReverseBits(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeWord64ReverseBytes(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeWord64Popcnt(Node* node) { return Type::Internal(); }
 

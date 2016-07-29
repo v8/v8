@@ -81,6 +81,23 @@ TEST(RunWord32ReverseBits) {
   CHECK_EQ(uint32_t(0xffffffff), m.Call(uint32_t(0xffffffff)));
 }
 
+TEST(RunWord32ReverseBytes) {
+  BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+  if (!m.machine()->Word32ReverseBytes().IsSupported()) {
+    // We can only test the operator if it exists on the testing platform.
+    return;
+  }
+  m.Return(m.AddNode(m.machine()->Word32ReverseBytes().op(), m.Parameter(0)));
+
+  CHECK_EQ(uint32_t(0x00000000), m.Call(uint32_t(0x00000000)));
+  CHECK_EQ(uint32_t(0x12345678), m.Call(uint32_t(0x78563412)));
+  CHECK_EQ(uint32_t(0xfedcba09), m.Call(uint32_t(0x09badcfe)));
+  CHECK_EQ(uint32_t(0x01010101), m.Call(uint32_t(0x01010101)));
+  CHECK_EQ(uint32_t(0x01020408), m.Call(uint32_t(0x08040201)));
+  CHECK_EQ(uint32_t(0xf0703010), m.Call(uint32_t(0x103070f0)));
+  CHECK_EQ(uint32_t(0x1f8d0a3a), m.Call(uint32_t(0x3a0a8d1f)));
+  CHECK_EQ(uint32_t(0xffffffff), m.Call(uint32_t(0xffffffff)));
+}
 
 TEST(RunWord32Ctz) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
@@ -203,6 +220,23 @@ TEST(RunWord64ReverseBits) {
   CHECK_EQ(uint64_t(0xffffffffffffffff), m.Call(uint64_t(0xffffffffffffffff)));
 }
 
+TEST(RunWord64ReverseBytes) {
+  BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Uint64());
+  if (!m.machine()->Word64ReverseBytes().IsSupported()) {
+    return;
+  }
+
+  m.Return(m.AddNode(m.machine()->Word64ReverseBytes().op(), m.Parameter(0)));
+
+  CHECK_EQ(uint64_t(0x0000000000000000), m.Call(uint64_t(0x0000000000000000)));
+  CHECK_EQ(uint64_t(0x1234567890abcdef), m.Call(uint64_t(0xefcdab9078563412)));
+  CHECK_EQ(uint64_t(0xfedcba0987654321), m.Call(uint64_t(0x2143658709badcfe)));
+  CHECK_EQ(uint64_t(0x0101010101010101), m.Call(uint64_t(0x0101010101010101)));
+  CHECK_EQ(uint64_t(0x0102040803060c01), m.Call(uint64_t(0x010c060308040201)));
+  CHECK_EQ(uint64_t(0xf0703010e060200f), m.Call(uint64_t(0x0f2060e0103070f0)));
+  CHECK_EQ(uint64_t(0x2f8a6df01c21fa3b), m.Call(uint64_t(0x3bfa211cf06d8a2f)));
+  CHECK_EQ(uint64_t(0xffffffffffffffff), m.Call(uint64_t(0xffffffffffffffff)));
+}
 
 TEST(RunWord64Clz) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint64());

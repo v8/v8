@@ -459,6 +459,7 @@ Matcher<Node*> IsWord32PairShr(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsWord32PairSar(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& mid_matcher,
                                const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord32ReverseBytes(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsStackSlot();
 

@@ -958,6 +958,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32Ctz(node);
     case IrOpcode::kWord32ReverseBits:
       return MarkAsWord32(node), VisitWord32ReverseBits(node);
+    case IrOpcode::kWord32ReverseBytes:
+      return MarkAsWord32(node), VisitWord32ReverseBytes(node);
     case IrOpcode::kWord32Popcnt:
       return MarkAsWord32(node), VisitWord32Popcnt(node);
     case IrOpcode::kWord64Popcnt:
@@ -982,6 +984,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64Ctz(node);
     case IrOpcode::kWord64ReverseBits:
       return MarkAsWord64(node), VisitWord64ReverseBits(node);
+    case IrOpcode::kWord64ReverseBytes:
+      return MarkAsWord64(node), VisitWord64ReverseBytes(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
