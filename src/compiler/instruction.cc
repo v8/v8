@@ -65,14 +65,7 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& that) const {
-  if (!IsFPRegister() || !that.IsFPRegister() || kSimpleFPAliasing)
-    return EqualsCanonicalized(that);
-  // Both operands are fp registers and aliasing is non-simple.
-  const LocationOperand& loc1 = *LocationOperand::cast(this);
-  const LocationOperand& loc2 = LocationOperand::cast(that);
-  return GetRegConfig()->AreAliases(loc1.representation(), loc1.register_code(),
-                                    loc2.representation(),
-                                    loc2.register_code());
+  return EqualsCanonicalized(that);
 }
 
 void InstructionOperand::Print(const RegisterConfiguration* config) const {

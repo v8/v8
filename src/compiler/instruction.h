@@ -607,14 +607,8 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
-      if (kSimpleFPAliasing) {
-        // We treat all FP register operands the same for simple aliasing.
-        canonical = MachineRepresentation::kFloat64;
-      } else {
-        // We need to distinguish FP register operands of different reps when
-        // aliasing is not simple (e.g. ARM).
-        canonical = LocationOperand::cast(this)->representation();
-      }
+      // We treat all FP register operands the same for simple aliasing.
+      canonical = MachineRepresentation::kFloat64;
     }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),

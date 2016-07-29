@@ -83,8 +83,7 @@ class InterpreterState {
       const LocationOperand& loc_op = LocationOperand::cast(op);
       if (loc_op.IsAnyRegister()) {
         if (loc_op.IsFPRegister()) {
-          rep = kSimpleFPAliasing ? MachineRepresentation::kFloat64
-                                  : loc_op.representation();
+          rep = MachineRepresentation::kFloat64;
         }
         index = loc_op.register_code();
       } else {
@@ -186,10 +185,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
       case 1:
         return MachineRepresentation::kWord64;
       case 2:
-        // TODO(bbudge) Re-enable float operands when GapResolver correctly
-        // handles FP aliasing.
-        return kSimpleFPAliasing ? MachineRepresentation::kFloat32
-                                 : MachineRepresentation::kFloat64;
+        return MachineRepresentation::kFloat32;
       case 3:
         return MachineRepresentation::kFloat64;
       case 4:
@@ -205,13 +201,18 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     auto GetRegisterCode = [&conf](MachineRepresentation rep, int index) {
       switch (rep) {
         case MachineRepresentation::kFloat32:
+#if V8_TARGET_ARCH_ARM
+          // Only even number float registers are used on Arm.
+          // TODO(bbudge) Eliminate this when FP register aliasing works.
+          return conf->RegisterConfiguration::GetAllocatableDoubleCode(index) *
+                 2;
+#endif
+        // Fall through on non-Arm targets.
         case MachineRepresentation::kFloat64:
           return conf->RegisterConfiguration::GetAllocatableDoubleCode(index);
-          break;
 
         default:
           return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
-          break;
       }
       UNREACHABLE();
       return static_cast<int>(Register::kCode_no_reg);

@@ -177,17 +177,6 @@ struct Allocator {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
         DoubleRegister reg = fp_regs[fp_offset++];
-#if V8_TARGET_ARCH_ARM
-        // Allocate floats using a double register, but modify the code to
-        // reflect how ARM FP registers alias.
-        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type == kAstF32) {
-          int float_reg_code = reg.code() * 2;
-          DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
-          return regloc(DoubleRegister::from_code(float_reg_code),
-                        MachineTypeFor(type));
-        }
-#endif
         return regloc(reg, MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;

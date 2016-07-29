@@ -67,7 +67,8 @@ RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
         num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, allocatable_codes, allocatable_double_codes,
+        num_double_registers_, num_double_registers_, allocatable_codes,
+        allocatable_double_codes,
         kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
                           : RegisterConfiguration::COMBINE,
         general_register_names_,
