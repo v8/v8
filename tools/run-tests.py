@@ -290,10 +290,12 @@ def BuildOptions():
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
   result.add_option("--variants",
-                    help="Comma-separated list of testing variants: %s" % VARIANTS)
+                    help="Comma-separated list of testing variants;"
+                    " default: \"%s\"" % ",".join(VARIANTS))
   result.add_option("--exhaustive-variants",
                     default=False, action="store_true",
-                    help="Use exhaustive set of default variants.")
+                    help="Use exhaustive set of default variants:"
+                    " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
   result.add_option("--predictable",
