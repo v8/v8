@@ -46,6 +46,7 @@ ParseInfo::ParseInfo(Zone* zone)
       flags_(0),
       source_stream_(nullptr),
       source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
+      character_stream_(nullptr),
       extension_(nullptr),
       compile_options_(ScriptCompiler::kNoCompileOptions),
       script_scope_(nullptr),
@@ -828,7 +829,8 @@ Parser::Parser(ParseInfo* info)
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
-  DCHECK(!info->script().is_null() || info->source_stream() != NULL);
+  DCHECK(!info->script().is_null() || info->source_stream() != nullptr ||
+         info->character_stream() != nullptr);
   set_allow_lazy(info->allow_lazy_parsing());
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_tailcalls(FLAG_harmony_tailcalls && !info->is_native() &&
@@ -5476,10 +5478,18 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   CompleteParserRecorder recorder;
   if (produce_cached_parse_data()) log_ = &recorder;
 
-  DCHECK(info->source_stream() != NULL);
-  ExternalStreamingStream stream(info->source_stream(),
-                                 info->source_stream_encoding());
-  scanner_.Initialize(&stream);
+  std::unique_ptr<Utf16CharacterStream> stream;
+  Utf16CharacterStream* stream_ptr;
+  if (info->character_stream()) {
+    DCHECK(info->source_stream() == nullptr);
+    stream_ptr = info->character_stream();
+  } else {
+    DCHECK(info->character_stream() == nullptr);
+    stream.reset(new ExternalStreamingStream(info->source_stream(),
+                                             info->source_stream_encoding()));
+    stream_ptr = stream.get();
+  }
+  scanner_.Initialize(stream_ptr);
   DCHECK(info->context().is_null() || info->context()->IsNativeContext());
 
   // When streaming, we don't know the length of the source until we have parsed

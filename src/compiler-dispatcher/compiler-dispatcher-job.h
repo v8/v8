@@ -18,6 +18,7 @@ class Isolate;
 class JSFunction;
 class ParseInfo;
 class UnicodeCache;
+class Utf16CharacterStream;
 class Zone;
 
 enum class CompileJobStatus {
@@ -43,7 +44,10 @@ class CompilerDispatcherJob {
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;
   std::unique_ptr<Zone> zone_;
+  std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
+
+  bool can_parse_on_background_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };

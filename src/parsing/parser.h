@@ -85,6 +85,11 @@ class ParseInfo {
     source_stream_encoding_ = source_stream_encoding;
   }
 
+  Utf16CharacterStream* character_stream() const { return character_stream_; }
+  void set_character_stream(Utf16CharacterStream* character_stream) {
+    character_stream_ = character_stream;
+  }
+
   v8::Extension* extension() { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
@@ -175,6 +180,7 @@ class ParseInfo {
   unsigned flags_;
   ScriptCompiler::ExternalSourceStream* source_stream_;
   ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
+  Utf16CharacterStream* character_stream_;
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   Scope* script_scope_;
