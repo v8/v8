@@ -19,141 +19,158 @@ namespace v8 {
 namespace internal {
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
-  /* PlatformCodeStubs */                   \
-  V(ArrayConstructor)                       \
-  V(BinaryOpICWithAllocationSite)           \
-  V(CallApiCallback)                        \
-  V(CallApiGetter)                          \
-  V(CallConstruct)                          \
-  V(CallIC)                                 \
-  V(CEntry)                                 \
-  V(CompareIC)                              \
-  V(DoubleToI)                              \
-  V(FunctionPrototype)                      \
-  V(InternalArrayConstructor)               \
-  V(JSEntry)                                \
-  V(KeyedLoadICTrampoline)                  \
-  V(LoadICTrampoline)                       \
-  V(LoadGlobalICTrampoline)                 \
-  V(CallICTrampoline)                       \
-  V(LoadIndexedString)                      \
-  V(MathPow)                                \
-  V(ProfileEntryHook)                       \
-  V(RecordWrite)                            \
-  V(RegExpExec)                             \
-  V(StoreBufferOverflow)                    \
-  V(StoreElement)                           \
-  V(StubFailureTrampoline)                  \
-  V(SubString)                              \
-  V(ToString)                               \
-  V(ToName)                                 \
-  V(StoreICTrampoline)                      \
-  V(KeyedStoreICTrampoline)                 \
-  V(StoreIC)                                \
-  V(KeyedStoreIC)                           \
-  V(KeyedLoadIC)                            \
-  V(LoadIC)                                 \
-  V(LoadGlobalIC)                           \
-  V(FastNewObject)                          \
-  V(FastNewRestParameter)                   \
-  V(FastNewSloppyArguments)                 \
-  V(FastNewStrictArguments)                 \
-  /* HydrogenCodeStubs */                   \
-  V(BinaryOpIC)                             \
-  V(BinaryOpWithAllocationSite)             \
-  V(ElementsTransitionAndStore)             \
-  V(FastArrayPush)                          \
-  V(FastCloneRegExp)                        \
-  V(FastCloneShallowArray)                  \
-  V(FastFunctionBind)                       \
-  V(GrowArrayElements)                      \
-  V(KeyedLoadGeneric)                       \
-  V(LoadScriptContextField)                 \
-  V(LoadDictionaryElement)                  \
-  V(NameDictionaryLookup)                   \
-  V(NumberToString)                         \
-  V(ToObject)                               \
-  V(Typeof)                                 \
-  V(RegExpConstructResult)                  \
-  V(StoreFastElement)                       \
-  V(StoreGlobalViaContext)                  \
-  V(StoreScriptContextField)                \
-  V(StringAdd)                              \
-  V(ToBooleanIC)                            \
-  V(TransitionElementsKind)                 \
-  /* TurboFanCodeStubs */                   \
-  V(AllocateHeapNumber)                     \
-  V(AllocateFloat32x4)                      \
-  V(AllocateInt32x4)                        \
-  V(AllocateUint32x4)                       \
-  V(AllocateBool32x4)                       \
-  V(AllocateInt16x8)                        \
-  V(AllocateUint16x8)                       \
-  V(AllocateBool16x8)                       \
-  V(AllocateInt8x16)                        \
-  V(AllocateUint8x16)                       \
-  V(AllocateBool8x16)                       \
-  V(ArrayNoArgumentConstructor)             \
-  V(ArraySingleArgumentConstructor)         \
-  V(ArrayNArgumentsConstructor)             \
-  V(CreateAllocationSite)                   \
-  V(CreateWeakCell)                         \
-  V(StringLength)                           \
-  V(Add)                                    \
-  V(Subtract)                               \
-  V(Multiply)                               \
-  V(Divide)                                 \
-  V(Modulus)                                \
-  V(ShiftRight)                             \
-  V(ShiftRightLogical)                      \
-  V(ShiftLeft)                              \
-  V(BitwiseAnd)                             \
-  V(BitwiseOr)                              \
-  V(BitwiseXor)                             \
-  V(Inc)                                    \
-  V(InternalArrayNoArgumentConstructor)     \
-  V(InternalArraySingleArgumentConstructor) \
-  V(Dec)                                    \
-  V(FastCloneShallowObject)                 \
-  V(FastNewClosure)                         \
-  V(FastNewFunctionContext)                 \
-  V(InstanceOf)                             \
-  V(LessThan)                               \
-  V(LessThanOrEqual)                        \
-  V(GreaterThan)                            \
-  V(GreaterThanOrEqual)                     \
-  V(Equal)                                  \
-  V(NotEqual)                               \
-  V(StrictEqual)                            \
-  V(StrictNotEqual)                         \
-  V(StringEqual)                            \
-  V(StringNotEqual)                         \
-  V(StringLessThan)                         \
-  V(StringLessThanOrEqual)                  \
-  V(StringGreaterThan)                      \
-  V(StringGreaterThanOrEqual)               \
-  V(ToInteger)                              \
-  V(ToLength)                               \
-  V(HasProperty)                            \
-  V(ForInFilter)                            \
-  V(GetProperty)                            \
-  V(LoadICTrampolineTF)                     \
-  V(LoadICTF)                               \
-  V(KeyedLoadICTrampolineTF)                \
-  V(KeyedLoadICTF)                          \
-  /* IC Handler stubs */                    \
-  V(KeyedLoadSloppyArguments)               \
-  V(KeyedStoreSloppyArguments)              \
-  V(LoadApiGetter)                          \
-  V(LoadConstant)                           \
-  V(LoadFastElement)                        \
-  V(LoadField)                              \
-  V(LoadIndexedInterceptor)                 \
-  V(StoreField)                             \
-  V(StoreGlobal)                            \
-  V(StoreInterceptor)                       \
-  V(StoreTransition)
+#define CODE_STUB_LIST_ALL_PLATFORMS(V)       \
+  /* --- PlatformCodeStubs --- */             \
+  V(ArrayConstructor)                         \
+  V(BinaryOpICWithAllocationSite)             \
+  V(CallApiCallback)                          \
+  V(CallApiGetter)                            \
+  V(CallConstruct)                            \
+  V(CallIC)                                   \
+  V(CEntry)                                   \
+  V(CompareIC)                                \
+  V(DoubleToI)                                \
+  V(FunctionPrototype)                        \
+  V(InternalArrayConstructor)                 \
+  V(JSEntry)                                  \
+  V(LoadIndexedString)                        \
+  V(MathPow)                                  \
+  V(ProfileEntryHook)                         \
+  V(RecordWrite)                              \
+  V(RegExpExec)                               \
+  V(StoreBufferOverflow)                      \
+  V(StoreElement)                             \
+  V(SubString)                                \
+  V(ToString)                                 \
+  V(ToName)                                   \
+  V(StoreIC)                                  \
+  V(KeyedStoreIC)                             \
+  V(KeyedLoadIC)                              \
+  V(LoadIC)                                   \
+  V(LoadGlobalIC)                             \
+  V(FastNewObject)                            \
+  V(FastNewRestParameter)                     \
+  V(FastNewSloppyArguments)                   \
+  V(FastNewStrictArguments)                   \
+  V(NameDictionaryLookup)                     \
+  /* This can be removed once there are no */ \
+  /* more deopting Hydrogen stubs. */         \
+  V(StubFailureTrampoline)                    \
+  /* These are only called from FCG */        \
+  /* They can be removed when only the TF  */ \
+  /* version of the corresponding stub is  */ \
+  /* used universally */                      \
+  V(CallICTrampoline)                         \
+  V(LoadICTrampoline)                         \
+  V(KeyedLoadICTrampoline)                    \
+  V(KeyedStoreICTrampoline)                   \
+  V(StoreICTrampoline)                        \
+  /* --- HydrogenCodeStubs --- */             \
+  V(ElementsTransitionAndStore)               \
+  V(FastCloneRegExp)                          \
+  V(FastCloneShallowArray)                    \
+  V(GrowArrayElements)                        \
+  V(NumberToString)                           \
+  V(StringAdd)                                \
+  V(ToObject)                                 \
+  V(Typeof)                                   \
+  /* These builtins w/ JS linkage are */      \
+  /* just fast-cases of C++ builtins. They */ \
+  /* require varg support from TF */          \
+  V(FastArrayPush)                            \
+  V(FastFunctionBind)                         \
+  /* These will be ported/eliminated */       \
+  /* as part of the new IC system, ask */     \
+  /* ishell before doing anything  */         \
+  V(KeyedLoadGeneric)                         \
+  V(KeyedLoadSloppyArguments)                 \
+  V(KeyedStoreSloppyArguments)                \
+  V(LoadConstant)                             \
+  V(LoadDictionaryElement)                    \
+  V(LoadFastElement)                          \
+  V(LoadField)                                \
+  V(LoadScriptContextField)                   \
+  V(StoreFastElement)                         \
+  V(StoreField)                               \
+  V(StoreGlobal)                              \
+  V(StoreScriptContextField)                  \
+  V(StoreTransition)                          \
+  /* These should never be ported to TF */    \
+  /* because they are either used only by */  \
+  /* FCG/Crankshaft or are deprecated */      \
+  V(BinaryOpIC)                               \
+  V(BinaryOpWithAllocationSite)               \
+  V(ToBooleanIC)                              \
+  V(RegExpConstructResult)                    \
+  V(TransitionElementsKind)                   \
+  V(StoreGlobalViaContext)                    \
+  /* --- TurboFanCodeStubs --- */             \
+  V(AllocateHeapNumber)                       \
+  V(AllocateFloat32x4)                        \
+  V(AllocateInt32x4)                          \
+  V(AllocateUint32x4)                         \
+  V(AllocateBool32x4)                         \
+  V(AllocateInt16x8)                          \
+  V(AllocateUint16x8)                         \
+  V(AllocateBool16x8)                         \
+  V(AllocateInt8x16)                          \
+  V(AllocateUint8x16)                         \
+  V(AllocateBool8x16)                         \
+  V(ArrayNoArgumentConstructor)               \
+  V(ArraySingleArgumentConstructor)           \
+  V(ArrayNArgumentsConstructor)               \
+  V(CreateAllocationSite)                     \
+  V(CreateWeakCell)                           \
+  V(StringLength)                             \
+  V(Add)                                      \
+  V(Subtract)                                 \
+  V(Multiply)                                 \
+  V(Divide)                                   \
+  V(Modulus)                                  \
+  V(ShiftRight)                               \
+  V(ShiftRightLogical)                        \
+  V(ShiftLeft)                                \
+  V(BitwiseAnd)                               \
+  V(BitwiseOr)                                \
+  V(BitwiseXor)                               \
+  V(Inc)                                      \
+  V(InternalArrayNoArgumentConstructor)       \
+  V(InternalArraySingleArgumentConstructor)   \
+  V(Dec)                                      \
+  V(FastCloneShallowObject)                   \
+  V(FastNewClosure)                           \
+  V(FastNewFunctionContext)                   \
+  V(InstanceOf)                               \
+  V(LessThan)                                 \
+  V(LessThanOrEqual)                          \
+  V(GreaterThan)                              \
+  V(GreaterThanOrEqual)                       \
+  V(Equal)                                    \
+  V(NotEqual)                                 \
+  V(StrictEqual)                              \
+  V(StrictNotEqual)                           \
+  V(StringEqual)                              \
+  V(StringNotEqual)                           \
+  V(StringLessThan)                           \
+  V(StringLessThanOrEqual)                    \
+  V(StringGreaterThan)                        \
+  V(StringGreaterThanOrEqual)                 \
+  V(ToInteger)                                \
+  V(ToLength)                                 \
+  V(HasProperty)                              \
+  V(ForInFilter)                              \
+  V(GetProperty)                              \
+  V(LoadICTF)                                 \
+  V(KeyedLoadICTF)                            \
+  V(StoreInterceptor)                         \
+  V(LoadApiGetter)                            \
+  V(LoadIndexedInterceptor)                   \
+  /* These are only called from FGC and */    \
+  /* can be removed when we use ignition */   \
+  /* only */                                  \
+  V(LoadICTrampolineTF)                       \
+  V(LoadGlobalICTrampoline)                   \
+  V(KeyedLoadICTrampolineTF)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
