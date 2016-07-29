@@ -8,13 +8,13 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("git_url") + "/chromium/src/build.git" + "@" + "5240573aa6f46cfee690cdf7c6d9544e1841f502",
+    Var("git_url") + "/chromium/src/build.git" + "@" + "92c13104dd5f9f25e115e382d5ab8af33a8b883f",
   "v8/tools/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "b5ecbb29a26532f72ef482569b223d5a51fd50bf",
   "v8/third_party/instrumented_libraries":
-    Var("git_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "7681dc666045cb84d5d2a2abe0969c01bfead993",
+    Var("git_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "f15768d7fdf68c0748d20738184120c8ab2e6db7",
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "67bf0653b2eb9eabd4fc17c4bf2df828e904a558",
   "v8/base/trace_event/common":
@@ -22,7 +22,7 @@ deps = {
   "v8/platform/inspector_protocol":
     Var("git_url") + "/chromium/src/third_party/WebKit/Source/platform/inspector_protocol.git" + "@" + "f49542089820a34a9a6e33264e09b73779407512",
   "v8/tools/mb":
-    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "f2acac06c11447a7155d476d61f140f18a4a8066",
+    Var('git_url') + '/chromium/src/tools/mb.git' + '@' + "ca9b59f105c3457e5ac5ba2f5a04d435436fa5de",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "7f63a272f7d9785ce41b6d10bb3106c49a968e57",
   "v8/testing/gtest":
