@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class ScriptData;
+
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
 // data which needs to be transmitted between threads for background parsing,
 // finalizing it on the main thread, and compiling on the main thread.
@@ -54,6 +56,7 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
  private:
   StreamedSource* source_;  // Not owned.
   int stack_size_;
+  ScriptData* script_data_;
 };
 }  // namespace internal
 }  // namespace v8

@@ -252,6 +252,8 @@ class ParserBase : public Traits {
 
   uintptr_t stack_limit() const { return stack_limit_; }
 
+  void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
+
  protected:
   enum AllowRestrictedIdentifiers {
     kAllowRestrictedIdentifiers,
