@@ -900,7 +900,7 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
 i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(GetIsolate())->heap();
   Utils::ApiCheck((*escape_slot_)->IsTheHole(heap->isolate()),
-                  "EscapeableHandleScope::Escape", "Escape value set twice");
+                  "EscapableHandleScope::Escape", "Escape value set twice");
   if (escape_value == NULL) {
     *escape_slot_ = heap->undefined_value();
     return NULL;
