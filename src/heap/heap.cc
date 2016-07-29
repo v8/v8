@@ -4685,7 +4685,7 @@ class IteratePromotedObjectsVisitor final : public ObjectVisitor {
     // promoted objects.
     if (heap_->incremental_marking()->black_allocation()) {
       Code* code = Code::cast(Code::GetObjectFromEntryAddress(code_entry_slot));
-      IncrementalMarking::MarkGrey(heap_, code);
+      IncrementalMarking::MarkObject(heap_, code);
     }
   }
 
@@ -4721,7 +4721,7 @@ void Heap::IteratePromotedObject(HeapObject* target, int size,
   // regular visiting and IteratePromotedObjectPointers.
   if (!was_marked_black) {
     if (incremental_marking()->black_allocation()) {
-      IncrementalMarking::MarkGrey(this, target->map());
+      IncrementalMarking::MarkObject(this, target->map());
       incremental_marking()->IterateBlackObject(target);
     }
   }

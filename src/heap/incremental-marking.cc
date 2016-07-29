@@ -197,6 +197,14 @@ void IncrementalMarking::TransferMark(Heap* heap, Address old_start,
 #endif
 }
 
+static inline void MarkBlackOrKeepBlack(HeapObject* heap_object,
+                                        MarkBit mark_bit, int size) {
+  DCHECK(!Marking::IsImpossible(mark_bit));
+  if (Marking::IsBlack(mark_bit)) return;
+  Marking::MarkBlack(mark_bit);
+  MemoryChunk::IncrementLiveBytesFromGC(heap_object, size);
+}
+
 class IncrementalMarkingMarkingVisitor
     : public StaticMarkingVisitor<IncrementalMarkingMarkingVisitor> {
  public:
@@ -288,7 +296,7 @@ class IncrementalMarkingMarkingVisitor
 
   // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
-    IncrementalMarking::MarkGrey(heap, HeapObject::cast(obj));
+    IncrementalMarking::MarkObject(heap, HeapObject::cast(obj));
   }
 
   // Marks the object black without pushing it on the marking stack.
@@ -333,7 +341,7 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     Object* obj = *p;
     if (!obj->IsHeapObject()) return;
 
-    IncrementalMarking::MarkGrey(heap_, HeapObject::cast(obj));
+    IncrementalMarking::MarkObject(heap_, HeapObject::cast(obj));
   }
 
   Heap* heap_;
@@ -627,7 +635,7 @@ void IncrementalMarking::MarkObjectGroups() {
   DCHECK(IsMarking());
 
   IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkGrey);
+  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkObject);
   heap_->isolate()->global_handles()->IterateObjectGroups(
       &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
   heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
@@ -714,7 +722,7 @@ void IncrementalMarking::RetainMaps() {
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
         Marking::IsWhite(map_mark)) {
       if (ShouldRetainMap(map, age)) {
-        MarkGrey(heap(), map);
+        MarkObject(heap(), map);
       }
       Object* prototype = map->prototype();
       if (age > 0 && prototype->IsHeapObject() &&
@@ -857,34 +865,29 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
 
 void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
-  MarkGrey(heap_, map);
+  MarkObject(heap_, map);
 
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
-#if ENABLE_SLOW_DCHECKS
   MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+#if ENABLE_SLOW_DCHECKS
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   SLOW_DCHECK(Marking::IsGrey(mark_bit) ||
               (obj->IsFiller() && Marking::IsWhite(mark_bit)) ||
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                Marking::IsBlack(mark_bit)));
 #endif
-  MarkBlack(obj, size);
+  MarkBlackOrKeepBlack(obj, mark_bit, size);
 }
 
-void IncrementalMarking::MarkGrey(Heap* heap, HeapObject* object) {
-  MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
+
+void IncrementalMarking::MarkObject(Heap* heap, HeapObject* obj) {
+  MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
   if (Marking::IsWhite(mark_bit)) {
-    heap->incremental_marking()->WhiteToGreyAndPush(object, mark_bit);
+    heap->incremental_marking()->WhiteToGreyAndPush(obj, mark_bit);
   }
 }
 
-void IncrementalMarking::MarkBlack(HeapObject* obj, int size) {
-  MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
-  if (Marking::IsBlack(mark_bit)) return;
-  Marking::GreyToBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytesFromGC(obj, size);
-}
 
 intptr_t IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
   intptr_t bytes_processed = 0;

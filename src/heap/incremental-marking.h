@@ -204,9 +204,7 @@ class IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
-  static void MarkGrey(Heap* heap, HeapObject* object);
-
-  static void MarkBlack(HeapObject* object, int size);
+  static void MarkObject(Heap* heap, HeapObject* object);
 
   static void TransferMark(Heap* heap, Address old_start, Address new_start);
 
