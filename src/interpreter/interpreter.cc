@@ -129,8 +129,6 @@ void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
 
 // static
 int Interpreter::InterruptBudget() {
-  // TODO(ignition): Tune code size multiplier.
-  const int kCodeSizeMultiplier = 32;
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 

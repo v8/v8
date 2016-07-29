@@ -65,6 +65,9 @@ class Interpreter {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
+  // TODO(ignition): Tune code size multiplier.
+  static const int kCodeSizeMultiplier = 32;
+
  private:
 // Bytecode handler generator functions.
 #define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \

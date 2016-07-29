@@ -14,6 +14,7 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/interpreter/interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -41,9 +42,13 @@ STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 // Maximum size in bytes of generate code for a function to allow OSR.
 static const int kOSRCodeSizeAllowanceBase =
     100 * FullCodeGenerator::kCodeSizeMultiplier;
+static const int kOSRCodeSizeAllowanceBaseIgnition =
+    100 * interpreter::Interpreter::kCodeSizeMultiplier;
 
 static const int kOSRCodeSizeAllowancePerTick =
     4 * FullCodeGenerator::kCodeSizeMultiplier;
+static const int kOSRCodeSizeAllowancePerTickIgnition =
+    4 * interpreter::Interpreter::kCodeSizeMultiplier;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
@@ -269,10 +274,22 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function) {
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
-  if (function->IsMarkedForBaseline() || function->IsMarkedForOptimization() ||
-      function->IsMarkedForConcurrentOptimization() ||
-      function->IsOptimized()) {
-    // TODO(rmcilroy): Support OSR in these cases.
+  if (FLAG_ignition_osr && FLAG_always_osr) {
+    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
+    // Fall through and do a normal baseline compile as well.
+  } else if (function->IsMarkedForBaseline() ||
+             function->IsMarkedForOptimization() ||
+             function->IsMarkedForConcurrentOptimization() ||
+             function->IsOptimized()) {
+    // Attempt OSR if we are still running interpreted code even though the
+    // the function has long been marked or even already been optimized.
+    int64_t allowance =
+        kOSRCodeSizeAllowanceBaseIgnition +
+        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
+    if (FLAG_ignition_osr && shared->HasBytecodeArray() &&
+        shared->bytecode_array()->Size() <= allowance) {
+      AttemptOnStackReplacement(function);
+    }
     return;
   }
 
@@ -296,10 +313,23 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function) {
 
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
-  if (function->IsMarkedForBaseline() || function->IsMarkedForOptimization() ||
-      function->IsMarkedForConcurrentOptimization() ||
-      function->IsOptimized()) {
-    // TODO(rmcilroy): Support OSR in these cases.
+
+  if (FLAG_ignition_osr && FLAG_always_osr) {
+    AttemptOnStackReplacement(function, AbstractCode::kMaxLoopNestingMarker);
+    // Fall through and do a normal optimized compile as well.
+  } else if (function->IsMarkedForBaseline() ||
+             function->IsMarkedForOptimization() ||
+             function->IsMarkedForConcurrentOptimization() ||
+             function->IsOptimized()) {
+    // Attempt OSR if we are still running interpreted code even though the
+    // the function has long been marked or even already been optimized.
+    int64_t allowance =
+        kOSRCodeSizeAllowanceBaseIgnition +
+        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
+    if (FLAG_ignition_osr && shared->HasBytecodeArray() &&
+        shared->bytecode_array()->Size() <= allowance) {
+      AttemptOnStackReplacement(function);
+    }
     return;
   }
 

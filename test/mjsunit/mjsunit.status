@@ -220,10 +220,6 @@
   'array-literal-feedback': [PASS, NO_IGNITION],
   'regress/regress-4121': [PASS, NO_IGNITION],
 
-  # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
-  # till it is optimized. So test timeouts.
-  'array-literal-transitions': [PASS, NO_IGNITION],
-
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [PASS, NO_IGNITION],
 
@@ -705,10 +701,6 @@
   'array-constructor-feedback': [FAIL],
   'array-feedback': [FAIL],
   'allocation-site-info': [FAIL],
-
-  # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
-  # till it is optimized. So test timeouts.
-  'array-literal-transitions': [SKIP],
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
