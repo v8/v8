@@ -176,6 +176,10 @@
 
   # BUG(4751). Flaky with ignition.
   'test-cpu-profiler/JsNativeJsSample': [PASS, NO_IGNITION],
+
+  # TODO(ignition): Fails due to missing type info when optimizing from bytecode
+  # with crankshaft.
+  'test-cpu-profiler/TickLinesOptimized': [PASS, NO_IGNITION],
 }],  # ALWAYS
 
 ##############################################################################

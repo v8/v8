@@ -1045,9 +1045,10 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
+              "%s();"
               "%s(%s);\n"
               "%s();\n",
-              func_name, opt_func, func_name, func_name);
+              func_name, func_name, opt_func, func_name, func_name);
 
   CompileRun(script.start());
 
@@ -1055,6 +1056,8 @@ static void TickLines(bool optimize) {
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(func->shared());
   CHECK(func->shared()->abstract_code());
+  CHECK(!optimize || func->IsOptimized() ||
+        !CcTest::i_isolate()->use_crankshaft());
   i::AbstractCode* code = func->abstract_code();
   CHECK(code);
   i::Address code_address = code->instruction_start();
