@@ -1017,8 +1017,7 @@ class ParserBase : public Traits {
 
   IdentifierT ParseIdentifierName(bool* ok);
 
-  ExpressionT ParseRegExpLiteral(bool seen_equal,
-                                 ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParseRegExpLiteral(bool seen_equal, bool* ok);
 
   ExpressionT ParsePrimaryExpression(ExpressionClassifier* classifier,
                                      bool* is_async, bool* ok);
@@ -1080,8 +1079,7 @@ class ParserBase : public Traits {
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start,
                                    ExpressionClassifier* classifier, bool* ok);
   void AddTemplateExpression(ExpressionT);
-  ExpressionT ParseSuperExpression(bool is_new,
-                                   ExpressionClassifier* classifier, bool* ok);
+  ExpressionT ParseSuperExpression(bool is_new, bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
   void ParseFormalParameter(FormalParametersT* parameters,
@@ -1456,10 +1454,9 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   return this->GetSymbol(scanner());
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
-    bool seen_equal, ExpressionClassifier* classifier, bool* ok) {
+    bool seen_equal, bool* ok) {
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern(seen_equal)) {
     Next();
@@ -1555,12 +1552,12 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     case Token::ASSIGN_DIV:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      return this->ParseRegExpLiteral(true, classifier, ok);
+      return this->ParseRegExpLiteral(true, ok);
 
     case Token::DIV:
       classifier->RecordBindingPatternError(
           scanner()->peek_location(), MessageTemplate::kUnexpectedTokenRegExp);
-      return this->ParseRegExpLiteral(false, classifier, ok);
+      return this->ParseRegExpLiteral(false, ok);
 
     case Token::LBRACK:
       return this->ParseArrayLiteral(classifier, ok);
@@ -2952,7 +2949,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     ExpressionT result;
     if (peek() == Token::SUPER) {
       const bool is_new = true;
-      result = ParseSuperExpression(is_new, classifier, CHECK_OK);
+      result = ParseSuperExpression(is_new, CHECK_OK);
     } else if (peek() == Token::PERIOD) {
       return ParseNewTargetExpression(CHECK_OK);
     } else {
@@ -3043,7 +3040,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
         function_token_position, function_type, language_mode(), CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
-    result = ParseSuperExpression(is_new, classifier, CHECK_OK);
+    result = ParseSuperExpression(is_new, CHECK_OK);
   } else {
     result = ParsePrimaryExpression(classifier, is_async, CHECK_OK);
   }
@@ -3053,12 +3050,9 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
   return result;
 }
 
-
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseSuperExpression(bool is_new,
-                                         ExpressionClassifier* classifier,
-                                         bool* ok) {
+ParserBase<Traits>::ParseSuperExpression(bool is_new, bool* ok) {
   Expect(Token::SUPER, CHECK_OK);
   int pos = position();
 
