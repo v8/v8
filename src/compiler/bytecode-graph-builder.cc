@@ -1340,27 +1340,23 @@ void BytecodeGraphBuilder::VisitTestInstanceOf() {
   BuildCompareOp(javascript()->InstanceOf());
 }
 
-void BytecodeGraphBuilder::VisitToName() {
+void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
   FrameStateBeforeAndAfter states(this);
-  Node* value =
-      NewNode(javascript()->ToName(), environment()->LookupAccumulator());
+  Node* value = NewNode(js_op, environment()->LookupAccumulator());
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), value,
                               &states);
+}
+
+void BytecodeGraphBuilder::VisitToName() {
+  BuildCastOperator(javascript()->ToName());
 }
 
 void BytecodeGraphBuilder::VisitToObject() {
-  FrameStateBeforeAndAfter states(this);
-  Node* node =
-      NewNode(javascript()->ToObject(), environment()->LookupAccumulator());
-  environment()->BindAccumulator(node, &states);
+  BuildCastOperator(javascript()->ToObject());
 }
 
 void BytecodeGraphBuilder::VisitToNumber() {
-  FrameStateBeforeAndAfter states(this);
-  Node* value =
-      NewNode(javascript()->ToNumber(), environment()->LookupAccumulator());
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), value,
-                              &states);
+  BuildCastOperator(javascript()->ToNumber());
 }
 
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }
@@ -1458,10 +1454,11 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 
 void BytecodeGraphBuilder::BuildForInPrepare() {
   FrameStateBeforeAndAfter states(this);
-  Node* receiver = environment()->LookupAccumulator();
+  Node* receiver =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* prepare = NewNode(javascript()->ForInPrepare(), receiver);
   environment()->BindRegistersToProjections(
-      bytecode_iterator().GetRegisterOperand(0), prepare, &states);
+      bytecode_iterator().GetRegisterOperand(1), prepare, &states);
 }
 
 void BytecodeGraphBuilder::VisitForInPrepare() { BuildForInPrepare(); }

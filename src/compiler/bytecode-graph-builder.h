@@ -128,6 +128,7 @@ class BytecodeGraphBuilder {
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
+  void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();
   void BuildInvokeIntrinsic();

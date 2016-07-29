@@ -983,7 +983,6 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
-  builder()->CastAccumulatorToJSObject();
   VisitNewLocalWithContext();
   VisitInScope(stmt->statement(), stmt->scope());
 }
@@ -1201,8 +1200,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->JumpIfUndefined(&subject_undefined_label);
   builder()->JumpIfNull(&subject_null_label);
   Register receiver = register_allocator()->NewRegister();
-  builder()->CastAccumulatorToJSObject();
-  builder()->StoreAccumulatorInRegister(receiver);
+  builder()->CastAccumulatorToJSObject(receiver);
 
   register_allocator()->PrepareForConsecutiveAllocations(3);
   Register cache_type = register_allocator()->NextConsecutiveRegister();
@@ -1210,7 +1208,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Register cache_length = register_allocator()->NextConsecutiveRegister();
   // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   USE(cache_array);
-  builder()->ForInPrepare(cache_type);
+  builder()->ForInPrepare(receiver, cache_type);
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
@@ -3071,7 +3069,7 @@ void BytecodeGenerator::VisitNewLocalWithContext() {
   Register extension_object = register_allocator()->NextConsecutiveRegister();
   Register closure = register_allocator()->NextConsecutiveRegister();
 
-  builder()->StoreAccumulatorInRegister(extension_object);
+  builder()->CastAccumulatorToJSObject(extension_object);
   VisitFunctionClosureForContext();
   builder()->StoreAccumulatorInRegister(closure).CallRuntime(
       Runtime::kPushWithContext, extension_object, 2);

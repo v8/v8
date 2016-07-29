@@ -214,9 +214,9 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Casts accumulator and stores result in accumulator.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();
-  BytecodeArrayBuilder& CastAccumulatorToJSObject();
 
   // Casts accumulator and stores result in register |out|.
+  BytecodeArrayBuilder& CastAccumulatorToJSObject(Register out);
   BytecodeArrayBuilder& CastAccumulatorToName(Register out);
   BytecodeArrayBuilder& CastAccumulatorToNumber(Register out);
 
@@ -243,7 +243,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeArrayBuilder& Debugger();
 
   // Complex flow control.
-  BytecodeArrayBuilder& ForInPrepare(Register cache_info_triple);
+  BytecodeArrayBuilder& ForInPrepare(Register receiver,
+                                     Register cache_info_triple);
   BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
                                   Register cache_type_array_pair,

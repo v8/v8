@@ -163,9 +163,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       /*  3 42 E> */ B(Star), R8(1),
       /*  5 68 S> */ B(JumpIfUndefined), U8(38),
       /*  7       */ B(JumpIfNull), U8(36),
-      /*  9       */ B(ToObject),
-      /* 10       */ B(Star), R8(3),
-      /* 12       */ B(ForInPrepare), R8(4),
+      /*  9       */ B(ToObject), R8(3),
+      /* 11       */ B(ForInPrepare), R8(3), R8(4),
       /* 14       */ B(LdaZero),
       /* 15       */ B(Star), R8(7),
       /* 17 63 S> */ B(ForInDone), R8(7), R8(6),
@@ -199,11 +198,9 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   CHECK_EQ(max_register_count(), 2);
   WriteJump(Bytecode::kJumpIfUndefined, &jump_end_1, {68, true});
   WriteJump(Bytecode::kJumpIfNull, &jump_end_2);
-  Write(Bytecode::kToObject);
-  CHECK_EQ(max_register_count(), 2);
-  Write(Bytecode::kStar, R(3));
+  Write(Bytecode::kToObject, R(3));
   CHECK_EQ(max_register_count(), 4);
-  Write(Bytecode::kForInPrepare, R(4));
+  Write(Bytecode::kForInPrepare, R(3), R(4));
   CHECK_EQ(max_register_count(), 7);
   Write(Bytecode::kLdaZero);
   CHECK_EQ(max_register_count(), 7);

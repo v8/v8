@@ -181,7 +181,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber(reg)
-      .CastAccumulatorToJSObject()
+      .CastAccumulatorToJSObject(reg)
       .CastAccumulatorToName(reg);
 
   // Emit control flow. Return must be the last instruction.
@@ -267,11 +267,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel after_rethrow;
   builder.ReThrow().Bind(&after_rethrow);
 
-  builder.ForInPrepare(reg)
+  builder.ForInPrepare(reg, reg)
       .ForInDone(reg, reg)
       .ForInNext(reg, reg, reg, 1)
       .ForInStep(reg);
-  builder.ForInPrepare(wide)
+  builder.ForInPrepare(reg, wide)
       .ForInDone(reg, other)
       .ForInNext(wide, wide, wide, 1024)
       .ForInStep(reg);

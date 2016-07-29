@@ -213,7 +213,7 @@ namespace interpreter {
   /* Cast operators */                                                         \
   V(ToName, AccumulatorUse::kRead, OperandType::kRegOut)                       \
   V(ToNumber, AccumulatorUse::kRead, OperandType::kRegOut)                     \
-  V(ToObject, AccumulatorUse::kReadWrite)                                      \
+  V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \
@@ -251,7 +251,8 @@ namespace interpreter {
   V(JumpIfNotHoleConstant, AccumulatorUse::kRead, OperandType::kIdx)           \
                                                                                \
   /* Complex flow control For..in */                                           \
-  V(ForInPrepare, AccumulatorUse::kRead, OperandType::kRegOutTriple)           \
+  V(ForInPrepare, AccumulatorUse::kNone, OperandType::kReg,                    \
+    OperandType::kRegOutTriple)                                                \
   V(ForInDone, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg)   \
   V(ForInNext, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,   \
     OperandType::kRegPair, OperandType::kIdx)                                  \

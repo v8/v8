@@ -383,8 +383,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
-  Output(Bytecode::kToObject);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject(
+    Register out) {
+  Output(Bytecode::kToObject, RegisterOperand(out));
   return *this;
 }
 
@@ -498,8 +499,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register cache_info_triple) {
-  Output(Bytecode::kForInPrepare, RegisterOperand(cache_info_triple));
+    Register receiver, Register cache_info_triple) {
+  Output(Bytecode::kForInPrepare, RegisterOperand(receiver),
+         RegisterOperand(cache_info_triple));
   return *this;
 }
 

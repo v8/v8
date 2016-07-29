@@ -1060,7 +1060,9 @@ void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a JSObject.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::ToObject(isolate_), assembler);
+  Node* result = BuildUnaryOp(CodeFactory::ToObject(isolate_), assembler);
+  __ StoreRegister(result, __ BytecodeOperandReg(0));
+  __ Dispatch();
 }
 
 // Inc
@@ -1910,7 +1912,8 @@ void Interpreter::BuildForInPrepareResult(Node* output_register,
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
-  Node* object = __ GetAccumulator();
+  Node* object_reg = __ BytecodeOperandReg(0);
+  Node* object = __ LoadRegister(object_reg);
   Node* context = __ GetContext();
   Node* const zero_smi = __ SmiConstant(Smi::FromInt(0));
 
@@ -1971,7 +1974,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
         __ LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
     Node* cache_array = __ LoadObjectField(
         cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
-    Node* output_register = __ BytecodeOperandReg(0);
+    Node* output_register = __ BytecodeOperandReg(1);
     BuildForInPrepareResult(output_register, cache_type, cache_array,
                             cache_length, assembler);
     __ Dispatch();
@@ -1984,7 +1987,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
     Node* cache_type = __ Projection(0, result_triple);
     Node* cache_array = __ Projection(1, result_triple);
     Node* cache_length = __ Projection(2, result_triple);
-    Node* output_register = __ BytecodeOperandReg(0);
+    Node* output_register = __ BytecodeOperandReg(1);
     BuildForInPrepareResult(output_register, cache_type, cache_array,
                             cache_length, assembler);
     __ Dispatch();
@@ -1993,7 +1996,7 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   __ Bind(&nothing_to_iterate);
   {
     // Receiver is null or undefined or descriptors are zero length.
-    Node* output_register = __ BytecodeOperandReg(0);
+    Node* output_register = __ BytecodeOperandReg(1);
     BuildForInPrepareResult(output_register, zero_smi, zero_smi, zero_smi,
                             assembler);
     __ Dispatch();
