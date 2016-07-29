@@ -6908,17 +6908,25 @@ class SnapshotCreator {
 template <class T>
 class Maybe {
  public:
-  V8_INLINE bool IsNothing() const { return !has_value; }
-  V8_INLINE bool IsJust() const { return has_value; }
+  V8_INLINE bool IsNothing() const { return !has_value_; }
+  V8_INLINE bool IsJust() const { return has_value_; }
+
+  // Will crash if the Maybe<> is nothing.
+  V8_INLINE T ToChecked() const { return FromJust(); }
+
+  V8_WARN_UNUSED_RESULT V8_INLINE bool To(T& out) const {
+    if (V8_LIKELY(IsJust())) out = value_;
+    return IsJust();
+  }
 
   // Will crash if the Maybe<> is nothing.
   V8_INLINE T FromJust() const {
     if (V8_UNLIKELY(!IsJust())) V8::FromJustIsNothing();
-    return value;
+    return value_;
   }
 
   V8_INLINE T FromMaybe(const T& default_value) const {
-    return has_value ? value : default_value;
+    return has_value_ ? value_ : default_value;
   }
 
   V8_INLINE bool operator==(const Maybe& other) const {
@@ -6931,11 +6939,11 @@ class Maybe {
   }
 
  private:
-  Maybe() : has_value(false) {}
-  explicit Maybe(const T& t) : has_value(true), value(t) {}
+  Maybe() : has_value_(false) {}
+  explicit Maybe(const T& t) : has_value_(true), value_(t) {}
 
-  bool has_value;
-  T value;
+  bool has_value_;
+  T value_;
 
   template <class U>
   friend Maybe<U> Nothing();

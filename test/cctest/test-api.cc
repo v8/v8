@@ -332,6 +332,11 @@ THREADED_TEST(Access) {
   CHECK(!foo_after->IsUndefined());
   CHECK(foo_after->IsString());
   CHECK(bar_str->Equals(env.local(), foo_after).FromJust());
+
+  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).ToChecked());
+  bool result;
+  CHECK(obj->Set(env.local(), v8_str("foo"), bar_str).To(result));
+  CHECK(result);
 }
 
 
