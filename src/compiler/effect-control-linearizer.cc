@@ -622,6 +622,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBounds:
       state = LowerCheckBounds(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckMaps:
+      state = LowerCheckMaps(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckNumber:
       state = LowerCheckNumber(node, frame_state, *effect, *control);
       break;
@@ -1020,6 +1023,43 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
       frame_state, effect, control);
 
   return ValueEffectControl(index, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state,
+                                        Node* effect, Node* control) {
+  Node* value = node->InputAt(0);
+
+  // Load the current map of the {value}.
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+
+  int const map_count = node->op()->ValueInputCount() - 1;
+  Node** controls = temp_zone()->NewArray<Node*>(map_count);
+  Node** effects = temp_zone()->NewArray<Node*>(map_count + 1);
+
+  for (int i = 0; i < map_count; ++i) {
+    Node* map = node->InputAt(1 + i);
+
+    Node* check = graph()->NewNode(machine()->WordEqual(), value_map, map);
+    if (i == map_count - 1) {
+      controls[i] = effects[i] = graph()->NewNode(
+          common()->DeoptimizeUnless(DeoptimizeReason::kWrongMap), check,
+          frame_state, effect, control);
+    } else {
+      control = graph()->NewNode(common()->Branch(), check, control);
+      controls[i] = graph()->NewNode(common()->IfTrue(), control);
+      control = graph()->NewNode(common()->IfFalse(), control);
+      effects[i] = effect;
+    }
+  }
+
+  control = graph()->NewNode(common()->Merge(map_count), map_count, controls);
+  effects[map_count] = control;
+  effect =
+      graph()->NewNode(common()->EffectPhi(map_count), map_count + 1, effects);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

@@ -269,6 +269,7 @@
   V(StringFromCharCode)               \
   V(CheckBounds)                      \
   V(CheckIf)                          \
+  V(CheckMaps)                        \
   V(CheckNumber)                      \
   V(CheckString)                      \
   V(CheckTaggedPointer)               \

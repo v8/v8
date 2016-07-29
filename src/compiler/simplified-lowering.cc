@@ -2226,6 +2226,7 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckMaps:
       case IrOpcode::kTransitionElementsKind: {
         VisitInputs(node);
         return SetOutput(node, MachineRepresentation::kNone);

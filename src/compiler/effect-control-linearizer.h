@@ -63,6 +63,8 @@ class EffectControlLinearizer {
                                                Node* control);
   ValueEffectControl LowerCheckBounds(Node* node, Node* frame_state,
                                       Node* effect, Node* control);
+  ValueEffectControl LowerCheckMaps(Node* node, Node* frame_state, Node* effect,
+                                    Node* control);
   ValueEffectControl LowerCheckNumber(Node* node, Node* frame_state,
                                       Node* effect, Node* control);
   ValueEffectControl LowerCheckString(Node* node, Node* frame_state,

@@ -143,30 +143,28 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   }
 
   // Check for the monomorphic cases.
-  if (access_infos.size() == 1 &&
-      HasOnlyStringMaps(access_infos[0].receiver_maps())) {
-    // Monormorphic string access (ignoring the fact that there are multiple
-    // String maps).
-    receiver = effect = graph()->NewNode(simplified()->CheckString(), receiver,
-                                         effect, control);
+  if (access_infos.size() == 1) {
+    PropertyAccessInfo access_info = access_infos.front();
+    if (HasOnlyStringMaps(access_info.receiver_maps())) {
+      // Monormorphic string access (ignoring the fact that there are multiple
+      // String maps).
+      receiver = effect = graph()->NewNode(simplified()->CheckString(),
+                                           receiver, effect, control);
+    } else if (HasOnlyNumberMaps(access_info.receiver_maps())) {
+      // Monomorphic number access (we also deal with Smis here).
+      receiver = effect = graph()->NewNode(simplified()->CheckNumber(),
+                                           receiver, effect, control);
+    } else {
+      // Monomorphic property access.
+      effect = BuildCheckTaggedPointer(receiver, effect, control);
+      effect = BuildCheckMaps(receiver, effect, control,
+                              access_info.receiver_maps());
+    }
 
     // Generate the actual property access.
     ValueEffectControl continuation =
         BuildPropertyAccess(receiver, value, effect, control, name,
-                            native_context, access_infos[0], access_mode);
-    value = continuation.value();
-    effect = continuation.effect();
-    control = continuation.control();
-  } else if (access_infos.size() == 1 &&
-             HasOnlyNumberMaps(access_infos[0].receiver_maps())) {
-    // Monomorphic number access (we also deal with Smis here).
-    receiver = effect = graph()->NewNode(simplified()->CheckNumber(), receiver,
-                                         effect, control);
-
-    // Generate the actual property access.
-    ValueEffectControl continuation =
-        BuildPropertyAccess(receiver, value, effect, control, name,
-                            native_context, access_infos[0], access_mode);
+                            native_context, access_info, access_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -196,8 +194,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
       receiverissmi_effect = effect;
     } else {
-      receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
-                                           receiver, effect, control);
+      effect = BuildCheckTaggedPointer(receiver, effect, control);
     }
 
     // Load the {receiver} map. The resulting effect is the dominating effect
@@ -434,139 +431,179 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
   }
 
-  // The final states for every polymorphic branch. We join them with
-  // Merge+Phi+EffectPhi at the bottom.
-  ZoneVector<Node*> values(zone());
-  ZoneVector<Node*> effects(zone());
-  ZoneVector<Node*> controls(zone());
-
   // Ensure that {receiver} is a heap object.
-  receiver = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
-                                       receiver, effect, control);
+  effect = BuildCheckTaggedPointer(receiver, effect, control);
 
-  // Generate code for the various different element access patterns.
-  Node* fallthrough_control = control;
-  for (size_t j = 0; j < access_infos.size(); ++j) {
-    ElementAccessInfo const& access_info = access_infos[j];
-    Node* this_receiver = receiver;
-    Node* this_value = value;
-    Node* this_index = index;
-    Node* this_effect = effect;
-    Node* this_control = fallthrough_control;
+  // Check for the monomorphic case.
+  if (access_infos.size() == 1) {
+    ElementAccessInfo access_info = access_infos.front();
 
     // Perform possible elements kind transitions.
     for (auto transition : access_info.transitions()) {
       Handle<Map> const transition_source = transition.first;
       Handle<Map> const transition_target = transition.second;
-      this_effect = graph()->NewNode(
+      effect = graph()->NewNode(
           simplified()->TransitionElementsKind(
               IsSimpleMapChangeTransition(transition_source->elements_kind(),
                                           transition_target->elements_kind())
                   ? ElementsTransition::kFastTransition
                   : ElementsTransition::kSlowTransition),
           receiver, jsgraph()->HeapConstant(transition_source),
-          jsgraph()->HeapConstant(transition_target), this_effect,
-          this_control);
+          jsgraph()->HeapConstant(transition_target), effect, control);
     }
 
-    // Load the {receiver} map.
-    Node* receiver_map = this_effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         receiver, this_effect, this_control);
+    // TODO(turbofan): The effect/control linearization will not find a
+    // FrameState after the StoreField or Call that is generated for the
+    // elements kind transition above. This is because those operators
+    // don't have the kNoWrite flag on it, even though they are not
+    // observable by JavaScript.
+    effect =
+        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
-    // Perform map check on {receiver}.
-    MapList const& receiver_maps = access_info.receiver_maps();
-    {
-      ZoneVector<Node*> this_controls(zone());
-      ZoneVector<Node*> this_effects(zone());
-      size_t num_classes = receiver_maps.size();
-      for (Handle<Map> map : receiver_maps) {
-        DCHECK_LT(0u, num_classes);
-        Node* check =
-            graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                             receiver_map, jsgraph()->Constant(map));
-        if (--num_classes == 0 && j == access_infos.size() - 1) {
-          // Last map check on the fallthrough control path, do a conditional
-          // eager deoptimization exit here.
-          // TODO(turbofan): This is ugly as hell! We should probably introduce
-          // macro-ish operators for property access that encapsulate this whole
-          // mess.
-          check = graph()->NewNode(simplified()->CheckIf(), check, this_effect,
-                                   this_control);
-          this_controls.push_back(this_control);
-          this_effects.push_back(check);
-          fallthrough_control = nullptr;
+    // Perform map check on the {receiver}.
+    effect =
+        BuildCheckMaps(receiver, effect, control, access_info.receiver_maps());
+
+    // Access the actual element.
+    ValueEffectControl continuation =
+        BuildElementAccess(receiver, index, value, effect, control,
+                           native_context, access_info, access_mode);
+    value = continuation.value();
+    effect = continuation.effect();
+    control = continuation.control();
+  } else {
+    // The final states for every polymorphic branch. We join them with
+    // Merge+Phi+EffectPhi at the bottom.
+    ZoneVector<Node*> values(zone());
+    ZoneVector<Node*> effects(zone());
+    ZoneVector<Node*> controls(zone());
+
+    // Generate code for the various different element access patterns.
+    Node* fallthrough_control = control;
+    for (size_t j = 0; j < access_infos.size(); ++j) {
+      ElementAccessInfo const& access_info = access_infos[j];
+      Node* this_receiver = receiver;
+      Node* this_value = value;
+      Node* this_index = index;
+      Node* this_effect = effect;
+      Node* this_control = fallthrough_control;
+
+      // Perform possible elements kind transitions.
+      for (auto transition : access_info.transitions()) {
+        Handle<Map> const transition_source = transition.first;
+        Handle<Map> const transition_target = transition.second;
+        this_effect = graph()->NewNode(
+            simplified()->TransitionElementsKind(
+                IsSimpleMapChangeTransition(transition_source->elements_kind(),
+                                            transition_target->elements_kind())
+                    ? ElementsTransition::kFastTransition
+                    : ElementsTransition::kSlowTransition),
+            receiver, jsgraph()->HeapConstant(transition_source),
+            jsgraph()->HeapConstant(transition_target), this_effect,
+            this_control);
+      }
+
+      // Load the {receiver} map.
+      Node* receiver_map = this_effect =
+          graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                           receiver, this_effect, this_control);
+
+      // Perform map check(s) on {receiver}.
+      MapList const& receiver_maps = access_info.receiver_maps();
+      {
+        ZoneVector<Node*> this_controls(zone());
+        ZoneVector<Node*> this_effects(zone());
+        size_t num_classes = receiver_maps.size();
+        for (Handle<Map> map : receiver_maps) {
+          DCHECK_LT(0u, num_classes);
+          Node* check =
+              graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
+                               receiver_map, jsgraph()->Constant(map));
+          if (--num_classes == 0 && j == access_infos.size() - 1) {
+            // Last map check on the fallthrough control path, do a conditional
+            // eager deoptimization exit here.
+            // TODO(turbofan): This is ugly as hell! We should probably
+            // introduce macro-ish operators for property access that
+            // encapsulate this whole mess.
+            check = graph()->NewNode(simplified()->CheckIf(), check,
+                                     this_effect, this_control);
+            this_controls.push_back(this_control);
+            this_effects.push_back(check);
+            fallthrough_control = nullptr;
+          } else {
+            Node* branch = graph()->NewNode(common()->Branch(), check,
+                                            fallthrough_control);
+            this_controls.push_back(
+                graph()->NewNode(common()->IfTrue(), branch));
+            this_effects.push_back(effect);
+            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          }
+        }
+
+        // Create single chokepoint for the control.
+        int const this_control_count = static_cast<int>(this_controls.size());
+        if (this_control_count == 1) {
+          this_control = this_controls.front();
+          this_effect = this_effects.front();
         } else {
-          Node* branch =
-              graph()->NewNode(common()->Branch(), check, fallthrough_control);
-          this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-          this_effects.push_back(effect);
-          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control =
+              graph()->NewNode(common()->Merge(this_control_count),
+                               this_control_count, &this_controls.front());
+          this_effects.push_back(this_control);
+          this_effect =
+              graph()->NewNode(common()->EffectPhi(this_control_count),
+                               this_control_count + 1, &this_effects.front());
+
+          // TODO(turbofan): The effect/control linearization will not find a
+          // FrameState after the StoreField or Call that is generated for the
+          // elements kind transition above. This is because those operators
+          // don't have the kNoWrite flag on it, even though they are not
+          // observable by JavaScript.
+          this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
+                                         this_effect, this_control);
         }
       }
 
-      // Create single chokepoint for the control.
-      int const this_control_count = static_cast<int>(this_controls.size());
-      if (this_control_count == 1) {
-        this_control = this_controls.front();
-        this_effect = this_effects.front();
-      } else {
-        this_control =
-            graph()->NewNode(common()->Merge(this_control_count),
-                             this_control_count, &this_controls.front());
-        this_effects.push_back(this_control);
-        this_effect =
-            graph()->NewNode(common()->EffectPhi(this_control_count),
-                             this_control_count + 1, &this_effects.front());
-
-        // TODO(turbofan): The effect/control linearization will not find a
-        // FrameState after the StoreField or Call that is generated for the
-        // elements kind transition above. This is because those operators
-        // don't have the kNoWrite flag on it, even though they are not
-        // observable by JavaScript.
-        this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
-                                       this_effect, this_control);
+      // Certain stores need a prototype chain check because shape changes
+      // could allow callbacks on elements in the prototype chain that are
+      // not compatible with (monomorphic) keyed stores.
+      Handle<JSObject> holder;
+      if (access_info.holder().ToHandle(&holder)) {
+        AssumePrototypesStable(receiver_maps, native_context, holder);
       }
+
+      // Access the actual element.
+      ValueEffectControl continuation = BuildElementAccess(
+          this_receiver, this_index, this_value, this_effect, this_control,
+          native_context, access_info, access_mode);
+      values.push_back(continuation.value());
+      effects.push_back(continuation.effect());
+      controls.push_back(continuation.control());
     }
 
-    // Certain stores need a prototype chain check because shape changes
-    // could allow callbacks on elements in the prototype chain that are
-    // not compatible with (monomorphic) keyed stores.
-    Handle<JSObject> holder;
-    if (access_info.holder().ToHandle(&holder)) {
-      AssumePrototypesStable(receiver_maps, native_context, holder);
+    DCHECK_NULL(fallthrough_control);
+
+    // Generate the final merge point for all (polymorphic) branches.
+    int const control_count = static_cast<int>(controls.size());
+    if (control_count == 0) {
+      value = effect = control = jsgraph()->Dead();
+    } else if (control_count == 1) {
+      value = values.front();
+      effect = effects.front();
+      control = controls.front();
+    } else {
+      control = graph()->NewNode(common()->Merge(control_count), control_count,
+                                 &controls.front());
+      values.push_back(control);
+      value = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, control_count),
+          control_count + 1, &values.front());
+      effects.push_back(control);
+      effect = graph()->NewNode(common()->EffectPhi(control_count),
+                                control_count + 1, &effects.front());
     }
-
-    // Access the actual element.
-    ValueEffectControl continuation = BuildElementAccess(
-        this_receiver, this_index, this_value, this_effect, this_control,
-        native_context, access_info, access_mode);
-    values.push_back(continuation.value());
-    effects.push_back(continuation.effect());
-    controls.push_back(continuation.control());
   }
 
-  DCHECK_NULL(fallthrough_control);
-
-  // Generate the final merge point for all (polymorphic) branches.
-  int const control_count = static_cast<int>(controls.size());
-  if (control_count == 0) {
-    value = effect = control = jsgraph()->Dead();
-  } else if (control_count == 1) {
-    value = values.front();
-    effect = effects.front();
-    control = controls.front();
-  } else {
-    control = graph()->NewNode(common()->Merge(control_count), control_count,
-                               &controls.front());
-    values.push_back(control);
-    value = graph()->NewNode(
-        common()->Phi(MachineRepresentation::kTagged, control_count),
-        control_count + 1, &values.front());
-    effects.push_back(control);
-    effect = graph()->NewNode(common()->EffectPhi(control_count),
-                              control_count + 1, &effects.front());
-  }
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -792,18 +829,15 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
                                           value, effect, control);
       } else if (field_type->Is(Type::TaggedPointer())) {
+        // Ensure that {value} is a HeapObject.
         value = effect = graph()->NewNode(simplified()->CheckTaggedPointer(),
                                           value, effect, control);
         if (field_type->NumClasses() == 1) {
           // Emit a map check for the value.
-          Node* value_map = effect =
-              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                               value, effect, control);
-          Node* check = graph()->NewNode(
-              simplified()->ReferenceEqual(Type::Internal()), value_map,
-              jsgraph()->Constant(field_type->Classes().Current()));
-          effect =
-              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+          Node* field_map =
+              jsgraph()->Constant(field_type->Classes().Current());
+          effect = graph()->NewNode(simplified()->CheckMaps(1), value,
+                                    field_map, effect, control);
         } else {
           DCHECK_EQ(0, field_type->NumClasses());
         }
@@ -967,6 +1001,61 @@ JSNativeContextSpecialization::BuildElementAccess(
   return ValueEffectControl(value, effect, control);
 }
 
+Node* JSNativeContextSpecialization::BuildCheckMaps(
+    Node* receiver, Node* effect, Node* control,
+    std::vector<Handle<Map>> const& maps) {
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    Handle<Map> receiver_map(m.Value()->map(), isolate());
+    if (receiver_map->is_stable()) {
+      for (Handle<Map> map : maps) {
+        if (map.is_identical_to(receiver_map)) {
+          dependencies()->AssumeMapStable(receiver_map);
+          return effect;
+        }
+      }
+    }
+  }
+  int const map_input_count = static_cast<int>(maps.size());
+  int const input_count = 1 + map_input_count + 1 + 1;
+  Node** inputs = zone()->NewArray<Node*>(input_count);
+  inputs[0] = receiver;
+  for (int i = 0; i < map_input_count; ++i) {
+    inputs[1 + i] = jsgraph()->HeapConstant(maps[i]);
+  }
+  inputs[input_count - 2] = effect;
+  inputs[input_count - 1] = control;
+  return graph()->NewNode(simplified()->CheckMaps(map_input_count), input_count,
+                          inputs);
+}
+
+Node* JSNativeContextSpecialization::BuildCheckTaggedPointer(Node* receiver,
+                                                             Node* effect,
+                                                             Node* control) {
+  switch (receiver->opcode()) {
+    case IrOpcode::kHeapConstant:
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSToString:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSTypeOf: {
+      return effect;
+    }
+    default: {
+      return graph()->NewNode(simplified()->CheckTaggedPointer(), receiver,
+                              effect, control);
+    }
+  }
+}
+
 void JSNativeContextSpecialization::AssumePrototypesStable(
     std::vector<Handle<Map>> const& receiver_maps,
     Handle<Context> native_context, Handle<JSObject> holder) {
@@ -1011,8 +1100,11 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
 
 MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
                                                                  Node* effect) {
-  NodeMatcher m(receiver);
-  if (m.IsJSCreate()) {
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    Handle<Map> receiver_map(m.Value()->map(), isolate());
+    if (receiver_map->is_stable()) return receiver_map;
+  } else if (m.IsJSCreate()) {
     HeapObjectMatcher mtarget(m.InputAt(0));
     HeapObjectMatcher mnewtarget(m.InputAt(1));
     if (mtarget.HasValue() && mnewtarget.HasValue()) {
@@ -1036,6 +1128,7 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
       }
     }
   }
+  // TODO(turbofan): Go hunting for CheckMaps(receiver) in the effect chain?
   return MaybeHandle<Map>();
 }
 

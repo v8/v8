@@ -1889,6 +1889,54 @@ Reduction JSTypedLowering::ReduceSelect(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
+  if (object_type->IsConstant() &&
+      object_type->AsConstant()->Value()->IsHeapObject()) {
+    Handle<Map> object_map(
+        Handle<HeapObject>::cast(object_type->AsConstant()->Value())->map());
+    if (object_map->is_stable()) return object_map;
+  } else if (object_type->IsClass()) {
+    Handle<Map> object_map = object_type->AsClass()->Map();
+    if (object_map->is_stable()) return object_map;
+  }
+  return MaybeHandle<Map>();
+}
+
+}  // namespace
+
+Reduction JSTypedLowering::ReduceCheckMaps(Node* node) {
+  // TODO(bmeurer): Find a better home for this thing!
+  // The CheckMaps(o, ...map...) can be eliminated if map is stable and
+  // either
+  //  (a) o has type Constant(object) and map == object->map, or
+  //  (b) o has type Class(map),
+  // and either
+  //  (1) map cannot transition further, or
+  //  (2) we can add a code dependency on the stability of map
+  //      (to guard the Constant type information).
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Type* const object_type = NodeProperties::GetType(object);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Handle<Map> object_map;
+  if (GetStableMapFromObjectType(object_type).ToHandle(&object_map)) {
+    for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
+      Node* const map = NodeProperties::GetValueInput(node, i);
+      Type* const map_type = NodeProperties::GetType(map);
+      if (map_type->IsConstant() &&
+          map_type->AsConstant()->Value().is_identical_to(object_map)) {
+        if (object_map->CanTransition()) {
+          DCHECK(flags() & kDeoptimizationEnabled);
+          dependencies()->AssumeMapStable(object_map);
+        }
+        return Replace(effect);
+      }
+    }
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceCheckString(Node* node) {
   // TODO(bmeurer): Find a better home for this thing!
   Node* const input = NodeProperties::GetValueInput(node, 0);
@@ -1896,6 +1944,37 @@ Reduction JSTypedLowering::ReduceCheckString(Node* node) {
   if (input_type->Is(Type::String())) {
     ReplaceWithValue(node, input);
     return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceLoadField(Node* node) {
+  // TODO(bmeurer): Find a better home for this thing!
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Type* const object_type = NodeProperties::GetType(object);
+  FieldAccess const& access = FieldAccessOf(node->op());
+  if (access.base_is_tagged == kTaggedBase &&
+      access.offset == HeapObject::kMapOffset) {
+    // We can replace LoadField[Map](o) with map if is stable and either
+    //  (a) o has type Constant(object) and map == object->map, or
+    //  (b) o has type Class(map),
+    // and either
+    //  (1) map cannot transition further, or
+    //  (2) deoptimization is enabled and we can add a code dependency on the
+    //      stability of map (to guard the Constant type information).
+    Handle<Map> object_map;
+    if (GetStableMapFromObjectType(object_type).ToHandle(&object_map)) {
+      if (object_map->CanTransition()) {
+        if (flags() & kDeoptimizationEnabled) {
+          dependencies()->AssumeMapStable(object_map);
+        } else {
+          return NoChange();
+        }
+      }
+      Node* const value = jsgraph()->HeapConstant(object_map);
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    }
   }
   return NoChange();
 }
@@ -2030,6 +2109,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kCheckMaps:
+      return ReduceCheckMaps(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
     case IrOpcode::kNumberCeil:
@@ -2037,6 +2118,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       return ReduceNumberRoundop(node);
+    case IrOpcode::kLoadField:
+      return ReduceLoadField(node);
     default:
       break;
   }

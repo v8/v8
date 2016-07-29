@@ -51,6 +51,10 @@ bool MustAlias(Node* a, Node* b) { return QueryAlias(a, b) == kMustAlias; }
 
 Reduction LoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kCheckMaps:
+      return ReduceCheckMaps(node);
+    case IrOpcode::kTransitionElementsKind:
+      return ReduceTransitionElementsKind(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kStoreField:
@@ -299,6 +303,52 @@ void LoadElimination::AbstractStateForEffectNodes::Set(
   size_t const id = node->id();
   if (id >= info_for_node_.size()) info_for_node_.resize(id + 1, nullptr);
   info_for_node_[id] = state;
+}
+
+Reduction LoadElimination::ReduceCheckMaps(Node* node) {
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  int const map_input_count = node->op()->ValueInputCount() - 1;
+  if (Node* const object_map = state->LookupField(object, 0)) {
+    for (int i = 0; i < map_input_count; ++i) {
+      Node* map = NodeProperties::GetValueInput(node, 1 + i);
+      if (map == object_map) return Replace(effect);
+    }
+  }
+  if (map_input_count == 1) {
+    Node* const map0 = NodeProperties::GetValueInput(node, 1);
+    state = state->AddField(object, 0, map0, zone());
+  }
+  return UpdateState(node, state);
+}
+
+Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const source_map = NodeProperties::GetValueInput(node, 1);
+  Node* const target_map = NodeProperties::GetValueInput(node, 2);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  if (Node* const object_map = state->LookupField(object, 0)) {
+    state = state->KillField(object, 0, zone());
+    if (source_map == object_map) {
+      state = state->AddField(object, 0, target_map, zone());
+    }
+  } else {
+    state = state->KillField(object, 0, zone());
+  }
+  ElementsTransition transition = ElementsTransitionOf(node->op());
+  switch (transition) {
+    case ElementsTransition::kFastTransition:
+      break;
+    case ElementsTransition::kSlowTransition:
+      // Kill the elements as well.
+      state = state->KillField(object, 2, zone());
+      break;
+  }
+  return UpdateState(node, state);
 }
 
 Reduction LoadElimination::ReduceLoadField(Node* node) {

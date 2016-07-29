@@ -1469,10 +1469,7 @@ bool PipelineImpl::CreateGraph() {
     // Type the graph and keep the Typer running on newly created nodes within
     // this scope; the Typer is automatically unlinked from the Graph once we
     // leave this scope below.
-    Typer typer(isolate(), data->graph(), info()->is_deoptimization_enabled()
-                                              ? Typer::kDeoptimizationEnabled
-                                              : Typer::kNoFlags,
-                info()->dependencies());
+    Typer typer(isolate(), data->graph());
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 

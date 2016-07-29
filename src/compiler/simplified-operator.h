@@ -273,6 +273,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
+  const Operator* CheckMaps(int map_input_count);
   const Operator* CheckNumber();
   const Operator* CheckString();
   const Operator* CheckTaggedPointer();

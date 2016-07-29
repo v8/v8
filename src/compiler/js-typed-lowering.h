@@ -78,7 +78,9 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
+  Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckString(Node* node);
+  Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceJSSubtract(Node* node);

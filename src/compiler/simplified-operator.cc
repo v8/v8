@@ -507,6 +507,18 @@ const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
   return nullptr;
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckMaps(int map_input_count) {
+  // TODO(bmeurer): Cache the most important versions of this operator.
+  DCHECK_LT(0, map_input_count);
+  int const value_input_count = 1 + map_input_count;
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kCheckMaps,                     // opcode
+      Operator::kNoThrow | Operator::kNoWrite,  // flags
+      "CheckMaps",                              // name
+      value_input_count, 1, 1, 0, 1, 0,         // counts
+      map_input_count);                         // parameter
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
     CheckFloat64HoleMode mode) {
   switch (mode) {
