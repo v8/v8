@@ -721,12 +721,16 @@ void Verifier::Visitor::Check(Node* node) {
       CheckUpperIs(node, Type::Signed32());
       break;
     case IrOpcode::kSpeculativeNumberShiftLeft:
+    case IrOpcode::kSpeculativeNumberShiftRight:
       CheckUpperIs(node, Type::Signed32());
       break;
     case IrOpcode::kNumberShiftRightLogical:
       // (Unsigned32, Unsigned32) -> Unsigned32
       CheckValueInputIs(node, 0, Type::Unsigned32());
       CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckUpperIs(node, Type::Unsigned32());
+      break;
+    case IrOpcode::kSpeculativeNumberShiftRightLogical:
       CheckUpperIs(node, Type::Unsigned32());
       break;
     case IrOpcode::kNumberImul:

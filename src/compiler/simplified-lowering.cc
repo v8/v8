@@ -1692,10 +1692,68 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeNumberShiftRight: {
+        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
+        // can only eliminate an unused speculative number operation if we know
+        // that the inputs are PlainPrimitive, which excludes everything that's
+        // might have side effects or throws during a ToNumber conversion.
+        if (BothInputsAre(node, Type::PlainPrimitive())) {
+          if (truncation.IsUnused()) return VisitUnused(node);
+        }
+        if (BothInputsAre(node, Type::NumberOrOddball())) {
+          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            lowering->DoShift(node, lowering->machine()->Word32Sar(), rhs_type);
+          }
+          return;
+        }
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        VisitBinop(node, hint == BinaryOperationHints::kNumberOrOddball
+                             ? UseInfo::CheckedNumberOrOddballAsWord32()
+                             : UseInfo::CheckedSigned32AsWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+        if (lower()) {
+          lowering->DoShift(node, lowering->machine()->Word32Sar(), rhs_type);
+        }
+        return;
+      }
       case IrOpcode::kNumberShiftRightLogical: {
         Type* rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        if (lower()) {
+          lowering->DoShift(node, lowering->machine()->Word32Shr(), rhs_type);
+        }
+        return;
+      }
+      case IrOpcode::kSpeculativeNumberShiftRightLogical: {
+        // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
+        // can only eliminate an unused speculative number operation if we know
+        // that the inputs are PlainPrimitive, which excludes everything that's
+        // might have side effects or throws during a ToNumber conversion.
+        if (BothInputsAre(node, Type::PlainPrimitive())) {
+          if (truncation.IsUnused()) return VisitUnused(node);
+        }
+        if (BothInputsAre(node, Type::NumberOrOddball())) {
+          Type* rhs_type = GetUpperBound(node->InputAt(1));
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            lowering->DoShift(node, lowering->machine()->Word32Shr(), rhs_type);
+          }
+          return;
+        }
+        BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        VisitBinop(node, hint == BinaryOperationHints::kNumberOrOddball
+                             ? UseInfo::CheckedNumberOrOddballAsWord32()
+                             : UseInfo::CheckedSigned32AsWord32(),
+                   MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower()) {
           lowering->DoShift(node, lowering->machine()->Word32Shr(), rhs_type);
         }

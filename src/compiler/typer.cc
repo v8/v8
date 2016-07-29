@@ -1697,6 +1697,14 @@ Type* Typer::Visitor::TypeSpeculativeNumberShiftLeft(Node* node) {
   return Type::Signed32();
 }
 
+Type* Typer::Visitor::TypeSpeculativeNumberShiftRight(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberShiftRightLogical(Node* node) {
+  return Type::Unsigned32();
+}
+
 Type* Typer::Visitor::TypeNumberMultiply(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberDivide(Node* node) { return Type::Number(); }

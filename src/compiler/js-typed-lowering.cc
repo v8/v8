@@ -590,38 +590,38 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   return r.ChangeToPureOperator(intOp, Type::Integral32());
 }
 
-Reduction JSTypedLowering::ReduceShiftLeft(Node* node) {
+Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
+                                           Signedness left_signedness,
+                                           const Operator* shift_op) {
   if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
   BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
   if (feedback != BinaryOperationHints::kAny) {
+    Operator const* speculative_op;
+    if (shift_op->opcode() == IrOpcode::kNumberShiftLeft) {
+      speculative_op = simplified()->SpeculativeNumberShiftLeft(feedback);
+    } else if (shift_op->opcode() == IrOpcode::kNumberShiftRightLogical) {
+      speculative_op =
+          simplified()->SpeculativeNumberShiftRightLogical(feedback);
+    } else {
+      DCHECK(shift_op->opcode() == IrOpcode::kNumberShiftRight);
+      speculative_op = simplified()->SpeculativeNumberShiftRight(feedback);
+    }
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberShiftLeft(feedback), Type::Signed32());
+        speculative_op, shift_op->opcode() == IrOpcode::kNumberShiftRightLogical
+                            ? Type::Unsigned32()
+                            : Type::Signed32());
   }
 
   // If deoptimization is enabled we rely on type feedback.
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
-    r.ConvertInputsToUI32(kSigned, kUnsigned);
-    return r.ChangeToPureOperator(simplified()->NumberShiftLeft(),
-                                  Type::Number());
+    r.ConvertInputsToUI32(left_signedness, kUnsigned);
+    return r.ChangeToPureOperator(shift_op);
   }
   return NoChange();
 }
-
-Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
-                                           Signedness left_signedness,
-                                           const Operator* shift_op) {
-  if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
-
-  JSBinopReduction r(this, node);
-  r.ConvertInputsToNumber();
-  r.ConvertInputsToUI32(left_signedness, kUnsigned);
-  return r.ChangeToPureOperator(shift_op);
-}
-
 
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   JSBinopReduction r(this, node);
@@ -2049,7 +2049,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSBitwiseAnd:
       return ReduceInt32Binop(node, simplified()->NumberBitwiseAnd());
     case IrOpcode::kJSShiftLeft:
-      return ReduceShiftLeft(node);
+      return ReduceUI32Shift(node, kSigned, simplified()->NumberShiftLeft());
     case IrOpcode::kJSShiftRight:
       return ReduceUI32Shift(node, kSigned, simplified()->NumberShiftRight());
     case IrOpcode::kJSShiftRightLogical:

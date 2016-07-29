@@ -809,6 +809,7 @@ class IsSpeculativeBinopMatcher final : public NodeMatcher {
       const Matcher<Node*>& effect_matcher,
       const Matcher<Node*>& control_matcher)
       : NodeMatcher(opcode),
+        hint_matcher_(hint_matcher),
         lhs_matcher_(lhs_matcher),
         rhs_matcher_(rhs_matcher),
         effect_matcher_(effect_matcher),
@@ -817,6 +818,9 @@ class IsSpeculativeBinopMatcher final : public NodeMatcher {
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             // TODO(bmeurer): The type parameter is currently ignored.
+            PrintMatchAndExplain(
+                OpParameter<BinaryOperationHints::Hint>(node->op()), "hints",
+                hint_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
                                  lhs_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
@@ -828,6 +832,7 @@ class IsSpeculativeBinopMatcher final : public NodeMatcher {
   }
 
  private:
+  const Matcher<BinaryOperationHints::Hint> hint_matcher_;
   const Matcher<Type*> type_matcher_;
   const Matcher<Node*> lhs_matcher_;
   const Matcher<Node*> rhs_matcher_;
@@ -2065,6 +2070,26 @@ Matcher<Node*> IsSpeculativeNumberShiftLeft(
     const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsSpeculativeBinopMatcher(
       IrOpcode::kSpeculativeNumberShiftLeft, hint_matcher, lhs_matcher,
+      rhs_matcher, effect_matcher, control_matcher));
+}
+
+Matcher<Node*> IsSpeculativeNumberShiftRight(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsSpeculativeBinopMatcher(
+      IrOpcode::kSpeculativeNumberShiftRight, hint_matcher, lhs_matcher,
+      rhs_matcher, effect_matcher, control_matcher));
+}
+
+Matcher<Node*> IsSpeculativeNumberShiftRightLogical(
+    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
+    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
+    const Matcher<Node*>& effect_matcher,
+    const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsSpeculativeBinopMatcher(
+      IrOpcode::kSpeculativeNumberShiftRightLogical, hint_matcher, lhs_matcher,
       rhs_matcher, effect_matcher, control_matcher));
 }
 

@@ -267,7 +267,9 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberMultiply ||
          op->opcode() == IrOpcode::kSpeculativeNumberDivide ||
          op->opcode() == IrOpcode::kSpeculativeNumberModulus ||
-         op->opcode() == IrOpcode::kSpeculativeNumberShiftLeft);
+         op->opcode() == IrOpcode::kSpeculativeNumberShiftLeft ||
+         op->opcode() == IrOpcode::kSpeculativeNumberShiftRight ||
+         op->opcode() == IrOpcode::kSpeculativeNumberShiftRightLogical);
   return OpParameter<BinaryOperationHints::Hint>(op);
 }
 
@@ -363,7 +365,9 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(SpeculativeNumberDivide)      \
   V(SpeculativeNumberMultiply)    \
   V(SpeculativeNumberModulus)     \
-  V(SpeculativeNumberShiftLeft)
+  V(SpeculativeNumberShiftLeft)   \
+  V(SpeculativeNumberShiftRight)  \
+  V(SpeculativeNumberShiftRightLogical)
 
 #define CHECKED_OP_LIST(V)        \
   V(CheckBounds, 2, 1)            \

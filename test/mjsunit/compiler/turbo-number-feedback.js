@@ -78,3 +78,25 @@
   %OptimizeFunctionOnNextCall(f5);
   assertEquals(64, f5(4.9, 4.1));
 })();
+
+(function ShiftRightNumbers() {
+  function f6(a, b) {
+    return a >> b;
+  }
+
+  assertEquals(1, f6(8.3, 3.4));
+  assertEquals(-2, f6(-16.1, 3.9));
+  %OptimizeFunctionOnNextCall(f6);
+  assertEquals(0, f6(16.2, 5.1));
+})();
+
+(function ShiftRightLogicalNumbers() {
+  function f7(a, b) {
+    return a >>> b;
+  }
+
+  assertEquals(1, f7(8.3, 3.4));
+  assertEquals(536870910, f7(-16.1, 3.9));
+  %OptimizeFunctionOnNextCall(f7);
+  assertEquals(0, f7(16.2, 5.1));
+})();
