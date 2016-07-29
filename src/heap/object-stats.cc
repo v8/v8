@@ -29,7 +29,10 @@ void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   visited_fixed_array_sub_types_.clear();
 }
 
-static void PrintJSONArray(size_t* array, const int len) {
+// Tell the compiler to never inline this: occasionally, the optimizer will
+// decide to inline this and unroll the loop, making the compiled code more than
+// 100KB larger.
+V8_NOINLINE static void PrintJSONArray(size_t* array, const int len) {
   PrintF("[ ");
   for (int i = 0; i < len; i++) {
     PrintF("%zu", array[i]);
