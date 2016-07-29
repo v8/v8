@@ -52,7 +52,7 @@ class AtomicValue {
   explicit AtomicValue(T initial)
       : value_(cast_helper<T>::to_storage_type(initial)) {}
 
-  V8_INLINE T Value() {
+  V8_INLINE T Value() const {
     return cast_helper<T>::to_return_type(base::Acquire_Load(&value_));
   }
 

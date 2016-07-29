@@ -4,6 +4,7 @@
 
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 
+#include "src/assert-scope.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -16,11 +17,24 @@ namespace v8 {
 namespace internal {
 
 CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
-                                             Handle<JSFunction> function)
+                                             Handle<JSFunction> function,
+                                             size_t max_stack_size)
     : isolate_(isolate),
       function_(Handle<JSFunction>::cast(
           isolate_->global_handles()->Create(*function))),
-      can_parse_on_background_thread_(false) {}
+      max_stack_size_(max_stack_size) {
+  HandleScope scope(isolate_);
+  Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
+  Handle<Script> script(Script::cast(shared->script()), isolate_);
+  Handle<String> source(String::cast(script->source()), isolate_);
+  if (source->IsExternalTwoByteString()) {
+    can_parse_on_background_thread_ = true;
+  } else if (source->IsExternalOneByteString()) {
+    can_parse_on_background_thread_ = true;
+  } else {
+    can_parse_on_background_thread_ = false;
+  }
+}
 
 CompilerDispatcherJob::~CompilerDispatcherJob() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
@@ -29,7 +43,7 @@ CompilerDispatcherJob::~CompilerDispatcherJob() {
 
 void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-  DCHECK(status_ == CompileJobStatus::kInitial);
+  DCHECK(status() == CompileJobStatus::kInitial);
   HandleScope scope(isolate_);
   unicode_cache_.reset(new UnicodeCache());
   zone_.reset(new Zone(isolate_->allocator()));
@@ -56,7 +70,32 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_character_stream(character_stream_.get());
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
   parse_info_->set_unicode_cache(unicode_cache_.get());
-  status_ = CompileJobStatus::kReadyToParse;
+  parser_.reset(new Parser(parse_info_.get()));
+  status_.SetValue(CompileJobStatus::kReadyToParse);
+}
+
+void CompilerDispatcherJob::Parse() {
+  DCHECK(can_parse_on_background_thread_ ||
+         ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status() == CompileJobStatus::kReadyToParse);
+
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  // Nullify the Isolate temporarily so that the parser doesn't accidentally
+  // use it.
+  parse_info_->set_isolate(nullptr);
+
+  uintptr_t stack_limit =
+      reinterpret_cast<uintptr_t>(&stack_limit) - max_stack_size_ * KB;
+
+  parser_->set_stack_limit(stack_limit);
+  parser_->ParseOnBackground(parse_info_.get());
+
+  parse_info_->set_isolate(isolate_);
+
+  status_.SetValue(CompileJobStatus::kParsed);
 }
 
 }  // namespace internal
