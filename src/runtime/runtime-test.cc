@@ -37,6 +37,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
+  // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
@@ -57,17 +58,12 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   Handle<JSFunction> function;
 
-  // If the argument is 'undefined', deoptimize the topmost
-  // function.
+  // Find the JavaScript function on the top of the stack.
   JavaScriptFrameIterator it(isolate);
-  while (!it.done()) {
-    if (it.frame()->is_java_script()) {
-      function = Handle<JSFunction>(it.frame()->function());
-      break;
-    }
-  }
+  if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
   if (function.is_null()) return isolate->heap()->undefined_value();
 
+  // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
   // TODO(turbofan): Deoptimization is not supported yet.
@@ -155,24 +151,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (args.length() == 0) {
     // Find the JavaScript function on the top of the stack.
     JavaScriptFrameIterator it(isolate);
-    while (!it.done()) {
-      if (it.frame()->is_java_script()) {
-        function = Handle<JSFunction>(it.frame()->function());
-        break;
-      }
-    }
+    if (!it.done()) function = Handle<JSFunction>(it.frame()->function());
     if (function.is_null()) return isolate->heap()->undefined_value();
   } else {
     // Function was passed as an argument.
     CONVERT_ARG_HANDLE_CHECKED(JSFunction, arg, 0);
     function = arg;
-  }
-
-  // The following condition was lifted from the DCHECK inside
-  // JSFunction::MarkForOptimization().
-  if (!(function->shared()->allows_lazy_compilation() ||
-        !function->shared()->optimization_disabled())) {
-    return isolate->heap()->undefined_value();
   }
 
   // If function is interpreted but OSR hasn't been enabled, just return.
