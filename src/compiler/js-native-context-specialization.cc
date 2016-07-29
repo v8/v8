@@ -571,9 +571,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   return Replace(value);
 }
 
-
+template <typename KeyedICNexus>
 Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
-    Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
+    Node* node, Node* index, Node* value, KeyedICNexus const& nexus,
     AccessMode access_mode, LanguageMode language_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -632,6 +632,11 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     return ReduceNamedAccess(node, value, receiver_maps,
                              handle(name, isolate()), access_mode,
                              language_mode, index);
+  } else if (nexus.GetKeyType() != ELEMENT) {
+    // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
+    // that the {index} is a valid array index, thus we just let the IC continue
+    // to deal with this load/store.
+    return NoChange();
   }
 
   // Try to lower the element access based on the {receiver_maps}.
