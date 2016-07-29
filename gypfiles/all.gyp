@@ -22,9 +22,8 @@
             '../samples/samples.gyp:*',
             '../test/cctest/cctest.gyp:*',
             '../test/fuzzer/fuzzer.gyp:*',
-            '../test/inspector_protocol_parser_test/inspector_protocol_parser_test.gyp:*',
             '../test/unittests/unittests.gyp:*',
-          ],
+            ],
         }],
         ['test_isolation_mode != "noop"', {
           'dependencies': [
