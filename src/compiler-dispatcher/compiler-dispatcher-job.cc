@@ -27,13 +27,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
   Handle<Script> script(Script::cast(shared->script()), isolate_);
   Handle<String> source(String::cast(script->source()), isolate_);
-  if (source->IsExternalTwoByteString()) {
-    can_parse_on_background_thread_ = true;
-  } else if (source->IsExternalOneByteString()) {
-    can_parse_on_background_thread_ = true;
-  } else {
-    can_parse_on_background_thread_ = false;
-  }
+  can_parse_on_background_thread_ =
+      source->IsExternalTwoByteString() || source->IsExternalOneByteString();
 }
 
 CompilerDispatcherJob::~CompilerDispatcherJob() {
@@ -71,7 +66,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parser_.reset(new Parser(parse_info_.get()));
-  status_.SetValue(CompileJobStatus::kReadyToParse);
+  status_ = CompileJobStatus::kReadyToParse;
 }
 
 void CompilerDispatcherJob::Parse() {
@@ -95,7 +90,7 @@ void CompilerDispatcherJob::Parse() {
 
   parse_info_->set_isolate(isolate_);
 
-  status_.SetValue(CompileJobStatus::kParsed);
+  status_ = CompileJobStatus::kParsed;
 }
 
 }  // namespace internal

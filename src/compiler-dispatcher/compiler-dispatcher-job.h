@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/handles.h"
 
@@ -35,7 +34,7 @@ class CompilerDispatcherJob {
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
 
-  CompileJobStatus status() const { return status_.Value(); }
+  CompileJobStatus status() const { return status_; }
   bool can_parse_on_background_thread() const {
     return can_parse_on_background_thread_;
   }
@@ -47,8 +46,7 @@ class CompilerDispatcherJob {
   void Parse();
 
  private:
-  base::AtomicValue<CompileJobStatus> status_ =
-      base::AtomicValue<CompileJobStatus>(CompileJobStatus::kInitial);
+  CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
   Handle<JSFunction> function_;  // Global handle.
   size_t max_stack_size_;
