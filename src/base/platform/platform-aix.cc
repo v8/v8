@@ -46,7 +46,8 @@ static inline void* mmapHelper(size_t len, int prot, int flags, int fildes,
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time / msPerSecond));
-  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* t = localtime_r(&tv, &tm);
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
@@ -56,7 +57,8 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
   // On AIX, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);
-  struct tm* loc = localtime(&utc);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* loc = localtime_r(&utc, &tm);
   DCHECK(loc != NULL);
   return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
