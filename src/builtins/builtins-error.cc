@@ -53,6 +53,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   PropertyDescriptor desc;
   desc.set_configurable(true);
+  desc.set_writable(true);
   desc.set_value(formatted_stack_trace);
   Maybe<bool> status = JSReceiver::DefineOwnProperty(
       isolate, object, isolate->factory()->stack_string(), &desc,

@@ -386,9 +386,9 @@ var o = {};
 Error.captureStackTrace(o);
 assertEquals([], Object.keys(o));
 var desc = Object.getOwnPropertyDescriptor(o, "stack");
-assertFalse(desc.writable);
 assertFalse(desc.enumerable);
 assertTrue(desc.configurable);
+assertTrue(desc.writable);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }
