@@ -594,9 +594,16 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
   TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
       factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
+  ScriptResource one_byte_resource(one_byte_source, length);
+  i::Handle<i::String> ext_one_byte_string(
+      factory->NewExternalStringFromOneByte(&one_byte_resource)
+          .ToHandleChecked());
 
   i::ExternalTwoByteStringUtf16CharacterStream uc16_stream(
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string), start, end);
+  i::ExternalOneByteStringUtf16CharacterStream one_byte_stream(
+      i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string), start,
+      end);
   i::GenericStringUtf16CharacterStream string_stream(one_byte_string, start,
                                                      end);
   i::Utf8ToUtf16CharacterStream utf8_stream(
@@ -609,17 +616,21 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c0 = one_byte_source[i];
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
   while (i > start + sub_length / 4) {
     // Pushback, re-read, pushback again.
@@ -627,64 +638,80 @@ void TestCharacterStream(const char* one_byte_source, unsigned length,
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     uc16_stream.PushBack(c0);
     string_stream.PushBack(c0);
     utf8_stream.PushBack(c0);
+    one_byte_stream.PushBack(c0);
     i--;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     uc16_stream.PushBack(c0);
     string_stream.PushBack(c0);
     utf8_stream.PushBack(c0);
+    one_byte_stream.PushBack(c0);
     i--;
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
   unsigned halfway = start + sub_length / 2;
   uc16_stream.SeekForward(halfway - i);
   string_stream.SeekForward(halfway - i);
   utf8_stream.SeekForward(halfway - i);
+  one_byte_stream.SeekForward(halfway - i);
   i = halfway;
   CHECK_EQU(i, uc16_stream.pos());
   CHECK_EQU(i, string_stream.pos());
   CHECK_EQU(i, utf8_stream.pos());
+  CHECK_EQU(i, one_byte_stream.pos());
 
   while (i < end) {
     // Read streams one char at a time
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
     int32_t c0 = one_byte_source[i];
     int32_t c1 = uc16_stream.Advance();
     int32_t c2 = string_stream.Advance();
     int32_t c3 = utf8_stream.Advance();
+    int32_t c4 = one_byte_stream.Advance();
     i++;
     CHECK_EQ(c0, c1);
     CHECK_EQ(c0, c2);
     CHECK_EQ(c0, c3);
+    CHECK_EQ(c0, c4);
     CHECK_EQU(i, uc16_stream.pos());
     CHECK_EQU(i, string_stream.pos());
     CHECK_EQU(i, utf8_stream.pos());
+    CHECK_EQU(i, one_byte_stream.pos());
   }
 
   int32_t c1 = uc16_stream.Advance();
   int32_t c2 = string_stream.Advance();
   int32_t c3 = utf8_stream.Advance();
+  int32_t c4 = one_byte_stream.Advance();
   CHECK_LT(c1, 0);
   CHECK_LT(c2, 0);
   CHECK_LT(c3, 0);
+  CHECK_LT(c4, 0);
 }
 
 

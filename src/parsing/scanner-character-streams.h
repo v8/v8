@@ -14,6 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class ExternalTwoByteString;
+class ExternalOneByteString;
 
 // A buffered character stream based on a random access character
 // source (ReadBlock can be called with pos_ pointing to any position,
@@ -167,7 +168,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   bool SetBookmark() override;
   void ResetToBookmark() override;
 
- protected:
+ private:
   size_t SlowSeekForward(size_t delta) override {
     // Fast case always handles seeking.
     return 0;
@@ -176,12 +177,33 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
     // Entire string is read at start.
     return false;
   }
-  Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
+
+  static const size_t kNoBookmark = -1;
+
+  size_t bookmark_;
+};
+
+// UTF16 buffer to read characters from an external latin1 string.
+class ExternalOneByteStringUtf16CharacterStream
+    : public BufferedUtf16CharacterStream {
+ public:
+  ExternalOneByteStringUtf16CharacterStream(Handle<ExternalOneByteString> data,
+                                            int start_position,
+                                            int end_position);
+  ~ExternalOneByteStringUtf16CharacterStream() override;
+
+  bool SetBookmark() override;
+  void ResetToBookmark() override;
 
  private:
   static const size_t kNoBookmark = -1;
 
+  size_t BufferSeekForward(size_t delta) override;
+  size_t FillBuffer(size_t position) override;
+
+  const uint8_t* raw_data_;  // Pointer to the actual array of characters.
+  size_t length_;
   size_t bookmark_;
 };
 

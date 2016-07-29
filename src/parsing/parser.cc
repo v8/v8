@@ -888,17 +888,19 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   source = String::Flatten(source);
   FunctionLiteral* result;
 
-  if (source->IsExternalTwoByteString()) {
-    // Notice that the stream is destroyed at the end of the branch block.
-    // The last line of the blocks can't be moved outside, even though they're
-    // identical calls.
-    ExternalTwoByteStringUtf16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-    scanner_.Initialize(&stream);
-    result = DoParseProgram(info);
-  } else {
-    GenericStringUtf16CharacterStream stream(source, 0, source->length());
-    scanner_.Initialize(&stream);
+  {
+    std::unique_ptr<Utf16CharacterStream> stream;
+    if (source->IsExternalTwoByteString()) {
+      stream.reset(new ExternalTwoByteStringUtf16CharacterStream(
+          Handle<ExternalTwoByteString>::cast(source), 0, source->length()));
+    } else if (source->IsExternalOneByteString()) {
+      stream.reset(new ExternalOneByteStringUtf16CharacterStream(
+          Handle<ExternalOneByteString>::cast(source), 0, source->length()));
+    } else {
+      stream.reset(
+          new GenericStringUtf16CharacterStream(source, 0, source->length()));
+    }
+    scanner_.Initialize(stream.get());
     result = DoParseProgram(info);
   }
   if (result != NULL) {
