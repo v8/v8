@@ -1051,17 +1051,21 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   // Initialize parser state.
   source = String::Flatten(source);
   FunctionLiteral* result;
-  if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUtf16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source),
-        shared_info->start_position(),
-        shared_info->end_position());
-    result = ParseLazy(isolate, info, &stream);
-  } else {
-    GenericStringUtf16CharacterStream stream(source,
-                                             shared_info->start_position(),
-                                             shared_info->end_position());
-    result = ParseLazy(isolate, info, &stream);
+  {
+    std::unique_ptr<Utf16CharacterStream> stream;
+    if (source->IsExternalTwoByteString()) {
+      stream.reset(new ExternalTwoByteStringUtf16CharacterStream(
+          Handle<ExternalTwoByteString>::cast(source),
+          shared_info->start_position(), shared_info->end_position()));
+    } else if (source->IsExternalOneByteString()) {
+      stream.reset(new ExternalOneByteStringUtf16CharacterStream(
+          Handle<ExternalOneByteString>::cast(source),
+          shared_info->start_position(), shared_info->end_position()));
+    } else {
+      stream.reset(new GenericStringUtf16CharacterStream(
+          source, shared_info->start_position(), shared_info->end_position()));
+    }
+    result = ParseLazy(isolate, info, stream.get());
   }
 
   if (FLAG_trace_parse && result != NULL) {
