@@ -64,6 +64,7 @@ shell_g
 /testing/gtest
 /third_party
 /third_party/icu
+/third_party/instrumented_libraries
 /third_party/llvm
 /third_party/llvm-build
 /tools/clang
