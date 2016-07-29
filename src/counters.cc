@@ -212,7 +212,10 @@ class RuntimeCallStatEntries {
     Entry("Total", total_time, total_call_count).Print(os);
   }
 
-  void Add(RuntimeCallCounter* counter) {
+  // By default, the compiler will usually inline this, which results in a large
+  // binary size increase: std::vector::push_back expands to a large amount of
+  // instructions, and this function is invoked repeatedly by macros.
+  V8_NOINLINE void Add(RuntimeCallCounter* counter) {
     if (counter->count == 0) return;
     entries.push_back(Entry(counter->name, counter->time, counter->count));
     total_time += counter->time;
