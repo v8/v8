@@ -126,6 +126,16 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
 
+#define RETURN_RESULT(isolate, call, T)           \
+  do {                                            \
+    Handle<T> __result__;                         \
+    if (!(call).ToHandle(&__result__)) {          \
+      DCHECK((isolate)->has_pending_exception()); \
+      return MaybeHandle<T>();                    \
+    }                                             \
+    return __result__;                            \
+  } while (false)
+
 #define RETURN_RESULT_OR_FAILURE(isolate, call)     \
   do {                                              \
     Handle<Object> __result__;                      \
@@ -424,6 +434,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, bytecode_and_metadata_size, 0)                                       \
   /* true if being profiled. Causes collection of extra compile info. */      \
   V(bool, is_profiling, false)                                                \
+  /* true if a trace is being formatted through Error.prepareStackTrace. */   \
+  V(bool, formatting_stack_trace, false)                                      \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \

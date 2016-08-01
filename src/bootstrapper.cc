@@ -2650,6 +2650,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     callsite_fun->shared()->DontAdaptArguments();
     callsite_fun->shared()->set_native(true);
 
+    isolate->native_context()->set_callsite_function(*callsite_fun);
+
     {
       Handle<JSObject> proto =
           factory->NewJSObject(isolate->object_function(), TENURED);

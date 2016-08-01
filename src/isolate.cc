@@ -432,6 +432,17 @@ class StackTraceHelper {
   bool encountered_strict_function_;
 };
 
+namespace {
+
+// TODO(jgruber): Fix all cases in which frames give us a hole value (e.g. the
+// receiver in RegExp constructor frames.
+Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
+  return (in->IsTheHole(isolate))
+             ? Handle<Object>::cast(isolate->factory()->undefined_value())
+             : in;
+}
+}
+
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller) {
@@ -491,7 +502,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
           Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
 
           elements = MaybeGrow(this, elements, cursor, cursor + 4);
-          elements->set(cursor++, *recv);
+          elements->set(cursor++, *TheHoleToUndefined(this, recv));
           elements->set(cursor++, *fun);
           elements->set(cursor++, *abstract_code);
           elements->set(cursor++, *offset);
@@ -966,7 +977,8 @@ Object* Isolate::StackOverflow() {
       MessageTemplate::TemplateString(MessageTemplate::kStackOverflow));
   Handle<Object> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      this, exception, ConstructError(this, fun, fun, msg, SKIP_NONE, true));
+      this, exception,
+      ErrorUtils::Construct(this, fun, fun, msg, SKIP_NONE, true));
 
   Throw(*exception, nullptr);
 

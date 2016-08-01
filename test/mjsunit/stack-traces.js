@@ -411,3 +411,15 @@ try {
 } catch (e) {
   assertEquals(undefined, e.stack);
 }
+
+// Check that a tight recursion in prepareStackTrace fails gracefully, i.e.
+// a range error is thrown and printed (but without showing the actual stack).
+
+Error.prepareStackTrace = () => Error.prepareStackTrace();
+try {
+  new Error().stack;
+} catch (e) {
+  assertTrue(
+      e.stack.indexOf("RangeError: Maximum call stack size exceeded") != -1);
+  assertTrue(e.stack.indexOf("prepareStackTrace") == -1);
+}

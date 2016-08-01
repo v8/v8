@@ -256,90 +256,6 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-
-function FormatErrorString(error) {
-  try {
-    return %_Call(ErrorToString, error);
-  } catch (e) {
-    try {
-      return "<error: " + e + ">";
-    } catch (ee) {
-      return "<error>";
-    }
-  }
-}
-
-
-function GetStackFrames(raw_stack) {
-  var internal_raw_stack = new InternalArray();
-  %MoveArrayContents(raw_stack, internal_raw_stack);
-  var frames = new InternalArray();
-  var sloppy_frames = internal_raw_stack[0];
-  for (var i = 1; i < internal_raw_stack.length; i += 4) {
-    var recv = internal_raw_stack[i];
-    var fun = internal_raw_stack[i + 1];
-    var code = internal_raw_stack[i + 2];
-    var pc = internal_raw_stack[i + 3];
-    // For traps in wasm, the bytecode offset is passed as (-1 - offset).
-    // Otherwise, lookup the position from the pc.
-    var pos = IS_NUMBER(fun) && pc < 0 ? (-1 - pc) :
-      %FunctionGetPositionForOffset(code, pc);
-    sloppy_frames--;
-    frames.push(new CallSite(recv, fun, pos, (sloppy_frames < 0)));
-  }
-  return frames;
-}
-
-
-// Flag to prevent recursive call of Error.prepareStackTrace.
-var formatting_custom_stack_trace = false;
-
-
-function FormatStackTrace(obj, raw_stack) {
-  var frames = GetStackFrames(raw_stack);
-  if (IS_FUNCTION(GlobalError.prepareStackTrace) &&
-      !formatting_custom_stack_trace) {
-    var array = [];
-    %MoveArrayContents(frames, array);
-    formatting_custom_stack_trace = true;
-    var stack_trace = UNDEFINED;
-    try {
-      stack_trace = GlobalError.prepareStackTrace(obj, array);
-    } catch (e) {
-      throw e;  // The custom formatting function threw.  Rethrow.
-    } finally {
-      formatting_custom_stack_trace = false;
-    }
-    return stack_trace;
-  }
-
-  var lines = new InternalArray();
-  lines.push(FormatErrorString(obj));
-  for (var i = 0; i < frames.length; i++) {
-    var frame = frames[i];
-    var line;
-    try {
-      line = frame.toString();
-    } catch (e) {
-      try {
-        line = "<error: " + e + ">";
-      } catch (ee) {
-        // Any code that reaches this point is seriously nasty!
-        line = "<error>";
-      }
-    }
-    lines.push("    at " + line);
-  }
-  return %_Call(ArrayJoin, lines, "\n");
-}
-
-
-function GetTypeName(receiver, requireConstructor) {
-  if (IS_NULL_OR_UNDEFINED(receiver)) return null;
-  if (IS_PROXY(receiver)) return "Proxy";
-  return %GetConstructorName(receiver);
-}
-
 function ErrorToString() {
   if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
@@ -377,7 +293,6 @@ function MakeURIError() {
 }
 
 %InstallToContext([
-  "error_format_stack_trace", FormatStackTrace,
   "get_stack_trace_line_fun", GetStackTraceLine,
   "make_error_function", MakeGenericError,
   "make_range_error", MakeRangeError,

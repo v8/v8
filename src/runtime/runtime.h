@@ -219,7 +219,6 @@ namespace internal {
   F(FunctionGetScript, 1, 1)               \
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionGetScriptSourcePosition, 1, 1) \
-  F(FunctionGetPositionForOffset, 2, 1)    \
   F(FunctionGetContextData, 1, 1)          \
   F(FunctionSetInstanceClassName, 2, 1)    \
   F(FunctionSetLength, 2, 1)               \
