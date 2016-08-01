@@ -84,8 +84,6 @@ void SloppyBlockFunctionMap::Declare(const AstRawString* name,
 Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
              FunctionKind function_kind)
     : outer_scope_(outer_scope),
-      scope_type_(scope_type),
-      function_kind_(function_kind),
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
@@ -94,6 +92,8 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                                                           ModuleDescriptor(zone)
                                                     : NULL),
       sloppy_block_function_map_(zone),
+      scope_type_(scope_type),
+      function_kind_(function_kind),
       already_resolved_(false) {
   SetDefaults();
   if (outer_scope == nullptr) {
@@ -115,15 +115,15 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
 Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
              Handle<ScopeInfo> scope_info)
     : outer_scope_(nullptr),
-      scope_type_(scope_type),
-      function_kind_(scope_info.is_null() ? kNormalFunction
-                                          : scope_info->function_kind()),
       variables_(zone),
       temps_(4, zone),
       params_(4, zone),
       decls_(4, zone),
       module_descriptor_(nullptr),
       sloppy_block_function_map_(zone),
+      scope_type_(scope_type),
+      function_kind_(scope_info.is_null() ? kNormalFunction
+                                          : scope_info->function_kind()),
       already_resolved_(true),
       scope_info_(scope_info) {
   SetDefaults();
@@ -142,18 +142,17 @@ Scope::Scope(Zone* zone, Scope* inner_scope, ScopeType scope_type,
 Scope::Scope(Zone* zone, Scope* inner_scope,
              const AstRawString* catch_variable_name)
     : outer_scope_(nullptr),
-      scope_type_(CATCH_SCOPE),
-      function_kind_(kNormalFunction),
       variables_(zone),
       temps_(0, zone),
       params_(0, zone),
       decls_(0, zone),
       module_descriptor_(nullptr),
       sloppy_block_function_map_(zone),
+      scope_type_(CATCH_SCOPE),
+      function_kind_(kNormalFunction),
       already_resolved_(true) {
   SetDefaults();
   AddInnerScope(inner_scope);
-  ++num_var_;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   Variable* variable = variables_.Declare(this,
                                           catch_variable_name,
@@ -170,7 +169,9 @@ void Scope::SetDefaults() {
   inner_scope_ = nullptr;
   sibling_ = nullptr;
   unresolved_ = nullptr;
+#ifdef DEBUG
   scope_name_ = nullptr;
+#endif
   dynamics_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -189,7 +190,6 @@ void Scope::SetDefaults() {
   scope_nonlinear_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = false;
-  num_var_ = 0;
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
@@ -327,7 +327,8 @@ Scope* Scope::FinalizeBlockScope() {
   DCHECK(temps_.is_empty());
   DCHECK(params_.is_empty());
 
-  if (num_var() > 0 || (is_declaration_scope() && calls_sloppy_eval())) {
+  if (variables_.occupancy() > 0 ||
+      (is_declaration_scope() && calls_sloppy_eval())) {
     return this;
   }
 
@@ -562,7 +563,6 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
-  ++num_var_;
   return variables_.Declare(this, name, mode, kind, init_flag,
                             maybe_assigned_flag);
 }

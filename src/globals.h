@@ -1013,7 +1013,7 @@ enum MinusZeroMode {
 
 enum Signedness { kSigned, kUnsigned };
 
-enum FunctionKind {
+enum FunctionKind : uint16_t {
   kNormalFunction = 0,
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,

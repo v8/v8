@@ -4298,7 +4298,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Parse function.
   {
     FunctionState function_state(&function_state_, &scope_state_, scope, kind);
+#ifdef DEBUG
     this->scope()->SetScopeName(function_name);
+#endif
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
 
     eager_compile_hint = function_state_->this_function_is_parenthesized()
@@ -5010,7 +5012,9 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
 
   BlockState block_state(&scope_state_);
   RaiseLanguageMode(STRICT);
+#ifdef DEBUG
   scope()->SetScopeName(name);
+#endif
 
   VariableProxy* proxy = nullptr;
   if (name != nullptr) {

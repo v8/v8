@@ -118,10 +118,12 @@ class Scope: public ZoneObject {
                                       Context* context, Scope* script_scope,
                                       AstValueFactory* ast_value_factory);
 
+#ifdef DEBUG
   // The scope name is only used for printing/debugging.
   void SetScopeName(const AstRawString* scope_name) {
     scope_name_ = scope_name;
   }
+#endif
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
@@ -519,7 +521,7 @@ class Scope: public ZoneObject {
 
   const AstRawString* catch_variable_name() const {
     DCHECK(is_catch_scope());
-    DCHECK(num_var() == 1);
+    DCHECK_EQ(1, num_var());
     return static_cast<AstRawString*>(variables_.Start()->key);
   }
 
@@ -532,9 +534,6 @@ class Scope: public ZoneObject {
   void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
                                     ZoneList<Variable*>* context_locals,
                                     ZoneList<Variable*>* context_globals);
-
-  // Current number of var locals.
-  int num_var() const { return num_var_; }
 
   // Result of variable allocation.
   int num_stack_slots() const { return num_stack_slots_; }
@@ -604,6 +603,8 @@ class Scope: public ZoneObject {
     return params_.Contains(variables_.Lookup(name));
   }
 
+  int num_var() const { return variables_.occupancy(); }
+
   SloppyBlockFunctionMap* sloppy_block_function_map() {
     return &sloppy_block_function_map_;
   }
@@ -626,13 +627,10 @@ class Scope: public ZoneObject {
   Scope* inner_scope_;  // an inner scope of this scope
   Scope* sibling_;  // a sibling inner scope of the outer scope of this scope.
 
-  // The scope type.
-  const ScopeType scope_type_;
-  // If the scope is a function scope, this is the function kind.
-  const FunctionKind function_kind_;
-
   // Debugging support.
+#ifdef DEBUG
   const AstRawString* scope_name_;
+#endif
 
   // The variables declared in this scope:
   //
@@ -669,45 +667,51 @@ class Scope: public ZoneObject {
   // Map of function names to lists of functions defined in sloppy blocks
   SloppyBlockFunctionMap sloppy_block_function_map_;
 
+  // The scope type.
+  const ScopeType scope_type_;
+  // If the scope is a function scope, this is the function kind.
+  const FunctionKind function_kind_;
+
   // Scope-specific information computed during parsing.
   //
+  // The language mode of this scope.
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  LanguageMode language_mode_ : 2;
   // This scope is inside a 'with' of some outer scope.
-  bool scope_inside_with_;
+  bool scope_inside_with_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
-  bool scope_calls_eval_;
+  bool scope_calls_eval_ : 1;
   // This scope uses "super" property ('super.foo').
-  bool scope_uses_super_property_;
+  bool scope_uses_super_property_ : 1;
   // This scope has a parameter called "arguments".
-  bool has_arguments_parameter_;
+  bool has_arguments_parameter_ : 1;
   // This scope contains an "use asm" annotation.
-  bool asm_module_;
+  bool asm_module_ : 1;
   // This scope's outer context is an asm module.
-  bool asm_function_;
+  bool asm_function_ : 1;
   // This scope's declarations might not be executed in order (e.g., switch).
-  bool scope_nonlinear_;
-  // The language mode of this scope.
-  LanguageMode language_mode_;
-  // Source positions.
-  int start_position_;
-  int end_position_;
-  bool is_hidden_;
+  bool scope_nonlinear_ : 1;
+  bool is_hidden_ : 1;
+  bool has_simple_parameters_ : 1;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_sloppy_eval_;
-  bool inner_scope_calls_eval_;
-  bool force_eager_compilation_;
-  bool force_context_allocation_;
+  bool outer_scope_calls_sloppy_eval_ : 1;
+  bool inner_scope_calls_eval_ : 1;
+  bool force_eager_compilation_ : 1;
+  bool force_context_allocation_ : 1;
 
   // True if it doesn't need scope resolution (e.g., if the scope was
   // constructed based on a serialized scope info or a catch context).
-  bool already_resolved_;
+  bool already_resolved_ : 1;
+  bool already_resolved() { return already_resolved_; }
 
   // True if it holds 'var' declarations.
-  bool is_declaration_scope_;
+  bool is_declaration_scope_ : 1;
 
-  // Computed as variables are declared.
-  int num_var_;
+  // Source positions.
+  int start_position_;
+  int end_position_;
 
   // Computed via AllocateVariables; function, block and catch scopes only.
   int num_stack_slots_;
@@ -716,13 +720,11 @@ class Scope: public ZoneObject {
 
   // Info about the parameter list of a function.
   int arity_;
-  bool has_simple_parameters_;
-  Variable* rest_parameter_;
   int rest_index_;
+  Variable* rest_parameter_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;
-  bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
