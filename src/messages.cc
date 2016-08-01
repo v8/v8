@@ -916,9 +916,10 @@ MaybeHandle<Object> CallSiteUtils::Construct(
   }
 
   if (is_wasm_object) {
-    DCHECK(fun->IsSmi());
-    DCHECK(wasm::GetNumberOfFunctions(JSObject::cast(*receiver)) >
-           Smi::cast(*fun)->value());
+    // TODO(jgruber): Convert back to DCHECK once the callsite constructor is
+    // inaccessible from JS.
+    CHECK(fun->IsSmi() && (wasm::GetNumberOfFunctions(JSObject::cast(
+                               *receiver)) > Smi::cast(*fun)->value()));
 
     SET_CALLSITE_PROPERTY(obj, call_site_wasm_obj_symbol, receiver);
     SET_CALLSITE_PROPERTY(obj, call_site_wasm_func_index_symbol, fun);
@@ -928,7 +929,10 @@ MaybeHandle<Object> CallSiteUtils::Construct(
     SET_CALLSITE_PROPERTY(obj, call_site_function_symbol, fun);
   }
 
-  DCHECK(pos->IsSmi());
+  // TODO(jgruber): Convert back to DCHECK once the callsite constructor is
+  // inaccessible from JS.
+  CHECK(pos->IsSmi());
+
   SET_CALLSITE_PROPERTY(obj, call_site_position_symbol, pos);
   SET_CALLSITE_PROPERTY(
       obj, call_site_strict_symbol,
