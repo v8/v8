@@ -48,7 +48,6 @@ shell_g
 /obj
 /out
 /out.gn
-/platform/inspector_protocol
 /perf.data
 /perf.data.old
 /test/benchmarks/data
@@ -63,10 +62,16 @@ shell_g
 /testing/gmock
 /testing/gtest
 /third_party
+/third_party/android_tools
+/third_party/cygwin
 /third_party/icu
 /third_party/instrumented_libraries
+/third_party/inspector_protocol
+/third_party/jinga2
 /third_party/llvm
 /third_party/llvm-build
+/third_party/markupsafe
+/third_party/WebKit
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
