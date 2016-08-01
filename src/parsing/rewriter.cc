@@ -13,27 +13,29 @@ namespace internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
-  Processor(Isolate* isolate, Scope* scope, Variable* result,
+  Processor(Isolate* isolate, Scope* closure_scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
         zone_(ast_value_factory->zone()),
-        scope_(scope),
+        closure_scope_(closure_scope),
         factory_(ast_value_factory) {
+    DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
     InitializeAstVisitor(isolate);
   }
 
-  Processor(Parser* parser, Scope* scope, Variable* result,
+  Processor(Parser* parser, Scope* closure_scope, Variable* result,
             AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
         zone_(ast_value_factory->zone()),
-        scope_(scope),
+        closure_scope_(closure_scope),
         factory_(ast_value_factory) {
+    DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }
 
@@ -41,7 +43,7 @@ class Processor final : public AstVisitor<Processor> {
   bool result_assigned() const { return result_assigned_; }
 
   Zone* zone() { return zone_; }
-  Scope* scope() { return scope_; }
+  Scope* closure_scope() { return closure_scope_; }
   AstNodeFactory* factory() { return &factory_; }
 
   // Returns ".result = value"
@@ -75,7 +77,7 @@ class Processor final : public AstVisitor<Processor> {
   bool is_set_;
 
   Zone* zone_;
-  Scope* scope_;
+  Scope* closure_scope_;
   AstNodeFactory factory_;
 
   // Node visitors.
@@ -223,19 +225,19 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
      // at the end again: ".backup = .result; ...; .result = .backup"
      // This is necessary because the finally block does not normally contribute
      // to the completion value.
-    CHECK(scope() != nullptr);
-    Variable* backup = scope()->NewTemporary(
-        factory()->ast_value_factory()->dot_result_string());
-    Expression* backup_proxy = factory()->NewVariableProxy(backup);
-    Expression* result_proxy = factory()->NewVariableProxy(result_);
-    Expression* save = factory()->NewAssignment(
-        Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
-    Expression* restore = factory()->NewAssignment(
-        Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
-    node->finally_block()->statements()->InsertAt(
-        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
-    node->finally_block()->statements()->Add(
-        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+     CHECK_NOT_NULL(closure_scope());
+     Variable* backup = closure_scope()->NewTemporary(
+         factory()->ast_value_factory()->dot_result_string());
+     Expression* backup_proxy = factory()->NewVariableProxy(backup);
+     Expression* result_proxy = factory()->NewVariableProxy(result_);
+     Expression* save = factory()->NewAssignment(
+         Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
+     Expression* restore = factory()->NewAssignment(
+         Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
+     node->finally_block()->statements()->InsertAt(
+         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
+     node->finally_block()->statements()->Add(
+         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
   }
   is_set_ = set_after;
   Visit(node->try_block());
@@ -333,18 +335,19 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
   FunctionLiteral* function = info->literal();
-  DCHECK(function != NULL);
+  DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
-  DCHECK(scope != NULL);
+  DCHECK_NOT_NULL(scope);
   if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
+  Scope* closure_scope = scope->ClosureScope();
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
-    Variable* result =
-        scope->NewTemporary(info->ast_value_factory()->dot_result_string());
+    Variable* result = closure_scope->NewTemporary(
+        info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
     DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), scope, result,
+    Processor processor(info->isolate(), closure_scope, result,
                         info->ast_value_factory());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
@@ -362,17 +365,18 @@ bool Rewriter::Rewrite(ParseInfo* info) {
   return true;
 }
 
-
-bool Rewriter::Rewrite(Parser* parser, DoExpression* expr,
+bool Rewriter::Rewrite(Parser* parser, Scope* closure_scope, DoExpression* expr,
                        AstValueFactory* factory) {
   Block* block = expr->block();
-  Scope* scope = block->scope();
+  DCHECK_EQ(closure_scope, closure_scope->ClosureScope());
+  DCHECK(block->scope() == nullptr ||
+         block->scope()->ClosureScope() == closure_scope);
   ZoneList<Statement*>* body = block->statements();
   VariableProxy* result = expr->result();
   Variable* result_var = result->var();
 
   if (!body->is_empty()) {
-    Processor processor(parser, scope, result_var, factory);
+    Processor processor(parser, closure_scope, result_var, factory);
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 

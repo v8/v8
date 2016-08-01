@@ -2291,9 +2291,7 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   return assignment_statement;
 }
 
-
-Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels,
-                          bool finalize_block_scope, bool* ok) {
+Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
   // The harmony mode uses block elements instead of statements.
   //
   // Block ::
@@ -2319,16 +2317,9 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels,
   }
   Expect(Token::RBRACE, CHECK_OK);
   block_scope->set_end_position(scanner()->location().end_pos);
-  if (finalize_block_scope) {
-    block_scope = block_scope->FinalizeBlockScope();
-  }
+  block_scope = block_scope->FinalizeBlockScope();
   body->set_scope(block_scope);
   return body;
-}
-
-
-Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
-  return ParseBlock(labels, true, ok);
 }
 
 
@@ -4221,13 +4212,13 @@ DoExpression* Parser::ParseDoExpression(bool* ok) {
   Expect(Token::DO, CHECK_OK);
   Variable* result =
       scope()->NewTemporary(ast_value_factory()->dot_result_string());
-  Block* block = ParseBlock(nullptr, false, CHECK_OK);
+  Block* block = ParseBlock(nullptr, CHECK_OK);
   DoExpression* expr = factory()->NewDoExpression(block, result, pos);
-  if (!Rewriter::Rewrite(this, expr, ast_value_factory())) {
+  if (!Rewriter::Rewrite(this, scope()->ClosureScope(), expr,
+                         ast_value_factory())) {
     *ok = false;
     return nullptr;
   }
-  block->set_scope(block->scope()->FinalizeBlockScope());
   return expr;
 }
 
@@ -5105,7 +5096,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   int end_pos = scanner()->location().end_pos;
 
   if (constructor == NULL) {
-    DCHECK_EQ(this->scope(), block_scope);
+    DCHECK_EQ(scope(), block_scope);
     constructor = DefaultConstructor(name, has_extends, pos, end_pos,
                                      block_scope->language_mode());
   }
@@ -5131,7 +5122,8 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   do_block->statements()->Add(
       factory()->NewExpressionStatement(class_literal, pos), zone());
   do_expr->set_represented_function(constructor);
-  Rewriter::Rewrite(this, do_expr, ast_value_factory());
+  Rewriter::Rewrite(this, scope()->ClosureScope(), do_expr,
+                    ast_value_factory());
 
   return do_expr;
 }
@@ -6640,7 +6632,7 @@ Expression* ParserTraits::RewriteYieldStar(
 
     Variable* dot_result = scope->NewTemporary(avfactory->dot_result_string());
     yield_star = factory->NewDoExpression(do_block, dot_result, nopos);
-    Rewriter::Rewrite(parser_, yield_star, avfactory);
+    Rewriter::Rewrite(parser_, scope->ClosureScope(), yield_star, avfactory);
   }
 
   return yield_star;

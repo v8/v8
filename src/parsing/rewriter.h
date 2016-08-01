@@ -12,6 +12,7 @@ class AstValueFactory;
 class DoExpression;
 class ParseInfo;
 class Parser;
+class Scope;
 
 class Rewriter {
  public:
@@ -24,8 +25,12 @@ class Rewriter {
   static bool Rewrite(ParseInfo* info);
 
   // Rewrite a list of statements, using the same rules as a top-level program,
-  // to  ensure identical behaviour of completion result.
-  static bool Rewrite(Parser* parser, DoExpression* expr,
+  // to ensure identical behaviour of completion result.  The temporary is added
+  // to the closure scope of the do-expression, which matches the closure scope
+  // of the outer scope (the do-expression itself runs in a block scope, not a
+  // closure scope). This closure scope needs to be passed in since the
+  // do-expression could have dropped its own block scope.
+  static bool Rewrite(Parser* parser, Scope* closure_scope, DoExpression* expr,
                       AstValueFactory* factory);
 };
 
