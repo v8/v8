@@ -283,6 +283,7 @@ class ParserBase : public Traits {
   class ScopeState BASE_EMBEDDED {
    public:
     V8_INLINE Scope* scope() const { return scope_; }
+    Zone* zone() const { return scope_->zone(); }
 
    protected:
     ScopeState(ScopeState** scope_stack, Scope* scope)
@@ -291,11 +292,9 @@ class ParserBase : public Traits {
     }
     ~ScopeState() { *scope_stack_ = outer_scope_; }
 
-    Zone* zone() const { return scope_->zone(); }
-
    private:
-    ScopeState** scope_stack_;
-    ScopeState* outer_scope_;
+    ScopeState** const scope_stack_;
+    ScopeState* const outer_scope_;
     Scope* scope_;
   };
 
@@ -303,6 +302,31 @@ class ParserBase : public Traits {
    public:
     BlockState(ScopeState** scope_stack, Scope* scope)
         : ScopeState(scope_stack, scope) {}
+
+    // BlockState(ScopeState**) automatically manages Scope(BLOCK_SCOPE)
+    // allocation.
+    // TODO(verwaest): Move to LazyBlockState class that only allocates the
+    // scope when needed.
+    explicit BlockState(ScopeState** scope_stack)
+        : ScopeState(scope_stack, NewScope(*scope_stack)) {}
+
+    void SetNonlinear() { this->scope()->SetNonlinear(); }
+    void set_start_position(int pos) { this->scope()->set_start_position(pos); }
+    void set_end_position(int pos) { this->scope()->set_end_position(pos); }
+    void set_is_hidden() { this->scope()->set_is_hidden(); }
+    Scope* FinalizedBlockScope() const {
+      return this->scope()->FinalizeBlockScope();
+    }
+    LanguageMode language_mode() const {
+      return this->scope()->language_mode();
+    }
+
+   private:
+    Scope* NewScope(ScopeState* outer_state) {
+      Scope* parent = outer_state->scope();
+      Zone* zone = outer_state->zone();
+      return new (zone) Scope(zone, parent, BLOCK_SCOPE, kNormalFunction);
+    }
   };
 
   struct DestructuringAssignment {

@@ -305,8 +305,7 @@ PreParser::Statement PreParser::ParseScopedStatement(bool legacy, bool* ok) {
       (legacy && allow_harmony_restrictive_declarations())) {
     return ParseSubStatement(kDisallowLabelledFunctionStatement, ok);
   } else {
-    Scope* body_scope = NewScope(BLOCK_SCOPE);
-    BlockState block_state(&scope_state_, body_scope);
+    BlockState block_state(&scope_state_);
     return ParseFunctionDeclaration(ok);
   }
 }
@@ -476,11 +475,10 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
   Expect(Token::LBRACE, CHECK_OK);
   Statement final = Statement::Default();
   {
-    BlockState block_state(&scope_state_, block_scope);
+    BlockState block_state(&scope_state_);
     while (peek() != Token::RBRACE) {
       final = ParseStatementListItem(CHECK_OK);
     }
@@ -805,9 +803,8 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  Scope* cases_scope = NewScope(BLOCK_SCOPE);
   {
-    BlockState cases_block_state(&scope_state_, cases_scope);
+    BlockState cases_block_state(&scope_state_);
     Expect(Token::LBRACE, CHECK_OK);
     Token::Value token = peek();
     while (token != Token::RBRACE) {
@@ -866,10 +863,9 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
   // Create an in-between scope for let-bound iteration variables.
-  Scope* for_scope = NewScope(BLOCK_SCOPE);
   bool has_lexical = false;
 
-  BlockState block_state(&scope_state_, for_scope);
+  BlockState block_state(&scope_state_);
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
   if (peek() != Token::SEMICOLON) {
@@ -956,9 +952,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
         }
 
         Expect(Token::RPAREN, CHECK_OK);
-        Scope* body_scope = NewScope(BLOCK_SCOPE);
         {
-          BlockState block_state(&scope_state_, body_scope);
+          BlockState block_state(&scope_state_);
           ParseScopedStatement(true, CHECK_OK);
         }
         return Statement::Default();
@@ -972,7 +967,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope();
-  if (has_lexical) inner_scope = NewScopeWithParent(for_scope, BLOCK_SCOPE);
+  // TODO(verwaest): Allocate this through a ScopeState as well.
+  if (has_lexical) inner_scope = NewScopeWithParent(inner_scope, BLOCK_SCOPE);
 
   {
     BlockState block_state(&scope_state_, inner_scope);
@@ -1050,9 +1046,8 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
           collect_tail_call_expressions_scope(
               function_state_, &tail_call_expressions_in_catch_block);
       BlockState block_state(&scope_state_, catch_scope);
-      Scope* block_scope = NewScope(BLOCK_SCOPE);
       {
-        BlockState block_state(&scope_state_, block_scope);
+        BlockState block_state(&scope_state_);
         ParseBlock(CHECK_OK);
       }
     }
@@ -1227,9 +1222,8 @@ PreParserExpression PreParser::ParseClassLiteral(
   }
 
   LanguageMode class_language_mode = language_mode();
-  Scope* scope = NewScope(BLOCK_SCOPE);
-  BlockState block_state(&scope_state_, scope);
-  this->scope()->SetLanguageMode(
+  BlockState block_state(&scope_state_);
+  scope()->SetLanguageMode(
       static_cast<LanguageMode>(class_language_mode | STRICT));
   // TODO(marja): Make PreParser use scope names too.
   // this->scope()->SetScopeName(name);

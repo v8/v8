@@ -2299,13 +2299,12 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
 
   // Construct block expecting 16 statements.
   Block* body = factory()->NewBlock(labels, 16, false, kNoSourcePosition);
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK);
-  block_scope->set_start_position(scanner()->location().beg_pos);
   {
-    BlockState block_state(&scope_state_, block_scope);
+    BlockState block_state(&scope_state_);
+    block_state.set_start_position(scanner()->location().beg_pos);
     Target target(&this->target_stack_, body);
 
     while (peek() != Token::RBRACE) {
@@ -2314,11 +2313,11 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
         body->statements()->Add(stat, zone());
       }
     }
+
+    Expect(Token::RBRACE, CHECK_OK);
+    block_state.set_end_position(scanner()->location().end_pos);
+    body->set_scope(block_state.FinalizedBlockScope());
   }
-  Expect(Token::RBRACE, CHECK_OK);
-  block_scope->set_end_position(scanner()->location().end_pos);
-  block_scope = block_scope->FinalizeBlockScope();
-  body->set_scope(block_scope);
   return body;
 }
 
@@ -2915,15 +2914,14 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
       zone());
 
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
-  Scope* cases_scope = NewScope(BLOCK_SCOPE);
-  cases_scope->SetNonlinear();
 
   SwitchStatement* switch_statement =
       factory()->NewSwitchStatement(labels, switch_pos);
 
-  cases_scope->set_start_position(scanner()->location().beg_pos);
   {
-    BlockState cases_block_state(&scope_state_, cases_scope);
+    BlockState cases_block_state(&scope_state_);
+    cases_block_state.set_start_position(scanner()->location().beg_pos);
+    cases_block_state.SetNonlinear();
     Target target(&this->target_stack_, switch_statement);
 
     Expression* tag_read = factory()->NewVariableProxy(tag_variable);
@@ -2938,12 +2936,11 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
     }
     switch_statement->Initialize(tag_read, cases);
     cases_block->statements()->Add(switch_statement, zone());
-  }
-  Expect(Token::RBRACE, CHECK_OK);
+    Expect(Token::RBRACE, CHECK_OK);
 
-  cases_scope->set_end_position(scanner()->location().end_pos);
-  cases_scope = cases_scope->FinalizeBlockScope();
-  cases_block->set_scope(cases_scope);
+    cases_block_state.set_end_position(scanner()->location().end_pos);
+    cases_block->set_scope(cases_block_state.FinalizedBlockScope());
+  }
 
   switch_block->statements()->Add(cases_block, zone());
 
@@ -3028,10 +3025,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
       // Create a block scope to hold any lexical declarations created
       // as part of destructuring the catch parameter.
-      Scope* block_scope = NewScope(BLOCK_SCOPE);
-      block_scope->set_start_position(scanner()->location().beg_pos);
       {
-        BlockState block_state(&scope_state_, block_scope);
+        BlockState block_state(&scope_state_);
+        block_state.set_start_position(scanner()->location().beg_pos);
         Target target(&this->target_stack_, catch_block);
 
         const AstRawString* name = ast_value_factory()->dot_catch_string();
@@ -3097,10 +3093,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
             return nullptr;
           }
         }
+        block_state.set_end_position(scanner()->location().end_pos);
+        catch_block->set_scope(block_state.FinalizedBlockScope());
       }
-      block_scope->set_end_position(scanner()->location().end_pos);
-      block_scope = block_scope->FinalizeBlockScope();
-      catch_block->set_scope(block_scope);
     }
 
     catch_scope->set_end_position(scanner()->location().end_pos);
@@ -3664,15 +3659,13 @@ Statement* Parser::ParseScopedStatement(ZoneList<const AstRawString*>* labels,
     }
     // Make a block around the statement for a lexical binding
     // is introduced by a FunctionDeclaration.
-    Scope* body_scope = NewScope(BLOCK_SCOPE);
-    body_scope->set_start_position(scanner()->location().beg_pos);
-    BlockState block_state(&scope_state_, body_scope);
+    BlockState block_state(&scope_state_);
+    block_state.set_start_position(scanner()->location().beg_pos);
     Block* block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
     Statement* body = ParseFunctionDeclaration(CHECK_OK);
     block->statements()->Add(body, zone());
-    body_scope->set_end_position(scanner()->location().end_pos);
-    body_scope = body_scope->FinalizeBlockScope();
-    block->set_scope(body_scope);
+    block_state.set_end_position(scanner()->location().end_pos);
+    block->set_scope(block_state.FinalizedBlockScope());
     return block;
   }
 }
@@ -3685,13 +3678,11 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   bool bound_names_are_lexical = false;
 
   // Create an in-between scope for let-bound iteration variables.
-  Scope* for_scope = NewScope(BLOCK_SCOPE);
-
-  BlockState block_state(&scope_state_, for_scope);
+  BlockState for_state(&scope_state_);
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  for_scope->set_start_position(scanner()->location().beg_pos);
-  for_scope->set_is_hidden();
+  for_state.set_start_position(scanner()->location().beg_pos);
+  for_state.set_is_hidden();
   DeclarationParsingResult parsing_result;
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST ||
@@ -3790,8 +3781,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
         Expect(Token::RPAREN, CHECK_OK);
 
-        Scope* body_scope = NewScope(BLOCK_SCOPE);
-        body_scope->set_start_position(scanner()->location().beg_pos);
 
         Block* body_block =
             factory()->NewBlock(NULL, 3, false, kNoSourcePosition);
@@ -3800,7 +3789,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         {
           ReturnExprScope no_tail_calls(function_state_,
                                         ReturnExprContext::kInsideForInOfBody);
-          BlockState block_state(&scope_state_, body_scope);
+          BlockState block_state(&scope_state_);
+          block_state.set_start_position(scanner()->location().beg_pos);
 
           Statement* body = ParseScopedStatement(NULL, true, CHECK_OK);
 
@@ -3858,10 +3848,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
               factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
           final_loop = InitializeForEachStatement(
               loop, temp_proxy, enumerable, body_block, each_keyword_position);
+          block_state.set_end_position(scanner()->location().end_pos);
+          body_block->set_scope(block_state.FinalizedBlockScope());
         }
-        body_scope->set_end_position(scanner()->location().end_pos);
-        body_scope = body_scope->FinalizeBlockScope();
-        body_block->set_scope(body_scope);
 
         // Create a TDZ for any lexically-bound names.
         if (bound_names_are_lexical) {
@@ -3883,8 +3872,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           }
         }
 
-        for_scope->set_end_position(scanner()->location().end_pos);
-        for_scope = for_scope->FinalizeBlockScope();
+        for_state.set_end_position(scanner()->location().end_pos);
+        Scope* for_scope = for_state.FinalizedBlockScope();
         // Parsed for-in loop w/ variable declarations.
         if (init_block != nullptr) {
           init_block->statements()->Add(final_loop, zone());
@@ -3947,9 +3936,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         Statement* final_loop = InitializeForEachStatement(
             loop, expression, enumerable, body, each_keyword_position);
 
-        for_scope->set_end_position(scanner()->location().end_pos);
-        for_scope = for_scope->FinalizeBlockScope();
-        DCHECK(for_scope == nullptr);
+        DCHECK_NULL(for_state.FinalizedBlockScope());
         return final_loop;
 
       } else {
@@ -3972,8 +3959,9 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   // If there are let bindings, then condition and the next statement of the
   // for loop must be parsed in a new scope.
   Scope* inner_scope = scope();
+  // TODO(verwaest): Allocate this through a ScopeState as well.
   if (bound_names_are_lexical && bound_names.length() > 0) {
-    inner_scope = NewScopeWithParent(for_scope, BLOCK_SCOPE);
+    inner_scope = NewScopeWithParent(inner_scope, BLOCK_SCOPE);
     inner_scope->set_start_position(scanner()->location().beg_pos);
   }
   {
@@ -3995,14 +3983,13 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
 
   Statement* result = NULL;
   if (bound_names_are_lexical && bound_names.length() > 0) {
-    BlockState block_state(&scope_state_, for_scope);
     result = DesugarLexicalBindingsInForStatement(
         inner_scope, parsing_result.descriptor.mode, &bound_names, loop, init,
         cond, next, body, CHECK_OK);
-    for_scope->set_end_position(scanner()->location().end_pos);
+    for_state.set_end_position(scanner()->location().end_pos);
   } else {
-    for_scope->set_end_position(scanner()->location().end_pos);
-    for_scope = for_scope->FinalizeBlockScope();
+    for_state.set_end_position(scanner()->location().end_pos);
+    Scope* for_scope = for_state.FinalizedBlockScope();
     if (for_scope) {
       // Rewrite a for statement of the form
       //   for (const x = i; c; n) b
@@ -5014,30 +5001,30 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
     ReportMessageAt(class_name_location,
                     MessageTemplate::kUnexpectedStrictReserved);
     *ok = false;
-    return NULL;
+    return nullptr;
   }
   if (IsEvalOrArguments(name)) {
     ReportMessageAt(class_name_location, MessageTemplate::kStrictEvalArguments);
     *ok = false;
-    return NULL;
+    return nullptr;
   }
 
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
-  BlockState block_state(&scope_state_, block_scope);
+  BlockState block_state(&scope_state_);
   RaiseLanguageMode(STRICT);
   scope()->SetScopeName(name);
 
-  VariableProxy* proxy = NULL;
-  if (name != NULL) {
+  VariableProxy* proxy = nullptr;
+  if (name != nullptr) {
     proxy = NewUnresolved(name, CONST);
-    Declaration* declaration =
-        factory()->NewVariableDeclaration(proxy, CONST, block_scope, pos);
+    // TODO(verwaest): declare via block_state.
+    Declaration* declaration = factory()->NewVariableDeclaration(
+        proxy, CONST, block_state.scope(), pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   }
 
-  Expression* extends = NULL;
+  Expression* extends = nullptr;
   if (Check(Token::EXTENDS)) {
-    block_scope->set_start_position(scanner()->location().end_pos);
+    block_state.set_start_position(scanner()->location().end_pos);
     ExpressionClassifier extends_classifier(this);
     extends = ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
     CheckNoTailCallExpressions(&extends_classifier, CHECK_OK);
@@ -5047,13 +5034,13 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
                              ExpressionClassifier::ExpressionProductions);
     }
   } else {
-    block_scope->set_start_position(scanner()->location().end_pos);
+    block_state.set_start_position(scanner()->location().end_pos);
   }
 
 
   ClassLiteralChecker checker(this);
   ZoneList<ObjectLiteral::Property*>* properties = NewPropertyList(4, zone());
-  FunctionLiteral* constructor = NULL;
+  FunctionLiteral* constructor = nullptr;
   bool has_seen_constructor = false;
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -5076,7 +5063,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
                              ExpressionClassifier::ExpressionProductions);
     }
 
-    if (has_seen_constructor && constructor == NULL) {
+    if (has_seen_constructor && constructor == nullptr) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
       DCHECK_NOT_NULL(constructor);
       constructor->set_raw_name(
@@ -5085,7 +5072,7 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
       properties->Add(property, zone());
     }
 
-    if (fni_ != NULL) fni_->Infer();
+    if (fni_ != nullptr) fni_->Infer();
 
     if (property_name != ast_value_factory()->constructor_string()) {
       SetFunctionNameFromPropertyName(property, property_name);
@@ -5095,25 +5082,24 @@ Expression* Parser::ParseClassLiteral(ExpressionClassifier* classifier,
   Expect(Token::RBRACE, CHECK_OK);
   int end_pos = scanner()->location().end_pos;
 
-  if (constructor == NULL) {
-    DCHECK_EQ(scope(), block_scope);
+  if (constructor == nullptr) {
     constructor = DefaultConstructor(name, has_extends, pos, end_pos,
-                                     block_scope->language_mode());
+                                     block_state.language_mode());
   }
 
   // Note that we do not finalize this block scope because it is
   // used as a sentinel value indicating an anonymous class.
-  block_scope->set_end_position(end_pos);
+  block_state.set_end_position(end_pos);
 
-  if (name != NULL) {
+  if (name != nullptr) {
     DCHECK_NOT_NULL(proxy);
     proxy->var()->set_initializer_position(end_pos);
   }
 
   Block* do_block = factory()->NewBlock(nullptr, 1, false, pos);
-  do_block->set_scope(block_scope);
   Variable* result_var =
-      block_scope->NewTemporary(ast_value_factory()->empty_string());
+      scope()->NewTemporary(ast_value_factory()->empty_string());
+  do_block->set_scope(block_state.FinalizedBlockScope());
   DoExpression* do_expr = factory()->NewDoExpression(do_block, result_var, pos);
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
