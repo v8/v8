@@ -886,48 +886,30 @@ void IncrementalMarking::MarkObject(Heap* heap, HeapObject* obj) {
   }
 }
 
-
-intptr_t IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
+intptr_t IncrementalMarking::ProcessMarkingDeque(
+    intptr_t bytes_to_process, ForceCompletionAction completion) {
   intptr_t bytes_processed = 0;
-  Map* one_pointer_filler_map = heap_->one_pointer_filler_map();
-  Map* two_pointer_filler_map = heap_->two_pointer_filler_map();
   MarkingDeque* marking_deque =
       heap_->mark_compact_collector()->marking_deque();
-  while (!marking_deque->IsEmpty() && bytes_processed < bytes_to_process) {
+  while (!marking_deque->IsEmpty() && (bytes_processed < bytes_to_process ||
+                                       completion == FORCE_COMPLETION)) {
     HeapObject* obj = marking_deque->Pop();
 
-    // Explicitly skip one and two word fillers. Incremental markbit patterns
-    // are correct only for objects that occupy at least two words.
-    // Moreover, slots filtering for left-trimmed arrays works only when
-    // the distance between the old array start and the new array start
-    // is greater than two if both starts are marked.
-    Map* map = obj->map();
-    if (map == one_pointer_filler_map || map == two_pointer_filler_map)
+    // Left trimming may result in white filler objects on the marking deque.
+    // Ignore these objects.
+    if (obj->IsFiller()) {
+      DCHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(obj)) ||
+             Marking::IsWhite(ObjectMarking::MarkBitFrom(obj)));
       continue;
+    }
 
+    Map* map = obj->map();
     int size = obj->SizeFromMap(map);
     unscanned_bytes_of_large_object_ = 0;
     VisitObject(map, obj, size);
     bytes_processed += size - unscanned_bytes_of_large_object_;
   }
   return bytes_processed;
-}
-
-
-void IncrementalMarking::ProcessMarkingDeque() {
-  Map* filler_map = heap_->one_pointer_filler_map();
-  MarkingDeque* marking_deque =
-      heap_->mark_compact_collector()->marking_deque();
-  while (!marking_deque->IsEmpty()) {
-    HeapObject* obj = marking_deque->Pop();
-
-    // Explicitly skip one word fillers. Incremental markbit patterns are
-    // correct only for objects that occupy at least two words.
-    Map* map = obj->map();
-    if (map == filler_map) continue;
-
-    VisitObject(map, obj, obj->SizeFromMap(map));
-  }
 }
 
 
@@ -947,7 +929,7 @@ void IncrementalMarking::Hurry() {
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
-    ProcessMarkingDeque();
+    ProcessMarkingDeque(0, FORCE_COMPLETION);
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       double end = heap_->MonotonicallyIncreasingTimeInMs();

@@ -291,7 +291,9 @@ class IncrementalMarking {
 
   INLINE(void ProcessMarkingDeque());
 
-  INLINE(intptr_t ProcessMarkingDeque(intptr_t bytes_to_process));
+  INLINE(intptr_t ProcessMarkingDeque(
+      intptr_t bytes_to_process,
+      ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION));
 
   INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
 
