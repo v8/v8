@@ -43,6 +43,10 @@ class TestWithContext : public virtual TestWithIsolate {
 
   const Local<Context>& context() const { return context_; }
 
+  v8::internal::Isolate* i_isolate() const {
+    return reinterpret_cast<v8::internal::Isolate*>(isolate());
+  }
+
  private:
   Local<Context> context_;
   Context::Scope context_scope_;

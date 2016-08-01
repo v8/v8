@@ -33,6 +33,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
 
 CompilerDispatcherJob::~CompilerDispatcherJob() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status_ == CompileJobStatus::kInitial ||
+         status_ == CompileJobStatus::kDone);
   i::GlobalHandles::Destroy(Handle<Object>::cast(function_).location());
 }
 
@@ -46,19 +48,20 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   Handle<Script> script(Script::cast(shared->script()), isolate_);
   Handle<String> source(String::cast(script->source()), isolate_);
   if (source->IsExternalTwoByteString()) {
-    can_parse_on_background_thread_ = true;
     character_stream_.reset(new ExternalTwoByteStringUtf16CharacterStream(
         Handle<ExternalTwoByteString>::cast(source), shared->start_position(),
         shared->end_position()));
   } else if (source->IsExternalOneByteString()) {
-    can_parse_on_background_thread_ = true;
     character_stream_.reset(new ExternalOneByteStringUtf16CharacterStream(
         Handle<ExternalOneByteString>::cast(source), shared->start_position(),
         shared->end_position()));
   } else {
-    can_parse_on_background_thread_ = false;
+    source = String::Flatten(source);
+    // Have to globalize the reference here, so it survives between function
+    // calls.
+    source_ = Handle<String>::cast(isolate_->global_handles()->Create(*source));
     character_stream_.reset(new GenericStringUtf16CharacterStream(
-        source, shared->start_position(), shared->end_position()));
+        source_, shared->start_position(), shared->end_position()));
   }
   parse_info_.reset(new ParseInfo(zone_.get()));
   parse_info_->set_isolate(isolate_);
@@ -76,7 +79,12 @@ void CompilerDispatcherJob::Parse() {
 
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
+  std::unique_ptr<DisallowHandleDereference> no_deref;
+  // If we can't parse on a background thread, we need to be able to deref the
+  // source string.
+  if (can_parse_on_background_thread_) {
+    no_deref.reset(new DisallowHandleDereference());
+  }
 
   // Nullify the Isolate temporarily so that the parser doesn't accidentally
   // use it.
@@ -91,6 +99,76 @@ void CompilerDispatcherJob::Parse() {
   parse_info_->set_isolate(isolate_);
 
   status_ = CompileJobStatus::kParsed;
+}
+
+void CompilerDispatcherJob::FinalizeParsingOnMainThread() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status() == CompileJobStatus::kParsed);
+
+  if (!source_.is_null()) {
+    i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
+    source_ = Handle<String>::null();
+  }
+
+  if (parse_info_->literal() == nullptr) {
+    status_ = CompileJobStatus::kFailed;
+    return;
+  }
+
+  InternalizeParsingResult();
+
+  status_ = CompileJobStatus::kReadyToCompile;
+}
+
+void CompilerDispatcherJob::ReportErrorsOnMainThread() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status() == CompileJobStatus::kFailed);
+
+  // Internalizing the parsing result will throw the error.
+  InternalizeParsingResult();
+
+  status_ = CompileJobStatus::kDone;
+}
+
+void CompilerDispatcherJob::ResetOnMainThread() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+
+  parser_.reset();
+  unicode_cache_.reset();
+  character_stream_.reset();
+  parse_info_.reset();
+  zone_.reset();
+
+  if (!source_.is_null()) {
+    i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
+    source_ = Handle<String>::null();
+  }
+
+  status_ = CompileJobStatus::kInitial;
+}
+
+void CompilerDispatcherJob::InternalizeParsingResult() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK(status() == CompileJobStatus::kParsed ||
+         status() == CompileJobStatus::kFailed);
+
+  HandleScope scope(isolate_);
+  Handle<SharedFunctionInfo> shared(function_->shared(), isolate_);
+  Handle<Script> script(Script::cast(shared->script()), isolate_);
+
+  parse_info_->set_script(script);
+  parse_info_->set_context(handle(function_->context(), isolate_));
+
+  // Do the parsing tasks which need to be done on the main thread. This will
+  // also handle parse errors.
+  parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
+  parser_->HandleSourceURLComments(isolate_, script);
+
+  parse_info_->set_character_stream(nullptr);
+  parse_info_->set_unicode_cache(nullptr);
+  parser_.reset();
+  unicode_cache_.reset();
+  character_stream_.reset();
 }
 
 }  // namespace internal

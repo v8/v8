@@ -18,6 +18,7 @@ class Isolate;
 class JSFunction;
 class ParseInfo;
 class Parser;
+class String;
 class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
@@ -26,6 +27,9 @@ enum class CompileJobStatus {
   kInitial,
   kReadyToParse,
   kParsed,
+  kReadyToCompile,
+  kFailed,
+  kDone,
 };
 
 class CompilerDispatcherJob {
@@ -45,10 +49,22 @@ class CompilerDispatcherJob {
   // Transition from kReadyToParse to kParsed.
   void Parse();
 
+  // Transition from kParsed to kReadyToCompile (or kFailed).
+  void FinalizeParsingOnMainThread();
+
+  // Transition from kFailed to kDone.
+  void ReportErrorsOnMainThread();
+
+  // Transition from any state to kInitial and free all resources.
+  void ResetOnMainThread();
+
  private:
+  void InternalizeParsingResult();
+
   CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
   Handle<JSFunction> function_;  // Global handle.
+  Handle<String> source_;        // Global handle.
   size_t max_stack_size_;
 
   // Members required for parsing.

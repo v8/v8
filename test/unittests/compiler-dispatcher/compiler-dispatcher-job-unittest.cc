@@ -49,6 +49,7 @@ Handle<JSFunction> CreateFunction(
       isolate->factory()->NewStringFromStaticChars("f"), MaybeHandle<Code>(),
       false);
   SharedFunctionInfo::SetScript(shared, script);
+  shared->set_end_position(source->length() - 1);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, handle(isolate->context(), isolate));
@@ -58,36 +59,53 @@ Handle<JSFunction> CreateFunction(
 }  // namespace
 
 TEST_F(CompilerDispatcherJobTest, Construct) {
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate, CreateFunction(i_isolate, nullptr), FLAG_stack_size));
+      i_isolate(), CreateFunction(i_isolate(), nullptr), FLAG_stack_size));
 }
 
 TEST_F(CompilerDispatcherJobTest, CanParseOnBackgroundThread) {
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
   {
     std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-        i_isolate, CreateFunction(i_isolate, nullptr), FLAG_stack_size));
+        i_isolate(), CreateFunction(i_isolate(), nullptr), FLAG_stack_size));
     ASSERT_FALSE(job->can_parse_on_background_thread());
   }
   {
     ScriptResource script("script", strlen("script"));
     std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-        i_isolate, CreateFunction(i_isolate, &script), FLAG_stack_size));
+        i_isolate(), CreateFunction(i_isolate(), &script), FLAG_stack_size));
     ASSERT_TRUE(job->can_parse_on_background_thread());
   }
 }
 
 TEST_F(CompilerDispatcherJobTest, StateTransitions) {
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate());
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      i_isolate, CreateFunction(i_isolate, nullptr), FLAG_stack_size));
+      i_isolate(), CreateFunction(i_isolate(), nullptr), FLAG_stack_size));
 
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
   job->PrepareToParseOnMainThread();
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToParse);
   job->Parse();
   ASSERT_TRUE(job->status() == CompileJobStatus::kParsed);
+  job->FinalizeParsingOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
+  job->ResetOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
+}
+
+TEST_F(CompilerDispatcherJobTest, SyntaxError) {
+  ScriptResource script("^^^", strlen("^^^"));
+  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
+      i_isolate(), CreateFunction(i_isolate(), &script), FLAG_stack_size));
+
+  job->PrepareToParseOnMainThread();
+  job->Parse();
+  job->FinalizeParsingOnMainThread();
+
+  ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
+  ASSERT_FALSE(i_isolate()->has_pending_exception());
+  job->ReportErrorsOnMainThread();
+  ASSERT_TRUE(job->status() == CompileJobStatus::kDone);
+  ASSERT_TRUE(i_isolate()->has_pending_exception());
 }
 
 }  // namespace internal
