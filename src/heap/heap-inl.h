@@ -438,6 +438,9 @@ void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
   }
 }
 
+Address* Heap::store_buffer_top_address() {
+  return store_buffer()->top_address();
+}
 
 bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:

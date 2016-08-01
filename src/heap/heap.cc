@@ -137,7 +137,7 @@ Heap::Heap()
       scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
       memory_allocator_(nullptr),
-      store_buffer_(this),
+      store_buffer_(nullptr),
       incremental_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
@@ -5281,6 +5281,9 @@ bool Heap::SetUp() {
                                 code_range_size_))
     return false;
 
+  // Initialize store buffer.
+  store_buffer_ = new StoreBuffer(this);
+
   // Initialize incremental marking.
   incremental_marking_ = new IncrementalMarking(this);
 
@@ -5553,6 +5556,9 @@ void Heap::TearDown() {
     delete list;
   }
   strong_roots_list_ = NULL;
+
+  delete store_buffer_;
+  store_buffer_ = nullptr;
 
   delete memory_allocator_;
   memory_allocator_ = nullptr;

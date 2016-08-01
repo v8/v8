@@ -16,9 +16,8 @@
 #include "src/base/atomic-utils.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-// TODO(mstarzinger): Two more includes to kill!
+// TODO(mstarzinger): One more include to kill!
 #include "src/heap/spaces.h"
-#include "src/heap/store-buffer.h"
 #include "src/list.h"
 
 namespace v8 {
@@ -326,6 +325,7 @@ class MemoryReducer;
 class ObjectStats;
 class Scavenger;
 class ScavengeJob;
+class StoreBuffer;
 class WeakObjectRetainer;
 
 enum PromotionMode { PROMOTE_MARKED, DEFAULT_PROMOTION };
@@ -1128,7 +1128,7 @@ class Heap {
   inline void RecordFixedArrayElements(FixedArray* array, int offset,
                                        int length);
 
-  Address* store_buffer_top_address() { return store_buffer()->top_address(); }
+  inline Address* store_buffer_top_address();
 
   void ClearRecordedSlot(HeapObject* object, Object** slot);
   void ClearRecordedSlotRange(Address start, Address end);
@@ -1551,7 +1551,7 @@ class Heap {
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  StoreBuffer* store_buffer() { return &store_buffer_; }
+  StoreBuffer* store_buffer() { return store_buffer_; }
 
   void set_current_gc_flags(int flags) {
     current_gc_flags_ = flags;
@@ -2193,7 +2193,7 @@ class Heap {
 
   MemoryAllocator* memory_allocator_;
 
-  StoreBuffer store_buffer_;
+  StoreBuffer* store_buffer_;
 
   IncrementalMarking* incremental_marking_;
 
