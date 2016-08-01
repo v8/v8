@@ -57,7 +57,7 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'gyp_release_x64_asan',
       'V8 Linux64 TSAN': 'gyp_release_x64_tsan',
-      'V8 Linux - arm64 - sim - MSAN': 'gyp_release_simulate_arm64_msan',
+      'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
       'V8 Linux64 ASAN no inline - release builder':
           'gyp_release_x64_asan_symbolized_edge_verify_heap',
@@ -154,7 +154,7 @@
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
       'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
-      'v8_linux64_msan_rel': 'gyp_release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux64_msan_rel': 'gn_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'gyp_release_x64_asan_minimal_symbols_coverage',
       'v8_linux64_tsan_rel': 'gyp_release_x64_tsan_minimal_symbols',
@@ -212,6 +212,11 @@
     # GN release configs for simulators.
     'gn_release_simulate_arm64': [
       'gn', 'release_bot', 'simulate_arm64', 'swarming'],
+    'gn_release_simulate_arm64_msan': [
+      'gn', 'release_bot', 'simulate_arm64', 'msan', 'swarming'],
+    'gn_release_simulate_arm64_msan_minimal_symbols': [
+      'gn', 'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols',
+      'swarming'],
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
 
@@ -322,11 +327,6 @@
       'gyp', 'release_bot', 'simulate_arm', 'swarming'],
     'gyp_release_simulate_arm_trybot': [
       'gyp', 'release_trybot', 'simulate_arm', 'swarming'],
-    'gyp_release_simulate_arm64_msan': [
-      'gyp', 'release_bot', 'simulate_arm64', 'msan', 'swarming'],
-    'gyp_release_simulate_arm64_msan_minimal_symbols': [
-      'gyp', 'release_bot', 'simulate_arm64', 'msan', 'minimal_symbols',
-      'swarming'],
     'gyp_release_simulate_mipsel': [
       'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
     'gyp_release_simulate_mips64el': [
