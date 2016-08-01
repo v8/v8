@@ -89,8 +89,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
 
-  Node* EmptyFrameState();
-
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

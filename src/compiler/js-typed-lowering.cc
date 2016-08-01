@@ -2125,14 +2125,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
   return NoChange();
 }
 
-Node* JSTypedLowering::EmptyFrameState() {
-  return graph()->NewNode(
-      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           nullptr),
-      jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
-      jsgraph()->EmptyStateValues(), jsgraph()->NoContextConstant(),
-      jsgraph()->UndefinedConstant(), graph()->start());
-}
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 
