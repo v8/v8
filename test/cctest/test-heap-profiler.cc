@@ -493,6 +493,16 @@ void CheckSimdSnapshot(const char* program, const char* var_name) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   CompileRun(program);
+  // The TakeHeapSnapshot function does not do enough GCs to ensure
+  // that all garbage is collected. We perform addition GC here
+  // to reclaim a floating AllocationSite and to fix the following failure:
+  // # Check failed: ValidateSnapshot(snapshot).
+  // Stdout:
+  //     28 @ 13523   entry with no retainer: /hidden/ system / AllocationSite
+  //     44 @   767    $map: /hidden/ system / Map
+  //     44 @    59      $map: /hidden/ system / Map
+  CcTest::heap()->CollectAllGarbage();
+
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);

@@ -986,8 +986,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
   void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
-      intptr_t index =
-          static_cast<intptr_t>(p - HeapObject::RawField(parent_obj_, 0));
+      int index = static_cast<int>(p - HeapObject::RawField(parent_obj_, 0));
       ++next_index_;
       // |p| could be outside of the object, e.g., while visiting RelocInfo of
       // code objects.
@@ -995,7 +994,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         generator_->marks_[index] = false;
         continue;
       }
-      generator_->SetHiddenReference(parent_obj_, parent_, next_index_, *p);
+      generator_->SetHiddenReference(parent_obj_, parent_, next_index_, *p,
+                                     index * kPointerSize);
     }
   }
 
@@ -1835,6 +1835,16 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
          object != heap_->two_pointer_filler_map();
 }
 
+bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
+                                                int field_offset) {
+  if (parent->IsAllocationSite() &&
+      field_offset == AllocationSite::kWeakNextOffset)
+    return false;
+  // TODO(ulan): JSFunction, Code, and Context also have next weak link, which
+  // is non-essential. Currently they are handled as normal weak links.
+  // Move them here.
+  return true;
+}
 
 void V8HeapExplorer::SetContextReference(HeapObject* parent_obj,
                                          int parent_entry,
@@ -1926,14 +1936,13 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
   MarkVisitedField(parent_obj, field_offset);
 }
 
-
 void V8HeapExplorer::SetHiddenReference(HeapObject* parent_obj,
-                                        int parent_entry,
-                                        int index,
-                                        Object* child_obj) {
+                                        int parent_entry, int index,
+                                        Object* child_obj, int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL && IsEssentialObject(child_obj)) {
+  if (child_entry != NULL && IsEssentialObject(child_obj) &&
+      IsEssentialHiddenReference(parent_obj, field_offset)) {
     filler_->SetIndexedReference(HeapGraphEdge::kHidden,
                                  parent_entry,
                                  index,

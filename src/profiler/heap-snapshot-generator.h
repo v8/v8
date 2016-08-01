@@ -396,6 +396,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractInternalReferences(JSObject* js_obj, int entry);
 
   bool IsEssentialObject(Object* object);
+  bool IsEssentialHiddenReference(Object* parent, int field_offset);
+
   void SetContextReference(HeapObject* parent_obj,
                            int parent,
                            String* reference_name,
@@ -419,10 +421,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             int index,
                             Object* child,
                             int field_offset = -1);
-  void SetHiddenReference(HeapObject* parent_obj,
-                          int parent,
-                          int index,
-                          Object* child);
+  void SetHiddenReference(HeapObject* parent_obj, int parent, int index,
+                          Object* child, int field_offset);
   void SetWeakReference(HeapObject* parent_obj,
                         int parent,
                         const char* reference_name,
