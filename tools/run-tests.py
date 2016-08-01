@@ -71,6 +71,7 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
+    "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/default.isolate.
   "default": [
@@ -81,6 +82,7 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
+    "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/ignition.isolate.
   "ignition": [

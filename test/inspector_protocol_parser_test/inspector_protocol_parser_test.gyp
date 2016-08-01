@@ -26,4 +26,24 @@
       ]
     },
   ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'inspector_protocol_parser_test_run',
+          'type': 'none',
+          'dependencies': [
+            'inspector_protocol_parser_test',
+          ],
+          'includes': [
+            '../../gypfiles/features.gypi',
+            '../../gypfiles/isolate.gypi',
+          ],
+          'sources': [
+            'inspector_protocol_parser_test.isolate',
+          ],
+        },
+      ],
+    }],
+  ],
 }

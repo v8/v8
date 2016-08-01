@@ -12,6 +12,7 @@
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
             'fuzzer/fuzzer.gyp:fuzzer_run',
+            'inspector_protocol_parser_test/inspector_protocol_parser_test.gyp:inspector_protocol_parser_test_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',

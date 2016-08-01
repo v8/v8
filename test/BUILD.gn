@@ -44,6 +44,7 @@ group("default_tests") {
     deps = [
       ":cctest_run",
       ":fuzzer_run",
+      ":inspector_protocol_parser_test_run",
       ":intl_run",
       ":message_run",
       ":mjsunit_run",
@@ -137,6 +138,14 @@ v8_isolate_run("fuzzer") {
   ]
 
   isolate = "fuzzer/fuzzer.isolate"
+}
+
+v8_isolate_run("inspector_protocol_parser_test") {
+  deps = [
+    "inspector_protocol_parser_test:inspector_protocol_parser_test",
+  ]
+
+  isolate = "inspector_protocol_parser_test/inspector_protocol_parser_test.isolate"
 }
 
 v8_isolate_run("intl") {
