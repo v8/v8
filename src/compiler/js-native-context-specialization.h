@@ -41,8 +41,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kBailoutOnUninitialized = 1u << 0,
-    kDeoptimizationEnabled = 1u << 1,
+    kAccessorInliningEnabled = 1u << 0,
+    kBailoutOnUninitialized = 1u << 1,
+    kDeoptimizationEnabled = 1u << 2,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -100,6 +101,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   // Construct the appropriate subgraph for property access.
   ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
+                                         Node* context, Node* frame_state,
                                          Node* effect, Node* control,
                                          Handle<Name> name,
                                          Handle<Context> native_context,

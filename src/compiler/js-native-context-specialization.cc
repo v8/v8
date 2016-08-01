@@ -110,6 +110,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state_eager = NodeProperties::FindFrameStateBefore(node);
+  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -127,6 +130,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (!access_info_factory.ComputePropertyAccessInfos(
           receiver_maps, name, access_mode, &access_infos)) {
     return NoChange();
+  }
+
+  // TODO(turbofan): Add support for inlining into try blocks.
+  if (NodeProperties::IsExceptionalCall(node) ||
+      !(flags() & kAccessorInliningEnabled)) {
+    for (auto access_info : access_infos) {
+      if (access_info.IsAccessorConstant()) return NoChange();
+    }
   }
 
   // Nothing to do if we have no non-deprecated maps.
@@ -162,9 +173,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     }
 
     // Generate the actual property access.
-    ValueEffectControl continuation =
-        BuildPropertyAccess(receiver, value, effect, control, name,
-                            native_context, access_info, access_mode);
+    ValueEffectControl continuation = BuildPropertyAccess(
+        receiver, value, context, frame_state_lazy, effect, control, name,
+        native_context, access_info, access_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -250,26 +261,32 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           receiverissmi_effect = receiverissmi_control = nullptr;
         }
 
-        // Create dominating Merge+EffectPhi for this {receiver} type.
+        // Create single chokepoint for the control.
         int const this_control_count = static_cast<int>(this_controls.size());
-        this_control =
-            (this_control_count == 1)
-                ? this_controls.front()
-                : graph()->NewNode(common()->Merge(this_control_count),
-                                   this_control_count, &this_controls.front());
-        this_effects.push_back(this_control);
-        int const this_effect_count = static_cast<int>(this_effects.size());
-        this_effect =
-            (this_control_count == 1)
-                ? this_effects.front()
-                : graph()->NewNode(common()->EffectPhi(this_control_count),
-                                   this_effect_count, &this_effects.front());
+        if (this_control_count == 1) {
+          this_control = this_controls.front();
+          this_effect = this_effects.front();
+        } else {
+          this_control =
+              graph()->NewNode(common()->Merge(this_control_count),
+                               this_control_count, &this_controls.front());
+          this_effects.push_back(this_control);
+          this_effect =
+              graph()->NewNode(common()->EffectPhi(this_control_count),
+                               this_control_count + 1, &this_effects.front());
+
+          // TODO(turbofan): The effect/control linearization will not find a
+          // FrameState after the EffectPhi that is generated above.
+          this_effect =
+              graph()->NewNode(common()->Checkpoint(), frame_state_eager,
+                               this_effect, this_control);
+        }
       }
 
       // Generate the actual property access.
       ValueEffectControl continuation = BuildPropertyAccess(
-          this_receiver, this_value, this_effect, this_control, name,
-          native_context, access_info, access_mode);
+          this_receiver, this_value, context, frame_state_lazy, this_effect,
+          this_control, name, native_context, access_info, access_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -555,10 +572,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                this_control_count + 1, &this_effects.front());
 
           // TODO(turbofan): The effect/control linearization will not find a
-          // FrameState after the StoreField or Call that is generated for the
-          // elements kind transition above. This is because those operators
-          // don't have the kNoWrite flag on it, even though they are not
-          // observable by JavaScript.
+          // FrameState after the EffectPhi that is generated above.
           this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
                                          this_effect, this_control);
         }
@@ -734,9 +748,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
-    Node* receiver, Node* value, Node* effect, Node* control, Handle<Name> name,
-    Handle<Context> native_context, PropertyAccessInfo const& access_info,
-    AccessMode access_mode) {
+    Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
+    Node* control, Handle<Name> name, Handle<Context> native_context,
+    PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -754,6 +768,58 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           simplified()->ReferenceEqual(Type::Tagged()), value, value);
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    }
+  } else if (access_info.IsAccessorConstant()) {
+    // TODO(bmeurer): Properly rewire the IfException edge here if there's any.
+    Node* target = jsgraph()->Constant(access_info.constant());
+    FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
+    Handle<SharedFunctionInfo> shared_info =
+        frame_info.shared_info().ToHandleChecked();
+    switch (access_mode) {
+      case AccessMode::kLoad: {
+        // We need a FrameState for the getter stub to restore the correct
+        // context before returning to fullcodegen.
+        FrameStateFunctionInfo const* frame_info0 =
+            common()->CreateFrameStateFunctionInfo(FrameStateType::kGetterStub,
+                                                   1, 0, shared_info);
+        Node* frame_state0 = graph()->NewNode(
+            common()->FrameState(BailoutId::None(),
+                                 OutputFrameStateCombine::Ignore(),
+                                 frame_info0),
+            graph()->NewNode(common()->StateValues(1), receiver),
+            jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
+            context, target, frame_state);
+
+        // Introduce the call to the getter function.
+        value = effect = graph()->NewNode(
+            javascript()->CallFunction(
+                2, VectorSlotPair(), ConvertReceiverMode::kNotNullOrUndefined),
+            target, receiver, context, frame_state0, effect, control);
+        control = graph()->NewNode(common()->IfSuccess(), value);
+        break;
+      }
+      case AccessMode::kStore: {
+        // We need a FrameState for the setter stub to restore the correct
+        // context and return the appropriate value to fullcodegen.
+        FrameStateFunctionInfo const* frame_info0 =
+            common()->CreateFrameStateFunctionInfo(FrameStateType::kSetterStub,
+                                                   2, 0, shared_info);
+        Node* frame_state0 = graph()->NewNode(
+            common()->FrameState(BailoutId::None(),
+                                 OutputFrameStateCombine::Ignore(),
+                                 frame_info0),
+            graph()->NewNode(common()->StateValues(2), receiver, value),
+            jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
+            context, target, frame_state);
+
+        // Introduce the call to the setter function.
+        effect = graph()->NewNode(
+            javascript()->CallFunction(
+                3, VectorSlotPair(), ConvertReceiverMode::kNotNullOrUndefined),
+            target, receiver, value, context, frame_state0, effect, control);
+        control = graph()->NewNode(common()->IfSuccess(), effect);
+        break;
+      }
     }
   } else {
     DCHECK(access_info.IsDataField());

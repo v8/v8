@@ -372,6 +372,7 @@ Handle<JSFunction> InstallGetter(Handle<JSObject> target,
   Handle<Object> setter = target->GetIsolate()->factory()->undefined_value();
   JSObject::DefineAccessor(target, property_name, getter, setter, attributes)
       .Check();
+  getter->shared()->set_native(true);
   return getter;
 }
 

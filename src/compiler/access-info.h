@@ -55,7 +55,13 @@ class ElementAccessInfo final {
 // object property, either on the object itself or on the prototype chain.
 class PropertyAccessInfo final {
  public:
-  enum Kind { kInvalid, kNotFound, kDataConstant, kDataField };
+  enum Kind {
+    kInvalid,
+    kNotFound,
+    kDataConstant,
+    kDataField,
+    kAccessorConstant
+  };
 
   static PropertyAccessInfo NotFound(MapList const& receiver_maps,
                                      MaybeHandle<JSObject> holder);
@@ -66,6 +72,9 @@ class PropertyAccessInfo final {
       MapList const& receiver_maps, FieldIndex field_index, Type* field_type,
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
+  static PropertyAccessInfo AccessorConstant(MapList const& receiver_maps,
+                                             Handle<Object> constant,
+                                             MaybeHandle<JSObject> holder);
 
   PropertyAccessInfo();
 
@@ -74,6 +83,7 @@ class PropertyAccessInfo final {
   bool IsNotFound() const { return kind() == kNotFound; }
   bool IsDataConstant() const { return kind() == kDataConstant; }
   bool IsDataField() const { return kind() == kDataField; }
+  bool IsAccessorConstant() const { return kind() == kAccessorConstant; }
 
   bool HasTransitionMap() const { return !transition_map().is_null(); }
 
@@ -88,8 +98,8 @@ class PropertyAccessInfo final {
  private:
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MapList const& receiver_maps);
-  PropertyAccessInfo(MaybeHandle<JSObject> holder, Handle<Object> constant,
-                     MapList const& receiver_maps);
+  PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
+                     Handle<Object> constant, MapList const& receiver_maps);
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
                      Type* field_type, MapList const& receiver_maps);

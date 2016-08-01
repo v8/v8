@@ -606,6 +606,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::CreateGraphImpl() {
     info()->MarkAsDeoptimizationEnabled();
   }
   if (!info()->is_optimizing_from_bytecode()) {
+    if (FLAG_inline_accessors) {
+      info()->MarkAsAccessorInliningEnabled();
+    }
     if (info()->is_deoptimization_enabled() && FLAG_turbo_type_feedback) {
       info()->MarkAsTypeFeedbackEnabled();
     }
@@ -796,6 +799,9 @@ struct InliningPhase {
         data->info()->dependencies());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
+    if (data->info()->is_accessor_inlining_enabled()) {
+      flags |= JSNativeContextSpecialization::kAccessorInliningEnabled;
+    }
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
     }

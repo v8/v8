@@ -75,7 +75,7 @@ PropertyAccessInfo PropertyAccessInfo::NotFound(MapList const& receiver_maps,
 PropertyAccessInfo PropertyAccessInfo::DataConstant(
     MapList const& receiver_maps, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(holder, constant, receiver_maps);
+  return PropertyAccessInfo(kDataConstant, holder, constant, receiver_maps);
 }
 
 // static
@@ -84,6 +84,13 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(holder, transition_map, field_index, field_type,
                             receiver_maps);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
+    MapList const& receiver_maps, Handle<Object> constant,
+    MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
 
 PropertyAccessInfo::PropertyAccessInfo()
@@ -96,10 +103,10 @@ PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
       holder_(holder),
       field_type_(Type::Any()) {}
 
-PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
+PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
                                        Handle<Object> constant,
                                        MapList const& receiver_maps)
-    : kind_(kDataConstant),
+    : kind_(kind),
       receiver_maps_(receiver_maps),
       constant_(constant),
       holder_(holder),
@@ -141,7 +148,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       return false;
     }
 
-    case kDataConstant: {
+    case kDataConstant:
+    case kAccessorConstant: {
       // Check if we actually access the same constant.
       if (this->constant_.address() == that->constant_.address()) {
         this->receiver_maps_.insert(this->receiver_maps_.end(),
@@ -288,50 +296,73 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           return LookupTransition(receiver_map, name, holder, access_info);
         }
       }
-      if (details.type() == DATA_CONSTANT) {
-        *access_info = PropertyAccessInfo::DataConstant(
-            MapList{receiver_map},
-            handle(descriptors->GetValue(number), isolate()), holder);
-        return true;
-      } else if (details.type() == DATA) {
-        int index = descriptors->GetFieldIndex(number);
-        Representation field_representation = details.representation();
-        FieldIndex field_index = FieldIndex::ForPropertyIndex(
-            *map, index, field_representation.IsDouble());
-        Type* field_type = Type::Tagged();
-        if (field_representation.IsSmi()) {
-          field_type = type_cache_.kSmi;
-        } else if (field_representation.IsDouble()) {
-          field_type = type_cache_.kFloat64;
-        } else if (field_representation.IsHeapObject()) {
-          // Extract the field type from the property details (make sure its
-          // representation is TaggedPointer to reflect the heap object case).
-          field_type = Type::Intersect(
-              descriptors->GetFieldType(number)->Convert(zone()),
-              Type::TaggedPointer(), zone());
-          if (field_type->Is(Type::None())) {
-            // Store is not safe if the field type was cleared.
-            if (access_mode == AccessMode::kStore) return false;
-
-            // The field type was cleared by the GC, so we don't know anything
-            // about the contents now.
-            // TODO(bmeurer): It would be awesome to make this saner in the
-            // runtime/GC interaction.
-            field_type = Type::TaggedPointer();
-          } else if (!Type::Any()->Is(field_type)) {
-            // Add proper code dependencies in case of stable field map(s).
-            Handle<Map> field_owner_map(map->FindFieldOwner(number), isolate());
-            dependencies()->AssumeFieldType(field_owner_map);
-          }
-          DCHECK(field_type->Is(Type::TaggedPointer()));
+      switch (details.type()) {
+        case DATA_CONSTANT: {
+          *access_info = PropertyAccessInfo::DataConstant(
+              MapList{receiver_map},
+              handle(descriptors->GetValue(number), isolate()), holder);
+          return true;
         }
-        *access_info = PropertyAccessInfo::DataField(
-            MapList{receiver_map}, field_index, field_type, holder);
-        return true;
-      } else {
-        // TODO(bmeurer): Add support for accessors.
-        return false;
+        case DATA: {
+          int index = descriptors->GetFieldIndex(number);
+          Representation field_representation = details.representation();
+          FieldIndex field_index = FieldIndex::ForPropertyIndex(
+              *map, index, field_representation.IsDouble());
+          Type* field_type = Type::Tagged();
+          if (field_representation.IsSmi()) {
+            field_type = type_cache_.kSmi;
+          } else if (field_representation.IsDouble()) {
+            field_type = type_cache_.kFloat64;
+          } else if (field_representation.IsHeapObject()) {
+            // Extract the field type from the property details (make sure its
+            // representation is TaggedPointer to reflect the heap object case).
+            field_type = Type::Intersect(
+                descriptors->GetFieldType(number)->Convert(zone()),
+                Type::TaggedPointer(), zone());
+            if (field_type->Is(Type::None())) {
+              // Store is not safe if the field type was cleared.
+              if (access_mode == AccessMode::kStore) return false;
+
+              // The field type was cleared by the GC, so we don't know anything
+              // about the contents now.
+              // TODO(bmeurer): It would be awesome to make this saner in the
+              // runtime/GC interaction.
+              field_type = Type::TaggedPointer();
+            } else if (!Type::Any()->Is(field_type)) {
+              // Add proper code dependencies in case of stable field map(s).
+              Handle<Map> field_owner_map(map->FindFieldOwner(number),
+                                          isolate());
+              dependencies()->AssumeFieldType(field_owner_map);
+            }
+            DCHECK(field_type->Is(Type::TaggedPointer()));
+          }
+          *access_info = PropertyAccessInfo::DataField(
+              MapList{receiver_map}, field_index, field_type, holder);
+          return true;
+        }
+        case ACCESSOR_CONSTANT: {
+          Handle<Object> accessors(descriptors->GetValue(number), isolate());
+          if (!accessors->IsAccessorPair()) return false;
+          Handle<Object> accessor(
+              access_mode == AccessMode::kLoad
+                  ? Handle<AccessorPair>::cast(accessors)->getter()
+                  : Handle<AccessorPair>::cast(accessors)->setter(),
+              isolate());
+          if (!accessor->IsJSFunction()) {
+            // TODO(turbofan): Add support for API accessors.
+            return false;
+          }
+          *access_info = PropertyAccessInfo::AccessorConstant(
+              MapList{receiver_map}, accessor, holder);
+          return true;
+        }
+        case ACCESSOR: {
+          // TODO(turbofan): Add support for general accessors?
+          return false;
+        }
       }
+      UNREACHABLE();
+      return false;
     }
 
     // Don't search on the prototype chain for special indices in case of
