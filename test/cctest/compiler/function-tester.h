@@ -30,7 +30,7 @@ class FunctionTester : public InitializedHandleScope {
         flags_(flags) {
     Compile(function);
     const uint32_t supported_flags =
-        CompilationInfo::kFunctionContextSpecializing |
+        CompilationInfo::kNativeContextSpecializing |
         CompilationInfo::kInliningEnabled;
     CHECK_EQ(0u, flags_ & ~supported_flags);
   }
@@ -212,8 +212,8 @@ class FunctionTester : public InitializedHandleScope {
       CHECK(Parser::ParseStatic(info.parse_info()));
     }
     info.SetOptimizing();
-    if (flags_ & CompilationInfo::kFunctionContextSpecializing) {
-      info.MarkAsFunctionContextSpecializing();
+    if (flags_ & CompilationInfo::kNativeContextSpecializing) {
+      info.MarkAsNativeContextSpecializing();
     }
     if (flags_ & CompilationInfo::kInliningEnabled) {
       info.MarkAsInliningEnabled();

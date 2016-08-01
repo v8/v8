@@ -405,9 +405,7 @@
 
 ##############################################################################
 ['ignition_turbofan', {
-  # TODO(rmcilroy,4837): Inlining is currently disabled for the BytecodeGraphBuilder
-  # (see InliningPhase::Run). Also, we don't set a LoadContextSlot for a function as
-  # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
+  # TODO(5251): Inlining is currently disabled for the BytecodeGraphBuilder.
   'test-run-inlining/InlineLoopGuardedTwice': [FAIL],
   'test-run-inlining/InlineSurplusArgumentsDeopt': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
