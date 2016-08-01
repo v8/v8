@@ -216,15 +216,13 @@ FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
   return access;
 }
 
-
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferBitField() {
-  FieldAccess access = {kTaggedBase,         JSArrayBuffer::kBitFieldOffset,
-                        MaybeHandle<Name>(), TypeCache::Get().kInt8,
-                        MachineType::Int8(), kNoWriteBarrier};
+  FieldAccess access = {kTaggedBase,           JSArrayBuffer::kBitFieldOffset,
+                        MaybeHandle<Name>(),   TypeCache::Get().kUint8,
+                        MachineType::Uint32(), kNoWriteBarrier};
   return access;
 }
-
 
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
@@ -237,6 +235,38 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBuffer() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForJSArrayBufferViewByteLength() {
+  FieldAccess access = {kTaggedBase,
+                        JSArrayBufferView::kByteLengthOffset,
+                        MaybeHandle<Name>(),
+                        TypeCache::Get().kPositiveInteger,
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSArrayBufferViewByteOffset() {
+  FieldAccess access = {kTaggedBase,
+                        JSArrayBufferView::kByteOffsetOffset,
+                        MaybeHandle<Name>(),
+                        TypeCache::Get().kPositiveInteger,
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSTypedArrayLength() {
+  FieldAccess access = {kTaggedBase,
+                        JSTypedArray::kLengthOffset,
+                        MaybeHandle<Name>(),
+                        TypeCache::Get().kJSTypedArrayLengthType,
+                        MachineType::AnyTagged(),
+                        kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {

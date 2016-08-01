@@ -79,6 +79,15 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSArrayBufferView::buffer() field.
   static FieldAccess ForJSArrayBufferViewBuffer();
 
+  // Provides access to JSArrayBufferView::byteLength() field.
+  static FieldAccess ForJSArrayBufferViewByteLength();
+
+  // Provides access to JSArrayBufferView::byteOffset() field.
+  static FieldAccess ForJSArrayBufferViewByteOffset();
+
+  // Provides access to JSTypedArray::length() field.
+  static FieldAccess ForJSTypedArrayLength();
+
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 

@@ -17,6 +17,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSGraph;
 class SimplifiedOperatorBuilder;
 
@@ -66,6 +67,9 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceArrayBufferViewAccessor(Node* node,
+                                          InstanceType instance_type,
+                                          FieldAccess const& access);
 
   Node* ToNumber(Node* value);
   Node* ToUint32(Node* value);

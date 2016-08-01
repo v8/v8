@@ -73,6 +73,9 @@ class JSGraph : public ZoneObject {
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(int32_t value);
 
+  // Creates a NumberConstant node, usually canonicalized.
+  Node* Constant(uint32_t value);
+
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {

@@ -125,6 +125,11 @@ class TypeCache final {
   Type* const kJSArrayLengthType =
       CreateNative(Type::Unsigned32(), Type::Tagged());
 
+  // The JSTyped::length property always contains a tagged number in the range
+  // [0, kMaxSmiValue].
+  Type* const kJSTypedArrayLengthType =
+      CreateNative(Type::UnsignedSmall(), Type::TaggedSigned());
+
   // The String::length property always contains a smi in the range
   // [0, String::kMaxLength].
   Type* const kStringLengthType =
