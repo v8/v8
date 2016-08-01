@@ -1082,19 +1082,10 @@ class FastNewClosureStub : public TurboFanCodeStub {
 
 class FastNewFunctionContextStub final : public TurboFanCodeStub {
  public:
-  static const int kMaximumSlots = 64;
-
-  FastNewFunctionContextStub(Isolate* isolate, int slots)
-      : TurboFanCodeStub(isolate) {
-    DCHECK(slots >= 0 && slots <= kMaximumSlots);
-    minor_key_ = SlotsBits::encode(slots);
-  }
-
-  int slots() const { return SlotsBits::decode(minor_key_); }
+  explicit FastNewFunctionContextStub(Isolate* isolate)
+      : TurboFanCodeStub(isolate) {}
 
  private:
-  class SlotsBits : public BitField<int, 0, 8> {};
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };

@@ -4514,14 +4514,20 @@ void FastNewClosureStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 
 void FastNewFunctionContextStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
 
-  int length = slots() + Context::MIN_CONTEXT_SLOTS;
-  int size = length * kPointerSize + FixedArray::kHeaderSize;
-
-  // Get the function
   Node* function = assembler->Parameter(Descriptor::kFunction);
+  Node* slots = assembler->Parameter(FastNewFunctionContextDescriptor::kSlots);
   Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Node* min_context_slots =
+      assembler->Int32Constant(Context::MIN_CONTEXT_SLOTS);
+  Node* length = assembler->Int32Add(slots, min_context_slots);
+  Node* size = assembler->Int32Add(
+      assembler->Word32Shl(length, assembler->Int32Constant(kPointerSizeLog2)),
+      assembler->Int32Constant(FixedArray::kHeaderSize));
 
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
@@ -4529,9 +4535,9 @@ void FastNewFunctionContextStub::GenerateAssembly(
   assembler->StoreMapNoWriteBarrier(
       function_context,
       assembler->HeapConstant(isolate()->factory()->function_context_map()));
-  assembler->StoreObjectFieldNoWriteBarrier(
-      function_context, Context::kLengthOffset,
-      assembler->SmiConstant(Smi::FromInt(length)));
+  assembler->StoreObjectFieldNoWriteBarrier(function_context,
+                                            Context::kLengthOffset,
+                                            assembler->SmiFromWord32(length));
 
   // Set up the fixed slots.
   assembler->StoreFixedArrayElement(
@@ -4553,11 +4559,24 @@ void FastNewFunctionContextStub::GenerateAssembly(
 
   // Initialize the rest of the slots to undefined.
   Node* undefined = assembler->UndefinedConstant();
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
-    assembler->StoreFixedArrayElement(function_context,
-                                      assembler->Int32Constant(i), undefined,
+  Variable var_slot_index(assembler, MachineRepresentation::kWord32);
+  var_slot_index.Bind(min_context_slots);
+  Label loop(assembler, &var_slot_index), after_loop(assembler);
+  assembler->Goto(&loop);
+
+  assembler->Bind(&loop);
+  {
+    Node* slot_index = var_slot_index.value();
+    // check for < length later, there are at least Context::MIN_CONTEXT_SLOTS
+    assembler->StoreFixedArrayElement(function_context, slot_index, undefined,
                                       SKIP_WRITE_BARRIER);
+    Node* one = assembler->Int32Constant(1);
+    Node* next_index = assembler->Int32Add(slot_index, one);
+    var_slot_index.Bind(next_index);
+    assembler->Branch(assembler->Int32LessThan(next_index, length), &loop,
+                      &after_loop);
   }
+  assembler->Bind(&after_loop);
 
   assembler->Return(function_context);
 }

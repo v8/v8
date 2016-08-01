@@ -473,8 +473,12 @@ class FastNewClosureDescriptor : public CallInterfaceDescriptor {
 
 class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction)
-  DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kFunction, kSlots)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastNewFunctionContextDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register FunctionRegister();
+  static const Register SlotsRegister();
 };
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {

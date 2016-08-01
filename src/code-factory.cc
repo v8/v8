@@ -471,8 +471,8 @@ Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
 
 
 // static
-Callable CodeFactory::FastNewContext(Isolate* isolate, int slot_count) {
-  FastNewFunctionContextStub stub(isolate, slot_count);
+Callable CodeFactory::FastNewFunctionContext(Isolate* isolate) {
+  FastNewFunctionContextStub stub(isolate);
   return make_callable(stub);
 }
 
