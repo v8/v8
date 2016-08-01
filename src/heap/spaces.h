@@ -250,11 +250,6 @@ class MemoryChunk {
     // within the new space during evacuation.
     PAGE_NEW_NEW_PROMOTION,
 
-    // A black page has all mark bits set to 1 (black). A black page currently
-    // cannot be iterated because it is not swept. Moreover live bytes are also
-    // not updated.
-    BLACK_PAGE,
-
     // This flag is intended to be used for testing. Works only when both
     // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
     // are set. It forces the page to become an evacuation candidate at next
@@ -429,12 +424,10 @@ class MemoryChunk {
 
   int LiveBytes() {
     DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
-    DCHECK(!IsFlagSet(BLACK_PAGE) || live_byte_count_ == 0);
     return live_byte_count_;
   }
 
   void SetLiveBytes(int live_bytes) {
-    if (IsFlagSet(BLACK_PAGE)) return;
     DCHECK_GE(live_bytes, 0);
     DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
@@ -2075,14 +2068,12 @@ class PagedSpace : public Space {
     allocation_info_.Reset(top, limit);
   }
 
+  void SetAllocationInfo(Address top, Address limit);
+
   // Empty space allocation info, returning unused area to free list.
-  void EmptyAllocationInfo() {
-    // Mark the old linear allocation area with a free space map so it can be
-    // skipped when scanning the heap.
-    int old_linear_size = static_cast<int>(limit() - top());
-    Free(top(), old_linear_size);
-    SetTopAndLimit(NULL, NULL);
-  }
+  void EmptyAllocationInfo();
+
+  void MarkAllocationInfoBlack();
 
   void Allocate(int bytes) { accounting_stats_.AllocateBytes(bytes); }
 

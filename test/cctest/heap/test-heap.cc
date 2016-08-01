@@ -6786,6 +6786,43 @@ TEST(Regress615489) {
   CHECK_LE(size_after, size_before);
 }
 
+TEST(LeftTrimFixedArrayInBlackArea) {
+  FLAG_black_allocation = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+  heap->CollectAllGarbage();
+
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking();
+  }
+  CHECK(marking->IsMarking());
+  marking->StartBlackAllocationForTesting();
+
+  // Ensure that we allocate a new page, set up a bump pointer area, and
+  // perform the allocation in a black area.
+  heap::SimulateFullSpace(heap->old_space());
+  isolate->factory()->NewFixedArray(4, TENURED);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(50, TENURED);
+  CHECK(heap->old_space()->Contains(*array));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*array)));
+
+  // Now left trim the allocated black area. A filler has to be installed
+  // for the trimmed area and all mark bits of the trimmed area have to be
+  // cleared.
+  FixedArrayBase* trimmed = heap->LeftTrimFixedArray(*array, 10);
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
+
+  heap::GcAndSweep(heap, OLD_SPACE);
+}
+
 TEST(Regress618958) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
