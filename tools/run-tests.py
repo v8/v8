@@ -114,11 +114,22 @@ TIMEOUT_DEFAULT = 60
 
 VARIANTS = ["default", "stress", "turbofan"]
 
-EXHAUSTIVE_VARIANTS = VARIANTS + [
+MORE_VARIANTS = [
   "ignition",
   "nocrankshaft",
   "turbofan_opt",
 ]
+
+EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
+
+VARIANT_ALIASES = {
+  # The default for developer workstations.
+  "dev": VARIANTS,
+  # Additional variants, run on all bots.
+  "more": MORE_VARIANTS,
+  # Additional variants, run on a subset of bots.
+  "extra": [],
+}
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
                "--nofold-constants", "--enable-slow-asserts",
@@ -436,8 +447,6 @@ def SetupEnvironment(options):
     ])
 
 def ProcessOptions(options):
-  global ALL_VARIANTS
-  global EXHAUSTIVE_VARIANTS
   global VARIANTS
 
   # First try to auto-detect configurations based on the build if GN was
@@ -518,6 +527,8 @@ def ProcessOptions(options):
     # Other options for manipulating variants still apply afterwards.
     VARIANTS = EXHAUSTIVE_VARIANTS
 
+  # TODO(machenbach): Figure out how to test a bigger subset of variants on
+  # msan and tsan.
   if options.msan:
     VARIANTS = ["default"]
 
@@ -544,6 +555,8 @@ def ProcessOptions(options):
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
   if options.no_stress:
+    # FIXME(machenbach): This is not very intuitive anymore. Maybe remove a
+    # bunch of these shortcuts and require stating the variants explicitly.
     VARIANTS = ["default", "nocrankshaft"]
   if options.no_variants:
     VARIANTS = ["default"]
@@ -551,6 +564,14 @@ def ProcessOptions(options):
     VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
+
+    # Resolve variant aliases.
+    VARIANTS = reduce(
+        list.__add__,
+        (VARIANT_ALIASES.get(v, [v]) for v in VARIANTS),
+        [],
+    )
+
     if not set(VARIANTS).issubset(ALL_VARIANTS):
       print "All variants must be in %s" % str(ALL_VARIANTS)
       return False
@@ -559,6 +580,9 @@ def ProcessOptions(options):
     options.extra_flags.append("--predictable")
     options.extra_flags.append("--verify_predictable")
     options.extra_flags.append("--no-inline-new")
+
+  # Dedupe.
+  VARIANTS = list(set(VARIANTS))
 
   if not options.shell_dir:
     if options.shell:
