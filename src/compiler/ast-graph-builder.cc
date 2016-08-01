@@ -2240,14 +2240,16 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store = BuildNamedStore(object, name, value, feedback);
-      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->AssignmentId(),
+                        OutputFrameStateCombine::Push());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       Node* store = BuildKeyedStore(object, key, value, feedback);
-      PrepareFrameState(store, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(store, expr->AssignmentId(),
+                        OutputFrameStateCombine::Push());
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2300,7 +2302,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
       Node* object = environment()->Pop();
       Handle<Name> name = expr->key()->AsLiteral()->AsPropertyName();
       value = BuildNamedLoad(object, name, pair);
-      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
       break;
     }
     case KEYED_PROPERTY: {
@@ -2309,7 +2311,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       value = BuildKeyedLoad(object, key, pair);
-      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2319,7 +2321,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
       Node* receiver = environment()->Pop();
       Handle<Name> name = expr->key()->AsLiteral()->AsPropertyName();
       value = BuildNamedSuperLoad(receiver, home_object, name, pair);
-      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
       break;
     }
     case KEYED_SUPER_PROPERTY: {
@@ -2330,7 +2332,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
       Node* home_object = environment()->Pop();
       Node* receiver = environment()->Pop();
       value = BuildKeyedSuperLoad(receiver, home_object, key, pair);
-      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      PrepareFrameState(value, expr->LoadId(), OutputFrameStateCombine::Push());
       break;
     }
   }
@@ -2754,20 +2756,16 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store = BuildNamedStore(object, name, value, feedback);
-      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Ignore());
-      environment()->Pop();
+                        OutputFrameStateCombine::Push());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       Node* store = BuildKeyedStore(object, key, value, feedback);
-      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Ignore());
-      environment()->Pop();
+                        OutputFrameStateCombine::Push());
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2775,10 +2773,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* receiver = environment()->Pop();
       Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
       Node* store = BuildNamedSuperStore(receiver, home_object, name, value);
-      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Ignore());
-      environment()->Pop();
+                        OutputFrameStateCombine::Push());
       break;
     }
     case KEYED_SUPER_PROPERTY: {
@@ -2786,10 +2782,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* home_object = environment()->Pop();
       Node* receiver = environment()->Pop();
       Node* store = BuildKeyedSuperStore(receiver, home_object, key, value);
-      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId(),
-                        OutputFrameStateCombine::Ignore());
-      environment()->Pop();
+                        OutputFrameStateCombine::Push());
       break;
     }
   }
