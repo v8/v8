@@ -121,12 +121,19 @@
       # also controls coverage granularity (1 for function-level, 2 for
       # block-level, 3 for edge-level).
       'sanitizer_coverage%': 0,
+
+      # Use dynamic libraries instrumented by one of the sanitizers
+      # instead of the standard system libraries. Set this flag to download
+      # prebuilt binaries from GCS.
+      'use_prebuilt_instrumented_libraries%': 0,
+
       # Use libc++ (buildtools/third_party/libc++ and
       # buildtools/third_party/libc++abi) instead of stdlibc++ as standard
       # library. This is intended to be used for instrumented builds.
       'use_custom_libcxx%': 0,
 
       'clang_dir%': '<(base_dir)/third_party/llvm-build/Release+Asserts',
+      'make_clang_dir%': '<(base_dir)/third_party/llvm-build/Release+Asserts',
 
       'use_lto%': 0,
 
@@ -178,6 +185,7 @@
     },
     'base_dir%': '<(base_dir)',
     'clang_dir%': '<(clang_dir)',
+    'make_clang_dir%': '<(make_clang_dir)',
     'host_arch%': '<(host_arch)',
     'host_clang%': '<(host_clang)',
     'target_arch%': '<(target_arch)',
@@ -190,6 +198,7 @@
     'msan%': '<(msan)',
     'tsan%': '<(tsan)',
     'sanitizer_coverage%': '<(sanitizer_coverage)',
+    'use_prebuilt_instrumented_libraries%': '<(use_prebuilt_instrumented_libraries)',
     'use_custom_libcxx%': '<(use_custom_libcxx)',
     'linux_use_bundled_gold%': '<(linux_use_bundled_gold)',
     'use_lto%': '<(use_lto)',
@@ -652,6 +661,11 @@
                   'MEMORY_SANITIZER',
                 ],
               }],
+            ],
+          }],
+          ['use_prebuilt_instrumented_libraries==1', {
+            'dependencies': [
+              '<(DEPTH)/third_party/instrumented_libraries/instrumented_libraries.gyp:prebuilt_instrumented_libraries',
             ],
           }],
           ['use_custom_libcxx==1', {

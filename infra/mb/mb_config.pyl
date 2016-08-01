@@ -498,8 +498,10 @@
     },
 
     'msan': {
-      'gn_args': 'is_msan=true',
-      'gyp_defines': 'clang=1 msan=1',
+      'gn_args': ('is_msan=true msan_track_origins=2 '
+                  'use_prebuilt_instrumented_libraries=true'),
+      'gyp_defines': ('clang=1 msan=1 msan_track_origins=2 '
+                      'use_prebuilt_instrumented_libraries=1'),
     },
 
     'release': {
