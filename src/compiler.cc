@@ -11,7 +11,6 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"

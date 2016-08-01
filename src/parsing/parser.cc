@@ -11,7 +11,6 @@
 #include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
-#include "src/ast/scopeinfo.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"

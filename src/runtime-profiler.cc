@@ -5,7 +5,6 @@
 #include "src/runtime-profiler.h"
 
 #include "src/assembler.h"
-#include "src/ast/scopeinfo.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"

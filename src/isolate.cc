@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include "src/ast/ast.h"
-#include "src/ast/scopeinfo.h"
+#include "src/ast/context-slot-cache.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"

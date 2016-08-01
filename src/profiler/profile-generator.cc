@@ -4,7 +4,6 @@
 
 #include "src/profiler/profile-generator.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/base/adapters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

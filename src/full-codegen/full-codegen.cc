@@ -7,7 +7,6 @@
 #include "src/ast/ast-numbering.h"
 #include "src/ast/ast.h"
 #include "src/ast/prettyprinter.h"
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"

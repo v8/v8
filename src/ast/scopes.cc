@@ -5,7 +5,6 @@
 #include "src/ast/scopes.h"
 
 #include "src/accessors.h"
-#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
 #include "src/parsing/parser.h"  // for ParseInfo

@@ -31,7 +31,6 @@
 
 #include "src/v8.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"

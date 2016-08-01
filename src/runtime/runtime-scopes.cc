@@ -8,7 +8,6 @@
 
 #include "src/accessors.h"
 #include "src/arguments.h"
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"

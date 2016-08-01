@@ -4,7 +4,6 @@
 
 #include "src/debug/liveedit.h"
 
-#include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"

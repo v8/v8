@@ -9,7 +9,6 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/ast/ast-numbering.h"
-#include "src/ast/scopeinfo.h"
 #include "src/code-factory.h"
 #include "src/crankshaft/hydrogen-bce.h"
 #include "src/crankshaft/hydrogen-canonicalize.h"
