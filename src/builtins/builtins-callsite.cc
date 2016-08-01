@@ -58,12 +58,11 @@ BUILTIN(CallSiteConstructor) {
   }
 
   if (is_wasm_object) {
-    DCHECK(!fun->IsJSFunction());
-    SET_CALLSITE_PROPERTY(obj, call_site_wasm_obj_symbol, receiver);
+    DCHECK(fun->IsSmi());
+    DCHECK(wasm::GetNumberOfFunctions(JSObject::cast(*receiver)) >
+           Smi::cast(*fun)->value());
 
-    Handle<Object> fun_index;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, fun_index,
-                                       Object::ToUint32(isolate, fun));
+    SET_CALLSITE_PROPERTY(obj, call_site_wasm_obj_symbol, receiver);
     SET_CALLSITE_PROPERTY(obj, call_site_wasm_func_index_symbol, fun);
   } else {
     DCHECK(fun->IsJSFunction());
@@ -71,10 +70,8 @@ BUILTIN(CallSiteConstructor) {
     SET_CALLSITE_PROPERTY(obj, call_site_function_symbol, fun);
   }
 
-  Handle<Object> pos_int32;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, pos_int32,
-                                     Object::ToInt32(isolate, pos));
-  SET_CALLSITE_PROPERTY(obj, call_site_position_symbol, pos_int32);
+  DCHECK(pos->IsSmi());
+  SET_CALLSITE_PROPERTY(obj, call_site_position_symbol, pos);
   SET_CALLSITE_PROPERTY(
       obj, call_site_strict_symbol,
       isolate->factory()->ToBoolean(strict_mode->BooleanValue()));
