@@ -752,6 +752,14 @@ bool HeapObject::IsHandlerTable() const {
   return true;
 }
 
+bool HeapObject::IsTemplateList() const {
+  if (!IsFixedArray()) return false;
+  // There's actually no way to see the difference between a fixed array and
+  // a template list.
+  if (FixedArray::cast(this)->length() < 1) return false;
+  return true;
+}
+
 bool HeapObject::IsDependentCode() const {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
@@ -3243,6 +3251,7 @@ CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PropertyCell)
+CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SeededNumberDictionary)
 CAST_ACCESSOR(SeqOneByteString)
@@ -5689,23 +5698,39 @@ SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
+
 int ObjectTemplateInfo::internal_field_count() const {
   Object* value = data();
   DCHECK(value->IsSmi());
   return InternalFieldCount::decode(Smi::cast(value)->value());
 }
+
 void ObjectTemplateInfo::set_internal_field_count(int count) {
   return set_data(Smi::FromInt(
       InternalFieldCount::update(Smi::cast(data())->value(), count)));
 }
+
 bool ObjectTemplateInfo::immutable_proto() const {
   Object* value = data();
   DCHECK(value->IsSmi());
   return IsImmutablePrototype::decode(Smi::cast(value)->value());
 }
+
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
   return set_data(Smi::FromInt(
       IsImmutablePrototype::update(Smi::cast(data())->value(), immutable)));
+}
+
+int TemplateList::length() const {
+  return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
+}
+
+Object* TemplateList::get(int index) const {
+  return FixedArray::cast(this)->get(kFirstElementIndex + index);
+}
+
+void TemplateList::set(int index, Object* value) {
+  FixedArray::cast(this)->set(kFirstElementIndex + index, value);
 }
 
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)

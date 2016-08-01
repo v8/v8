@@ -184,13 +184,9 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int max_number_of_properties = 0;
   TemplateInfoT* info = *data;
   while (info != nullptr) {
-    if (!info->property_accessors()->IsUndefined(isolate)) {
-      Object* props = info->property_accessors();
-      if (!props->IsUndefined(isolate)) {
-        Handle<Object> props_handle(props, isolate);
-        NeanderArray props_array(props_handle);
-        max_number_of_properties += props_array.length();
-      }
+    Object* props = info->property_accessors();
+    if (!props->IsUndefined(isolate)) {
+      max_number_of_properties += TemplateList::cast(props)->length();
     }
     info = info->GetParent(isolate);
   }
@@ -204,10 +200,10 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     info = *data;
     while (info != nullptr) {
       // Accumulate accessors.
-      if (!info->property_accessors()->IsUndefined(isolate)) {
-        Handle<Object> props(info->property_accessors(), isolate);
-        valid_descriptors =
-            AccessorInfo::AppendUnique(props, array, valid_descriptors);
+      Object* maybe_properties = info->property_accessors();
+      if (!maybe_properties->IsUndefined(isolate)) {
+        valid_descriptors = AccessorInfo::AppendUnique(
+            handle(maybe_properties, isolate), array, valid_descriptors);
       }
       info = info->GetParent(isolate);
     }
@@ -219,29 +215,29 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     }
   }
 
-  auto property_list = handle(data->property_list(), isolate);
-  if (property_list->IsUndefined(isolate)) return obj;
-  // TODO(dcarney): just use a FixedArray here.
-  NeanderArray properties(property_list);
-  if (properties.length() == 0) return obj;
+  Object* maybe_property_list = data->property_list();
+  if (maybe_property_list->IsUndefined(isolate)) return obj;
+  Handle<TemplateList> properties(TemplateList::cast(maybe_property_list),
+                                  isolate);
+  if (properties->length() == 0) return obj;
 
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
-    auto name = handle(Name::cast(properties.get(i++)), isolate);
-    Object* bit = properties.get(i++);
+    auto name = handle(Name::cast(properties->get(i++)), isolate);
+    Object* bit = properties->get(i++);
     if (bit->IsSmi()) {
       PropertyDetails details(Smi::cast(bit));
       PropertyAttributes attributes = details.attributes();
       PropertyKind kind = details.kind();
 
       if (kind == kData) {
-        auto prop_data = handle(properties.get(i++), isolate);
+        auto prop_data = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
                                                         prop_data, attributes),
                             JSObject);
       } else {
-        auto getter = handle(properties.get(i++), isolate);
-        auto setter = handle(properties.get(i++), isolate);
+        auto getter = handle(properties->get(i++), isolate);
+        auto setter = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(
             isolate, DefineAccessorProperty(isolate, obj, name, getter, setter,
                                             attributes, is_hidden_prototype),
@@ -250,12 +246,12 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     } else {
       // Intrinsic data property --- Get appropriate value from the current
       // context.
-      PropertyDetails details(Smi::cast(properties.get(i++)));
+      PropertyDetails details(Smi::cast(properties->get(i++)));
       PropertyAttributes attributes = details.attributes();
       DCHECK_EQ(kData, details.kind());
 
       v8::Intrinsic intrinsic =
-          static_cast<v8::Intrinsic>(Smi::cast(properties.get(i++))->value());
+          static_cast<v8::Intrinsic>(Smi::cast(properties->get(i++))->value());
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
       RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
@@ -473,20 +469,22 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
 
 void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
-  auto list = handle(templ->property_list(), isolate);
-  if (list->IsUndefined(isolate)) {
-    list = NeanderArray(isolate).value();
-    templ->set_property_list(*list);
+  Object* maybe_list = templ->property_list();
+  Handle<TemplateList> list;
+  if (maybe_list->IsUndefined(isolate)) {
+    list = TemplateList::New(isolate, length);
+  } else {
+    list = handle(TemplateList::cast(maybe_list), isolate);
   }
   templ->set_number_of_properties(templ->number_of_properties() + 1);
-  NeanderArray array(list);
   for (int i = 0; i < length; i++) {
     Handle<Object> value =
         data[i].is_null()
             ? Handle<Object>::cast(isolate->factory()->undefined_value())
             : data[i];
-    array.add(isolate, value);
+    list = TemplateList::Add(isolate, list, value);
   }
+  templ->set_property_list(*list);
 }
 
 }  // namespace
@@ -577,13 +575,15 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
 void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<TemplateInfo> info,
                                        Handle<AccessorInfo> property) {
-  auto list = handle(info->property_accessors(), isolate);
-  if (list->IsUndefined(isolate)) {
-    list = NeanderArray(isolate).value();
-    info->set_property_accessors(*list);
+  Object* maybe_list = info->property_accessors();
+  Handle<TemplateList> list;
+  if (maybe_list->IsUndefined(isolate)) {
+    list = TemplateList::New(isolate, 1);
+  } else {
+    list = handle(TemplateList::cast(maybe_list), isolate);
   }
-  NeanderArray array(list);
-  array.add(isolate, property);
+  list = TemplateList::Add(isolate, list, property);
+  info->set_property_accessors(*list);
 }
 
 

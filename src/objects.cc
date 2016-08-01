@@ -1031,6 +1031,26 @@ bool FunctionTemplateInfo::IsTemplateFor(Map* map) {
 
 
 // static
+Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
+  Handle<FixedArray> list =
+      isolate->factory()->NewFixedArray(kLengthIndex + size);
+  list->set(kLengthIndex, Smi::FromInt(0));
+  return Handle<TemplateList>::cast(list);
+}
+
+// static
+Handle<TemplateList> TemplateList::Add(Isolate* isolate,
+                                       Handle<TemplateList> list,
+                                       Handle<i::Object> value) {
+  STATIC_ASSERT(kFirstElementIndex == 1);
+  int index = list->length() + 1;
+  Handle<i::FixedArray> fixed_array = Handle<FixedArray>::cast(list);
+  fixed_array = FixedArray::SetAndGrow(fixed_array, index, value);
+  fixed_array->set(kLengthIndex, Smi::FromInt(index));
+  return Handle<TemplateList>::cast(fixed_array);
+}
+
+// static
 MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
                                     Handle<JSReceiver> new_target,
                                     Handle<AllocationSite> site) {
@@ -4771,9 +4791,8 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
   map->UpdateDescriptors(*new_descriptors, layout_descriptor);
 }
 
-
-template<class T>
-static int AppendUniqueCallbacks(NeanderArray* callbacks,
+template <class T>
+static int AppendUniqueCallbacks(Handle<TemplateList> callbacks,
                                  Handle<typename T::Array> array,
                                  int valid_descriptors) {
   int nof_callbacks = callbacks->length();
@@ -4852,9 +4871,9 @@ void Map::AppendCallbackDescriptors(Handle<Map> map,
                                     Handle<Object> descriptors) {
   int nof = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> array(map->instance_descriptors());
-  NeanderArray callbacks(descriptors);
-  DCHECK(array->NumberOfSlackDescriptors() >= callbacks.length());
-  nof = AppendUniqueCallbacks<DescriptorArrayAppender>(&callbacks, array, nof);
+  Handle<TemplateList> callbacks = Handle<TemplateList>::cast(descriptors);
+  DCHECK_GE(array->NumberOfSlackDescriptors(), callbacks->length());
+  nof = AppendUniqueCallbacks<DescriptorArrayAppender>(callbacks, array, nof);
   map->SetNumberOfOwnDescriptors(nof);
 }
 
@@ -4862,10 +4881,9 @@ void Map::AppendCallbackDescriptors(Handle<Map> map,
 int AccessorInfo::AppendUnique(Handle<Object> descriptors,
                                Handle<FixedArray> array,
                                int valid_descriptors) {
-  NeanderArray callbacks(descriptors);
-  DCHECK(array->length() >= callbacks.length() + valid_descriptors);
-  return AppendUniqueCallbacks<FixedArrayAppender>(&callbacks,
-                                                   array,
+  Handle<TemplateList> callbacks = Handle<TemplateList>::cast(descriptors);
+  DCHECK_GE(array->length(), callbacks->length() + valid_descriptors);
+  return AppendUniqueCallbacks<FixedArrayAppender>(callbacks, array,
                                                    valid_descriptors);
 }
 

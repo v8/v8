@@ -122,8 +122,9 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
   v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
 
-  v8::NeanderArray global_listeners(isolate->factory()->message_listeners());
-  int global_length = global_listeners.length();
+  Handle<TemplateList> global_listeners =
+      isolate->factory()->message_listeners();
+  int global_length = global_listeners->length();
   if (global_length == 0) {
     DefaultMessageReport(isolate, loc, message);
     if (isolate->has_scheduled_exception()) {
@@ -132,8 +133,8 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (global_listeners.get(i)->IsUndefined(isolate)) continue;
-      v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
+      if (global_listeners->get(i)->IsUndefined(isolate)) continue;
+      v8::NeanderObject listener(JSObject::cast(global_listeners->get(i)));
       Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());

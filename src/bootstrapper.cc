@@ -820,8 +820,8 @@ void Genesis::CreateRoots() {
 
   // Allocate the message listeners object.
   {
-    v8::NeanderArray listeners(isolate());
-    native_context()->set_message_listeners(*listeners.value());
+    Handle<TemplateList> list = TemplateList::New(isolate(), 1);
+    native_context()->set_message_listeners(*list);
   }
 }
 

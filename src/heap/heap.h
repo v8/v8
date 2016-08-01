@@ -203,7 +203,7 @@ using v8::MemoryPressureLevel;
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
   /* Configured values */                                                      \
-  V(JSObject, message_listeners, MessageListeners)                             \
+  V(TemplateList, message_listeners, MessageListeners)                         \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   /* Oddball maps */                                                           \
@@ -1032,6 +1032,10 @@ class Heap {
 
   void SetRootNoScriptSharedFunctionInfos(Object* value) {
     roots_[kNoScriptSharedFunctionInfosRootIndex] = value;
+  }
+
+  void SetMessageListeners(TemplateList* value) {
+    roots_[kMessageListenersRootIndex] = value;
   }
 
   // Set the stack limit in the roots_ array.  Some architectures generate

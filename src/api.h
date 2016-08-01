@@ -43,30 +43,6 @@ class NeanderObject {
 };
 
 
-// Utilities for working with neander-arrays, a simple extensible
-// array abstraction built on neander-objects.
-class NeanderArray {
- public:
-  explicit NeanderArray(v8::internal::Isolate* isolate);
-  explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
-  inline v8::internal::Handle<v8::internal::JSObject> value() {
-    return obj_.value();
-  }
-
-  void add(internal::Isolate* isolate,
-           v8::internal::Handle<v8::internal::Object> value);
-
-  int length();
-
-  v8::internal::Object* get(int index);
-  // Change the value at an index to undefined value. If the index is
-  // out of bounds, the request is ignored. Returns the old value.
-  void set(int index, v8::internal::Object* value);
- private:
-  NeanderObject obj_;
-};
-
-
 NeanderObject::NeanderObject(v8::internal::Handle<v8::internal::Object> obj)
     : value_(v8::internal::Handle<v8::internal::JSObject>::cast(obj)) { }
 
@@ -74,10 +50,6 @@ NeanderObject::NeanderObject(v8::internal::Handle<v8::internal::Object> obj)
 NeanderObject::NeanderObject(v8::internal::Object* obj)
     : value_(v8::internal::Handle<v8::internal::JSObject>(
         v8::internal::JSObject::cast(obj))) { }
-
-
-NeanderArray::NeanderArray(v8::internal::Handle<v8::internal::Object> obj)
-    : obj_(obj) { }
 
 
 v8::internal::Object* NeanderObject::get(int offset) {

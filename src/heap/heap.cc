@@ -2532,12 +2532,7 @@ void Heap::CreateApiObjects() {
   // appears to be no benefit for optimize this case.
   new_neander_map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
   set_neander_map(*new_neander_map);
-
-  Handle<JSObject> listeners = factory->NewNeanderObject();
-  Handle<FixedArray> elements = factory->NewFixedArray(2);
-  elements->set(0, Smi::FromInt(0));
-  listeners->set_elements(*elements);
-  set_message_listeners(*listeners);
+  set_message_listeners(*TemplateList::New(isolate(), 2));
 }
 
 
