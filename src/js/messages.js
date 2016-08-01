@@ -248,11 +248,6 @@ utils.SetUpLockedPrototype(Script, [
   ]
 );
 
-
-function GetStackTraceLine(recv, fun, pos, isGlobal) {
-  return new CallSite(recv, fun, pos, false).toString();
-}
-
 // ----------------------------------------------------------------------------
 // Error implementation
 
@@ -293,7 +288,6 @@ function MakeURIError() {
 }
 
 %InstallToContext([
-  "get_stack_trace_line_fun", GetStackTraceLine,
   "make_error_function", MakeGenericError,
   "make_range_error", MakeRangeError,
   "make_type_error", MakeTypeError,

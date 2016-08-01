@@ -102,7 +102,6 @@ enum BindingFlags {
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                   \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                       \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)             \
-  V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)       \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                     \
   V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)             \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                        \
