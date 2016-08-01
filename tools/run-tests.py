@@ -260,8 +260,6 @@ def BuildOptions():
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
-  result.add_option("--ignition", help="Skip tests which don't run in ignition",
-                    default=False, action="store_true")
   result.add_option("--ignition-turbofan",
                     help="Skip tests which don't run in ignition_turbofan",
                     default=False, action="store_true")
@@ -757,7 +755,6 @@ def Execute(arch, mode, args, options, suites):
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
     "gcov_coverage": options.gcov_coverage,
-    "ignition": options.ignition,
     "ignition_turbofan": options.ignition_turbofan,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],

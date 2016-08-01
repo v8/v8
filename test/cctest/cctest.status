@@ -404,7 +404,7 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['ignition or ignition_turbofan', {
+['ignition_turbofan', {
   # TODO(rmcilroy,4837): Inlining is currently disabled for the BytecodeGraphBuilder
   # (see InliningPhase::Run). Also, we don't set a LoadContextSlot for a function as
   # immutable in the BytecodeGraphBuilder, therefore no inlining happens.
@@ -489,6 +489,6 @@
 
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # ignition or ignition_turbofan
+}],  # ignition_turbofan
 
 ]
