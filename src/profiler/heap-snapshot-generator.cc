@@ -1089,9 +1089,11 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     TagObject(js_fun->bound_arguments(), "(bound arguments)");
     SetInternalReference(js_fun, entry, "bindings", js_fun->bound_arguments(),
                          JSBoundFunction::kBoundArgumentsOffset);
-    SetNativeBindReference(js_obj, entry, "bound_this", js_fun->bound_this());
-    SetNativeBindReference(js_obj, entry, "bound_function",
-                           js_fun->bound_target_function());
+    SetInternalReference(js_obj, entry, "bound_this", js_fun->bound_this(),
+                         JSBoundFunction::kBoundThisOffset);
+    SetInternalReference(js_obj, entry, "bound_function",
+                         js_fun->bound_target_function(),
+                         JSBoundFunction::kBoundTargetFunctionOffset);
     FixedArray* bindings = js_fun->bound_arguments();
     for (int i = 0; i < bindings->length(); i++) {
       const char* reference_name = names_->GetFormatted("bound_argument_%d", i);

@@ -256,13 +256,13 @@ TEST(BoundFunctionInSnapshot) {
   CHECK_EQ(v8::HeapGraphNode::kArray, bindings->GetType());
   CHECK_EQ(1, bindings->GetChildrenCount());
 
-  const v8::HeapGraphNode* bound_this = GetProperty(
-      f, v8::HeapGraphEdge::kShortcut, "bound_this");
+  const v8::HeapGraphNode* bound_this =
+      GetProperty(f, v8::HeapGraphEdge::kInternal, "bound_this");
   CHECK(bound_this);
   CHECK_EQ(v8::HeapGraphNode::kObject, bound_this->GetType());
 
-  const v8::HeapGraphNode* bound_function = GetProperty(
-      f, v8::HeapGraphEdge::kShortcut, "bound_function");
+  const v8::HeapGraphNode* bound_function =
+      GetProperty(f, v8::HeapGraphEdge::kInternal, "bound_function");
   CHECK(bound_function);
   CHECK_EQ(v8::HeapGraphNode::kClosure, bound_function->GetType());
 
