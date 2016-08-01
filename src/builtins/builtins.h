@@ -191,6 +191,8 @@ namespace internal {
   CPP(ArrayConcat)                                                           \
   /* ES6 section 22.1.2.2 Array.isArray */                                   \
   TFJ(ArrayIsArray, 2)                                                       \
+  /* ES7 #sec-array.prototype.includes */                                    \
+  TFJ(ArrayIncludes, 3)                                                      \
   CPP(ArrayPop)                                                              \
   CPP(ArrayPush)                                                             \
   CPP(ArrayShift)                                                            \

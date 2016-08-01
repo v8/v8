@@ -869,7 +869,7 @@ void CodeAssembler::Branch(Node* condition, CodeAssembler::Label* true_label,
 }
 
 void CodeAssembler::Switch(Node* index, Label* default_label,
-                           int32_t* case_values, Label** case_labels,
+                           const int32_t* case_values, Label** case_labels,
                            size_t case_count) {
   RawMachineLabel** labels =
       new (zone()->New(sizeof(RawMachineLabel*) * case_count))

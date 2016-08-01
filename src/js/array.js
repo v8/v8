@@ -1492,47 +1492,6 @@ function ArrayFill(value, start, end) {
 }
 
 
-function InnerArrayIncludes(searchElement, fromIndex, array, length) {
-  if (length === 0) {
-    return false;
-  }
-
-  var n = TO_INTEGER(fromIndex);
-
-  var k;
-  if (n >= 0) {
-    k = n;
-  } else {
-    k = length + n;
-    if (k < 0) {
-      k = 0;
-    }
-  }
-
-  while (k < length) {
-    var elementK = array[k];
-    if (%SameValueZero(searchElement, elementK)) {
-      return true;
-    }
-
-    ++k;
-  }
-
-  return false;
-}
-
-
-// ES2016 draft, section 22.1.3.11
-function ArrayIncludes(searchElement, fromIndex) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.includes");
-
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-
-  return InnerArrayIncludes(searchElement, fromIndex, array, length);
-}
-
-
 // ES6, draft 10-14-14, section 22.1.2.1
 function ArrayFrom(arrayLike, mapfn, receiver) {
   var items = TO_OBJECT(arrayLike);
@@ -1677,7 +1636,7 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "find", getFunction("find", ArrayFind, 1),
   "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
   "fill", getFunction("fill", ArrayFill, 1),
-  "includes", getFunction("includes", ArrayIncludes, 1),
+  "includes", getFunction("includes", null, 1)
 ]);
 
 utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
@@ -1731,7 +1690,6 @@ utils.Export(function(to) {
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayForEach = InnerArrayForEach;
-  to.InnerArrayIncludes = InnerArrayIncludes;
   to.InnerArrayIndexOf = InnerArrayIndexOf;
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;

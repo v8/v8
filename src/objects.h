@@ -2210,6 +2210,9 @@ class JSObject: public JSReceiver {
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
   static void InvalidatePrototypeChains(Map* map);
 
+  // Utility used by many Array builtins and runtime functions
+  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
+
   // Alternative implementation of WeakFixedArray::NullCallback.
   class PrototypeRegistryCompactionCallback {
    public:

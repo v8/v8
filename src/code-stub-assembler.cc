@@ -471,6 +471,216 @@ Node* CodeStubAssembler::WordIsPositiveSmi(Node* a) {
                    IntPtrConstant(0));
 }
 
+void CodeStubAssembler::BranchIfSameValueZero(Node* a, Node* b, Node* context,
+                                              Label* if_true, Label* if_false) {
+  Node* number_map = HeapNumberMapConstant();
+  Label a_isnumber(this), a_isnotnumber(this), b_isnumber(this), a_isnan(this),
+      float_not_equal(this);
+  // If register A and register B are identical, goto `if_true`
+  GotoIf(WordEqual(a, b), if_true);
+  // If either register A or B are Smis, goto `if_false`
+  GotoIf(Word32Or(WordIsSmi(a), WordIsSmi(b)), if_false);
+  // GotoIf(WordIsSmi(b), if_false);
+
+  Node* a_map = LoadMap(a);
+  Node* b_map = LoadMap(b);
+  Branch(WordEqual(a_map, number_map), &a_isnumber, &a_isnotnumber);
+
+  // If both register A and B are HeapNumbers, return true if they are equal,
+  // or if both are NaN
+  Bind(&a_isnumber);
+  {
+    Branch(WordEqual(b_map, number_map), &b_isnumber, if_false);
+
+    Bind(&b_isnumber);
+    Node* a_value = LoadHeapNumberValue(a);
+    Node* b_value = LoadHeapNumberValue(b);
+    BranchIfFloat64Equal(a_value, b_value, if_true, &float_not_equal);
+
+    Bind(&float_not_equal);
+    BranchIfFloat64IsNaN(a_value, &a_isnan, if_false);
+
+    Bind(&a_isnan);
+    BranchIfFloat64IsNaN(a_value, if_true, if_false);
+  }
+
+  Bind(&a_isnotnumber);
+  {
+    Label a_isstring(this), a_isnotstring(this);
+    Node* a_instance_type = LoadMapInstanceType(a_map);
+
+    Branch(Int32LessThan(a_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+           &a_isstring, &a_isnotstring);
+
+    Bind(&a_isstring);
+    {
+      Label b_isstring(this), b_isnotstring(this);
+      Node* b_instance_type = LoadInstanceType(b_map);
+
+      Branch(
+          Int32LessThan(b_instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
+          &b_isstring, if_false);
+
+      Bind(&b_isstring);
+      {
+        Callable callable = CodeFactory::StringEqual(isolate());
+        Node* result = CallStub(callable, context, a, b);
+        Branch(WordEqual(BooleanConstant(true), result), if_true, if_false);
+      }
+    }
+
+    Bind(&a_isnotstring);
+    {
+      // Check if {lhs} is a Simd128Value.
+      Label a_issimd128value(this);
+      Branch(Word32Equal(a_instance_type, Int32Constant(SIMD128_VALUE_TYPE)),
+             &a_issimd128value, if_false);
+
+      Bind(&a_issimd128value);
+      {
+        // Load the map of {rhs}.
+        BranchIfSimd128Equal(a, a_map, b, b_map, if_true, if_false);
+      }
+    }
+  }
+}
+
+void CodeStubAssembler::BranchIfSimd128Equal(Node* lhs, Node* lhs_map,
+                                             Node* rhs, Node* rhs_map,
+                                             Label* if_equal,
+                                             Label* if_notequal) {
+  Label if_mapsame(this), if_mapnotsame(this);
+  Branch(WordEqual(lhs_map, rhs_map), &if_mapsame, &if_mapnotsame);
+
+  Bind(&if_mapsame);
+  {
+    // Both {lhs} and {rhs} are Simd128Values with the same map, need special
+    // handling for Float32x4 because of NaN comparisons.
+    Label if_float32x4(this), if_notfloat32x4(this);
+    Node* float32x4_map = HeapConstant(factory()->float32x4_map());
+    Branch(WordEqual(lhs_map, float32x4_map), &if_float32x4, &if_notfloat32x4);
+
+    Bind(&if_float32x4);
+    {
+      // Both {lhs} and {rhs} are Float32x4, compare the lanes individually
+      // using a floating point comparison.
+      for (int offset = Float32x4::kValueOffset - kHeapObjectTag;
+           offset < Float32x4::kSize - kHeapObjectTag;
+           offset += sizeof(float)) {
+        // Load the floating point values for {lhs} and {rhs}.
+        Node* lhs_value =
+            Load(MachineType::Float32(), lhs, IntPtrConstant(offset));
+        Node* rhs_value =
+            Load(MachineType::Float32(), rhs, IntPtrConstant(offset));
+
+        // Perform a floating point comparison.
+        Label if_valueequal(this), if_valuenotequal(this);
+        Branch(Float32Equal(lhs_value, rhs_value), &if_valueequal,
+               &if_valuenotequal);
+        Bind(&if_valuenotequal);
+        Goto(if_notequal);
+        Bind(&if_valueequal);
+      }
+
+      // All 4 lanes match, {lhs} and {rhs} considered equal.
+      Goto(if_equal);
+    }
+
+    Bind(&if_notfloat32x4);
+    {
+      // For other Simd128Values we just perform a bitwise comparison.
+      for (int offset = Simd128Value::kValueOffset - kHeapObjectTag;
+           offset < Simd128Value::kSize - kHeapObjectTag;
+           offset += kPointerSize) {
+        // Load the word values for {lhs} and {rhs}.
+        Node* lhs_value =
+            Load(MachineType::Pointer(), lhs, IntPtrConstant(offset));
+        Node* rhs_value =
+            Load(MachineType::Pointer(), rhs, IntPtrConstant(offset));
+
+        // Perform a bitwise word-comparison.
+        Label if_valueequal(this), if_valuenotequal(this);
+        Branch(WordEqual(lhs_value, rhs_value), &if_valueequal,
+               &if_valuenotequal);
+        Bind(&if_valuenotequal);
+        Goto(if_notequal);
+        Bind(&if_valueequal);
+      }
+
+      // Bitwise comparison succeeded, {lhs} and {rhs} considered equal.
+      Goto(if_equal);
+    }
+  }
+
+  Bind(&if_mapnotsame);
+  Goto(if_notequal);
+}
+
+void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
+                                            Label* if_true, Label* if_false) {
+  Node* int32_zero = Int32Constant(0);
+  Node* int32_one = Int32Constant(1);
+
+  Node* empty_elements = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+
+  Variable last_map(this, MachineRepresentation::kTagged);
+  Label check_prototype(this);
+
+  // Bailout if Smi
+  GotoIf(WordIsSmi(object), if_false);
+
+  Node* map = LoadMap(object);
+  last_map.Bind(map);
+
+  // Bailout if instance type is not JS_ARRAY_TYPE
+  GotoIf(WordNotEqual(LoadMapInstanceType(map), Int32Constant(JS_ARRAY_TYPE)),
+         if_false);
+
+  Node* bit_field2 = LoadMapBitField2(map);
+  Node* elements_kind = BitFieldDecode<Map::ElementsKindBits>(bit_field2);
+
+  // Bailout if slow receiver elements
+  GotoIf(
+      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+      if_false);
+
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == (FAST_SMI_ELEMENTS | 1));
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == (FAST_ELEMENTS | 1));
+  STATIC_ASSERT(FAST_HOLEY_DOUBLE_ELEMENTS == (FAST_DOUBLE_ELEMENTS | 1));
+
+  // Check prototype chain if receiver does not have packed elements
+  Node* holey_elements = Word32And(elements_kind, int32_one);
+  Branch(Word32Equal(holey_elements, int32_zero), if_true, &check_prototype);
+
+  Bind(&check_prototype);
+  {
+    Label loop_body(this, &last_map);
+    Goto(&loop_body);
+    Bind(&loop_body);
+    Node* current_map = last_map.value();
+    Node* proto = LoadObjectField(current_map, Map::kPrototypeOffset);
+
+    // End loop
+    GotoIf(WordEqual(proto, NullConstant()), if_true);
+
+    // ASSERT: proto->IsHeapObject()
+    Node* proto_map = LoadMap(proto);
+
+    // Bailout if a Proxy, API Object, or JSValue wrapper found in prototype
+    // Because of this bailout, it's not necessary to check for interceptors or
+    // access checks on the prototype chain.
+    GotoIf(Int32LessThanOrEqual(LoadMapInstanceType(proto_map),
+                                Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+           if_false);
+
+    // Bailout if prototype contains non-empty elements
+    GotoUnless(WordEqual(LoadElements(proto), empty_elements), if_false);
+
+    last_map.Bind(proto_map);
+    Goto(&loop_body);
+  }
+}
+
 Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
                                               AllocationFlags flags,
                                               Node* top_address,
