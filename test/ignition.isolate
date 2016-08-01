@@ -9,8 +9,13 @@
   },
   'includes': [
     'cctest/cctest.isolate',
-    'mjsunit/mjsunit.isolate',
+    'fuzzer/fuzzer.isolate',
+    'inspector_protocol_parser_test/inspector_protocol_parser_test.isolate',
+    'intl/intl.isolate',
     'message/message.isolate',
+    'mjsunit/mjsunit.isolate',
+    'preparser/preparser.isolate',
+    'unittests/unittests.isolate',
     'webkit/webkit.isolate',
   ],
 }

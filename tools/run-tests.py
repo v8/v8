@@ -85,11 +85,18 @@ TEST_MAP = {
     "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/ignition.isolate.
+  # TODO(machenbach): This will be deprecated. Istead default or bot_default
+  # will be used together with ignition flags.
   "ignition": [
     "mjsunit",
     "cctest",
     "webkit",
+    "fuzzer",
     "message",
+    "preparser",
+    "intl",
+    "unittests",
+    "inspector_protocol_parser_test",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
