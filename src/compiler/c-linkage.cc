@@ -191,12 +191,11 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   const int parameter_count = static_cast<int>(msig->parameter_count());
 
 #ifdef PARAM_REGISTERS
-  static const Register kParamRegisters[] = {PARAM_REGISTERS};
-  static const int kParamRegisterCount =
-      static_cast<int>(arraysize(kParamRegisters));
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const int kParamRegisterCount = static_cast<int>(arraysize(kParamRegisters));
 #else
-  static const Register* kParamRegisters = nullptr;
-  static const int kParamRegisterCount = 0;
+  const Register* kParamRegisters = nullptr;
+  const int kParamRegisterCount = 0;
 #endif
 
 #ifdef STACK_SHADOW_WORDS

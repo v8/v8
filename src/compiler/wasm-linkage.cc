@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/assembler.h"
+#include "src/base/lazy-instance.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 
@@ -206,55 +207,61 @@ struct Allocator {
 };
 }  // namespace
 
-static Allocator GetReturnRegisters() {
-#ifdef GP_RETURN_REGISTERS
-  static const Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
-  static const int kGPReturnRegistersCount =
-      static_cast<int>(arraysize(kGPReturnRegisters));
-#else
-  static const Register* kGPReturnRegisters = nullptr;
-  static const int kGPReturnRegistersCount = 0;
-#endif
-
-#ifdef FP_RETURN_REGISTERS
-  static const DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
-  static const int kFPReturnRegistersCount =
-      static_cast<int>(arraysize(kFPReturnRegisters));
-#else
-  static const DoubleRegister* kFPReturnRegisters = nullptr;
-  static const int kFPReturnRegistersCount = 0;
-#endif
-
-  Allocator rets(kGPReturnRegisters, kGPReturnRegistersCount,
-                 kFPReturnRegisters, kFPReturnRegistersCount);
-
-  return rets;
-}
-
-static Allocator GetParameterRegisters() {
+struct ParameterRegistersCreateTrait {
+  static void Construct(Allocator* allocated_ptr) {
 #ifdef GP_PARAM_REGISTERS
-  static const Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
-  static const int kGPParamRegistersCount =
-      static_cast<int>(arraysize(kGPParamRegisters));
+    static const Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
+    static const int kGPParamRegistersCount =
+        static_cast<int>(arraysize(kGPParamRegisters));
 #else
-  static const Register* kGPParamRegisters = nullptr;
-  static const int kGPParamRegistersCount = 0;
+    static const Register* kGPParamRegisters = nullptr;
+    static const int kGPParamRegistersCount = 0;
 #endif
 
 #ifdef FP_PARAM_REGISTERS
-  static const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
-  static const int kFPParamRegistersCount =
-      static_cast<int>(arraysize(kFPParamRegisters));
+    static const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+    static const int kFPParamRegistersCount =
+        static_cast<int>(arraysize(kFPParamRegisters));
 #else
-  static const DoubleRegister* kFPParamRegisters = nullptr;
-  static const int kFPParamRegistersCount = 0;
+    static const DoubleRegister* kFPParamRegisters = nullptr;
+    static const int kFPParamRegistersCount = 0;
 #endif
 
-  Allocator params(kGPParamRegisters, kGPParamRegistersCount, kFPParamRegisters,
-                   kFPParamRegistersCount);
+    new (allocated_ptr) Allocator(kGPParamRegisters, kGPParamRegistersCount,
+                                  kFPParamRegisters, kFPParamRegistersCount);
+  }
+};
 
-  return params;
-}
+static base::LazyInstance<Allocator, ParameterRegistersCreateTrait>::type
+    parameter_registers = LAZY_INSTANCE_INITIALIZER;
+
+struct ReturnRegistersCreateTrait {
+  static void Construct(Allocator* allocated_ptr) {
+#ifdef GP_RETURN_REGISTERS
+    static const Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
+    static const int kGPReturnRegistersCount =
+        static_cast<int>(arraysize(kGPReturnRegisters));
+#else
+    static const Register* kGPReturnRegisters = nullptr;
+    static const int kGPReturnRegistersCount = 0;
+#endif
+
+#ifdef FP_RETURN_REGISTERS
+    static const DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
+    static const int kFPReturnRegistersCount =
+        static_cast<int>(arraysize(kFPReturnRegisters));
+#else
+    static const DoubleRegister* kFPReturnRegisters = nullptr;
+    static const int kFPReturnRegistersCount = 0;
+#endif
+
+    new (allocated_ptr) Allocator(kGPReturnRegisters, kGPReturnRegistersCount,
+                                  kFPReturnRegisters, kFPReturnRegistersCount);
+  }
+};
+
+static base::LazyInstance<Allocator, ReturnRegistersCreateTrait>::type
+    return_registers = LAZY_INSTANCE_INITIALIZER;
 
 // General code uses the above configuration data.
 CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
@@ -262,7 +269,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count());
 
-  Allocator rets = GetReturnRegisters();
+  Allocator rets = return_registers.Get();
 
   // Add return location(s).
   const int return_count = static_cast<int>(locations.return_count_);
@@ -271,7 +278,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
     locations.AddReturn(rets.Next(ret));
   }
 
-  Allocator params = GetParameterRegisters();
+  Allocator params = parameter_registers.Get();
 
   // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
@@ -325,7 +332,7 @@ CallDescriptor* ModuleEnv::GetI32WasmCallDescriptor(
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
-  Allocator rets = GetReturnRegisters();
+  Allocator rets = return_registers.Get();
 
   for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
     if (descriptor->GetReturnType(i) == MachineType::Int64()) {
@@ -338,7 +345,7 @@ CallDescriptor* ModuleEnv::GetI32WasmCallDescriptor(
     }
   }
 
-  Allocator params = GetParameterRegisters();
+  Allocator params = parameter_registers.Get();
 
   for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
     if (descriptor->GetParameterType(i) == MachineType::Int64()) {
