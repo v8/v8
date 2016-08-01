@@ -42,6 +42,11 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
 
+    // Shift operations
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical:
+
     // Compare operations
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
@@ -97,9 +102,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSShiftLeft:
-    case IrOpcode::kJSShiftRight:
-    case IrOpcode::kJSShiftRightLogical:
       return 2;
 
     default:

@@ -424,9 +424,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftLeft(hints), lhs, NumberConstant(rhs), context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hints), lhs,
+                                          NumberConstant(rhs), context,
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
@@ -441,9 +441,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hints), lhs,
-                                        rhs, context, EmptyFrameState(),
-                                        EmptyFrameState(), effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ShiftLeft(hints), lhs, rhs, context,
+                              EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
 }
@@ -458,9 +458,9 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithTypeFeedback) {
     Node* rhs = Parameter(Type::Number(), 3);
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftLeft(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hints), lhs,
+                                          rhs, UndefinedConstant(),
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftLeft(
                                      feedback, lhs, rhs, effect, control));
@@ -478,9 +478,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRight(hints), lhs, NumberConstant(rhs), context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hints), lhs,
+                                          NumberConstant(rhs), context,
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
@@ -495,9 +495,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hints), lhs,
-                                        rhs, context, EmptyFrameState(),
-                                        EmptyFrameState(), effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ShiftRight(hints), lhs, rhs,
+                              context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
 }
@@ -512,9 +512,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithTypeFeedback) {
     Node* rhs = Parameter(Type::Number(), 3);
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRight(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hints), lhs,
+                                          rhs, UndefinedConstant(),
+                                          EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftRight(
                                      feedback, lhs, rhs, effect, control));
@@ -535,7 +535,7 @@ TEST_F(JSTypedLoweringTest,
   TRACED_FORRANGE(double, rhs, 0, 31) {
     Reduction r = Reduce(graph()->NewNode(
         javascript()->ShiftRightLogical(hints), lhs, NumberConstant(rhs),
-        context, EmptyFrameState(), EmptyFrameState(), effect, control));
+        context, EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
@@ -550,9 +550,9 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hints),
-                                        lhs, rhs, context, EmptyFrameState(),
-                                        EmptyFrameState(), effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hints), lhs, rhs,
+                              context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
 }
@@ -569,7 +569,7 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithTypeFeedback) {
     Node* control = graph()->start();
     Reduction r = Reduce(graph()->NewNode(
         javascript()->ShiftRightLogical(hints), lhs, rhs, UndefinedConstant(),
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+        EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftRightLogical(
                                      feedback, lhs, rhs, effect, control));
