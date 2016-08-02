@@ -147,11 +147,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [PASS, NO_IGNITION],
 
-  # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
-  # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
-  # code.
-  'test-api/TurboAsmDisablesNeuter': [PASS, NO_IGNITION],
-
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [PASS, NO_IGNITION],
 
@@ -461,11 +456,6 @@
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # TODO(mstarzinger,4680): Fails due to the turbo-asm pipeline only being taken
-  # in compiler.cc GetLazyCode for uncompiled code, and no similar path for eager
-  # code.
-  'test-api/TurboAsmDisablesNeuter': [FAIL],
 
   # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
   'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
