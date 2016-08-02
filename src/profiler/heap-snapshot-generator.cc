@@ -1319,7 +1319,6 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                          Map::kConstructorOrBackPointerOffset);
   }
   TagObject(map->dependent_code(), "(dependent code)");
-  MarkAsWeakContainer(map->dependent_code());
   SetInternalReference(map, entry, "dependent_code", map->dependent_code(),
                        Map::kDependentCodeOffset);
   TagObject(map->weak_cell_cache(), "(weak cell)");
@@ -1495,7 +1494,7 @@ void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
                                                    PropertyCell* cell) {
   SetInternalReference(cell, entry, "value", cell->value(),
                        PropertyCell::kValueOffset);
-  MarkAsWeakContainer(cell->dependent_code());
+  TagObject(cell->dependent_code(), "(dependent code)");
   SetInternalReference(cell, entry, "dependent_code", cell->dependent_code(),
                        PropertyCell::kDependentCodeOffset);
 }
@@ -1507,7 +1506,7 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
                        AllocationSite::kTransitionInfoOffset);
   SetInternalReference(site, entry, "nested_site", site->nested_site(),
                        AllocationSite::kNestedSiteOffset);
-  MarkAsWeakContainer(site->dependent_code());
+  TagObject(site->dependent_code(), "(dependent code)");
   SetInternalReference(site, entry, "dependent_code", site->dependent_code(),
                        AllocationSite::kDependentCodeOffset);
   // Do not visit weak_next as it is not visited by the StaticVisitor,
