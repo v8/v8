@@ -176,26 +176,18 @@ class DiscardableZoneScope {
       : ast_node_factory_scope_(parser->factory(), temp_zone, use_temp_zone),
         fni_(parser->ast_value_factory_, temp_zone),
         parser_(parser),
-        prev_fni_(parser->fni_),
-        prev_zone_(parser->zone_) {
+        prev_fni_(parser->fni_) {
     if (use_temp_zone) {
       parser_->fni_ = &fni_;
-      parser_->zone_ = temp_zone;
     }
   }
-  ~DiscardableZoneScope() {
-    parser_->fni_ = prev_fni_;
-    parser_->zone_ = prev_zone_;
-  }
+  ~DiscardableZoneScope() { parser_->fni_ = prev_fni_; }
 
  private:
   AstNodeFactory::BodyScope ast_node_factory_scope_;
   FuncNameInferrer fni_;
   Parser* parser_;
   FuncNameInferrer* prev_fni_;
-  Zone* prev_zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(DiscardableZoneScope);
 };
 
 void Parser::SetCachedData(ParseInfo* info) {
@@ -4290,112 +4282,28 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     function_name = ast_value_factory()->empty_string();
   }
 
-  FunctionLiteral::EagerCompileHint eager_compile_hint =
-      function_state_->next_function_is_parenthesized()
-          ? FunctionLiteral::kShouldEagerCompile
-          : FunctionLiteral::kShouldLazyCompile;
-
-  // Determine if the function can be parsed lazily. Lazy parsing is
-  // different from lazy compilation; we need to parse more eagerly than we
-  // compile.
-
-  // We can only parse lazily if we also compile lazily. The heuristics for lazy
-  // compilation are:
-  // - It must not have been prohibited by the caller to Parse (some callers
-  //   need a full AST).
-  // - The outer scope must allow lazy compilation of inner functions.
-  // - The function mustn't be a function expression with an open parenthesis
-  //   before; we consider that a hint that the function will be called
-  //   immediately, and it would be a waste of time to make it lazily
-  //   compiled.
-  // These are all things we can know at this point, without looking at the
-  // function itself.
-
-  // In addition, we need to distinguish between these cases:
-  // (function foo() {
-  //   bar = function() { return 1; }
-  //  })();
-  // and
-  // (function foo() {
-  //   var a = 1;
-  //   bar = function() { return a; }
-  //  })();
-
-  // Now foo will be parsed eagerly and compiled eagerly (optimization: assume
-  // parenthesis before the function means that it will be called
-  // immediately). The inner function *must* be parsed eagerly to resolve the
-  // possible reference to the variable in foo's scope. However, it's possible
-  // that it will be compiled lazily.
-
-  // To make this additional case work, both Parser and PreParser implement a
-  // logic where only top-level functions will be parsed lazily.
-  bool is_lazily_parsed = mode() == PARSE_LAZILY &&
-                          this->scope()->AllowsLazyParsing() &&
-                          !function_state_->next_function_is_parenthesized();
-
-  // Determine whether the function body can be discarded after parsing.
-  // The preconditions are:
-  // - Lazy compilation has to be enabled.
-  // - Neither V8 natives nor native function declarations can be allowed,
-  //   since parsing one would retroactively force the function to be
-  //   eagerly compiled.
-  // - The invoker of this parser can't depend on the AST being eagerly
-  //   built (either because the function is about to be compiled, or
-  //   because the AST is going to be inspected for some reason).
-  // - Because of the above, we can't be attempting to parse a
-  //   FunctionExpression; even without enclosing parentheses it might be
-  //   immediately invoked.
-  // - The function literal shouldn't be hinted to eagerly compile.
-  // - For asm.js functions the body needs to be available when module
-  //   validation is active, because we examine the entire module at once.
-  bool use_temp_zone =
-      !is_lazily_parsed && FLAG_lazy && !allow_natives() &&
-      extension_ == NULL && allow_lazy() &&
-      function_type == FunctionLiteral::kDeclaration &&
-      eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
-      !(FLAG_validate_asm && scope()->asm_module());
-
-  Scope* main_scope = nullptr;
-  if (use_temp_zone) {
-    // This Scope lives in the main Zone; we'll migrate data into it later.
-    main_scope = NewFunctionScope(kind);
-  }
-
-  ZoneList<Statement*>* body = nullptr;
+  Scope* scope = NewFunctionScope(kind);
+  SetLanguageMode(scope, language_mode);
+  ZoneList<Statement*>* body = NULL;
   int arity = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   bool should_be_used_once_hint = false;
   bool has_duplicate_parameters;
+  FunctionLiteral::EagerCompileHint eager_compile_hint;
 
+  // Parse function.
   {
-    // Temporary zones can nest. When we migrate free variables (see below), we
-    // need to recreate them in the previous Zone.
-    AstNodeFactory previous_zone_ast_node_factory(ast_value_factory());
-    previous_zone_ast_node_factory.set_zone(zone());
-
-    // Open a new zone scope, which sets our AstNodeFactory to allocate in the
-    // new temporary zone if the preconditions are satisfied, and ensures that
-    // the previous zone is always restored after parsing the body. To be able
-    // to do scope analysis correctly after full parsing, we migrate needed
-    // information from scope into main_scope when the function has been parsed.
-    Zone temp_zone(zone()->allocator());
-    DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
-
-    Scope* scope = NewFunctionScope(kind);
-    SetLanguageMode(scope, language_mode);
-    if (!use_temp_zone) {
-      main_scope = scope;
-    } else {
-      DCHECK(main_scope->zone() != scope->zone());
-    }
-
     FunctionState function_state(&function_state_, &scope_state_, scope, kind);
 #ifdef DEBUG
     this->scope()->SetScopeName(function_name);
 #endif
     ExpressionClassifier formals_classifier(this, &duplicate_finder);
+
+    eager_compile_hint = function_state_->this_function_is_parenthesized()
+                             ? FunctionLiteral::kShouldEagerCompile
+                             : FunctionLiteral::kShouldLazyCompile;
 
     if (is_generator) {
       // For generators, allocating variables in contexts is currently a win
@@ -4429,6 +4337,43 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     // which says whether we need to create an arguments adaptor frame).
     if (formals.has_rest) arity--;
 
+    // Determine if the function can be parsed lazily. Lazy parsing is different
+    // from lazy compilation; we need to parse more eagerly than we compile.
+
+    // We can only parse lazily if we also compile lazily. The heuristics for
+    // lazy compilation are:
+    // - It must not have been prohibited by the caller to Parse (some callers
+    //   need a full AST).
+    // - The outer scope must allow lazy compilation of inner functions.
+    // - The function mustn't be a function expression with an open parenthesis
+    //   before; we consider that a hint that the function will be called
+    //   immediately, and it would be a waste of time to make it lazily
+    //   compiled.
+    // These are all things we can know at this point, without looking at the
+    // function itself.
+
+    // In addition, we need to distinguish between these cases:
+    // (function foo() {
+    //   bar = function() { return 1; }
+    //  })();
+    // and
+    // (function foo() {
+    //   var a = 1;
+    //   bar = function() { return a; }
+    //  })();
+
+    // Now foo will be parsed eagerly and compiled eagerly (optimization: assume
+    // parenthesis before the function means that it will be called
+    // immediately). The inner function *must* be parsed eagerly to resolve the
+    // possible reference to the variable in foo's scope. However, it's possible
+    // that it will be compiled lazily.
+
+    // To make this additional case work, both Parser and PreParser implement a
+    // logic where only top-level functions will be parsed lazily.
+    bool is_lazily_parsed = mode() == PARSE_LAZILY &&
+                            this->scope()->AllowsLazyParsing() &&
+                            !function_state_->this_function_is_parenthesized();
+
     // Eager or lazy parse?
     // If is_lazily_parsed, we'll parse lazy. If we can set a bookmark, we'll
     // pass it to SkipLazyFunctionBody, which may use it to abort lazy
@@ -4457,15 +4402,45 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
     }
     if (!is_lazily_parsed) {
-      body = ParseEagerFunctionBody(function_name, pos, formals, kind,
-                                    function_type, CHECK_OK);
-
+      // Determine whether the function body can be discarded after parsing.
+      // The preconditions are:
+      // - Lazy compilation has to be enabled.
+      // - Neither V8 natives nor native function declarations can be allowed,
+      //   since parsing one would retroactively force the function to be
+      //   eagerly compiled.
+      // - The invoker of this parser can't depend on the AST being eagerly
+      //   built (either because the function is about to be compiled, or
+      //   because the AST is going to be inspected for some reason).
+      // - Because of the above, we can't be attempting to parse a
+      //   FunctionExpression; even without enclosing parentheses it might be
+      //   immediately invoked.
+      // - The function literal shouldn't be hinted to eagerly compile.
+      // - For asm.js functions the body needs to be available when module
+      //   validation is active, because we examine the entire module at once.
+      bool use_temp_zone =
+          FLAG_lazy && !allow_natives() && extension_ == NULL && allow_lazy() &&
+          function_type == FunctionLiteral::kDeclaration &&
+          eager_compile_hint != FunctionLiteral::kShouldEagerCompile &&
+          !(FLAG_validate_asm && scope->asm_function());
+      // Open a new zone scope, which sets our AstNodeFactory to allocate in the
+      // new temporary zone if the preconditions are satisfied, and ensures that
+      // the previous zone is always restored after parsing the body.
+      // For the purpose of scope analysis, some ZoneObjects allocated by the
+      // factory must persist after the function body is thrown away and
+      // temp_zone is deallocated. These objects are instead allocated in a
+      // parser-persistent zone (see parser_zone_ in AstNodeFactory).
+      {
+        Zone temp_zone(zone()->allocator());
+        DiscardableZoneScope zone_scope(this, &temp_zone, use_temp_zone);
+        body = ParseEagerFunctionBody(function_name, pos, formals, kind,
+                                      function_type, CHECK_OK);
+      }
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       if (use_temp_zone) {
         // If the preconditions are correct the function body should never be
         // accessed, but do this anyway for better behaviour if they're wrong.
-        body = nullptr;
+        body = NULL;
       }
     }
 
@@ -4495,20 +4470,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     has_duplicate_parameters =
       !formals_classifier.is_valid_formal_parameter_list_without_duplicates();
-
-    if (use_temp_zone) {
-      DCHECK(main_scope != scope);
-      scope->AnalyzePartially(main_scope, &previous_zone_ast_node_factory);
-    }
-  }  // DiscardableZoneScope goes out of scope.
+  }
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
                                : FunctionLiteral::kNoDuplicateParameters;
 
-  // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, main_scope, body, materialized_literal_count,
+      function_name, scope, body, materialized_literal_count,
       expected_property_count, arity, duplicate_parameters, function_type,
       eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);

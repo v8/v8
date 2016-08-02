@@ -204,18 +204,6 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name,
       raw_name_(name),
       next_unresolved_(nullptr) {}
 
-VariableProxy::VariableProxy(Zone* zone, const VariableProxy* copy_from)
-    : Expression(zone, copy_from->position(), kVariableProxy),
-      bit_field_(copy_from->bit_field_),
-      end_position_(copy_from->end_position_),
-      next_unresolved_(nullptr) {
-  if (copy_from->is_resolved()) {
-    var_ = copy_from->var_;
-  } else {
-    raw_name_ = copy_from->raw_name_;
-  }
-}
-
 void VariableProxy::BindTo(Variable* var) {
   DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
   set_var(var);
