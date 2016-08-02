@@ -839,11 +839,11 @@ class RepresentationSelector {
       return MachineRepresentation::kNone;
     } else if (type->Is(Type::Signed32()) || type->Is(Type::Unsigned32())) {
       return MachineRepresentation::kWord32;
-    } else if (use.IsUsedAsWord32()) {
+    } else if (type->Is(Type::NumberOrOddball()) && use.IsUsedAsWord32()) {
       return MachineRepresentation::kWord32;
     } else if (type->Is(Type::Boolean())) {
       return MachineRepresentation::kBit;
-    } else if (use.IsUsedAsFloat64()) {
+    } else if (type->Is(Type::NumberOrOddball()) && use.IsUsedAsFloat64()) {
       return MachineRepresentation::kFloat64;
     } else if (type->Is(
                    Type::Union(Type::SignedSmall(), Type::NaN(), zone()))) {
