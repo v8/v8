@@ -505,11 +505,10 @@ class Context: public FixedArray {
   // 3) result.is_null():
   //    There was no binding found, *index is always -1 and *attributes is
   //    always ABSENT.
-  Handle<Object> Lookup(Handle<String> name,
-                        ContextLookupFlags flags,
-                        int* index,
-                        PropertyAttributes* attributes,
-                        BindingFlags* binding_flags);
+  Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
+                        int* index, PropertyAttributes* attributes,
+                        BindingFlags* binding_flags,
+                        VariableMode* variable_mode);
 
   // Code generation support.
   static int SlotOffset(int index) {

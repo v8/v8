@@ -267,10 +267,12 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   int index;
   PropertyAttributes attributes;
   BindingFlags binding_flags;
+  VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
-  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &binding_flags);
-  if (attributes != ABSENT && binding_flags == BINDING_CHECK_INITIALIZED) {
+  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &binding_flags,
+                      &mode);
+  if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
     // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
     // exception.
@@ -281,7 +283,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   }
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
-                                          &attributes, &binding_flags);
+                                          &attributes, &binding_flags, &mode);
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -771,8 +773,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   int index;
   PropertyAttributes attributes;
   BindingFlags flags;
+  VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -806,8 +809,9 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
   int index;
   PropertyAttributes attributes;
   BindingFlags flags;
+  VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (index != Context::kNotFound) {
@@ -909,8 +913,9 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
   int index;
   PropertyAttributes attributes;
   BindingFlags flags;
+  VariableMode mode;
   Handle<Object> holder =
-      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags);
+      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();

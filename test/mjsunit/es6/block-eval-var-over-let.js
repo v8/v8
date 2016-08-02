@@ -61,6 +61,23 @@ assertDoesNotThrow(function() {
   eval('var x');
 });
 
+// The same should work for lexical function declarations:
+// If the const is in its own block scope, with the eval, throws
+assertThrows(function() {
+  {
+    function x() {}
+    eval('var x');
+  }
+}, SyntaxError);
+
+// If the eval is in its own block scope, throws
+assertThrows(function() {
+  {
+    function y() {}
+    { eval('var y'); }
+  }
+}, SyntaxError);
+
 // In global scope
 let caught = false;
 try {

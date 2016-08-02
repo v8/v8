@@ -218,12 +218,10 @@ static void GetAttributesAndBindingFlags(VariableMode mode,
   }
 }
 
-
-Handle<Object> Context::Lookup(Handle<String> name,
-                               ContextLookupFlags flags,
-                               int* index,
-                               PropertyAttributes* attributes,
-                               BindingFlags* binding_flags) {
+Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
+                               int* index, PropertyAttributes* attributes,
+                               BindingFlags* binding_flags,
+                               VariableMode* variable_mode) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -232,6 +230,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
   *index = kNotFound;
   *attributes = ABSENT;
   *binding_flags = MISSING_BINDING;
+  *variable_mode = VAR;
 
   if (FLAG_trace_contexts) {
     PrintF("Context::Lookup(");
@@ -270,6 +269,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
                    r.context_index, reinterpret_cast<void*>(*c));
           }
           *index = r.slot_index;
+          *variable_mode = r.mode;
           GetAttributesAndBindingFlags(r.mode, r.init_flag, attributes,
                                        binding_flags);
           return ScriptContextTable::GetContext(script_contexts,
@@ -339,6 +339,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
                  slot_index, mode);
         }
         *index = slot_index;
+        *variable_mode = mode;
         GetAttributesAndBindingFlags(mode, init_flag, attributes,
                                      binding_flags);
         return context;
@@ -358,6 +359,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           *attributes = READ_ONLY;
           DCHECK(mode == CONST_LEGACY || mode == CONST);
           *binding_flags = BINDING_IS_INITIALIZED;
+          *variable_mode = mode;
           return context;
         }
       }
@@ -371,6 +373,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         *index = Context::THROWN_OBJECT_INDEX;
         *attributes = NONE;
         *binding_flags = BINDING_IS_INITIALIZED;
+        *variable_mode = VAR;
         return context;
       }
     } else if (context->IsDebugEvaluateContext()) {
@@ -389,7 +392,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj->IsContext()) {
         Handle<Object> result = Context::cast(obj)->Lookup(
-            name, DONT_FOLLOW_CHAINS, index, attributes, binding_flags);
+            name, DONT_FOLLOW_CHAINS, index, attributes, binding_flags,
+            variable_mode);
         if (!result.is_null()) return result;
       }
       // Check whitelist. Names that do not pass whitelist shall only resolve
