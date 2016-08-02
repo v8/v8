@@ -847,8 +847,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_restrictive_declarations(
       FLAG_harmony_restrictive_declarations);
-  set_allow_harmony_exponentiation_operator(
-      FLAG_harmony_exponentiation_operator);
   set_allow_harmony_async_await(FLAG_harmony_async_await);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
@@ -5007,7 +5005,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_for_in);
     SET_ALLOW(harmony_function_sent);
-    SET_ALLOW(harmony_exponentiation_operator);
     SET_ALLOW(harmony_restrictive_declarations);
     SET_ALLOW(harmony_async_await);
     SET_ALLOW(harmony_trailing_commas);

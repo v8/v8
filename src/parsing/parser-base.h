@@ -229,12 +229,6 @@ class ParserBase : public Traits {
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
-#define SCANNER_ACCESSORS(name)                                  \
-  bool allow_##name() const { return scanner_->allow_##name(); } \
-  void set_allow_##name(bool allow) {                            \
-    return scanner_->set_allow_##name(allow);                    \
-  }
-
   ALLOW_ACCESSORS(lazy);
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(tailcalls);
@@ -245,9 +239,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
-  SCANNER_ACCESSORS(harmony_exponentiation_operator);
 
-#undef SCANNER_ACCESSORS
 #undef ALLOW_ACCESSORS
 
   uintptr_t stack_limit() const { return stack_limit_; }

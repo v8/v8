@@ -2733,7 +2733,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(intl_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_explicit_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_exponentiation_operator)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
 #ifdef V8_I18N_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(icu_case_mapping)
@@ -3322,7 +3321,6 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_object_own_property_descriptors_natives[] = {
       nullptr};
   static const char* harmony_array_prototype_values_natives[] = {nullptr};
-  static const char* harmony_exponentiation_operator_natives[] = {nullptr};
   static const char* harmony_string_padding_natives[] = {
       "native harmony-string-padding.js", nullptr};
 #ifdef V8_I18N_SUPPORT

@@ -231,7 +231,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #define HARMONY_SHIPPING(V)                                                  \
   V(harmony_restrictive_declarations,                                        \
     "harmony limitations on sloppy mode function declarations")              \
-  V(harmony_exponentiation_operator, "harmony exponentiation operator `**`") \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")

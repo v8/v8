@@ -1557,7 +1557,6 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyRestrictiveDeclarations,
-  kAllowHarmonyExponentiationOperator,
   kAllowHarmonyForIn,
   kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
@@ -1579,8 +1578,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_restrictive_declarations(
       flags.Contains(kAllowHarmonyRestrictiveDeclarations));
-  parser->set_allow_harmony_exponentiation_operator(
-      flags.Contains(kAllowHarmonyExponentiationOperator));
   parser->set_allow_harmony_for_in(flags.Contains(kAllowHarmonyForIn));
   parser->set_allow_harmony_async_await(
       flags.Contains(kAllowHarmonyAsyncAwait));
@@ -7470,10 +7467,7 @@ TEST(ExponentiationOperator) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyExponentiationOperator};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(ExponentiationOperatorErrors) {
@@ -7520,10 +7514,7 @@ TEST(ExponentiationOperatorErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {
-      kAllowHarmonyExponentiationOperator};
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, error_data, kError);
 }
 
 TEST(AsyncAwait) {

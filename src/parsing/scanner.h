@@ -493,12 +493,6 @@ class Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-#define DECLARE_ACCESSORS(name)                                \
-  inline bool allow_##name() const { return allow_##name##_; } \
-  inline void set_allow_##name(bool allow) { allow_##name##_ = allow; }
-  DECLARE_ACCESSORS(harmony_exponentiation_operator)
-#undef ACCESSOR
-
  private:
   // The current and look-ahead token.
   struct TokenDesc {
@@ -827,8 +821,6 @@ class Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
-
-  bool allow_harmony_exponentiation_operator_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;
