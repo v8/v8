@@ -522,10 +522,8 @@ SIMD128_TYPES(SIMD128_GEN_ASM)
 
 void StringLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   compiler::Node* value = assembler->Parameter(0);
-  compiler::Node* string =
-      assembler->LoadObjectField(value, JSValue::kValueOffset);
-  compiler::Node* result =
-      assembler->LoadObjectField(string, String::kLengthOffset);
+  compiler::Node* string = assembler->LoadJSValueValue(value);
+  compiler::Node* result = assembler->LoadStringLength(string);
   assembler->Return(result);
 }
 
@@ -3397,8 +3395,8 @@ void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
     assembler->Bind(&if_bothonebyteseqstrings);
     {
       // Load the length of {lhs} and {rhs}.
-      Node* lhs_length = assembler->LoadObjectField(lhs, String::kLengthOffset);
-      Node* rhs_length = assembler->LoadObjectField(rhs, String::kLengthOffset);
+      Node* lhs_length = assembler->LoadStringLength(lhs);
+      Node* rhs_length = assembler->LoadStringLength(rhs);
 
       // Determine the minimum length.
       Node* length = assembler->SmiMin(lhs_length, rhs_length);
@@ -3569,8 +3567,8 @@ void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
     // The {lhs} and {rhs} don't refer to the exact same String object.
 
     // Load the length of {lhs} and {rhs}.
-    Node* lhs_length = assembler->LoadObjectField(lhs, String::kLengthOffset);
-    Node* rhs_length = assembler->LoadObjectField(rhs, String::kLengthOffset);
+    Node* lhs_length = assembler->LoadStringLength(lhs);
+    Node* rhs_length = assembler->LoadStringLength(rhs);
 
     // Check if the lengths of {lhs} and {rhs} are equal.
     Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
