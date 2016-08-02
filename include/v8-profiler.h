@@ -137,7 +137,9 @@ class V8_EXPORT CpuProfileNode {
   unsigned GetHitCount() const;
 
   /** Returns function entry UID. */
-  unsigned GetCallUid() const;
+  V8_DEPRECATE_SOON(
+      "Use GetScriptId, GetLineNumber, and GetColumnNumber instead.",
+      unsigned GetCallUid() const);
 
   /** Returns id of the node. The id is unique within the tree */
   unsigned GetNodeId() const;
