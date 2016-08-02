@@ -1031,27 +1031,6 @@ void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
 }
 
 
-// --- N e a n d e r ---
-
-
-// A constructor cannot easily return an error value, therefore it is necessary
-// to check for a dead VM with ON_BAILOUT before constructing any Neander
-// objects.  To remind you about this there is no HandleScope in the
-// NeanderObject constructor.  When you add one to the site calling the
-// constructor you should check that you ensured the VM was not dead first.
-NeanderObject::NeanderObject(v8::internal::Isolate* isolate, int size) {
-  ENTER_V8(isolate);
-  value_ = isolate->factory()->NewNeanderObject();
-  i::Handle<i::FixedArray> elements = isolate->factory()->NewFixedArray(size);
-  value_->set_elements(*elements);
-}
-
-
-int NeanderObject::size() {
-  return i::FixedArray::cast(value_->elements())->length();
-}
-
-
 // --- T e m p l a t e ---
 
 
@@ -7940,11 +7919,13 @@ bool Isolate::AddMessageListener(MessageCallback that, Local<Value> data) {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::TemplateList> list = isolate->factory()->message_listeners();
-  NeanderObject obj(isolate, 2);
-  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
-  obj.set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
-                            : *Utils::OpenHandle(*data));
-  list = i::TemplateList::Add(isolate, list, obj.value());
+  i::Handle<i::FixedArray> listener = isolate->factory()->NewFixedArray(2);
+  i::Handle<i::Foreign> foreign =
+      isolate->factory()->NewForeign(FUNCTION_ADDR(that));
+  listener->set(0, *foreign);
+  listener->set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
+                                  : *Utils::OpenHandle(*data));
+  list = i::TemplateList::Add(isolate, list, listener);
   isolate->heap()->SetMessageListeners(*list);
   return true;
 }
@@ -7958,9 +7939,8 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
   i::TemplateList* listeners = isolate->heap()->message_listeners();
   for (int i = 0; i < listeners->length(); i++) {
     if (listeners->get(i)->IsUndefined(isolate)) continue;  // skip deleted ones
-
-    NeanderObject listener(i::JSObject::cast(listeners->get(i)));
-    i::Foreign* callback_obj = i::Foreign::cast(listener.get(0));
+    i::FixedArray* listener = i::FixedArray::cast(listeners->get(i));
+    i::Foreign* callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners->set(i, isolate->heap()->undefined_value());
     }

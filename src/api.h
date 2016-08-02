@@ -26,44 +26,6 @@ class Consts {
   };
 };
 
-
-// Utilities for working with neander-objects, primitive
-// env-independent JSObjects used by the api.
-class NeanderObject {
- public:
-  explicit NeanderObject(v8::internal::Isolate* isolate, int size);
-  explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
-  explicit inline NeanderObject(v8::internal::Object* obj);
-  inline v8::internal::Object* get(int index);
-  inline void set(int index, v8::internal::Object* value);
-  inline v8::internal::Handle<v8::internal::JSObject> value() { return value_; }
-  int size();
- private:
-  v8::internal::Handle<v8::internal::JSObject> value_;
-};
-
-
-NeanderObject::NeanderObject(v8::internal::Handle<v8::internal::Object> obj)
-    : value_(v8::internal::Handle<v8::internal::JSObject>::cast(obj)) { }
-
-
-NeanderObject::NeanderObject(v8::internal::Object* obj)
-    : value_(v8::internal::Handle<v8::internal::JSObject>(
-        v8::internal::JSObject::cast(obj))) { }
-
-
-v8::internal::Object* NeanderObject::get(int offset) {
-  DCHECK(value()->HasFastObjectElements());
-  return v8::internal::FixedArray::cast(value()->elements())->get(offset);
-}
-
-
-void NeanderObject::set(int offset, v8::internal::Object* value) {
-  DCHECK(value_->HasFastObjectElements());
-  v8::internal::FixedArray::cast(value_->elements())->set(offset, value);
-}
-
-
 template <typename T> inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::FromInt(0)) return nullptr;
@@ -157,9 +119,6 @@ class Utils {
     return condition;
   }
   static void ReportOOMFailure(const char* location, bool is_heap_oom);
-
-  static Local<FunctionTemplate> ToFunctionTemplate(NeanderObject obj);
-  static Local<ObjectTemplate> ToObjectTemplate(NeanderObject obj);
 
   static inline Local<Context> ToLocal(
       v8::internal::Handle<v8::internal::Context> obj);

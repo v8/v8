@@ -134,11 +134,11 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
       if (global_listeners->get(i)->IsUndefined(isolate)) continue;
-      v8::NeanderObject listener(JSObject::cast(global_listeners->get(i)));
-      Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
+      FixedArray* listener = FixedArray::cast(global_listeners->get(i));
+      Foreign* callback_obj = Foreign::cast(listener->get(0));
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
-      Handle<Object> callback_data(listener.get(1), isolate);
+      Handle<Object> callback_data(listener->get(1), isolate);
       {
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
