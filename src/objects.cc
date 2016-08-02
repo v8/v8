@@ -10229,14 +10229,11 @@ int HandlerTable::LookupRange(int pc_offset, int* data_out,
 
 
 // TODO(turbofan): Make sure table is sorted and use binary search.
-int HandlerTable::LookupReturn(int pc_offset, CatchPrediction* prediction_out) {
+int HandlerTable::LookupReturn(int pc_offset) {
   for (int i = 0; i < length(); i += kReturnEntrySize) {
     int return_offset = Smi::cast(get(i + kReturnOffsetIndex))->value();
     int handler_field = Smi::cast(get(i + kReturnHandlerIndex))->value();
     if (pc_offset == return_offset) {
-      if (prediction_out) {
-        *prediction_out = HandlerPredictionField::decode(handler_field);
-      }
       return HandlerOffsetField::decode(handler_field);
     }
   }
@@ -13723,6 +13720,12 @@ uint32_t Code::TranslateAstIdToPcOffset(BailoutId ast_id) {
   return 0;
 }
 
+int Code::LookupRangeInHandlerTable(int code_offset, int* data,
+                                    HandlerTable::CatchPrediction* prediction) {
+  DCHECK(!is_optimized_code());
+  HandlerTable* table = HandlerTable::cast(handler_table());
+  return table->LookupRange(code_offset, data, prediction);
+}
 
 void Code::MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate) {
   PatchPlatformCodeAge(isolate, sequence, kNoAgeCodeAge, NO_MARKING_PARITY);
@@ -14475,6 +14478,13 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
   DCHECK_EQ(from->length(), to->length());
   CopyBytes(to->GetFirstBytecodeAddress(), from->GetFirstBytecodeAddress(),
             from->length());
+}
+
+int BytecodeArray::LookupRangeInHandlerTable(
+    int code_offset, int* data, HandlerTable::CatchPrediction* prediction) {
+  HandlerTable* table = HandlerTable::cast(handler_table());
+  code_offset++;  // Point after current bytecode.
+  return table->LookupRange(code_offset, data, prediction);
 }
 
 // static

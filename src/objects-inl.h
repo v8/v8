@@ -5335,6 +5335,16 @@ ByteArray* AbstractCode::source_position_table() {
   }
 }
 
+int AbstractCode::LookupRangeInHandlerTable(
+    int code_offset, int* data, HandlerTable::CatchPrediction* prediction) {
+  if (IsCode()) {
+    return GetCode()->LookupRangeInHandlerTable(code_offset, data, prediction);
+  } else {
+    return GetBytecodeArray()->LookupRangeInHandlerTable(code_offset, data,
+                                                         prediction);
+  }
+}
+
 int AbstractCode::SizeIncludingMetadata() {
   if (IsCode()) {
     return GetCode()->SizeIncludingMetadata();

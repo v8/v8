@@ -1296,6 +1296,31 @@ Object* Isolate::UnwindAndFindHandler() {
   return exception;
 }
 
+namespace {
+HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
+  HandlerTable::CatchPrediction prediction;
+  if (frame->is_optimized()) {
+    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
+      // This optimized frame will catch. It's handler table does not include
+      // exception prediction, and we need to use the corresponding handler
+      // tables on the unoptimized code objects.
+      List<FrameSummary> summaries;
+      frame->Summarize(&summaries);
+      for (const FrameSummary& summary : summaries) {
+        int code_offset = summary.code_offset();
+        int index = summary.abstract_code()->LookupRangeInHandlerTable(
+            code_offset, nullptr, &prediction);
+        if (index <= 0) continue;
+        if (prediction == HandlerTable::UNCAUGHT) continue;
+        return prediction;
+      }
+    }
+  } else if (frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
+    return prediction;
+  }
+  return HandlerTable::UNCAUGHT;
+}
+}  // anonymous namespace
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
@@ -1314,11 +1339,8 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
     // For JavaScript frames we perform a lookup in the handler table.
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      HandlerTable::CatchPrediction prediction;
-      if (js_frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
-        // We are conservative with our prediction: try-finally is considered
-        // to always rethrow, to meet the expectation of the debugger.
-        if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
+      if (PredictException(js_frame) != HandlerTable::UNCAUGHT) {
+        return CAUGHT_BY_JAVASCRIPT;
       }
     }
 
@@ -1730,15 +1752,13 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   // Find the top-most try-catch or try-finally handler.
   if (PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) return undefined;
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    HandlerTable::CatchPrediction prediction;
-    if (frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
-      // Throwing inside a Promise only leads to a reject if not caught by an
-      // inner try-catch or try-finally.
-      if (prediction == HandlerTable::PROMISE) {
+    switch (PredictException(it.frame())) {
+      case HandlerTable::UNCAUGHT:
+        break;
+      case HandlerTable::CAUGHT:
+        return undefined;
+      case HandlerTable::PROMISE:
         return tltop->promise_on_stack_->promise();
-      }
-      return undefined;
     }
   }
   return undefined;

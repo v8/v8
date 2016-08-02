@@ -710,11 +710,11 @@ class FrameSummary BASE_EMBEDDED {
 
   static FrameSummary GetFirst(JavaScriptFrame* frame);
 
-  Handle<Object> receiver() { return receiver_; }
-  Handle<JSFunction> function() { return function_; }
-  Handle<AbstractCode> abstract_code() { return abstract_code_; }
-  int code_offset() { return code_offset_; }
-  bool is_constructor() { return is_constructor_; }
+  Handle<Object> receiver() const { return receiver_; }
+  Handle<JSFunction> function() const { return function_; }
+  Handle<AbstractCode> abstract_code() const { return abstract_code_; }
+  int code_offset() const { return code_offset_; }
+  bool is_constructor() const { return is_constructor_; }
 
   void Print();
 
