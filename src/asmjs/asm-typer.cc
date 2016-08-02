@@ -178,6 +178,9 @@ void AsmTyper::InitializeStdlib() {
   s2s->AsFunctionType()->AddArgument(s);
 
   auto* i = AsmType::Int();
+  auto* i2s = AsmType::Function(zone_, s);
+  i2s->AsFunctionType()->AddArgument(i);
+
   auto* ii2s = AsmType::Function(zone_, s);
   ii2s->AsFunctionType()->AddArgument(i);
   ii2s->AsFunctionType()->AddArgument(i);
@@ -248,6 +251,10 @@ void AsmTyper::InitializeStdlib() {
       {"SQRT1_2", kMathSQRT1_2, d},
       {"imul", kMathImul, ii2s},
       {"abs", kMathAbs, abs},
+      // NOTE: clz32 should return fixnum. The current typer can only return
+      // Signed, Float, or Double, so it returns Signed in our version of
+      // asm.js.
+      {"clz32", kMathClz32, i2s},
       {"ceil", kMathCeil, ceil},
       {"floor", kMathFloor, floor},
       {"fround", kMathFround, fround},

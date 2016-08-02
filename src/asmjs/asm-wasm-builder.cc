@@ -1085,6 +1085,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         }
         break;
       }
+      case AsmTyper::kMathClz32: {
+        VisitCallArgs(call);
+        DCHECK(call_type == kAstI32);
+        current_function_builder_->Emit(kExprI32Clz);
+        break;
+      }
       case AsmTyper::kMathAbs: {
         if (call_type == kAstI32) {
           uint32_t tmp = current_function_builder_->AddLocal(kAstI32);
