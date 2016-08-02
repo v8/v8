@@ -511,9 +511,7 @@ void AllocateHeapNumberStub::GenerateAssembly(
       const {                                                               \
     compiler::Node* result =                                                \
         assembler->Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
-    compiler::Node* map_offset =                                            \
-        assembler->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag); \
-    compiler::Node* map = assembler->IntPtrAdd(result, map_offset);         \
+    compiler::Node* map = assembler->LoadMap(result);                       \
     assembler->StoreNoWriteBarrier(                                         \
         MachineRepresentation::kTagged, map,                                \
         assembler->HeapConstant(isolate()->factory()->type##_map()));       \
@@ -598,7 +596,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
       assembler->Bind(&if_rhsisnotsmi);
       {
         // Load the map of {rhs}.
-        Node* rhs_map = assembler->LoadObjectField(rhs, HeapObject::kMapOffset);
+        Node* rhs_map = assembler->LoadMap(rhs);
 
         // Check if the {rhs} is a HeapNumber.
         Label if_rhsisnumber(assembler),
