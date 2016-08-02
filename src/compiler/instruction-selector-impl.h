@@ -386,6 +386,25 @@ class FlagsContinuation final {
     if (negate) Negate();
   }
 
+  void OverwriteUnsignedIfSigned() {
+    switch (condition_) {
+      case kSignedLessThan:
+        condition_ = kUnsignedLessThan;
+        break;
+      case kSignedLessThanOrEqual:
+        condition_ = kUnsignedLessThanOrEqual;
+        break;
+      case kSignedGreaterThan:
+        condition_ = kUnsignedGreaterThan;
+        break;
+      case kSignedGreaterThanOrEqual:
+        condition_ = kUnsignedGreaterThanOrEqual;
+        break;
+      default:
+        break;
+    }
+  }
+
   // Encodes this flags continuation into the given opcode.
   InstructionCode Encode(InstructionCode opcode) {
     opcode |= FlagsModeField::encode(mode_);

@@ -1216,10 +1216,7 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
-                                    Node* right) {
-  if (opcode != kIA32Cmp && opcode != kIA32Test) {
-    return opcode;
-  }
+                                    Node* right, FlagsContinuation* cont) {
   // Currently, if one of the two operands is not a Load, we don't know what its
   // machine representation is, so we bail out.
   // TODO(epertoso): we can probably get some size information out of immediates
@@ -1229,19 +1226,39 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
   }
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  LoadRepresentation left_representation = LoadRepresentationOf(left->op());
-  if (left_representation != LoadRepresentationOf(right->op())) {
-    return opcode;
+  MachineType left_type = LoadRepresentationOf(left->op());
+  MachineType right_type = LoadRepresentationOf(right->op());
+  if (left_type == right_type) {
+    switch (left_type.representation()) {
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8: {
+        if (opcode == kIA32Test) return kIA32Test8;
+        if (opcode == kIA32Cmp) {
+          if (left_type.semantic() == MachineSemantic::kUint32) {
+            cont->OverwriteUnsignedIfSigned();
+          } else {
+            CHECK_EQ(MachineSemantic::kInt32, left_type.semantic());
+          }
+          return kIA32Cmp8;
+        }
+        break;
+      }
+      case MachineRepresentation::kWord16:
+        if (opcode == kIA32Test) return kIA32Test16;
+        if (opcode == kIA32Cmp) {
+          if (left_type.semantic() == MachineSemantic::kUint32) {
+            cont->OverwriteUnsignedIfSigned();
+          } else {
+            CHECK_EQ(MachineSemantic::kInt32, left_type.semantic());
+          }
+          return kIA32Cmp16;
+        }
+        break;
+      default:
+        break;
+    }
   }
-  switch (left_representation.representation()) {
-    case MachineRepresentation::kBit:
-    case MachineRepresentation::kWord8:
-      return opcode == kIA32Cmp ? kIA32Cmp8 : kIA32Test8;
-    case MachineRepresentation::kWord16:
-      return opcode == kIA32Cmp ? kIA32Cmp16 : kIA32Test16;
-    default:
-      return opcode;
-  }
+  return opcode;
 }
 
 // Shared routine for multiple float32 compare operations (inputs commuted).
@@ -1268,7 +1285,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  InstructionCode narrowed_opcode = TryNarrowOpcodeSize(opcode, left, right);
+  InstructionCode narrowed_opcode =
+      TryNarrowOpcodeSize(opcode, left, right, cont);
 
   int effect_level = selector->GetEffectLevel(node);
   if (cont->IsBranch()) {
