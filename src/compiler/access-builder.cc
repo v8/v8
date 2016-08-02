@@ -327,6 +327,27 @@ FieldAccess AccessBuilder::ForFixedArrayLength() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForFixedTypedArrayBaseBasePointer() {
+  FieldAccess access = {kTaggedBase,
+                        FixedTypedArrayBase::kBasePointerOffset,
+                        MaybeHandle<Name>(),
+                        Type::Tagged(),
+                        MachineType::AnyTagged(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
+  FieldAccess access = {kTaggedBase,
+                        FixedTypedArrayBase::kExternalPointerOffset,
+                        MaybeHandle<Name>(),
+                        Type::UntaggedPointer(),
+                        MachineType::Pointer(),
+                        kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {

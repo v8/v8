@@ -732,9 +732,9 @@ Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
         jsgraph()->ZeroConstant());
 
     // Default to zero if the {receiver}s buffer was neutered.
-    Node* value =
-        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                         check, receiver_length, jsgraph()->ZeroConstant());
+    Node* value = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
+        check, receiver_length, jsgraph()->ZeroConstant());
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

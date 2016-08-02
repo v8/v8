@@ -611,6 +611,13 @@ struct MachineOperatorGlobalCache {
                    0, 0, 0, 0, 0) {}
   };
   DebugBreakOperator kDebugBreak;
+
+  struct UnsafePointerAddOperator final : public Operator {
+    UnsafePointerAddOperator()
+        : Operator(IrOpcode::kUnsafePointerAdd, Operator::kKontrol,
+                   "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
+  };
+  UnsafePointerAddOperator kUnsafePointerAdd;
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -726,6 +733,10 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   }
   UNREACHABLE();
   return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
+  return &cache_.kUnsafePointerAdd;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

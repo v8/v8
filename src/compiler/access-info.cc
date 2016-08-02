@@ -25,6 +25,8 @@ bool CanInlineElementAccess(Handle<Map> map) {
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
   // TODO(bmeurer): Add support for other elements kind.
+  if (elements_kind == UINT8_CLAMPED_ELEMENTS) return false;
+  if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
   return false;
 }
 

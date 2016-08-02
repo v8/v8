@@ -299,6 +299,9 @@ void InstructionSelector::MarkAsDefined(Node* node) {
 
 bool InstructionSelector::IsUsed(Node* node) const {
   DCHECK_NOT_NULL(node);
+  // TODO(bmeurer): This is a terrible monster hack, but we have to make sure
+  // that the Retain is actually emitted, otherwise the GC will mess up.
+  if (node->opcode() == IrOpcode::kRetain) return true;
   if (!node->op()->HasProperty(Operator::kEliminatable)) return true;
   size_t const id = node->id();
   DCHECK_LT(id, used_.size());
@@ -929,6 +932,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kComment:
       VisitComment(node);
       return;
+    case IrOpcode::kRetain:
+      VisitRetain(node);
+      return;
     case IrOpcode::kLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -1297,6 +1303,9 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kAtomicStore:
       return VisitAtomicStore(node);
+    case IrOpcode::kUnsafePointerAdd:
+      MarkAsRepresentation(MachineType::PointerRepresentation(), node);
+      return VisitUnsafePointerAdd(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -2014,6 +2023,19 @@ void InstructionSelector::VisitComment(Node* node) {
   OperandGenerator g(this);
   InstructionOperand operand(g.UseImmediate(node));
   Emit(kArchComment, 0, nullptr, 1, &operand);
+}
+
+void InstructionSelector::VisitUnsafePointerAdd(Node* node) {
+#if V8_TARGET_ARCH_64_BIT
+  VisitInt64Add(node);
+#else   // V8_TARGET_ARCH_64_BIT
+  VisitInt32Add(node);
+#endif  // V8_TARGET_ARCH_64_BIT
+}
+
+void InstructionSelector::VisitRetain(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.NoOutput(), g.UseAny(node->InputAt(0)));
 }
 
 bool InstructionSelector::CanProduceSignalingNaN(Node* node) {

@@ -92,6 +92,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
     case IrOpcode::kStore:
+    case IrOpcode::kRetain:
+    case IrOpcode::kUnsafePointerAdd:
       return VisitOtherEffect(node, state);
     default:
       break;

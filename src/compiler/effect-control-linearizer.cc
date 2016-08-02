@@ -722,6 +722,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTransitionElementsKind:
       state = LowerTransitionElementsKind(node, *effect, *control);
       break;
+    case IrOpcode::kLoadTypedElement:
+      state = LowerLoadTypedElement(node, *effect, *control);
+      break;
+    case IrOpcode::kStoreTypedElement:
+      state = LowerStoreTypedElement(node, *effect, *control);
+      break;
     default:
       return false;
   }
@@ -2615,6 +2621,59 @@ EffectControlLinearizer::LowerTransitionElementsKind(Node* node, Node* effect,
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+  return ValueEffectControl(nullptr, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerLoadTypedElement(Node* node, Node* effect,
+                                               Node* control) {
+  ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
+  Node* buffer = node->InputAt(0);
+  Node* base = node->InputAt(1);
+  Node* external = node->InputAt(2);
+  Node* index = node->InputAt(3);
+
+  // We need to keep the {buffer} alive so that the GC will not release the
+  // ArrayBuffer (if there's any) as long as we are still operating on it.
+  effect = graph()->NewNode(common()->Retain(), buffer, effect);
+
+  // Compute the effective storage pointer.
+  Node* storage = effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
+                                            external, effect, control);
+
+  // Perform the actual typed element access.
+  Node* value = effect = graph()->NewNode(
+      simplified()->LoadElement(
+          AccessBuilder::ForTypedArrayElement(array_type, true)),
+      storage, index, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStoreTypedElement(Node* node, Node* effect,
+                                                Node* control) {
+  ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
+  Node* buffer = node->InputAt(0);
+  Node* base = node->InputAt(1);
+  Node* external = node->InputAt(2);
+  Node* index = node->InputAt(3);
+  Node* value = node->InputAt(4);
+
+  // We need to keep the {buffer} alive so that the GC will not release the
+  // ArrayBuffer (if there's any) as long as we are still operating on it.
+  effect = graph()->NewNode(common()->Retain(), buffer, effect);
+
+  // Compute the effective storage pointer.
+  Node* storage = effect = graph()->NewNode(machine()->UnsafePointerAdd(), base,
+                                            external, effect, control);
+
+  // Perform the actual typed element access.
+  effect = graph()->NewNode(
+      simplified()->StoreElement(
+          AccessBuilder::ForTypedArrayElement(array_type, true)),
+      storage, index, value, effect, control);
 
   return ValueEffectControl(nullptr, effect, control);
 }

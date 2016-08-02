@@ -181,6 +181,12 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   return OpParameter<ElementAccess>(op);
 }
 
+ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kLoadTypedElement ||
+         op->opcode() == IrOpcode::kStoreTypedElement);
+  return OpParameter<ExternalArrayType>(op);
+}
+
 size_t hash_value(CheckFloat64HoleMode mode) {
   return static_cast<size_t>(mode);
 }
@@ -634,11 +640,13 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberLessThanOrEqual(
       "SpeculativeNumberLessThanOrEqual", 2, 1, 1, 1, 1, 0, hint);
 }
 
-#define ACCESS_OP_LIST(V)                                    \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)
+#define ACCESS_OP_LIST(V)                                             \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)              \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)              \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)          \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)          \
+  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
                output_count)                                                   \

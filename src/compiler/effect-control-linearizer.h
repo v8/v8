@@ -134,6 +134,10 @@ class EffectControlLinearizer {
                                                   Node* control);
   ValueEffectControl LowerTransitionElementsKind(Node* node, Node* effect,
                                                  Node* control);
+  ValueEffectControl LowerLoadTypedElement(Node* node, Node* effect,
+                                           Node* control);
+  ValueEffectControl LowerStoreTypedElement(Node* node, Node* effect,
+                                            Node* control);
 
   ValueEffectControl AllocateHeapNumberWithValue(Node* node, Node* effect,
                                                  Node* control);

@@ -63,6 +63,8 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceLoadElement(node);
     case IrOpcode::kStoreElement:
       return ReduceStoreElement(node);
+    case IrOpcode::kStoreTypedElement:
+      return ReduceStoreTypedElement(node);
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
@@ -455,6 +457,13 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
   return UpdateState(node, state);
 }
 
+Reduction LoadElimination::ReduceStoreTypedElement(Node* node) {
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  return UpdateState(node, state);
+}
+
 Reduction LoadElimination::ReduceEffectPhi(Node* node) {
   Node* const effect0 = NodeProperties::GetEffectInput(node, 0);
   Node* const control = NodeProperties::GetControlInput(node);
@@ -571,15 +580,20 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
 
 // static
 int LoadElimination::FieldIndexOf(FieldAccess const& access) {
-  switch (access.machine_type.representation()) {
+  MachineRepresentation rep = access.machine_type.representation();
+  switch (rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
       UNREACHABLE();
       break;
-    case MachineRepresentation::kWord8:
-    case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
+      if (rep != MachineType::PointerRepresentation()) {
+        return -1;  // We currently only track pointer size fields.
+      }
+      break;
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
     case MachineRepresentation::kFloat32:
       return -1;  // Currently untracked.
     case MachineRepresentation::kFloat64:

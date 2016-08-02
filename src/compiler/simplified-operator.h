@@ -107,6 +107,8 @@ std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
+ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
+
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
   kAllowReturnHole   // Allow to return the hole (signaling NaN).
@@ -319,11 +321,17 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   // store-buffer buffer, offset, length, value
   const Operator* StoreBuffer(BufferAccess);
 
-  // load-element [base + index], length
+  // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
 
-  // store-element [base + index], length, value
+  // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);
+
+  // load-typed-element buffer, [base + external + index]
+  const Operator* LoadTypedElement(ExternalArrayType const&);
+
+  // store-typed-element buffer, [base + external + index], value
+  const Operator* StoreTypedElement(ExternalArrayType const&);
 
  private:
   Zone* zone() const { return zone_; }

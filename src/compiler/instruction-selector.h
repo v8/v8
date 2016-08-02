@@ -296,6 +296,7 @@ class InstructionSelector final {
                        Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
+  void VisitRetain(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);

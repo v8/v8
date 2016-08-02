@@ -61,7 +61,8 @@
   V(LoopExit)             \
   V(LoopExitValue)        \
   V(LoopExitEffect)       \
-  V(Projection)
+  V(Projection)           \
+  V(Retain)
 
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
@@ -282,9 +283,11 @@
   V(LoadField)                          \
   V(LoadBuffer)                         \
   V(LoadElement)                        \
+  V(LoadTypedElement)                   \
   V(StoreField)                         \
   V(StoreBuffer)                        \
   V(StoreElement)                       \
+  V(StoreTypedElement)                  \
   V(ObjectIsCallable)                   \
   V(ObjectIsNumber)                     \
   V(ObjectIsReceiver)                   \
@@ -473,7 +476,8 @@
   V(Word32PairShr)              \
   V(Word32PairSar)              \
   V(AtomicLoad)                 \
-  V(AtomicStore)
+  V(AtomicStore)                \
+  V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \
   V(CreateFloat32x4)                        \

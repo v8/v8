@@ -65,6 +65,27 @@ enum Phase {
 
 namespace {
 
+MachineRepresentation MachineRepresentationFromArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
+    case kExternalInt8Array:
+      return MachineRepresentation::kWord8;
+    case kExternalUint16Array:
+    case kExternalInt16Array:
+      return MachineRepresentation::kWord16;
+    case kExternalUint32Array:
+    case kExternalInt32Array:
+      return MachineRepresentation::kWord32;
+    case kExternalFloat32Array:
+      return MachineRepresentation::kFloat32;
+    case kExternalFloat64Array:
+      return MachineRepresentation::kFloat64;
+  }
+  UNREACHABLE();
+  return MachineRepresentation::kNone;
+}
 
 UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
   switch (rep) {
@@ -2207,6 +2228,30 @@ class RepresentationSelector {
                 node, jsgraph_->simplified()->StoreElement(access));
           }
         }
+        return;
+      }
+      case IrOpcode::kLoadTypedElement: {
+        MachineRepresentation const rep =
+            MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
+        ProcessInput(node, 2, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
+        ProcessRemainingInputs(node, 4);
+        SetOutput(node, rep);
+        return;
+      }
+      case IrOpcode::kStoreTypedElement: {
+        MachineRepresentation const rep =
+            MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
+        ProcessInput(node, 2, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 4,
+                     TruncatingUseInfoFromRepresentation(rep));  // value
+        ProcessRemainingInputs(node, 5);
+        SetOutput(node, MachineRepresentation::kNone);
         return;
       }
       case IrOpcode::kPlainPrimitiveToNumber: {

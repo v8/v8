@@ -930,6 +930,24 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   return ValueEffectControl(value, effect, control);
 }
 
+namespace {
+
+ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                 \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return kExternalInt8Array;
+}
+
+}  // namespace
+
 JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
@@ -963,105 +981,167 @@ JSNativeContextSpecialization::BuildElementAccess(
     effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
   }
 
-  // Load the length of the {receiver}.
-  Node* length = effect =
-      HasOnlyJSArrayMaps(receiver_maps)
-          ? graph()->NewNode(
-                simplified()->LoadField(
-                    AccessBuilder::ForJSArrayLength(elements_kind)),
-                receiver, effect, control)
-          : graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                elements, effect, control);
+  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    // Load the {receiver}s length.
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()),
+        receiver, effect, control);
 
-  // Check that the {index} is in the valid range for the {receiver}.
-  index = effect = graph()->NewNode(simplified()->CheckBounds(), index, length,
-                                    effect, control);
+    // Check if the {receiver}s buffer was neutered.
+    Node* buffer = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        receiver, effect, control);
+    Node* buffer_bitfield = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+        buffer, effect, control);
+    Node* check = graph()->NewNode(
+        simplified()->NumberEqual(),
+        graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), buffer_bitfield,
+            jsgraph()->Constant(JSArrayBuffer::WasNeutered::kMask)),
+        jsgraph()->ZeroConstant());
 
-  // Compute the element access.
-  Type* element_type = Type::Any();
-  MachineType element_machine_type = MachineType::AnyTagged();
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    element_type = Type::Number();
-    element_machine_type = MachineType::Float64();
-  } else if (IsFastSmiElementsKind(elements_kind)) {
-    element_type = type_cache_.kSmi;
-  }
-  ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
-                                  element_type, element_machine_type,
-                                  kFullWriteBarrier};
+    // Default to zero if the {receiver}s buffer was neutered.
+    length = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
+        check, length, jsgraph()->ZeroConstant());
 
-  // Access the actual element.
-  // TODO(bmeurer): Refactor this into separate methods or even a separate
-  // class that deals with the elements access.
-  if (access_mode == AccessMode::kLoad) {
-    // Compute the real element access type, which includes the hole in case
-    // of holey backing stores.
-    if (elements_kind == FAST_HOLEY_ELEMENTS ||
-        elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-      element_access.type = Type::Union(
-          element_type,
-          Type::Constant(factory()->the_hole_value(), graph()->zone()),
-          graph()->zone());
-    }
-    // Perform the actual backing store access.
-    value = effect = graph()->NewNode(simplified()->LoadElement(element_access),
-                                      elements, index, effect, control);
-    // Handle loading from holey backing stores correctly, by either mapping
-    // the hole to undefined if possible, or deoptimizing otherwise.
-    if (elements_kind == FAST_HOLEY_ELEMENTS ||
-        elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
-      // Perform the hole check on the result.
-      CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
-      // Check if we are allowed to turn the hole into undefined.
-      // TODO(bmeurer): We might check the JSArray map from a different
-      // context here; may need reinvestigation.
-      if (receiver_maps.size() == 1 &&
-          receiver_maps[0].is_identical_to(
-              handle(isolate()->get_initial_js_array_map(elements_kind))) &&
-          isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-        // Add a code dependency on the array protector cell.
-        dependencies()->AssumePrototypeMapsStable(
-            receiver_maps[0], isolate()->initial_object_prototype());
-        dependencies()->AssumePropertyCell(factory()->array_protector());
-        // Turn the hole into undefined.
-        mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
+    // Check that the {index} is in the valid range for the {receiver}.
+    index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                      length, effect, control);
+
+    // Load the base and external pointer for the {receiver}.
+    Node* base_pointer = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
+        elements, effect, control);
+    Node* external_pointer = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
+        elements, effect, control);
+
+    // Access the actual element.
+    ExternalArrayType external_array_type =
+        GetArrayTypeFromElementsKind(elements_kind);
+    switch (access_mode) {
+      case AccessMode::kLoad: {
+        value = effect = graph()->NewNode(
+            simplified()->LoadTypedElement(external_array_type), buffer,
+            base_pointer, external_pointer, index, effect, control);
+        break;
       }
-      value = effect = graph()->NewNode(simplified()->CheckTaggedHole(mode),
-                                        value, effect, control);
-    } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
-      // Perform the hole check on the result.
-      CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
-      // Check if we are allowed to return the hole directly.
-      // TODO(bmeurer): We might check the JSArray map from a different
-      // context here; may need reinvestigation.
-      if (receiver_maps.size() == 1 &&
-          receiver_maps[0].is_identical_to(
-              handle(isolate()->get_initial_js_array_map(elements_kind))) &&
-          isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
-        // Add a code dependency on the array protector cell.
-        dependencies()->AssumePrototypeMapsStable(
-            receiver_maps[0], isolate()->initial_object_prototype());
-        dependencies()->AssumePropertyCell(factory()->array_protector());
-        // Return the signaling NaN hole directly if all uses are truncating.
-        mode = CheckFloat64HoleMode::kAllowReturnHole;
+      case AccessMode::kStore: {
+        // Ensure that the {value} is actually a Number.
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+        effect = graph()->NewNode(
+            simplified()->StoreTypedElement(external_array_type), buffer,
+            base_pointer, external_pointer, index, value, effect, control);
+        break;
       }
-      value = effect = graph()->NewNode(simplified()->CheckFloat64Hole(mode),
-                                        value, effect, control);
     }
   } else {
-    DCHECK_EQ(AccessMode::kStore, access_mode);
-    if (IsFastSmiElementsKind(elements_kind)) {
-      value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                        value, effect, control);
-    } else if (IsFastDoubleElementsKind(elements_kind)) {
-      value = effect =
-          graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
-      // Make sure we do not store signalling NaNs into double arrays.
-      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    // Load the length of the {receiver}.
+    Node* length = effect =
+        HasOnlyJSArrayMaps(receiver_maps)
+            ? graph()->NewNode(
+                  simplified()->LoadField(
+                      AccessBuilder::ForJSArrayLength(elements_kind)),
+                  receiver, effect, control)
+            : graph()->NewNode(
+                  simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+                  elements, effect, control);
+
+    // Check that the {index} is in the valid range for the {receiver}.
+    index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                      length, effect, control);
+
+    // Compute the element access.
+    Type* element_type = Type::Any();
+    MachineType element_machine_type = MachineType::AnyTagged();
+    if (IsFastDoubleElementsKind(elements_kind)) {
+      element_type = Type::Number();
+      element_machine_type = MachineType::Float64();
+    } else if (IsFastSmiElementsKind(elements_kind)) {
+      element_type = type_cache_.kSmi;
     }
-    effect = graph()->NewNode(simplified()->StoreElement(element_access),
-                              elements, index, value, effect, control);
+    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                    element_type, element_machine_type,
+                                    kFullWriteBarrier};
+
+    // Access the actual element.
+    // TODO(bmeurer): Refactor this into separate methods or even a separate
+    // class that deals with the elements access.
+    if (access_mode == AccessMode::kLoad) {
+      // Compute the real element access type, which includes the hole in case
+      // of holey backing stores.
+      if (elements_kind == FAST_HOLEY_ELEMENTS ||
+          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+        element_access.type = Type::Union(
+            element_type,
+            Type::Constant(factory()->the_hole_value(), graph()->zone()),
+            graph()->zone());
+      }
+      // Perform the actual backing store access.
+      value = effect =
+          graph()->NewNode(simplified()->LoadElement(element_access), elements,
+                           index, effect, control);
+      // Handle loading from holey backing stores correctly, by either mapping
+      // the hole to undefined if possible, or deoptimizing otherwise.
+      if (elements_kind == FAST_HOLEY_ELEMENTS ||
+          elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+        // Perform the hole check on the result.
+        CheckTaggedHoleMode mode = CheckTaggedHoleMode::kNeverReturnHole;
+        // Check if we are allowed to turn the hole into undefined.
+        // TODO(bmeurer): We might check the JSArray map from a different
+        // context here; may need reinvestigation.
+        if (receiver_maps.size() == 1 &&
+            receiver_maps[0].is_identical_to(
+                handle(isolate()->get_initial_js_array_map(elements_kind))) &&
+            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+          // Add a code dependency on the array protector cell.
+          dependencies()->AssumePrototypeMapsStable(
+              receiver_maps[0], isolate()->initial_object_prototype());
+          dependencies()->AssumePropertyCell(factory()->array_protector());
+          // Turn the hole into undefined.
+          mode = CheckTaggedHoleMode::kConvertHoleToUndefined;
+        }
+        value = effect = graph()->NewNode(simplified()->CheckTaggedHole(mode),
+                                          value, effect, control);
+      } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+        // Perform the hole check on the result.
+        CheckFloat64HoleMode mode = CheckFloat64HoleMode::kNeverReturnHole;
+        // Check if we are allowed to return the hole directly.
+        // TODO(bmeurer): We might check the JSArray map from a different
+        // context here; may need reinvestigation.
+        if (receiver_maps.size() == 1 &&
+            receiver_maps[0].is_identical_to(
+                handle(isolate()->get_initial_js_array_map(elements_kind))) &&
+            isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+          // Add a code dependency on the array protector cell.
+          dependencies()->AssumePrototypeMapsStable(
+              receiver_maps[0], isolate()->initial_object_prototype());
+          dependencies()->AssumePropertyCell(factory()->array_protector());
+          // Return the signaling NaN hole directly if all uses are truncating.
+          mode = CheckFloat64HoleMode::kAllowReturnHole;
+        }
+        value = effect = graph()->NewNode(simplified()->CheckFloat64Hole(mode),
+                                          value, effect, control);
+      }
+    } else {
+      DCHECK_EQ(AccessMode::kStore, access_mode);
+      if (IsFastSmiElementsKind(elements_kind)) {
+        value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
+                                          value, effect, control);
+      } else if (IsFastDoubleElementsKind(elements_kind)) {
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+        // Make sure we do not store signalling NaNs into double arrays.
+        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+      }
+      effect = graph()->NewNode(simplified()->StoreElement(element_access),
+                                elements, index, value, effect, control);
+    }
   }
 
   return ValueEffectControl(value, effect, control);

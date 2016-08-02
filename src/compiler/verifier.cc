@@ -650,11 +650,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckNotTyped(node);
       break;
 
-    case IrOpcode::kDebugBreak:
-      CheckNotTyped(node);
-      break;
-
     case IrOpcode::kComment:
+    case IrOpcode::kDebugBreak:
+    case IrOpcode::kRetain:
+    case IrOpcode::kUnsafePointerAdd:
       CheckNotTyped(node);
       break;
 
@@ -1042,6 +1041,8 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckUpperIs(node, ElementAccessOf(node->op()).type));
       break;
+    case IrOpcode::kLoadTypedElement:
+      break;
     case IrOpcode::kStoreField:
       // (Object, fieldtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.
@@ -1056,6 +1057,9 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kStoreTypedElement:
       CheckNotTyped(node);
       break;
     case IrOpcode::kNumberSilenceNaN:

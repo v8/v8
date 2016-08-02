@@ -1975,6 +1975,17 @@ Type* Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
 }
 
+Type* Typer::Visitor::TypeLoadTypedElement(Node* node) {
+  switch (ExternalArrayTypeOf(node->op())) {
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
+  case kExternal##ElemType##Array:                          \
+    return typer_->cache_.k##ElemType;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 Type* Typer::Visitor::TypeStoreField(Node* node) {
   UNREACHABLE();
@@ -1989,6 +2000,11 @@ Type* Typer::Visitor::TypeStoreBuffer(Node* node) {
 
 
 Type* Typer::Visitor::TypeStoreElement(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
+Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   UNREACHABLE();
   return nullptr;
 }
@@ -2025,6 +2041,13 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
 Type* Typer::Visitor::TypeDebugBreak(Node* node) { return Type::None(); }
 
 Type* Typer::Visitor::TypeComment(Node* node) { return Type::None(); }
+
+Type* Typer::Visitor::TypeRetain(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
+Type* Typer::Visitor::TypeUnsafePointerAdd(Node* node) { return Type::None(); }
 
 Type* Typer::Visitor::TypeLoad(Node* node) { return Type::Any(); }
 
