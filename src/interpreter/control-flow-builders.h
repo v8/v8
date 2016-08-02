@@ -89,8 +89,8 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
   ~LoopBuilder();
 
   void LoopHeader(ZoneVector<BytecodeLabel>* additional_labels);
-  void JumpToHeader() { builder()->Jump(&loop_header_); }
-  void JumpToHeaderIfTrue() { builder()->JumpIfTrue(&loop_header_); }
+  void JumpToHeader();
+  void JumpToHeaderIfTrue();
   void SetContinueTarget();
   void EndLoop();
 

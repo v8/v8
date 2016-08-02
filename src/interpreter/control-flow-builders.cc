@@ -102,11 +102,21 @@ void LoopBuilder::LoopHeader(ZoneVector<BytecodeLabel>* additional_labels) {
   }
 }
 
-
-void LoopBuilder::EndLoop() {
+void LoopBuilder::JumpToHeader() {
   // Loop must have closed form, i.e. all loop elements are within the loop,
   // the loop header precedes the body and next elements in the loop.
   DCHECK(loop_header_.is_bound());
+  builder()->Jump(&loop_header_);
+}
+
+void LoopBuilder::JumpToHeaderIfTrue() {
+  // Loop must have closed form, i.e. all loop elements are within the loop,
+  // the loop header precedes the body and next elements in the loop.
+  DCHECK(loop_header_.is_bound());
+  builder()->JumpIfTrue(&loop_header_);
+}
+
+void LoopBuilder::EndLoop() {
   builder()->Bind(&loop_end_);
   SetBreakTarget(loop_end_);
 }
