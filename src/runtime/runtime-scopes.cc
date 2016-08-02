@@ -266,11 +266,11 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags binding_flags;
+  InitializationFlag init_flag;
   VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
-  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &binding_flags,
+  context_arg->Lookup(name, LEXICAL_TEST, &index, &attributes, &init_flag,
                       &mode);
   if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
@@ -283,7 +283,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   }
 
   Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
-                                          &attributes, &binding_flags, &mode);
+                                          &attributes, &init_flag, &mode);
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
@@ -772,10 +772,10 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
   VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
+      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -808,10 +808,10 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
   VariableMode mode;
   Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
+      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (index != Context::kNotFound) {
@@ -821,22 +821,14 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
     Handle<Object> receiver = isolate->factory()->undefined_value();
     Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
-    switch (flags) {
-      case BINDING_CHECK_INITIALIZED:
-        if (value->IsTheHole(isolate)) {
-          THROW_NEW_ERROR(isolate,
-                          NewReferenceError(MessageTemplate::kNotDefined, name),
-                          Object);
-        }
-      // FALLTHROUGH
-      case BINDING_IS_INITIALIZED:
-        DCHECK(!value->IsTheHole(isolate));
-        if (receiver_return) *receiver_return = receiver;
-        return value;
-      case MISSING_BINDING:
-        break;
+    if (flag == kNeedsInitialization && value->IsTheHole(isolate)) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name),
+                      Object);
     }
-    UNREACHABLE();
+    DCHECK(!value->IsTheHole(isolate));
+    if (receiver_return) *receiver_return = receiver;
+    return value;
   }
 
   // Otherwise, if the slot was found the holder is a context extension
@@ -912,10 +904,10 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
 
   int index;
   PropertyAttributes attributes;
-  BindingFlags flags;
+  InitializationFlag flag;
   VariableMode mode;
   Handle<Object> holder =
-      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags, &mode);
+      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
@@ -923,7 +915,7 @@ MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
 
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
-    if (flags == BINDING_CHECK_INITIALIZED &&
+    if (flag == kNeedsInitialization &&
         Handle<Context>::cast(holder)->is_the_hole(index)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),

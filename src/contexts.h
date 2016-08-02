@@ -25,39 +25,6 @@ enum ContextLookupFlags {
 };
 
 
-// ES5 10.2 defines lexical environments with mutable and immutable bindings.
-// Immutable bindings have two states, initialized and uninitialized, and
-// their state is changed by the InitializeImmutableBinding method. The
-// BindingFlags enum represents information if a binding has definitely been
-// initialized. A mutable binding does not need to be checked and thus has
-// the BindingFlag BINDING_IS_INITIALIZED.
-//
-// There is one possibility for legacy immutable bindings:
-//  * The function name of a named function literal. The binding is immediately
-//    initialized when entering the function and thus does not need to be
-//    checked. it gets the BindingFlag BINDING_IS_INITIALIZED.
-//
-// The harmony proposal for block scoped bindings also introduces the
-// uninitialized state for mutable bindings.
-//  * A 'let' declared variable. They are initialized when evaluating the
-//    corresponding declaration statement. They need to be checked for being
-//    initialized and thus get the flag BINDING_CHECK_INITIALIZED.
-//  * A 'var' declared variable. It is initialized immediately upon creation
-//    and thus doesn't need to be checked. It gets the flag
-//    BINDING_IS_INITIALIZED.
-//  * Catch bound variables, function parameters and variables introduced by
-//    function declarations are initialized immediately and do not need to be
-//    checked. Thus they get the flag BINDING_IS_INITIALIZED.
-// Accessing an uninitialized binding produces a reference error.
-//
-// In V8 uninitialized bindings are set to the hole value upon creation and set
-// to a different value upon initialization.
-enum BindingFlags {
-  BINDING_IS_INITIALIZED,
-  BINDING_CHECK_INITIALIZED,
-  MISSING_BINDING
-};
-
 // Heap-allocated activation contexts.
 //
 // Contexts are implemented as FixedArray objects; the Context
@@ -507,7 +474,7 @@ class Context: public FixedArray {
   //    always ABSENT.
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
                         int* index, PropertyAttributes* attributes,
-                        BindingFlags* binding_flags,
+                        InitializationFlag* init_flag,
                         VariableMode* variable_mode);
 
   // Code generation support.
