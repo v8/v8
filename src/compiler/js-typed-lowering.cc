@@ -581,13 +581,26 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
+Reduction JSTypedLowering::ReduceInt32Binop(Node* node,
+                                            const Operator* int_op) {
   if (flags() & kDisableIntegerBinaryOpReduction) return NoChange();
-
   JSBinopReduction r(this, node);
+  BinaryOperationHints::Hint feedback = r.GetNumberBinaryOperationFeedback();
+  if (feedback != BinaryOperationHints::kAny) {
+    Operator const* speculative_op;
+    if (int_op->opcode() == IrOpcode::kNumberBitwiseAnd) {
+      speculative_op = simplified()->SpeculativeNumberBitwiseAnd(feedback);
+    } else if (int_op->opcode() == IrOpcode::kNumberBitwiseOr) {
+      speculative_op = simplified()->SpeculativeNumberBitwiseOr(feedback);
+    } else {
+      DCHECK_EQ(IrOpcode::kNumberBitwiseXor, int_op->opcode());
+      speculative_op = simplified()->SpeculativeNumberBitwiseXor(feedback);
+    }
+    return r.ChangeToSpeculativeOperator(speculative_op, Type::Signed32());
+  }
   r.ConvertInputsToNumber();
   r.ConvertInputsToUI32(kSigned, kSigned);
-  return r.ChangeToPureOperator(intOp, Type::Integral32());
+  return r.ChangeToPureOperator(int_op, Type::Signed32());
 }
 
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
@@ -603,7 +616,7 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
       speculative_op =
           simplified()->SpeculativeNumberShiftRightLogical(feedback);
     } else {
-      DCHECK(shift_op->opcode() == IrOpcode::kNumberShiftRight);
+      DCHECK_EQ(IrOpcode::kNumberShiftRight, shift_op->opcode());
       speculative_op = simplified()->SpeculativeNumberShiftRight(feedback);
     }
     return r.ChangeToSpeculativeOperator(

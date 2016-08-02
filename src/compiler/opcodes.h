@@ -227,11 +227,14 @@
   V(NumberBitwiseXor)                   \
   V(NumberBitwiseAnd)                   \
   V(NumberShiftLeft)                    \
+  V(NumberShiftRight)                   \
+  V(NumberShiftRightLogical)            \
+  V(SpeculativeNumberBitwiseAnd)        \
+  V(SpeculativeNumberBitwiseOr)         \
+  V(SpeculativeNumberBitwiseXor)        \
   V(SpeculativeNumberShiftLeft)         \
   V(SpeculativeNumberShiftRight)        \
   V(SpeculativeNumberShiftRightLogical) \
-  V(NumberShiftRight)                   \
-  V(NumberShiftRightLogical)            \
   V(NumberImul)                         \
   V(NumberAbs)                          \
   V(NumberClz32)                        \

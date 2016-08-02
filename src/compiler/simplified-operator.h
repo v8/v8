@@ -245,6 +245,9 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* SpeculativeNumberShiftRight(BinaryOperationHints::Hint hint);
   const Operator* SpeculativeNumberShiftRightLogical(
       BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberBitwiseAnd(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberBitwiseOr(BinaryOperationHints::Hint hint);
+  const Operator* SpeculativeNumberBitwiseXor(BinaryOperationHints::Hint hint);
 
   const Operator* SpeculativeNumberLessThan(CompareOperationHints::Hint hint);
   const Operator* SpeculativeNumberLessThanOrEqual(

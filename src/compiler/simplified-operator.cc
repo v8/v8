@@ -275,7 +275,10 @@ BinaryOperationHints::Hint BinaryOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberModulus ||
          op->opcode() == IrOpcode::kSpeculativeNumberShiftLeft ||
          op->opcode() == IrOpcode::kSpeculativeNumberShiftRight ||
-         op->opcode() == IrOpcode::kSpeculativeNumberShiftRightLogical);
+         op->opcode() == IrOpcode::kSpeculativeNumberShiftRightLogical ||
+         op->opcode() == IrOpcode::kSpeculativeNumberBitwiseAnd ||
+         op->opcode() == IrOpcode::kSpeculativeNumberBitwiseOr ||
+         op->opcode() == IrOpcode::kSpeculativeNumberBitwiseXor);
   return OpParameter<BinaryOperationHints::Hint>(op);
 }
 
@@ -365,15 +368,18 @@ CompareOperationHints::Hint CompareOperationHintOf(const Operator* op) {
   V(StringLessThan, Operator::kNoProperties, 2, 0)            \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)
 
-#define SPECULATIVE_BINOP_LIST(V) \
-  V(SpeculativeNumberAdd)         \
-  V(SpeculativeNumberSubtract)    \
-  V(SpeculativeNumberDivide)      \
-  V(SpeculativeNumberMultiply)    \
-  V(SpeculativeNumberModulus)     \
-  V(SpeculativeNumberShiftLeft)   \
-  V(SpeculativeNumberShiftRight)  \
-  V(SpeculativeNumberShiftRightLogical)
+#define SPECULATIVE_BINOP_LIST(V)       \
+  V(SpeculativeNumberAdd)               \
+  V(SpeculativeNumberSubtract)          \
+  V(SpeculativeNumberDivide)            \
+  V(SpeculativeNumberMultiply)          \
+  V(SpeculativeNumberModulus)           \
+  V(SpeculativeNumberShiftLeft)         \
+  V(SpeculativeNumberShiftRight)        \
+  V(SpeculativeNumberShiftRightLogical) \
+  V(SpeculativeNumberBitwiseAnd)        \
+  V(SpeculativeNumberBitwiseOr)         \
+  V(SpeculativeNumberBitwiseXor)
 
 #define CHECKED_OP_LIST(V)        \
   V(CheckBounds, 2, 1)            \

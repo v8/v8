@@ -1006,6 +1006,72 @@ TEST_F(JSTypedLoweringTest, JSInstanceOfNoSpecialization) {
   ASSERT_EQ(instanceOf, dummy->InputAt(0));
 }
 
+// -----------------------------------------------------------------------------
+// JSBitwiseAnd
+
+TEST_F(JSTypedLoweringTest, JSBitwiseAndWithTypeFeedback) {
+  BinaryOperationHints::Hint const feedback_types[] = {
+      BinaryOperationHints::kSignedSmall,
+      BinaryOperationHints::kNumberOrOddball};
+  for (BinaryOperationHints::Hint feedback : feedback_types) {
+    BinaryOperationHints const hints(feedback, feedback, feedback);
+    Node* lhs = Parameter(Type::Number(), 2);
+    Node* rhs = Parameter(Type::Number(), 3);
+    Node* effect = graph()->start();
+    Node* control = graph()->start();
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->BitwiseAnd(hints), lhs, rhs, UndefinedConstant(),
+        EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseAnd(
+                                     feedback, lhs, rhs, effect, control));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// JSBitwiseOr
+
+TEST_F(JSTypedLoweringTest, JSBitwiseOrWithTypeFeedback) {
+  BinaryOperationHints::Hint const feedback_types[] = {
+      BinaryOperationHints::kSignedSmall,
+      BinaryOperationHints::kNumberOrOddball};
+  for (BinaryOperationHints::Hint feedback : feedback_types) {
+    BinaryOperationHints const hints(feedback, feedback, feedback);
+    Node* lhs = Parameter(Type::Number(), 2);
+    Node* rhs = Parameter(Type::Number(), 3);
+    Node* effect = graph()->start();
+    Node* control = graph()->start();
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->BitwiseOr(hints), lhs, rhs, UndefinedConstant(),
+        EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseOr(
+                                     feedback, lhs, rhs, effect, control));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// JSBitwiseXor
+
+TEST_F(JSTypedLoweringTest, JSBitwiseXorWithTypeFeedback) {
+  BinaryOperationHints::Hint const feedback_types[] = {
+      BinaryOperationHints::kSignedSmall,
+      BinaryOperationHints::kNumberOrOddball};
+  for (BinaryOperationHints::Hint feedback : feedback_types) {
+    BinaryOperationHints const hints(feedback, feedback, feedback);
+    Node* lhs = Parameter(Type::Number(), 2);
+    Node* rhs = Parameter(Type::Number(), 3);
+    Node* effect = graph()->start();
+    Node* control = graph()->start();
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->BitwiseXor(hints), lhs, rhs, UndefinedConstant(),
+        EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseXor(
+                                     feedback, lhs, rhs, effect, control));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

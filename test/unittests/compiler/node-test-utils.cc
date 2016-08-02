@@ -2043,55 +2043,18 @@ Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
       new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
 }
 
-Matcher<Node*> IsSpeculativeNumberAdd(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsSpeculativeBinopMatcher(
-      IrOpcode::kSpeculativeNumberAdd, hint_matcher, lhs_matcher, rhs_matcher,
-      effect_matcher, control_matcher));
-}
-
-Matcher<Node*> IsSpeculativeNumberSubtract(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsSpeculativeBinopMatcher(
-      IrOpcode::kSpeculativeNumberSubtract, hint_matcher, lhs_matcher,
-      rhs_matcher, effect_matcher, control_matcher));
-}
-
-Matcher<Node*> IsSpeculativeNumberShiftLeft(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsSpeculativeBinopMatcher(
-      IrOpcode::kSpeculativeNumberShiftLeft, hint_matcher, lhs_matcher,
-      rhs_matcher, effect_matcher, control_matcher));
-}
-
-Matcher<Node*> IsSpeculativeNumberShiftRight(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsSpeculativeBinopMatcher(
-      IrOpcode::kSpeculativeNumberShiftRight, hint_matcher, lhs_matcher,
-      rhs_matcher, effect_matcher, control_matcher));
-}
-
-Matcher<Node*> IsSpeculativeNumberShiftRightLogical(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsSpeculativeBinopMatcher(
-      IrOpcode::kSpeculativeNumberShiftRightLogical, hint_matcher, lhs_matcher,
-      rhs_matcher, effect_matcher, control_matcher));
-}
+#define DEFINE_SPECULATIVE_BINOP_MATCHER(opcode)                            \
+  Matcher<Node*> Is##opcode(                                                \
+      const Matcher<BinaryOperationHints::Hint>& hint_matcher,              \
+      const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher, \
+      const Matcher<Node*>& effect_matcher,                                 \
+      const Matcher<Node*>& control_matcher) {                              \
+    return MakeMatcher(new IsSpeculativeBinopMatcher(                       \
+        IrOpcode::k##opcode, hint_matcher, lhs_matcher, rhs_matcher,        \
+        effect_matcher, control_matcher));                                  \
+  }
+SPECULATIVE_BINOPS(DEFINE_SPECULATIVE_BINOP_MATCHER);
+#undef DEFINE_SPECULATIVE_BINOP_MATCHER
 
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,

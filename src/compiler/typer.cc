@@ -1705,6 +1705,18 @@ Type* Typer::Visitor::TypeSpeculativeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypeSpeculativeNumberBitwiseOr(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberBitwiseXor(Node* node) {
+  return Type::Signed32();
+}
+
+Type* Typer::Visitor::TypeSpeculativeNumberBitwiseAnd(Node* node) {
+  return Type::Signed32();
+}
+
 Type* Typer::Visitor::TypeNumberMultiply(Node* node) { return Type::Number(); }
 
 Type* Typer::Visitor::TypeNumberDivide(Node* node) { return Type::Number(); }

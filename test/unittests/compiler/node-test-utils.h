@@ -34,6 +34,15 @@ class Node;
 
 using ::testing::Matcher;
 
+#define SPECULATIVE_BINOPS(V)           \
+  V(SpeculativeNumberAdd)               \
+  V(SpeculativeNumberSubtract)          \
+  V(SpeculativeNumberShiftLeft)         \
+  V(SpeculativeNumberShiftRight)        \
+  V(SpeculativeNumberShiftRightLogical) \
+  V(SpeculativeNumberBitwiseAnd)        \
+  V(SpeculativeNumberBitwiseOr)         \
+  V(SpeculativeNumberBitwiseXor)
 
 Matcher<Node*> IsDead();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
@@ -202,31 +211,16 @@ Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsSpeculativeNumberAdd(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsSpeculativeNumberSubtract(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsSpeculativeNumberShiftLeft(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsSpeculativeNumberShiftRight(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsSpeculativeNumberShiftRightLogical(
-    const Matcher<BinaryOperationHints::Hint>& hint_matcher,
-    const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher);
+
+#define DECLARE_SPECULATIVE_BINOP_MATCHER(opcode)                           \
+  Matcher<Node*> Is##opcode(                                                \
+      const Matcher<BinaryOperationHints::Hint>& hint_matcher,              \
+      const Matcher<Node*>& lhs_matcher, const Matcher<Node*>& rhs_matcher, \
+      const Matcher<Node*>& effect_matcher,                                 \
+      const Matcher<Node*>& control_matcher);
+SPECULATIVE_BINOPS(DECLARE_SPECULATIVE_BINOP_MATCHER);
+#undef DECLARE_SPECULATIVE_BINOP_MATCHER
+
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberMultiply(const Matcher<Node*>& lhs_matcher,

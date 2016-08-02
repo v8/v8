@@ -457,7 +457,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
+      if (use_info.type_check() != TypeCheckKind::kNone) {
         op = simplified()->CheckedTruncateTaggedToWord32();
       } else {
         op = simplified()->TruncateTaggedToWord32();
@@ -568,10 +568,13 @@ const Operator* RepresentationChanger::Int32OperatorFor(
     case IrOpcode::kSpeculativeNumberModulus:
     case IrOpcode::kNumberModulus:
       return machine()->Int32Mod();
+    case IrOpcode::kSpeculativeNumberBitwiseOr:  // Fall through.
     case IrOpcode::kNumberBitwiseOr:
       return machine()->Word32Or();
+    case IrOpcode::kSpeculativeNumberBitwiseXor:  // Fall through.
     case IrOpcode::kNumberBitwiseXor:
       return machine()->Word32Xor();
+    case IrOpcode::kSpeculativeNumberBitwiseAnd:  // Fall through.
     case IrOpcode::kNumberBitwiseAnd:
       return machine()->Word32And();
     case IrOpcode::kNumberEqual:

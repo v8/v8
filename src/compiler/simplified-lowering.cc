@@ -776,6 +776,23 @@ class RepresentationSelector {
     VisitBinop(node, input_use, input_use, output, restriction_type);
   }
 
+  void VisitSpeculativeInt32Binop(Node* node) {
+    DCHECK_EQ(2, node->op()->ValueInputCount());
+    if (BothInputsAre(node, Type::NumberOrOddball())) {
+      return VisitBinop(node, UseInfo::TruncatingWord32(),
+                        MachineRepresentation::kWord32);
+    }
+    BinaryOperationHints::Hint hint = BinaryOperationHintOf(node->op());
+    if (hint == BinaryOperationHints::kSignedSmall ||
+        hint == BinaryOperationHints::kSigned32) {
+      return VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+                        MachineRepresentation::kWord32);
+    }
+    DCHECK_EQ(BinaryOperationHints::kNumberOrOddball, hint);
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsWord32(),
+               MachineRepresentation::kWord32, Type::Signed32());
+  }
+
   // Helper for unops of the I -> O variety.
   void VisitUnop(Node* node, UseInfo input_use, MachineRepresentation output) {
     DCHECK_EQ(1, node->op()->ValueInputCount());
@@ -1666,6 +1683,14 @@ class RepresentationSelector {
         if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
         return;
       }
+      case IrOpcode::kSpeculativeNumberBitwiseOr:
+      case IrOpcode::kSpeculativeNumberBitwiseXor:
+      case IrOpcode::kSpeculativeNumberBitwiseAnd:
+        VisitSpeculativeInt32Binop(node);
+        if (lower()) {
+          ChangeToPureOp(node, Int32Op(node));
+        }
+        return;
       case IrOpcode::kNumberShiftLeft: {
         Type* rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, UseInfo::TruncatingWord32(),
