@@ -301,9 +301,6 @@ def BuildOptions():
   result.add_option("--no-sorting", "--nosorting",
                     help="Don't sort tests according to duration of last run.",
                     default=False, dest="no_sorting", action="store_true")
-  result.add_option("--no-stress", "--nostress",
-                    help="Don't run crankshaft --always-opt --stress-op test",
-                    default=False, dest="no_stress", action="store_true")
   result.add_option("--no-variants", "--novariants",
                     help="Don't run any testing variants",
                     default=False, dest="no_variants", action="store_true")
@@ -349,9 +346,6 @@ def BuildOptions():
                     help="Don't skip more slow tests when using a simulator.",
                     default=False, action="store_true",
                     dest="dont_skip_simulator_slow_tests")
-  result.add_option("--stress-only",
-                    help="Only run tests with --always-opt --stress-opt",
-                    default=False, action="store_true")
   result.add_option("--swarming",
                     help="Indicates running test driver on swarming.",
                     default=False, action="store_true")
@@ -545,23 +539,15 @@ def ProcessOptions(options):
     """Returns true if zero or one of multiple arguments are true."""
     return reduce(lambda x, y: x + y, args) <= 1
 
-  if not excl(options.no_stress, options.stress_only, options.no_variants,
-              bool(options.variants)):
-    print("Use only one of --no-stress, --stress-only, --no-variants, "
-          "or --variants.")
+  if not excl(options.no_variants, bool(options.variants)):
+    print("Use only one of --no-variants or --variants.")
     return False
   if options.quickcheck:
     VARIANTS = ["default", "stress"]
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
-  if options.no_stress:
-    # FIXME(machenbach): This is not very intuitive anymore. Maybe remove a
-    # bunch of these shortcuts and require stating the variants explicitly.
-    VARIANTS = ["default", "nocrankshaft"]
   if options.no_variants:
     VARIANTS = ["default"]
-  if options.stress_only:
-    VARIANTS = ["stress"]
   if options.variants:
     VARIANTS = options.variants.split(",")
 
