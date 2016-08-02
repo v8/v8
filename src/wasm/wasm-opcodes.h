@@ -69,8 +69,8 @@ const WasmCodePosition kNoCodePosition = -1;
   V(CallIndirect, 0x17, _)     \
   V(CallImport, 0x18, _)       \
   V(I8Const, 0xcb, _)          \
-  V(LoadGlobal, 0xcc, _)       \
-  V(StoreGlobal, 0xcd, _)
+  V(GetGlobal, 0xbb, _)        \
+  V(SetGlobal, 0xbc, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \

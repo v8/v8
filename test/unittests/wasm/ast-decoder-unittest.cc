@@ -1347,8 +1347,8 @@ TEST_F(AstDecoderTest, Int32Globals) {
 
   module_env.AddGlobal(kAstI32);
 
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
+  EXPECT_VERIFIES_INLINE(sig, WASM_GET_GLOBAL(0));
+  EXPECT_VERIFIES_INLINE(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
 }
 
 TEST_F(AstDecoderTest, Int32Globals_fail) {
@@ -1361,15 +1361,15 @@ TEST_F(AstDecoderTest, Int32Globals_fail) {
   module_env.AddGlobal(kAstF32);
   module_env.AddGlobal(kAstF64);
 
-  EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(1));
-  EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(2));
-  EXPECT_FAILURE_INLINE(sig, WASM_LOAD_GLOBAL(3));
+  EXPECT_FAILURE_INLINE(sig, WASM_GET_GLOBAL(0));
+  EXPECT_FAILURE_INLINE(sig, WASM_GET_GLOBAL(1));
+  EXPECT_FAILURE_INLINE(sig, WASM_GET_GLOBAL(2));
+  EXPECT_FAILURE_INLINE(sig, WASM_GET_GLOBAL(3));
 
-  EXPECT_FAILURE_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE_INLINE(sig, WASM_STORE_GLOBAL(1, WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE_INLINE(sig, WASM_STORE_GLOBAL(2, WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE_INLINE(sig, WASM_STORE_GLOBAL(3, WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(sig, WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(sig, WASM_SET_GLOBAL(2, WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(sig, WASM_SET_GLOBAL(3, WASM_GET_LOCAL(0)));
 }
 
 TEST_F(AstDecoderTest, Int64Globals) {
@@ -1380,11 +1380,11 @@ TEST_F(AstDecoderTest, Int64Globals) {
   module_env.AddGlobal(kAstI64);
   module_env.AddGlobal(kAstI64);
 
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(1));
+  EXPECT_VERIFIES_INLINE(sig, WASM_GET_GLOBAL(0));
+  EXPECT_VERIFIES_INLINE(sig, WASM_GET_GLOBAL(1));
 
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(1, WASM_GET_LOCAL(0)));
+  EXPECT_VERIFIES_INLINE(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
+  EXPECT_VERIFIES_INLINE(sig, WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)));
 }
 
 TEST_F(AstDecoderTest, Float32Globals) {
@@ -1394,8 +1394,8 @@ TEST_F(AstDecoderTest, Float32Globals) {
 
   module_env.AddGlobal(kAstF32);
 
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
+  EXPECT_VERIFIES_INLINE(sig, WASM_GET_GLOBAL(0));
+  EXPECT_VERIFIES_INLINE(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
 }
 
 TEST_F(AstDecoderTest, Float64Globals) {
@@ -1405,11 +1405,11 @@ TEST_F(AstDecoderTest, Float64Globals) {
 
   module_env.AddGlobal(kAstF64);
 
-  EXPECT_VERIFIES_INLINE(sig, WASM_LOAD_GLOBAL(0));
-  EXPECT_VERIFIES_INLINE(sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
+  EXPECT_VERIFIES_INLINE(sig, WASM_GET_GLOBAL(0));
+  EXPECT_VERIFIES_INLINE(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
 }
 
-TEST_F(AstDecoderTest, AllLoadGlobalCombinations) {
+TEST_F(AstDecoderTest, AllGetGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalType local_type = kLocalTypes[i];
     for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
@@ -1419,15 +1419,15 @@ TEST_F(AstDecoderTest, AllLoadGlobalCombinations) {
       module = &module_env;
       module_env.AddGlobal(global_type);
       if (local_type == global_type) {
-        EXPECT_VERIFIES_INLINE(&sig, WASM_LOAD_GLOBAL(0));
+        EXPECT_VERIFIES_INLINE(&sig, WASM_GET_GLOBAL(0));
       } else {
-        EXPECT_FAILURE_INLINE(&sig, WASM_LOAD_GLOBAL(0));
+        EXPECT_FAILURE_INLINE(&sig, WASM_GET_GLOBAL(0));
       }
     }
   }
 }
 
-TEST_F(AstDecoderTest, AllStoreGlobalCombinations) {
+TEST_F(AstDecoderTest, AllSetGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     LocalType local_type = kLocalTypes[i];
     for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
@@ -1437,9 +1437,9 @@ TEST_F(AstDecoderTest, AllStoreGlobalCombinations) {
       module = &module_env;
       module_env.AddGlobal(global_type);
       if (local_type == global_type) {
-        EXPECT_VERIFIES_INLINE(&sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
+        EXPECT_VERIFIES_INLINE(&sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
       } else {
-        EXPECT_FAILURE_INLINE(&sig, WASM_STORE_GLOBAL(0, WASM_GET_LOCAL(0)));
+        EXPECT_FAILURE_INLINE(&sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
       }
     }
   }
@@ -1864,8 +1864,8 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(9, kExprF64Const);
   EXPECT_LENGTH(2, kExprGetLocal);
   EXPECT_LENGTH(2, kExprSetLocal);
-  EXPECT_LENGTH(2, kExprLoadGlobal);
-  EXPECT_LENGTH(2, kExprStoreGlobal);
+  EXPECT_LENGTH(2, kExprGetGlobal);
+  EXPECT_LENGTH(2, kExprSetGlobal);
   EXPECT_LENGTH(3, kExprCallFunction);
   EXPECT_LENGTH(3, kExprCallImport);
   EXPECT_LENGTH(3, kExprCallIndirect);
@@ -1897,11 +1897,11 @@ TEST_F(WasmOpcodeLengthTest, I64Const) {
 }
 
 TEST_F(WasmOpcodeLengthTest, VariableLength) {
-  EXPECT_LENGTH_N(2, kExprLoadGlobal, U32V_1(1));
-  EXPECT_LENGTH_N(3, kExprLoadGlobal, U32V_2(33));
-  EXPECT_LENGTH_N(4, kExprLoadGlobal, U32V_3(44));
-  EXPECT_LENGTH_N(5, kExprLoadGlobal, U32V_4(66));
-  EXPECT_LENGTH_N(6, kExprLoadGlobal, U32V_5(77));
+  EXPECT_LENGTH_N(2, kExprGetGlobal, U32V_1(1));
+  EXPECT_LENGTH_N(3, kExprGetGlobal, U32V_2(33));
+  EXPECT_LENGTH_N(4, kExprGetGlobal, U32V_3(44));
+  EXPECT_LENGTH_N(5, kExprGetGlobal, U32V_4(66));
+  EXPECT_LENGTH_N(6, kExprGetGlobal, U32V_5(77));
 }
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
@@ -2107,8 +2107,8 @@ TEST_F(WasmOpcodeArityTest, Misc) {
   EXPECT_ARITY(0, kExprF64Const);
   EXPECT_ARITY(0, kExprGetLocal);
   EXPECT_ARITY(1, kExprSetLocal);
-  EXPECT_ARITY(0, kExprLoadGlobal);
-  EXPECT_ARITY(1, kExprStoreGlobal);
+  EXPECT_ARITY(0, kExprGetGlobal);
+  EXPECT_ARITY(1, kExprSetGlobal);
 }
 
 TEST_F(WasmOpcodeArityTest, Calls) {

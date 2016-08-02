@@ -1861,8 +1861,8 @@ WASM_EXEC_TEST(Int32Global) {
   int32_t* global = module.AddGlobal<int32_t>(kAstI32);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
-  BUILD(r, WASM_STORE_GLOBAL(
-               0, WASM_I32_ADD(WASM_LOAD_GLOBAL(0), WASM_GET_LOCAL(0))));
+  BUILD(r, WASM_SET_GLOBAL(
+               0, WASM_I32_ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))));
 
   *global = 116;
   for (int i = 9; i < 444444; i += 111111) {
@@ -1882,8 +1882,8 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
   for (int g = 0; g < kNumGlobals; ++g) {
     // global = global + p0
     WasmRunner<int32_t> r(&module, MachineType::Int32());
-    BUILD(r, WASM_STORE_GLOBAL(
-                 g, WASM_I32_ADD(WASM_LOAD_GLOBAL(g), WASM_GET_LOCAL(0))));
+    BUILD(r, WASM_SET_GLOBAL(
+                 g, WASM_I32_ADD(WASM_GET_GLOBAL(g), WASM_GET_LOCAL(0))));
 
     // Check that reading/writing global number {g} doesn't alter the others.
     *globals[g] = 116 * g;
@@ -1905,8 +1905,8 @@ WASM_EXEC_TEST(Float32Global) {
   float* global = module.AddGlobal<float>(kAstF32);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
-  BUILD(r, B2(WASM_STORE_GLOBAL(
-                  0, WASM_F32_ADD(WASM_LOAD_GLOBAL(0),
+  BUILD(r, B2(WASM_SET_GLOBAL(
+                  0, WASM_F32_ADD(WASM_GET_GLOBAL(0),
                                   WASM_F32_SCONVERT_I32(WASM_GET_LOCAL(0)))),
               WASM_ZERO));
 
@@ -1923,8 +1923,8 @@ WASM_EXEC_TEST(Float64Global) {
   double* global = module.AddGlobal<double>(kAstF64);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
-  BUILD(r, B2(WASM_STORE_GLOBAL(
-                  0, WASM_F64_ADD(WASM_LOAD_GLOBAL(0),
+  BUILD(r, B2(WASM_SET_GLOBAL(
+                  0, WASM_F64_ADD(WASM_GET_GLOBAL(0),
                                   WASM_F64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
               WASM_ZERO));
 
@@ -1951,12 +1951,10 @@ WASM_EXEC_TEST(MixedGlobals) {
   BUILD(
       r,
       WASM_BLOCK(
-          WASM_STORE_GLOBAL(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(3,
-                            WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)),
-          WASM_STORE_GLOBAL(4,
-                            WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
+          WASM_SET_GLOBAL(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
+          WASM_SET_GLOBAL(2, WASM_LOAD_MEM(MachineType::Uint32(), WASM_ZERO)),
+          WASM_SET_GLOBAL(3, WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)),
+          WASM_SET_GLOBAL(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
           WASM_ZERO));
 
   memory[0] = 0xaa;

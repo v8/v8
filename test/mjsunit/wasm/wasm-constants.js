@@ -149,8 +149,8 @@ var kExprCallFunction = 0x16;
 var kExprCallIndirect = 0x17;
 var kExprCallImport = 0x18;
 var kExprI8Const = 0xcb;
-var kExprLoadGlobal = 0xcc;
-var kExprStoreGlobal = 0xcd;
+var kExprGetGlobal = 0xbb;
+var kExprSetGlobal = 0xbc;
 
 var kExprI32LoadMem8S = 0x20;
 var kExprI32LoadMem8U = 0x21;

@@ -256,7 +256,7 @@ class WasmDecoder : public Decoder {
       case kExprF64Const:
       case kExprF32Const:
       case kExprGetLocal:
-      case kExprLoadGlobal:
+      case kExprGetGlobal:
       case kExprNop:
       case kExprUnreachable:
       case kExprEnd:
@@ -264,7 +264,7 @@ class WasmDecoder : public Decoder {
       case kExprLoop:
         return 0;
 
-      case kExprStoreGlobal:
+      case kExprSetGlobal:
       case kExprSetLocal:
       case kExprElse:
         return 1;
@@ -339,8 +339,8 @@ class WasmDecoder : public Decoder {
         BreakDepthOperand operand(this, pc);
         return 1 + operand.length;
       }
-      case kExprStoreGlobal:
-      case kExprLoadGlobal: {
+      case kExprSetGlobal:
+      case kExprGetGlobal: {
         GlobalIndexOperand operand(this, pc);
         return 1 + operand.length;
       }
@@ -891,19 +891,19 @@ class WasmFullDecoder : public WasmDecoder {
             len = 1 + operand.length;
             break;
           }
-          case kExprLoadGlobal: {
+          case kExprGetGlobal: {
             GlobalIndexOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
-              Push(operand.type, BUILD(LoadGlobal, operand.index));
+              Push(operand.type, BUILD(GetGlobal, operand.index));
             }
             len = 1 + operand.length;
             break;
           }
-          case kExprStoreGlobal: {
+          case kExprSetGlobal: {
             GlobalIndexOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
               Value val = Pop(0, operand.type);
-              BUILD(StoreGlobal, operand.index, val.node);
+              BUILD(SetGlobal, operand.index, val.node);
               Push(val.type, val.node);
             }
             len = 1 + operand.length;

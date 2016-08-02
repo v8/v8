@@ -176,8 +176,8 @@ class WasmGraphBuilder {
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
   Node* MemSize(uint32_t offset);
-  Node* LoadGlobal(uint32_t index);
-  Node* StoreGlobal(uint32_t index, Node* val);
+  Node* GetGlobal(uint32_t index);
+  Node* SetGlobal(uint32_t index, Node* val);
   Node* LoadMem(wasm::LocalType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);

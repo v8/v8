@@ -2921,7 +2921,7 @@ Node* WasmGraphBuilder::ChangeToRuntimeCall(Node* node,
   return ret;
 }
 
-Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
+Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   MachineType mem_type =
       wasm::WasmOpcodes::MachineTypeFor(module_->GetGlobalType(index));
   Node* addr = jsgraph()->RelocatableIntPtrConstant(
@@ -2935,7 +2935,7 @@ Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
   return node;
 }
 
-Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
+Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   MachineType mem_type =
       wasm::WasmOpcodes::MachineTypeFor(module_->GetGlobalType(index));
   Node* addr = jsgraph()->RelocatableIntPtrConstant(

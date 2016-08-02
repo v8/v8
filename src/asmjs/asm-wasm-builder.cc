@@ -98,7 +98,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->EmitGetLocal(static_cast<uint32_t>(pos));
       ForeignVariable* fv = &foreign_variables_[pos];
       uint32_t index = LookupOrInsertGlobal(fv->var, fv->type);
-      current_function_builder_->EmitWithVarInt(kExprStoreGlobal, index);
+      current_function_builder_->EmitWithVarInt(kExprSetGlobal, index);
     }
     current_function_builder_ = nullptr;
   }
@@ -546,7 +546,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       DCHECK_NE(kAstStmt, var_type);
       if (var->IsContextSlot()) {
         current_function_builder_->EmitWithVarInt(
-            kExprLoadGlobal, LookupOrInsertGlobal(var, var_type));
+            kExprGetGlobal, LookupOrInsertGlobal(var, var_type));
       } else {
         current_function_builder_->EmitGetLocal(
             LookupOrInsertLocal(var, var_type));
@@ -784,7 +784,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       DCHECK_NE(kAstStmt, var_type);
       if (var->IsContextSlot()) {
         current_function_builder_->EmitWithVarInt(
-            kExprStoreGlobal, LookupOrInsertGlobal(var, var_type));
+            kExprSetGlobal, LookupOrInsertGlobal(var, var_type));
       } else {
         current_function_builder_->EmitSetLocal(
             LookupOrInsertLocal(var, var_type));

@@ -343,9 +343,9 @@ class LocalDeclEncoder {
       static_cast<byte>(bit_cast<uint64_t>(val) >> 56)
 #define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
-#define WASM_LOAD_GLOBAL(index) kExprLoadGlobal, static_cast<byte>(index)
-#define WASM_STORE_GLOBAL(index, val) \
-  val, kExprStoreGlobal, static_cast<byte>(index)
+#define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
+#define WASM_SET_GLOBAL(index, val) \
+  val, kExprSetGlobal, static_cast<byte>(index)
 #define WASM_LOAD_MEM(type, index)                                             \
   index, static_cast<byte>(                                                    \
              v8::internal::wasm::WasmOpcodes::LoadStoreOpcodeOf(type, false)), \

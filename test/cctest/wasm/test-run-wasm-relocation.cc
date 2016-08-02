@@ -19,7 +19,7 @@ using namespace v8::internal::compiler;
   TEST_BODY(float, F32, WASM_F32_ADD)   \
   TEST_BODY(double, F64, WASM_F64_ADD)
 
-#define LOAD_STORE_GLOBAL_TEST_BODY(C_TYPE, MACHINE_TYPE, ADD)                \
+#define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, MACHINE_TYPE, ADD)                  \
   TEST(WasmRelocateGlobal##MACHINE_TYPE) {                                    \
     TestingModule module(kExecuteCompiled);                                   \
     module.AddGlobal<C_TYPE>(kAst##MACHINE_TYPE);                             \
@@ -29,8 +29,7 @@ using namespace v8::internal::compiler;
                          WasmOpcodes::MachineTypeFor(kAst##MACHINE_TYPE));    \
                                                                               \
     /* global = global + p0 */                                                \
-    BUILD(r,                                                                  \
-          WASM_STORE_GLOBAL(1, ADD(WASM_LOAD_GLOBAL(0), WASM_GET_LOCAL(0)))); \
+    BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0)))); \
     CHECK_EQ(1, module.instance->function_code.size());                       \
                                                                               \
     int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                       \
@@ -58,4 +57,4 @@ using namespace v8::internal::compiler;
     CHECK_EQ(2U, address_index);                                              \
   }
 
-FOREACH_TYPE(LOAD_STORE_GLOBAL_TEST_BODY)
+FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)

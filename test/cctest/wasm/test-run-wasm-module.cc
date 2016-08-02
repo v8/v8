@@ -162,14 +162,14 @@ TEST(Run_WasmModule_Global) {
   WasmFunctionBuilder* f = builder->FunctionAt(f1_index);
   f->SetSignature(sigs.i_v());
   byte code1[] = {
-      WASM_I32_ADD(WASM_LOAD_GLOBAL(global1), WASM_LOAD_GLOBAL(global2))};
+      WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
   f->EmitCode(code1, sizeof(code1));
   uint16_t f2_index = builder->AddFunction();
   f = builder->FunctionAt(f2_index);
   f->SetSignature(sigs.i_v());
   ExportAsMain(f);
-  byte code2[] = {WASM_STORE_GLOBAL(global1, WASM_I32V_1(56)),
-                  WASM_STORE_GLOBAL(global2, WASM_I32V_1(41)),
+  byte code2[] = {WASM_SET_GLOBAL(global1, WASM_I32V_1(56)),
+                  WASM_SET_GLOBAL(global2, WASM_I32V_1(41)),
                   WASM_RETURN1(WASM_CALL_FUNCTION0(f1_index))};
   f->EmitCode(code2, sizeof(code2));
   TestModule(&zone, builder, 97);
