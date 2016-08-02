@@ -1047,6 +1047,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractBoxReferences(entry, Box::cast(obj));
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
+  } else if (obj->IsWeakCell()) {
+    ExtractWeakCellReferences(entry, WeakCell::cast(obj));
   } else if (obj->IsPropertyCell()) {
     ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
   } else if (obj->IsAllocationSite()) {
@@ -1475,16 +1477,19 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   }
 }
 
-
 void V8HeapExplorer::ExtractBoxReferences(int entry, Box* box) {
   SetInternalReference(box, entry, "value", box->value(), Box::kValueOffset);
 }
-
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
   SetInternalReference(cell, entry, "value", cell->value(), Cell::kValueOffset);
 }
 
+void V8HeapExplorer::ExtractWeakCellReferences(int entry, WeakCell* weak_cell) {
+  TagObject(weak_cell, "(weak cell)");
+  SetWeakReference(weak_cell, entry, "value", weak_cell->value(),
+                   WeakCell::kValueOffset);
+}
 
 void V8HeapExplorer::ExtractPropertyCellReferences(int entry,
                                                    PropertyCell* cell) {
@@ -1843,6 +1848,8 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
                                                 int field_offset) {
   if (parent->IsAllocationSite() &&
       field_offset == AllocationSite::kWeakNextOffset)
+    return false;
+  if (parent->IsWeakCell() && field_offset == WeakCell::kNextOffset)
     return false;
   // TODO(ulan): JSFunction, Code, and Context also have next weak link, which
   // is non-essential. Currently they are handled as normal weak links.

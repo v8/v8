@@ -692,7 +692,9 @@ TEST(HeapSnapshotMap) {
   CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "prototype"));
   CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "back_pointer"));
   CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors"));
-  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "weak_cell_cache"));
+  const v8::HeapGraphNode* weak_cell =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "weak_cell_cache");
+  CHECK(GetProperty(weak_cell, v8::HeapGraphEdge::kWeak, "value"));
 }
 
 TEST(HeapSnapshotInternalReferences) {
