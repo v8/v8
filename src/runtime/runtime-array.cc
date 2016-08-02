@@ -32,24 +32,18 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
 }
 
 static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
-                        const char* name, Handle<Code> code, int argc = -1) {
+                        const char* name, Handle<Code> code) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
-  if (argc < 0) {
-    optimized->shared()->DontAdaptArguments();
-  } else {
-    optimized->shared()->set_internal_formal_parameter_count(argc);
-  }
+  optimized->shared()->DontAdaptArguments();
   JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
 static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
-                           const char* name, Builtins::Name builtin_name,
-                           int argc = -1) {
+                           const char* name, Builtins::Name builtin_name) {
   InstallCode(isolate, holder, name,
-              handle(isolate->builtins()->builtin(builtin_name), isolate),
-              argc);
+              handle(isolate->builtins()->builtin(builtin_name), isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
@@ -69,7 +63,6 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
   InstallBuiltin(isolate, holder, "splice", Builtins::kArraySplice);
-  InstallBuiltin(isolate, holder, "includes", Builtins::kArrayIncludes, 2);
 
   return *holder;
 }
@@ -448,99 +441,6 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   CONVERT_ARG_HANDLE_CHECKED(Object, original_array, 0);
   RETURN_RESULT_OR_FAILURE(
       isolate, Object::ArraySpeciesConstructor(isolate, original_array));
-}
-
-// ES7 22.1.3.11 Array.prototype.includes
-RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
-  HandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, search_element, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, from_index, 2);
-
-  // Let O be ? ToObject(this value).
-  Handle<JSReceiver> object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, object, Object::ToObject(isolate, handle(args[0], isolate)));
-
-  // Let len be ? ToLength(? Get(O, "length")).
-  int64_t len;
-  {
-    if (object->map()->instance_type() == JS_ARRAY_TYPE) {
-      uint32_t len32;
-      bool success = JSArray::cast(*object)->length()->ToArrayLength(&len32);
-      DCHECK(success);
-      USE(success);
-      len = len32;
-    } else {
-      Handle<Object> len_;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, len_,
-          Object::GetProperty(object, isolate->factory()->length_string()));
-
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
-                                         Object::ToLength(isolate, len_));
-      len = static_cast<int64_t>(len_->Number());
-      DCHECK_EQ(len, len_->Number());
-    }
-  }
-
-  if (len == 0) return isolate->heap()->false_value();
-
-  // Let n be ? ToInteger(fromIndex). (If fromIndex is undefined, this step
-  // produces the value 0.)
-  int64_t start_from;
-  {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, from_index,
-                                       Object::ToInteger(isolate, from_index));
-    double fp = from_index->Number();
-    if (fp > len) return isolate->heap()->false_value();
-    start_from = static_cast<int64_t>(fp);
-  }
-
-  int64_t index;
-  if (start_from >= 0) {
-    index = start_from;
-  } else {
-    index = len + start_from;
-    if (index < 0) {
-      index = 0;
-    }
-  }
-
-  // If the receiver is not a special receiver type, and the length is a valid
-  // element index, perform fast operation tailored to specific ElementsKinds.
-  if (object->map()->instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
-      len < kMaxUInt32 &&
-      JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
-    Handle<JSObject> obj = Handle<JSObject>::cast(object);
-    ElementsAccessor* elements = obj->GetElementsAccessor();
-    Maybe<bool> result = elements->IncludesValue(isolate, obj, search_element,
-                                                 static_cast<uint32_t>(index),
-                                                 static_cast<uint32_t>(len));
-    MAYBE_RETURN(result, isolate->heap()->exception());
-    return *isolate->factory()->ToBoolean(result.FromJust());
-  }
-
-  // Otherwise, perform slow lookups for special receiver types
-  for (; index < len; ++index) {
-    // Let elementK be the result of ? Get(O, ! ToString(k)).
-    Handle<Object> element_k;
-    {
-      Handle<Object> index_obj = isolate->factory()->NewNumberFromInt64(index);
-      bool success;
-      LookupIterator it = LookupIterator::PropertyOrElement(
-          isolate, object, index_obj, &success);
-      DCHECK(success);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
-                                         Object::GetProperty(&it));
-    }
-
-    // If SameValueZero(searchElement, elementK) is true, return true.
-    if (search_element->SameValueZero(*element_k)) {
-      return isolate->heap()->true_value();
-    }
-  }
-  return isolate->heap()->false_value();
 }
 
 }  // namespace internal

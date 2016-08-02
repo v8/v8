@@ -124,22 +124,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfToBooleanIsTrue(compiler::Node* value, Label* if_true,
                                Label* if_false);
 
-  void BranchIfSimd128Equal(compiler::Node* lhs, compiler::Node* lhs_map,
-                            compiler::Node* rhs, compiler::Node* rhs_map,
-                            Label* if_equal, Label* if_notequal);
-  void BranchIfSimd128Equal(compiler::Node* lhs, compiler::Node* rhs,
-                            Label* if_equal, Label* if_notequal) {
-    BranchIfSimd128Equal(lhs, LoadMap(lhs), rhs, LoadMap(rhs), if_equal,
-                         if_notequal);
-  }
-
-  void BranchIfSameValueZero(compiler::Node* a, compiler::Node* b,
-                             compiler::Node* context, Label* if_true,
-                             Label* if_false);
-
-  void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
-                           Label* if_true, Label* if_false);
-
   // Load value from current frame by given offset in bytes.
   compiler::Node* LoadFromFrame(int offset,
                                 MachineType rep = MachineType::AnyTagged());

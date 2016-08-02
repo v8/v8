@@ -1144,20 +1144,6 @@ MUST_USE_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
                                  GetKeysConversion::kConvertToString);
 }
 
-bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
-  DisallowHeapAllocation no_gc;
-  HeapObject* prototype = HeapObject::cast(object->map()->prototype());
-  HeapObject* null = isolate->heap()->null_value();
-  HeapObject* empty = isolate->heap()->empty_fixed_array();
-  while (prototype != null) {
-    Map* map = prototype->map();
-    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
-    if (JSObject::cast(prototype)->elements() != empty) return false;
-    prototype = HeapObject::cast(map->prototype());
-  }
-  return true;
-}
-
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
