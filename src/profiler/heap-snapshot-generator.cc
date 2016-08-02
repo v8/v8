@@ -1267,19 +1267,9 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
           raw_transitions_or_prototype_info)) {
     TransitionArray* transitions =
         TransitionArray::cast(raw_transitions_or_prototype_info);
-    int transitions_entry = GetEntry(transitions)->index();
-
-    if (map->CanTransition()) {
-      if (transitions->HasPrototypeTransitions()) {
-        FixedArray* prototype_transitions =
-            transitions->GetPrototypeTransitions();
-        MarkAsWeakContainer(prototype_transitions);
-        TagObject(prototype_transitions, "(prototype transitions");
-        SetInternalReference(transitions, transitions_entry,
-                             "prototype_transitions", prototype_transitions);
-      }
-      // TODO(alph): transitions keys are strong links.
-      MarkAsWeakContainer(transitions);
+    if (map->CanTransition() && transitions->HasPrototypeTransitions()) {
+      TagObject(transitions->GetPrototypeTransitions(),
+                "(prototype transitions)");
     }
 
     TagObject(transitions, "(transition array)");
