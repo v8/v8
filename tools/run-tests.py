@@ -98,11 +98,12 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "stress", "turbofan"]
+# TODO(machenbach): Add ignition_staging variant.
+VARIANTS = ["default", "turbofan"]
 
 MORE_VARIANTS = [
   "ignition",
-  "nocrankshaft",
+  "stress",
   "turbofan_opt",
 ]
 
@@ -114,7 +115,7 @@ VARIANT_ALIASES = {
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": [],
+  "extra": ["nocrankshaft"],
 }
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
