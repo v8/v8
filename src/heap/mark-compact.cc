@@ -2008,18 +2008,15 @@ void MarkCompactCollector::MarkImplicitRefGroups(
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
-  Map* filler_map = heap_->one_pointer_filler_map();
   while (!marking_deque_.IsEmpty()) {
     HeapObject* object = marking_deque_.Pop();
-    // Explicitly skip one word fillers. Incremental markbit patterns are
-    // correct only for objects that occupy at least two words.
-    Map* map = object->map();
-    if (map == filler_map) continue;
 
+    DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(!Marking::IsWhite(ObjectMarking::MarkBitFrom(object)));
 
+    Map* map = object->map();
     MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
     MarkObject(map, map_mark);
 
