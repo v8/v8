@@ -1022,13 +1022,6 @@ Node* Interpreter::BuildUnaryOp(Callable callable,
   return __ CallStub(callable.descriptor(), target, context, accumulator);
 }
 
-void Interpreter::DoUnaryOp(Callable callable,
-                            InterpreterAssembler* assembler) {
-  Node* result = BuildUnaryOp(callable, assembler);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
 template <class Generator>
 void Interpreter::DoUnaryOp(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
@@ -1141,7 +1134,7 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
-  DoUnaryOp(CodeFactory::Typeof(isolate_), assembler);
+  DoUnaryOp<TypeofStub>(assembler);
 }
 
 void Interpreter::DoDelete(Runtime::FunctionId function_id,

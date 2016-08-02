@@ -1882,6 +1882,130 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
 }
 
 // static
+// ES6 section 12.5.5 typeof operator
+compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
+                                     compiler::Node* value,
+                                     compiler::Node* context) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Variable result_var(assembler, MachineRepresentation::kTagged);
+
+  Label return_number(assembler, Label::kDeferred), if_oddball(assembler),
+      return_function(assembler), return_undefined(assembler),
+      return_object(assembler), return_string(assembler),
+      return_result(assembler);
+
+  assembler->GotoIf(assembler->WordIsSmi(value), &return_number);
+
+  Node* map = assembler->LoadMap(value);
+
+  assembler->GotoIf(
+      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
+      &return_number);
+
+  Node* instance_type = assembler->LoadInstanceType(value);
+
+  assembler->GotoIf(assembler->Word32Equal(
+                        instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
+                    &if_oddball);
+
+  Node* callable_or_undetectable_mask =
+      assembler->Word32And(assembler->LoadMapBitField(map),
+                           assembler->Int32Constant(1 << Map::kIsCallable |
+                                                    1 << Map::kIsUndetectable));
+
+  assembler->GotoIf(
+      assembler->Word32Equal(callable_or_undetectable_mask,
+                             assembler->Int32Constant(1 << Map::kIsCallable)),
+      &return_function);
+
+  assembler->GotoUnless(assembler->Word32Equal(callable_or_undetectable_mask,
+                                               assembler->Int32Constant(0)),
+                        &return_undefined);
+
+  assembler->GotoIf(
+      assembler->Int32GreaterThanOrEqual(
+          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+      &return_object);
+
+  assembler->GotoIf(
+      assembler->Int32LessThan(instance_type,
+                               assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      &return_string);
+
+#define SIMD128_BRANCH(TYPE, Type, type, lane_count, lane_type)    \
+  Label return_##type(assembler);                                  \
+  Node* type##_map =                                               \
+      assembler->HeapConstant(assembler->factory()->type##_map()); \
+  assembler->GotoIf(assembler->WordEqual(map, type##_map), &return_##type);
+  SIMD128_TYPES(SIMD128_BRANCH)
+#undef SIMD128_BRANCH
+
+  assembler->Assert(assembler->Word32Equal(
+      instance_type, assembler->Int32Constant(SYMBOL_TYPE)));
+  result_var.Bind(assembler->HeapConstant(
+      assembler->isolate()->factory()->symbol_string()));
+  assembler->Goto(&return_result);
+
+  assembler->Bind(&return_number);
+  {
+    result_var.Bind(assembler->HeapConstant(
+        assembler->isolate()->factory()->number_string()));
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&if_oddball);
+  {
+    Node* type = assembler->LoadObjectField(value, Oddball::kTypeOfOffset);
+    result_var.Bind(type);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_function);
+  {
+    result_var.Bind(assembler->HeapConstant(
+        assembler->isolate()->factory()->function_string()));
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_undefined);
+  {
+    result_var.Bind(assembler->HeapConstant(
+        assembler->isolate()->factory()->undefined_string()));
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_object);
+  {
+    result_var.Bind(assembler->HeapConstant(
+        assembler->isolate()->factory()->object_string()));
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_string);
+  {
+    result_var.Bind(assembler->HeapConstant(
+        assembler->isolate()->factory()->string_string()));
+    assembler->Goto(&return_result);
+  }
+
+#define SIMD128_BIND_RETURN(TYPE, Type, type, lane_count, lane_type) \
+  assembler->Bind(&return_##type);                                   \
+  {                                                                  \
+    result_var.Bind(assembler->HeapConstant(                         \
+        assembler->isolate()->factory()->type##_string()));          \
+    assembler->Goto(&return_result);                                 \
+  }
+  SIMD128_TYPES(SIMD128_BIND_RETURN)
+#undef SIMD128_BIND_RETURN
+
+  assembler->Bind(&return_result);
+  return result_var.value();
+}
+
+// static
 compiler::Node* InstanceOfStub::Generate(CodeStubAssembler* assembler,
                                          compiler::Node* object,
                                          compiler::Node* callable,
@@ -4100,10 +4224,6 @@ void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
       FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
 }
 
-void TypeofStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->SetMissHandler(Runtime::kTypeof);
-}
-
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
@@ -4189,11 +4309,6 @@ void GrowArrayElementsStub::InitializeDescriptor(
       Runtime::FunctionForId(Runtime::kGrowArrayElements)->entry);
 }
 
-
-void TypeofStub::GenerateAheadOfTime(Isolate* isolate) {
-  TypeofStub stub(isolate);
-  stub.GetCode();
-}
 
 namespace {
 

@@ -1057,15 +1057,12 @@ class NumberToStringStub final : public HydrogenCodeStub {
   DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
 };
 
-
-class TypeofStub final : public HydrogenCodeStub {
+class TypeofStub final : public TurboFanCodeStub {
  public:
-  explicit TypeofStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  static void GenerateAheadOfTime(Isolate* isolate);
+  explicit TypeofStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Typeof);
-  DEFINE_HYDROGEN_CODE_STUB(Typeof, HydrogenCodeStub);
+  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(Typeof, TurboFanCodeStub);
 };
 
 class FastNewClosureStub : public TurboFanCodeStub {
