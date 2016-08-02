@@ -671,6 +671,29 @@ TEST(HeapSnapshotCollection) {
   CHECK_EQ(s->GetId(), map_s->GetId());
 }
 
+TEST(HeapSnapshotMap) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "function Z() { this.foo = {}; }\n"
+      "z = new Z();\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* z =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "z");
+  CHECK(z);
+  const v8::HeapGraphNode* map =
+      GetProperty(z, v8::HeapGraphEdge::kInternal, "map");
+  CHECK(map);
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "map"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "prototype"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "back_pointer"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors"));
+  CHECK(GetProperty(map, v8::HeapGraphEdge::kInternal, "weak_cell_cache"));
+}
 
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();

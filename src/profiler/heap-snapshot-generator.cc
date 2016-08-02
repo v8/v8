@@ -1318,9 +1318,11 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   }
   TagObject(map->dependent_code(), "(dependent code)");
   MarkAsWeakContainer(map->dependent_code());
-  SetInternalReference(map, entry,
-                       "dependent_code", map->dependent_code(),
+  SetInternalReference(map, entry, "dependent_code", map->dependent_code(),
                        Map::kDependentCodeOffset);
+  TagObject(map->weak_cell_cache(), "(weak cell)");
+  SetInternalReference(map, entry, "weak_cell_cache", map->weak_cell_cache(),
+                       Map::kWeakCellCacheOffset);
 }
 
 
