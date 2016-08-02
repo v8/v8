@@ -35,3 +35,19 @@ function foo() {
 }
 
 assertEquals("hello world", foo());
+
+// Also test that it works from more deeply nested inner functions:
+
+var v = (function foo2() {
+  var a, b;
+  var bar = function() {
+    var baz = function() {
+      a = b = "bye world";
+    }
+    baz();
+  }
+  bar();
+  return a;
+})();
+
+assertEquals("bye world", v);

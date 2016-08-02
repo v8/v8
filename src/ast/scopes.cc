@@ -279,6 +279,7 @@ bool Scope::Analyze(ParseInfo* info) {
     scope->Print();
   }
   scope->CheckScopePositions();
+  scope->CheckZones();
 #endif
 
   info->set_scope(scope);
@@ -502,9 +503,11 @@ Variable* Scope::LookupFunctionVar(const AstRawString* name,
     if (index < 0) return NULL;
     Variable* var = new (zone())
         Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
+    DCHECK_NOT_NULL(factory);
     VariableProxy* proxy = factory->NewVariableProxy(var);
     VariableDeclaration* declaration =
         factory->NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
+    DCHECK_EQ(factory->zone(), zone());
     DeclareFunctionVar(declaration);
     var->AllocateTo(VariableLocation::CONTEXT, index);
     return var;
@@ -889,6 +892,41 @@ Handle<StringSet> Scope::CollectNonLocals(Handle<StringSet> non_locals) {
   return non_locals;
 }
 
+void Scope::AnalyzePartially(Scope* migrate_to,
+                             AstNodeFactory* ast_node_factory) {
+  // Gather info from inner scopes.
+  PropagateScopeInfo(false);
+
+  // Try to resolve unresolved variables for this Scope and collect those which
+  // cannot be resolved inside. It doesn't make sense to try to resolve them in
+  // the outer Scopes here, because they are incomplete.
+  VariableProxy* still_unresolved = nullptr;
+  CollectUnresolvableLocals(&still_unresolved, this);
+
+  // Re-create the VariableProxies in the right Zone and insert them into
+  // migrate_to.
+  for (VariableProxy* proxy = still_unresolved; proxy != nullptr;
+       proxy = proxy->next_unresolved()) {
+    // Recreate the VariableProxy.
+    DCHECK(!proxy->is_resolved());
+    VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+    migrate_to->AddUnresolved(copy);
+  }
+
+  // Push scope data up to migrate_to. Note that migrate_to and this Scope
+  // describe the same Scope, just in different Zones.
+  PropagateUsageFlagsToScope(migrate_to);
+  if (inner_scope_calls_eval_) {
+    migrate_to->inner_scope_calls_eval_ = true;
+  }
+  DCHECK(!force_eager_compilation_);
+  migrate_to->set_start_position(start_position_);
+  migrate_to->set_end_position(end_position_);
+  migrate_to->language_mode_ = language_mode_;
+  outer_scope_->RemoveInnerScope(this);
+  DCHECK_EQ(outer_scope_, migrate_to->outer_scope_);
+  DCHECK_EQ(outer_scope_->zone(), migrate_to->zone());
+}
 
 #ifdef DEBUG
 static const char* Header(ScopeType scope_type, FunctionKind function_kind,
@@ -1097,6 +1135,12 @@ void Scope::CheckScopePositions() {
     scope->CheckScopePositions();
   }
 }
+
+void Scope::CheckZones() {
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    CHECK_EQ(scope->zone(), zone());
+  }
+}
 #endif  // DEBUG
 
 
@@ -1119,10 +1163,10 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   return var;
 }
 
-
 Variable* Scope::LookupRecursive(VariableProxy* proxy,
                                  BindingKind* binding_kind,
-                                 AstNodeFactory* factory) {
+                                 AstNodeFactory* factory,
+                                 Scope* max_outer_scope) {
   DCHECK(binding_kind != NULL);
   if (already_resolved() && is_with_scope()) {
     // Short-cut: if the scope is deserialized from a scope info, variable
@@ -1149,13 +1193,14 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
   var = LookupFunctionVar(proxy->raw_name(), factory);
   if (var != NULL) {
     *binding_kind = BOUND;
-  } else if (outer_scope_ != NULL) {
-    var = outer_scope_->LookupRecursive(proxy, binding_kind, factory);
+  } else if (outer_scope_ != nullptr && this != max_outer_scope) {
+    var = outer_scope_->LookupRecursive(proxy, binding_kind, factory,
+                                        max_outer_scope);
     if (*binding_kind == BOUND && (is_function_scope() || is_with_scope())) {
       var->ForceContextAllocation();
     }
   } else {
-    DCHECK(is_script_scope());
+    DCHECK(is_script_scope() || this == max_outer_scope);
   }
 
   // "this" can't be shadowed by "eval"-introduced bindings or by "with" scopes.
@@ -1288,6 +1333,26 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info,
   return true;
 }
 
+void Scope::CollectUnresolvableLocals(VariableProxy** still_unresolved,
+                                      Scope* max_outer_scope) {
+  BindingKind binding_kind;
+  for (VariableProxy *proxy = unresolved_, *next = nullptr; proxy != nullptr;
+       proxy = next) {
+    next = proxy->next_unresolved();
+    // Note that we pass nullptr as AstNodeFactory: this phase should not create
+    // any new AstNodes, since none of the Scopes involved are backed up by
+    // ScopeInfo.
+    if (LookupRecursive(proxy, &binding_kind, nullptr, max_outer_scope) ==
+        nullptr) {
+      proxy->set_next_unresolved(*still_unresolved);
+      *still_unresolved = proxy;
+    }
+  }
+
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->CollectUnresolvableLocals(still_unresolved, max_outer_scope);
+  }
+}
 
 void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
   if (outer_scope_calls_sloppy_eval) {
