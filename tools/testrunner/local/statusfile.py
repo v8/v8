@@ -106,6 +106,16 @@ def _AddOutcome(result, new):
     result.add(new)
 
 
+def _JoinsPassAndFail(outcomes1, outcomes2):
+  """Indicates if we join PASS and FAIL from two different outcome sets and
+  the first doesn't already contain both.
+  """
+  return (
+      PASS in outcomes1 and
+      not FAIL in outcomes1 and
+      FAIL in outcomes2
+  )
+
 def _ParseOutcomeList(rule, outcomes, target_dict, variables):
   result = set([])
   if type(outcomes) == str:
@@ -122,6 +132,15 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
       assert False
   if len(result) == 0: return
   if rule in target_dict:
+    # A FAIL without PASS in one rule has always precedence over a single
+    # PASS (without FAIL) in another. Otherwise the default PASS expectation
+    # in a rule with a modifier (e.g. PASS, SLOW) would be joined to a FAIL
+    # from another rule (which intended to mark a test as FAIL and not as
+    # PASS and FAIL).
+    if _JoinsPassAndFail(target_dict[rule], result):
+      target_dict[rule] -= set([PASS])
+    if _JoinsPassAndFail(result, target_dict[rule]):
+      result -= set([PASS])
     target_dict[rule] |= result
   else:
     target_dict[rule] = result

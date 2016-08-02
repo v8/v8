@@ -126,11 +126,6 @@
   'test-heap/TestCodeFlushingIncremental': [PASS, NO_IGNITION],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', NO_IGNITION]],
 
-  # TODO(rmcilroy,4680): Fails to find the correct function name for the
-  # anonymous function. Fails without ignition but with --no-lazy also, so seems
-  # to be an issue when eagerly parsing.
-  'test-func-name-inference/ReturnAnonymousFunction': [PASS, NO_IGNITION],
-
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [PASS, NO_IGNITION],
 
@@ -147,9 +142,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [PASS, NO_IGNITION],
 
-  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
-  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [PASS, NO_IGNITION],
-
   # BUG(rmcilroy,4680): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
   'test-heap/ResetSharedFunctionInfoCountersDuringIncrementalMarking': [PASS, NO_IGNITION],
   'test-heap/ResetSharedFunctionInfoCountersDuringMarkSweep': [PASS, NO_IGNITION],
@@ -162,8 +154,6 @@
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_IGNITION],
-  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_IGNITION],
   'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_IGNITION],
@@ -436,11 +426,6 @@
   'test-heap/TestCodeFlushingIncremental': [FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
 
-  # TODO(rmcilroy,4680): Fails to find the correct function name for the
-  # anonymous function. Fails without ignition but with --no-lazy also, so seems
-  # to be an issue when eagerly parsing.
-  'test-func-name-inference/ReturnAnonymousFunction': [FAIL],
-
   # TODO(mythria,4780): Related to type feedback support for Array function.
   'test-feedback-vector/VectorCallFeedbackForArray': [FAIL],
 
@@ -457,9 +442,6 @@
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # TODO(mvstanton,4900): CHECK(!g_function->is_compiled());
-  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [FAIL],
-
   # BUG(4680): Missing type feedback makes optimistic optimizations fail.
   'test-cpu-profiler/CollectDeoptEvents': [FAIL],
   'test-cpu-profiler/DeoptUntrackedFunction': [FAIL],
@@ -468,8 +450,6 @@
   'test-heap/EnsureAllocationSiteDependentCodesProcessed': [FAIL],
   'test-heap/OptimizedPretenuringAllocationFolding': [FAIL],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [FAIL],
-  'test-heap/OptimizedPretenuringDoubleArrayProperties': [FAIL],
-  'test-heap/OptimizedPretenuringMixedInObjectProperties': [FAIL],
   'test-heap/OptimizedPretenuringNestedDoubleLiterals': [FAIL],
   'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [FAIL],
   'test-heap/OptimizedPretenuringNestedObjectLiterals': [FAIL],
