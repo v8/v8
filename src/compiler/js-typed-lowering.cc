@@ -338,7 +338,6 @@ class JSBinopReduction final {
 
     // Find {IfSuccess} and {IfException} continuations of the operation.
     NodeProperties::CollectControlProjections(node_, projections, 2);
-    IfExceptionHint hint = OpParameter<IfExceptionHint>(projections[1]);
     Node* if_exception = projections[1];
     Node* if_success = projections[0];
 
@@ -353,9 +352,9 @@ class JSBinopReduction final {
         graph()->NewNode(javascript()->ToNumber(), right(), context(),
                          right_state, left_conv, left_success);
     Node* left_exception =
-        graph()->NewNode(common()->IfException(hint), left_conv, left_conv);
+        graph()->NewNode(common()->IfException(), left_conv, left_conv);
     Node* right_exception =
-        graph()->NewNode(common()->IfException(hint), right_conv, right_conv);
+        graph()->NewNode(common()->IfException(), right_conv, right_conv);
     NodeProperties::ReplaceControlInput(if_success, right_conv);
     update_effect(right_conv);
 

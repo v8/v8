@@ -361,15 +361,11 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
  public:
   ControlScopeForCatch(AstGraphBuilder* owner, TryCatchStatement* stmt,
                        TryCatchBuilder* control)
-      : ControlScope(owner),
-        control_(control),
-        outer_prediction_(owner->try_catch_prediction_) {
+      : ControlScope(owner), control_(control) {
     builder()->try_nesting_level_++;  // Increment nesting.
-    builder()->try_catch_prediction_ = stmt->catch_prediction();
   }
   ~ControlScopeForCatch() {
     builder()->try_nesting_level_--;  // Decrement nesting.
-    builder()->try_catch_prediction_ = outer_prediction_;
   }
 
  protected:
@@ -388,7 +384,6 @@ class AstGraphBuilder::ControlScopeForCatch : public ControlScope {
 
  private:
   TryCatchBuilder* control_;
-  HandlerTable::CatchPrediction outer_prediction_;
 };
 
 
@@ -397,16 +392,11 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  public:
   ControlScopeForFinally(AstGraphBuilder* owner, TryFinallyStatement* stmt,
                          DeferredCommands* commands, TryFinallyBuilder* control)
-      : ControlScope(owner),
-        commands_(commands),
-        control_(control),
-        outer_prediction_(owner->try_catch_prediction_) {
+      : ControlScope(owner), commands_(commands), control_(control) {
     builder()->try_nesting_level_++;  // Increment nesting.
-    builder()->try_catch_prediction_ = stmt->catch_prediction();
   }
   ~ControlScopeForFinally() {
     builder()->try_nesting_level_--;  // Decrement nesting.
-    builder()->try_catch_prediction_ = outer_prediction_;
   }
 
  protected:
@@ -419,7 +409,6 @@ class AstGraphBuilder::ControlScopeForFinally : public ControlScope {
  private:
   DeferredCommands* commands_;
   TryFinallyBuilder* control_;
-  HandlerTable::CatchPrediction outer_prediction_;
 };
 
 
@@ -489,7 +478,6 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       execution_control_(nullptr),
       execution_context_(nullptr),
       try_nesting_level_(0),
-      try_catch_prediction_(HandlerTable::UNCAUGHT),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone),
@@ -4157,12 +4145,9 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       }
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_try_scope) {
-        // Conservative prediction whether caught locally.
-        IfExceptionHint hint =
-            ExceptionHintFromCatchPrediction(try_catch_prediction_);
         // Copy the environment for the success continuation.
         Environment* success_env = environment()->CopyForConditional();
-        const Operator* op = common()->IfException(hint);
+        const Operator* op = common()->IfException();
         Node* effect = environment()->GetEffectDependency();
         Node* on_exception = graph()->NewNode(op, effect, result);
         environment_->UpdateControlDependency(on_exception);

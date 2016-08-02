@@ -155,9 +155,6 @@ class BytecodeGraphBuilder {
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
 
-  // The catch prediction from the handler table is reused.
-  typedef HandlerTable::CatchPrediction CatchPrediction;
-
   // An abstract representation for an exception handler that is being
   // entered and exited while the graph builder is iterating over the
   // underlying bytecode. The exception handlers within the bytecode are
@@ -167,7 +164,6 @@ class BytecodeGraphBuilder {
     int end_offset_;        // End offset of the handled area in the bytecode.
     int handler_offset_;    // Handler entry offset within the bytecode.
     int context_register_;  // Index of register holding handler context.
-    CatchPrediction pred_;  // Prediction of whether handler is catching.
   };
 
   // Field accessors

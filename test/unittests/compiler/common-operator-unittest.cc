@@ -38,7 +38,6 @@ std::ostream& operator<<(std::ostream& os, const SharedOperator& fop) {
   return os << IrOpcode::Mnemonic(fop.opcode);
 }
 
-
 const SharedOperator kSharedOperators[] = {
 #define SHARED(Name, properties, value_input_count, effect_input_count,      \
                control_input_count, value_output_count, effect_output_count, \
@@ -52,6 +51,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
     SHARED(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1),
+    SHARED(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1),
     SHARED(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1),
     SHARED(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)
 #undef SHARED
@@ -216,24 +216,6 @@ TEST_F(CommonOperatorTest, Branch) {
     EXPECT_EQ(0, op->ValueOutputCount());
     EXPECT_EQ(0, op->EffectOutputCount());
     EXPECT_EQ(2, op->ControlOutputCount());
-  }
-}
-
-
-TEST_F(CommonOperatorTest, IfException) {
-  static const IfExceptionHint kIfExceptionHints[] = {
-      IfExceptionHint::kLocallyCaught, IfExceptionHint::kLocallyUncaught};
-  TRACED_FOREACH(IfExceptionHint, hint, kIfExceptionHints) {
-    const Operator* const op = common()->IfException(hint);
-    EXPECT_EQ(IrOpcode::kIfException, op->opcode());
-    EXPECT_EQ(Operator::kKontrol, op->properties());
-    EXPECT_EQ(0, op->ValueInputCount());
-    EXPECT_EQ(1, op->EffectInputCount());
-    EXPECT_EQ(1, op->ControlInputCount());
-    EXPECT_EQ(2, OperatorProperties::GetTotalInputCount(op));
-    EXPECT_EQ(1, op->ValueOutputCount());
-    EXPECT_EQ(1, op->EffectOutputCount());
-    EXPECT_EQ(1, op->ControlOutputCount());
   }
 }
 

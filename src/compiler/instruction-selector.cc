@@ -1779,12 +1779,6 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   CallDescriptor::Flags flags = descriptor->flags();
   if (handler) {
     DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
-    IfExceptionHint hint = OpParameter<IfExceptionHint>(handler->front());
-    if (hint == IfExceptionHint::kLocallyCaught) {
-      flags |= CallDescriptor::kHasLocalCatchHandler;
-    } else if (hint == IfExceptionHint::kLocallyCaughtForPromiseReject) {
-      flags |= CallDescriptor::kHasLocalCatchHandlerForPromiseReject;
-    }
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   }

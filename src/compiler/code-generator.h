@@ -250,7 +250,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   };
 
   struct HandlerInfo {
-    HandlerTable::CatchPrediction catch_prediction;
     Label* handler;
     int pc_offset;
   };
