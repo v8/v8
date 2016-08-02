@@ -19,6 +19,9 @@ import("//build_overrides/v8.gni")
 import("snapshot_toolchain.gni")
 
 declare_args() {
+  # Print to stdout on Android.
+  v8_android_log_stdout = false
+
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = false
 
@@ -312,6 +315,9 @@ config("toolchain") {
       # ldflags are not pushed to dependants.
       ldflags += [ "/STACK:2097152" ]
     }
+  }
+  if (is_android && v8_android_log_stdout) {
+    defines += [ "V8_ANDROID_LOG_STDOUT" ]
   }
 
   # TODO(jochen): Support v8_enable_prof on Windows.

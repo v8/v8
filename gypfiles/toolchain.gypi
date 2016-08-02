@@ -57,6 +57,9 @@
     # Similar to the ARM hard float ABI but on MIPS.
     'v8_use_mips_abi_hardfloat%': 'true',
 
+    # Print to stdout on Android.
+    'v8_android_log_stdout%': 0,
+
     # Force disable libstdc++ debug mode.
     'disable_glibcxx_debug%': 0,
 
@@ -1081,6 +1084,11 @@
              ]
            }],
          ],
+      }],
+      ['OS=="android" and v8_android_log_stdout==1', {
+        'defines': [
+          'V8_ANDROID_LOG_STDOUT',
+        ],
       }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="qnx" or OS=="aix"', {

@@ -1116,7 +1116,6 @@
       'target_defaults': {
         'defines': [
           'ANDROID',
-          'V8_ANDROID_LOG_STDOUT',
         ],
         'configurations': {
           'Release': {

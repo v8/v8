@@ -389,8 +389,8 @@
 
   'mixins': {
     'android': {
-      'gn_args': 'target_os="android"',
-      'gyp_defines': 'OS=android',
+      'gn_args': 'target_os="android" v8_android_log_stdout=true',
+      'gyp_defines': 'OS=android v8_android_log_stdout=1',
     },
 
     'arm': {
