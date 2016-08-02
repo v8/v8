@@ -71,15 +71,6 @@ v8_isolate_run("default") {
   isolate = "default.isolate"
 }
 
-v8_isolate_run("ignition") {
-  deps = [
-    ":cctest_run",
-    ":mjsunit_run",
-  ]
-
-  isolate = "ignition.isolate"
-}
-
 v8_isolate_run("optimize_for_size") {
   deps = [
     ":cctest_run",
