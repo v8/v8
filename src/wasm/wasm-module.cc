@@ -1008,14 +1008,15 @@ MaybeHandle<FixedArray> WasmModule::CompileFunctions(
 
   MaybeHandle<FixedArray> indirect_table =
       function_tables.size()
-          ? factory->NewFixedArray(static_cast<int>(function_tables.size()))
+          ? factory->NewFixedArray(static_cast<int>(function_tables.size()),
+                                   TENURED)
           : MaybeHandle<FixedArray>();
   for (uint32_t i = 0; i < function_tables.size(); ++i) {
     Handle<FixedArray> values = wasm::BuildFunctionTable(isolate, i, this);
     temp_instance_for_compilation.function_tables[i] = values;
 
     Handle<FixedArray> metadata = isolate->factory()->NewFixedArray(
-        kWasmIndirectFunctionTableMetadataSize);
+        kWasmIndirectFunctionTableMetadataSize, TENURED);
     metadata->set(kSize, Smi::FromInt(function_tables[i].size));
     metadata->set(kTable, *values);
     indirect_table.ToHandleChecked()->set(i, *metadata);
@@ -1168,6 +1169,19 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<FixedArray> clone = factory->CopyFixedArray(original);
 
+  // Clone each wasm code object.
+  Handle<FixedArray> orig_wasm_functions =
+      original->GetValueChecked<FixedArray>(isolate, kFunctions);
+  Handle<FixedArray> clone_wasm_functions =
+      factory->CopyFixedArray(orig_wasm_functions);
+  clone->set(kFunctions, *clone_wasm_functions);
+  for (int i = 0; i < clone_wasm_functions->length(); ++i) {
+    Handle<Code> orig_code =
+        clone_wasm_functions->GetValueChecked<Code>(isolate, i);
+    Handle<Code> cloned_code = factory->CopyCode(orig_code);
+    clone_wasm_functions->set(i, *cloned_code);
+  }
+
   // Copy the outer table, each WasmIndirectFunctionTableMetadata table, and the
   // inner kTable.
   MaybeHandle<FixedArray> maybe_indirect_tables =
@@ -1187,34 +1201,10 @@ Handle<FixedArray> CloneModuleForInstance(Isolate* isolate,
           clone_metadata->GetValueChecked<FixedArray>(isolate, kTable);
       Handle<FixedArray> clone_table = factory->CopyFixedArray(orig_table);
       clone_metadata->set(kTable, *clone_table);
-    }
-  }
-
-  // Clone each code, then if indirect tables are used, patch the cloned code to
-  // refer to the cloned kTable.
-  Handle<FixedArray> orig_wasm_functions =
-      original->GetValueChecked<FixedArray>(isolate, kFunctions);
-  Handle<FixedArray> clone_wasm_functions =
-      factory->CopyFixedArray(orig_wasm_functions);
-  clone->set(kFunctions, *clone_wasm_functions);
-  for (int i = 0; i < clone_wasm_functions->length(); ++i) {
-    Handle<Code> orig_code =
-        clone_wasm_functions->GetValueChecked<Code>(isolate, i);
-    Handle<Code> cloned_code = factory->CopyCode(orig_code);
-    clone_wasm_functions->set(i, *cloned_code);
-
-    if (!clone_indirect_tables.is_null()) {
-      for (int j = 0; j < clone_indirect_tables->length(); ++j) {
-        Handle<FixedArray> orig_metadata =
-            indirect_tables->GetValueChecked<FixedArray>(isolate, j);
-        Handle<FixedArray> orig_table =
-            orig_metadata->GetValueChecked<FixedArray>(isolate, kTable);
-
-        Handle<FixedArray> clone_metadata =
-            clone_indirect_tables->GetValueChecked<FixedArray>(isolate, j);
-        Handle<FixedArray> clone_table =
-            clone_metadata->GetValueChecked<FixedArray>(isolate, kTable);
-
+      // Patch the cloned code to refer to the cloned kTable.
+      for (int i = 0; i < clone_wasm_functions->length(); ++i) {
+        Handle<Code> cloned_code =
+            clone_wasm_functions->GetValueChecked<Code>(isolate, i);
         PatchFunctionTable(cloned_code, orig_table, clone_table);
       }
     }
@@ -1493,7 +1483,7 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, uint32_t index,
   DCHECK_EQ(table->size, table->values.size());
   DCHECK_GE(table->max_size, table->size);
   Handle<FixedArray> values =
-      isolate->factory()->NewFixedArray(2 * table->max_size);
+      isolate->factory()->NewFixedArray(2 * table->max_size, TENURED);
   for (uint32_t i = 0; i < table->size; ++i) {
     const WasmFunction* function = &module->functions[table->values[i]];
     values->set(i, Smi::FromInt(function->sig_index));
