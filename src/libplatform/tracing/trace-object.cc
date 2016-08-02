@@ -4,12 +4,31 @@
 
 #include "include/libplatform/v8-tracing.h"
 
+#include "base/trace_event/common/trace_event_common.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
 namespace tracing {
+
+// We perform checks for NULL strings since it is possible that a string arg
+// value is NULL.
+V8_INLINE static size_t GetAllocLength(const char* str) {
+  return str ? strlen(str) + 1 : 0;
+}
+
+// Copies |*member| into |*buffer|, sets |*member| to point to this new
+// location, and then advances |*buffer| by the amount written.
+V8_INLINE static void CopyTraceObjectParameter(char** buffer,
+                                               const char** member,
+                                               const char* end) {
+  if (*member) {
+    strncpy(*buffer, *member, end - *buffer);
+    *member = *buffer;
+    *buffer += strlen(*member) + 1;
+  }
+}
 
 void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
                              const char* name, const char* scope, uint64_t id,
@@ -24,13 +43,61 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
   scope_ = scope;
   id_ = id;
   bind_id_ = bind_id;
-  num_args_ = num_args;
   flags_ = flags;
   ts_ = base::TimeTicks::HighResolutionNow().ToInternalValue();
   tts_ = base::ThreadTicks::Now().ToInternalValue();
   duration_ = 0;
   cpu_duration_ = 0;
+
+  // Clamp num_args since it may have been set by a third-party library.
+  num_args_ = (num_args > kTraceMaxNumArgs) ? kTraceMaxNumArgs : num_args;
+  for (int i = 0; i < num_args_; ++i) {
+    arg_names_[i] = arg_names[i];
+    arg_values_[i].as_uint = arg_values[i];
+    arg_types_[i] = arg_types[i];
+  }
+
+  bool copy = !!(flags & TRACE_EVENT_FLAG_COPY);
+  // Allocate a long string to fit all string copies.
+  size_t alloc_size = 0;
+  if (copy) {
+    alloc_size += GetAllocLength(name) + GetAllocLength(scope);
+    for (int i = 0; i < num_args_; ++i) {
+      alloc_size += GetAllocLength(arg_names_[i]);
+      if (arg_types_[i] == TRACE_VALUE_TYPE_STRING)
+        arg_types_[i] = TRACE_VALUE_TYPE_COPY_STRING;
+    }
+  }
+
+  bool arg_is_copy[kTraceMaxNumArgs];
+  for (int i = 0; i < num_args_; ++i) {
+    // We only take a copy of arg_vals if they are of type COPY_STRING.
+    arg_is_copy[i] = (arg_types_[i] == TRACE_VALUE_TYPE_COPY_STRING);
+    if (arg_is_copy[i]) alloc_size += GetAllocLength(arg_values_[i].as_string);
+  }
+
+  if (alloc_size) {
+    // Since TraceObject can be initialized multiple times, we might need
+    // to free old memory.
+    delete[] parameter_copy_storage_;
+    char* ptr = parameter_copy_storage_ = new char[alloc_size];
+    const char* end = ptr + alloc_size;
+    if (copy) {
+      CopyTraceObjectParameter(&ptr, &name_, end);
+      CopyTraceObjectParameter(&ptr, &scope_, end);
+      for (int i = 0; i < num_args_; ++i) {
+        CopyTraceObjectParameter(&ptr, &arg_names_[i], end);
+      }
+    }
+    for (int i = 0; i < num_args_; ++i) {
+      if (arg_is_copy[i]) {
+        CopyTraceObjectParameter(&ptr, &arg_values_[i].as_string, end);
+      }
+    }
+  }
 }
+
+TraceObject::~TraceObject() { delete[] parameter_copy_storage_; }
 
 void TraceObject::UpdateDuration() {
   duration_ = base::TimeTicks::HighResolutionNow().ToInternalValue() - ts_;

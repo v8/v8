@@ -19,6 +19,8 @@ class JSONTraceWriter : public TraceWriter {
   void Flush() override;
 
  private:
+  void AppendArgValue(uint8_t type, TraceObject::ArgValue value);
+
   std::ostream& stream_;
   bool append_comma_ = false;
 };

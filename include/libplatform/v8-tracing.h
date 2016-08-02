@@ -13,9 +13,21 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
+const int kTraceMaxNumArgs = 2;
+
 class TraceObject {
  public:
+  union ArgValue {
+    bool as_bool;
+    uint64_t as_uint;
+    int64_t as_int;
+    double as_double;
+    const void* as_pointer;
+    const char* as_string;
+  };
+
   TraceObject() {}
+  ~TraceObject();
   void Initialize(char phase, const uint8_t* category_enabled_flag,
                   const char* name, const char* scope, uint64_t id,
                   uint64_t bind_id, int num_args, const char** arg_names,
@@ -40,6 +52,10 @@ class TraceObject {
   const char* scope() const { return scope_; }
   uint64_t id() const { return id_; }
   uint64_t bind_id() const { return bind_id_; }
+  int num_args() const { return num_args_; }
+  const char** arg_names() { return arg_names_; }
+  uint8_t* arg_types() { return arg_types_; }
+  ArgValue* arg_values() { return arg_values_; }
   unsigned int flags() const { return flags_; }
   int64_t ts() { return ts_; }
   int64_t tts() { return tts_; }
@@ -56,12 +72,15 @@ class TraceObject {
   uint64_t id_;
   uint64_t bind_id_;
   int num_args_;
+  const char* arg_names_[kTraceMaxNumArgs];
+  uint8_t arg_types_[kTraceMaxNumArgs];
+  ArgValue arg_values_[kTraceMaxNumArgs];
+  char* parameter_copy_storage_ = nullptr;
   unsigned int flags_;
   int64_t ts_;
   int64_t tts_;
   uint64_t duration_;
   uint64_t cpu_duration_;
-  // TODO(fmeawad): Add args support.
 
   // Disallow copy and assign
   TraceObject(const TraceObject&) = delete;
