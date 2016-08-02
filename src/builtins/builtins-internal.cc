@@ -17,6 +17,12 @@ BUILTIN(Illegal) {
 
 BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
 
+BUILTIN(UnsupportedThrower) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewError(MessageTemplate::kUnsupported));
+}
+
 // -----------------------------------------------------------------------------
 // Throwers for restricted function properties and strict arguments object
 // properties

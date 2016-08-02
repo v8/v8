@@ -431,13 +431,10 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                             Handle<Object> pos,
                                             Handle<Object> is_global) {
   Isolate* isolate = fun->GetIsolate();
-
-  Handle<JSFunction> ctor =
-      handle(isolate->native_context()->callsite_function(), isolate);
   Handle<Object> strict_mode = isolate->factory()->ToBoolean(false);
 
-  MaybeHandle<Object> maybe_callsite = CallSiteUtils::Construct(
-      isolate, ctor, ctor, recv, fun, pos, strict_mode);
+  MaybeHandle<Object> maybe_callsite =
+      CallSiteUtils::Construct(isolate, recv, fun, pos, strict_mode);
   if (maybe_callsite.is_null()) {
     isolate->clear_pending_exception();
     return isolate->factory()->empty_string();

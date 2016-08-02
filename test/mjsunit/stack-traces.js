@@ -398,8 +398,10 @@ assertThrows(() => Error.captureStackTrace(x));
 
 // Check that we don't crash when CaptureSimpleStackTrace returns undefined.
 var o = {};
+var oldStackTraceLimit = Error.stackTraceLimit;
 Error.stackTraceLimit = "not a number";
 Error.captureStackTrace(o);
+Error.stackTraceLimit = oldStackTraceLimit;
 
 // Check that we don't crash when a callsite's function's script is empty.
 Error.prepareStackTrace = function(e, frames) {
@@ -412,14 +414,27 @@ try {
   assertEquals(undefined, e.stack);
 }
 
-// Check that a tight recursion in prepareStackTrace fails gracefully, i.e.
-// a range error is thrown and printed (but without showing the actual stack).
-
+// Check that a tight recursion in prepareStackTrace throws when accessing
+// stack. Trying again without a custom formatting function formats correctly.
+var err = new Error("abc");
 Error.prepareStackTrace = () => Error.prepareStackTrace();
 try {
-  new Error().stack;
+  err.stack;
+  assertUnreachable();
 } catch (e) {
-  assertTrue(
-      e.stack.indexOf("RangeError: Maximum call stack size exceeded") != -1);
-  assertTrue(e.stack.indexOf("prepareStackTrace") == -1);
+  err = e;
 }
+
+Error.prepareStackTrace = undefined;
+assertTrue(
+    err.stack.indexOf("RangeError: Maximum call stack size exceeded") != -1);
+assertTrue(err.stack.indexOf("prepareStackTrace") != -1);
+
+// Check that the callsite constructor throws.
+
+Error.prepareStackTrace = (e,s) => s;
+var constructor = new Error().stack[0].constructor;
+
+assertThrows(() => constructor.call());
+assertThrows(() => constructor.call(
+    null, {}, () => undefined, {valueOf() { return 0 }}, false));

@@ -509,9 +509,6 @@ MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
       FixedArray::get(*raw_stack_elements, 0, isolate);
   int sloppy_frames = Handle<Smi>::cast(sloppy_frames_obj)->value();
 
-  Handle<JSFunction> callsite_ctor =
-      handle(isolate->native_context()->callsite_function(), isolate);
-
   int dst_ix = 0;
   Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
   for (int i = 1; i < raw_stack_len; i += 4) {
@@ -533,9 +530,7 @@ MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
     Handle<Object> callsite;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, callsite,
-        CallSiteUtils::Construct(isolate, callsite_ctor, callsite_ctor, recv,
-                                 fun, pos, strict),
-        FixedArray);
+        CallSiteUtils::Construct(isolate, recv, fun, pos, strict), FixedArray);
 
     frames->set(dst_ix++, *callsite);
   }
@@ -889,19 +884,19 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
                    target, isolate->factory()->key(), value, DONT_ENUM), \
       Object)
 
-MaybeHandle<Object> CallSiteUtils::Construct(
-    Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    Handle<Object> receiver, Handle<Object> fun, Handle<Object> pos,
-    Handle<Object> strict_mode) {
+MaybeHandle<Object> CallSiteUtils::Construct(Isolate* isolate,
+                                             Handle<Object> receiver,
+                                             Handle<Object> fun,
+                                             Handle<Object> pos,
+                                             Handle<Object> strict_mode) {
   // Create the JS object.
 
-  Handle<JSReceiver> new_target_recv =
-      new_target->IsJSReceiver() ? Handle<JSReceiver>::cast(new_target)
-                                 : Handle<JSReceiver>::cast(target);
+  Handle<JSFunction> target =
+      handle(isolate->native_context()->callsite_function(), isolate);
 
   Handle<JSObject> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj,
-                             JSObject::New(target, new_target_recv), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, JSObject::New(target, target),
+                             Object);
 
   // For wasm frames, receiver is the wasm object and fun is the function index
   // instead of an actual function.
@@ -916,10 +911,9 @@ MaybeHandle<Object> CallSiteUtils::Construct(
   }
 
   if (is_wasm_object) {
-    // TODO(jgruber): Convert back to DCHECK once the callsite constructor is
-    // inaccessible from JS.
-    CHECK(fun->IsSmi() && (wasm::GetNumberOfFunctions(JSObject::cast(
-                               *receiver)) > Smi::cast(*fun)->value()));
+    DCHECK(fun->IsSmi());
+    DCHECK(wasm::GetNumberOfFunctions(JSObject::cast(*receiver)) >
+           Smi::cast(*fun)->value());
 
     SET_CALLSITE_PROPERTY(obj, call_site_wasm_obj_symbol, receiver);
     SET_CALLSITE_PROPERTY(obj, call_site_wasm_func_index_symbol, fun);
@@ -929,10 +923,7 @@ MaybeHandle<Object> CallSiteUtils::Construct(
     SET_CALLSITE_PROPERTY(obj, call_site_function_symbol, fun);
   }
 
-  // TODO(jgruber): Convert back to DCHECK once the callsite constructor is
-  // inaccessible from JS.
-  CHECK(pos->IsSmi());
-
+  DCHECK(pos->IsSmi());
   SET_CALLSITE_PROPERTY(obj, call_site_position_symbol, pos);
   SET_CALLSITE_PROPERTY(
       obj, call_site_strict_symbol,

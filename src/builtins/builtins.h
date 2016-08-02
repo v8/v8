@@ -184,6 +184,7 @@ namespace internal {
   CPP(Illegal)                                                               \
   CPP(RestrictedFunctionPropertiesThrower)                                   \
   CPP(RestrictedStrictArgumentsPropertiesThrower)                            \
+  CPP(UnsupportedThrower)                                                    \
                                                                              \
   /* Array */                                                                \
   ASM(ArrayCode)                                                             \
@@ -213,7 +214,6 @@ namespace internal {
   TFJ(BooleanPrototypeValueOf, 1)                                            \
                                                                              \
   /* CallSite */                                                             \
-  CPP(CallSiteConstructor)                                                   \
   CPP(CallSitePrototypeGetColumnNumber)                                      \
   CPP(CallSitePrototypeGetEvalOrigin)                                        \
   CPP(CallSitePrototypeGetFileName)                                          \

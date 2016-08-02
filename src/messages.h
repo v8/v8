@@ -103,8 +103,6 @@ class ErrorUtils : public AllStatic {
 class CallSiteUtils : public AllStatic {
  public:
   static MaybeHandle<Object> Construct(Isolate* isolate,
-                                       Handle<JSFunction> target,
-                                       Handle<Object> new_target,
                                        Handle<Object> receiver,
                                        Handle<Object> fun, Handle<Object> pos,
                                        Handle<Object> strict_mode);

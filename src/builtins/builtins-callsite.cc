@@ -22,21 +22,6 @@ namespace internal {
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }
 
-BUILTIN(CallSiteConstructor) {
-  HandleScope scope(isolate);
-
-  Handle<JSFunction> target = args.target<JSFunction>();
-  Handle<Object> new_target = Handle<Object>::cast(args.new_target());
-  Handle<Object> receiver = args.atOrUndefined(isolate, 1);
-  Handle<Object> fun = args.atOrUndefined(isolate, 2);
-  Handle<Object> pos = args.atOrUndefined(isolate, 3);
-  Handle<Object> strict_mode = args.atOrUndefined(isolate, 4);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, CallSiteUtils::Construct(isolate, target, new_target, receiver,
-                                        fun, pos, strict_mode));
-}
-
 namespace {
 
 Object* PositiveNumberOrNull(int value, Isolate* isolate) {

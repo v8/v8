@@ -2644,9 +2644,13 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   {  // -- C a l l S i t e
     // Builtin functions for CallSite.
 
+    // CallSites are a special case; the constructor is for our private use
+    // only, therefore we set it up as a builtin that throws. Internally, we use
+    // CallSiteUtils::Construct to create CallSite objects.
+
     Handle<JSFunction> callsite_fun = InstallFunction(
         container, "CallSite", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        isolate->initial_object_prototype(), Builtins::kCallSiteConstructor);
+        isolate->initial_object_prototype(), Builtins::kUnsupportedThrower);
     callsite_fun->shared()->DontAdaptArguments();
     callsite_fun->shared()->set_native(true);
 
