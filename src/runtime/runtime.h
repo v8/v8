@@ -312,7 +312,6 @@ namespace internal {
   F(AllocateSeqTwoByteString, 1, 1)                 \
   F(MessageGetStartPosition, 1, 1)                  \
   F(MessageGetScript, 1, 1)                         \
-  F(FormatMessageString, 4, 1)                      \
   F(IS_VAR, 1, 1)                                   \
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \

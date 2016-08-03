@@ -101,10 +101,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
     Handle<Object> stringified;
     // Make sure we don't leak uncaught internally generated Error objects.
     if (argument->IsJSError()) {
-      Handle<Object> args[] = {argument};
-      maybe_stringified = Execution::TryCall(
-          isolate, isolate->no_side_effects_to_string_fun(),
-          isolate->factory()->undefined_value(), arraysize(args), args);
+      maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
     } else {
       v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
       catcher.SetVerbose(false);
@@ -670,20 +667,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
                                               int template_index,
                                               Handle<Object> arg) {
   Factory* factory = isolate->factory();
-  Handle<String> result_string;
-  if (arg->IsString()) {
-    result_string = Handle<String>::cast(arg);
-  } else {
-    Handle<JSFunction> fun = isolate->no_side_effects_to_string_fun();
-
-    MaybeHandle<Object> maybe_result =
-        Execution::TryCall(isolate, fun, factory->undefined_value(), 1, &arg);
-    Handle<Object> result;
-    if (!maybe_result.ToHandle(&result) || !result->IsString()) {
-      return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
-    }
-    result_string = Handle<String>::cast(result);
-  }
+  Handle<String> result_string = Object::NoSideEffectsToString(isolate, arg);
   MaybeHandle<String> maybe_result_string = MessageTemplate::FormatMessage(
       template_index, result_string, factory->empty_string(),
       factory->empty_string());
@@ -749,7 +733,8 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
 
 MaybeHandle<Object> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-    Handle<Object> message, FrameSkipMode mode, bool suppress_detailed_trace) {
+    Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
+    bool suppress_detailed_trace) {
   // 1. If NewTarget is undefined, let newTarget be the active function object,
   // else let newTarget be NewTarget.
 
@@ -784,15 +769,6 @@ MaybeHandle<Object> ErrorUtils::Construct(
   if (!suppress_detailed_trace) {
     RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetDetailedStackTrace(err),
                         Object);
-  }
-
-  // When we're passed a JSFunction as new target, we can skip frames until that
-  // specific function is seen instead of unconditionally skipping the first
-  // frame.
-  Handle<Object> caller;
-  if (mode == SKIP_FIRST && new_target->IsJSFunction()) {
-    mode = SKIP_UNTIL_SEEN;
-    caller = new_target;
   }
 
   // Capture a simple stack trace for the stack property.
@@ -876,6 +852,49 @@ MaybeHandle<String> ErrorUtils::ToString(Isolate* isolate,
   Handle<String> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, builder.Finish(), String);
   return result;
+}
+
+namespace {
+
+Handle<String> FormatMessage(Isolate* isolate, int template_index,
+                             Handle<Object> arg0, Handle<Object> arg1,
+                             Handle<Object> arg2) {
+  Handle<String> arg0_str = Object::NoSideEffectsToString(isolate, arg0);
+  Handle<String> arg1_str = Object::NoSideEffectsToString(isolate, arg1);
+  Handle<String> arg2_str = Object::NoSideEffectsToString(isolate, arg2);
+
+  isolate->native_context()->IncrementErrorsThrown();
+
+  Handle<String> msg;
+  if (!MessageTemplate::FormatMessage(template_index, arg0_str, arg1_str,
+                                      arg2_str)
+           .ToHandle(&msg)) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+    return isolate->factory()->NewStringFromAsciiChecked("<error>");
+  }
+
+  return msg;
+}
+
+}  // namespace
+
+// static
+MaybeHandle<Object> ErrorUtils::MakeGenericError(
+    Isolate* isolate, Handle<JSFunction> constructor, int template_index,
+    Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
+    FrameSkipMode mode) {
+  // This function used to be implemented in JavaScript, and JSEntryStub clears
+  // any pending exceptions - so whenever we'd call this from C++, pending
+  // exceptions would be cleared. Preserve this behavior.
+  isolate->clear_pending_exception();
+
+  DCHECK(mode != SKIP_UNTIL_SEEN);
+
+  Handle<Object> no_caller;
+  Handle<String> msg = FormatMessage(isolate, template_index, arg0, arg1, arg2);
+  return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
+                               no_caller, false);
 }
 
 #define SET_CALLSITE_PROPERTY(target, key, value)                        \

@@ -95,9 +95,15 @@ class ErrorUtils : public AllStatic {
  public:
   static MaybeHandle<Object> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
-      Handle<Object> message, FrameSkipMode mode, bool suppress_detailed_trace);
+      Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
+      bool suppress_detailed_trace);
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
+
+  static MaybeHandle<Object> MakeGenericError(
+      Isolate* isolate, Handle<JSFunction> constructor, int template_index,
+      Handle<Object> arg0, Handle<Object> arg1, Handle<Object> arg2,
+      FrameSkipMode mode);
 };
 
 class CallSiteUtils : public AllStatic {

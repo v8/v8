@@ -178,7 +178,6 @@
   V(frozen_symbol)                          \
   V(hash_code_symbol)                       \
   V(home_object_symbol)                     \
-  V(internal_error_symbol)                  \
   V(intl_impl_object_symbol)                \
   V(intl_initialized_marker_symbol)         \
   V(intl_pattern_symbol)                    \

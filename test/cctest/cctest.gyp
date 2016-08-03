@@ -155,6 +155,7 @@
       'test-lockers.cc',
       'test-log.cc',
       'test-mementos.cc',
+      'test-object.cc',
       'test-parsing.cc',
       'test-platform.cc',
       'test-profile-generator.cc',

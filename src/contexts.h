@@ -68,9 +68,9 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_AWAIT_INDEX, JSFunction, async_function_await)           \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                   \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                       \
+  V(ERROR_TO_STRING, JSFunction, error_to_string)                           \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)             \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                     \
-  V(MAKE_ERROR_FUNCTION_INDEX, JSFunction, make_error_function)             \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                        \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                              \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                              \
@@ -78,8 +78,6 @@ enum ContextLookupFlags {
   V(MESSAGE_GET_COLUMN_NUMBER_INDEX, JSFunction, message_get_column_number) \
   V(MESSAGE_GET_LINE_NUMBER_INDEX, JSFunction, message_get_line_number)     \
   V(MESSAGE_GET_SOURCE_LINE_INDEX, JSFunction, message_get_source_line)     \
-  V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                        \
-    no_side_effects_to_string_fun)                                          \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                           \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                         \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                         \

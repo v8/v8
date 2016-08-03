@@ -1154,27 +1154,21 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
         MessageTemplate::TemplateString(template_index)));
   }
 
-  Handle<JSFunction> fun = isolate()->make_error_function();
-  Handle<Object> message_type(Smi::FromInt(template_index), isolate());
   if (arg0.is_null()) arg0 = undefined_value();
   if (arg1.is_null()) arg1 = undefined_value();
   if (arg2.is_null()) arg2 = undefined_value();
-  Handle<Object> argv[] = {constructor, message_type, arg0, arg1, arg2};
 
-  // Invoke the JavaScript factory method. If an exception is thrown while
-  // running the factory method, use the exception as the result.
   Handle<Object> result;
-  MaybeHandle<Object> exception;
-  if (!Execution::TryCall(isolate(), fun, undefined_value(), arraysize(argv),
-                          argv, &exception)
+  if (!ErrorUtils::MakeGenericError(isolate(), constructor, template_index,
+                                    arg0, arg1, arg2, SKIP_NONE)
            .ToHandle(&result)) {
-    Handle<Object> exception_obj;
-    if (exception.ToHandle(&exception_obj)) {
-      result = exception_obj;
-    } else {
-      result = undefined_value();
-    }
+    // If an exception is thrown while
+    // running the factory method, use the exception as the result.
+    DCHECK(isolate()->has_pending_exception());
+    result = handle(isolate()->pending_exception(), isolate());
+    isolate()->clear_pending_exception();
   }
+
   return scope.CloseAndEscape(result);
 }
 

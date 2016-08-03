@@ -15,11 +15,23 @@ namespace internal {
 // ES6 section 19.5.1.1 Error ( message )
 BUILTIN(ErrorConstructor) {
   HandleScope scope(isolate);
+
+  FrameSkipMode mode = SKIP_FIRST;
+  Handle<Object> caller;
+
+  // When we're passed a JSFunction as new target, we can skip frames until that
+  // specific function is seen instead of unconditionally skipping the first
+  // frame.
+  if (args.new_target()->IsJSFunction()) {
+    mode = SKIP_UNTIL_SEEN;
+    caller = args.new_target();
+  }
+
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      ErrorUtils::Construct(isolate, args.target<JSFunction>(),
-                            Handle<Object>::cast(args.new_target()),
-                            args.atOrUndefined(isolate, 1), SKIP_FIRST, false));
+      isolate, ErrorUtils::Construct(isolate, args.target<JSFunction>(),
+                                     Handle<Object>::cast(args.new_target()),
+                                     args.atOrUndefined(isolate, 1), mode,
+                                     caller, false));
 }
 
 // static
@@ -67,6 +79,25 @@ BUILTIN(ErrorPrototypeToString) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            ErrorUtils::ToString(isolate, args.receiver()));
+}
+
+BUILTIN(MakeGenericError) {
+  HandleScope scope(isolate);
+
+  Handle<Object> constructor = args.atOrUndefined(isolate, 1);
+  Handle<Object> template_index = args.atOrUndefined(isolate, 2);
+  Handle<Object> arg0 = args.atOrUndefined(isolate, 3);
+  Handle<Object> arg1 = args.atOrUndefined(isolate, 4);
+  Handle<Object> arg2 = args.atOrUndefined(isolate, 5);
+
+  DCHECK(constructor->IsJSFunction());
+  DCHECK(template_index->IsSmi());
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      ErrorUtils::MakeGenericError(
+          isolate, Handle<JSFunction>::cast(constructor),
+          Smi::cast(*template_index)->value(), arg0, arg1, arg2, SKIP_FIRST));
 }
 
 }  // namespace internal

@@ -312,6 +312,7 @@ namespace internal {
   CPP(ErrorConstructor)                                                      \
   CPP(ErrorCaptureStackTrace)                                                \
   CPP(ErrorPrototypeToString)                                                \
+  CPP(MakeGenericError)                                                      \
                                                                              \
   /* Function */                                                             \
   CPP(FunctionConstructor)                                                   \

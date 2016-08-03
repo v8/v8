@@ -1194,6 +1194,9 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<String> ToString(Isolate* isolate,
                                                       Handle<Object> input);
 
+  static Handle<String> NoSideEffectsToString(Isolate* isolate,
+                                              Handle<Object> input);
+
   // ES6 section 7.1.14 ToPropertyKey
   MUST_USE_RESULT static MaybeHandle<Object> ToPropertyKey(
       Isolate* isolate, Handle<Object> value);

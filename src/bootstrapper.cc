@@ -1003,12 +1003,19 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
     JSObject::AddProperty(prototype, factory->constructor_string(), error_fun,
                           DONT_ENUM);
 
-    Handle<JSFunction> to_string_fun =
-        SimpleInstallFunction(prototype, factory->toString_string(),
-                              Builtins::kErrorPrototypeToString, 0, true);
-    to_string_fun->shared()->set_native(true);
+    if (context_index == Context::ERROR_FUNCTION_INDEX) {
+      Handle<JSFunction> to_string_fun =
+          SimpleInstallFunction(prototype, factory->toString_string(),
+                                Builtins::kErrorPrototypeToString, 0, true);
+      to_string_fun->shared()->set_native(true);
+      isolate->native_context()->set_error_to_string(*to_string_fun);
+    } else {
+      DCHECK(context_index != Context::ERROR_FUNCTION_INDEX);
+      DCHECK(isolate->native_context()->error_to_string()->IsJSFunction());
 
-    if (context_index != Context::ERROR_FUNCTION_INDEX) {
+      InstallFunction(prototype, isolate->error_to_string(),
+                      factory->toString_string(), DONT_ENUM);
+
       Handle<JSFunction> global_error = isolate->error_function();
       CHECK(JSReceiver::SetPrototype(error_fun, global_error, false,
                                      Object::THROW_ON_ERROR)
@@ -2697,6 +2704,13 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
       Accessors::FunctionSetPrototype(callsite_fun, proto).Assert();
     }
+  }
+
+  {  // -- E r r o r
+    Handle<JSFunction> make_err_fun = InstallFunction(
+        container, "make_generic_error", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kMakeGenericError);
+    make_err_fun->shared()->DontAdaptArguments();
   }
 }
 
