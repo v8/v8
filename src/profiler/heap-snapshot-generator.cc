@@ -1132,9 +1132,6 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     SetInternalReference(js_fun, entry,
                          "context", js_fun->context(),
                          JSFunction::kContextOffset);
-    SetWeakReference(js_fun, entry,
-                     "next_function_link", js_fun->next_function_link(),
-                     JSFunction::kNextFunctionLinkOffset);
     // Ensure no new weak references appeared in JSFunction.
     STATIC_ASSERT(JSFunction::kCodeEntryOffset ==
                   JSFunction::kNonWeakFieldsEndOffset);
@@ -1249,7 +1246,6 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
                           optimized_functions_list);
     EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, unused, optimized_code_list);
     EXTRACT_CONTEXT_FIELD(DEOPTIMIZED_CODE_LIST, unused, deoptimized_code_list);
-    EXTRACT_CONTEXT_FIELD(NEXT_CONTEXT_LINK, unused, next_context_link);
 #undef EXTRACT_CONTEXT_FIELD
     STATIC_ASSERT(Context::OPTIMIZED_FUNCTIONS_LIST ==
                   Context::FIRST_WEAK_SLOT);
@@ -1455,18 +1451,12 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
                        code->source_position_table(),
                        Code::kSourcePositionTableOffset);
   if (code->kind() == Code::FUNCTION) {
-    SetInternalReference(code, entry,
-                         "type_feedback_info", code->type_feedback_info(),
+    SetInternalReference(code, entry, "type_feedback_info",
+                         code->type_feedback_info(),
                          Code::kTypeFeedbackInfoOffset);
   }
-  SetInternalReference(code, entry,
-                       "gc_metadata", code->gc_metadata(),
+  SetInternalReference(code, entry, "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
-    SetWeakReference(code, entry,
-                     "next_code_link", code->next_code_link(),
-                     Code::kNextCodeLinkOffset);
-  }
 }
 
 void V8HeapExplorer::ExtractBoxReferences(int entry, Box* box) {
@@ -1841,11 +1831,16 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
   if (parent->IsAllocationSite() &&
       field_offset == AllocationSite::kWeakNextOffset)
     return false;
+  if (parent->IsJSFunction() &&
+      field_offset == JSFunction::kNextFunctionLinkOffset)
+    return false;
+  if (parent->IsCode() && field_offset == Code::kNextCodeLinkOffset)
+    return false;
+  if (parent->IsContext() &&
+      field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))
+    return false;
   if (parent->IsWeakCell() && field_offset == WeakCell::kNextOffset)
     return false;
-  // TODO(ulan): JSFunction, Code, and Context also have next weak link, which
-  // is non-essential. Currently they are handled as normal weak links.
-  // Move them here.
   return true;
 }
 
@@ -1944,11 +1939,9 @@ void V8HeapExplorer::SetHiddenReference(HeapObject* parent_obj,
                                         Object* child_obj, int field_offset) {
   DCHECK(parent_entry == GetEntry(parent_obj)->index());
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL && IsEssentialObject(child_obj) &&
+  if (child_entry != nullptr && IsEssentialObject(child_obj) &&
       IsEssentialHiddenReference(parent_obj, field_offset)) {
-    filler_->SetIndexedReference(HeapGraphEdge::kHidden,
-                                 parent_entry,
-                                 index,
+    filler_->SetIndexedReference(HeapGraphEdge::kHidden, parent_entry, index,
                                  child_entry);
   }
 }
