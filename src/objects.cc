@@ -6402,11 +6402,9 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
   // 2. Let props be ToObject(Properties).
   // 3. ReturnIfAbrupt(props).
   Handle<JSReceiver> props;
-  if (!Object::ToObject(isolate, properties).ToHandle(&props)) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
-                    Object);
-  }
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, props,
+                             Object::ToObject(isolate, properties), Object);
+
   // 4. Let keys be props.[[OwnPropertyKeys]]().
   // 5. ReturnIfAbrupt(keys).
   Handle<FixedArray> keys;
