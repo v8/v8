@@ -1175,20 +1175,20 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  Handle<String> message) {
-  Handle<Object> argv[] = { message };
+  // Construct a new error object. If an exception is thrown, use the exception
+  // as the result.
 
-  // Invoke the JavaScript factory method. If an exception is thrown while
-  // running the factory method, use the exception as the result.
-  Handle<Object> result;
-  MaybeHandle<Object> exception;
-  if (!Execution::TryCall(isolate(), constructor, undefined_value(),
-                          arraysize(argv), argv, &exception)
-           .ToHandle(&result)) {
-    Handle<Object> exception_obj;
-    if (exception.ToHandle(&exception_obj)) return exception_obj;
-    return undefined_value();
+  Handle<Object> no_caller;
+  MaybeHandle<Object> maybe_error =
+      ErrorUtils::Construct(isolate(), constructor, constructor, message,
+                            SKIP_NONE, no_caller, false);
+  if (maybe_error.is_null()) {
+    DCHECK(isolate()->has_pending_exception());
+    maybe_error = handle(isolate()->pending_exception(), isolate());
+    isolate()->clear_pending_exception();
   }
-  return result;
+
+  return maybe_error.ToHandleChecked();
 }
 
 
