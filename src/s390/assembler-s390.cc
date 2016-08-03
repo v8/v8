@@ -173,6 +173,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   USE(performSTFLE);  // To avoid assert
 #endif
   supported_ |= (1u << FPU);
+  supported_ |= (1u << UNALIGNED_ACCESSES);
 }
 
 void CpuFeatures::PrintTarget() {

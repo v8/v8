@@ -5078,6 +5078,22 @@ void MacroAssembler::LoadlW(Register dst, const MemOperand& mem,
 #endif
 }
 
+void MacroAssembler::LoadLogicalHalfWordP(Register dst, const MemOperand& mem) {
+#if V8_TARGET_ARCH_S390X
+  llgh(dst, mem);
+#else
+  llh(dst, mem);
+#endif
+}
+
+void MacroAssembler::LoadLogicalHalfWordP(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  llghr(dst, src);
+#else
+  llhr(dst, src);
+#endif
+}
+
 void MacroAssembler::LoadB(Register dst, const MemOperand& mem) {
 #if V8_TARGET_ARCH_S390X
   lgb(dst, mem);
@@ -5101,6 +5117,20 @@ void MacroAssembler::LoadlB(Register dst, const MemOperand& mem) {
   llc(dst, mem);
 #endif
 }
+
+void MacroAssembler::LoadLogicalReversedWordP(Register dst,
+                                              const MemOperand& mem) {
+  lrv(dst, mem);
+  LoadlW(dst, dst);
+}
+
+
+void MacroAssembler::LoadLogicalReversedHalfWordP(Register dst,
+                                              const MemOperand& mem) {
+  lrvh(dst, mem);
+  LoadLogicalHalfWordP(dst, dst);
+}
+
 
 // Load And Test (Reg <- Reg)
 void MacroAssembler::LoadAndTest32(Register dst, Register src) {

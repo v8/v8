@@ -112,7 +112,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lgr
 #define LoadAndTestRR ltgr
 #define LoadImmP lghi
-#define LoadLogicalHalfWordP llgh
 
 // Compare
 #define CmpPH cghi
@@ -150,7 +149,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 #define LoadRR lr
 #define LoadAndTestRR ltr
 #define LoadImmP lhi
-#define LoadLogicalHalfWordP llh
 
 // Compare
 #define CmpPH chi
@@ -333,9 +331,14 @@ class MacroAssembler : public Assembler {
   void LoadW(Register dst, Register src);
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
   void LoadlW(Register dst, Register src);
+  void LoadLogicalHalfWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalHalfWordP(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+
+  void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
+  void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);
