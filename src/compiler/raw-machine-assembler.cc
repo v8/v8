@@ -85,9 +85,8 @@ void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
-                                 int32_t* case_values,
+                                 const int32_t* case_values,
                                  RawMachineLabel** case_labels,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);

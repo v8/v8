@@ -754,8 +754,9 @@ class RawMachineAssembler {
   void Goto(RawMachineLabel* label);
   void Branch(Node* condition, RawMachineLabel* true_val,
               RawMachineLabel* false_val);
-  void Switch(Node* index, RawMachineLabel* default_label, int32_t* case_values,
-              RawMachineLabel** case_labels, size_t case_count);
+  void Switch(Node* index, RawMachineLabel* default_label,
+              const int32_t* case_values, RawMachineLabel** case_labels,
+              size_t case_count);
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);

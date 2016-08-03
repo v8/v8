@@ -246,7 +246,7 @@ class CodeAssembler {
   void GotoUnless(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
-  void Switch(Node* index, Label* default_label, int32_t* case_values,
+  void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
   Node* Select(Node* condition, Node* true_value, Node* false_value,

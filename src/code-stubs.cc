@@ -2462,78 +2462,8 @@ void GenerateEqual_Simd128Value_HeapObject(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* lhs_map,
     compiler::Node* rhs, compiler::Node* rhs_map,
     CodeStubAssembler::Label* if_equal, CodeStubAssembler::Label* if_notequal) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
-  // Check if {lhs} and {rhs} have the same map.
-  Label if_mapsame(assembler), if_mapnotsame(assembler);
-  assembler->Branch(assembler->WordEqual(lhs_map, rhs_map), &if_mapsame,
-                    &if_mapnotsame);
-
-  assembler->Bind(&if_mapsame);
-  {
-    // Both {lhs} and {rhs} are Simd128Values with the same map, need special
-    // handling for Float32x4 because of NaN comparisons.
-    Label if_float32x4(assembler), if_notfloat32x4(assembler);
-    Node* float32x4_map =
-        assembler->HeapConstant(assembler->factory()->float32x4_map());
-    assembler->Branch(assembler->WordEqual(lhs_map, float32x4_map),
-                      &if_float32x4, &if_notfloat32x4);
-
-    assembler->Bind(&if_float32x4);
-    {
-      // Both {lhs} and {rhs} are Float32x4, compare the lanes individually
-      // using a floating point comparison.
-      for (int offset = Float32x4::kValueOffset - kHeapObjectTag;
-           offset < Float32x4::kSize - kHeapObjectTag;
-           offset += sizeof(float)) {
-        // Load the floating point values for {lhs} and {rhs}.
-        Node* lhs_value = assembler->Load(MachineType::Float32(), lhs,
-                                          assembler->IntPtrConstant(offset));
-        Node* rhs_value = assembler->Load(MachineType::Float32(), rhs,
-                                          assembler->IntPtrConstant(offset));
-
-        // Perform a floating point comparison.
-        Label if_valueequal(assembler), if_valuenotequal(assembler);
-        assembler->Branch(assembler->Float32Equal(lhs_value, rhs_value),
-                          &if_valueequal, &if_valuenotequal);
-        assembler->Bind(&if_valuenotequal);
-        assembler->Goto(if_notequal);
-        assembler->Bind(&if_valueequal);
-      }
-
-      // All 4 lanes match, {lhs} and {rhs} considered equal.
-      assembler->Goto(if_equal);
-    }
-
-    assembler->Bind(&if_notfloat32x4);
-    {
-      // For other Simd128Values we just perform a bitwise comparison.
-      for (int offset = Simd128Value::kValueOffset - kHeapObjectTag;
-           offset < Simd128Value::kSize - kHeapObjectTag;
-           offset += kPointerSize) {
-        // Load the word values for {lhs} and {rhs}.
-        Node* lhs_value = assembler->Load(MachineType::Pointer(), lhs,
-                                          assembler->IntPtrConstant(offset));
-        Node* rhs_value = assembler->Load(MachineType::Pointer(), rhs,
-                                          assembler->IntPtrConstant(offset));
-
-        // Perform a bitwise word-comparison.
-        Label if_valueequal(assembler), if_valuenotequal(assembler);
-        assembler->Branch(assembler->WordEqual(lhs_value, rhs_value),
-                          &if_valueequal, &if_valuenotequal);
-        assembler->Bind(&if_valuenotequal);
-        assembler->Goto(if_notequal);
-        assembler->Bind(&if_valueequal);
-      }
-
-      // Bitwise comparison succeeded, {lhs} and {rhs} considered equal.
-      assembler->Goto(if_equal);
-    }
-  }
-
-  assembler->Bind(&if_mapnotsame);
-  assembler->Goto(if_notequal);
+  assembler->BranchIfSimd128Equal(lhs, lhs_map, rhs, rhs_map, if_equal,
+                                  if_notequal);
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison

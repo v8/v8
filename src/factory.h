@@ -380,6 +380,16 @@ class Factory final {
     }
     return NewNumber(static_cast<double>(value), pretenure);
   }
+  Handle<Object> NewNumberFromInt64(int64_t value,
+                                    PretenureFlag pretenure = NOT_TENURED) {
+    if (value <= std::numeric_limits<int32_t>::max() &&
+        value >= std::numeric_limits<int32_t>::min() &&
+        Smi::IsValid(static_cast<int32_t>(value))) {
+      return Handle<Object>(Smi::FromInt(static_cast<int32_t>(value)),
+                            isolate());
+    }
+    return NewNumber(static_cast<double>(value), pretenure);
+  }
   Handle<HeapNumber> NewHeapNumber(double value,
                                    MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);

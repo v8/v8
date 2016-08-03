@@ -28,7 +28,6 @@ var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayForEach;
-var InnerArrayIncludes;
 var InnerArrayIndexOf;
 var InnerArrayJoin;
 var InnerArrayLastIndexOf;
@@ -82,7 +81,6 @@ utils.Import(function(from) {
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayForEach = from.InnerArrayForEach;
-  InnerArrayIncludes = from.InnerArrayIncludes;
   InnerArrayIndexOf = from.InnerArrayIndexOf;
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
@@ -713,7 +711,29 @@ function TypedArrayIncludes(searchElement, fromIndex) {
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayIncludes(searchElement, fromIndex, this, length);
+  if (length === 0) return false;
+  var n = TO_INTEGER(fromIndex);
+
+  var k;
+  if (n >= 0) {
+    k = n;
+  } else {
+    k = length + n;
+    if (k < 0) {
+      k = 0;
+    }
+  }
+
+  while (k < length) {
+    var elementK = this[k];
+    if (%SameValueZero(searchElement, elementK)) {
+      return true;
+    }
+
+    ++k;
+  }
+
+  return false;
 }
 %FunctionSetLength(TypedArrayIncludes, 1);
 
