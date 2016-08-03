@@ -666,8 +666,8 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED ||
       job->OptimizeGraph() != CompilationJob::SUCCEEDED ||
@@ -729,8 +729,8 @@ bool GetOptimizedCodeLater(CompilationJob* job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(info->isolate(),
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   if (job->CreateGraph() != CompilationJob::SUCCEEDED) return false;
   isolate->optimizing_compile_dispatcher()->QueueForOptimization(job);
@@ -808,8 +808,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   CanonicalHandleScope canonical(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::OptimizeCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // TurboFan can optimize directly from existing bytecode.
   if (FLAG_turbo_from_bytecode && use_turbofan && ShouldUseIgnition(info)) {
@@ -1002,8 +1001,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileCodeLazy);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileCodeLazy);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
   if (FLAG_turbo_cache_shared_code) {
@@ -1058,8 +1056,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
@@ -1126,10 +1123,8 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();
     HistogramTimerScope timer(rate);
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-        isolate,
-        (parse_info->is_eval() ? &tracing::TraceEventStatsTable::CompileEval
-                               : &tracing::TraceEventStatsTable::Compile));
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
     // Allocate a shared function info object.
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
@@ -1599,8 +1594,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
       RuntimeCallTimerScope runtimeTimer(isolate,
                                          &RuntimeCallStats::CompileDeserialize);
-      TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-          isolate, &tracing::TraceEventStatsTable::CompileDeserialize);
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
               .ToHandle(&result)) {
@@ -1673,8 +1668,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,
                                            &RuntimeCallStats::CompileSerialize);
-        TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-            isolate, &tracing::TraceEventStatsTable::CompileSerialize);
+        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                     "V8.CompileSerialize");
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
           PrintF("[Compiling and serializing took %0.3f ms]\n",
@@ -1791,8 +1786,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Generate code
   TimerEventScope<TimerEventCompileCode> timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   if (lazy) {
     info.SetCode(isolate->builtins()->CompileLazy());
   } else if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
@@ -1867,8 +1861,8 @@ void Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::RecompileSynchronous);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.RecompileSynchronous");
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);
