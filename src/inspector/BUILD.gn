@@ -12,6 +12,8 @@ protocol_sources = [
   "$target_gen_dir/HeapProfiler.h",
   "$target_gen_dir/Profiler.cpp",
   "$target_gen_dir/Profiler.h",
+  "$target_gen_dir/public/Debugger.h",
+  "$target_gen_dir/public/Runtime.h",
   "$target_gen_dir/Runtime.cpp",
   "$target_gen_dir/Runtime.h",
 ]
@@ -41,6 +43,10 @@ action("inspector_protocol_sources") {
     rebase_path(target_gen_dir, root_build_dir),
     "--output_package",
     "inspector",
+    "--exported_dir",
+    rebase_path("$target_gen_dir/public", root_build_dir),
+    "--exported_package",
+    "inspector/public",
   ]
 }
 

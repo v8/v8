@@ -13,6 +13,8 @@
       '<(SHARED_INTERMEDIATE_DIR)/inspector/HeapProfiler.h',
       '<(SHARED_INTERMEDIATE_DIR)/inspector/Profiler.cpp',
       '<(SHARED_INTERMEDIATE_DIR)/inspector/Profiler.h',
+      '<(SHARED_INTERMEDIATE_DIR)/inspector/public/Debugger.h',
+      '<(SHARED_INTERMEDIATE_DIR)/inspector/public/Runtime.h',
       '<(SHARED_INTERMEDIATE_DIR)/inspector/Runtime.cpp',
       '<(SHARED_INTERMEDIATE_DIR)/inspector/Runtime.h',
     ]
@@ -52,6 +54,8 @@
             '--export_macro', 'PLATFORM_EXPORT',
             '--output_dir', '<(SHARED_INTERMEDIATE_DIR)/inspector',
             '--output_package', 'inspector',
+            '--exported_dir', '<(SHARED_INTERMEDIATE_DIR)/inspector/public',
+            '--exported_package', 'inspector/public',
           ],
           'message': 'Generating Inspector protocol backend sources from json definitions',
         },

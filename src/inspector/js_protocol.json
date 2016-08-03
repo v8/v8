@@ -18,6 +18,7 @@
                 "id": "RemoteObject",
                 "type": "object",
                 "description": "Mirror object referencing original JavaScript object.",
+                "exported": true,
                 "properties": [
                     { "name": "type", "type": "string", "enum": ["object", "function", "undefined", "string", "number", "boolean", "symbol"], "description": "Object type." },
                     { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." },
@@ -166,6 +167,7 @@
                 "id": "StackTrace",
                 "type": "object",
                 "description": "Call frames for assertions or error messages.",
+                "exported": true,
                 "properties": [
                     { "name": "description", "type": "string", "optional": true, "description": "String label of this stack trace. For async traces this may be a name of the function that initiated the async call." },
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "JavaScript function name." },
@@ -176,6 +178,7 @@
         "commands": [
             {
                 "name": "evaluate",
+                "async": true,
                 "parameters": [
                     { "name": "expression", "type": "string", "description": "Expression to evaluate." },
                     { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects." },
@@ -184,7 +187,8 @@
                     { "name": "contextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which isolated context to perform evaluation. Each content script lives in an isolated context and this parameter may be used to specify one of those contexts. If the parameter is omitted or 0 the evaluation will be performed in the context of the inspected page." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "hidden": true, "description": "Whether preview should be generated for the result." },
-                    { "name": "userGesture", "type": "boolean", "optional": true, "hidden": true, "description": "Whether execution should be treated as initiated by user in the UI." }
+                    { "name": "userGesture", "type": "boolean", "optional": true, "hidden": true, "description": "Whether execution should be treated as initiated by user in the UI." },
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "hidden": true, "description": "Whether execution should wait for promise to be resolved. If the result of evaluation is not a Promise, it's considered to be an error." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Evaluation result." },
@@ -192,6 +196,22 @@
                     { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "hidden": true, "description": "Exception details."}
                 ],
                 "description": "Evaluates expression on global object."
+            },
+            {
+                "name": "awaitPromise",
+                "hidden": true,
+                "async": true,
+                "parameters": [
+                    { "name": "promiseObjectId", "$ref": "RemoteObjectId", "description": "Identifier of the promise." },
+                    { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "description": "Whether preview should be generated for the result." }
+                ],
+                "returns": [
+                    { "name": "result", "$ref": "RemoteObject", "description": "Promise result. Will contain rejected value if promise was rejected." },
+                    { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the promise was rejected." },
+                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details if stack strace is available."}
+                ],
+                "description": "Add handler to promise with given promise object id."
             },
             {
                 "name": "callFunctionOn",
@@ -427,6 +447,7 @@
                 "id": "SearchMatch",
                 "type": "object",
                 "description": "Search match for resource.",
+                "exported": true,
                 "properties": [
                     { "name": "lineNumber", "type": "number", "description": "Line number in resource content." },
                     { "name": "lineContent", "type": "string", "description": "Line with match content." }
@@ -700,7 +721,7 @@
                 "name": "paused",
                 "parameters": [
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "Call stack the virtual machine stopped on." },
-                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "other" ], "description": "Pause reason." },
+                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "other" ], "description": "Pause reason.", "exported": true },
                     { "name": "data", "type": "object", "optional": true, "description": "Object containing break-specific auxiliary properties." },
                     { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs", "hidden": true },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any.", "hidden": true }
