@@ -9197,12 +9197,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
       *map, map->is_prototype_map()
                 ? &RuntimeCallStats::PrototypeMap_TransitionToDataProperty
                 : &RuntimeCallStats::Map_TransitionToDataProperty);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      map->GetIsolate(),
-      (map->is_prototype_map()
-           ? &tracing::TraceEventStatsTable::
-                 PrototypeMap_TransitionToDataProperty
-           : &tracing::TraceEventStatsTable::Map_TransitionToDataProperty))
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -9289,12 +9283,6 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       map->is_prototype_map()
           ? &RuntimeCallStats::PrototypeMap_TransitionToAccessorProperty
           : &RuntimeCallStats::Map_TransitionToAccessorProperty);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate,
-      (map->is_prototype_map()
-           ? &tracing::TraceEventStatsTable::
-                 PrototypeMap_TransitionToAccessorProperty
-           : &tracing::TraceEventStatsTable::Map_TransitionToAccessorProperty));
 
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull(isolate) || !setter->IsNull(isolate));
@@ -12191,8 +12179,6 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
   RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      map->GetIsolate(), &tracing::TraceEventStatsTable::Map_SetPrototype);
 
   bool is_hidden = false;
   if (prototype->IsJSObject()) {

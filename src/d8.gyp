@@ -44,7 +44,6 @@
       # Generated source files need this explicitly:
       'include_dirs+': [
         '..',
-        '<(DEPTH)',
       ],
       'sources': [
         'd8.h',
