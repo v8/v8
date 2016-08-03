@@ -179,6 +179,7 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -237,6 +238,7 @@
       ],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -299,6 +301,7 @@
           ],
           'include_dirs+': [
             '..',
+            '<(DEPTH)',
           ],
           'sources': [
             'snapshot/natives-external.cc',
@@ -2352,6 +2355,7 @@
       'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         'snapshot/mksnapshot.cc',

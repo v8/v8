@@ -30,6 +30,7 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/runtime/runtime.h"
+#include "src/tracing/trace-event.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -845,6 +846,9 @@ class Isolate {
     DCHECK(counters_ != NULL);
     return counters_;
   }
+  tracing::TraceEventStatsTable* trace_event_stats_table() {
+    return &trace_event_stats_table_;
+  }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
@@ -1296,6 +1300,7 @@ class Isolate {
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
   Counters* counters_;
+  tracing::TraceEventStatsTable trace_event_stats_table_;
   base::RecursiveMutex break_access_;
   Logger* logger_;
   StackGuard stack_guard_;
