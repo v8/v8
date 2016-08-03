@@ -749,8 +749,8 @@ class Parser : public ParserBase<ParserTraits> {
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
   FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info,
-                             Utf16CharacterStream* source);
+  FunctionLiteral* DoParseLazy(Isolate* isolate, ParseInfo* info,
+                               Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);

@@ -1080,7 +1080,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
       stream.reset(new GenericStringUtf16CharacterStream(
           source, shared_info->start_position(), shared_info->end_position()));
     }
-    result = ParseLazy(isolate, info, stream.get());
+    result = DoParseLazy(isolate, info, stream.get());
   }
 
   if (FLAG_trace_parse && result != NULL) {
@@ -1104,8 +1104,8 @@ static FunctionLiteral::FunctionType ComputeFunctionType(
   return FunctionLiteral::kAnonymousExpression;
 }
 
-FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
-                                   Utf16CharacterStream* source) {
+FunctionLiteral* Parser::DoParseLazy(Isolate* isolate, ParseInfo* info,
+                                     Utf16CharacterStream* source) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
   DCHECK_NULL(scope_state_);
