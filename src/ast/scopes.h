@@ -114,9 +114,12 @@ class Scope: public ZoneObject {
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(ParseInfo* info);
 
+  enum class DeserializationMode { kDeserializeOffHeap, kKeepScopeInfo };
+
   static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                       Context* context, Scope* script_scope,
-                                      AstValueFactory* ast_value_factory);
+                                      AstValueFactory* ast_value_factory,
+                                      DeserializationMode deserialization_mode);
 
 #ifdef DEBUG
   // The scope name is only used for printing/debugging.
@@ -852,6 +855,9 @@ class Scope: public ZoneObject {
   }
 
   void SetDefaults();
+
+  void DeserializeScopeInfo(Isolate* isolate,
+                            AstValueFactory* ast_value_factory);
 
   PendingCompilationErrorHandler pending_error_handler_;
 };

@@ -4,6 +4,8 @@
 
 #include "src/ast/scopes.h"
 
+#include <set>
+
 #include "src/accessors.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
@@ -204,7 +206,8 @@ void Scope::SetDefaults() {
 
 Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                     Context* context, Scope* script_scope,
-                                    AstValueFactory* ast_value_factory) {
+                                    AstValueFactory* ast_value_factory,
+                                    DeserializationMode deserialization_mode) {
   // Reconstruct the outer scope chain from a closure's context chain.
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
@@ -239,6 +242,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
           new (zone) Scope(zone, current_scope,
                            ast_value_factory->GetString(handle(name, isolate)));
     }
+    if (deserialization_mode == DeserializationMode::kDeserializeOffHeap) {
+      current_scope->DeserializeScopeInfo(isolate, ast_value_factory);
+    }
     if (innermost_scope == NULL) innermost_scope = current_scope;
     context = context->previous();
   }
@@ -248,6 +254,78 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   return (innermost_scope == NULL) ? script_scope : innermost_scope;
 }
 
+void Scope::DeserializeScopeInfo(Isolate* isolate,
+                                 AstValueFactory* ast_value_factory) {
+  if (scope_info_.is_null()) return;
+
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+
+  std::set<const AstRawString*> names_seen;
+  // Internalize context local & globals variables.
+  for (int var = 0; var < scope_info_->ContextLocalCount() +
+                              scope_info_->ContextGlobalCount();
+       ++var) {
+    Handle<String> name_handle(scope_info_->ContextLocalName(var), isolate);
+    const AstRawString* name = ast_value_factory->GetString(name_handle);
+    if (!names_seen.insert(name).second) continue;
+    int index = Context::MIN_CONTEXT_SLOTS + var;
+    VariableMode mode = scope_info_->ContextLocalMode(var);
+    InitializationFlag init_flag = scope_info_->ContextLocalInitFlag(var);
+    MaybeAssignedFlag maybe_assigned_flag =
+        scope_info_->ContextLocalMaybeAssignedFlag(var);
+    VariableLocation location = var < scope_info_->ContextLocalCount()
+                                    ? VariableLocation::CONTEXT
+                                    : VariableLocation::GLOBAL;
+    Variable::Kind kind = Variable::NORMAL;
+    if (index == scope_info_->ReceiverContextSlotIndex()) {
+      kind = Variable::THIS;
+    }
+
+    Variable* result = variables_.Declare(this, name, mode, kind, init_flag,
+                                          maybe_assigned_flag);
+    result->AllocateTo(location, index);
+  }
+
+  // We must read parameters from the end since for multiply declared
+  // parameters the value of the last declaration of that parameter is used
+  // inside a function (and thus we need to look at the last index). Was bug#
+  // 1110337.
+  for (int index = scope_info_->ParameterCount() - 1; index >= 0; --index) {
+    Handle<String> name_handle(scope_info_->ParameterName(index), isolate);
+    const AstRawString* name = ast_value_factory->GetString(name_handle);
+    if (!names_seen.insert(name).second) continue;
+
+    VariableMode mode = DYNAMIC;
+    InitializationFlag init_flag = kCreatedInitialized;
+    MaybeAssignedFlag maybe_assigned_flag = kMaybeAssigned;
+    VariableLocation location = VariableLocation::LOOKUP;
+    Variable::Kind kind = Variable::NORMAL;
+
+    Variable* result = variables_.Declare(this, name, mode, kind, init_flag,
+                                          maybe_assigned_flag);
+    result->AllocateTo(location, index);
+  }
+
+  // Internalize function proxy for this scope.
+  if (scope_info_->HasFunctionName()) {
+    AstNodeFactory factory(ast_value_factory);
+    Handle<String> name_handle(scope_info_->FunctionName(), isolate);
+    const AstRawString* name = ast_value_factory->GetString(name_handle);
+    VariableMode mode;
+    int index = scope_info_->FunctionContextSlotIndex(*name_handle, &mode);
+    if (index >= 0) {
+      Variable* result = new (zone())
+          Variable(this, name, mode, Variable::NORMAL, kCreatedInitialized);
+      VariableProxy* proxy = factory.NewVariableProxy(result);
+      VariableDeclaration* declaration =
+          factory.NewVariableDeclaration(proxy, mode, this, kNoSourcePosition);
+      DeclareFunctionVar(declaration);
+      result->AllocateTo(VariableLocation::CONTEXT, index);
+    }
+  }
+
+  scope_info_ = Handle<ScopeInfo>::null();
+}
 
 bool Scope::Analyze(ParseInfo* info) {
   DCHECK(info->literal() != NULL);

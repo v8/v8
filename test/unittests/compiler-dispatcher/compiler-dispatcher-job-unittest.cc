@@ -17,6 +17,8 @@ typedef TestWithContext CompilerDispatcherJobTest;
 
 namespace {
 
+const char test_script[] = "x*x";
+
 class ScriptResource : public v8::String::ExternalOneByteStringResource {
  public:
   ScriptResource(const char* data, size_t length)
@@ -42,14 +44,14 @@ Handle<JSFunction> CreateFunction(
                  ->NewExternalStringFromOneByte(maybe_resource)
                  .ToHandleChecked();
   } else {
-    source = isolate->factory()->NewStringFromStaticChars("source");
+    source = isolate->factory()->NewStringFromAsciiChecked(test_script);
   }
   Handle<Script> script = isolate->factory()->NewScript(source);
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      isolate->factory()->NewStringFromStaticChars("f"), MaybeHandle<Code>(),
+      isolate->factory()->NewStringFromAsciiChecked("f"), MaybeHandle<Code>(),
       false);
   SharedFunctionInfo::SetScript(shared, script);
-  shared->set_end_position(source->length() - 1);
+  shared->set_end_position(source->length());
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, handle(isolate->context(), isolate));
@@ -70,7 +72,7 @@ TEST_F(CompilerDispatcherJobTest, CanParseOnBackgroundThread) {
     ASSERT_FALSE(job->can_parse_on_background_thread());
   }
   {
-    ScriptResource script("script", strlen("script"));
+    ScriptResource script(test_script, strlen(test_script));
     std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
         i_isolate(), CreateFunction(i_isolate(), &script), FLAG_stack_size));
     ASSERT_TRUE(job->can_parse_on_background_thread());

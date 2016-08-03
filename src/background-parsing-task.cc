@@ -61,6 +61,9 @@ void BackgroundParsingTask::Run() {
   Isolate* isolate = source_->info->isolate();
   source_->info->set_isolate(nullptr);
 
+  source_->parser->DeserializeScopeChain(
+      source_->info.get(), Handle<Context>::null(),
+      Scope::DeserializationMode::kDeserializeOffHeap);
   source_->parser->ParseOnBackground(source_->info.get());
 
   if (script_data_ != nullptr) {

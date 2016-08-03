@@ -69,6 +69,9 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parser_.reset(new Parser(parse_info_.get()));
+  parser_->DeserializeScopeChain(
+      parse_info_.get(), handle(function_->context(), isolate_),
+      Scope::DeserializationMode::kDeserializeOffHeap);
   status_ = CompileJobStatus::kReadyToParse;
 }
 

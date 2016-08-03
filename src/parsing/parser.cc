@@ -855,6 +855,31 @@ Parser::Parser(ParseInfo* info)
   }
 }
 
+void Parser::DeserializeScopeChain(
+    ParseInfo* info, Handle<Context> context,
+    Scope::DeserializationMode deserialization_mode) {
+  // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
+  // context, which will have the "this" binding for script scopes.
+  Scope* scope = NewScriptScope();
+  info->set_script_scope(scope);
+  if (!context.is_null() && !context->IsNativeContext()) {
+    scope =
+        Scope::DeserializeScopeChain(info->isolate(), zone(), *context, scope,
+                                     ast_value_factory(), deserialization_mode);
+    if (info->context().is_null()) {
+      DCHECK(deserialization_mode ==
+             Scope::DeserializationMode::kDeserializeOffHeap);
+    } else {
+      // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
+      // means the Parser cannot operate independent of the V8 heap. Tell the
+      // string table to internalize strings and values right after they're
+      // created. This kind of parsing can only be done in the main thread.
+      DCHECK(parsing_on_main_thread_);
+      ast_value_factory()->Internalize(info->isolate());
+    }
+  }
+  original_scope_ = scope;
+}
 
 FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
@@ -883,6 +908,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   } else if (consume_cached_parse_data()) {
     cached_parse_data_->Initialize();
   }
+
+  DeserializeScopeChain(info, info->context(),
+                        Scope::DeserializationMode::kKeepScopeInfo);
 
   source = String::Flatten(source);
   FunctionLiteral* result;
@@ -940,22 +968,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
   FunctionLiteral* result = NULL;
   {
-    // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
-    // context, which will have the "this" binding for script scopes.
-    Scope* scope = NewScriptScope();
-    info->set_script_scope(scope);
-    if (!info->context().is_null() && !info->context()->IsNativeContext()) {
-      scope = Scope::DeserializeScopeChain(info->isolate(), zone(),
-                                           *info->context(), scope,
-                                           ast_value_factory());
-      // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
-      // means the Parser cannot operate independent of the V8 heap. Tell the
-      // string table to internalize strings and values right after they're
-      // created. This kind of parsing can only be done in the main thread.
-      DCHECK(parsing_on_main_thread_);
-      ast_value_factory()->Internalize(info->isolate());
-    }
-    original_scope_ = scope;
+    Scope* scope = original_scope_;
+    DCHECK(scope);
     if (info->is_eval()) {
       if (!scope->is_script_scope() || is_strict(info->language_mode())) {
         parsing_mode = PARSE_EAGERLY;
@@ -1046,6 +1060,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
     timer.Start();
   }
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
+  DeserializeScopeChain(info, info->context(),
+                        Scope::DeserializationMode::kKeepScopeInfo);
 
   // Initialize parser state.
   source = String::Flatten(source);
@@ -1108,16 +1124,8 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = NewScriptScope();
-    info->set_script_scope(scope);
-    if (!info->context().is_null()) {
-      // Ok to use Isolate here, since lazy function parsing is only done in the
-      // main thread.
-      DCHECK(parsing_on_main_thread_);
-      scope = Scope::DeserializeScopeChain(isolate, zone(), *info->context(),
-                                           scope, ast_value_factory());
-    }
-    original_scope_ = scope;
+    Scope* scope = original_scope_;
+    DCHECK(scope);
     FunctionState function_state(&function_state_, &scope_state_, scope,
                                  shared_info->kind());
     DCHECK(is_sloppy(scope->language_mode()) ||
@@ -5469,6 +5477,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   }
   scanner_.Initialize(stream_ptr);
   DCHECK(info->context().is_null() || info->context()->IsNativeContext());
+
+  DCHECK(original_scope_);
 
   // When streaming, we don't know the length of the source until we have parsed
   // it. The raw data can be UTF-8, so we wouldn't know the source length until

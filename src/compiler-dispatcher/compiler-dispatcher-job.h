@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/handles.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 namespace internal {
@@ -59,6 +60,8 @@ class CompilerDispatcherJob {
   void ResetOnMainThread();
 
  private:
+  FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
+
   void InternalizeParsingResult();
 
   CompileJobStatus status_ = CompileJobStatus::kInitial;

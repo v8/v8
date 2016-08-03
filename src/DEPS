@@ -15,6 +15,7 @@ include_rules = [
   "+src/interpreter/bytecode-register.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",
+  "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform"
 ]

@@ -717,6 +717,9 @@ class Parser : public ParserBase<ParserTraits> {
   bool Parse(ParseInfo* info);
   void ParseOnBackground(ParseInfo* info);
 
+  void DeserializeScopeChain(ParseInfo* info, Handle<Context> context,
+                             Scope::DeserializationMode deserialization_mode);
+
   // Handle errors detected during parsing, move statistics to Isolate,
   // internalize strings (move them to the heap).
   void Internalize(Isolate* isolate, Handle<Script> script, bool error);
